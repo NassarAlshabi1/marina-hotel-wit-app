@@ -15,5 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Marina Hotel"
 include ':app'
-sed -i 's/include/include/g' settings.gradle
+sed -i 's/include/include/' 
 rootProject.name = "marina"
