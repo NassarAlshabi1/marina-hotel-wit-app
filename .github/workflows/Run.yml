@@ -1,0 +1,38 @@
+name: Build Marina Hotel APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # JDK 17 متوافق مع AGP 8.x
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3   # يقبل JDK 17
+
+      - name: Build debug APK
+        working-directory: /android_app  # أو android_app إذا كان هو الصحيح
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace --warning-mode all
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marina-hotel-apk
+          path: android_app/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
