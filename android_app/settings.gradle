@@ -15,5 +15,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Marina Hotel"
 include ':app'
-sed -i 's/include/include/' 
-rootProject.name = "marina"
