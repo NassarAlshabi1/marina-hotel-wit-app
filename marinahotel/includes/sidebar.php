@@ -75,7 +75,7 @@ require_once __DIR__ . '/config.php';
             </li>
             
             <li class="menu-dropdown">
-                <a href="#" class="<?= strpos($_SERVER['PHP_SELF'], '/settings/') !== false ? 'active' : ''; ?>">
+                <a href="#" class="<?= (strpos($_SERVER['PHP_SELF'], '/settings/') !== false || strpos($_SERVER['PHP_SELF'], '/system/') !== false) ? 'active' : ''; ?>">
                     <i class="fas fa-cog"></i>
                     <span>الإعدادات</span>
                     <i class="fas fa-chevron-down dropdown-icon"></i>
@@ -86,6 +86,7 @@ require_once __DIR__ . '/config.php';
                             <i class="fas fa-users"></i>
                             <span>المستخدمين والصلاحيات</span>
                         </a>
+                    </li>
                     <li>
                         <a href="<?= BASE_URL ?>admin/settings/hotel.php" class="<?= basename($_SERVER['PHP_SELF']) === 'hotel.php' ? 'active' : ''; ?>">
                             <i class="fas fa-hotel"></i>
@@ -93,13 +94,13 @@ require_once __DIR__ . '/config.php';
                         </a>
                     </li>
                     <li>
-                        <a href="<?= BASE_URL ?>admin/settings/system.php" class="<?= basename($_SERVER['PHP_SELF']) === 'system.php' ? 'active' : ''; ?>">
+                        <a href="<?= BASE_URL ?>admin/system/index.php" class="<?= strpos($_SERVER['PHP_SELF'], '/system/') !== false ? 'active' : ''; ?>">
                             <i class="fas fa-wrench"></i>
-                            <span>إعدادات النظام</span>
+                            <span>إدارة النظام</span>
                         </a>
                     </li>
                 </ul>
-            </li>/ul>
+            </li>
     </div>
     
     <div class="sidebar-footer">

@@ -34,7 +34,7 @@ define('UPLOAD_MAX_SIZE', 5 * 1024 * 1024); // 5 ميجابايت
 define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx']);
 
 // إعدادات المسار الأساسي للتطبيق
-define('BASE_URL', getenv('BASE_URL') ?: 'http://localhost/marina%20hotel/');
+define('BASE_URL', getenv('BASE_URL') ?: (isset($_SERVER['HTTP_HOST']) ? ('http://' . $_SERVER['HTTP_HOST'] . '/') : 'http://localhost/'));
 
 // مسارات النظام
 define('ROOT_PATH', dirname(__DIR__));
