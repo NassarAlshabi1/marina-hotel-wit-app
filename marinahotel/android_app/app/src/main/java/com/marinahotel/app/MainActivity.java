@@ -24,8 +24,8 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private SwipeRefreshLayout swipeRefreshLayout;
     
-    // رابط موقع النظام - قم بتغييره إلى رابط موقعك
-    private static final String WEBSITE_URL = "http://10.0.0.57/marina hotel/admin/";
+    // رابط موقع النظام - يتم تعيينه ديناميكياً من إعدادات النظام
+    private static final String WEBSITE_URL = "http://10.0.0.57/marina%20hotel/";
     
     @SuppressLint("SetJavaScriptEnabled")
     @Override
