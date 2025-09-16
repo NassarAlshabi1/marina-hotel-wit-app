@@ -4,16 +4,16 @@
  * يحتوي على جميع الإعدادات الأساسية والثوابت
  */
 
-// إعدادات قاعدة البيانات
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'hotel_db');
+// إعدادات قاعدة البيانات (تقرأ من المتغيرات البيئية عند توفرها)
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+define('DB_USER', getenv('DB_USER') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') ?: '');
+define('DB_NAME', getenv('DB_NAME') ?: 'hotel_db');
 
 // إعدادات الترميز والمنطقة الزمنية
 define('DB_CHARSET', 'utf8mb4');
 define('DB_COLLATE', 'utf8mb4_unicode_ci');
-define('TIMEZONE', 'Asia/Aden');
+define('TIMEZONE', getenv('TIMEZONE') ?: 'Asia/Aden');
 
 // إعدادات اللغة
 define('LANG', 'ar');
@@ -22,7 +22,7 @@ define('LANG_DIR', 'rtl');
 // إعدادات النظام
 define('SYSTEM_NAME', 'نظام إدارة فندق مارينا بلازا');
 define('SYSTEM_VERSION', '2.0.0');
-define('DEBUG_MODE', true); // تغيير إلى false في الإنتاج
+define('DEBUG_MODE', (bool)(getenv('DEBUG_MODE') !== false ? (int)getenv('DEBUG_MODE') : true)); // تغيير إلى false في الإنتاج
 
 // إعدادات الأمان
 define('SESSION_TIMEOUT', 1800); // 30 دقيقة
@@ -34,7 +34,7 @@ define('UPLOAD_MAX_SIZE', 5 * 1024 * 1024); // 5 ميجابايت
 define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx']);
 
 // إعدادات المسار الأساسي للتطبيق
-define('BASE_URL', 'http://localhost/marina%20hotel/');
+define('BASE_URL', getenv('BASE_URL') ?: 'http://localhost/marina%20hotel/');
 
 // مسارات النظام
 define('ROOT_PATH', dirname(__DIR__));
