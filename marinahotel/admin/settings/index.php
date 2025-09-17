@@ -152,8 +152,8 @@ include_once '../../includes/header.php';
                                     <i class="fas fa-cogs fa-2x text-warning mb-2"></i>
                                     <h6 class="card-title">جميع الإعدادات</h6>
                                     <p class="card-text small">الوصول لجميع الإعدادات</p>
-                                    <a href="#detailed-settings" class="btn btn-warning btn-sm">
-                                        <i class="fas fa-arrow-down me-1"></i>عرض
+                                    <a href="system_settings.php" class="btn btn-warning btn-sm">
+                                        <i class="fas fa-arrow-left me-1"></i>دخول
                                     </a>
                                 </div>
                             </div>
