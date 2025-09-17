@@ -271,8 +271,8 @@ jobs:
             <color name="black">#FF000000</color>
             
             <!-- Add the missing color resources -->
-            <color name="primary_color">@color/marina_blue</color>
-            <color name="primary_dark">@color/marina_blue_dark</color>
+            <color name="primary_color">#FF1976D2</color>
+            <color name="primary_dark">#FF0D47A1</color>
         </resources>
         EOF
         
@@ -370,7 +370,7 @@ jobs:
         android.enableJetifier=true
         EOF
         
-        # settings.gradle
+        # settings.gradle - تم تصحيح الخطأ هنا
         cat > android_app/settings.gradle << 'EOF'
         pluginManagement {
             repositories {
@@ -380,7 +380,7 @@ jobs:
             }
         }
         dependencyResolutionManagement {
-            repositoriesMode.set(RepositoriesMode.FAIL_ON PROJECT_REPOS)
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
             repositories {
                 google()
                 mavenCentral()
