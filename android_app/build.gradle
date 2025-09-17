@@ -2,59 +2,6 @@ plugins {
     id 'com.android.application'
 }
 
-// إعدادات التخزين المؤقت لتحسين الأداء
-buildCache {
-    local {
-        // تمكين التخزين المؤقت المحلي
-        enabled = true
-        // مسار التخزين المؤقت
-        directory = new File(rootDir, 'build-cache')
-        // إزالة التخزين المؤقت القديم
-        removeUnusedEntriesAfterDays = 7
-    }
-}
-
-// مهمة لتحميل الخطوط تلقائياً
-task downloadFonts {
-    doLast {
-        println "جاري تحميل الخطوط..."
-        
-        // إنشاء مجلد fonts إذا لم يكن موجوداً
-        def fontsDir = new File('src/main/res/font')
-        if (!fontsDir.exists()) {
-            fontsDir.mkdirs()
-            println "تم إنشاء مجلد الخطوط: $fontsDir"
-        }
-        
-        // روابط بديلة أكثر موثوقية للخطوط
-        def fontUrls = [
-            'https://fonts.google.com/download?family=Cairo': 'cairo.zip',
-            'https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Regular.ttf': 'cairo_regular.ttf',
-            'https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Bold.ttf': 'cairo_bold.ttf'
-        ]
-        
-        // محاولة تحميل الخطوط مع معالجة الأخطاء
-        try {
-            def fontFile = new File(fontsDir, 'cairo_regular.ttf')
-            if (!fontFile.exists()) {
-                println "جاري تحميل الخطوط من مصدر بديل..."
-                // استخدام خطوط بديلة مضمونة إذا فشل التحميل
-                def backupFont = new File(fontsDir, 'cairo_regular.ttf')
-                if (!backupFont.exists()) {
-                    // إنشاء ملف خط افتراضي بسيط إذا فشل التحميل
-                    fontsDir.mkdirs()
-                    println "تم استخدام الخطوط الافتراضية بسبب مشكلة في التحميل"
-                }
-            }
-        } catch (Exception e) {
-            println "تحذير: فشل تحميل الخطوط - ${e.message}"
-            println "سيتم المتابعة بدون تحميل الخطوط تلقائياً"
-        }
-        
-        println "تم الانتهاء من إعداد الخطوط"
-    }
-}
-
 android {
     namespace 'com.marinahotel.app'
     compileSdk 34
@@ -67,9 +14,6 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        
-        // إضافة إعدادات للشبكة
-        buildConfigField "int", "NETWORK_TIMEOUT", "30"
     }
 
     buildTypes {
@@ -78,35 +22,13 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
-            // زيادة وقت الانتظار للتحميل
-            buildConfigField "int", "NETWORK_TIMEOUT", "60"
+            debuggable true
         }
     }
     
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
-    }
-    
-    // إعدادات Gradle لتحسين الأداء
-    dexOptions {
-        javaMaxHeapSize "4g"
-        preDexLibraries true
-    }
-}
-
-configurations.all {
-    // إعدادات التخزين المؤقت للتبعيات
-    resolutionStrategy {
-        // تحديث التبعيات كل 10 دقائق
-        cacheChangingModulesFor 10, 'minutes'
-        cacheDynamicVersionsFor 10, 'minutes'
-        
-        // إعادة المحاولة عند فشل التحميل
-        retry {
-            maxRetries = 3
-            maxInterval = 30000
-        }
     }
 }
 
@@ -116,35 +38,7 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     
-    // استخدام إصدارات مستقرة من المكتبات
-    implementation 'androidx.core:core:1.12.0'
-    implementation 'androidx.core:core-ktx:1.12.0'
-    
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
-
-// جعل مهمة تحميل الخطوط تعمل قبل عملية البناء
-preBuild.dependsOn downloadFonts
-
-// مهمة لتنظيف التخزين المؤقت
-task cleanCache(type: Delete) {
-    delete 'build-cache', 'build', '.gradle'
-}
-
-// مهمة لإعداد البيئة قبل البناء
-task setupEnvironment {
-    doLast {
-        println "جاري إعداد بيئة البناء..."
-        // إنشاء المجلدات اللازمة
-        new File('src/main/res/font').mkdirs()
-        new File('src/main/res/drawable').mkdirs()
-        new File('src/main/res/layout').mkdirs()
-        
-        println "تم إعداد بيئة البناء بنجاح"
-    }
-}
-
-// تشغيل إعداد البيئة قبل التحميل
-downloadFonts.dependsOn setupEnvironment
