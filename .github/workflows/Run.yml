@@ -1,4 +1,4 @@
-name: ًںڈ¨ Build Marina Hotel APK
+name: Build Marina Hotel APK
 
 on:
   push:
@@ -29,25 +29,25 @@ jobs:
       VERSION_NAME: ${{ github.event.inputs.version_name || '1.0.0' }}
     
     steps:
-    - name: ًں“¥ Checkout code
+    - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: âک• Set up JDK 17
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
         
-    - name: ًں¤– Setup Android SDK
+    - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       
-    - name: ًں“‹ Display build information
+    - name: Display build information
       run: |
-        echo "ًںڈ—ï¸ڈ Building Marina Hotel APK"
-        echo "ًں“± Build Type: $BUILD_TYPE"
-        echo "ًںڈ·ï¸ڈ Version: $VERSION_NAME"
-        echo "ًںŒ؟ Branch: ${{ github.ref_name }}"
-        echo "ًں’¾ Commit: ${{ github.sha }}"
+        echo "Building Marina Hotel APK"
+        echo "Build Type: $BUILD_TYPE"
+        echo "Version: $VERSION_NAME"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Commit: ${{ github.sha }}"
       
     - name: Cache Gradle packages
       uses: actions/cache@v3
@@ -59,12 +59,22 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
           
-    - name: ًں”§ Setup Android project structure
+    - name: Setup Android project structure
       run: |
-        echo "ًںڈ—ï¸ڈ Creating Android project structure..."
-        mkdir -p android_app
+        echo "Creating Android project structure..."
+        mkdir -p android_app/app
+        mkdir -p android_app/src/main/java/com/marinahotel/app
+        mkdir -p android_app/src/main/res/layout
+        mkdir -p android_app/src/main/res/values
+        mkdir -p android_app/src/main/res/xml
+        mkdir -p android_app/src/main/res/mipmap-hdpi
+        mkdir -p android_app/src/main/res/mipmap-mdpi
+        mkdir -p android_app/src/main/res/mipmap-xhdpi
+        mkdir -p android_app/src/main/res/mipmap-xxhdpi
+        mkdir -p android_app/src/main/res/mipmap-xxxhdpi
+        mkdir -p android_app/src/main/assets
         
-        # Create gradle.properties with optimized settings
+        # gradle.properties
         cat > android_app/gradle.properties << 'EOF'
         org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
         org.gradle.parallel=true
@@ -76,7 +86,7 @@ jobs:
         android.nonFinalResIds=true
         EOF
         
-        # Create settings.gradle
+        # settings.gradle
         cat > android_app/settings.gradle << 'EOF'
         pluginManagement {
             repositories {
@@ -92,48 +102,12 @@ jobs:
                 mavenCentral()
             }
         }
-        
         include ':app'
         rootProject.name = 'Marina Hotel'
         EOF
         
-    - name: Create app directory structure
-      run: |
-        mkdir -p android_app/src/main/java/com/marinahotel/app
-        mkdir -p android_app/src/main/res/layout
-        mkdir -p android_app/src/main/res/values
-        mkdir -p android_app/src/main/res/xml
-        mkdir -p android_app/src/main/res/mipmap-hdpi
-        mkdir -p android_app/src/main/res/mipmap-mdpi
-        mkdir -p android_app/src/main/res/mipmap-xhdpi
-        mkdir -p android_app/src/main/res/mipmap-xxhdpi
-        mkdir -p android_app/src/main/res/mipmap-xxxhdpi
-        mkdir -p android_app/src/main/assets
-        
-    - name: Copy Android files
-      run: |
-        # Copy existing Android files if they exist
-        if [ -f "android_app/build.gradle" ]; then
-          echo "Android files already exist"
-        else
-          echo "Creating Android project structure..."
-        fi
-        
-        # Copy offline page to assets
-        if [ -f "marina_hotel_offline_new.html" ]; then
-          cp marina_hotel_offline_new.html android_app/src/main/assets/offline.html
-        fi
-        
-    - name: ًںڈ—ï¸ڈ Create root build.gradle
-      run: |
-        # Skip if build.gradle already exists (simplified project structure)
-        if [ -f "android_app/build.gradle" ]; then
-          echo "âœ… build.gradle already exists, using existing configuration"
-          echo "Current build.gradle content:"
-          head -10 android_app/build.gradle
-        else
-          echo "Creating root build.gradle..."
-          cat > android_app/build.gradle << 'EOF'
+        # Root build.gradle
+        cat > android_app/build.gradle << 'EOF'
         buildscript {
             ext {
                 compileSdkVersion = 34
@@ -165,15 +139,9 @@ jobs:
             delete rootProject.buildDir
         }
         EOF
-        fi
-        
-    - name: ًں“± Create app build.gradle
-      run: |
-        # Skip if build.gradle already exists
-        if [ -f "android_app/build.gradle" ]; then
-          echo "âœ… build.gradle already exists, skipping creation"
-        else
-          cat > android_app/build.gradle << EOF
+
+        # App build.gradle
+        cat > android_app/app/build.gradle << EOF
         plugins {
             id 'com.android.application'
         }
@@ -191,10 +159,7 @@ jobs:
         
                 testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
                 
-                // Enable Arabic RTL support
                 resConfigs "ar", "en"
-                
-                // WebView debugging in debug builds
                 buildConfigField "boolean", "DEBUG_WEBVIEW", "true"
                 buildConfigField "String", "SERVER_URL", "\\"https://marinahotel.app\\""
             }
@@ -213,8 +178,6 @@ jobs:
                     shrinkResources true
                     proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
                     buildConfigField "boolean", "DEBUG_WEBVIEW", "false"
-                    
-                    // Signing config would go here in production
                 }
             }
             
@@ -240,52 +203,36 @@ jobs:
             implementation "androidx.constraintlayout:constraintlayout:\$rootProject.ext.constraintLayoutVersion"
             implementation "androidx.swiperefreshlayout:swiperefreshlayout:\$rootProject.ext.swipeRefreshLayoutVersion"
             
-            // WebView and networking
             implementation 'androidx.webkit:webkit:1.9.0'
             implementation 'androidx.browser:browser:1.7.0'
-            
-            // Lifecycle components
             implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
             implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
-            
-            // Work Manager for background sync
             implementation 'androidx.work:work-runtime:2.9.0'
-            
-            // Local storage and preferences
             implementation 'androidx.preference:preference:1.2.1'
             implementation 'androidx.security:security-crypto:1.1.0-alpha06'
-            
-            // Testing
             testImplementation 'junit:junit:4.13.2'
             androidTestImplementation 'androidx.test.ext:junit:1.1.5'
             androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
         }
         EOF
-        fi
-        
-    - name: ًں”§ Create Gradle Wrapper
+
+    - name: Create Gradle Wrapper
       run: |
         cd android_app
         gradle wrapper --gradle-version 8.5 --distribution-type all
         
-    - name: ًں”گ Make gradlew executable
+    - name: Make gradlew executable
       run: chmod +x android_app/gradlew
       
-    - name: ًں§¹ Clean project
+    - name: Clean project
       run: |
         cd android_app
         ./gradlew clean --stacktrace
       
     - name: Create app icons
       run: |
-        # Create simple colored icons for different densities
-        # In a real project, you would use proper icon files
-        echo "Creating placeholder icons..."
-        
-        # Create a simple colored square as placeholder
         for density in hdpi mdpi xhdpi xxhdpi xxxhdpi; do
           mkdir -p android_app/src/main/res/mipmap-$density
-          # Create placeholder icon files (you would replace these with actual icons)
           touch android_app/src/main/res/mipmap-$density/ic_launcher.png
           touch android_app/src/main/res/mipmap-$density/ic_launcher_round.png
         done
@@ -303,12 +250,10 @@ jobs:
                 <item name="colorOnSecondary">@color/black</item>
                 <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
             </style>
-            
             <style name="Theme.MarinaHotel.NoActionBar">
                 <item name="windowActionBar">false</item>
                 <item name="windowNoTitle">true</item>
             </style>
-            
             <style name="Theme.MarinaHotel.Splash" parent="Theme.MarinaHotel.NoActionBar">
                 <item name="android:windowBackground">@color/marina_blue</item>
                 <item name="android:windowFullscreen">true</item>
@@ -318,7 +263,6 @@ jobs:
         
     - name: Create XML resources
       run: |
-        # Create XML directory if it doesn't exist
         mkdir -p android_app/src/main/res/xml
         
         cat > android_app/src/main/res/xml/backup_rules.xml << 'EOF'
@@ -348,11 +292,9 @@ jobs:
         </paths>
         EOF
         
-    - name: ًںڈ—ï¸ڈ Build APK
+    - name: Build APK
       run: |
         cd android_app
-        echo "ًںڑ€ Building $BUILD_TYPE APK..."
-        
         if [ "$BUILD_TYPE" = "release" ]; then
           ./gradlew assembleRelease --stacktrace --info
           APK_PATH="app/build/outputs/apk/release/app-release.apk"
@@ -360,57 +302,50 @@ jobs:
           ./gradlew assembleDebug --stacktrace --info
           APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
         fi
-        
         echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
-        
-        # Verify APK was created
         if [ -f "$APK_PATH" ]; then
-          echo "âœ… APK built successfully: $APK_PATH"
+          echo "APK built successfully: $APK_PATH"
           ls -la "$APK_PATH"
-          
-          # Get APK info
-          echo "ًں“ٹ APK Information:"
           file "$APK_PATH"
           du -h "$APK_PATH"
         else
-          echo "â‌Œ APK build failed - file not found: $APK_PATH"
+          echo "APK build failed - file not found: $APK_PATH"
           exit 1
         fi
         
-    - name: ًں“¤ Upload APK artifact
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: marina-hotel-${{ env.BUILD_TYPE }}-apk-v${{ env.VERSION_NAME }}
         path: android_app/${{ env.APK_PATH }}
         retention-days: 30
         
-    - name: ًں“‹ Generate build summary
+    - name: Generate build summary
       run: |
-        echo "## ًںڈ¨ Marina Hotel APK Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## Marina Hotel APK Build Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### ًں“± Build Details" >> $GITHUB_STEP_SUMMARY
+        echo "### Build Details" >> $GITHUB_STEP_SUMMARY
         echo "- **Build Type:** $BUILD_TYPE" >> $GITHUB_STEP_SUMMARY
         echo "- **Version:** $VERSION_NAME" >> $GITHUB_STEP_SUMMARY
         echo "- **Version Code:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### ًں“¦ APK Information" >> $GITHUB_STEP_SUMMARY
-        
+        echo "### APK Information" >> $GITHUB_STEP_SUMMARY
         cd android_app
         if [ -f "$APK_PATH" ]; then
           APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
           echo "- **APK Size:** $APK_SIZE" >> $GITHUB_STEP_SUMMARY
           echo "- **APK Path:** $APK_PATH" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### âœ… Build Status" >> $GITHUB_STEP_SUMMARY
-          echo "Build completed successfully! ًںژ‰" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "Build completed successfully!" >> $GITHUB_STEP_SUMMARY
         else
-          echo "### â‌Œ Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Status" >> $GITHUB_STEP_SUMMARY
           echo "Build failed!" >> $GITHUB_STEP_SUMMARY
         fi
         
-    - name: ًںڑ€ Create Release
+    - name: Create Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       id: create_release
       uses: softprops/action-gh-release@v1
@@ -418,55 +353,47 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ env.VERSION_NAME }}-${{ github.run_number }}
-        name: ًںڈ¨ Marina Hotel Mobile v${{ env.VERSION_NAME }}
+        name: Marina Hotel Mobile v${{ env.VERSION_NAME }}
         body: |
-          ## ًںڈ¨ Marina Hotel Mobile App - ظ†ط¸ط§ظ… ط¥ط¯ط§ط±ط© ظپظ†ط¯ظ‚ ظ…ط§ط±ظٹظ†ط§ ط§ظ„ظ…ط­ظ…ظˆظ„
-          
-          ### âœ¨ ط§ظ„ظ…ظٹط²ط§طھ ط§ظ„ط¬ط¯ظٹط¯ط© / New Features:
-          - ًں“± طھط·ط¨ظٹظ‚ ط£ظ†ط¯ط±ظˆظٹط¯ ط£طµظ„ظٹ ظ…ط¹ WebView ظ…ط­ط³ظ† / Native Android app with optimized WebView
-          - ًں”„ ظ…ط²ط§ظ…ظ†ط© ط§ظ„ط¨ظٹط§ظ†ط§طھ ظپظٹ ط§ظ„ظˆظ‚طھ ط§ظ„ظپط¹ظ„ظٹ / Real-time data synchronization
-          - ًں“¶ ط¯ط¹ظ… ط§ظ„ط¹ظ…ظ„ ط¯ظˆظ† ط§طھطµط§ظ„ ظ…ط¹ ط§ظ„طھط®ط²ظٹظ† ط§ظ„ظ…ط­ظ„ظٹ / Offline support with local caching
-          - ًںڈ¨ ظˆط¸ط§ط¦ظپ ط¥ط¯ط§ط±ط© ط§ظ„ظپظ†ط¯ظ‚ ط§ظ„ظƒط§ظ…ظ„ط© / Complete hotel management functionality
-          - ًںŒگ ظˆط§ط¬ظ‡ط© ط¹ط±ط¨ظٹط© RTL ظ…ط­ط³ظ†ط© / Enhanced Arabic RTL interface
-          - ًں”گ ط£ظ…ط§ظ† ظ…ط­ط³ظ† ظ…ط¹ طھط´ظپظٹط± ط§ظ„ط¨ظٹط§ظ†ط§طھ / Enhanced security with data encryption
-          - ًںژ¨ طھطµظ…ظٹظ… Material Design 3 / Material Design 3 UI
-          - ًں”” ط¥ط´ط¹ط§ط±ط§طھ ظپظˆط±ظٹط© / Push notifications support
-          
-          ### ًں“¥ ط§ظ„طھط«ط¨ظٹطھ / Installation:
-          1. ظ‚ظ… ط¨طھط­ظ…ظٹظ„ ظ…ظ„ظپ APK / Download the APK file
-          2. ظپط¹ظ„ "ط§ظ„طھط«ط¨ظٹطھ ظ…ظ† ظ…طµط§ط¯ط± ط؛ظٹط± ظ…ط¹ط±ظˆظپط©" ظپظٹ ط¥ط¹ط¯ط§ط¯ط§طھ ط£ظ†ط¯ط±ظˆظٹط¯ / Enable "Install from unknown sources" in Android settings
-          3. ظ‚ظ… ط¨طھط«ط¨ظٹطھ APK / Install the APK
-          4. ط§ط¶ط¨ط· ط±ط§ط¨ط· ط§ظ„ط®ط§ط¯ظ… ظپظٹ ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„طھط·ط¨ظٹظ‚ / Configure your server URL in app settings
-          
-          ### ًں”§ ط§ظ„طھظپط§طµظٹظ„ ط§ظ„طھظ‚ظ†ظٹط© / Technical Details:
-          - **ط§ظ„ط­ط¯ ط§ظ„ط£ط¯ظ†ظ‰ ظ„ط¥طµط¯ط§ط± ط£ظ†ط¯ط±ظˆظٹط¯ / Minimum Android:** 5.0 (API 21)
-          - **ط§ظ„ط¥طµط¯ط§ط± ط§ظ„ظ…ط³طھظ‡ط¯ظپ / Target Android:** 14 (API 34)
-          - **ط­ط¬ظ… ط§ظ„طھط·ط¨ظٹظ‚ / App Size:** ~8-15 MB
-          - **ط§ظ„ط£ط°ظˆظ†ط§طھ / Permissions:** ط§ظ„ط¥ظ†طھط±ظ†طھطŒ ط§ظ„طھط®ط²ظٹظ†طŒ ط§ظ„ظƒط§ظ…ظٹط±ط§ (ط§ط®طھظٹط§ط±ظٹ) / Internet, Storage, Camera (optional)
-          - **ظ†ظˆط¹ ط§ظ„ط¨ظ†ط§ط، / Build Type:** ${{ env.BUILD_TYPE }}
-          - **ط±ظ‚ظ… ط§ظ„ط¥طµط¯ط§ط± / Version Code:** ${{ github.run_number }}
-          
-          ### ًںŒں ط§ظ„ظ…طھط·ظ„ط¨ط§طھ / Requirements:
-          - ط¬ظ‡ط§ط² ط£ظ†ط¯ط±ظˆظٹط¯ 5.0 ط£ظˆ ط£ط­ط¯ط« / Android 5.0+ device
-          - ط§طھطµط§ظ„ ط¨ط§ظ„ط¥ظ†طھط±ظ†طھ ظ„ظ„ظ…ط²ط§ظ…ظ†ط© / Internet connection for sync
-          - 50 ظ…ظٹط¬ط§ط¨ط§ظٹطھ ظ…ط³ط§ط­ط© طھط®ط²ظٹظ† / 50MB storage space
-          
+          ## Marina Hotel Mobile App - Hotel Management System
+          ### New Features:
+          - Native Android app with optimized WebView
+          - Real-time data synchronization
+          - Offline support with local caching
+          - Complete hotel management functionality
+          - Enhanced Arabic RTL interface
+          - Enhanced security with data encryption
+          - Material Design 3 UI
+          - Push notifications support
+          ### Installation:
+          1. Download the APK file
+          2. Enable "Install from unknown sources" in Android settings
+          3. Install the APK
+          4. Configure your server URL in app settings
+          ### Technical Details:
+          - **Minimum Android:** 5.0 (API 21)
+          - **Target Android:** 14 (API 34)
+          - **App Size:** ~8-15 MB
+          - **Permissions:** Internet, camera (optional)
+          - **Build Type:** ${{ env.BUILD_TYPE }}
+          - **Version Code:** ${{ github.run_number }}
+          ### Requirements:
+          - Android 5.0+ device
+          - Internet connection for sync
+          - 50MB storage space
           ---
-          
-          **طھظ… ط§ظ„ط¨ظ†ط§ط، طھظ„ظ‚ط§ط¦ظٹط§ظ‹ ط¨ظˆط§ط³ط·ط© GitHub Actions**
           **Built automatically by GitHub Actions**
         files: android_app/${{ env.APK_PATH }}
         draft: false
         prerelease: ${{ github.ref != 'refs/heads/main' }}
         
-    - name: ًں’¬ Comment on PR
+    - name: Comment on PR
       if: github.event_name == 'pull_request'
       uses: actions/github-script@v7
       with:
         script: |
           const fs = require('fs');
           const path = 'android_app/${{ env.APK_PATH }}';
-          
           let apkSize = 'Unknown';
           try {
             const stats = fs.statSync(path);
@@ -474,24 +401,18 @@ jobs:
           } catch (e) {
             console.log('Could not get APK size:', e.message);
           }
-          
-          const comment = `## ًںڈ¨ Marina Hotel APK Build Results
-          
-          ### âœ… Build Successful!
-          
-          **ًں“± APK Details:**
+          const comment = `## Marina Hotel APK Build Results
+          ### Build Successful!
+          **APK Details:**
           - **Build Type:** ${{ env.BUILD_TYPE }}
           - **Version:** ${{ env.VERSION_NAME }}
           - **Size:** ${apkSize}
           - **Download:** [APK Artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          
-          **ًں”§ Build Info:**
+          **Build Info:**
           - **Commit:** ${{ github.sha }}
           - **Branch:** ${{ github.ref_name }}
           - **Run:** #${{ github.run_number }}
-          
           The APK has been built successfully and is available for download from the Actions artifacts.`;
-          
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
