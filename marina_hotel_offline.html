@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏨 مارينا هوتل - النظام المحسن</title>
+    <link href="includes/css/bootstrap.min.css" rel="stylesheet">
+    <link href="includes/css/fontawesome.min.css" rel="stylesheet">
+    <link href="includes/css/cairo-font.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Cairo', sans-serif;
+            padding: 20px 0;
+        }
+        .main-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        .header-section {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .hotel-logo {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin: 0 auto 20px;
+            color: #333;
+            animation: logoFloat 3s ease-in-out infinite;
+            box-shadow: 0 15px 40px rgba(255, 215, 0, 0.4);
+        }
+        @keyframes logoFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+        .feature-card {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 15px 0;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.3);
+            background: rgba(102, 126, 234, 0.15);
+        }
+        .btn-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 15px 30px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .btn-custom:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
+            color: white;
+        }
+        .status-badge {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        .version-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="main-card">
+                
+                <!-- Header Section -->
+                <div class="header-section">
+                    <div class="hotel-logo">
+                        <i class="fas fa-hotel"></i>
+                    </div>
+                    <h1 class="mb-3">مارينا هوتل</h1>
+                    <h3>نظام إدارة الدفعات المطور</h3>
+                    <div class="status-badge">
+                        <i class="fas fa-check-circle me-2"></i>
+                        يعمل بدون إنترنت
+                    </div>
+                </div>
+
+                <!-- Content Section -->
+                <div class="p-5">
+                    
+                    <div class="version-info text-center">
+                        <h4 class="text-primary mb-3">
+                            <i class="fas fa-rocket me-2"></i>
+                            الإصدار 2.0 - محسن بالكامل
+                        </h4>
+                        <p class="text-muted">
+                            جميع الملفات محلية • أداء سريع • تصميم متقدم • يعمل بدون إنترنت
+                        </p>
+                    </div>
+
+                    <div class="row">
+                        <!-- Premium Version -->
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <div class="text-center">
+                                    <i class="fas fa-crown fa-3x text-warning mb-3"></i>
+                                    <h4>النسخة المطورة</h4>
+                                    <p class="text-muted mb-4">
+                                        شعار متحرك • تأثيرات ثلاثية الأبعاد • عدادات متحركة • دائرة التقدم
+                                    </p>
+                                    <a href="admin/bookings/payment_premium.php?id=1" class="btn-custom">
+                                        <i class="fas fa-star me-2"></i>
+                                        النسخة المطورة
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Standard Version -->
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <div class="text-center">
+                                    <i class="fas fa-desktop fa-3x text-info mb-3"></i>
+                                    <h4>النسخة الأساسية</h4>
+                                    <p class="text-muted mb-4">
+                                        تصميم محسن • ألوان متدرجة • تأثيرات تفاعلية • سهل الاستخدام
+                                    </p>
+                                    <a href="admin/bookings/payment.php?id=1" class="btn-custom">
+                                        <i class="fas fa-play me-2"></i>
+                                        النسخة الأساسية
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Features List -->
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <i class="fas fa-wifi-slash fa-2x text-success mb-2"></i>
+                                <h6>بدون إنترنت</h6>
+                                <small class="text-muted">يعمل بالكامل محلياً</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <i class="fas fa-bolt fa-2x text-warning mb-2"></i>
+                                <h6>سرعة فائقة</h6>
+                                <small class="text-muted">تحميل أقل من ثانية</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <i class="fas fa-mobile-alt fa-2x text-info mb-2"></i>
+                                <h6>متجاوب</h6>
+                                <small class="text-muted">يعمل على جميع الأجهزة</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Access -->
+                    <div class="mt-5 text-center">
+                        <h5 class="mb-3">
+                            <i class="fas fa-tools me-2"></i>
+                            أدوات التشخيص والإصلاح
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <a href="test_payment_system.php" class="btn btn-outline-primary w-100 mb-2">
+                                    <i class="fas fa-vial me-2"></i>
+                                    اختبار النظام
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="admin/bookings/payment_diagnostic.php" class="btn btn-outline-secondary w-100 mb-2">
+                                    <i class="fas fa-stethoscope me-2"></i>
+                                    تشخيص النظام
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="fix_payment_system.php" class="btn btn-outline-warning w-100 mb-2">
+                                    <i class="fas fa-wrench me-2"></i>
+                                    إصلاح النظام
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Documentation -->
+                    <div class="mt-4 p-4 bg-light rounded">
+                        <h6>
+                            <i class="fas fa-book me-2"></i>
+                            الدليل والتوثيق
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <a href="OFFLINE_SYSTEM_README.md" class="btn btn-sm btn-outline-info me-2 mb-2">
+                                    📖 دليل النظام المحلي
+                                </a>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="PAYMENT_SYSTEM_README.md" class="btn btn-sm btn-outline-success mb-2">
+                                    📋 دليل نظام الدفعات
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="text-center mt-5 pt-4 border-top">
+                        <p class="text-muted mb-2">
+                            <i class="fas fa-code me-2"></i>
+                            تم التطوير بواسطة فريق مارينا هوتل التقني
+                        </p>
+                        <small class="text-muted">
+                            الإصدار 2.0 • ديسمبر 2024 • جميع الحقوق محفوظة
+                        </small>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="includes/js/bootstrap.bundle.min.js"></script>
+<script>
+// Simple animation for feature cards
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.feature-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(30px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.6s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 200 + 500);
+    });
+
+    // Logo click effect
+    const logo = document.querySelector('.hotel-logo');
+    logo.addEventListener('click', function() {
+        this.style.transform = 'scale(1.2) rotate(360deg)';
+        setTimeout(() => {
+            this.style.transform = 'scale(1) rotate(0deg)';
+        }, 600);
+    });
+});
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏨 مارينا هوتل - النظام المحسن</title>
+    <link href="includes/css/bootstrap.min.css" rel="stylesheet">
+    <link href="includes/css/fontawesome.min.css" rel="stylesheet">
+    <link href="includes/css/cairo-font.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Cairo', sans-serif;
+            padding: 20px 0;
+        }
+        .main-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        .header-section {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .hotel-logo {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin: 0 auto 20px;
+            color: #333;
+            animation: logoFloat 3s ease-in-out infinite;
+            box-shadow: 0 15px 40px rgba(255, 215, 0, 0.4);
+        }
+        @keyframes logoFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+        .feature-card {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 15px 0;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.3);
+            background: rgba(102, 126, 234, 0.15);
+        }
+        .btn-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 15px 30px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .btn-custom:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
+            color: white;
+        }
+        .status-badge {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        .version-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="main-card">
+                
+                <!-- Header Section -->
+                <div class="header-section">
+                    <div class="hotel-logo">
+                        <i class="fas fa-hotel"></i>
+                    </div>
+                    <h1 class="mb-3">مارينا هوتل</h1>
+                    <h3>نظام إدارة الدفعات المطور</h3>
+                    <div class="status-badge">
+                        <i class="fas fa-check-circle me-2"></i>
+                        يعمل بدون إنترنت
+                    </div>
+                </div>
+
+                <!-- Content Section -->
+                <div class="p-5">
+                    
+                    <div class="version-info text-center">
+                        <h4 class="text-primary mb-3">
+                            <i class="fas fa-rocket me-2"></i>
+                            الإصدار 2.0 - محسن بالكامل
+                        </h4>
+                        <p class="text-muted">
+                            جميع الملفات محلية • أداء سريع • تصميم متقدم • يعمل بدون إنترنت
+                        </p>
+                    </div>
+
+                    <div class="row">
+                        <!-- Premium Version -->
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <div class="text-center">
+                                    <i class="fas fa-crown fa-3x text-warning mb-3"></i>
+                                    <h4>النسخة المطورة</h4>
+                                    <p class="text-muted mb-4">
+                                        شعار متحرك • تأثيرات ثلاثية الأبعاد • عدادات متحركة • دائرة التقدم
+                                    </p>
+                                    <a href="admin/bookings/payment_premium.php?id=1" class="btn-custom">
+                                        <i class="fas fa-star me-2"></i>
+                                        النسخة المطورة
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Standard Version -->
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <div class="text-center">
+                                    <i class="fas fa-desktop fa-3x text-info mb-3"></i>
+                                    <h4>النسخة الأساسية</h4>
+                                    <p class="text-muted mb-4">
+                                        تصميم محسن • ألوان متدرجة • تأثيرات تفاعلية • سهل الاستخدام
+                                    </p>
+                                    <a href="admin/bookings/payment.php?id=1" class="btn-custom">
+                                        <i class="fas fa-play me-2"></i>
+                                        النسخة الأساسية
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Features List -->
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <i class="fas fa-wifi-slash fa-2x text-success mb-2"></i>
+                                <h6>بدون إنترنت</h6>
+                                <small class="text-muted">يعمل بالكامل محلياً</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <i class="fas fa-bolt fa-2x text-warning mb-2"></i>
+                                <h6>سرعة فائقة</h6>
+                                <small class="text-muted">تحميل أقل من ثانية</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <i class="fas fa-mobile-alt fa-2x text-info mb-2"></i>
+                                <h6>متجاوب</h6>
+                                <small class="text-muted">يعمل على جميع الأجهزة</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Access -->
+                    <div class="mt-5 text-center">
+                        <h5 class="mb-3">
+                            <i class="fas fa-tools me-2"></i>
+                            أدوات التشخيص والإصلاح
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <a href="test_payment_system.php" class="btn btn-outline-primary w-100 mb-2">
+                                    <i class="fas fa-vial me-2"></i>
+                                    اختبار النظام
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="admin/bookings/payment_diagnostic.php" class="btn btn-outline-secondary w-100 mb-2">
+                                    <i class="fas fa-stethoscope me-2"></i>
+                                    تشخيص النظام
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="fix_payment_system.php" class="btn btn-outline-warning w-100 mb-2">
+                                    <i class="fas fa-wrench me-2"></i>
+                                    إصلاح النظام
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Documentation -->
+                    <div class="mt-4 p-4 bg-light rounded">
+                        <h6>
+                            <i class="fas fa-book me-2"></i>
+                            الدليل والتوثيق
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <a href="OFFLINE_SYSTEM_README.md" class="btn btn-sm btn-outline-info me-2 mb-2">
+                                    📖 دليل النظام المحلي
+                                </a>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="PAYMENT_SYSTEM_README.md" class="btn btn-sm btn-outline-success mb-2">
+                                    📋 دليل نظام الدفعات
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="text-center mt-5 pt-4 border-top">
+                        <p class="text-muted mb-2">
+                            <i class="fas fa-code me-2"></i>
+                            تم التطوير بواسطة فريق مارينا هوتل التقني
+                        </p>
+                        <small class="text-muted">
+                            الإصدار 2.0 • ديسمبر 2024 • جميع الحقوق محفوظة
+                        </small>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="includes/js/bootstrap.bundle.min.js"></script>
+<script>
+// Simple animation for feature cards
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.feature-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(30px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.6s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 200 + 500);
+    });
+
+    // Logo click effect
+    const logo = document.querySelector('.hotel-logo');
+    logo.addEventListener('click', function() {
+        this.style.transform = 'scale(1.2) rotate(360deg)';
+        setTimeout(() => {
+            this.style.transform = 'scale(1) rotate(0deg)';
+        }, 600);
+    });
+});
+</script>
+
+</body>
+</html>

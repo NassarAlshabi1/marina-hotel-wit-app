@@ -15,3 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Marina Hotel"
 include ':app'
+hinclude ':app'
+rootProject.name = "Login Form 2"

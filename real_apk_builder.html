@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بناء APK حقيقي - فندق مارينا</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        h1 {
+            text-align: center;
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+        .error-box {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .solution-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            border-right: 5px solid #28a745;
+        }
+        .solution-title {
+            color: #28a745;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .badge {
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge.recommended { background: #ff6b35; }
+        .badge.fast { background: #4ecdc4; }
+        .badge.professional { background: #45b7d1; }
+        
+        .steps {
+            list-style: none;
+            padding: 0;
+        }
+        .steps li {
+            background: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-right: 3px solid #28a745;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .step-number {
+            background: #28a745;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .action-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 500;
+            margin: 8px 4px;
+            display: inline-block;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        }
+        .action-btn.secondary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+        .action-btn.primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+            direction: ltr;
+            text-align: left;
+        }
+        .highlight {
+            background: #fff3cd;
+            border-right: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 حل مشكلة تحليل الحزمة</h1>
+        
+        <div class="error-box">
+            <h3>❌ المشكلة المكتشفة</h3>
+            <p><strong>"حدثت مشكلة أثناء تحليل الحزمة"</strong></p>
+            <p>السبب: الملف السابق كان تجريبياً وليس APK حقيقي</p>
+        </div>
+
+        <!-- الحل الأول: APK Builder عبر الإنترنت -->
+        <div class="solution-card">
+            <div class="solution-title">
+                🌐 الحل الأول: استخدام أدوات البناء المجانية
+                <span class="badge recommended">مُوصى به</span>
+            </div>
+            <p>استخدام خدمات بناء APK المجانية عبر الإنترنت التي تنتج ملفات APK صحيحة.</p>
+            
+            <ol class="steps">
+                <li>
+                    <div class="step-number">1</div>
+                    <div>
+                        <strong>AppGyver (SAP Build Apps)</strong><br>
+                        منصة مجانية لبناء تطبيقات بدون كود
+                    </div>
+                </li>
+                <li>
+                    <div class="step-number">2</div>
+                    <div>
+                        <strong>PWA Builder (Microsoft)</strong><br>
+                        تحويل موقعك إلى تطبيق حقيقي
+                    </div>
+                </li>
+                <li>
+                    <div class="step-number">3</div>
+                    <div>
+                        <strong>Nativefier</strong><br>
+                        أداة سطر أوامر لتحويل المواقع إلى تطبيقات
+                    </div>
+                </li>
+            </ol>
+            
+            <a href="https://www.pwabuilder.com" class="action-btn primary" target="_blank">
+                🔗 فتح PWA Builder
+            </a>
+            <button class="action-btn" onclick="setupPWABuilder()">
+                ⚙️ إعداد PWA Builder
+            </button>
+        </div>
+
+        <!-- الحل الثاني: GitHub Actions -->
+        <div class="solution-card">
+            <div class="solution-title">
+                ⚡ الحل الثاني: GitHub Actions (الأكثر احترافية)
+                <span class="badge professional">احترافي</span>
+            </div>
+            <p>استخدام GitHub لبناء APK تلقائياً باستخدام Android SDK الحقيقي.</p>
+            
+            <ol class="steps">
+                <li>
+                    <div class="step-number">1</div>
+                    <div>إنشاء حساب GitHub مجاني</div>
+                </li>
+                <li>
+                    <div class="step-number">2</div>
+                    <div>رفع ملفات المشروع</div>
+                </li>
+                <li>
+                    <div class="step-number">3</div>
+                    <div>إضافة ملف workflow للبناء التلقائي</div>
+                </li>
+                <li>
+                    <div class="step-number">4</div>
+                    <div>تحميل APK المُنتج من Actions</div>
+                </li>
+            </ol>
+            
+            <button class="action-btn" onclick="setupGitHubActions()">
+                🚀 إعداد GitHub Actions
+            </button>
+            <button class="action-btn secondary" onclick="showWorkflowCode()">
+                📋 عرض الكود
+            </button>
+        </div>
+
+        <!-- الحل الثالث: Nativefier -->
+        <div class="solution-card">
+            <div class="solution-title">
+                ⚡ الحل الثالث: Nativefier (الأسرع)
+                <span class="badge fast">سريع</span>
+            </div>
+            <p>أداة Node.js لتحويل أي موقع إلى تطبيق حقيقي خلال دقائق.</p>
+            
+            <div class="highlight">
+                <strong>💡 هذا الحل يتطلب:</strong> Node.js مثبت على جهازك
+            </div>
+            
+            <ol class="steps">
+                <li>
+                    <div class="step-number">1</div>
+                    <div>تثبيت Node.js</div>
+                </li>
+                <li>
+                    <div class="step-number">2</div>
+                    <div>تثبيت Nativefier</div>
+                </li>
+                <li>
+                    <div class="step-number">3</div>
+                    <div>تشغيل أمر البناء</div>
+                </li>
+                <li>
+                    <div class="step-number">4</div>
+                    <div>تحميل APK الناتج</div>
+                </li>
+            </ol>
+            
+            <button class="action-btn" onclick="setupNativefier()">
+                🔧 إعداد Nativefier
+            </button>
+        </div>
+
+        <!-- الحل المؤقت: PWA -->
+        <div class="solution-card">
+            <div class="solution-title">
+                📱 الحل المؤقت: Progressive Web App
+                <span class="badge fast">فوري</span>
+            </div>
+            <p>تحويل موقعك إلى PWA يمكن تثبيته مباشرة من المتصفح - بدون APK!</p>
+            
+            <div class="success">
+                <strong>✅ المميزات:</strong><br>
+                • يعمل فوراً بدون تثبيت APK<br>
+                • يظهر كتطبيق حقيقي في الهاتف<br>
+                • يعمل بدون إنترنت<br>
+                • تحديثات تلقائية
+            </div>
+            
+            <button class="action-btn" onclick="createPWA()">
+                ⚡ إنشاء PWA الآن
+            </button>
+        </div>
+
+        <div class="warning">
+            <h4>🎯 أيهم أفضل لك؟</h4>
+            <ul>
+                <li><strong>للاستخدام الفوري:</strong> PWA (5 دقائق)</li>
+                <li><strong>للجودة العالية:</strong> GitHub Actions (15 دقيقة)</li>
+                <li><strong>للسهولة:</strong> PWA Builder (10 دقائق)</li>
+                <li><strong>للتحكم الكامل:</strong> Nativefier (إذا كان لديك Node.js)</li>
+            </ul>
+        </div>
+
+        <!-- منطقة الكود -->
+        <div id="codeSection" style="display: none;">
+            <h3>📋 كود GitHub Workflow:</h3>
+            <div class="code-block" id="workflowCode"></div>
+            <button class="action-btn secondary" onclick="copyToClipboard('workflowCode')">
+                📋 نسخ الكود
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function setupPWABuilder() {
+            alert('🌐 إعداد PWA Builder:\n\n' +
+                  '1. اذهب إلى pwabuilder.com\n' +
+                  '2. أدخل رابط موقعك: http://10.0.0.57/marina hotel/admin/\n' +
+                  '3. اضغط "Start"\n' +
+                  '4. اختر "Android" وحمل APK\n\n' +
+                  'سيتم فتح الموقع الآن...');
+            
+            setTimeout(() => {
+                window.open('https://www.pwabuilder.com', '_blank');
+            }, 2000);
+        }
+        
+        function setupGitHubActions() {
+            alert('🚀 إعداد GitHub Actions:\n\n' +
+                  '1. أنشئ حساب GitHub مجاني\n' +
+                  '2. أنشئ repository جديد\n' +
+                  '3. ارفع ملفات android_app\n' +
+                  '4. أضف ملف .github/workflows/build.yml\n' +
+                  '5. الصق الكود المعروض\n' +
+                  '6. دفع التغييرات\n\n' +
+                  'سيتم عرض الكود...');
+            
+            showWorkflowCode();
+        }
+        
+        function showWorkflowCode() {
+            const code = `name: Build Marina Hotel APK
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
+      
+    - name: Build APK
+      working-directory: ./android_app
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: marina-hotel-apk
+        path: android_app/app/build/outputs/apk/debug/app-debug.apk`;
+        
+            document.getElementById('workflowCode').textContent = code;
+            document.getElementById('codeSection').style.display = 'block';
+            document.getElementById('codeSection').scrollIntoView({behavior: 'smooth'});
+        }
+        
+        function setupNativefier() {
+            const commands = `# تثبيت Node.js أولاً من: https://nodejs.org
+# ثم تشغيل هذه الأوامر:
+
+npm install -g nativefier
+
+nativefier "http://10.0.0.57/marina hotel/admin/" \\
+  --name "فندق مارينا" \\
+  --platform android \\
+  --arch x64 \\
+  --out marina-hotel-app`;
+  
+            alert('🔧 أوامر Nativefier:\n\n' + commands + '\n\nسيتم نسخ الأوامر للحافظة...');
+            navigator.clipboard.writeText(commands);
+        }
+        
+        function createPWA() {
+            alert('⚡ إنشاء PWA:\n\n' +
+                  'PWA = Progressive Web App\n' +
+                  'تطبيق ويب يعمل كتطبيق حقيقي!\n\n' +
+                  'سيتم إنشاء ملفات PWA لموقعك...');
+            
+            // إنشاء ملفات PWA
+            generatePWAFiles();
+        }
+        
+        function generatePWAFiles() {
+            // سيتم إنشاء ملفات PWA حقيقية
+            const manifest = {
+                name: "فندق مارينا",
+                short_name: "مارينا",
+                start_url: "/marina hotel/admin/",
+                display: "standalone",
+                background_color: "#ffffff",
+                theme_color: "#2196f3",
+                icons: [
+                    {
+                        src: "icon-192.png",
+                        sizes: "192x192",
+                        type: "image/png"
+                    }
+                ]
+            };
+            
+            const blob = new Blob([JSON.stringify(manifest, null, 2)], {
+                type: 'application/json'
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'manifest.json';
+            link.click();
+            
+            setTimeout(() => {
+                alert('✅ تم إنشاء manifest.json!\n\n' +
+                      'ضع هذا الملف في مجلد الموقع وأضف هذا السطر لـ <head>:\n' +
+                      '<link rel="manifest" href="manifest.json">');
+            }, 500);
+        }
+        
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            navigator.clipboard.writeText(element.textContent).then(() => {
+                alert('✅ تم نسخ الكود بنجاح!');
+            });
+        }
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بناء APK حقيقي - فندق مارينا</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        h1 {
+            text-align: center;
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+        .error-box {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .solution-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            border-right: 5px solid #28a745;
+        }
+        .solution-title {
+            color: #28a745;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .badge {
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge.recommended { background: #ff6b35; }
+        .badge.fast { background: #4ecdc4; }
+        .badge.professional { background: #45b7d1; }
+        
+        .steps {
+            list-style: none;
+            padding: 0;
+        }
+        .steps li {
+            background: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-right: 3px solid #28a745;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .step-number {
+            background: #28a745;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .action-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 500;
+            margin: 8px 4px;
+            display: inline-block;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        }
+        .action-btn.secondary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+        .action-btn.primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+            direction: ltr;
+            text-align: left;
+        }
+        .highlight {
+            background: #fff3cd;
+            border-right: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 حل مشكلة تحليل الحزمة</h1>
+        
+        <div class="error-box">
+            <h3>❌ المشكلة المكتشفة</h3>
+            <p><strong>"حدثت مشكلة أثناء تحليل الحزمة"</strong></p>
+            <p>السبب: الملف السابق كان تجريبياً وليس APK حقيقي</p>
+        </div>
+
+        <!-- الحل الأول: APK Builder عبر الإنترنت -->
+        <div class="solution-card">
+            <div class="solution-title">
+                🌐 الحل الأول: استخدام أدوات البناء المجانية
+                <span class="badge recommended">مُوصى به</span>
+            </div>
+            <p>استخدام خدمات بناء APK المجانية عبر الإنترنت التي تنتج ملفات APK صحيحة.</p>
+            
+            <ol class="steps">
+                <li>
+                    <div class="step-number">1</div>
+                    <div>
+                        <strong>AppGyver (SAP Build Apps)</strong><br>
+                        منصة مجانية لبناء تطبيقات بدون كود
+                    </div>
+                </li>
+                <li>
+                    <div class="step-number">2</div>
+                    <div>
+                        <strong>PWA Builder (Microsoft)</strong><br>
+                        تحويل موقعك إلى تطبيق حقيقي
+                    </div>
+                </li>
+                <li>
+                    <div class="step-number">3</div>
+                    <div>
+                        <strong>Nativefier</strong><br>
+                        أداة سطر أوامر لتحويل المواقع إلى تطبيقات
+                    </div>
+                </li>
+            </ol>
+            
+            <a href="https://www.pwabuilder.com" class="action-btn primary" target="_blank">
+                🔗 فتح PWA Builder
+            </a>
+            <button class="action-btn" onclick="setupPWABuilder()">
+                ⚙️ إعداد PWA Builder
+            </button>
+        </div>
+
+        <!-- الحل الثاني: GitHub Actions -->
+        <div class="solution-card">
+            <div class="solution-title">
+                ⚡ الحل الثاني: GitHub Actions (الأكثر احترافية)
+                <span class="badge professional">احترافي</span>
+            </div>
+            <p>استخدام GitHub لبناء APK تلقائياً باستخدام Android SDK الحقيقي.</p>
+            
+            <ol class="steps">
+                <li>
+                    <div class="step-number">1</div>
+                    <div>إنشاء حساب GitHub مجاني</div>
+                </li>
+                <li>
+                    <div class="step-number">2</div>
+                    <div>رفع ملفات المشروع</div>
+                </li>
+                <li>
+                    <div class="step-number">3</div>
+                    <div>إضافة ملف workflow للبناء التلقائي</div>
+                </li>
+                <li>
+                    <div class="step-number">4</div>
+                    <div>تحميل APK المُنتج من Actions</div>
+                </li>
+            </ol>
+            
+            <button class="action-btn" onclick="setupGitHubActions()">
+                🚀 إعداد GitHub Actions
+            </button>
+            <button class="action-btn secondary" onclick="showWorkflowCode()">
+                📋 عرض الكود
+            </button>
+        </div>
+
+        <!-- الحل الثالث: Nativefier -->
+        <div class="solution-card">
+            <div class="solution-title">
+                ⚡ الحل الثالث: Nativefier (الأسرع)
+                <span class="badge fast">سريع</span>
+            </div>
+            <p>أداة Node.js لتحويل أي موقع إلى تطبيق حقيقي خلال دقائق.</p>
+            
+            <div class="highlight">
+                <strong>💡 هذا الحل يتطلب:</strong> Node.js مثبت على جهازك
+            </div>
+            
+            <ol class="steps">
+                <li>
+                    <div class="step-number">1</div>
+                    <div>تثبيت Node.js</div>
+                </li>
+                <li>
+                    <div class="step-number">2</div>
+                    <div>تثبيت Nativefier</div>
+                </li>
+                <li>
+                    <div class="step-number">3</div>
+                    <div>تشغيل أمر البناء</div>
+                </li>
+                <li>
+                    <div class="step-number">4</div>
+                    <div>تحميل APK الناتج</div>
+                </li>
+            </ol>
+            
+            <button class="action-btn" onclick="setupNativefier()">
+                🔧 إعداد Nativefier
+            </button>
+        </div>
+
+        <!-- الحل المؤقت: PWA -->
+        <div class="solution-card">
+            <div class="solution-title">
+                📱 الحل المؤقت: Progressive Web App
+                <span class="badge fast">فوري</span>
+            </div>
+            <p>تحويل موقعك إلى PWA يمكن تثبيته مباشرة من المتصفح - بدون APK!</p>
+            
+            <div class="success">
+                <strong>✅ المميزات:</strong><br>
+                • يعمل فوراً بدون تثبيت APK<br>
+                • يظهر كتطبيق حقيقي في الهاتف<br>
+                • يعمل بدون إنترنت<br>
+                • تحديثات تلقائية
+            </div>
+            
+            <button class="action-btn" onclick="createPWA()">
+                ⚡ إنشاء PWA الآن
+            </button>
+        </div>
+
+        <div class="warning">
+            <h4>🎯 أيهم أفضل لك؟</h4>
+            <ul>
+                <li><strong>للاستخدام الفوري:</strong> PWA (5 دقائق)</li>
+                <li><strong>للجودة العالية:</strong> GitHub Actions (15 دقيقة)</li>
+                <li><strong>للسهولة:</strong> PWA Builder (10 دقائق)</li>
+                <li><strong>للتحكم الكامل:</strong> Nativefier (إذا كان لديك Node.js)</li>
+            </ul>
+        </div>
+
+        <!-- منطقة الكود -->
+        <div id="codeSection" style="display: none;">
+            <h3>📋 كود GitHub Workflow:</h3>
+            <div class="code-block" id="workflowCode"></div>
+            <button class="action-btn secondary" onclick="copyToClipboard('workflowCode')">
+                📋 نسخ الكود
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function setupPWABuilder() {
+            alert('🌐 إعداد PWA Builder:\n\n' +
+                  '1. اذهب إلى pwabuilder.com\n' +
+                  '2. أدخل رابط موقعك: http://10.0.0.57/marina hotel/admin/\n' +
+                  '3. اضغط "Start"\n' +
+                  '4. اختر "Android" وحمل APK\n\n' +
+                  'سيتم فتح الموقع الآن...');
+            
+            setTimeout(() => {
+                window.open('https://www.pwabuilder.com', '_blank');
+            }, 2000);
+        }
+        
+        function setupGitHubActions() {
+            alert('🚀 إعداد GitHub Actions:\n\n' +
+                  '1. أنشئ حساب GitHub مجاني\n' +
+                  '2. أنشئ repository جديد\n' +
+                  '3. ارفع ملفات android_app\n' +
+                  '4. أضف ملف .github/workflows/build.yml\n' +
+                  '5. الصق الكود المعروض\n' +
+                  '6. دفع التغييرات\n\n' +
+                  'سيتم عرض الكود...');
+            
+            showWorkflowCode();
+        }
+        
+        function showWorkflowCode() {
+            const code = `name: Build Marina Hotel APK
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
+      
+    - name: Build APK
+      working-directory: ./android_app
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: marina-hotel-apk
+        path: android_app/app/build/outputs/apk/debug/app-debug.apk`;
+        
+            document.getElementById('workflowCode').textContent = code;
+            document.getElementById('codeSection').style.display = 'block';
+            document.getElementById('codeSection').scrollIntoView({behavior: 'smooth'});
+        }
+        
+        function setupNativefier() {
+            const commands = `# تثبيت Node.js أولاً من: https://nodejs.org
+# ثم تشغيل هذه الأوامر:
+
+npm install -g nativefier
+
+nativefier "http://10.0.0.57/marina hotel/admin/" \\
+  --name "فندق مارينا" \\
+  --platform android \\
+  --arch x64 \\
+  --out marina-hotel-app`;
+  
+            alert('🔧 أوامر Nativefier:\n\n' + commands + '\n\nسيتم نسخ الأوامر للحافظة...');
+            navigator.clipboard.writeText(commands);
+        }
+        
+        function createPWA() {
+            alert('⚡ إنشاء PWA:\n\n' +
+                  'PWA = Progressive Web App\n' +
+                  'تطبيق ويب يعمل كتطبيق حقيقي!\n\n' +
+                  'سيتم إنشاء ملفات PWA لموقعك...');
+            
+            // إنشاء ملفات PWA
+            generatePWAFiles();
+        }
+        
+        function generatePWAFiles() {
+            // سيتم إنشاء ملفات PWA حقيقية
+            const manifest = {
+                name: "فندق مارينا",
+                short_name: "مارينا",
+                start_url: "/marina hotel/admin/",
+                display: "standalone",
+                background_color: "#ffffff",
+                theme_color: "#2196f3",
+                icons: [
+                    {
+                        src: "icon-192.png",
+                        sizes: "192x192",
+                        type: "image/png"
+                    }
+                ]
+            };
+            
+            const blob = new Blob([JSON.stringify(manifest, null, 2)], {
+                type: 'application/json'
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'manifest.json';
+            link.click();
+            
+            setTimeout(() => {
+                alert('✅ تم إنشاء manifest.json!\n\n' +
+                      'ضع هذا الملف في مجلد الموقع وأضف هذا السطر لـ <head>:\n' +
+                      '<link rel="manifest" href="manifest.json">');
+            }, 500);
+        }
+        
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            navigator.clipboard.writeText(element.textContent).then(() => {
+                alert('✅ تم نسخ الكود بنجاح!');
+            });
+        }
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بناء APK حقيقي - فندق مارينا</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        h1 {
+            text-align: center;
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+        .error-box {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .solution-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            border-right: 5px solid #28a745;
+        }
+        .solution-title {
+            color: #28a745;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .badge {
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge.recommended { background: #ff6b35; }
+        .badge.fast { background: #4ecdc4; }
+        .badge.professional { background: #45b7d1; }
+        
+        .steps {
+            list-style: none;
+            padding: 0;
+        }
+        .steps li {
+            background: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-right: 3px solid #28a745;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .step-number {
+            background: #28a745;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .action-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 500;
+            margin: 8px 4px;
+            display: inline-block;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        }
+        .action-btn.secondary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+        .action-btn.primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+            direction: ltr;
+            text-align: left;
+        }
+        .highlight {
+            background: #fff3cd;
+            border-right: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 حل مشكلة تحليل الحزمة</h1>
+        
+        <div class="error-box">
+            <h3>❌ المشكلة المكتشفة</h3>
+            <p><strong>"حدثت مشكلة أثناء تحليل الحزمة"</strong></p>
+            <p>السبب: الملف السابق كان تجريبياً وليس APK حقيقي</p>
+        </div>
+
+        <!-- الحل الأول: APK Builder عبر الإنترنت -->
+        <div class="solution-card">
+            <div class="solution-title">
+                🌐 الحل الأول: استخدام أدوات البناء المجانية
+                <span class="badge recommended">مُوصى به</span>
+            </div>
+            <p>استخدام خدمات بناء APK المجانية عبر الإنترنت التي تنتج ملفات APK صحيحة.</p>
+            
+            <ol class="steps">
+                <li>
+                    <div class="step-number">1</div>
+                    <div>
+                        <strong>AppGyver (SAP Build Apps)</strong><br>
+                        منصة مجانية لبناء تطبيقات بدون كود
+                    </div>
+                </li>
+                <li>
+                    <div class="step-number">2</div>
+                    <div>
+                        <strong>PWA Builder (Microsoft)</strong><br>
+                        تحويل موقعك إلى تطبيق حقيقي
+                    </div>
+                </li>
+                <li>
+                    <div class="step-number">3</div>
+                    <div>
+                        <strong>Nativefier</strong><br>
+                        أداة سطر أوامر لتحويل المواقع إلى تطبيقات
+                    </div>
+                </li>
+            </ol>
+            
+            <a href="https://www.pwabuilder.com" class="action-btn primary" target="_blank">
+                🔗 فتح PWA Builder
+            </a>
+            <button class="action-btn" onclick="setupPWABuilder()">
+                ⚙️ إعداد PWA Builder
+            </button>
+        </div>
+
+        <!-- الحل الثاني: GitHub Actions -->
+        <div class="solution-card">
+            <div class="solution-title">
+                ⚡ الحل الثاني: GitHub Actions (الأكثر احترافية)
+                <span class="badge professional">احترافي</span>
+            </div>
+            <p>استخدام GitHub لبناء APK تلقائياً باستخدام Android SDK الحقيقي.</p>
+            
+            <ol class="steps">
+                <li>
+                    <div class="step-number">1</div>
+                    <div>إنشاء حساب GitHub مجاني</div>
+                </li>
+                <li>
+                    <div class="step-number">2</div>
+                    <div>رفع ملفات المشروع</div>
+                </li>
+                <li>
+                    <div class="step-number">3</div>
+                    <div>إضافة ملف workflow للبناء التلقائي</div>
+                </li>
+                <li>
+                    <div class="step-number">4</div>
+                    <div>تحميل APK المُنتج من Actions</div>
+                </li>
+            </ol>
+            
+            <button class="action-btn" onclick="setupGitHubActions()">
+                🚀 إعداد GitHub Actions
+            </button>
+            <button class="action-btn secondary" onclick="showWorkflowCode()">
+                📋 عرض الكود
+            </button>
+        </div>
+
+        <!-- الحل الثالث: Nativefier -->
+        <div class="solution-card">
+            <div class="solution-title">
+                ⚡ الحل الثالث: Nativefier (الأسرع)
+                <span class="badge fast">سريع</span>
+            </div>
+            <p>أداة Node.js لتحويل أي موقع إلى تطبيق حقيقي خلال دقائق.</p>
+            
+            <div class="highlight">
+                <strong>💡 هذا الحل يتطلب:</strong> Node.js مثبت على جهازك
+            </div>
+            
+            <ol class="steps">
+                <li>
+                    <div class="step-number">1</div>
+                    <div>تثبيت Node.js</div>
+                </li>
+                <li>
+                    <div class="step-number">2</div>
+                    <div>تثبيت Nativefier</div>
+                </li>
+                <li>
+                    <div class="step-number">3</div>
+                    <div>تشغيل أمر البناء</div>
+                </li>
+                <li>
+                    <div class="step-number">4</div>
+                    <div>تحميل APK الناتج</div>
+                </li>
+            </ol>
+            
+            <button class="action-btn" onclick="setupNativefier()">
+                🔧 إعداد Nativefier
+            </button>
+        </div>
+
+        <!-- الحل المؤقت: PWA -->
+        <div class="solution-card">
+            <div class="solution-title">
+                📱 الحل المؤقت: Progressive Web App
+                <span class="badge fast">فوري</span>
+            </div>
+            <p>تحويل موقعك إلى PWA يمكن تثبيته مباشرة من المتصفح - بدون APK!</p>
+            
+            <div class="success">
+                <strong>✅ المميزات:</strong><br>
+                • يعمل فوراً بدون تثبيت APK<br>
+                • يظهر كتطبيق حقيقي في الهاتف<br>
+                • يعمل بدون إنترنت<br>
+                • تحديثات تلقائية
+            </div>
+            
+            <button class="action-btn" onclick="createPWA()">
+                ⚡ إنشاء PWA الآن
+            </button>
+        </div>
+
+        <div class="warning">
+            <h4>🎯 أيهم أفضل لك؟</h4>
+            <ul>
+                <li><strong>للاستخدام الفوري:</strong> PWA (5 دقائق)</li>
+                <li><strong>للجودة العالية:</strong> GitHub Actions (15 دقيقة)</li>
+                <li><strong>للسهولة:</strong> PWA Builder (10 دقائق)</li>
+                <li><strong>للتحكم الكامل:</strong> Nativefier (إذا كان لديك Node.js)</li>
+            </ul>
+        </div>
+
+        <!-- منطقة الكود -->
+        <div id="codeSection" style="display: none;">
+            <h3>📋 كود GitHub Workflow:</h3>
+            <div class="code-block" id="workflowCode"></div>
+            <button class="action-btn secondary" onclick="copyToClipboard('workflowCode')">
+                📋 نسخ الكود
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function setupPWABuilder() {
+            alert('🌐 إعداد PWA Builder:\n\n' +
+                  '1. اذهب إلى pwabuilder.com\n' +
+                  '2. أدخل رابط موقعك: http://10.0.0.57/marina hotel/admin/\n' +
+                  '3. اضغط "Start"\n' +
+                  '4. اختر "Android" وحمل APK\n\n' +
+                  'سيتم فتح الموقع الآن...');
+            
+            setTimeout(() => {
+                window.open('https://www.pwabuilder.com', '_blank');
+            }, 2000);
+        }
+        
+        function setupGitHubActions() {
+            alert('🚀 إعداد GitHub Actions:\n\n' +
+                  '1. أنشئ حساب GitHub مجاني\n' +
+                  '2. أنشئ repository جديد\n' +
+                  '3. ارفع ملفات android_app\n' +
+                  '4. أضف ملف .github/workflows/build.yml\n' +
+                  '5. الصق الكود المعروض\n' +
+                  '6. دفع التغييرات\n\n' +
+                  'سيتم عرض الكود...');
+            
+            showWorkflowCode();
+        }
+        
+        function showWorkflowCode() {
+            const code = `name: Build Marina Hotel APK
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
+      
+    - name: Build APK
+      working-directory: ./android_app
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: marina-hotel-apk
+        path: android_app/app/build/outputs/apk/debug/app-debug.apk`;
+        
+            document.getElementById('workflowCode').textContent = code;
+            document.getElementById('codeSection').style.display = 'block';
+            document.getElementById('codeSection').scrollIntoView({behavior: 'smooth'});
+        }
+        
+        function setupNativefier() {
+            const commands = `# تثبيت Node.js أولاً من: https://nodejs.org
+# ثم تشغيل هذه الأوامر:
+
+npm install -g nativefier
+
+nativefier "http://10.0.0.57/marina hotel/admin/" \\
+  --name "فندق مارينا" \\
+  --platform android \\
+  --arch x64 \\
+  --out marina-hotel-app`;
+  
+            alert('🔧 أوامر Nativefier:\n\n' + commands + '\n\nسيتم نسخ الأوامر للحافظة...');
+            navigator.clipboard.writeText(commands);
+        }
+        
+        function createPWA() {
+            alert('⚡ إنشاء PWA:\n\n' +
+                  'PWA = Progressive Web App\n' +
+                  'تطبيق ويب يعمل كتطبيق حقيقي!\n\n' +
+                  'سيتم إنشاء ملفات PWA لموقعك...');
+            
+            // إنشاء ملفات PWA
+            generatePWAFiles();
+        }
+        
+        function generatePWAFiles() {
+            // سيتم إنشاء ملفات PWA حقيقية
+            const manifest = {
+                name: "فندق مارينا",
+                short_name: "مارينا",
+                start_url: "/marina hotel/admin/",
+                display: "standalone",
+                background_color: "#ffffff",
+                theme_color: "#2196f3",
+                icons: [
+                    {
+                        src: "icon-192.png",
+                        sizes: "192x192",
+                        type: "image/png"
+                    }
+                ]
+            };
+            
+            const blob = new Blob([JSON.stringify(manifest, null, 2)], {
+                type: 'application/json'
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'manifest.json';
+            link.click();
+            
+            setTimeout(() => {
+                alert('✅ تم إنشاء manifest.json!\n\n' +
+                      'ضع هذا الملف في مجلد الموقع وأضف هذا السطر لـ <head>:\n' +
+                      '<link rel="manifest" href="manifest.json">');
+            }, 500);
+        }
+        
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            navigator.clipboard.writeText(element.textContent).then(() => {
+                alert('✅ تم نسخ الكود بنجاح!');
+            });
+        }
+    </script>
+</body>
+</html>

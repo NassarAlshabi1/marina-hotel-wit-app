@@ -1,0 +1,209 @@
+/* دعم اللغة العربية والخطوط */
+/* @import url("https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;600;700;800;900&display=swap"); */
+
+/* تعريف الخط العربي المحلي */
+@font-face {
+  font-family: "Tajawal-Local";
+  src: url("vendor/fonts/Tajawal-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Tajawal-Local";
+  src: url("vendor/fonts/Tajawal-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* الإعدادات الأساسية للعربية */
+html {
+  direction: rtl;
+  lang: ar;
+}
+
+body {
+  font-family: "Tajawal", "Tajawal-Local", "Arial", sans-serif;
+  direction: rtl;
+  text-align: right;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* تنسيق النصوص العربية */
+.arabic-text {
+  font-family: "Tajawal", "Tajawal-Local", sans-serif;
+  direction: rtl;
+  text-align: right;
+  unicode-bidi: embed;
+}
+
+/* تنسيق الأرقام */
+.number-ltr {
+  direction: ltr;
+  text-align: left;
+  display: inline-block;
+  unicode-bidi: bidi-override;
+}
+
+/* تنسيق الجداول */
+.table {
+  direction: rtl;
+  text-align: right;
+}
+
+.table th,
+.table td {
+  text-align: right;
+  vertical-align: middle;
+}
+
+.table .number-cell {
+  direction: ltr;
+  text-align: left;
+}
+
+/* تنسيق النماذج */
+.form-control,
+.form-select {
+  direction: rtl;
+  text-align: right;
+  font-family: "Tajawal", sans-serif;
+}
+
+input[type="number"],
+input[type="tel"],
+.number-input {
+  direction: ltr;
+  text-align: left;
+}
+
+/* تنسيق الأزرار */
+.btn {
+  font-family: "Tajawal", sans-serif;
+  font-weight: 500;
+}
+
+/* تنسيق القوائم */
+.dropdown-menu {
+  direction: rtl;
+  text-align: right;
+}
+
+/* تنسيق التنبيهات */
+.alert {
+  direction: rtl;
+  text-align: right;
+}
+
+/* تنسيق البطاقات */
+.card {
+  direction: rtl;
+  text-align: right;
+}
+
+.card-header {
+  text-align: right;
+}
+
+/* تنسيق التنقل */
+.navbar {
+  direction: rtl;
+}
+
+.navbar-nav {
+  direction: rtl;
+}
+
+/* تنسيق المودال */
+.modal {
+  direction: rtl;
+}
+
+.modal-header,
+.modal-body,
+.modal-footer {
+  text-align: right;
+}
+
+/* تنسيق الأيقونات مع النص العربي */
+.icon-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-text i {
+  order: 2;
+}
+
+/* تنسيق التواريخ والأوقات */
+.datetime-display {
+  direction: ltr;
+  text-align: left;
+  display: inline-block;
+}
+
+/* تحسين عرض النصوص الطويلة */
+.text-wrap {
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+/* تنسيق خاص للشاشات الصغيرة */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  .table {
+    font-size: 12px;
+  }
+
+  .btn {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+}
+
+/* تنسيق الطباعة */
+@media print {
+  body {
+    font-family: "Tajawal", sans-serif;
+    direction: rtl;
+    text-align: right;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* تحسين أداء الخطوط */
+.font-display-swap {
+  font-display: swap;
+}
+
+/* تنسيق النصوص المختلطة (عربي وإنجليزي) */
+.mixed-text {
+  unicode-bidi: plaintext;
+}
+
+/* تنسيق أسماء المستخدمين والبريد الإلكتروني */
+.username,
+.email {
+  direction: ltr;
+  text-align: left;
+  display: inline-block;
+}
+
+/* تنسيق أرقام الهواتف */
+.phone-number {
+  direction: ltr;
+  text-align: left;
+  display: inline-block;
+  font-family: monospace;
+}
