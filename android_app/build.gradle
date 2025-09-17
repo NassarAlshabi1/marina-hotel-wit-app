@@ -1,24 +1,147 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
-buildscript {
-    repositories {
-        google()
-        jcenter()
-    }
-    dependencies {
-        classpath "com.android.tools.build:gradle:4.0.1"
+plugins {
+    id 'com.android.application'
+}
 
-        // NOTE: Do not place your application dependencies here; they belong
-        // in the individual module build.gradle files
+// مهمة لتحميل الخطوط تلقائياً
+task downloadFonts {
+    doLast {
+        println "جاري تحميل الخطوط..."
+        
+        // إنشاء مجلد fonts إذا لم يكن موجوداً
+        def fontsDir = new File('src/main/res/font')
+        if (!fontsDir.exists()) {
+            fontsDir.mkdirs()
+            println "تم إنشاء مجلد الخطوط: $fontsDir"
+        }
+        
+        // روابط تحميل الخطوط من Google Fonts
+        def fontUrls = [
+            'https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Regular.ttf': 'cairo_regular.ttf',
+            'https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Bold.ttf': 'cairo_bold.ttf',
+            'https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Light.ttf': 'cairo_light.ttf',
+            'https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-SemiBold.ttf': 'cairo_semibold.ttf',
+            'https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Medium.ttf': 'cairo_medium.ttf'
+        ]
+        
+        // تحميل كل خط
+        fontUrls.each { url, fileName ->
+            try {
+                def fontFile = new File(fontsDir, fileName)
+                if (!fontFile.exists()) {
+                    println "جاري تحميل $fileName"
+                    new URL(url).withInputStream { i -> 
+                        fontFile.withOutputStream { it << i } 
+                    }
+                    println "تم تحميل $fileName بنجاح"
+                } else {
+                    println "$fileName موجود مسبقاً"
+                }
+            } catch (Exception e) {
+                println "فشل تحميل $fileName: ${e.message}"
+                // استمرار العملية حتى لو فشل تحميل أحد الخطوط
+            }
+        }
+        
+        println "تم الانتهاء من عملية تحميل الخطوط"
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        jcenter()
+// مهمة لتنظيف ملفات XML القديمة للخطوط
+task cleanFontXmlFiles {
+    doLast {
+        def fontsDir = new File('src/main/res/font')
+        if (fontsDir.exists()) {
+            def xmlFiles = fontsDir.listFiles({ file -> file.name.endsWith('.xml') } as FileFilter)
+            xmlFiles.each { xmlFile ->
+                if (xmlFile.delete()) {
+                    println "تم حذف ملف XML: ${xmlFile.name}"
+                }
+            }
+        }
     }
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
+android {
+    namespace 'com.marinahotel.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.marinahotel.app"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    // استبعاد ملفات XML للخطوط لمنع التضارب
+    sourceSets {
+        main {
+            res {
+                exclude 'font/cairo_regular.xml'
+                exclude 'font/cairo_bold.xml'
+                exclude 'font/cairo_light.xml'
+                exclude 'font/cairo_semibold.xml'
+                exclude 'font/cairo_medium.xml'
+            }
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    
+    // تمكين بناء لكل هندسة معالجة
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+            universalApk true
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.10.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    
+    // إضافة مكتبات مفيدة للخطوط
+    implementation 'androidx.core:core:1.12.0'
+    implementation 'androidx.core:core-ktx:1.12.0'
+    
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+// جعل مهمة تحميل الخطوط تعمل قبل عملية البناء
+preBuild.dependsOn downloadFonts
+preBuild.dependsOn cleanFontXmlFiles
+
+// مهمة للمساعدة في فحص الموارد
+task checkFonts {
+    doLast {
+        println "فحص ملفات الخطوط..."
+        def fontsDir = new File('src/main/res/font')
+        if (fontsDir.exists()) {
+            def fontFiles = fontsDir.listFiles()
+            fontFiles.each { file ->
+                println "الملف: ${file.name} (${file.length()} bytes)"
+            }
+        } else {
+            println "مجلد الخطوط غير موجود"
+        }
+    }
 }
