@@ -62,28 +62,190 @@ jobs:
     - name: Setup Android project structure
       run: |
         echo "Creating Android project structure..."
-        mkdir -p android_app/app
-        mkdir -p android_app/src/main/java/com/marinahotel/app
-        mkdir -p android_app/src/main/res/layout
-        mkdir -p android_app/src/main/res/values
-        mkdir -p android_app/src/main/res/xml
-        mkdir -p android_app/src/main/res/mipmap-hdpi
-        mkdir -p android_app/src/main/res/mipmap-mdpi
-        mkdir -p android_app/src/main/res/mipmap-xhdpi
-        mkdir -p android_app/src/main/res/mipmap-xxhdpi
-        mkdir -p android_app/src/main/res/mipmap-xxxhdpi
-        mkdir -p android_app/src/main/assets
+        mkdir -p android_app/app/src/main/java/com/marinahotel/app
+        mkdir -p android_app/app/src/main/res/layout
+        mkdir -p android_app/app/src/main/res/values
+        mkdir -p android_app/app/src/main/res/drawable
+        mkdir -p android_app/app/src/main/res/mipmap-anydpi-v26
+        mkdir -p android_app/app/src/main/res/xml
+        
+        # Create AndroidManifest.xml
+        cat > android_app/app/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:tools="http://schemas.android.com/tools">
+            
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            
+            <application
+                android:name=".MainApplication"
+                android:allowBackup="true"
+                android:dataExtractionRules="@xml/data_extraction_rules"
+                android:fullBackupContent="@xml/backup_rules"
+                android:icon="@mipmap/ic_launcher"
+                android:label="@string/app_name"
+                android:theme="@style/Theme.MarinaHotel"
+                tools:targetApi="31">
+                
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true"
+                    android:label="@string/app_name"
+                    android:theme="@style/Theme.MarinaHotel.NoActionBar">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+        
+        # Create a simple MainActivity.java
+        cat > android_app/app/src/main/java/com/marinahotel/app/MainActivity.java << 'EOF'
+        package com.marinahotel.app;
+        
+        import android.os.Bundle;
+        import androidx.appcompat.app.AppCompatActivity;
+        
+        public class MainActivity extends AppCompatActivity {
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                setContentView(R.layout.activity_main);
+            }
+        }
+        EOF
+        
+        # Create Application class
+        cat > android_app/app/src/main/java/com/marinahotel/app/MainApplication.java << 'EOF'
+        package com.marinahotel.app;
+        
+        import android.app.Application;
+        
+        public class MainApplication extends Application {
+            @Override
+            public void onCreate() {
+                super.onCreate();
+            }
+        }
+        EOF
+        
+        # Create a simple layout
+        cat > android_app/app/src/main/res/layout/activity_main.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center">
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Marina Hotel App"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+                
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Loading..."
+                android:layout_marginTop="16dp"
+                android:textSize="16sp" />
+        </LinearLayout>
+        EOF
+        
+        # Create strings.xml
+        cat > android_app/app/src/main/res/values/strings.xml << 'EOF'
+        <resources>
+            <string name="app_name">Marina Hotel</string>
+        </resources>
+        EOF
+        
+        # Create colors.xml
+        cat > android_app/app/src/main/res/values/colors.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <color name="marina_blue">#FF1976D2</color>
+            <color name="marina_blue_dark">#FF0D47A1</color>
+            <color name="marina_gold">#FFFFD700</color>
+            <color name="marina_gold_dark">#FFFFC400</color>
+            <color name="white">#FFFFFFFF</color>
+            <color name="black">#FF000000</color>
+        </resources>
+        EOF
+        
+        # Create themes.xml
+        cat > android_app/app/src/main/res/values/themes.xml << 'EOF'
+        <resources xmlns:tools="http://schemas.android.com/tools">
+            <style name="Theme.MarinaHotel" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+                <item name="colorPrimary">@color/marina_blue</item>
+                <item name="colorPrimaryVariant">@color/marina_blue_dark</item>
+                <item name="colorOnPrimary">@color/white</item>
+                <item name="colorSecondary">@color/marina_gold</item>
+                <item name="colorSecondaryVariant">@color/marina_gold_dark</item>
+                <item name="colorOnSecondary">@color/black</item>
+                <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+            </style>
+            <style name="Theme.MarinaHotel.NoActionBar">
+                <item name="windowActionBar">false</item>
+                <item name="windowNoTitle">true</item>
+            </style>
+        </resources>
+        EOF
+        
+        # Create XML resources
+        cat > android_app/app/src/main/res/xml/backup_rules.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <full-backup-content>
+        </full-backup-content>
+        EOF
+        
+        cat > android_app/app/src/main/res/xml/data_extraction_rules.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <data-extraction-rules>
+            <cloud-backup>
+                <include domain="sharedpref" path="."/>
+            </cloud-backup>
+            <device-transfer>
+                <include domain="sharedpref" path="."/>
+            </device-transfer>
+        </data-extraction-rules>
+        EOF
+        
+        # Create a simple launcher icon (adaptive)
+        cat > android_app/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+            <background android:drawable="@color/marina_blue"/>
+            <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+        </adaptive-icon>
+        EOF
+        
+        # Create a placeholder foreground
+        cat > android_app/app/src/main/res/drawable/ic_launcher_foreground.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <vector xmlns:android="http://schemas.android.com/apk/res/android"
+            android:width="108dp"
+            android:height="108dp"
+            android:viewportWidth="108"
+            android:viewportHeight="108">
+            <path
+                android:fillColor="@color/marina_gold"
+                android:pathData="M54,0L54,0a54,54 0,1 0,0 108a54,54 0,1 0,0 -108z"/>
+            <path
+                android:fillColor="@color/white"
+                android:pathData="M54,25A29,29 0,1 1,25 54,29 29,0 0,1 54,25z"/>
+        </vector>
+        EOF
         
         # gradle.properties
         cat > android_app/gradle.properties << 'EOF'
         org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
-        org.gradle.parallel=true
-        org.gradle.caching=true
-        org.gradle.configureondemand=true
         android.useAndroidX=true
         android.enableJetifier=true
-        android.nonTransitiveRClass=true
-        android.nonFinalResIds=true
         EOF
         
         # settings.gradle
@@ -109,30 +271,13 @@ jobs:
         # Root build.gradle
         cat > android_app/build.gradle << 'EOF'
         buildscript {
-            ext {
-                compileSdkVersion = 34
-                targetSdkVersion = 34
-                minSdkVersion = 21
-                buildToolsVersion = "34.0.0"
-                
-                androidxAppCompatVersion = "1.6.1"
-                materialVersion = "1.11.0"
-                constraintLayoutVersion = "2.1.4"
-                swipeRefreshLayoutVersion = "1.1.0"
-            }
-            
             repositories {
                 google()
                 mavenCentral()
             }
-            
             dependencies {
                 classpath 'com.android.tools.build:gradle:8.2.0'
             }
-        }
-        
-        plugins {
-            id 'com.android.application' version '8.2.0' apply false
         }
         
         task clean(type: Delete) {
@@ -148,20 +293,16 @@ jobs:
         
         android {
             namespace 'com.marinahotel.app'
-            compileSdk rootProject.ext.compileSdkVersion
+            compileSdk 34
         
             defaultConfig {
                 applicationId "com.marinahotel.app"
-                minSdk rootProject.ext.minSdkVersion
-                targetSdk rootProject.ext.targetSdkVersion
+                minSdk 21
+                targetSdk 34
                 versionCode ${{ github.run_number }}
                 versionName "$VERSION_NAME"
         
                 testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-                
-                resConfigs "ar", "en"
-                buildConfigField "boolean", "DEBUG_WEBVIEW", "true"
-                buildConfigField "String", "SERVER_URL", "\\"https://marinahotel.app\\""
             }
         
             buildTypes {
@@ -170,14 +311,12 @@ jobs:
                     debuggable true
                     minifyEnabled false
                     shrinkResources false
-                    buildConfigField "boolean", "DEBUG_WEBVIEW", "true"
                 }
                 
                 release {
                     minifyEnabled true
                     shrinkResources true
                     proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-                    buildConfigField "boolean", "DEBUG_WEBVIEW", "false"
                 }
             }
             
@@ -185,31 +324,13 @@ jobs:
                 sourceCompatibility JavaVersion.VERSION_17
                 targetCompatibility JavaVersion.VERSION_17
             }
-            
-            buildFeatures {
-                buildConfig true
-            }
-            
-            packagingOptions {
-                resources {
-                    excludes += ['/META-INF/{AL2.0,LGPL2.1}']
-                }
-            }
         }
         
         dependencies {
-            implementation "androidx.appcompat:appcompat:\$rootProject.ext.androidxAppCompatVersion"
-            implementation "com.google.android.material:material:\$rootProject.ext.materialVersion"
-            implementation "androidx.constraintlayout:constraintlayout:\$rootProject.ext.constraintLayoutVersion"
-            implementation "androidx.swiperefreshlayout:swiperefreshlayout:\$rootProject.ext.swipeRefreshLayoutVersion"
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.11.0'
+            implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
             
-            implementation 'androidx.webkit:webkit:1.9.0'
-            implementation 'androidx.browser:browser:1.7.0'
-            implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
-            implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
-            implementation 'androidx.work:work-runtime:2.9.0'
-            implementation 'androidx.preference:preference:1.2.1'
-            implementation 'androidx.security:security-crypto:1.1.0-alpha06'
             testImplementation 'junit:junit:4.13.2'
             androidTestImplementation 'androidx.test.ext:junit:1.1.5'
             androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
@@ -229,69 +350,6 @@ jobs:
         cd android_app
         ./gradlew clean --stacktrace
       
-    - name: Create app icons
-      run: |
-        for density in hdpi mdpi xhdpi xxhdpi xxxhdpi; do
-          mkdir -p android_app/src/main/res/mipmap-$density
-          touch android_app/src/main/res/mipmap-$density/ic_launcher.png
-          touch android_app/src/main/res/mipmap-$density/ic_launcher_round.png
-        done
-        
-    - name: Create themes and styles
-      run: |
-        cat > android_app/src/main/res/values/themes.xml << 'EOF'
-        <resources xmlns:tools="http://schemas.android.com/tools">
-            <style name="Theme.MarinaHotel" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-                <item name="colorPrimary">@color/marina_blue</item>
-                <item name="colorPrimaryVariant">@color/marina_blue_dark</item>
-                <item name="colorOnPrimary">@color/white</item>
-                <item name="colorSecondary">@color/marina_gold</item>
-                <item name="colorSecondaryVariant">@color/marina_gold_dark</item>
-                <item name="colorOnSecondary">@color/black</item>
-                <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
-            </style>
-            <style name="Theme.MarinaHotel.NoActionBar">
-                <item name="windowActionBar">false</item>
-                <item name="windowNoTitle">true</item>
-            </style>
-            <style name="Theme.MarinaHotel.Splash" parent="Theme.MarinaHotel.NoActionBar">
-                <item name="android:windowBackground">@color/marina_blue</item>
-                <item name="android:windowFullscreen">true</item>
-            </style>
-        </resources>
-        EOF
-        
-    - name: Create XML resources
-      run: |
-        mkdir -p android_app/src/main/res/xml
-        
-        cat > android_app/src/main/res/xml/backup_rules.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <full-backup-content>
-        </full-backup-content>
-        EOF
-        
-        cat > android_app/src/main/res/xml/data_extraction_rules.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <data-extraction-rules>
-            <cloud-backup>
-                <include domain="sharedpref" path="."/>
-                <exclude domain="sharedpref" path="device.xml"/>
-            </cloud-backup>
-            <device-transfer>
-                <include domain="sharedpref" path="."/>
-                <exclude domain="sharedpref" path="device.xml"/>
-            </device-transfer>
-        </data-extraction-rules>
-        EOF
-        
-        cat > android_app/src/main/res/xml/file_paths.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <paths xmlns:android="http://schemas.android.com/apk/res/android">
-            <external-path name="external_files" path="."/>
-        </paths>
-        EOF
-        
     - name: Build APK
       run: |
         cd android_app
@@ -310,10 +368,13 @@ jobs:
           du -h "$APK_PATH"
         else
           echo "APK build failed - file not found: $APK_PATH"
+          # Show build errors
+          find . -name "*.log" -exec echo "=== {} ===" \; -exec cat {} \;
           exit 1
         fi
         
     - name: Upload APK artifact
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: marina-hotel-${{ env.BUILD_TYPE }}-apk-v${{ env.VERSION_NAME }}
@@ -339,83 +400,8 @@ jobs:
           echo "- **APK Path:** $APK_PATH" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Build Status" >> $GITHUB_STEP_SUMMARY
-          echo "Build completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Build completed successfully!" >> $GITHUB_STEP_SUMMARY
         else
           echo "### Build Status" >> $GITHUB_STEP_SUMMARY
-          echo "Build failed!" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Build failed!" >> $GITHUB_STEP_SUMMARY
         fi
-        
-    - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      id: create_release
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ env.VERSION_NAME }}-${{ github.run_number }}
-        name: Marina Hotel Mobile v${{ env.VERSION_NAME }}
-        body: |
-          ## Marina Hotel Mobile App - Hotel Management System
-          ### New Features:
-          - Native Android app with optimized WebView
-          - Real-time data synchronization
-          - Offline support with local caching
-          - Complete hotel management functionality
-          - Enhanced Arabic RTL interface
-          - Enhanced security with data encryption
-          - Material Design 3 UI
-          - Push notifications support
-          ### Installation:
-          1. Download the APK file
-          2. Enable "Install from unknown sources" in Android settings
-          3. Install the APK
-          4. Configure your server URL in app settings
-          ### Technical Details:
-          - **Minimum Android:** 5.0 (API 21)
-          - **Target Android:** 14 (API 34)
-          - **App Size:** ~8-15 MB
-          - **Permissions:** Internet, camera (optional)
-          - **Build Type:** ${{ env.BUILD_TYPE }}
-          - **Version Code:** ${{ github.run_number }}
-          ### Requirements:
-          - Android 5.0+ device
-          - Internet connection for sync
-          - 50MB storage space
-          ---
-          **Built automatically by GitHub Actions**
-        files: android_app/${{ env.APK_PATH }}
-        draft: false
-        prerelease: ${{ github.ref != 'refs/heads/main' }}
-        
-    - name: Comment on PR
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          const path = 'android_app/${{ env.APK_PATH }}';
-          let apkSize = 'Unknown';
-          try {
-            const stats = fs.statSync(path);
-            apkSize = (stats.size / (1024 * 1024)).toFixed(2) + ' MB';
-          } catch (e) {
-            console.log('Could not get APK size:', e.message);
-          }
-          const comment = `## Marina Hotel APK Build Results
-          ### Build Successful!
-          **APK Details:**
-          - **Build Type:** ${{ env.BUILD_TYPE }}
-          - **Version:** ${{ env.VERSION_NAME }}
-          - **Size:** ${apkSize}
-          - **Download:** [APK Artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          **Build Info:**
-          - **Commit:** ${{ github.sha }}
-          - **Branch:** ${{ github.ref_name }}
-          - **Run:** #${{ github.run_number }}
-          The APK has been built successfully and is available for download from the Actions artifacts.`;
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: comment
-          });
