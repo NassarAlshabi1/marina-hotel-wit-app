@@ -1,0 +1,505 @@
+/* ===== RESPONSIVE DESIGN SYSTEM ===== */
+/* Mobile-First Approach with Progressive Enhancement */
+
+/* ===== BASE STYLES (Mobile First - 320px+) ===== */
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-x: hidden;
+}
+
+/* ===== MOBILE NAVIGATION ===== */
+.mobile-nav {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    z-index: 100;
+    padding: 8px 0;
+}
+
+.mobile-nav-items {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 12px;
+    text-decoration: none;
+    color: #6b7280;
+    font-size: 10px;
+    transition: color 0.3s ease;
+    min-width: 60px;
+}
+
+.mobile-nav-item.active,
+.mobile-nav-item:hover {
+    color: #3b82f6;
+}
+
+.mobile-nav-item i {
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+/* ===== MOBILE HEADER ===== */
+.mobile-header {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    z-index: 99;
+    padding: 12px 16px;
+    height: 60px;
+}
+
+.mobile-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mobile-menu-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #374151;
+    padding: 8px;
+}
+
+.mobile-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.mobile-user-info {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* ===== MOBILE CONTENT AREA ===== */
+.mobile-content {
+    padding: 76px 16px 80px;
+    min-height: 100vh;
+}
+
+/* ===== MOBILE CARDS ===== */
+.stats-card {
+    margin-bottom: 16px;
+    padding: 16px;
+    border-radius: 12px;
+}
+
+.stats-card .text-3xl {
+    font-size: 24px;
+}
+
+/* ===== MOBILE TABLES ===== */
+.mobile-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -16px;
+    padding: 0 16px;
+}
+
+.mobile-table {
+    min-width: 600px;
+}
+
+.mobile-card-view {
+    display: none;
+}
+
+/* ===== MOBILE FORMS ===== */
+.mobile-form {
+    padding: 20px;
+}
+
+.mobile-form .grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.mobile-form input,
+.mobile-form select,
+.mobile-form textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 12px 16px;
+}
+
+/* ===== MOBILE MODALS ===== */
+.modal .animate-fade-in {
+    margin: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+}
+
+/* ===== MOBILE ROOM GRID ===== */
+.room-grid-mobile {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.room-card {
+    padding: 12px;
+    font-size: 12px;
+}
+
+.room-card .text-2xl {
+    font-size: 18px;
+}
+
+.room-card .text-lg {
+    font-size: 14px;
+}
+
+/* ===== MOBILE CHARTS ===== */
+.chart-container {
+    height: 250px;
+    margin: 16px 0;
+}
+
+/* ===== MOBILE BUTTONS ===== */
+.mobile-btn {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.mobile-btn-group {
+    display: flex;
+    gap: 8px;
+}
+
+.mobile-btn-group .mobile-btn {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* ===== TABLET STYLES (768px+) ===== */
+@media (min-width: 768px) {
+    body {
+        font-size: 15px;
+    }
+    
+    .mobile-nav {
+        display: none;
+    }
+    
+    .mobile-header {
+        display: none;
+    }
+    
+    .mobile-content {
+        padding: 24px;
+    }
+    
+    .stats-card .text-3xl {
+        font-size: 28px;
+    }
+    
+    .mobile-card-view {
+        display: block;
+    }
+    
+    .mobile-table {
+        min-width: auto;
+    }
+    
+    .room-grid-mobile {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+    
+    .room-card {
+        padding: 16px;
+        font-size: 14px;
+    }
+    
+    .room-card .text-2xl {
+        font-size: 20px;
+    }
+    
+    .room-card .text-lg {
+        font-size: 16px;
+    }
+    
+    .chart-container {
+        height: 300px;
+    }
+    
+    .mobile-form .grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+}
+
+/* ===== LAPTOP STYLES (1024px+) ===== */
+@media (min-width: 1024px) {
+    body {
+        font-size: 16px;
+    }
+    
+    .mobile-content {
+        padding: 32px;
+    }
+    
+    .stats-card .text-3xl {
+        font-size: 32px;
+    }
+    
+    .room-grid-mobile {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+    
+    .room-card {
+        padding: 20px;
+        font-size: 16px;
+    }
+    
+    .room-card .text-2xl {
+        font-size: 24px;
+    }
+    
+    .room-card .text-lg {
+        font-size: 18px;
+    }
+    
+    .chart-container {
+        height: 400px;
+    }
+}
+
+/* ===== DESKTOP STYLES (1280px+) ===== */
+@media (min-width: 1280px) {
+    .room-grid-mobile {
+        grid-template-columns: repeat(6, 1fr);
+    }
+    
+    .mobile-content {
+        padding: 40px;
+    }
+}
+
+/* ===== LARGE DESKTOP STYLES (1536px+) ===== */
+@media (min-width: 1536px) {
+    .mobile-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 48px;
+    }
+}
+
+/* ===== HIGH DPI DISPLAYS ===== */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .stats-card,
+    .room-card,
+    .modal .animate-fade-in {
+        border-width: 0.5px;
+    }
+}
+
+/* ===== TOUCH OPTIMIZATIONS ===== */
+@media (hover: none) and (pointer: coarse) {
+    .room-card:hover {
+        transform: none;
+    }
+    
+    .card-hover:hover {
+        transform: none;
+    }
+    
+    .btn-primary:hover {
+        transform: none;
+    }
+    
+    /* Larger touch targets */
+    button, .nav-item, .mobile-nav-item {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+/* ===== LANDSCAPE PHONE STYLES ===== */
+@media (max-height: 500px) and (orientation: landscape) {
+    .mobile-header {
+        height: 50px;
+        padding: 8px 16px;
+    }
+    
+    .mobile-content {
+        padding: 58px 16px 70px;
+    }
+    
+    .mobile-nav {
+        padding: 4px 0;
+    }
+    
+    .mobile-nav-item {
+        padding: 4px 8px;
+        font-size: 9px;
+    }
+    
+    .mobile-nav-item i {
+        font-size: 16px;
+    }
+}
+
+/* ===== DARK MODE SUPPORT ===== */
+@media (prefers-color-scheme: dark) {
+    .mobile-nav,
+    .mobile-header {
+        background: #1f2937;
+        border-color: #374151;
+    }
+    
+    .mobile-title {
+        color: #f9fafb;
+    }
+    
+    .mobile-nav-item {
+        color: #9ca3af;
+    }
+    
+    .mobile-nav-item.active,
+    .mobile-nav-item:hover {
+        color: #60a5fa;
+    }
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+    .mobile-nav,
+    .mobile-header,
+    .mobile-menu-btn {
+        display: none !important;
+    }
+    
+    .mobile-content {
+        padding: 0;
+    }
+    
+    .stats-card,
+    .room-card {
+        break-inside: avoid;
+    }
+}
+
+/* ===== ACCESSIBILITY IMPROVEMENTS ===== */
+@media (prefers-contrast: high) {
+    .stats-card,
+    .room-card {
+        border: 2px solid #000;
+    }
+    
+    .mobile-nav {
+        border-top: 2px solid #000;
+    }
+    
+    .mobile-header {
+        border-bottom: 2px solid #000;
+    }
+}
+
+/* ===== LOADING STATES ===== */
+.loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* ===== OFFLINE INDICATOR ===== */
+.offline-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #ef4444;
+    color: white;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+    z-index: 1000;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+}
+
+.offline-indicator.show {
+    transform: translateY(0);
+}
+
+/* ===== SWIPE GESTURES ===== */
+.swipe-container {
+    overflow-x: hidden;
+    position: relative;
+}
+
+.swipe-item {
+    transition: transform 0.3s ease;
+}
+
+.swipe-item.swiping {
+    transition: none;
+}
+
+/* ===== PULL TO REFRESH ===== */
+.pull-to-refresh {
+    position: relative;
+    overflow: hidden;
+}
+
+.pull-indicator {
+    position: absolute;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: top 0.3s ease;
+}
+
+.pull-indicator.active {
+    top: 20px;
+}
