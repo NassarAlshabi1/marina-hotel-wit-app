@@ -1,9 +1,0 @@
-<resources>
-    <string name="app_name">فندق مارينا</string>
-    <string name="loading">جاري التحميل...</string>
-    <string name="no_internet">لا يوجد اتصال بالإنترنت</string>
-    <string name="error_loading">خطأ في التحميل</string>
-    <string name="retry">إعادة المحاولة</string>
-    <string name="close">إغلاق</string>
-    <string name="refresh">تحديث</string>
-</resources>
