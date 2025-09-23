@@ -1,245 +1,440 @@
+import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:uuid/uuid.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
+import '../utils/time.dart';
 import 'api_service.dart';
 import 'local_db.dart';
+import 'daos/outbox_dao.dart';
+import 'daos/rooms_dao.dart';
+import 'daos/bookings_dao.dart';
+import 'daos/booking_notes_dao.dart';
+import 'daos/employees_dao.dart';
+import 'daos/expenses_dao.dart';
+import 'daos/cash_transactions_dao.dart';
+import 'daos/payments_dao.dart';
+import 'providers.dart';
+
+enum SyncStatus { idle, pushing, pulling, error }
 
 class SyncService {
-  SyncService(this.db);
-  final AppDatabase db;
-  final _uuid = const Uuid();
+  SyncService(this.db)
+      : outboxDao = OutboxDao(db),
+        roomsDao = RoomsDao(db, OutboxDao(db)),
+        bookingsDao = BookingsDao(db, OutboxDao(db)),
+        notesDao = BookingNotesDao(db, OutboxDao(db)),
+        employeesDao = EmployeesDao(db, OutboxDao(db)),
+        expensesDao = ExpensesDao(db, OutboxDao(db)),
+        cashDao = CashTransactionsDao(db, OutboxDao(db)),
+        paymentsDao = PaymentsDao(db, OutboxDao(db));
 
-  Future<void> queueChange({
-    required String entity,
-    required String op,
-    required String localUuid,
-    int? serverId,
-    required Map<String, dynamic> data,
-  }) async {
-    await db.into(db.outbox).insert(OutboxCompanion(
-      entity: d.Value(entity),
-      op: d.Value(op),
-      localUuid: d.Value(localUuid),
-      serverId: d.Value(serverId),
-      dataJson: d.Value(jsonEncode(data)),
-      clientTs: d.Value(DateTime.now().millisecondsSinceEpoch ~/ 1000),
-    ));
-  }
+  final AppDatabase db;
+  final OutboxDao outboxDao;
+  final RoomsDao roomsDao;
+  final BookingsDao bookingsDao;
+  final BookingNotesDao notesDao;
+  final EmployeesDao employeesDao;
+  final ExpensesDao expensesDao;
+  final CashTransactionsDao cashDao;
+  final PaymentsDao paymentsDao;
+
+  final _status = StreamController<SyncStatus>.broadcast();
+  Stream<SyncStatus> get statusStream => _status.stream;
 
   Future<void> runSync() async {
-    await _push();
-    await _pull();
+    try {
+      _status.add(SyncStatus.pushing);
+      await _push();
+      _status.add(SyncStatus.pulling);
+      await _pull();
+      _status.add(SyncStatus.idle);
+    } catch (_) {
+      _status.add(SyncStatus.error);
+    }
   }
 
   Future<void> _push() async {
-    final items = await (db.select(db.outbox)
-          ..orderBy([(t) => d.OrderingTerm(expression: t.id, mode: d.OrderingMode.asc)])
-          ..limit(50))
-        .get();
-    if (items.isEmpty) return;
-
-    final payload = items
-        .map((e) => {
-              'entity': e.entity,
-              'op': e.op,
-              'uuid': e.localUuid,
-              'server_id': e.serverId,
-              'data': jsonDecode(e.dataJson),
-              'client_ts': e.clientTs,
+    final batch = await outboxDao.takeBatch(50);
+    if (batch.isEmpty) return;
+    final changes = batch
+        .map((o) => {
+              'entity': o.entity,
+              'op': o.op,
+              'uuid': o.localUuid,
+              'server_id': o.serverId,
+              'data': jsonDecode(o.payload),
+              'client_ts': o.clientTs,
             })
         .toList();
-
-    final res = await ApiService.I.syncPush(payload);
-    if (res['success'] == true) {
-      final results = List<Map<String, dynamic>>.from(res['data']['results']);
-      // handle mapping
-      for (final r in results) {
-        final uuid = r['uuid'] as String?;
-        final ok = r['success'] == true;
-        final sid = r['server_id'];
-        if (uuid == null) continue;
-        final item = items.firstWhere((i) => i.localUuid == uuid, orElse: () => throw Exception('uuid not found'));
-        if (ok) {
-          // TODO: update local row with serverId if necessary
-          await (db.delete(db.outbox)..where((t) => t.id.equals(item.id))).go();
-        } else if (r['conflict'] == true) {
-          // mark conflict and drop for now
-          await (db.delete(db.outbox)..where((t) => t.id.equals(item.id))).go();
-        } else {
-          // increment attempts
-          await (db.update(db.outbox)..where((t) => t.id.equals(item.id))).write(
-            OutboxCompanion(attempts: d.Value(item.attempts + 1), lastError: d.Value(r['error']?.toString() ?? 'error')),
-          );
+    try {
+      final res = await ApiService.I.syncPush(changes);
+      if (res['success'] == true) {
+        final results = List<Map<String, dynamic>>.from(res['data']['results']);
+        for (var i = 0; i < batch.length; i++) {
+          final o = batch[i];
+          final r = results[i];
+          if (r['success'] == true) {
+            final sid = r['server_id'];
+            await _applyServerId(o.entity, o.localUuid, sid);
+            await outboxDao.removeById(o.id);
+          } else {
+            final attempts = o.attempts + 1;
+            await outboxDao.setError(o.id, r['error']?.toString() ?? 'error', attempts);
+          }
         }
       }
+    } catch (e) {
+      for (final o in batch) {
+        final attempts = o.attempts + 1;
+        await outboxDao.setError(o.id, e.toString(), attempts);
+      }
+      rethrow;
     }
   }
 
   Future<void> _pull() async {
-    final lastSince = int.tryParse((await db.getKv('last_server_ts')) ?? '0') ?? 0;
-    final res = await ApiService.I.syncPull(lastSince);
-    if (res['success'] == true) {
-      final serverTime = res['data']['server_time'] as int? ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final items = List<Map<String, dynamic>>.from(res['data']['data']);
-      for (final it in items) {
-        final entity = it['entity'] as String;
-        final op = it['op'] as String;
-        final data = Map<String, dynamic>.from(it['data']);
-        await _applyServerChange(entity, op, data);
-      }
-      await db.setKv('last_server_ts', '$serverTime');
+    final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
+    final since = state?.lastServerTs ?? 0;
+    final res = await ApiService.I.syncPull(since);
+    if (res['success'] != true) return;
+    final data = List<Map<String, dynamic>>.from(res['data']['data']);
+    int maxTs = since;
+    for (final it in data) {
+      final entity = it['entity'] as String;
+      final op = it['op'] as String;
+      final serverId = it['server_id'];
+      final serverTs = (it['server_ts'] as num).toInt();
+      final item = Map<String, dynamic>.from(it['data']);
+      await _applyIncoming(entity, op, serverId, serverTs, item);
+      if (serverTs > maxTs) maxTs = serverTs;
     }
+    final now = Time.nowEpoch();
+    await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
+      id: const d.Value(1),
+      lastServerTs: d.Value(maxTs),
+      lastPullTs: d.Value(now),
+      isSyncing: const d.Value(0),
+    ));
   }
 
-  Future<void> _applyServerChange(String entity, String op, Map<String, dynamic> data) async {
+  Future<void> _applyServerId(String entity, String localUuid, dynamic serverId) async {
     switch (entity) {
       case 'rooms':
-        await _applyGeneric(data, db.rooms, (c) => RoomsCompanion(
-              localUuid: d.Value(_uuid.v4()),
-              serverId: const d.Value(null),
-              lastModified: d.Value(DateTime.now().millisecondsSinceEpoch ~/ 1000),
-              deletedAt: d.Value(data['deleted_at'] == null ? null : _ts(data['deleted_at'])),
-              version: const d.Value(1),
-              origin: const d.Value('server'),
-              roomNumber: d.Value(data['room_number'] as String),
-              type: d.Value(data['type'] as String),
-              price: d.Value((data['price'] is num) ? (data['price'] as num).toDouble() : double.tryParse(data['price'].toString()) ?? 0),
-              status: d.Value(data['status'] as String),
-            ));
+        final row = await (db.select(db.rooms)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        if (row != null) await (db.update(db.rooms)..where((t) => t.roomNumber.equals(row.roomNumber))).write(RoomsCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
         break;
       case 'bookings':
-        await _applyGeneric(data, db.bookings, (c) => BookingsCompanion(
-              localUuid: d.Value(_uuid.v4()),
-              serverId: d.Value((data['booking_id'] as num?)?.toInt()),
-              lastModified: d.Value(_ts(data['updated_at'] ?? data['created_at'])),
-              deletedAt: d.Value(data['deleted_at'] == null ? null : _ts(data['deleted_at'])),
-              version: const d.Value(1),
-              origin: const d.Value('server'),
-              bookingId: d.Value((data['booking_id'] as num?)?.toInt()),
-              guestName: d.Value((data['guest_name'] ?? '') as String),
-              guestPhone: d.Value((data['guest_phone'] ?? '') as String),
-              guestIdType: d.Value((data['guest_id_type'] ?? '') as String),
-              guestIdNumber: d.Value((data['guest_id_number'] ?? '') as String),
-              roomNumber: d.Value((data['room_number'] ?? '') as String),
-              checkinDate: d.Value(data['checkin_date'] as String),
-              checkoutDate: d.Value(data['checkout_date'] as String?),
-              status: d.Value((data['status'] ?? 'محجوزة') as String),
-              notes: d.Value(data['notes'] as String?),
-              expectedNights: d.Value((data['expected_nights'] as num?)?.toInt()),
-              calculatedNights: d.Value((data['calculated_nights'] as num?)?.toInt()),
-            ));
+        final row = await (db.select(db.bookings)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        if (row != null) await (db.update(db.bookings)..where((t) => t.id.equals(row.id))).write(BookingsCompanion(serverBookingId: d.Value(serverId is int ? serverId : null), serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
         break;
       case 'booking_notes':
-        await _applyGeneric(data, db.bookingNotes, (c) => BookingNotesCompanion(
-              localUuid: d.Value(_uuid.v4()),
-              serverId: d.Value((data['note_id'] as num?)?.toInt()),
-              lastModified: d.Value(_ts(data['updated_at'] ?? data['created_at'])),
-              deletedAt: d.Value(data['deleted_at'] == null ? null : _ts(data['deleted_at'])),
-              version: const d.Value(1),
-              origin: const d.Value('server'),
-              noteId: d.Value((data['note_id'] as num?)?.toInt()),
-              bookingId: d.Value((data['booking_id'] as num?)!.toInt()),
-              noteText: d.Value((data['note_text'] ?? '') as String),
-              alertType: d.Value((data['alert_type'] ?? '') as String),
-              alertUntil: d.Value(data['alert_until'] as String?),
-              isActive: d.Value(((data['is_active'] as num?) ?? 1).toInt()),
-            ));
+        final rowN = await (db.select(db.bookingNotes)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        if (rowN != null) await (db.update(db.bookingNotes)..where((t) => t.id.equals(rowN.id))).write(BookingNotesCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
         break;
       case 'employees':
-        await _applyGeneric(data, db.employees, (c) => EmployeesCompanion(
-              localUuid: d.Value(_uuid.v4()),
-              serverId: d.Value((data['id'] as num?)?.toInt()),
-              lastModified: d.Value(_ts(data['updated_at'] ?? data['created_at'])),
-              deletedAt: d.Value(data['deleted_at'] == null ? null : _ts(data['deleted_at'])),
-              version: const d.Value(1),
-              origin: const d.Value('server'),
-              employeeId: d.Value((data['id'] as num?)?.toInt()),
-              name: d.Value((data['name'] ?? '') as String),
-              basicSalary: d.Value((data['basic_salary'] is num) ? (data['basic_salary'] as num).toDouble() : double.tryParse(data['basic_salary'].toString()) ?? 0),
-              status: d.Value((data['status'] ?? 'active') as String),
-            ));
+        final rowE = await (db.select(db.employees)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        if (rowE != null) await (db.update(db.employees)..where((t) => t.id.equals(rowE.id))).write(EmployeesCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
         break;
       case 'expenses':
-        await _applyGeneric(data, db.expenses, (c) => ExpensesCompanion(
-              localUuid: d.Value(_uuid.v4()),
-              serverId: d.Value((data['id'] as num?)?.toInt()),
-              lastModified: d.Value(_ts(data['updated_at'] ?? data['created_at'])),
-              deletedAt: d.Value(data['deleted_at'] == null ? null : _ts(data['deleted_at'])),
-              version: const d.Value(1),
-              origin: const d.Value('server'),
-              expenseId: d.Value((data['id'] as num?)?.toInt()),
-              expenseType: d.Value((data['expense_type'] ?? '') as String),
-              relatedId: d.Value((data['related_id'] as num?)?.toInt()),
-              description: d.Value((data['description'] ?? '') as String),
-              amount: d.Value((data['amount'] is num) ? (data['amount'] as num).toDouble() : double.tryParse(data['amount'].toString()) ?? 0),
-              date: d.Value((data['date'] ?? '') as String),
-            ));
+        final rowX = await (db.select(db.expenses)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        if (rowX != null) await (db.update(db.expenses)..where((t) => t.id.equals(rowX.id))).write(ExpensesCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
         break;
       case 'cash_transactions':
-        await _applyGeneric(data, db.cashTransactions, (c) => CashTransactionsCompanion(
-              localUuid: d.Value(_uuid.v4()),
-              serverId: d.Value((data['id'] as num?)?.toInt()),
-              lastModified: d.Value(_ts(data['updated_at'] ?? data['created_at'])),
-              deletedAt: d.Value(data['deleted_at'] == null ? null : _ts(data['deleted_at'])),
-              version: const d.Value(1),
-              origin: const d.Value('server'),
-              cashId: d.Value((data['id'] as num?)?.toInt()),
-              registerId: d.Value((data['register_id'] as num?)!.toInt()),
-              transactionType: d.Value((data['transaction_type'] ?? '') as String),
-              amount: d.Value((data['amount'] is num) ? (data['amount'] as num).toDouble() : double.tryParse(data['amount'].toString()) ?? 0),
-              referenceType: d.Value((data['reference_type'] ?? '') as String),
-              referenceId: d.Value((data['reference_id'] as num?)!.toInt()),
-              description: d.Value(data['description'] as String?),
-              transactionTime: d.Value((data['transaction_time'] ?? '') as String),
-            ));
+        final rowC = await (db.select(db.cashTransactions)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        if (rowC != null) await (db.update(db.cashTransactions)..where((t) => t.id.equals(rowC.id))).write(CashTransactionsCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
         break;
-      case 'suppliers':
-        await _applyGeneric(data, db.suppliers, (c) => SuppliersCompanion(
-              localUuid: d.Value(_uuid.v4()),
-              serverId: d.Value((data['id'] as num?)?.toInt()),
-              lastModified: d.Value(_ts(data['updated_at'] ?? data['created_at'])),
-              deletedAt: d.Value(data['deleted_at'] == null ? null : _ts(data['deleted_at'])),
-              version: const d.Value(1),
-              origin: const d.Value('server'),
-              supplierId: d.Value((data['id'] as num?)?.toInt()),
-              name: d.Value((data['name'] ?? '') as String),
-            ));
-        break;
-      case 'users':
-        await _applyGeneric(data, db.users, (c) => UsersCompanion(
-              localUuid: d.Value(_uuid.v4()),
-              serverId: d.Value((data['user_id'] as num?)?.toInt()),
-              lastModified: d.Value(_ts(data['updated_at'] ?? data['created_at'])),
-              deletedAt: d.Value(data['deleted_at'] == null ? null : _ts(data['deleted_at'])),
-              version: const d.Value(1),
-              origin: const d.Value('server'),
-              userId: d.Value((data['user_id'] as num?)?.toInt()),
-              username: d.Value((data['username'] ?? '') as String),
-              fullName: d.Value((data['full_name'] ?? '') as String),
-              email: d.Value((data['email'] ?? '') as String),
-              phone: d.Value((data['phone'] ?? '') as String),
-              userType: d.Value((data['user_type'] ?? '') as String),
-              isActive: d.Value(((data['is_active'] as num?) ?? 1).toInt()),
-            ));
+      case 'payments':
+        final rowP = await (db.select(db.payments)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        if (rowP != null) await (db.update(db.payments)..where((t) => t.id.equals(rowP.id))).write(PaymentsCompanion(serverPaymentId: d.Value(serverId is int ? serverId : null), serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
         break;
     }
   }
 
-  int _ts(dynamic s) {
-    if (s == null) return 0;
-    if (s is int) return s;
-    // expect server returns timestamp as string datetime, convert to seconds
-    try {
-      return DateTime.parse(s.toString()).millisecondsSinceEpoch ~/ 1000;
-    } catch (_) {
-      return DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  Future<void> _applyIncoming(String entity, String op, dynamic serverId, int serverTs, Map<String, dynamic> data) async {
+    switch (entity) {
+      case 'rooms':
+        final rn = data['room_number'] as String;
+        final local = await (db.select(db.rooms)..where((t) => t.roomNumber.equals(rn))).getSingleOrNull();
+        if (local != null) {
+          if (serverTs >= local.lastModified) {
+            await roomsDao.updateById(
+              rn,
+              RoomsCompanion(
+                type: data['type'] != null ? d.Value(data['type']) : const d.Value.absent(),
+                price: data['price'] != null ? d.Value((data['price'] as num).toDouble()) : const d.Value.absent(),
+                status: data['status'] != null ? d.Value(data['status']) : const d.Value.absent(),
+                imageUrl: data['image_url'] != null ? d.Value(data['image_url']) : const d.Value.absent(),
+                serverId: d.Value(serverId is int ? serverId : null),
+                origin: const d.Value('server'),
+              ),
+              originIsServer: true,
+            );
+          }
+        } else {
+          await roomsDao.insertOne(
+            RoomsCompanion(
+              roomNumber: d.Value(rn),
+              type: d.Value(data['type'] ?? ''),
+              price: d.Value((data['price'] as num?)?.toDouble() ?? 0),
+              status: d.Value(data['status'] ?? 'شاغرة'),
+              imageUrl: d.Value(data['image_url']),
+              serverId: d.Value(serverId is int ? serverId : null),
+            ),
+            originIsServer: true,
+          );
+        }
+        if (op == 'delete' || data['deleted_at'] != null) {
+          await roomsDao.softDelete(rn, originIsServer: true);
+        }
+        break;
+      case 'bookings':
+        final sbid = data['booking_id'] as int?;
+        Booking? local;
+        if (sbid != null) {
+          local = await (db.select(db.bookings)..where((t) => t.serverBookingId.equals(sbid))).getSingleOrNull();
+        }
+        final room = data['room_number'] as String?;
+        if (local != null) {
+          if (serverTs >= local.lastModified) {
+            await bookingsDao.updateById(
+              local.id,
+              BookingsCompanion(
+                serverBookingId: d.Value(sbid),
+                roomNumber: room != null ? d.Value(room) : const d.Value.absent(),
+                guestName: data['guest_name'] != null ? d.Value(data['guest_name']) : const d.Value.absent(),
+                guestPhone: data['guest_phone'] != null ? d.Value(data['guest_phone']) : const d.Value.absent(),
+                checkinDate: data['checkin_date'] != null ? d.Value(data['checkin_date']) : const d.Value.absent(),
+                checkoutDate: d.Value(data['checkout_date']),
+                status: data['status'] != null ? d.Value(data['status']) : const d.Value.absent(),
+                notes: d.Value(data['notes']),
+                origin: const d.Value('server'),
+              ),
+              originIsServer: true,
+            );
+          }
+        } else {
+          await bookingsDao.insertOne(
+            BookingsCompanion(
+              serverBookingId: d.Value(sbid),
+              roomNumber: d.Value(room ?? ''),
+              guestName: d.Value(data['guest_name'] ?? ''),
+              guestPhone: d.Value(data['guest_phone'] ?? ''),
+              guestNationality: d.Value(data['guest_nationality'] ?? ''),
+              guestEmail: d.Value(data['guest_email']),
+              guestAddress: d.Value(data['guest_address']),
+              checkinDate: d.Value(data['checkin_date'] ?? Time.nowIso()),
+              checkoutDate: d.Value(data['checkout_date']),
+              status: d.Value(data['status'] ?? 'محجوزة'),
+              notes: d.Value(data['notes']),
+              serverId: d.Value(sbid),
+            ),
+            originIsServer: true,
+          );
+        }
+        if (op == 'delete' || data['deleted_at'] != null) {
+          final target = local ?? await (db.select(db.bookings)..where((t) => t.serverBookingId.equals(sbid ?? -1))).getSingleOrNull();
+          if (target != null) await bookingsDao.softDelete(target.id, originIsServer: true);
+        }
+        break;
+      case 'booking_notes':
+        final nid = data['note_id'] as int?;
+        BookingNote? ln;
+        if (nid != null) ln = await (db.select(db.bookingNotes)..where((t) => t.serverId.equals(nid))).getSingleOrNull();
+        if (ln != null) {
+          if (serverTs >= ln.lastModified) {
+            await notesDao.updateById(
+              ln.id,
+              BookingNotesCompanion(
+                bookingId: d.Value(ln.bookingId),
+                noteText: d.Value(data['note_text'] ?? ln.noteText),
+                alertType: d.Value(data['alert_type'] ?? ln.alertType),
+                alertUntil: d.Value(data['alert_until']),
+                isActive: d.Value((data['is_active'] as num? ?? 1).toInt()),
+                serverId: d.Value(nid),
+                origin: const d.Value('server'),
+              ),
+              originIsServer: true,
+            );
+          }
+        } else {
+          await notesDao.insertOne(
+            BookingNotesCompanion(
+              bookingId: d.Value(data['booking_id'] as int? ?? 0),
+              noteText: d.Value(data['note_text'] ?? ''),
+              alertType: d.Value(data['alert_type'] ?? 'low'),
+              alertUntil: d.Value(data['alert_until']),
+              isActive: d.Value((data['is_active'] as num? ?? 1).toInt()),
+              serverId: d.Value(nid),
+            ),
+            originIsServer: true,
+          );
+        }
+        if (op == 'delete' || data['deleted_at'] != null) {
+          final target = ln ?? await (db.select(db.bookingNotes)..where((t) => t.serverId.equals(nid ?? -1))).getSingleOrNull();
+          if (target != null) await notesDao.softDelete(target.id, originIsServer: true);
+        }
+        break;
+      case 'employees':
+        final sid = data['id'] as int?;
+        Employee? le;
+        if (sid != null) le = await (db.select(db.employees)..where((t) => t.serverId.equals(sid))).getSingleOrNull();
+        if (le != null) {
+          if (serverTs >= le.lastModified) {
+            await employeesDao.updateById(
+              le.id,
+              EmployeesCompanion(
+                name: d.Value(data['name'] ?? le.name),
+                basicSalary: d.Value((data['basic_salary'] as num?)?.toDouble() ?? le.basicSalary),
+                status: d.Value(data['status'] ?? le.status),
+                serverId: d.Value(sid),
+                origin: const d.Value('server'),
+              ),
+              originIsServer: true,
+            );
+          }
+        } else {
+          await employeesDao.insertOne(
+            EmployeesCompanion(
+              name: d.Value(data['name'] ?? ''),
+              basicSalary: d.Value((data['basic_salary'] as num?)?.toDouble() ?? 0),
+              status: d.Value(data['status'] ?? 'active'),
+              serverId: d.Value(sid),
+            ),
+            originIsServer: true,
+          );
+        }
+        if (op == 'delete' || data['deleted_at'] != null) {
+          final target = le ?? await (db.select(db.employees)..where((t) => t.serverId.equals(sid ?? -1))).getSingleOrNull();
+          if (target != null) await employeesDao.softDelete(target.id, originIsServer: true);
+        }
+        break;
+      case 'expenses':
+        final xid = data['id'] as int?;
+        Expense? lx;
+        if (xid != null) lx = await (db.select(db.expenses)..where((t) => t.serverId.equals(xid))).getSingleOrNull();
+        if (lx != null) {
+          if (serverTs >= lx.lastModified) {
+            await expensesDao.updateById(
+              lx.id,
+              ExpensesCompanion(
+                expenseType: d.Value(data['expense_type'] ?? lx.expenseType),
+                relatedId: d.Value(data['related_id'] as int?),
+                description: d.Value(data['description'] ?? lx.description),
+                amount: d.Value((data['amount'] as num?)?.toDouble() ?? lx.amount),
+                date: d.Value(data['date'] ?? lx.date),
+                serverId: d.Value(xid),
+                origin: const d.Value('server'),
+              ),
+              originIsServer: true,
+            );
+          }
+        } else {
+          await expensesDao.insertOne(
+            ExpensesCompanion(
+              expenseType: d.Value(data['expense_type'] ?? 'other'),
+              relatedId: d.Value(data['related_id'] as int?),
+              description: d.Value(data['description'] ?? ''),
+              amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
+              date: d.Value(data['date'] ?? Time.nowIso().substring(0, 10)),
+              serverId: d.Value(xid),
+            ),
+            originIsServer: true,
+          );
+        }
+        if (op == 'delete' || data['deleted_at'] != null) {
+          final target = lx ?? await (db.select(db.expenses)..where((t) => t.serverId.equals(xid ?? -1))).getSingleOrNull();
+          if (target != null) await expensesDao.softDelete(target.id, originIsServer: true);
+        }
+        break;
+      case 'cash_transactions':
+        final cid = data['id'] as int?;
+        final lc = cid != null ? await (db.select(db.cashTransactions)..where((t) => t.serverId.equals(cid))).getSingleOrNull() : null;
+        if (lc != null) {
+          if (serverTs >= lc.lastModified) {
+            await cashDao.updateById(
+              lc.id,
+              CashTransactionsCompanion(
+                registerId: d.Value(data['register_id'] as int?),
+                transactionType: d.Value(data['transaction_type'] ?? lc.transactionType),
+                amount: d.Value((data['amount'] as num?)?.toDouble() ?? lc.amount),
+                referenceType: d.Value(data['reference_type']),
+                referenceId: d.Value(data['reference_id'] as int?),
+                description: d.Value(data['description']),
+                transactionTime: d.Value(data['transaction_time'] ?? lc.transactionTime),
+                serverId: d.Value(cid),
+                origin: const d.Value('server'),
+              ),
+              originIsServer: true,
+            );
+          }
+        } else {
+          await cashDao.insertOne(
+            CashTransactionsCompanion(
+              registerId: d.Value(data['register_id'] as int?),
+              transactionType: d.Value(data['transaction_type'] ?? 'income'),
+              amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
+              referenceType: d.Value(data['reference_type']),
+              referenceId: d.Value(data['reference_id'] as int?),
+              description: d.Value(data['description']),
+              transactionTime: d.Value(data['transaction_time'] ?? Time.nowIso()),
+              serverId: d.Value(cid),
+            ),
+            originIsServer: true,
+          );
+        }
+        if (op == 'delete' || data['deleted_at'] != null) {
+          final target = lc ?? await (db.select(db.cashTransactions)..where((t) => t.serverId.equals(cid ?? -1))).getSingleOrNull();
+          if (target != null) await cashDao.softDelete(target.id, originIsServer: true);
+        }
+        break;
+      case 'payments':
+        final pid = data['payment_id'] as int?;
+        final lp = pid != null ? await (db.select(db.payments)..where((t) => t.serverPaymentId.equals(pid))).getSingleOrNull() : null;
+        if (lp != null) {
+          if (serverTs >= lp.lastModified) {
+            await paymentsDao.updateById(
+              lp.id,
+              PaymentsCompanion(
+                serverPaymentId: d.Value(pid),
+                serverBookingId: d.Value(data['booking_id'] as int?),
+                roomNumber: d.Value(data['room_number'] as String?),
+                amount: d.Value((data['amount'] as num?)?.toDouble() ?? lp.amount),
+                paymentDate: d.Value(data['payment_date'] ?? lp.paymentDate),
+                notes: d.Value(data['notes'] as String?),
+                paymentMethod: d.Value(data['payment_method'] ?? lp.paymentMethod),
+                revenueType: d.Value(data['revenue_type'] ?? lp.revenueType),
+                cashTransactionServerId: d.Value(data['cash_transaction_id'] as int?),
+                serverId: d.Value(pid),
+                origin: const d.Value('server'),
+              ),
+              originIsServer: true,
+            );
+          }
+        } else {
+          await paymentsDao.insertOne(
+            PaymentsCompanion(
+              serverPaymentId: d.Value(pid),
+              serverBookingId: d.Value(data['booking_id'] as int?),
+              roomNumber: d.Value(data['room_number'] as String?),
+              amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
+              paymentDate: d.Value(data['payment_date'] ?? Time.nowIso()),
+              notes: d.Value(data['notes'] as String?),
+              paymentMethod: d.Value(data['payment_method'] ?? 'نقدي'),
+              revenueType: d.Value(data['revenue_type'] ?? 'room'),
+              cashTransactionServerId: d.Value(data['cash_transaction_id'] as int?),
+              serverId: d.Value(pid),
+            ),
+            originIsServer: true,
+          );
+        }
+        if (op == 'delete' || data['deleted_at'] != null) {
+          final target = lp ?? await (db.select(db.payments)..where((t) => t.serverPaymentId.equals(pid ?? -1))).getSingleOrNull();
+          if (target != null) await paymentsDao.softDelete(target.id, originIsServer: true);
+        }
+        break;
     }
-  }
-
-  Future<void> _applyGeneric<T extends d.Table, C>(
-      Map<String, dynamic> data, T table, C Function(T) buildCompanion) async {
-    final comp = buildCompanion(table);
-    await (db.into(table as dynamic)).insert(comp as d.Insertable, mode: d.InsertMode.insertOrReplace);
   }
 }
+
+final syncServiceProvider = Provider<SyncService>((ref) => SyncService(ref.read(databaseProvider)));
+final syncStatusProvider = StreamProvider<SyncStatus>((ref) => ref.read(syncServiceProvider).statusStream);

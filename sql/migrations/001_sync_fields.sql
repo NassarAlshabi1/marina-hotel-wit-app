@@ -72,18 +72,15 @@ ALTER TABLE `salary_withdrawals`
   MODIFY COLUMN `employee_id` INT(11) NULL,
   ADD CONSTRAINT `fk_withdrawals_employee` FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
--- 4) Optional media table for room images
-CREATE TABLE IF NOT EXISTS `room_images` (
-  `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `room_number` VARCHAR(10) NOT NULL,
-  `url` VARCHAR(255) NOT NULL,
-  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted_at` TIMESTAMP NULL DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_room_number` (`room_number`),
-  CONSTRAINT `fk_room_images_room` FOREIGN KEY (`room_number`) REFERENCES `rooms`(`room_number`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- 4) Rooms single image URL instead of separate images table
+ALTER TABLE `rooms`
+  ADD COLUMN IF NOT EXISTS `image_url` VARCHAR(255) NULL DEFAULT NULL;
+
+-- Add helpful indexes for payment analytics
+ALTER TABLE `payment`
+  ADD INDEX `idx_payment_date` (`payment_date`),
+  ADD INDEX `idx_revenue_type` (`revenue_type`),
+  ADD INDEX `idx_cash_tx` (`cash_transaction_id`);
 
 -- Notes:
 -- - If IF NOT EXISTS is unsupported on your MySQL version for ADD COLUMN, re-run conditionally or ignore duplicate column errors.

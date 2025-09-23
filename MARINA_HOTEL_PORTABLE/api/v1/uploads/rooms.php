@@ -57,14 +57,5 @@ if (!str_ends_with($rootBase, '/MARINA_HOTEL_PORTABLE')) {
 }
 $baseUrl = $rootBase . '/uploads/rooms/' . $y . '/' . $m . '/' . $fname;
 
-// persist mapping if table exists
-try {
-    $stmt = $conn->prepare("INSERT INTO room_images (room_number, url) VALUES (?, ?)");
-    $stmt->bind_param('ss', $room_number, $baseUrl);
-    $stmt->execute();
-    $stmt->close();
-} catch (Exception $e) {
-    // ignore if table missing
-}
-
+// In new design, client should PUT /v1/rooms/<room_number> with { image_url: <url> } to persist.
 send_json(true, ['url' => $baseUrl, 'meta' => ['filename' => $fname, 'mime' => $mime]], ['server_time' => time()]);

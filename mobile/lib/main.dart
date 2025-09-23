@@ -11,6 +11,8 @@ import 'screens/employees/employees_list.dart';
 import 'screens/expenses/expenses_list.dart';
 import 'screens/finance/finance_screen.dart';
 import 'screens/reports/reports_screen.dart';
+import 'services/providers.dart';
+import 'services/seed.dart';
 
 void main() {
   runApp(const ProviderScope(child: App()));
@@ -21,10 +23,13 @@ class App extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    ref.listen(databaseProvider, (prev, db) async {
+      await Seeder(db).seedIfEmpty();
+    });
     return Directionality(
       textDirection: TextDirection.rtl,
       child: MaterialApp(
-        title: 'مارينا بلازا',
+        title: 'مارينا هوتيل',
         theme: buildTheme(),
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
@@ -32,6 +37,14 @@ class App extends ConsumerWidget {
           GlobalWidgetsLocalizations.delegate,
         ],
         supportedLocales: const [Locale('ar')],
+        routes: {
+          '/employees': (_) => const EmployeesListScreen(),
+          '/expenses': (_) => const ExpensesListScreen(),
+          '/finance/cash-register': (_) => const FinanceScreen(),
+          '/finance/cash-transactions': (_) => const FinanceScreen(),
+          '/reports': (_) => const ReportsScreen(),
+          '/login': (_) => const LoginScreen(),
+        },
         home: auth.isAuthenticated ? const HomeShell() : const LoginScreen(),
       ),
     );

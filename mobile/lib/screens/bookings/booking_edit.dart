@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:uuid/uuid.dart';
-import '../../providers/core_providers.dart' as coreProviders;
-import '../../services/local_db.dart';
+import '../../services/providers.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing});
@@ -37,7 +36,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final db = ref.watch(coreProviders.dbProvider);
+    final repo = ref.watch(bookingsRepoProvider);
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -63,55 +62,33 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
               FilledButton(
                 onPressed: () async {
                   if (!_formKey.currentState!.validate()) return;
-                  final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-                  final uuid = const Uuid().v4();
-                  final comp = BookingsCompanion(
-                    localUuid: d.Value(uuid),
-                    serverId: d.Value(widget.existing?.serverId),
-                    lastModified: d.Value(now),
-                    deletedAt: const d.Value(null),
-                    version: const d.Value(1),
-                    origin: const d.Value('local'),
-                    bookingId: d.Value(widget.existing?.bookingId),
-                    guestName: d.Value(_guestName.text.trim()),
-                    guestPhone: d.Value(_guestPhone.text.trim()),
-                    roomNumber: d.Value(_roomNumber.text.trim()),
-                    checkinDate: d.Value(_checkin.text.trim()),
-                    checkoutDate: d.Value(_checkout.text.trim().isEmpty ? null : _checkout.text.trim()),
-                    status: d.Value(_status),
-                  );
-
                   if (widget.existing == null) {
-                    await db.into(db.bookings).insert(comp);
-                    await ref.read(coreProviders.syncProvider).queueChange(
-                          entity: 'bookings',
-                          op: 'create',
-                          localUuid: uuid,
-                          data: {
-                            'guest_name': _guestName.text.trim(),
-                            'guest_phone': _guestPhone.text.trim(),
-                            'room_number': _roomNumber.text.trim(),
-                            'checkin_date': _checkin.text.trim(),
-                            'checkout_date': _checkout.text.trim().isEmpty ? null : _checkout.text.trim(),
-                            'status': _status,
-                          },
-                        );
+                    await repo.create(
+                      roomNumber: _roomNumber.text.trim(),
+                      guestName: _guestName.text.trim(),
+                      guestPhone: _guestPhone.text.trim(),
+                      guestNationality: 'يمني',
+                      guestEmail: null,
+                      guestAddress: null,
+                      checkinDate: _checkin.text.trim(),
+                      checkoutDate: _checkout.text.trim().isEmpty ? null : _checkout.text.trim(),
+                      status: _status,
+                      notes: null,
+                    );
                   } else {
-                    await (db.update(db.bookings)..where((t) => t.localUuid.equals(widget.existing!.localUuid))).write(comp);
-                    await ref.read(coreProviders.syncProvider).queueChange(
-                          entity: 'bookings',
-                          op: 'update',
-                          localUuid: widget.existing!.localUuid,
-                          data: {
-                            'booking_id': widget.existing!.bookingId,
-                            'guest_name': _guestName.text.trim(),
-                            'guest_phone': _guestPhone.text.trim(),
-                            'room_number': _roomNumber.text.trim(),
-                            'checkin_date': _checkin.text.trim(),
-                            'checkout_date': _checkout.text.trim().isEmpty ? null : _checkout.text.trim(),
-                            'status': _status,
-                          },
-                        );
+                    await repo.update(
+                      widget.existing!.id,
+                      roomNumber: _roomNumber.text.trim(),
+                      guestName: _guestName.text.trim(),
+                      guestPhone: _guestPhone.text.trim(),
+                      guestNationality: 'يمني',
+                      guestEmail: null,
+                      guestAddress: null,
+                      checkinDate: _checkin.text.trim(),
+                      checkoutDate: _checkout.text.trim().isEmpty ? null : _checkout.text.trim(),
+                      status: _status,
+                      notes: null,
+                    );
                   }
 
                   if (context.mounted) Navigator.pop(context);

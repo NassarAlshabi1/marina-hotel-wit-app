@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
-import '../../providers/core_providers.dart';
-import '../../providers/core_providers.dart' as coreProviders;
+import '../../services/providers.dart';
 import '../../services/local_db.dart';
-import '../../services/sync_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' as d;
+import 'package:image_picker/image_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 
@@ -16,7 +15,7 @@ class RoomsListScreen extends ConsumerWidget {
   const RoomsListScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final db = ref.watch(coreProviders.dbProvider);
+    final roomsStream = ref.watch(roomsListProvider);
     return AppScaffold(
       title: 'الغرف',
       actions: [
@@ -26,16 +25,15 @@ class RoomsListScreen extends ConsumerWidget {
         ),
         IconButton(
           onPressed: () async {
-            await _editRoom(context, ref, db);
+            await _editRoom(context, ref);
           },
           icon: const Icon(Icons.add),
         )
       ],
-      body: StreamBuilder(
-        stream: db.select(db.rooms).watch(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          final rooms = snapshot.data!;
+      body: roomsStream.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => Center(child: Text('خطأ: $e')),
+        data: (rooms) {
           return ListView.builder(
             itemCount: rooms.length,
             itemBuilder: (c, i) {
@@ -43,18 +41,10 @@ class RoomsListScreen extends ConsumerWidget {
               return ListTile(
                 title: Text('${r.roomNumber} • ${r.type}'),
                 subtitle: Text('السعر: ${r.price.toStringAsFixed(2)} • الحالة: ${r.status}'),
-                trailing: Wrap(spacing: 8, children: [
-                  IconButton(
-                    icon: const Icon(Icons.camera_alt),
-                    onPressed: () async {
-                      await _uploadImage(context, r.roomNumber);
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _editRoom(context, ref, db, existing: r),
-                  ),
-                ]),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => _editRoom(context, ref, existing: r),
+                ),
               );
             },
           );
@@ -63,12 +53,13 @@ class RoomsListScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _editRoom(BuildContext context, WidgetRef ref, AppDatabase db, {RoomsData? existing}) async {
+  Future<void> _editRoom(BuildContext context, WidgetRef ref, {RoomsData? existing}) async {
     final roomNumberCtrl = TextEditingController(text: existing?.roomNumber ?? '');
     final typeCtrl = TextEditingController(text: existing?.type ?? '');
     final priceCtrl = TextEditingController(text: existing?.price.toString() ?? '');
     String status = existing?.status ?? 'شاغرة';
 
+    String? imageUrl = existing?.imageUrl;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
@@ -90,6 +81,20 @@ class RoomsListScreen extends ConsumerWidget {
                 onChanged: (v) => status = v ?? status,
                 decoration: const InputDecoration(labelText: 'الحالة'),
               ),
+              const SizedBox(height: 8),
+              if (imageUrl != null) Image.network(imageUrl, height: 120, fit: BoxFit.cover),
+              TextButton.icon(
+                onPressed: () async {
+                  final picker = ImagePicker();
+                  final img = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1600, maxHeight: 1600, imageQuality: 85);
+                  if (img != null) {
+                    imageUrl = img.path;
+                    (ctx as Element).markNeedsBuild();
+                  }
+                },
+                icon: const Icon(Icons.image),
+                label: const Text('اختر صورة'),
+              ),
             ]),
           ),
           actions: [
@@ -101,48 +106,23 @@ class RoomsListScreen extends ConsumerWidget {
     );
     if (ok != true) return;
 
-    final uuid = const Uuid().v4();
-    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final comp = RoomsCompanion(
-      localUuid: d.Value(uuid),
-      serverId: const d.Value(null),
-      lastModified: d.Value(now),
-      deletedAt: const d.Value(null),
-      version: const d.Value(1),
-      origin: const d.Value('local'),
-      roomNumber: d.Value(roomNumberCtrl.text.trim()),
-      type: d.Value(typeCtrl.text.trim()),
-      price: d.Value(double.tryParse(priceCtrl.text) ?? 0),
-      status: d.Value(status),
-    );
-
+    final repo = ref.read(roomsRepoProvider);
     if (existing == null) {
-      await db.into(db.rooms).insert(comp);
-      await ref.read(coreProviders.syncProvider).queueChange(
-            entity: 'rooms',
-            op: 'create',
-            localUuid: uuid,
-            data: {
-              'room_number': roomNumberCtrl.text.trim(),
-              'type': typeCtrl.text.trim(),
-              'price': double.tryParse(priceCtrl.text) ?? 0,
-              'status': status,
-            },
-          );
+      await repo.create(
+        roomNumber: roomNumberCtrl.text.trim(),
+        type: typeCtrl.text.trim(),
+        price: double.tryParse(priceCtrl.text) ?? 0,
+        status: status,
+        imageUrl: imageUrl,
+      );
     } else {
-      // update existing: insert new row version and queue update
-      await (db.update(db.rooms)..where((t) => t.localUuid.equals(existing.localUuid))).write(comp);
-      await ref.read(coreProviders.syncProvider).queueChange(
-            entity: 'rooms',
-            op: 'update',
-            localUuid: existing.localUuid,
-            data: {
-              'room_number': roomNumberCtrl.text.trim(),
-              'type': typeCtrl.text.trim(),
-              'price': double.tryParse(priceCtrl.text) ?? 0,
-              'status': status,
-            },
-          );
+      await repo.update(
+        existing.roomNumber,
+        type: typeCtrl.text.trim(),
+        price: double.tryParse(priceCtrl.text) ?? 0,
+        status: status,
+        imageUrl: imageUrl,
+      );
     }
   }
 

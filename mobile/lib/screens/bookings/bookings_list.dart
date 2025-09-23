@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
-import '../../providers/core_providers.dart' as coreProviders;
-import '../../services/local_db.dart';
+import '../../services/providers.dart';
 import 'booking_edit.dart';
 
 class BookingsListScreen extends ConsumerWidget {
   const BookingsListScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final db = ref.watch(coreProviders.dbProvider);
+    final bookings = ref.watch(bookingsListProvider);
     return AppScaffold(
       title: 'الحجوزات',
       actions: [
@@ -24,11 +23,10 @@ class BookingsListScreen extends ConsumerWidget {
           icon: const Icon(Icons.add),
         )
       ],
-      body: StreamBuilder(
-        stream: db.select(db.bookings).watch(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          final list = snapshot.data!;
+      body: bookings.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => Center(child: Text('خطأ: $e')),
+        data: (list) {
           return ListView.builder(
             itemCount: list.length,
             itemBuilder: (c, i) {
