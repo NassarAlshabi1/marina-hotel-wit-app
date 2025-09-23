@@ -157,7 +157,7 @@ function handle_entity($config) {
         if ($since) {
             $where .= " AND ((`updated_at` >= FROM_UNIXTIME(?)) OR (`deleted_at` IS NOT NULL AND `deleted_at` >= FROM_UNIXTIME(?)))";
         } else {
-            $where .= " AND (`deleted_at` IS NULL OR `deleted_at` IS NULL)"; // show only non-deleted by default
+            $where .= " AND (`deleted_at` IS NULL)"; // show only non-deleted by default
         }
 
         $filter = isset($_GET['filter']) ? sanitize_filter($conn, $_GET['filter']) : null;
