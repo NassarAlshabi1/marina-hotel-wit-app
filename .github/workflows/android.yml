@@ -1,0 +1,96 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  tags:
+    - 'v*'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+          channel: 'stable'
+
+      - name: Flutter Doctor
+        run: flutter doctor -v
+
+      - name: Prepare project
+        working-directory: mobile
+        run: |
+          if [ ! -d "android" ]; then
+            mkdir -p .capy_tmp
+            cp -r lib .capy_tmp/lib
+            cp pubspec.yaml .capy_tmp/pubspec.yaml
+            rm -rf lib pubspec.yaml
+            flutter create . --platforms=android --org com.marinaplaza --project-name marina_hotel_mobile --overwrite
+            rm -rf lib
+            mv .capy_tmp/lib ./lib
+            mv .capy_tmp/pubspec.yaml ./pubspec.yaml
+          fi
+
+      - name: Get dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Build codegen
+        working-directory: mobile
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Decode keystore
+        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+        working-directory: mobile/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > app/upload-keystore.jks
+          fi
+
+      - name: Create key.properties
+        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+        working-directory: mobile/android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cat > key.properties << EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=app/upload-keystore.jks
+          EOF
+
+      - name: Build APK (release)
+        working-directory: mobile
+        env:
+          BASE_API_URL: ${{ secrets.BASE_API_URL || 'http://127.0.0.1/MARINA_HOTEL_PORTABLE/api/v1' }}
+        run: flutter build apk --release --dart-define=BASE_API_URL=$BASE_API_URL
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release.apk
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mobile/build/app/outputs/flutter-apk/app-release.apk
