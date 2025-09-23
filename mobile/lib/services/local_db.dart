@@ -41,10 +41,10 @@ class Bookings extends Table with SyncFields {
   IntColumn get calculatedNights => integer().withDefault(const Constant(1))();
 
   @override
-  List<String> get customConstraints => [
-        'INDEX bookings_room_idx (room_number)',
-        'INDEX bookings_status_idx (status)',
-        'INDEX bookings_checkin_idx (checkin_date)'
+  List<Index> get indexes => [
+        Index('bookings_room_idx', [roomNumber]),
+        Index('bookings_status_idx', [status]),
+        Index('bookings_checkin_idx', [checkinDate]),
       ];
 }
 
@@ -101,10 +101,10 @@ class Payments extends Table with SyncFields {
   IntColumn get cashTransactionServerId => integer().nullable()();
 
   @override
-  List<String> get customConstraints => [
-        'INDEX payments_date_idx (payment_date)',
-        'INDEX payments_rev_idx (revenue_type)',
-        'INDEX payments_server_idx (server_payment_id)'
+  List<Index> get indexes => [
+        Index('payments_date_idx', [paymentDate]),
+        Index('payments_rev_idx', [revenueType]),
+        Index('payments_server_idx', [serverPaymentId]),
       ];
 }
 
