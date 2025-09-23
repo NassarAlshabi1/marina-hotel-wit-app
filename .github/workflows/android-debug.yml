@@ -1,0 +1,62 @@
+name: Android Debug APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseApiUrl:
+        description: 'BASE_API_URL for build'
+        required: false
+        default: 'http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1'
+
+jobs:
+  build-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+          channel: 'stable'
+
+      - name: Prepare project
+        working-directory: mobile
+        run: |
+          if [ ! -d "android" ]; then
+            mkdir -p .capy_tmp
+            cp -r lib .capy_tmp/lib
+            cp pubspec.yaml .capy_tmp/pubspec.yaml
+            rm -rf lib pubspec.yaml
+            flutter create . --platforms=android --org com.marinaplaza --project-name marina_hotel_mobile --overwrite
+            rm -rf lib
+            mv .capy_tmp/lib ./lib
+            mv .capy_tmp/pubspec.yaml ./pubspec.yaml
+          fi
+
+      - name: Get dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Build codegen
+        working-directory: mobile
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Build APK (debug)
+        working-directory: mobile
+        env:
+          BASE_API_URL: ${{ github.event.inputs.baseApiUrl }}
+        run: flutter build apk --debug --dart-define=BASE_API_URL=$BASE_API_URL
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug.apk
+          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
