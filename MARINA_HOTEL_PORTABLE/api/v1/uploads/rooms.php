@@ -48,8 +48,14 @@ if (!move_uploaded_file($file['tmp_name'], $dest)) {
     send_json(false, ['error' => 'Failed to save file'], null, 500);
 }
 
-// Build public URL (assuming BASE_URL points to MARINA_HOTEL_PORTABLE root)
-$baseUrl = rtrim(BASE_URL, '/') . '/uploads/rooms/' . $y . '/' . $m . '/' . $fname;
+// Build public URL based on MARINA_HOTEL_PORTABLE root
+$rootBase = rtrim(BASE_URL, '/');
+$rootBase = preg_replace('#/api/v1/.*$#', '', $rootBase); // strip /api/v1/... if present
+if (!str_ends_with($rootBase, '/MARINA_HOTEL_PORTABLE')) {
+    // try to ensure we end at the portable root
+    $rootBase = rtrim($rootBase, '/') . '/MARINA_HOTEL_PORTABLE';
+}
+$baseUrl = $rootBase . '/uploads/rooms/' . $y . '/' . $m . '/' . $fname;
 
 // persist mapping if table exists
 try {
