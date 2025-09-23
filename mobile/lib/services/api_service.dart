@@ -22,10 +22,16 @@ class ApiService {
         handler.next(options);
       },
       onError: (e, handler) async {
-        // try refresh on 401
-        if (e.response?.statusCode == 401 && await _tryRefresh()) {
-          final req = await _retryRequest(e.requestOptions);
-          return handler.resolve(req);
+        final code = e.response?.statusCode ?? 0;
+        if (code == 401) {
+          await _storage.delete(key: _kToken);
+        }
+        if (code == 429 || code >= 500) {
+          await Future.delayed(const Duration(seconds: 1));
+          try {
+            final req = await _retryRequest(e.requestOptions);
+            return handler.resolve(req);
+          } catch (_) {}
         }
         handler.next(e);
       },
@@ -66,6 +72,15 @@ class ApiService {
       return true;
     }
     return false;
+  }
+
+  Future<bool> ping() async {
+    try {
+      final res = await _dio.get('/auth/ping.php');
+      return res.statusCode == 200 && res.data['success'] == true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> logout() async {

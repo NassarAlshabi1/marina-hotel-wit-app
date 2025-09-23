@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../bootstrap.php';
+require_once __DIR__ . '/../utils_jwt.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     send_json(false, ['error' => 'Method not allowed'], null, 405);
@@ -13,7 +14,6 @@ if ($username === '' || $password === '') {
     send_json(false, ['error' => 'Username and password are required'], null, 400);
 }
 
-// fetch user
 $stmt = $conn->prepare("SELECT user_id, username, full_name, email, phone, user_type, is_active, password, password_hash FROM users WHERE username = ? LIMIT 1");
 $stmt->bind_param('s', $username);
 $stmt->execute();
@@ -35,7 +35,6 @@ if (!$verified) {
     send_json(false, ['error' => 'Invalid credentials'], null, 401);
 }
 
-// permissions
 $perms = [];
 $ps = $conn->prepare("SELECT p.permission_code FROM user_permissions up JOIN permissions p ON p.permission_id = up.permission_id WHERE up.user_id = ?");
 $ps->bind_param('i', $user['user_id']);
@@ -44,20 +43,22 @@ $res = $ps->get_result();
 while ($row = $res->fetch_assoc()) { $perms[] = $row['permission_code']; }
 $ps->close();
 
-$exp = time() + 60 * 60 * 12; // 12 hours
 $payload = [
-    'sub' => (int)$user['user_id'],
+    'user_id' => (int)$user['user_id'],
     'username' => $user['username'],
-    'permissions' => $perms,
-    'exp' => $exp
+    'perms' => $perms,
 ];
-$token = jwt_encode($payload, jwt_secret());
+$token = jwt_encode($payload, $CONFIG['jwt_secret'], (int)$CONFIG['jwt_ttl_hours']);
 
-unset($user['password']);
-unset($user['password_hash']);
+$data_user = [
+    'id' => (int)$user['user_id'],
+    'username' => $user['username'],
+    'full_name' => $user['full_name'],
+    'user_type' => $user['user_type'],
+    'permissions' => $perms,
+];
 
 send_json(true, [
     'token' => $token,
-    'user' => $user,
-    'permissions' => $perms
+    'user' => $data_user
 ], ['server_time' => time()]);
