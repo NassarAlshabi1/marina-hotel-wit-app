@@ -14,41 +14,103 @@ on:
         required: false
         default: ''
 
+permissions:
+  contents: read
+  actions: read
+  checks: write
+  security-events: write
+  id-token: write
+  packages: read
+  pull-requests: read
+  dependency-graph: write
+
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-debug:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: true
+      JAVA_TOOL_OPTIONS: -Xms256m -Xmx4g -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+      GRADLE_OPTS: -Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
-      - name: Setup Flutter
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          dependency-graph: generate-and-submit
+
+      - name: Setup Flutter 3.22.2
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.2'
           channel: 'stable'
           cache: true
 
-      - name: Cache Pub (global)
+      - name: Cache Pub and Dart tool
+        id: cache-pub
         uses: actions/cache@v4
         with:
           path: |
             ~/.pub-cache
             mobile/.dart_tool
+            mobile/.packages
           key: ${{ runner.os }}-pub-${{ hashFiles('mobile/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
       - name: Cache Gradle
+        id: cache-gradle
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('mobile/android/gradle/wrapper/gradle-wrapper.properties', 'mobile/android/build.gradle', 'mobile/android/app/build.gradle') }}
+            ~/.gradle/caches/build-cache-1
+            mobile/android/.gradle
+          key: ${{ runner.os }}-gradle-java17-${{ hashFiles('mobile/android/gradle/wrapper/gradle-wrapper.properties', 'mobile/android/**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-java17-
+            ${{ runner.os }}-gradle-
+
+      - name: Cache Flutter build outputs (debug)
+        id: cache-build
+        uses: actions/cache@v4
+        with:
+          path: |
+            mobile/build
+            mobile/build/app/intermediates
+            mobile/build/app/outputs
+          key: ${{ runner.os }}-flutter-build-debug-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-build-debug-
+
+      - name: Cache code generation outputs
+        id: cache-codegen
+        uses: actions/cache@v4
+        with:
+          path: |
+            mobile/.dart_tool/build
+          key: ${{ runner.os }}-dart-build-${{ hashFiles('mobile/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-dart-build-
+
+      - name: Flutter Doctor
+        run: flutter doctor -v
 
       - name: Prepare project
         working-directory: mobile
@@ -68,20 +130,48 @@ jobs:
         working-directory: mobile
         run: flutter pub get
 
+      - name: Flutter analyze
+        working-directory: mobile
+        run: flutter analyze
+
       - name: Build codegen
         working-directory: mobile
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
+      - name: Flutter tests (optional)
+        if: ${{ !cancelled() }}
+        working-directory: mobile
+        run: flutter test --concurrency=4
+        timeout-minutes: 10
+        continue-on-error: true
+
       - name: Build APK (debug)
         working-directory: mobile
+        env:
+          BASE_API_URL: ${{ github.event.inputs.baseApiUrl || 'http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1' }}
         run: |
-          API="${{ github.event.inputs.baseApiUrl }}"
-          if [ -z "$API" ]; then API="http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1"; fi
-          echo "Using BASE_API_URL=$API"
-          flutter build apk --debug --dart-define=BASE_API_URL=$API
+          echo "Using BASE_API_URL=$BASE_API_URL"
+          flutter build apk --debug --dart-define=BASE_API_URL=$BASE_API_URL
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug.apk
+          name: app-debug-${{ github.run_number }}.apk
           path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          compression-level: 9
+
+      - name: Dependency review (PRs only)
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+      - name: Build summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Flutter: $(flutter --version | head -n 1)" >> $GITHUB_STEP_SUMMARY
+          echo "- Java: $(java -version 2>&1 | head -n 1)" >> $GITHUB_STEP_SUMMARY
+          echo "- Gradle cache hit: ${{ steps.cache-gradle.outputs.cache-hit }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Pub cache hit: ${{ steps.cache-pub.outputs.cache-hit }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Codegen cache hit: ${{ steps.cache-codegen.outputs.cache-hit }}" >> $GITHUB_STEP_SUMMARY
