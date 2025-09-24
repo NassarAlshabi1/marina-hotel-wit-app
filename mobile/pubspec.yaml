@@ -17,7 +17,7 @@ dependencies:
   dio: ^5.5.0
   drift: ^2.16.0
   drift_sqflite: ^2.0.1
-  sqlite3_flutter_libs: ^0.5.24
+  sqlite3_flutter_libs: ^0.5.18
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
   connectivity_plus: ^6.0.3

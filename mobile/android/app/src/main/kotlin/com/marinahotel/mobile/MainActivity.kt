@@ -1,4 +1,4 @@
-package com.example.mobile
+package com.marinahotel.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 
