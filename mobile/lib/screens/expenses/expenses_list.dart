@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
+import '../../services/sync_service.dart';
+import '../../services/local_db.dart';
 import 'package:uuid/uuid.dart';
 
 class ExpensesListScreen extends ConsumerWidget {
@@ -13,8 +15,8 @@ class ExpensesListScreen extends ConsumerWidget {
     return AppScaffold(
       title: 'المصروفات',
       actions: [
-        IconButton(onPressed: () => ref.read(coreProviders.syncProvider).runSync(), icon: const Icon(Icons.sync)),
-        IconButton(onPressed: () => _edit(context, ref, db), icon: const Icon(Icons.add)),
+        IconButton(onPressed: () => ref.read(syncServiceProvider).runSync(), icon: const Icon(Icons.sync)),
+        IconButton(onPressed: () => _edit(context, ref), icon: const Icon(Icons.add)),
       ],
       body: StreamBuilder(
         stream: repo.watchAll(),
@@ -29,7 +31,7 @@ class ExpensesListScreen extends ConsumerWidget {
                 title: Text(e.description),
                 subtitle: Text('${e.expenseType} • ${e.date}'),
                 trailing: Text(e.amount.toStringAsFixed(2)),
-                onTap: () => _edit(context, ref, db, existing: e),
+                onTap: () => _edit(context, ref, existing: e),
               );
             },
           );
@@ -38,7 +40,7 @@ class ExpensesListScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _edit(BuildContext context, WidgetRef ref, dynamic db, {ExpensesData? existing}) async {
+  Future<void> _edit(BuildContext context, WidgetRef ref, {Expense? existing}) async {
     final description = TextEditingController(text: existing?.description ?? '');
     final amount = TextEditingController(text: existing?.amount.toString() ?? '');
     final expenseType = TextEditingController(text: existing?.expenseType ?? 'other');

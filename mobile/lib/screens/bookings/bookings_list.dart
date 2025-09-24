@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
+import '../../services/sync_service.dart';
 import 'booking_edit.dart';
 
 class BookingsListScreen extends ConsumerWidget {
@@ -13,7 +14,7 @@ class BookingsListScreen extends ConsumerWidget {
       title: 'الحجوزات',
       actions: [
         IconButton(
-          onPressed: () => ref.read(coreProviders.syncProvider).runSync(),
+          onPressed: () => ref.read(syncServiceProvider).runSync(),
           icon: const Icon(Icons.sync),
         ),
         IconButton(

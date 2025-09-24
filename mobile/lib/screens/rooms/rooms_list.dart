@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
+import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' as d;
-import 'package:image_picker/image_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 
@@ -20,7 +20,7 @@ class RoomsListScreen extends ConsumerWidget {
       title: 'الغرف',
       actions: [
         IconButton(
-          onPressed: () => ref.read(coreProviders.syncProvider).runSync(),
+          onPressed: () => ref.read(syncServiceProvider).runSync(),
           icon: const Icon(Icons.sync),
         ),
         IconButton(
@@ -53,7 +53,7 @@ class RoomsListScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _editRoom(BuildContext context, WidgetRef ref, {RoomsData? existing}) async {
+  Future<void> _editRoom(BuildContext context, WidgetRef ref, {Room? existing}) async {
     final roomNumberCtrl = TextEditingController(text: existing?.roomNumber ?? '');
     final typeCtrl = TextEditingController(text: existing?.type ?? '');
     final priceCtrl = TextEditingController(text: existing?.price.toString() ?? '');
@@ -82,7 +82,7 @@ class RoomsListScreen extends ConsumerWidget {
                 decoration: const InputDecoration(labelText: 'الحالة'),
               ),
               const SizedBox(height: 8),
-              if (imageUrl != null) Image.network(imageUrl, height: 120, fit: BoxFit.cover),
+              if (imageUrl != null) Image.network(imageUrl!, height: 120, fit: BoxFit.cover),
               TextButton.icon(
                 onPressed: () async {
                   final picker = ImagePicker();

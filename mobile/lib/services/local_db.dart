@@ -41,11 +41,7 @@ class Bookings extends Table with SyncFields {
   IntColumn get calculatedNights => integer().withDefault(const Constant(1))();
 
   @override
-  List<Index> get indexes => [
-        Index('bookings_room_idx', [roomNumber]),
-        Index('bookings_status_idx', [status]),
-        Index('bookings_checkin_idx', [checkinDate]),
-      ];
+  List<Index> get indexes => [];
 }
 
 class BookingNotes extends Table with SyncFields {
@@ -101,11 +97,7 @@ class Payments extends Table with SyncFields {
   IntColumn get cashTransactionServerId => integer().nullable()();
 
   @override
-  List<Index> get indexes => [
-        Index('payments_date_idx', [paymentDate]),
-        Index('payments_rev_idx', [revenueType]),
-        Index('payments_server_idx', [serverPaymentId]),
-      ];
+  List<Index> get indexes => [];
 }
 
 class Outbox extends Table {

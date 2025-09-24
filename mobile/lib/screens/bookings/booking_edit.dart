@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:uuid/uuid.dart';
 import '../../services/providers.dart';
+import '../../services/local_db.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing});
-  final BookingsData? existing;
+  final Booking? existing;
   @override
   ConsumerState<BookingEditScreen> createState() => _BookingEditScreenState();
 }

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
+import '../../services/sync_service.dart';
+import '../../services/local_db.dart';
 import 'package:uuid/uuid.dart';
 
 class EmployeesListScreen extends ConsumerWidget {
@@ -13,8 +15,8 @@ class EmployeesListScreen extends ConsumerWidget {
     return AppScaffold(
       title: 'الموظفون',
       actions: [
-        IconButton(onPressed: () => ref.read(coreProviders.syncProvider).runSync(), icon: const Icon(Icons.sync)),
-        IconButton(onPressed: () => _edit(context, ref, db), icon: const Icon(Icons.add)),
+        IconButton(onPressed: () => ref.read(syncServiceProvider).runSync(), icon: const Icon(Icons.sync)),
+        IconButton(onPressed: () => _edit(context, ref), icon: const Icon(Icons.add)),
       ],
       body: StreamBuilder(
         stream: repo.watchAll(),
@@ -28,7 +30,7 @@ class EmployeesListScreen extends ConsumerWidget {
               return ListTile(
                 title: Text(e.name),
                 subtitle: Text('الراتب: ${e.basicSalary.toStringAsFixed(2)} • ${e.status}'),
-                onTap: () => _edit(context, ref, db, existing: e),
+                onTap: () => _edit(context, ref, existing: e),
               );
             },
           );
@@ -37,7 +39,7 @@ class EmployeesListScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _edit(BuildContext context, WidgetRef ref, dynamic db, {EmployeesData? existing}) async {
+  Future<void> _edit(BuildContext context, WidgetRef ref, {Employee? existing}) async {
     final name = TextEditingController(text: existing?.name ?? '');
     final salary = TextEditingController(text: existing?.basicSalary.toString() ?? '');
     String status = existing?.status ?? 'active';

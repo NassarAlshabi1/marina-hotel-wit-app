@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../components/app_scaffold.dart';
 import '../services/providers.dart';
+import '../services/sync_service.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -13,7 +14,7 @@ class DashboardScreen extends ConsumerWidget {
         IconButton(
           onPressed: () async {
             // run sync
-            await ref.read(coreProviders.syncProvider).runSync();
+            await ref.read(syncServiceProvider).runSync();
           },
           icon: const Icon(Icons.sync),
           tooltip: 'مزامنة',
