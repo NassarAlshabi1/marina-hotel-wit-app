@@ -151,7 +151,7 @@ jobs:
           BASE_API_URL: ${{ github.event.inputs.baseApiUrl || 'http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1' }}
         run: |
           echo "Using BASE_API_URL=$BASE_API_URL"
-          flutter build apk --debug --dart-define=BASE_API_URL=$BASE_API_URL
+          flutter build apk --debug --no-pub --dart-define=BASE_API_URL=$BASE_API_URL
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
