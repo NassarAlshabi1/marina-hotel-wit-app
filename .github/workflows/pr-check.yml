@@ -1,0 +1,233 @@
+name: 🔍 PR Quality Check
+
+on:
+  pull_request:
+    branches: [ main, master, capy/apk-ee3d67eb ]
+    paths: 
+      - 'mobile/**'
+      - '.github/workflows/**'
+
+env:
+  FLUTTER_VERSION: '3.22.0'
+
+jobs:
+  # فحص سريع للكود
+  quick-check:
+    name: ⚡ Quick Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout PR
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # للمقارنة مع الفرع الأساسي
+        
+    - name: 🐦 Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        
+    - name: 📦 Get dependencies  
+      working-directory: ./mobile
+      run: flutter pub get
+      
+    - name: 🔍 Analyze code
+      working-directory: ./mobile
+      run: |
+        echo "🔍 تحليل الكود..."
+        flutter analyze --fatal-infos > analysis_report.txt 2>&1 || true
+        
+        if [[ -s analysis_report.txt ]]; then
+          echo "⚠️ تم العثور على مشاكل في التحليل:"
+          cat analysis_report.txt
+          echo "analyze_status=warning" >> $GITHUB_OUTPUT
+        else
+          echo "✅ التحليل نظيف - لا توجد مشاكل!"
+          echo "analyze_status=success" >> $GITHUB_OUTPUT
+        fi
+      id: analyze
+      
+    - name: 📊 Count changes
+      run: |
+        echo "📈 إحصائيات التغييرات:"
+        
+        # عدد الملفات المتغيرة
+        CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} | wc -l)
+        echo "changed_files=${CHANGED_FILES}" >> $GITHUB_OUTPUT
+        echo "📁 ملفات متغيرة: ${CHANGED_FILES}"
+        
+        # عدد ملفات Dart المتغيرة
+        DART_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} | grep '\.dart$' | wc -l)
+        echo "dart_files=${DART_FILES}" >> $GITHUB_OUTPUT
+        echo "🎯 ملفات Dart: ${DART_FILES}"
+        
+        # سطور الكود المضافة/المحذوفة
+        ADDITIONS=$(git diff --numstat ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} | awk '{sum+=$1} END {print sum}')
+        DELETIONS=$(git diff --numstat ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} | awk '{sum+=$2} END {print sum}')
+        
+        echo "additions=${ADDITIONS:-0}" >> $GITHUB_OUTPUT
+        echo "deletions=${DELETIONS:-0}" >> $GITHUB_OUTPUT
+        echo "➕ سطور مضافة: ${ADDITIONS:-0}"
+        echo "➖ سطور محذوفة: ${DELETIONS:-0}"
+        
+      id: changes
+      
+    - name: 📝 Generate summary
+      run: |
+        echo "## 🔍 تقرير فحص PR السريع" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ steps.analyze.outputs.analyze_status }}" == "success" ]]; then
+          echo "✅ **تحليل الكود**: نظيف" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ **تحليل الكود**: يحتاج مراجعة" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "📊 **إحصائيات التغييرات**:" >> $GITHUB_STEP_SUMMARY
+        echo "- ملفات متغيرة: ${{ steps.changes.outputs.changed_files }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ملفات Dart: ${{ steps.changes.outputs.dart_files }}" >> $GITHUB_STEP_SUMMARY
+        echo "- سطور مضافة: ${{ steps.changes.outputs.additions }}" >> $GITHUB_STEP_SUMMARY
+        echo "- سطور محذوفة: ${{ steps.changes.outputs.deletions }}" >> $GITHUB_STEP_SUMMARY
+
+  # بناء تجريبي للتأكد
+  build-test:
+    name: 🔨 Build Test
+    runs-on: ubuntu-latest
+    needs: quick-check
+    
+    steps:
+    - name: 📥 Checkout PR
+      uses: actions/checkout@v4
+      
+    - name: ☕ Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: 🐦 Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        
+    - name: 📦 Get dependencies
+      working-directory: ./mobile
+      run: |
+        flutter clean
+        flutter pub get
+        
+    - name: ⚙️ Code generation
+      working-directory: ./mobile
+      run: |
+        flutter packages pub run build_runner build --delete-conflicting-outputs
+        
+    - name: 🔨 Test build
+      working-directory: ./mobile
+      run: |
+        echo "🔨 اختبار البناء..."
+        flutter build apk --debug --target-platform android-arm64 > build_log.txt 2>&1
+        
+        if [[ $? -eq 0 ]]; then
+          echo "✅ البناء نجح!"
+          echo "build_status=success" >> $GITHUB_OUTPUT
+        else
+          echo "❌ البناء فشل!"
+          echo "build_status=failed" >> $GITHUB_OUTPUT
+          echo "🔍 سجل الأخطاء:"
+          cat build_log.txt
+        fi
+      id: build
+      
+    - name: 📊 APK info
+      if: steps.build.outputs.build_status == 'success'
+      working-directory: ./mobile
+      run: |
+        if [[ -f "build/app/outputs/flutter-apk/app-debug.apk" ]]; then
+          APK_SIZE=$(du -h build/app/outputs/flutter-apk/app-debug.apk | cut -f1)
+          echo "📦 حجم APK التجريبي: ${APK_SIZE}"
+          echo "apk_size=${APK_SIZE}" >> $GITHUB_OUTPUT
+        fi
+      id: apk_info
+
+  # تعليق تلقائي على PR
+  pr-comment:
+    name: 💬 PR Comment
+    runs-on: ubuntu-latest
+    needs: [quick-check, build-test]
+    if: always() # سيعمل حتى لو فشلت المهام السابقة
+    
+    steps:
+    - name: 💬 Comment on PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const quickCheck = '${{ needs.quick-check.result }}';
+          const buildTest = '${{ needs.build-test.result }}';
+          const analyzeStatus = '${{ needs.quick-check.outputs.analyze_status }}' || 'unknown';
+          const buildStatus = '${{ needs.build-test.outputs.build_status }}' || 'unknown';
+          
+          let statusIcon = '⚠️';
+          let statusText = 'يحتاج مراجعة';
+          
+          if (quickCheck === 'success' && buildTest === 'success') {
+            statusIcon = '✅';
+            statusText = 'جاهز للدمج';
+          } else if (quickCheck === 'failure' || buildTest === 'failure') {
+            statusIcon = '❌';  
+            statusText = 'يحتاج إصلاح';
+          }
+          
+          const comment = `## ${statusIcon} تقرير فحص PR - ${statusText}
+          
+          ### 🔍 تحليل الكود:
+          ${analyzeStatus === 'success' ? '✅ نظيف - لا توجد مشاكل' : '⚠️ يحتاج مراجعة'}
+          
+          ### 🔨 اختبار البناء:
+          ${buildStatus === 'success' ? '✅ نجح البناء' : buildStatus === 'failed' ? '❌ فشل البناء' : '⏳ قيد المعالجة'}
+          
+          ### 📊 إحصائيات التغييرات:
+          - **ملفات متغيرة**: ${{ needs.quick-check.outputs.changed_files || 'غير محدد' }}
+          - **ملفات Dart**: ${{ needs.quick-check.outputs.dart_files || '0' }}  
+          - **سطور مضافة**: ${{ needs.quick-check.outputs.additions || '0' }}
+          - **سطور محذوفة**: ${{ needs.quick-check.outputs.deletions || '0' }}
+          
+          ${buildStatus === 'success' && '${{ needs.build-test.outputs.apk_size }}' ? 
+            `### 📦 معلومات APK:\n- **الحجم**: ${{ needs.build-test.outputs.apk_size }}\n` : ''}
+          
+          ### 📋 الخطوات التالية:
+          ${statusIcon === '✅' ? 
+            '🎉 الكود جاهز للدمج! يمكن الموافقة على PR.' :
+            statusIcon === '❌' ?
+            '🔧 يرجى إصلاح المشاكل أعلاه قبل الدمج.' :
+            '👀 يرجى مراجعة التحذيرات والتأكد من الكود.'}
+          
+          ---
+          🤖 تم الفحص تلقائياً بواسطة GitHub Actions
+          📅 ${new Date().toLocaleString('ar-EG', {timeZone: 'UTC'})} UTC`;
+          
+          // البحث عن تعليق سابق وتحديثه
+          const comments = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number
+          });
+          
+          const botComment = comments.data.find(comment => 
+            comment.user.type === 'Bot' && comment.body.includes('تقرير فحص PR')
+          );
+          
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: comment
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
+          }
