@@ -21,13 +21,65 @@ if not exist "src\main\res\xml" mkdir "src\main\res\xml"
 
 echo نسخ الملفات...
 
-REM نسخ ملفات Java
-copy "..\simple_webview_apk\MainActivity.java" "src\main\java\com\marinahotel\app\"
+REM إنشاء MainActivity.java
+echo package com.marinahotel.app; > "src\main\java\com\marinahotel\app\MainActivity.java"
+echo import android.app.Activity; >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo import android.os.Bundle; >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo import android.webkit.WebView; >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo import android.webkit.WebViewClient; >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo public class MainActivity extends Activity { >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo     @Override >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo     protected void onCreate^(Bundle savedInstanceState^) { >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo         super.onCreate^(savedInstanceState^); >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo         setContentView^(R.layout.activity_main^); >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo         WebView webView = findViewById^(R.id.webview^); >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo         webView.getSettings^(^).setJavaScriptEnabled^(true^); >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo         webView.setWebViewClient^(new WebViewClient^(^)^); >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo         webView.loadUrl^("file:///android_asset/index.html"^); >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo     } >> "src\main\java\com\marinahotel\app\MainActivity.java"
+echo } >> "src\main\java\com\marinahotel\app\MainActivity.java"
 
-REM نسخ ملفات XML
-copy "..\simple_webview_apk\activity_main.xml" "src\main\res\layout\"
-copy "..\simple_webview_apk\AndroidManifest.xml" "src\main\"
-copy "..\simple_webview_apk\build.gradle" "."
+REM إنشاء activity_main.xml
+echo ^<?xml version="1.0" encoding="utf-8"?^> > "src\main\res\layout\activity_main.xml"
+echo ^<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" >> "src\main\res\layout\activity_main.xml"
+echo     android:layout_width="match_parent" >> "src\main\res\layout\activity_main.xml"
+echo     android:layout_height="match_parent"^> >> "src\main\res\layout\activity_main.xml"
+echo     ^<WebView >> "src\main\res\layout\activity_main.xml"
+echo         android:id="@+id/webview" >> "src\main\res\layout\activity_main.xml"
+echo         android:layout_width="match_parent" >> "src\main\res\layout\activity_main.xml"
+echo         android:layout_height="match_parent" /^> >> "src\main\res\layout\activity_main.xml"
+echo ^</LinearLayout^> >> "src\main\res\layout\activity_main.xml"
+
+REM إنشاء AndroidManifest.xml
+echo ^<?xml version="1.0" encoding="utf-8"?^> > "src\main\AndroidManifest.xml"
+echo ^<manifest xmlns:android="http://schemas.android.com/apk/res/android" >> "src\main\AndroidManifest.xml"
+echo     package="com.marinahotel.app"^> >> "src\main\AndroidManifest.xml"
+echo     ^<uses-permission android:name="android.permission.INTERNET" /^> >> "src\main\AndroidManifest.xml"
+echo     ^<application >> "src\main\AndroidManifest.xml"
+echo         android:allowBackup="true" >> "src\main\AndroidManifest.xml"
+echo         android:label="@string/app_name" >> "src\main\AndroidManifest.xml"
+echo         android:theme="@style/AppTheme"^> >> "src\main\AndroidManifest.xml"
+echo         ^<activity android:name=".MainActivity" >> "src\main\AndroidManifest.xml"
+echo             android:exported="true"^> >> "src\main\AndroidManifest.xml"
+echo             ^<intent-filter^> >> "src\main\AndroidManifest.xml"
+echo                 ^<action android:name="android.intent.action.MAIN" /^> >> "src\main\AndroidManifest.xml"
+echo                 ^<category android:name="android.intent.category.LAUNCHER" /^> >> "src\main\AndroidManifest.xml"
+echo             ^</intent-filter^> >> "src\main\AndroidManifest.xml"
+echo         ^</activity^> >> "src\main\AndroidManifest.xml"
+echo     ^</application^> >> "src\main\AndroidManifest.xml"
+echo ^</manifest^> >> "src\main\AndroidManifest.xml"
+
+REM إنشاء build.gradle
+echo android { > "build.gradle"
+echo     compileSdkVersion 33 >> "build.gradle"
+echo     defaultConfig { >> "build.gradle"
+echo         applicationId "com.marinahotel.app" >> "build.gradle"
+echo         minSdkVersion 21 >> "build.gradle"
+echo         targetSdkVersion 33 >> "build.gradle"
+echo         versionCode 1 >> "build.gradle"
+echo         versionName "1.0" >> "build.gradle"
+echo     } >> "build.gradle"
+echo } >> "build.gradle"
 
 echo إنشاء ملفات الموارد...
 

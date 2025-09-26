@@ -335,7 +335,7 @@ class SyncService {
               relatedId: d.Value(data['related_id'] as int?),
               description: d.Value(data['description'] ?? ''),
               amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
-              date: d.Value(data['date'] ?? Time.nowIso().substring(0, 10)),
+              date: d.Value(data['date'] ?? Time.safeIsoToDateString(Time.nowIso())),
               serverId: d.Value(xid),
             ),
             originIsServer: true,

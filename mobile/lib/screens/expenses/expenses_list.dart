@@ -5,6 +5,7 @@ import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
+import '../../utils/time.dart';
 import 'package:uuid/uuid.dart';
 
 class ExpensesListScreen extends ConsumerWidget {
@@ -44,7 +45,7 @@ class ExpensesListScreen extends ConsumerWidget {
     final description = TextEditingController(text: existing?.description ?? '');
     final amount = TextEditingController(text: existing?.amount.toString() ?? '');
     final expenseType = TextEditingController(text: existing?.expenseType ?? 'other');
-    final date = TextEditingController(text: existing?.date ?? DateTime.now().toString().substring(0, 10));
+    final date = TextEditingController(text: existing?.date ?? Time.nowDateString());
 
     final ok = await showDialog<bool>(
       context: context,
