@@ -24,6 +24,20 @@ on:
         required: false
         default: ''
 
+permissions:
+  contents: read
+  actions: read
+  checks: write
+  security-events: write
+  id-token: write
+  packages: read
+  pull-requests: read
+  dependency-graph: write
+
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-debug:
     name: Build Debug APK
@@ -37,6 +51,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -44,7 +60,12 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Setup Flutter
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          dependency-graph: generate-and-submit
+
+      - name: Setup Flutter 3.22.2
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -136,6 +157,8 @@ jobs:
 
       - name: Generate Build Info
         working-directory: mobile
+        env:
+          BASE_API_URL: ${{ github.event.inputs.baseApiUrl || 'http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1' }}
         run: |
           APK_SIZE=$(du -h build/app/outputs/flutter-apk/app-debug.apk | cut -f1)
           echo "APK_SIZE=$APK_SIZE" >> $GITHUB_ENV
