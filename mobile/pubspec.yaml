@@ -4,8 +4,8 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
-  flutter: '>=3.22.0'
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.24.0'
 
 dependencies:
   flutter:
@@ -13,29 +13,29 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.6
-  flutter_riverpod: ^2.5.1
-  dio: ^5.5.0
-  drift: ^2.16.0
-  drift_sqflite: ^2.0.1
-  sqlite3_flutter_libs: 0.5.17
+  flutter_riverpod: ^2.6.1
+  dio: ^5.7.0
+  drift: ^2.20.0
+  drift_sqflite: ^2.1.0
+  sqlite3_flutter_libs: ^0.5.24
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
-  connectivity_plus: ^6.0.3
+  connectivity_plus: ^6.1.0
   flutter_secure_storage: ^9.2.2
-  fl_chart: ^0.68.0
+  fl_chart: ^0.69.0
   image_picker: ^1.1.2
-  cached_network_image: ^3.3.1
+  cached_network_image: ^3.4.1
   intl: ^0.19.0
-  pdf: ^3.11.0
-  printing: ^5.12.0
-  path_provider: ^2.1.3
+  pdf: ^3.11.1
+  printing: ^5.13.2
+  path_provider: ^2.1.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  build_runner: ^2.4.10
-  freezed: ^2.5.2
-  drift_dev: ^2.16.0
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  drift_dev: ^2.20.0
 
 flutter:
   uses-material-design: true
