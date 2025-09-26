@@ -79,10 +79,10 @@ class Seeder {
     ));
 
     await db.into(db.expenses).insert(ExpensesCompanion(
-      expenseType: d.Value('utilities'), description: d.Value('فاتورة كهرباء'), amount: d.Value(450000), date: d.Value(now.subtract(const Duration(days: 10)).toIso8601String().substring(0,10)), localUuid: d.Value('x-1'), createdAt: d.Value(Time.nowEpoch()), updatedAt: d.Value(Time.nowEpoch()), lastModified: d.Value(Time.nowEpoch()), version: const d.Value(1), origin: const d.Value('local'),
+      expenseType: d.Value('utilities'), description: d.Value('فاتورة كهرباء'), amount: d.Value(450000), date: d.Value(Time.dateToString(now.subtract(const Duration(days: 10)))), localUuid: d.Value('x-1'), createdAt: d.Value(Time.nowEpoch()), updatedAt: d.Value(Time.nowEpoch()), lastModified: d.Value(Time.nowEpoch()), version: const d.Value(1), origin: const d.Value('local'),
     ));
     await db.into(db.expenses).insert(ExpensesCompanion(
-      expenseType: d.Value('other'), description: d.Value('ديزل'), amount: d.Value(21500), date: d.Value(now.subtract(const Duration(days: 1)).toIso8601String().substring(0,10)), localUuid: d.Value('x-2'), createdAt: d.Value(Time.nowEpoch()), updatedAt: d.Value(Time.nowEpoch()), lastModified: d.Value(Time.nowEpoch()), version: const d.Value(1), origin: const d.Value('local'),
+      expenseType: d.Value('other'), description: d.Value('ديزل'), amount: d.Value(21500), date: d.Value(Time.dateToString(now.subtract(const Duration(days: 1)))), localUuid: d.Value('x-2'), createdAt: d.Value(Time.nowEpoch()), updatedAt: d.Value(Time.nowEpoch()), lastModified: d.Value(Time.nowEpoch()), version: const d.Value(1), origin: const d.Value('local'),
     ));
 
     await db.into(db.cashTransactions).insert(CashTransactionsCompanion(

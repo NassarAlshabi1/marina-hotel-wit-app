@@ -12,6 +12,7 @@ class BookingsRepository {
   final BookingsDao dao;
 
   Stream<List<Booking>> watch({String? roomNumber, String? status}) => dao.watchList(roomNumber: roomNumber, status: status);
+  Stream<List<Booking>> watchList({String? roomNumber, String? status}) => dao.watchList(roomNumber: roomNumber, status: status);
   Stream<Booking?> watchOne(int id) => dao.watchById(id);
 
   Future<int> create({
