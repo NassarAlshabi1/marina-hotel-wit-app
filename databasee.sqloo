@@ -1,13 +1,14 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.1
+-- version 4.9.0.1
 -- https://www.phpmyadmin.net/
 --
--- Host: localhost
--- Generation Time: May 26, 2025 at 01:10 AM
--- Server version: 5.7.34
--- PHP Version: 8.0.28
+-- Host: 127.0.0.1
+-- Generation Time: Jul 03, 2025 at 02:24 AM
+-- Server version: 10.4.6-MariaDB
+-- PHP Version: 7.3.8
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+SET AUTOCOMMIT = 0;
 START TRANSACTION;
 SET time_zone = "+00:00";
 
@@ -38,18 +39,18 @@ CREATE TABLE `bookings` (
   `guest_phone` varchar(20) NOT NULL,
   `guest_nationality` varchar(50) DEFAULT NULL,
   `guest_email` varchar(100) DEFAULT NULL,
-  `guest_address` text,
-  `guest_created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `guest_address` text DEFAULT NULL,
+  `guest_created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `room_number` varchar(10) NOT NULL,
   `checkin_date` datetime NOT NULL,
   `checkout_date` datetime DEFAULT NULL,
   `status` enum('شاغرة','محجوزة') NOT NULL DEFAULT 'محجوزة' COMMENT 'حالة الحجز',
-  `notes` text,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `expected_nights` int(11) DEFAULT '1' COMMENT 'عدد الليالي المتوقع',
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `expected_nights` int(11) DEFAULT 1 COMMENT 'عدد الليالي المتوقع',
   `actual_checkout` datetime DEFAULT NULL,
-  `calculated_nights` int(11) DEFAULT '1',
-  `last_calculation` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `calculated_nights` int(11) DEFAULT 1,
+  `last_calculation` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
@@ -60,8 +61,10 @@ INSERT INTO `bookings` (`booking_id`, `guest_id`, `guest_name`, `guest_id_type`,
 (2, 2, 'محمد عهد علي  الموزعي', 'بطاقة شخصية', '1444111666', NULL, NULL, '22228744', 'هندي', NULL, NULL, '2025-05-11 01:54:42', '104', '2025-05-10 00:00:00', NULL, 'محجوزة', '0', '2025-05-11 01:54:42', 1, NULL, 6, '2025-05-15 17:06:16'),
 (4, 4, 'نصار عبدالله حسن الشعبي ', 'بطاقة شخصية', '5558841695', '2024-10-20', 'عدن', '773114243', 'يمني', '', '', '2025-05-15 17:01:41', '101', '2025-05-15 00:00:00', NULL, 'محجوزة', '', '2025-05-15 17:01:41', 1, NULL, 1, '2025-05-15 17:01:41'),
 (5, 5, 'بلقيس فتحي سرور ', 'بطاقة شخصية', '543322888', '2019-05-15', 'تعز', '77311424', 'يمني', '', '', '2025-05-15 17:11:21', '102', '2025-05-15 00:00:00', NULL, 'محجوزة', 'تريد تطول', '2025-05-15 17:11:21', 1, NULL, 1, '2025-05-15 17:11:21'),
-(6, NULL, 'ليلى مسعد', 'جواز سفر', '1111112', '2025-05-16', 'عدن', '7711111', 'يمني', NULL, NULL, '2025-05-16 02:01:01', '101', '2025-05-16 00:00:00', NULL, 'محجوزة', '', '2025-05-16 02:01:01', 1, NULL, 0, '2025-05-16 02:01:01'),
-(7, 7, 'نصار عبدالله حسن الشعبي', 'جواز سفر', '1444111666', '2024-05-07', 'عدن', '77311424', 'يمني', NULL, NULL, '2025-05-16 03:45:19', '201', '2025-05-16 00:00:00', NULL, 'محجوزة', NULL, '2025-05-16 03:45:19', 1, NULL, 0, '2025-05-16 03:45:19');
+(6, NULL, 'ليلى مسعد', 'جواز سفر', '1111112', '2025-05-16', 'عدن', '7711111', 'يمني', NULL, NULL, '2025-05-16 02:01:01', '101', '2025-05-16 00:00:00', NULL, 'شاغرة', '', '2025-05-16 02:01:01', 1, '2025-06-27 03:16:22', 0, '2025-06-27 00:16:22'),
+(7, 7, 'نصار عبدالله حسن الشعبي', 'جواز سفر', '1444111666', '2024-05-07', 'عدن', '77311424', 'يمني', NULL, NULL, '2025-05-16 03:45:19', '201', '2025-05-16 00:00:00', NULL, 'شاغرة', NULL, '2025-05-16 03:45:19', 1, '2025-06-27 23:09:00', 0, '2025-06-27 20:09:00'),
+(8, 8, 'فايز صالح عبدالله ابوجهلان', 'بطاقة شخصية', '11010257418', '2021-08-07', 'حجة', '967774399835', 'يمني', NULL, NULL, '2025-06-26 19:23:45', '302', '2025-06-19 00:00:00', NULL, 'محجوزة', NULL, '2025-06-26 19:23:45', 1, NULL, 8, '2025-06-26 19:23:45'),
+(9, 9, 'محمد احمد علي عماد', 'بطاقة شخصية', '54545545', '2026-06-30', 'عدن', '967783769730', 'يمني', NULL, NULL, '2025-06-29 14:07:20', '103', '2025-06-29 00:00:00', NULL, 'محجوزة', NULL, '2025-06-29 14:07:20', 1, NULL, 1, '2025-06-29 14:07:20');
 
 --
 -- Triggers `bookings`
@@ -128,7 +131,7 @@ CREATE TABLE `booking_notes` (
   `note_text` text NOT NULL,
   `alert_type` enum('high','medium','low') NOT NULL DEFAULT 'medium',
   `alert_until` datetime DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT '1',
+  `is_active` tinyint(1) DEFAULT 1,
   `created_at` datetime NOT NULL,
   `created_by` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -150,14 +153,14 @@ INSERT INTO `booking_notes` (`note_id`, `booking_id`, `note_text`, `alert_type`,
 CREATE TABLE `cash_register` (
   `id` int(11) NOT NULL,
   `date` date NOT NULL,
-  `opening_balance` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `opening_balance` decimal(10,2) NOT NULL DEFAULT 0.00,
   `closing_balance` decimal(10,2) DEFAULT NULL,
-  `total_income` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `total_expense` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `notes` text COLLATE utf8mb4_unicode_ci,
+  `total_income` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `total_expense` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `notes` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_by` int(11) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `status` enum('open','closed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'open'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -166,10 +169,10 @@ CREATE TABLE `cash_register` (
 --
 
 INSERT INTO `cash_register` (`id`, `date`, `opening_balance`, `closing_balance`, `total_income`, `total_expense`, `notes`, `created_by`, `created_at`, `updated_at`, `status`) VALUES
-(1, '2025-05-21', 0.00, NULL, 640000.00, 0.00, NULL, NULL, '2025-05-21 21:41:31', '2025-05-21 21:42:35', 'open'),
-(2, '2025-05-22', 0.00, NULL, 0.00, 0.00, NULL, NULL, '2025-05-22 00:45:20', '2025-05-22 00:45:20', 'open'),
-(3, '2025-05-23', 0.00, NULL, 0.00, 0.00, NULL, NULL, '2025-05-23 19:02:18', '2025-05-23 19:02:18', 'open'),
-(4, '2025-05-24', 0.00, 45000.00, 45000.00, 0.00, '', NULL, '2025-05-24 03:33:44', '2025-05-24 03:34:47', 'closed');
+(1, '2025-05-21', '0.00', NULL, '640000.00', '0.00', NULL, NULL, '2025-05-21 21:41:31', '2025-05-21 21:42:35', 'open'),
+(2, '2025-05-22', '0.00', NULL, '0.00', '0.00', NULL, NULL, '2025-05-22 00:45:20', '2025-05-22 00:45:20', 'open'),
+(3, '2025-05-23', '0.00', NULL, '0.00', '0.00', NULL, NULL, '2025-05-23 19:02:18', '2025-05-23 19:02:18', 'open'),
+(4, '2025-05-24', '0.00', '45000.00', '45000.00', '0.00', '', NULL, '2025-05-24 03:33:44', '2025-05-24 03:34:47', 'closed');
 
 -- --------------------------------------------------------
 
@@ -184,10 +187,10 @@ CREATE TABLE `cash_transactions` (
   `amount` decimal(10,2) NOT NULL,
   `reference_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `reference_id` int(11) NOT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci,
+  `description` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `transaction_time` datetime NOT NULL,
   `created_by` int(11) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -195,8 +198,8 @@ CREATE TABLE `cash_transactions` (
 --
 
 INSERT INTO `cash_transactions` (`id`, `register_id`, `transaction_type`, `amount`, `reference_type`, `reference_id`, `description`, `transaction_time`, `created_by`, `created_at`) VALUES
-(1, 1, 'income', 640000.00, 'booking', 0, 'دخل تاريخ 20/5/2025', '2025-05-21 23:42:35', NULL, '2025-05-21 21:42:35'),
-(2, 4, 'income', 45000.00, 'booking', 0, 'ايراد', '2025-05-24 05:34:34', NULL, '2025-05-24 03:34:34');
+(1, 1, 'income', '640000.00', 'booking', 0, 'دخل تاريخ 20/5/2025', '2025-05-21 23:42:35', NULL, '2025-05-21 21:42:35'),
+(2, 4, 'income', '45000.00', 'booking', 0, 'ايراد', '2025-05-24 05:34:34', NULL, '2025-05-24 03:34:34');
 
 -- --------------------------------------------------------
 
@@ -207,7 +210,7 @@ INSERT INTO `cash_transactions` (`id`, `register_id`, `transaction_type`, `amoun
 CREATE TABLE `employees` (
   `id` int(11) NOT NULL,
   `name` varchar(255) NOT NULL,
-  `basic_salary` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `basic_salary` decimal(12) NOT NULL DEFAULT 0.00,
   `status` enum('active','inactive') DEFAULT 'active'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -216,10 +219,10 @@ CREATE TABLE `employees` (
 --
 
 INSERT INTO `employees` (`id`, `name`, `basic_salary`, `status`) VALUES
-(1, 'محمد احمد', 0.00, 'active'),
-(2, 'عبدالله طه', 0.00, 'active'),
-(3, 'عمار الشوب', 0.00, 'active'),
-(4, 'سعيد الاورمو', 0.00, 'active');
+(1, 'محمد احمد', '0.00', 'active'),
+(2, 'عبدالله طه', '0.00', 'active'),
+(3, 'عمار الشوب', '0.00', 'active'),
+(4, 'سعيد الاورمو', '0.00', 'active');
 
 -- --------------------------------------------------------
 
@@ -236,7 +239,7 @@ CREATE TABLE `expenses` (
   `date` date NOT NULL,
   `cash_transaction_id` int(11) DEFAULT NULL,
   `created_by` int(11) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
@@ -244,14 +247,14 @@ CREATE TABLE `expenses` (
 --
 
 INSERT INTO `expenses` (`id`, `expense_type`, `related_id`, `description`, `amount`, `date`, `cash_transaction_id`, `created_by`, `created_at`) VALUES
-(1, 'utilities', NULL, 'فاتورة كهرباء', 450000.00, '2025-05-10', NULL, NULL, '2025-05-16 02:46:18'),
-(2, 'other', NULL, 'ديزل', 21500.00, '2025-05-23', NULL, NULL, '2025-05-24 03:37:16'),
-(3, 'other', NULL, 'ديزل', 20000.00, '2025-05-24', NULL, NULL, '2025-05-24 03:37:42'),
-(4, 'purchases', 4, 'ديزل 11', 25000.00, '2025-05-24', NULL, NULL, '2025-05-25 02:58:34'),
-(5, 'purchases', 2, 'قصبة', 2000.00, '2025-05-24', NULL, NULL, '2025-05-25 02:59:28'),
-(6, 'purchases', 1, 'بوكس', 5000.00, '2025-05-22', NULL, NULL, '2025-05-25 03:17:29'),
-(7, 'purchases', 3, 'اكياس', 10000.00, '2025-05-24', NULL, NULL, '2025-05-25 03:30:30'),
-(8, 'other', NULL, 'ديزل', 2.00, '2025-05-25', NULL, NULL, '2025-05-25 04:38:23');
+(1, 'utilities', NULL, 'فاتورة كهرباء', '450000.00', '2025-05-10', NULL, NULL, '2025-05-16 02:46:18'),
+(2, 'other', NULL, 'ديزل', '21500.00', '2025-05-23', NULL, NULL, '2025-05-24 03:37:16'),
+(3, 'other', NULL, 'ديزل', '20000.00', '2025-05-24', NULL, NULL, '2025-05-24 03:37:42'),
+(4, 'purchases', 4, 'ديزل 11', '25000.00', '2025-05-24', NULL, NULL, '2025-05-25 02:58:34'),
+(5, 'purchases', 2, 'قصبة', '2000.00', '2025-05-24', NULL, NULL, '2025-05-25 02:59:28'),
+(6, 'purchases', 1, 'بوكس', '5000.00', '2025-05-22', NULL, NULL, '2025-05-25 03:17:29'),
+(7, 'purchases', 3, 'اكياس', '10000.00', '2025-05-24', NULL, NULL, '2025-05-25 03:30:30'),
+(8, 'other', NULL, 'ديزل', '2.00', '2025-05-25', NULL, NULL, '2025-05-25 04:38:23');
 
 -- --------------------------------------------------------
 
@@ -263,9 +266,9 @@ CREATE TABLE `expense_logs` (
   `id` int(11) NOT NULL,
   `expense_id` int(11) NOT NULL,
   `action` varchar(50) NOT NULL,
-  `details` text,
+  `details` text DEFAULT NULL,
   `user_id` int(11) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
@@ -281,7 +284,28 @@ INSERT INTO `expense_logs` (`id`, `expense_id`, `action`, `details`, `user_id`, 
 (6, 6, 'create', 'تم الشراء من المورد ID: 1', NULL, '2025-05-25 03:17:29'),
 (7, 7, 'create', 'تم الشراء من المورد ID: 3', NULL, '2025-05-25 03:30:30'),
 (8, 4, 'update', 'تم تعديل المصروف: النوع=purchases, المبلغ=25000', NULL, '2025-05-25 03:33:49'),
-(9, 8, 'create', 'تم إضافة مصروف: ديزل', NULL, '2025-05-25 04:38:23');
+(9, 8, 'create', 'تم إضافة مصروف: ديزل', NULL, '2025-05-25 04:38:23'),
+(10, 5, 'salary_withdrawal', 'تم سحب راتب للموظف ID: 1 - المبلغ: 5000', NULL, '2025-07-02 00:41:20');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `failed_logins`
+--
+
+CREATE TABLE `failed_logins` (
+  `id` int(11) NOT NULL,
+  `username` varchar(50) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `attempt_time` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Dumping data for table `failed_logins`
+--
+
+INSERT INTO `failed_logins` (`id`, `username`, `ip_address`, `attempt_time`) VALUES
+(1, 'admin', '::1', '2025-06-29 21:56:15');
 
 -- --------------------------------------------------------
 
@@ -294,7 +318,7 @@ CREATE TABLE `invoices` (
   `booking_id` int(11) DEFAULT NULL,
   `No_room` int(11) NOT NULL,
   `amount` int(11) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 --
@@ -317,8 +341,8 @@ CREATE TABLE `payment` (
   `payment_id` int(11) NOT NULL,
   `booking_id` int(11) NOT NULL,
   `amount` decimal(10,2) NOT NULL,
-  `payment_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `notes` text,
+  `payment_date` timestamp NOT NULL DEFAULT current_timestamp(),
+  `notes` text DEFAULT NULL,
   `payment_method` varchar(50) NOT NULL,
   `revenue_type` enum('room','restaurant','services','other') NOT NULL DEFAULT 'room',
   `cash_transaction_id` int(11) DEFAULT NULL,
@@ -330,10 +354,21 @@ CREATE TABLE `payment` (
 --
 
 INSERT INTO `payment` (`payment_id`, `booking_id`, `amount`, `payment_date`, `notes`, `payment_method`, `revenue_type`, `cash_transaction_id`, `room_number`) VALUES
-(13, 4, 15000.00, '2025-05-16 02:45:00', '', 'نقدي', 'room', NULL, NULL),
-(12, 5, 10000.00, '2025-05-10 19:29:00', '', 'نقدي', 'room', NULL, NULL),
-(11, 2, 90000.00, '2025-05-15 19:26:00', '', 'نقدي', 'room', NULL, NULL),
-(14, 6, 35000.00, '2025-05-24 02:35:00', '', 'نقدي', 'room', NULL, NULL);
+(13, 4, '15000.00', '2025-05-16 02:45:00', '', 'نقدي', 'room', NULL, NULL),
+(12, 5, '10000.00', '2025-05-10 19:29:00', '', 'نقدي', 'room', NULL, NULL),
+(11, 2, '90000.00', '2025-05-15 19:26:00', '', 'نقدي', 'room', NULL, NULL),
+(14, 6, '35000.00', '2025-05-24 02:35:00', '', 'نقدي', 'room', NULL, NULL),
+(15, 8, '88000.00', '2025-06-26 17:19:00', '', 'نقدي', 'room', NULL, NULL),
+(16, 6, '595000.00', '2025-06-27 00:16:00', '', 'نقدي', 'room', NULL, NULL),
+(17, 7, '150000.00', '2025-06-27 20:07:00', '', 'نقدي', 'room', NULL, NULL),
+(18, 7, '150000.00', '2025-06-27 20:07:00', '', 'نقدي', 'room', NULL, NULL),
+(19, 7, '150000.00', '2025-06-27 20:07:00', '', 'نقدي', 'room', NULL, NULL),
+(20, 7, '150000.00', '2025-06-27 20:07:00', '', 'نقدي', 'room', NULL, NULL),
+(21, 7, '1000.00', '2025-06-27 20:07:00', '', 'نقدي', 'room', NULL, NULL),
+(22, 7, '29000.00', '2025-06-27 20:08:00', '', 'نقدي', 'room', NULL, NULL),
+(23, 9, '10000.00', '2025-06-28 21:00:00', '', 'نقدي', 'room', NULL, NULL),
+(24, 9, '1000.00', '2025-06-29 21:00:00', '', 'نقدي', 'room', NULL, NULL),
+(25, 9, '1000.00', '2025-06-29 21:00:00', '', 'نقدي', 'room', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -381,24 +416,24 @@ CREATE TABLE `rooms` (
 --
 
 INSERT INTO `rooms` (`room_number`, `type`, `price`, `status`) VALUES
-('101', 'سرير عائلي', 15000.00, 'محجوزة'),
-('102', 'سرير عائلي', 15000.00, 'محجوزة'),
-('103', 'سرير عائلي', 15000.00, 'محجوزة'),
-('104', 'سرير فردي ', 15000.00, 'محجوزة'),
-('201', 'سرير فردي', 15000.00, 'محجوزة'),
-('202', 'سرير عائلي', 10000.00, 'شاغرة'),
-('203', 'سرير عائلي', 17000.00, 'شاغرة'),
-('204', 'سرير فردي ', 15000.00, 'شاغرة'),
-('301', 'سرير عائلي', 7000.00, 'شاغرة'),
-('302', 'سرير فردي ', 14000.00, 'شاغرة'),
-('303', 'سرير فردي', 12000.00, 'شاغرة'),
-('304', 'سرير فردي ', 10000.00, 'شاغرة'),
-('401', 'سرير فردي', 10000.00, 'شاغرة'),
-('402', 'سرير فردي ', 10000.00, 'شاغرة'),
-('403', 'سرير فردي', 12000.00, 'شاغرة'),
-('404', 'سرير فردي ', 14000.00, 'شاغرة'),
-('501', 'سرير فردي', 5000.00, 'شاغرة'),
-('502', 'سرير فردي ', 7000.00, 'شاغرة');
+('101', 'سرير عائلي', '15000.00', 'محجوزة'),
+('102', 'سرير عائلي', '15000.00', 'محجوزة'),
+('103', 'سرير عائلي', '15000.00', 'محجوزة'),
+('104', 'سرير فردي ', '15000.00', 'محجوزة'),
+('201', 'سرير فردي', '15000.00', 'شاغرة'),
+('202', 'سرير عائلي', '10000.00', 'شاغرة'),
+('203', 'سرير عائلي', '17000.00', 'شاغرة'),
+('204', 'سرير فردي ', '15000.00', 'شاغرة'),
+('301', 'سرير عائلي', '7000.00', 'شاغرة'),
+('302', 'سرير فردي', '15000.00', 'محجوزة'),
+('303', 'سرير فردي', '12000.00', 'شاغرة'),
+('304', 'سرير فردي ', '10000.00', 'شاغرة'),
+('401', 'سرير فردي', '10000.00', 'شاغرة'),
+('402', 'سرير فردي ', '10000.00', 'شاغرة'),
+('403', 'سرير فردي', '12000.00', 'شاغرة'),
+('404', 'سرير فردي ', '14000.00', 'شاغرة'),
+('501', 'سرير فردي', '5000.00', 'شاغرة'),
+('502', 'سرير فردي ', '7000.00', 'شاغرة');
 
 -- --------------------------------------------------------
 
@@ -411,9 +446,17 @@ CREATE TABLE `salary_withdrawals` (
   `employee_id` int(11) NOT NULL,
   `amount` decimal(10,2) NOT NULL,
   `date` date NOT NULL,
-  `notes` text,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `withdrawal_type` varchar(50) DEFAULT 'cash'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+--
+-- Dumping data for table `salary_withdrawals`
+--
+
+INSERT INTO `salary_withdrawals` (`id`, `employee_id`, `amount`, `date`, `notes`, `created_at`, `withdrawal_type`) VALUES
+(5, 1, '5000.00', '2025-07-02', '', '2025-07-02 00:41:20', 'cash');
 
 -- --------------------------------------------------------
 
@@ -446,23 +489,74 @@ CREATE TABLE `users` (
   `user_id` int(11) NOT NULL,
   `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `full_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `user_type` enum('admin','employee') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'employee',
-  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `last_login` datetime DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `failed_login_attempts` int(11) DEFAULT 0,
+  `locked_until` timestamp NULL DEFAULT NULL,
+  `password_reset_token` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `password_reset_expires` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`user_id`, `username`, `password`, `full_name`, `email`, `phone`, `user_type`, `is_active`, `last_login`, `created_at`, `updated_at`) VALUES
-(1, 'admin', '1234', 'مدير النظام', NULL, NULL, 'admin', 1, '2025-05-22 03:42:49', '2025-05-21 20:32:45', '2025-05-22 00:42:49'),
-(3, 'm', '$2y$10$9inSwWnWFMIvOLwjMBoQ3O/nihrk1r6MlP2ksZ8cgsH9ro3ks11xO', 'محمد احمد', 'mohamed@gmail.com', '734587456', 'employee', 1, '2025-05-22 01:06:19', '2025-05-21 21:41:19', '2025-05-21 22:06:19');
+INSERT INTO `users` (`user_id`, `username`, `password`, `password_hash`, `full_name`, `email`, `phone`, `user_type`, `is_active`, `last_login`, `created_at`, `updated_at`, `failed_login_attempts`, `locked_until`, `password_reset_token`, `password_reset_expires`) VALUES
+(1, 'admin', '1234', '$2y$10$/G4bK2Ixb9O.RXuF3636ueKzP5TmoGTznY9WVXpgxSenJC10DEP2a', 'مدير النظام', NULL, NULL, 'admin', 1, '2025-07-03 02:40:50', '2025-05-21 20:32:45', '2025-07-02 23:40:50', 0, NULL, NULL, NULL),
+(3, 'm', '$2y$10$9inSwWnWFMIvOLwjMBoQ3O/nihrk1r6MlP2ksZ8cgsH9ro3ks11xO', '$2y$10$ZdCvwzcsPAnKs6VgsJuaseDvwpHUDvv5OFiITdJqofMIynDR1Z1M6', 'محمد احمد', 'mohamed@gmail.com', '734587456', 'employee', 1, '2025-05-22 01:06:19', '2025-05-21 21:41:19', '2025-06-25 22:49:36', 0, NULL, NULL, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_activity_log`
+--
+
+CREATE TABLE `user_activity_log` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `action` varchar(100) DEFAULT NULL,
+  `details` text DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Dumping data for table `user_activity_log`
+--
+
+INSERT INTO `user_activity_log` (`id`, `user_id`, `action`, `details`, `ip_address`, `user_agent`, `created_at`) VALUES
+(1, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', '2025-06-25 22:57:49'),
+(2, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', '2025-06-26 18:19:08'),
+(3, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', '2025-06-26 20:56:02'),
+(4, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', '2025-06-26 21:58:22'),
+(5, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', '2025-06-26 23:07:20'),
+(6, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', '2025-06-27 18:28:22'),
+(7, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', '2025-06-27 20:06:29'),
+(8, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', '2025-06-27 21:15:36'),
+(9, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-29 14:03:49'),
+(10, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-29 14:52:24'),
+(11, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-29 21:00:55'),
+(12, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-29 21:56:17'),
+(13, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-29 22:48:30'),
+(14, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-30 19:18:49'),
+(15, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-30 19:29:02'),
+(16, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-30 23:01:13'),
+(17, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-07-01 19:18:20'),
+(18, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-07-01 21:23:44'),
+(19, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-07-02 00:08:20'),
+(20, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-07-02 00:08:20'),
+(21, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-07-02 00:23:47'),
+(22, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-07-02 00:23:54'),
+(23, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-07-02 00:24:36'),
+(24, 1, 'login', 'Successful login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36', '2025-07-02 23:40:50');
 
 -- --------------------------------------------------------
 
@@ -474,7 +568,7 @@ CREATE TABLE `user_permissions` (
   `id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
   `permission_id` int(11) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -510,7 +604,13 @@ ALTER TABLE `bookings`
   ADD PRIMARY KEY (`booking_id`),
   ADD KEY `guest_id` (`guest_id`),
   ADD KEY `idx_booking_status` (`status`),
-  ADD KEY `fk_room` (`room_number`);
+  ADD KEY `fk_room` (`room_number`),
+  ADD KEY `idx_guest_name` (`guest_name`),
+  ADD KEY `idx_room_number` (`room_number`),
+  ADD KEY `idx_checkin_date` (`checkin_date`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_guest_phone` (`guest_phone`),
+  ADD KEY `idx_created_at` (`created_at`);
 
 --
 -- Indexes for table `booking_notes`
@@ -544,7 +644,8 @@ ALTER TABLE `employees`
 --
 ALTER TABLE `expenses`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `cash_transaction_id` (`cash_transaction_id`);
+  ADD KEY `cash_transaction_id` (`cash_transaction_id`),
+  ADD KEY `idx_date` (`date`);
 
 --
 -- Indexes for table `expense_logs`
@@ -552,6 +653,15 @@ ALTER TABLE `expenses`
 ALTER TABLE `expense_logs`
   ADD PRIMARY KEY (`id`),
   ADD KEY `expense_id` (`expense_id`);
+
+--
+-- Indexes for table `failed_logins`
+--
+ALTER TABLE `failed_logins`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_username` (`username`),
+  ADD KEY `idx_ip_address` (`ip_address`),
+  ADD KEY `idx_attempt_time` (`attempt_time`);
 
 --
 -- Indexes for table `invoices`
@@ -566,7 +676,8 @@ ALTER TABLE `invoices`
 ALTER TABLE `payment`
   ADD PRIMARY KEY (`payment_id`),
   ADD KEY `booking_id` (`booking_id`),
-  ADD KEY `cash_transaction_id` (`cash_transaction_id`);
+  ADD KEY `cash_transaction_id` (`cash_transaction_id`),
+  ADD KEY `idx_booking_id` (`booking_id`);
 
 --
 -- Indexes for table `permissions`
@@ -579,7 +690,8 @@ ALTER TABLE `permissions`
 -- Indexes for table `rooms`
 --
 ALTER TABLE `rooms`
-  ADD PRIMARY KEY (`room_number`);
+  ADD PRIMARY KEY (`room_number`),
+  ADD KEY `idx_status` (`status`);
 
 --
 -- Indexes for table `salary_withdrawals`
@@ -599,7 +711,20 @@ ALTER TABLE `suppliers`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`user_id`),
-  ADD UNIQUE KEY `username` (`username`);
+  ADD UNIQUE KEY `username` (`username`),
+  ADD KEY `idx_username` (`username`),
+  ADD KEY `idx_user_type` (`user_type`),
+  ADD KEY `idx_is_active` (`is_active`),
+  ADD KEY `idx_password_reset_token` (`password_reset_token`);
+
+--
+-- Indexes for table `user_activity_log`
+--
+ALTER TABLE `user_activity_log`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_action` (`action`),
+  ADD KEY `idx_created_at` (`created_at`);
 
 --
 -- Indexes for table `user_permissions`
@@ -617,7 +742,7 @@ ALTER TABLE `user_permissions`
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `booking_notes`
@@ -653,7 +778,13 @@ ALTER TABLE `expenses`
 -- AUTO_INCREMENT for table `expense_logs`
 --
 ALTER TABLE `expense_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
+-- AUTO_INCREMENT for table `failed_logins`
+--
+ALTER TABLE `failed_logins`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `invoices`
@@ -665,7 +796,7 @@ ALTER TABLE `invoices`
 -- AUTO_INCREMENT for table `payment`
 --
 ALTER TABLE `payment`
-  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT for table `permissions`
@@ -677,7 +808,7 @@ ALTER TABLE `permissions`
 -- AUTO_INCREMENT for table `salary_withdrawals`
 --
 ALTER TABLE `salary_withdrawals`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `suppliers`
@@ -690,6 +821,12 @@ ALTER TABLE `suppliers`
 --
 ALTER TABLE `users`
   MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `user_activity_log`
+--
+ALTER TABLE `user_activity_log`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `user_permissions`
