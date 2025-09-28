@@ -90,21 +90,16 @@ jobs:
         run: |
           cd ../releases/apk
           echo "assets<<EOF" >> $GITHUB_OUTPUT
+          echo "date_utc,version,build_number,file,size_bytes,sha256" > metadata.csv
+          NOW=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
           for f in *; do
             size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
             sha=$(sha256sum "$f" 2>/dev/null | awk '{print $1}')
             if [ -z "$sha" ]; then sha=$(shasum -a 256 "$f" | awk '{print $1}'); fi
-            echo "$f,$size,$sha"
-          done >> $GITHUB_OUTPUT
+            echo "$f,$size,$sha" >> $GITHUB_OUTPUT
+            echo "$NOW,${{ steps.ver.outputs.version_name }},${{ steps.ver.outputs.build_number }},$f,$size,$sha" >> metadata.csv
+          done
           echo "EOF" >> $GITHUB_OUTPUT
-          {
-            echo "date_utc,version,build_number,file,size_bytes,sha256"
-            NOW=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-            while IFS=, read -r name size sha; do
-              [ -z "$name" ] && continue
-              echo "$NOW,${{ steps.ver.outputs.version_name }},${{ steps.ver.outputs.build_number }},$name,$size,$sha"
-            done <<< "${{ steps.meta.outputs.assets }}"
-          } > metadata.csv
       - name: Render release notes
         run: |
           TEMPLATE="../.github/release_notes_template.md"
