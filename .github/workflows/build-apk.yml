@@ -1,274 +1,66 @@
-name: 🏨 Build Marina Hotel APK
+name: Build Android (Debug)
 
 on:
   push:
-    branches: [ main, master, capy/apk-ee3d67eb, capy/cap-1-aff99d80 ]
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'capy/**'
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/build-apk.yml'
   pull_request:
-    branches: [ main, master, capy/apk-ee3d67eb ]
-  workflow_dispatch: # يسمح بالتشغيل اليدوي
-    inputs:
-      release_name:
-        description: 'اسم الإصدار (اختياري)'
-        required: false
-        default: 'Marina Hotel Mobile'
-
-env:
-  FLUTTER_VERSION: '3.22.0'
+    branches:
+      - main
+      - develop
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
 
 jobs:
-  build-apk:
-    name: 🔨 Build Flutter APK
+  debug:
     runs-on: ubuntu-latest
-    
+    defaults:
+      run:
+        working-directory: mobile
     steps:
-    # 1. استنساخ الكود
-    - name: 📥 Checkout repository  
-      uses: actions/checkout@v4
-      
-    # 2. إعداد Java
-    - name: ☕ Setup Java JDK
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-        
-    # 3. إعداد Flutter
-    - name: 🐦 Setup Flutter SDK
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
-        channel: 'stable'
-        
-    # 4. التحقق من Flutter
-    - name: 🔍 Verify Flutter installation
-      run: |
-        flutter --version
-        flutter doctor -v
-        
-    # 5. الانتقال لمجلد المشروع
-    - name: 📁 Navigate to mobile directory
-      working-directory: ./mobile
-      run: pwd && ls -la
-      
-    # 6. تنظيف cache
-    - name: 🧹 Clean Flutter cache
-      working-directory: ./mobile
-      run: flutter clean
-      
-    # 7. تثبيت dependencies
-    - name: 📦 Get Flutter dependencies
-      working-directory: ./mobile
-      run: flutter pub get
-      
-    # 8. تشغيل code generation
-    - name: ⚙️ Run code generation
-      working-directory: ./mobile
-      run: |
-        flutter packages pub run build_runner build --delete-conflicting-outputs
-        
-    # 9. فحص الكود (اختياري)
-    - name: 🔍 Analyze code
-      working-directory: ./mobile
-      run: flutter analyze --fatal-infos
-      continue-on-error: true # السماح بالاستمرار حتى لو فشل التحليل
-      
-    # 10. بناء APK Debug
-    - name: 🔨 Build APK (Debug)
-      working-directory: ./mobile
-      run: |
-        flutter build apk --debug --target-platform android-arm64
-        
-    # 11. بناء APK Release  
-    - name: 🚀 Build APK (Release)
-      working-directory: ./mobile
-      run: |
-        flutter build apk --release --target-platform android-arm64
-        
-    # 12. إنشاء معلومات البناء
-    - name: 📋 Generate build info
-      working-directory: ./mobile
-      run: |
-        echo "📱 Marina Hotel Mobile APK" > build_info.txt
-        echo "🏨 نظام إدارة الفندق مع المدفوعات المتقدمة" >> build_info.txt
-        echo "" >> build_info.txt
-        echo "📅 تاريخ البناء: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> build_info.txt
-        echo "🌲 الفرع: ${GITHUB_REF#refs/heads/}" >> build_info.txt
-        echo "📝 Commit: ${GITHUB_SHA:0:8}" >> build_info.txt
-        echo "👤 بواسطة: ${GITHUB_ACTOR}" >> build_info.txt
-        echo "" >> build_info.txt
-        echo "✨ المميزات الجديدة:" >> build_info.txt
-        echo "• 💳 نظام مدفوعات متقدم (5 طرق دفع)" >> build_info.txt
-        echo "• 📄 إيصالات وفواتير PDF" >> build_info.txt  
-        echo "• 🏠 واجهة حجوزات محسّنة" >> build_info.txt
-        echo "• 📊 إحصائيات وتقارير شاملة" >> build_info.txt
-        echo "• 🔍 بحث وفلترة متقدمة" >> build_info.txt
-        echo "" >> build_info.txt
-        
-        # معلومات حجم الملفات
-        if [ -f "build/app/outputs/flutter-apk/app-debug.apk" ]; then
-          DEBUG_SIZE=$(du -h build/app/outputs/flutter-apk/app-debug.apk | cut -f1)
-          echo "📦 حجم APK Debug: $DEBUG_SIZE" >> build_info.txt
-        fi
-        
-        if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
-          RELEASE_SIZE=$(du -h build/app/outputs/flutter-apk/app-release.apk | cut -f1)
-          echo "📦 حجم APK Release: $RELEASE_SIZE" >> build_info.txt
-        fi
-        
-        cat build_info.txt
-        
-    # 13. تجهيز ملفات للرفع
-    - name: 📁 Prepare artifacts
-      working-directory: ./mobile
-      run: |
-        mkdir -p apk_output
-        
-        # نسخ APK files مع أسماء واضحة
-        if [ -f "build/app/outputs/flutter-apk/app-debug.apk" ]; then
-          cp build/app/outputs/flutter-apk/app-debug.apk apk_output/marina-hotel-debug-${GITHUB_SHA:0:8}.apk
-        fi
-        
-        if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
-          cp build/app/outputs/flutter-apk/app-release.apk apk_output/marina-hotel-release-${GITHUB_SHA:0:8}.apk
-          # نسخة بدون hash للتحميل السهل
-          cp build/app/outputs/flutter-apk/app-release.apk apk_output/marina-hotel-latest.apk
-        fi
-        
-        # نسخ معلومات البناء
-        cp build_info.txt apk_output/
-        
-        ls -la apk_output/
-        
-    # 14. رفع APK كـ artifacts
-    - name: 📤 Upload APK artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: marina-hotel-apk-${{ github.sha }}
-        path: mobile/apk_output/
-        retention-days: 30
-        
-    # 15. إنشاء release تلقائي (فقط للفروع الرئيسية)
-    - name: 🏷️ Create Release
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/capy/apk-ee3d67eb')
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v1.0.0-${{ github.sha }}
-        name: ${{ github.event.inputs.release_name || 'Marina Hotel Mobile' }} - ${{ github.sha }}
-        body: |
-          🏨 **Marina Hotel Mobile - نظام إدارة الفندق**
-          
-          ## ✨ المميزات الجديدة في هذا الإصدار:
-          
-          ### 💳 نظام المدفوعات المتقدم:
-          - 5 طرق دفع: نقدي، بطاقة، تحويل، شيك، تقسيط
-          - إيصالات وفواتير PDF احترافية 
-          - سجل مدفوعات مع بحث وفلترة
-          - نظام تسجيل مغادرة شامل
-          
-          ### 🏠 تحسينات الحجوزات:
-          - تصميم جديد بنظام البطاقات
-          - أزرار مدمجة للدفع والخروج
-          - عرض واضح لحالات الحجوزات
-          
-          ### 📊 إدارة متقدمة:
-          - إحصائيات يومية شاملة
-          - تقارير مالية تفصيلية
-          - دعم كامل للعربية واللغة المحلية
-          
-          ## 📱 التثبيت:
-          1. حمّل ملف `marina-hotel-latest.apk`
-          2. فعّل "مصادر غير معروفة" في إعدادات الأندرويد
-          3. ثبّت التطبيق واستمتع بالمميزات الجديدة
-          
-          ## 🔧 معلومات البناء:
-          - **التاريخ**: ${{ github.event.head_commit.timestamp }}
-          - **Commit**: ${{ github.sha }}
-          - **Flutter**: ${{ env.FLUTTER_VERSION }}
-          
-          ---
-          
-          تم البناء تلقائياً بواسطة GitHub Actions 🤖
-        files: |
-          mobile/apk_output/marina-hotel-latest.apk
-          mobile/apk_output/marina-hotel-release-*.apk
-          mobile/apk_output/build_info.txt
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    # 16. تعليق على PR (إذا كان PR)
-    - name: 💬 Comment on PR
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const comment = `🎉 **APK تم بناؤه بنجاح!**
-          
-          📱 تم بناء Marina Hotel Mobile APK مع نظام المدفوعات الجديد.
-          
-          ## 📥 التحميل:
-          يمكنك تحميل APK من [صفحة Actions](${context.payload.repository.html_url}/actions/runs/${context.runId})
-          
-          ## ✅ تم اختباره:
-          - ✅ Flutter analysis مكتمل
-          - ✅ Code generation مكتمل  
-          - ✅ APK Debug & Release تم بناؤهما
-          
-          ## 🔍 للاختبار:
-          1. حمّل APK من Artifacts أعلاه
-          2. ثبّت على جهاز Android للاختبار
-          3. اختبر نظام المدفوعات الجديد
-          
-          ---
-          🤖 تم بناؤه تلقائياً بواسطة GitHub Actions`;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: comment
-          });
-
-  # job إضافي لفحص الجودة
-  quality-check:
-    name: 🔍 Quality & Security Check
-    runs-on: ubuntu-latest
-    needs: build-apk
-    
-    steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
-      
-    - name: 🐦 Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
-        
-    - name: 📦 Get dependencies
-      working-directory: ./mobile
-      run: flutter pub get
-      
-    - name: 🛡️ Security scan
-      working-directory: ./mobile
-      run: |
-        echo "🔒 فحص الأمان..."
-        # فحص أساسي للمكتبات
-        flutter pub deps --json | jq '.packages[] | select(.kind=="direct") | .name' || true
-        
-    - name: 📊 Code metrics
-      working-directory: ./mobile  
-      run: |
-        echo "📈 إحصائيات الكود..."
-        find lib/ -name "*.dart" | wc -l | xargs echo "عدد ملفات Dart:"
-        find lib/ -name "*.dart" -exec wc -l {} + | tail -1 | xargs echo "إجمالي أسطر الكود:"
-        
-    - name: ✅ Generate summary
-      run: |
-        echo "## 🎯 ملخص جودة البناء" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY  
-        echo "✅ **APK تم بناؤه بنجاح**" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **فحوصات الجودة مكتملة**" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **جاهز للاختبار والنشر**" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "🏨 **نظام المدفوعات المتقدم نشط ومفعّل!**" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.24.0'
+          cache: true
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          flutter packages pub run build_runner build --delete-conflicting-outputs
+      - name: Build APK (debug, split per ABI)
+        run: |
+          flutter build apk --debug --target-platform android-arm,android-arm64,android-x64 --split-per-abi
+      - name: Collect artifacts
+        run: |
+          VERSION_NAME=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          mkdir -p ../releases/apk
+          for f in build/app/outputs/flutter-apk/*-debug.apk; do
+            base=$(basename "$f")
+            abi=""
+            case "$base" in
+              *arm64-v8a*) abi="arm64" ;;
+              *armeabi-v7a*) abi="armv7" ;;
+              *x86_64*) abi="x86_64" ;;
+            esac
+            cp "$f" "../releases/apk/marina-hotel-v${VERSION_NAME}-${abi}-debug.apk"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-debug-${{ github.ref_name }}-${{ github.run_number }}
+          path: |
+            releases/apk/*.apk
+          retention-days: 14

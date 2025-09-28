@@ -1,221 +1,137 @@
-name: 🚀 Release Marina Hotel APK
+name: Release Android (APK/AAB)
 
 on:
   push:
     tags:
-      - 'v*.*.*'  # يُشغل عند إنشاء tag مثل v1.0.0
+      - 'v*'
   workflow_dispatch:
-    inputs:
-      tag_name:
-        description: 'اسم Tag للإصدار (مثل v1.0.0)'
-        required: true
-        type: string
-      release_notes:
-        description: 'ملاحظات الإصدار'
-        required: false
-        type: string
-        default: 'تحسينات وإصلاحات متنوعة'
 
-env:
-  FLUTTER_VERSION: '3.22.0'
+permissions:
+  contents: write
 
 jobs:
-  create-release:
-    name: 🎉 Create Production Release
+  build-release:
     runs-on: ubuntu-latest
-    
+    defaults:
+      run:
+        working-directory: mobile
     steps:
-    - name: 📥 Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: ☕ Setup Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-        
-    - name: 🐦 Setup Flutter SDK
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
-        channel: 'stable'
-        
-    - name: 📁 Navigate and prepare
-      working-directory: ./mobile
-      run: |
-        flutter clean
-        flutter pub get
-        flutter packages pub run build_runner build --delete-conflicting-outputs
-        
-    # بناء APK محسّن للإنتاج
-    - name: 🏭 Build Production APK
-      working-directory: ./mobile
-      run: |
-        # بناء للمعماريات المختلفة
-        flutter build apk --release --split-per-abi
-        
-        # بناء APK موحد
-        flutter build apk --release
-        
-    - name: 📱 Build App Bundle (AAB)
-      working-directory: ./mobile  
-      run: |
-        flutter build appbundle --release
-        
-    - name: 📋 Generate release info
-      working-directory: ./mobile
-      run: |
-        # الحصول على معلومات التطبيق
-        APP_VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //')
-        TAG_NAME=${{ github.event.inputs.tag_name || github.ref_name }}
-        
-        echo "🏨 Marina Hotel Mobile - إصدار الإنتاج" > release_notes.md
-        echo "=====================================" >> release_notes.md
-        echo "" >> release_notes.md
-        echo "## 📱 معلومات الإصدار" >> release_notes.md
-        echo "- **الإصدار**: ${TAG_NAME}" >> release_notes.md
-        echo "- **إصدار التطبيق**: ${APP_VERSION}" >> release_notes.md  
-        echo "- **تاريخ البناء**: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> release_notes.md
-        echo "- **Flutter**: ${{ env.FLUTTER_VERSION }}" >> release_notes.md
-        echo "" >> release_notes.md
-        
-        echo "## ✨ المميزات الرئيسية" >> release_notes.md
-        echo "" >> release_notes.md
-        echo "### 💳 نظام المدفوعات المتقدم:" >> release_notes.md
-        echo "- **5 طرق دفع شاملة**: نقدي، بطاقة ائتمانية، تحويل بنكي، شيك، تقسيط" >> release_notes.md
-        echo "- **إيصالات فورية**: إيصال PDF احترافي فور كل عملية دفع" >> release_notes.md
-        echo "- **فواتير شاملة**: فواتير A4 مفصلة مع جداول الخدمات" >> release_notes.md
-        echo "- **سجل متقدم**: بحث وفلترة في جميع المعاملات المالية" >> release_notes.md
-        echo "" >> release_notes.md
-        
-        echo "### 🏠 إدارة الحجوزات:" >> release_notes.md
-        echo "- **واجهة محسّنة**: تصميم جديد بنظام البطاقات" >> release_notes.md
-        echo "- **عمليات مدمجة**: أزرار سريعة للدفع وتسجيل المغادرة" >> release_notes.md
-        echo "- **حالات واضحة**: عرض مرئي لحالة كل حجز" >> release_notes.md
-        echo "- **تسجيل مغادرة شامل**: فحص الغرفة والفاتورة النهائية" >> release_notes.md
-        echo "" >> release_notes.md
-        
-        echo "### 📊 الإدارة والتقارير:" >> release_notes.md
-        echo "- **إحصائيات يومية**: ملخص شامل لمدفوعات اليوم" >> release_notes.md
-        echo "- **لوحة تحكم متقدمة**: إدارة المدفوعات المعلقة" >> release_notes.md
-        echo "- **تصدير البيانات**: تصدير PDF وExcel للتقارير" >> release_notes.md
-        echo "- **دعم العربية**: واجهة كاملة باللغة العربية مع RTL" >> release_notes.md
-        echo "" >> release_notes.md
-        
-        echo "### 🛡️ الأمان والجودة:" >> release_notes.md
-        echo "- **تخزين آمن**: حفظ محلي مع تشفير البيانات الحساسة" >> release_notes.md
-        echo "- **نسخ احتياطي**: نظام مزامنة تلقائي مع الخادم" >> release_notes.md
-        echo "- **واجهة متجاوبة**: يعمل بسلاسة على جميع أحجام الشاشات" >> release_notes.md
-        echo "- **أداء محسّن**: استجابة سريعة وذاكرة مُحسنة" >> release_notes.md
-        echo "" >> release_notes.md
-        
-        if [[ -n "${{ github.event.inputs.release_notes }}" ]]; then
-          echo "## 📝 ملاحظات إضافية" >> release_notes.md
-          echo "${{ github.event.inputs.release_notes }}" >> release_notes.md
-          echo "" >> release_notes.md
-        fi
-        
-        echo "## 📥 التثبيت والاستخدام" >> release_notes.md
-        echo "" >> release_notes.md
-        echo "### للأجهزة العادية:" >> release_notes.md
-        echo "1. حمّل \`marina-hotel-release.apk\`" >> release_notes.md
-        echo "2. فعّل \"المصادر غير المعروفة\" في إعدادات الأندرويد" >> release_notes.md
-        echo "3. ثبّت التطبيق وابدأ الاستخدام" >> release_notes.md
-        echo "" >> release_notes.md
-        
-        echo "### للنشر على Google Play:" >> release_notes.md
-        echo "- استخدم ملف \`marina-hotel-release.aab\` للنشر على المتجر" >> release_notes.md
-        echo "" >> release_notes.md
-        
-        echo "### معماريات مدعومة:" >> release_notes.md
-        echo "- ARM64 (معظم الهواتف الحديثة)" >> release_notes.md
-        echo "- ARMv7 (الهواتف الأقدم)" >> release_notes.md
-        echo "- x86_64 (المحاكيات)" >> release_notes.md
-        echo "" >> release_notes.md
-        
-        # معلومات أحجام الملفات
-        echo "## 📦 معلومات الملفات" >> release_notes.md
-        echo "" >> release_notes.md
-        
-        if [[ -f "build/app/outputs/flutter-apk/app-release.apk" ]]; then
-          APK_SIZE=$(du -h build/app/outputs/flutter-apk/app-release.apk | cut -f1)
-          echo "- **APK موحد**: ${APK_SIZE}" >> release_notes.md
-        fi
-        
-        if [[ -f "build/app/outputs/bundle/release/app-release.aab" ]]; then
-          AAB_SIZE=$(du -h build/app/outputs/bundle/release/app-release.aab | cut -f1)
-          echo "- **App Bundle**: ${AAB_SIZE}" >> release_notes.md
-        fi
-        
-        echo "" >> release_notes.md
-        echo "---" >> release_notes.md
-        echo "" >> release_notes.md
-        echo "🤖 **تم البناء تلقائياً بواسطة GitHub Actions**" >> release_notes.md
-        echo "🏨 **Marina Hotel Development Team**" >> release_notes.md
-        echo "📧 **للدعم التقني**: [إنشاء قضية جديدة](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/issues)" >> release_notes.md
-        
-        echo "Generated release notes:"
-        cat release_notes.md
-        
-    - name: 📁 Prepare release files
-      working-directory: ./mobile
-      run: |
-        mkdir -p release_files
-        
-        # نسخ الملفات بأسماء واضحة
-        if [[ -f "build/app/outputs/flutter-apk/app-release.apk" ]]; then
-          cp build/app/outputs/flutter-apk/app-release.apk release_files/marina-hotel-release.apk
-        fi
-        
-        if [[ -f "build/app/outputs/bundle/release/app-release.aab" ]]; then
-          cp build/app/outputs/bundle/release/app-release.aab release_files/marina-hotel-release.aab
-        fi
-        
-        # نسخ APK مقسم حسب المعمارية
-        if [[ -d "build/app/outputs/flutter-apk" ]]; then
-          find build/app/outputs/flutter-apk -name "app-*-release.apk" -exec cp {} release_files/ \;
-        fi
-        
-        # إضافة ملفات معلوماتية
-        cp release_notes.md release_files/
-        
-        # إنشاء checksum للتحقق
-        cd release_files
-        sha256sum * > checksums.txt
-        
-        ls -la
-        
-    - name: 🏷️ Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
-        name: 🏨 Marina Hotel Mobile ${{ github.event.inputs.tag_name || github.ref_name }}
-        body_path: mobile/release_files/release_notes.md
-        files: |
-          mobile/release_files/marina-hotel-release.apk
-          mobile/release_files/marina-hotel-release.aab
-          mobile/release_files/app-*-release.apk
-          mobile/release_files/checksums.txt
-        draft: false
-        prerelease: false
-        make_latest: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: 📤 Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: marina-hotel-release-${{ github.event.inputs.tag_name || github.ref_name }}
-        path: mobile/release_files/
-        retention-days: 90 # حفظ أطول للإصدارات
-        
-    - name: 🎉 Success notification
-      run: |
-        echo "## 🎉 تم إنشاء الإصدار بنجاح!" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **Tag**: ${{ github.event.inputs.tag_name || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **APK**: تم بناؤه للإنتاج" >> $GITHUB_STEP_SUMMARY  
-        echo "✅ **AAB**: جاهز للنشر على Google Play" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **Release**: تم إنشاؤه على GitHub" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "🏨 **Marina Hotel Mobile جاهز للنشر!**" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.24.0'
+          cache: true
+      - name: Install dependencies
+        run: |
+          flutter --version
+          flutter pub get
+          flutter packages pub run build_runner build --delete-conflicting-outputs
+      - name: Prepare signing
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+      - name: Compute version
+        id: ver
+        run: |
+          VERSION_NAME=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          BUILD_NUMBER=${GITHUB_RUN_NUMBER}
+          DATE=$(date -u +'%Y%m%d')
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+      - name: Build APK (release, split per ABI)
+        run: |
+          flutter build apk --release --build-number "${{ steps.ver.outputs.build_number }}" --target-platform android-arm,android-arm64,android-x64 --split-per-abi
+      - name: Build AAB (release)
+        run: |
+          flutter build appbundle --release --build-number "${{ steps.ver.outputs.build_number }}"
+      - name: Collect artifacts
+        run: |
+          mkdir -p ../releases/apk
+          for f in build/app/outputs/flutter-apk/*-release.apk; do
+            base=$(basename "$f")
+            abi=""
+            case "$base" in
+              *arm64-v8a*) abi="arm64" ;;
+              *armeabi-v7a*) abi="armv7" ;;
+              *x86_64*) abi="x86_64" ;;
+            esac
+            cp "$f" "../releases/apk/marina-hotel-v${{ steps.ver.outputs.version_name }}-${abi}.apk"
+          done
+          cp build/app/outputs/bundle/release/app-release.aab "../releases/apk/marina-hotel-v${{ steps.ver.outputs.version_name }}.aab"
+      - name: APK health check
+        run: |
+          set -e
+          cd ../releases/apk
+          for f in *.apk; do
+            unzip -l "$f" >/dev/null
+            if ! unzip -l "$f" | grep -q AndroidManifest.xml; then
+              echo "Invalid APK: $f"; exit 1
+            fi
+          done
+      - name: Generate checksums and notes
+        id: meta
+        run: |
+          cd ../releases/apk
+          echo "assets<<EOF" >> $GITHUB_OUTPUT
+          for f in *; do
+            size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
+            sha=$(sha256sum "$f" 2>/dev/null | awk '{print $1}')
+            if [ -z "$sha" ]; then sha=$(shasum -a 256 "$f" | awk '{print $1}'); fi
+            echo "$f,$size,$sha"
+          done >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "date_utc,version,build_number,file,size_bytes,sha256"
+            NOW=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            while IFS=, read -r name size sha; do
+              [ -z "$name" ] && continue
+              echo "$NOW,${{ steps.ver.outputs.version_name }},${{ steps.ver.outputs.build_number }},$name,$size,$sha"
+            done <<< "${{ steps.meta.outputs.assets }}"
+          } > metadata.csv
+      - name: Render release notes
+        run: |
+          TEMPLATE="../.github/release_notes_template.md"
+          ASSETS_MD=""
+          while IFS=, read -r name size sha; do
+            [ -z "$name" ] && continue
+            human=$(numfmt --to=iec "$size" 2>/dev/null || echo "$size B")
+            ASSETS_MD="$ASSETS_MD\n- $name — $human — sha256: \`$sha\`"
+          done <<< "${{ steps.meta.outputs.assets }}"
+          sed \
+            -e "s/{{VERSION}}/${{ steps.ver.outputs.version_name }}/g" \
+            -e "s/{{BUILD_NUMBER}}/${{ steps.ver.outputs.build_number }}/g" \
+            -e "s/{{DATE}}/${{ steps.ver.outputs.date }}/g" \
+            -e "s|{{ASSETS}}|$ASSETS_MD|g" "$TEMPLATE" > ../releases/RELEASE_NOTES.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Marina Hotel v${{ steps.ver.outputs.version_name }}
+          body_path: releases/RELEASE_NOTES.md
+          files: |
+            releases/apk/*.apk
+            releases/apk/*.aab
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-release-${{ steps.ver.outputs.version_name }}-${{ github.run_number }}
+          path: |
+            releases/apk/*
+            releases/RELEASE_NOTES.md
+            releases/apk/metadata.csv
+          retention-days: 30
