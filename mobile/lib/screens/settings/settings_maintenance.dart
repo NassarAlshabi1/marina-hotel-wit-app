@@ -57,7 +57,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
           _buildMaintenanceCard(
             'فحص قاعدة البيانات',
             'التحقق من سلامة البيانات وإصلاح الأخطاء',
-            Icons.database,
+            Icons.storage,
             Colors.green,
             () => _showDatabaseCheckDialog(context),
           ),

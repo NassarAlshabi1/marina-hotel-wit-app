@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../components/admin_layout.dart';
 import '../services/providers.dart';
 import '../services/sync_service.dart';
-import '../services/local_db.dart';
 import '../utils/theme.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -16,7 +14,7 @@ class DashboardScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with sync button - matching PHP admin
+          // Header with sync button
           Row(
             children: [
               const Text(
@@ -24,7 +22,6 @@ class DashboardScreen extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
                 ),
               ),
               const Spacer(),
@@ -34,28 +31,22 @@ class DashboardScreen extends ConsumerWidget {
                 },
                 icon: const Icon(Icons.sync, size: 16),
                 label: const Text('مزامنة'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                ),
               ),
             ],
           ),
           
           const SizedBox(height: 24),
           
-          // Statistics Cards Row - exactly matching PHP dashboard
+          // Statistics Cards
           Consumer(
             builder: (context, ref, _) {
               final roomsAsync = ref.watch(roomsListProvider);
-              final cashAsync = ref.watch(cashTransactionsListProvider);
               final bookingsAsync = ref.watch(bookingsListProvider);
-              final expensesAsync = ref.watch(expensesListProvider);
               
               return roomsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, st) => Center(child: Text('خطأ: $e')),
                 data: (rooms) {
-                  // Calculate statistics exactly like PHP dashboard
                   final totalRooms = rooms.length;
                   final availableRooms = rooms.where((r) => r.status == 'شاغرة').length;
                   final occupiedRooms = rooms.where((r) => r.status == 'محجوزة').length;
@@ -64,6 +55,249 @@ class DashboardScreen extends ConsumerWidget {
                   final currentGuests = bookingsAsync.asData?.value
                       .where((b) => b.status == 'نشط').length ?? 0;
                   
-                  // Calculate today's revenue and expenses
-                  final today = DateTime.now();
-                  final todayString = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';\n                  \n                  double todayRevenue = 0;\n                  double monthRevenue = 0;\n                  cashAsync.asData?.value.forEach((t) {\n                    if (t.transactionType == 'income') {\n                      final transactionDate = DateTime.tryParse(t.transactionTime);\n                      if (transactionDate != null) {\n                        final transactionDateString = '${transactionDate.year}-${transactionDate.month.toString().padLeft(2, '0')}-${transactionDate.day.toString().padLeft(2, '0')}';\n                        if (transactionDateString == todayString) {\n                          todayRevenue += t.amount;\n                        }\n                        if (transactionDate.year == today.year && transactionDate.month == today.month) {\n                          monthRevenue += t.amount;\n                        }\n                      }\n                    }\n                  });\n                  \n                  double todayExpenses = 0;\n                  double monthExpenses = 0;\n                  expensesAsync.asData?.value.forEach((e) {\n                    final expenseDate = DateTime.tryParse(e.date);\n                    if (expenseDate != null) {\n                      final expenseDateString = '${expenseDate.year}-${expenseDate.month.toString().padLeft(2, '0')}-${expenseDate.day.toString().padLeft(2, '0')}';\n                      if (expenseDateString == todayString) {\n                        todayExpenses += e.amount;\n                      }\n                      if (expenseDate.year == today.year && expenseDate.month == today.month) {\n                        monthExpenses += e.amount;\n                      }\n                    }\n                  });\n                  \n                  final todayProfit = todayRevenue - todayExpenses;\n                  final monthProfit = monthRevenue - monthExpenses;\n                  \n                  return Column(\n                    children: [\n                      // First row - Room statistics\n                      Row(\n                        children: [\n                          Expanded(\n                            child: StatCard(\n                              title: 'إجمالي الغرف',\n                              value: totalRooms.toString(),\n                              icon: Icons.hotel,\n                              color: AppColors.infoColor,\n                              subtitle: 'جميع الغرف',\n                            ),\n                          ),\n                          Expanded(\n                            child: StatCard(\n                              title: 'الغرف المتاحة',\n                              value: availableRooms.toString(),\n                              icon: Icons.hotel_outlined,\n                              color: AppColors.successColor,\n                              subtitle: 'شاغرة',\n                            ),\n                          ),\n                        ],\n                      ),\n                      \n                      // Second row - Occupancy and guests\n                      Row(\n                        children: [\n                          Expanded(\n                            child: StatCard(\n                              title: 'الغرف المحجوزة',\n                              value: occupiedRooms.toString(),\n                              icon: Icons.bed,\n                              color: AppColors.dangerColor,\n                              subtitle: 'محجوزة',\n                            ),\n                          ),\n                          Expanded(\n                            child: StatCard(\n                              title: 'نسبة الإشغال',\n                              value: '$occupancyRate%',\n                              icon: Icons.pie_chart,\n                              color: AppColors.warningColor,\n                              subtitle: 'النسبة الحالية',\n                            ),\n                          ),\n                        ],\n                      ),\n                      \n                      // Third row - Guests and revenue\n                      Row(\n                        children: [\n                          Expanded(\n                            child: StatCard(\n                              title: 'النزلاء الحاليين',\n                              value: currentGuests.toString(),\n                              icon: Icons.group,\n                              color: AppColors.primaryColor,\n                              subtitle: 'نشط',\n                            ),\n                          ),\n                          Expanded(\n                            child: StatCard(\n                              title: 'إيرادات اليوم',\n                              value: todayRevenue.toStringAsFixed(0),\n                              icon: Icons.trending_up,\n                              color: AppColors.successColor,\n                              subtitle: 'ريال يمني',\n                            ),\n                          ),\n                        ],\n                      ),\n                      \n                      // Fourth row - Monthly statistics\n                      Row(\n                        children: [\n                          Expanded(\n                            child: StatCard(\n                              title: 'إيرادات الشهر',\n                              value: monthRevenue.toStringAsFixed(0),\n                              icon: Icons.account_balance_wallet,\n                              color: AppColors.successColor,\n                              subtitle: 'ريال يمني',\n                            ),\n                          ),\n                          Expanded(\n                            child: StatCard(\n                              title: 'مصروفات اليوم',\n                              value: todayExpenses.toStringAsFixed(0),\n                              icon: Icons.trending_down,\n                              color: AppColors.dangerColor,\n                              subtitle: 'ريال يمني',\n                            ),\n                          ),\n                        ],\n                      ),\n                      \n                      // Fifth row - Expenses and profit\n                      Row(\n                        children: [\n                          Expanded(\n                            child: StatCard(\n                              title: 'مصروفات الشهر',\n                              value: monthExpenses.toStringAsFixed(0),\n                              icon: Icons.receipt_long,\n                              color: AppColors.dangerColor,\n                              subtitle: 'ريال يمني',\n                            ),\n                          ),\n                          Expanded(\n                            child: StatCard(\n                              title: 'صافي الربح اليومي',\n                              value: todayProfit.toStringAsFixed(0),\n                              icon: todayProfit >= 0 ? Icons.trending_up : Icons.trending_down,\n                              color: todayProfit >= 0 ? AppColors.successColor : AppColors.dangerColor,\n                              subtitle: 'ريال يمني',\n                            ),\n                          ),\n                        ],\n                      ),\n                      \n                      // Sixth row - Monthly profit\n                      Row(\n                        children: [\n                          Expanded(\n                            child: StatCard(\n                              title: 'صافي الربح الشهري',\n                              value: monthProfit.toStringAsFixed(0),\n                              icon: monthProfit >= 0 ? Icons.trending_up : Icons.trending_down,\n                              color: monthProfit >= 0 ? AppColors.successColor : AppColors.dangerColor,\n                              subtitle: 'ريال يمني',\n                            ),\n                          ),\n                          Expanded(\n                            child: Container(), // Empty space for balance\n                          ),\n                        ],\n                      ),\n                    ],\n                  );\n                },\n              );\n            },\n          ),\n          \n          const SizedBox(height: 32),\n          \n          // Recent activity section - matching PHP layout\n          AdminCard(\n            title: 'النشاط الحديث',\n            child: Column(\n              children: [\n                _buildRecentActivityItem(\n                  'حجوزات جديدة',\n                  'تم إضافة 3 حجوزات جديدة اليوم',\n                  Icons.assignment,\n                  AppColors.successColor,\n                ),\n                const Divider(),\n                _buildRecentActivityItem(\n                  'مدفوعات مستلمة',\n                  'تم استلام دفعات بقيمة 15000 ريال',\n                  Icons.payment,\n                  AppColors.primaryColor,\n                ),\n                const Divider(),\n                _buildRecentActivityItem(\n                  'غرف تم تسجيل المغادرة',\n                  'تم تسجيل مغادرة 2 حجز اليوم',\n                  Icons.logout,\n                  AppColors.warningColor,\n                ),\n              ],\n            ),\n          ),\n          \n          const SizedBox(height: 32),\n          \n          // Quick actions section - matching PHP style\n          AdminCard(\n            title: 'إجراءات سريعة',\n            child: Wrap(\n              spacing: 16,\n              runSpacing: 16,\n              children: [\n                _buildQuickActionButton(\n                  'حجز جديد',\n                  Icons.add,\n                  AppColors.successColor,\n                  () => {}, // Navigation handled by sidebar\n                ),\n                _buildQuickActionButton(\n                  'إدارة الغرف',\n                  Icons.bed,\n                  AppColors.primaryColor,\n                  () => {},\n                ),\n                _buildQuickActionButton(\n                  'إدارة المدفوعات',\n                  Icons.payment,\n                  AppColors.warningColor,\n                  () => {},\n                ),\n                _buildQuickActionButton(\n                  'التقارير',\n                  Icons.bar_chart,\n                  AppColors.infoColor,\n                  () => {},\n                ),\n              ],\n            ),\n          ),\n        ],\n      ),\n    );\n  }\n  \n  Widget _buildRecentActivityItem(\n    String title,\n    String subtitle,\n    IconData icon,\n    Color color,\n  ) {\n    return ListTile(\n      leading: Container(\n        padding: const EdgeInsets.all(8),\n        decoration: BoxDecoration(\n          color: color.withOpacity(0.1),\n          borderRadius: BorderRadius.circular(8),\n        ),\n        child: Icon(icon, color: color),\n      ),\n      title: Text(\n        title,\n        style: const TextStyle(fontWeight: FontWeight.w600),\n      ),\n      subtitle: Text(subtitle),\n      contentPadding: EdgeInsets.zero,\n    );\n  }\n  \n  Widget _buildQuickActionButton(\n    String title,\n    IconData icon,\n    Color color,\n    VoidCallback onTap,\n  ) {\n    return InkWell(\n      onTap: onTap,\n      borderRadius: BorderRadius.circular(8),\n      child: Container(\n        width: 140,\n        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),\n        decoration: BoxDecoration(\n          border: Border.all(color: color.withOpacity(0.3)),\n          borderRadius: BorderRadius.circular(8),\n          color: color.withOpacity(0.05),\n        ),\n        child: Column(\n          children: [\n            Icon(icon, size: 32, color: color),\n            const SizedBox(height: 8),\n            Text(\n              title,\n              style: TextStyle(\n                color: color,\n                fontWeight: FontWeight.w600,\n                fontSize: 12,\n              ),\n              textAlign: TextAlign.center,\n            ),\n          ],\n        ),\n      ),\n    );\n  }\n}
+                  return Column(
+                    children: [
+                      // Statistics Grid
+                      GridView.count(
+                        crossAxisCount: 2,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        childAspectRatio: 1.5,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        children: [
+                          StatCard(
+                            title: 'إجمالي الغرف',
+                            value: totalRooms.toString(),
+                            icon: Icons.hotel,
+                            color: Colors.blue,
+                          ),
+                          StatCard(
+                            title: 'الغرف المتاحة',
+                            value: availableRooms.toString(),
+                            icon: Icons.hotel_outlined,
+                            color: Colors.green,
+                          ),
+                          StatCard(
+                            title: 'الغرف المحجوزة',
+                            value: occupiedRooms.toString(),
+                            icon: Icons.bed,
+                            color: Colors.red,
+                          ),
+                          StatCard(
+                            title: 'نسبة الإشغال',
+                            value: '$occupancyRate%',
+                            icon: Icons.pie_chart,
+                            color: Colors.orange,
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+          
+          const SizedBox(height: 32),
+          
+          // Recent activity section
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'النشاط الحديث',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildRecentActivityItem(
+                    'حجوزات جديدة',
+                    'تم إضافة 3 حجوزات جديدة اليوم',
+                    Icons.assignment,
+                    Colors.green,
+                  ),
+                  const Divider(),
+                  _buildRecentActivityItem(
+                    'مدفوعات مستلمة',
+                    'تم استلام دفعات بقيمة 15000 ريال',
+                    Icons.payment,
+                    Colors.blue,
+                  ),
+                  const Divider(),
+                  _buildRecentActivityItem(
+                    'غرف تم تسجيل المغادرة',
+                    'تم تسجيل مغادرة 2 حجز اليوم',
+                    Icons.logout,
+                    Colors.orange,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 32),
+          
+          // Quick actions section
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'إجراءات سريعة',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      _buildQuickActionButton(
+                        'حجز جديد',
+                        Icons.add,
+                        Colors.green,
+                        () => {},
+                      ),
+                      _buildQuickActionButton(
+                        'إدارة الغرف',
+                        Icons.bed,
+                        Colors.blue,
+                      ),
+                      _buildQuickActionButton(
+                        'إدارة المدفوعات',
+                        Icons.payment,
+                        Colors.orange,
+                      ),
+                      _buildQuickActionButton(
+                        'التقارير',
+                        Icons.bar_chart,
+                        Colors.purple,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildRecentActivityItem(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+  ) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: color),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(subtitle),
+      contentPadding: EdgeInsets.zero,
+    );
+  }
+  
+  Widget _buildQuickActionButton(
+    String title,
+    IconData icon,
+    Color color,
+    [VoidCallback? onTap]
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 140,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: color.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(8),
+          color: color.withOpacity(0.05),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 32, color: color),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  
+  const StatCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 32, color: color),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

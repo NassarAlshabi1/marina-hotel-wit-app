@@ -57,7 +57,13 @@ class Employees extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text()();
   RealColumn get basicSalary => real()();
+  TextColumn get position => text().withDefault(const Constant('موظف'))();
+  TextColumn get phone => text().withDefault(const Constant(''))();
+  TextColumn get hireDate => text().withDefault(const Constant(''))();
   TextColumn get status => text()();
+  
+  // Getter for backward compatibility
+  RealColumn get salary => basicSalary;
 }
 
 class Expenses extends Table with SyncFields {
