@@ -1,0 +1,160 @@
+name: Build Marina Hotel APK
+
+on:
+  push:
+    branches: [ main, capy/build-marina-hotel-a-* ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+        
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.3'
+        channel: 'stable'
+        
+    - name: Install Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        api-level: 35
+        build-tools: 35.0.0
+        
+    - name: Cache Flutter dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.pub-cache
+          mobile/.dart_tool
+        key: ${{ runner.os }}-flutter-${{ hashFiles('mobile/pubspec.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-flutter-
+          
+    - name: Navigate to mobile directory
+      run: cd mobile
+      
+    - name: Install dependencies
+      working-directory: mobile
+      run: flutter pub get
+      
+    - name: Generate database files
+      working-directory: mobile
+      run: flutter packages pub run build_runner build --delete-conflicting-outputs
+      
+    - name: Run Flutter doctor
+      working-directory: mobile
+      run: flutter doctor -v
+      
+    - name: Build Debug APK
+      working-directory: mobile
+      run: flutter build apk --debug --target-platform android-arm64
+      
+    - name: Build Release APK  
+      working-directory: mobile
+      run: flutter build apk --release --target-platform android-arm64
+      
+    - name: Create artifacts directory
+      run: mkdir -p artifacts
+      
+    - name: Copy APK files
+      run: |
+        cp mobile/build/app/outputs/flutter-apk/app-debug.apk artifacts/marina-hotel-debug.apk
+        cp mobile/build/app/outputs/flutter-apk/app-release.apk artifacts/marina-hotel-release.apk
+        
+    - name: Get APK info
+      run: |
+        echo "Debug APK size:" $(ls -lh artifacts/marina-hotel-debug.apk | awk '{print $5}')
+        echo "Release APK size:" $(ls -lh artifacts/marina-hotel-release.apk | awk '{print $5}')
+        echo "Debug APK info:" > apk-info.txt
+        file artifacts/marina-hotel-debug.apk >> apk-info.txt
+        echo "Release APK info:" >> apk-info.txt
+        file artifacts/marina-hotel-release.apk >> apk-info.txt
+        
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: marina-hotel-debug-apk
+        path: artifacts/marina-hotel-debug.apk
+        
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: marina-hotel-release-apk
+        path: artifacts/marina-hotel-release.apk
+        
+    - name: Upload APK Info
+      uses: actions/upload-artifact@v4
+      with:
+        name: apk-info
+        path: apk-info.txt
+
+    - name: Create Release (on push to main)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v1.0.0-${{ github.run_number }}
+        release_name: Marina Hotel Mobile v1.0.0-${{ github.run_number }}
+        body: |
+          🏨 Marina Hotel Mobile App Release
+          
+          **Features:**
+          - ✅ Complete offline-first hotel management system
+          - ✅ Arabic RTL interface matching PHP admin design
+          - ✅ Room management with floor system
+          - ✅ Booking management with checkout functionality  
+          - ✅ Advanced payment system (5 methods: Cash, Credit Card, Bank Transfer, Check, Installments)
+          - ✅ Employee management
+          - ✅ Expense tracking
+          - ✅ Financial reporting and cash register
+          - ✅ PDF receipt and invoice generation
+          - ✅ Comprehensive reports with filtering
+          - ✅ Notes and alerts system
+          - ✅ Settings and user management
+          - ✅ Online sync when internet available
+          
+          **Technical Details:**
+          - Android API 21+ (Android 5.0+)
+          - Target SDK 35 (Android 14)  
+          - Offline-capable with local SQLite database
+          - Bootstrap-like UI matching PHP admin design
+          - Sidebar navigation (desktop/tablet) and drawer (mobile)
+          
+          **APK Files:**
+          - Debug APK: For testing and development
+          - Release APK: For production deployment
+          
+          **Installation:**
+          1. Download the Release APK
+          2. Enable "Unknown Sources" in Android settings
+          3. Install the APK and test all functionality
+          
+          Generated on: ${{ github.event.head_commit.timestamp }}
+          Commit: ${{ github.sha }}
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Assets
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'  
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/marina-hotel-release.apk
+        asset_name: marina-hotel-v1.0.0-release.apk
+        asset_content_type: application/vnd.android.package-archive

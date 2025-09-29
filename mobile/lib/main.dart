@@ -12,8 +12,12 @@ import 'screens/employees/employees_list.dart';
 import 'screens/expenses/expenses_list.dart';
 import 'screens/finance/finance_screen.dart';
 import 'screens/reports/reports_screen.dart';
+import 'screens/payments/payments_main_screen.dart';
+import 'screens/notes/notes_screen.dart';
+import 'screens/settings/settings_screen.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
+import 'components/admin_layout.dart';
 
 void main() {
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
@@ -60,42 +64,35 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  int _index = 0;
+  String _currentRoute = '/dashboard';
+  
+  final Map<String, Widget> _routes = {
+    '/dashboard': const DashboardScreen(),
+    '/rooms': const RoomsListScreen(),
+    '/bookings': const BookingsListScreen(),
+    '/payments': const PaymentsMainScreen(),
+    '/employees': const EmployeesListScreen(),
+    '/expenses': const ExpensesListScreen(),
+    '/finance': const FinanceScreen(),
+    '/reports': const ReportsScreen(),
+    '/notes': const NotesScreen(),
+    '/settings': const SettingsScreen(),
+  };
+  
   @override
   Widget build(BuildContext context) {
-    final pages = const [
-      DashboardScreen(),
-      RoomsListScreen(),
-      BookingsListScreen(),
-      EmployeesListScreen(),
-      ExpensesListScreen(),
-      FinanceScreen(),
-      ReportsScreen(),
-    ];
-    final items = const [
-      BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'لوحة'),
-      BottomNavigationBarItem(icon: Icon(Icons.bed), label: 'الغرف'),
-      BottomNavigationBarItem(icon: Icon(Icons.assignment), label: 'الحجوزات'),
-      BottomNavigationBarItem(icon: Icon(Icons.group), label: 'الموظفون'),
-      BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'المصروفات'),
-      BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'الصندوق'),
-      BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'التقارير'),
-    ];
-    return Scaffold(
-      body: pages[_index],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard), label: 'لوحة'),
-          NavigationDestination(icon: Icon(Icons.bed), label: 'الغرف'),
-          NavigationDestination(icon: Icon(Icons.assignment), label: 'الحجوزات'),
-          NavigationDestination(icon: Icon(Icons.group), label: 'الموظفون'),
-          NavigationDestination(icon: Icon(Icons.receipt_long), label: 'المصروفات'),
-          NavigationDestination(icon: Icon(Icons.account_balance_wallet), label: 'الصندوق'),
-          NavigationDestination(icon: Icon(Icons.bar_chart), label: 'التقارير'),
-        ],
-      ),
+    return AdminLayout(
+      currentRoute: _currentRoute,
+      body: _routes[_currentRoute] ?? const DashboardScreen(),
+      onRouteSelected: _navigateToRoute,
     );
+  }
+  
+  void _navigateToRoute(String route) {
+    if (_routes.containsKey(route)) {
+      setState(() {
+        _currentRoute = route;
+      });
+    }
   }
 }
