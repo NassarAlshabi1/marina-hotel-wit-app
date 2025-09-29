@@ -1,109 +1,115 @@
 #!/bin/bash
+set -euo pipefail
 
-# Marina Hotel Mobile APK Builder
-# نظام المدفوعات المتقدم - الإصدار 1.0.0
+echo "Marina Hotel Mobile - APK/AAB Builder"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
 
-echo "🏨 Marina Hotel Mobile - APK Builder"
-echo "====================================="
-
-# التحقق من Flutter
-echo "📋 فحص Flutter..."
-if ! command -v flutter &> /dev/null; then
-    echo "❌ Flutter غير مثبت. يرجى تثبيت Flutter SDK أولاً"
-    echo "   https://flutter.dev/docs/get-started/install"
-    exit 1
+if ! command -v flutter >/dev/null 2>&1; then
+  echo "Flutter SDK not found"
+  exit 1
 fi
 
-echo "✅ Flutter متوفر"
+VERSION_NAME=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+BUILD_NUMBER=${BUILD_NUMBER:-${GITHUB_RUN_NUMBER:-1}}
+DATE_UTC=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+OUT_DIR="$SCRIPT_DIR/../releases/apk"
+mkdir -p "$OUT_DIR"
+
+CI_MODE=false
+RELEASE_ONLY=false
+DEBUG_ONLY=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --ci) CI_MODE=true ;;
+    --release-only) RELEASE_ONLY=true ;;
+    --debug-only) DEBUG_ONLY=true ;;
+    --build-number) shift; BUILD_NUMBER="$1" ;;
+  esac
+  shift || true
+done
+
 flutter --version
-
-# التحقق من البيئة
-echo ""
-echo "📋 فحص بيئة التطوير..."
-flutter doctor --android-licenses > /dev/null 2>&1
-
-# الانتقال إلى مجلد المشروع
-cd "$(dirname "$0")"
-
-# تنظيف الـ cache
-echo ""
-echo "🧹 تنظيف cache..."
 flutter clean
-
-# تثبيت Dependencies
-echo ""
-echo "📦 تثبيت المكتبات المطلوبة..."
 flutter pub get
-
-# تشغيل build_runner
-echo ""
-echo "⚙️  إنشاء ملفات قاعدة البيانات..."
 flutter packages pub run build_runner build --delete-conflicting-outputs
 
-# فحص الكود
-echo ""
-echo "🔍 فحص الكود..."
-# flutter analyze
-
-# بناء APK Debug (سريع للاختبار)
-echo ""
-echo "🔨 بناء APK Debug..."
-flutter build apk --debug --target-platform android-arm64
-
-if [ $? -eq 0 ]; then
-    echo ""
-    echo "✅ تم بناء APK Debug بنجاح!"
-    echo "📁 الملف: build/app/outputs/flutter-apk/app-debug.apk"
-    
-    # عرض حجم الملف
-    APK_SIZE=$(du -h build/app/outputs/flutter-apk/app-debug.apk | cut -f1)
-    echo "📊 حجم الملف: $APK_SIZE"
-else
-    echo ""
-    echo "❌ فشل في بناء APK Debug"
-    exit 1
+if [ "$RELEASE_ONLY" = false ]; then
+  flutter build apk --debug \
+    --target-platform android-arm,android-arm64,android-x64 \
+    --split-per-abi
 fi
 
-# سؤال المستخدم إذا كان يريد بناء Release
-echo ""
-read -p "🤔 هل تريد بناء APK Release للإنتاج؟ (y/n): " BUILD_RELEASE
-
-if [[ $BUILD_RELEASE =~ ^[Yy]$ ]]; then
-    echo ""
-    echo "🔨 بناء APK Release..."
-    flutter build apk --release --target-platform android-arm64
-    
-    if [ $? -eq 0 ]; then
-        echo ""
-        echo "✅ تم بناء APK Release بنجاح!"
-        echo "📁 الملف: build/app/outputs/flutter-apk/app-release.apk"
-        
-        # عرض حجم الملف
-        APK_SIZE=$(du -h build/app/outputs/flutter-apk/app-release.apk | cut -f1)
-        echo "📊 حجم الملف: $APK_SIZE"
-        
-        # نسخ الملف لمكان سهل الوصول
-        cp build/app/outputs/flutter-apk/app-release.apk ./marina_hotel_v1.0.0_payments.apk
-        echo "📋 تم نسخ الملف إلى: marina_hotel_v1.0.0_payments.apk"
-    else
-        echo ""
-        echo "❌ فشل في بناء APK Release"
-        exit 1
-    fi
+if [ "$DEBUG_ONLY" = false ]; then
+  flutter build apk --release \
+    --build-number "$BUILD_NUMBER" \
+    --target-platform android-arm,android-arm64,android-x64 \
+    --split-per-abi
+  flutter build appbundle --release --build-number "$BUILD_NUMBER"
 fi
 
-echo ""
-echo "🎉 اكتملت عملية البناء!"
-echo ""
-echo "📱 تعليمات الاختبار:"
-echo "1. قم بنقل APK إلى جهاز Android"
-echo "2. فعّل 'مصادر غير معروفة' في الإعدادات"
-echo "3. ثبّت التطبيق واختبر نظام المدفوعات"
-echo ""
-echo "✨ مميزات نظام المدفوعات الجديد:"
-echo "   • 5 طرق دفع متنوعة"
-echo "   • إيصالات وفواتير PDF"
-echo "   • سجل مدفوعات متقدم"
-echo "   • نظام checkout شامل"
-echo ""
-echo "📞 للدعم: Marina Hotel Development Team"
+mapfile -t APK_DEBUG < <(ls build/app/outputs/flutter-apk/*-debug.apk 2>/dev/null || true)
+mapfile -t APK_RELEASE < <(ls build/app/outputs/flutter-apk/*-release.apk 2>/dev/null || true)
+AAB_RELEASE="build/app/outputs/bundle/release/app-release.aab"
+
+map_abi() {
+  case "$1" in
+    *arm64-v8a*) echo "arm64" ;;
+    *armeabi-v7a*) echo "armv7" ;;
+    *x86_64*) echo "x86_64" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
+meta_tmp="$(mktemp)"
+
+for f in "${APK_DEBUG[@]}"; do
+  [ -f "$f" ] || continue
+  abi=$(map_abi "$f")
+  out="$OUT_DIR/marina-hotel-v${VERSION_NAME}-${abi}-debug.apk"
+  cp "$f" "$out"
+  if ! unzip -l "$out" | grep -q AndroidManifest.xml; then
+    echo "Invalid APK: $out" >&2; exit 1
+  fi
+  size=$(stat -c%s "$out" 2>/dev/null || stat -f%z "$out")
+  sha=$(sha256sum "$out" 2>/dev/null | awk '{print $1}')
+  if [ -z "$sha" ]; then sha=$(shasum -a 256 "$out" | awk '{print $1}'); fi
+  echo "$DATE_UTC,${VERSION_NAME},$BUILD_NUMBER,$(basename "$out"),$size,$sha" >> "$meta_tmp"
+  echo "Created $(basename "$out")"
+done
+
+for f in "${APK_RELEASE[@]}"; do
+  [ -f "$f" ] || continue
+  abi=$(map_abi "$f")
+  out="$OUT_DIR/marina-hotel-v${VERSION_NAME}-${abi}.apk"
+  cp "$f" "$out"
+  if ! unzip -l "$out" | grep -q AndroidManifest.xml; then
+    echo "Invalid APK: $out" >&2; exit 1
+  fi
+  size=$(stat -c%s "$out" 2>/dev/null || stat -f%z "$out")
+  sha=$(sha256sum "$out" 2>/dev/null | awk '{print $1}')
+  if [ -z "$sha" ]; then sha=$(shasum -a 256 "$out" | awk '{print $1}'); fi
+  echo "$DATE_UTC,${VERSION_NAME},$BUILD_NUMBER,$(basename "$out"),$size,$sha" >> "$meta_tmp"
+  echo "Created $(basename "$out")"
+done
+
+if [ -f "$AAB_RELEASE" ]; then
+  out="$OUT_DIR/marina-hotel-v${VERSION_NAME}.aab"
+  cp "$AAB_RELEASE" "$out"
+  size=$(stat -c%s "$out" 2>/dev/null || stat -f%z "$out")
+  sha=$(sha256sum "$out" 2>/dev/null | awk '{print $1}')
+  if [ -z "$sha" ]; then sha=$(shasum -a 256 "$out" | awk '{print $1}'); fi
+  echo "$DATE_UTC,${VERSION_NAME},$BUILD_NUMBER,$(basename "$out"),$size,$sha" >> "$meta_tmp"
+  echo "Created $(basename "$out")"
+fi
+
+if [ -s "$meta_tmp" ]; then
+  {
+    echo "date_utc,version,build_number,file,size_bytes,sha256"
+    cat "$meta_tmp"
+  } > "$OUT_DIR/marina-hotel-v${VERSION_NAME}-metadata.csv"
+fi
+
+if [ "$CI_MODE" = false ] && [ "$RELEASE_ONLY" = false ] && [ "$DEBUG_ONLY" = false ]; then
+  echo "Done"
+fi

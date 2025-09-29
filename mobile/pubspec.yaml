@@ -1,7 +1,7 @@
 name: marina_hotel_mobile
-description: Marina Hotel Android app scaffold (RTL, Material 3)
+description: 🏨 Marina Hotel - Complete Hotel Management System (RTL, Offline-First, Arabic)
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -16,7 +16,7 @@ dependencies:
   flutter_riverpod: ^2.6.1
   dio: ^5.7.0
   drift: ^2.20.0
-  drift_sqflite: ^2.1.0
+  drift_sqflite: ^2.0.1
   sqlite3_flutter_libs: ^0.5.24
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
