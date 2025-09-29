@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, required this.title, this.subtitle});
+  const EmptyState({super.key, required this.title, this.subtitle, this.message});
   final String title;
   final String? subtitle;
+  final String? message;
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -14,6 +15,7 @@ class EmptyState extends StatelessWidget {
           const SizedBox(height: 8),
           Text(title, style: Theme.of(context).textTheme.titleMedium),
           if (subtitle != null) Text(subtitle!, style: const TextStyle(color: Colors.grey)),
+          if (message != null) Text(message!, style: const TextStyle(color: Colors.grey)),
         ],
       ),
     );
