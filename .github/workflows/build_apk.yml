@@ -1,4 +1,4 @@
-name: 🏨 Marina Hotel - Advanced APK/AAB Builder
+name: Marina Hotel APK Builder
 
 on:
   push:
@@ -6,512 +6,204 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      release_type:
-        description: 'Release Type'
-        required: true
-        default: 'patch'
-        type: choice
-        options:
-        - patch
-        - minor
-        - major
-      create_release:
-        description: 'Create GitHub Release'
-        required: true
-        default: false
-        type: boolean
 
 env:
   FLUTTER_VERSION: '3.24.3'
   JAVA_VERSION: '17'
-  ANDROID_API_LEVEL: 35
-  ANDROID_BUILD_TOOLS: '35.0.0'
 
 permissions:
   contents: write
   actions: read
 
 jobs:
-  build-multi-arch:
-    name: 🔨 Build Multi-Architecture APKs & AAB
+  build:
+    name: Build APK and AAB
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    
-    outputs:
-      version_name: ${{ steps.version.outputs.version_name }}
-      build_number: ${{ steps.version.outputs.build_number }}
-      release_tag: ${{ steps.version.outputs.release_tag }}
+    timeout-minutes: 30
     
     steps:
-    - name: 📥 Checkout Repository
+    - name: Checkout Repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
         
-    - name: ☕ Setup Java ${{ env.JAVA_VERSION }}
+    - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: ${{ env.JAVA_VERSION }}
         
-    - name: 🐦 Setup Flutter ${{ env.FLUTTER_VERSION }}
+    - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
         channel: 'stable'
         cache: true
         
-    - name: 🤖 Setup Android SDK
+    - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       with:
-        api-level: ${{ env.ANDROID_API_LEVEL }}
-        build-tools: ${{ env.ANDROID_BUILD_TOOLS }}
-        ndk-version: '26.1.10909125'
+        api-level: 35
+        build-tools: 35.0.0
         
-    - name: 📦 Cache Flutter Dependencies
+    - name: Cache Flutter Dependencies
       uses: actions/cache@v4
       with:
         path: |
           ~/.pub-cache
           mobile/.dart_tool
           mobile/build
-        key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-${{ hashFiles('mobile/pubspec.lock') }}
+        key: ${{ runner.os }}-flutter-${{ hashFiles('mobile/pubspec.lock') }}
         restore-keys: |
-          ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-
           ${{ runner.os }}-flutter-
           
-    - name: 🔢 Compute Version & Build Number
-      id: version
+    - name: Get Flutter Version
       working-directory: mobile
       run: |
         VERSION_NAME=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
         BUILD_NUMBER=${{ github.run_number }}
-        RELEASE_TAG="v${VERSION_NAME}-build.${BUILD_NUMBER}"
-        DATE_UTC=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
-        COMMIT_SHORT=${GITHUB_SHA:0:8}
-        
-        echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
-        echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
-        echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
-        echo "date_utc=$DATE_UTC" >> $GITHUB_OUTPUT
-        echo "commit_short=$COMMIT_SHORT" >> $GITHUB_OUTPUT
-        
-        echo "📱 Version: $VERSION_NAME"
-        echo "🔢 Build: $BUILD_NUMBER"
-        echo "🏷️ Tag: $RELEASE_TAG"
-        echo "📅 Date: $DATE_UTC"
-        echo "💾 Commit: $COMMIT_SHORT"
+        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+        echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+        echo "Building version: $VERSION_NAME"
     
-    - name: 📋 Flutter Doctor & Environment
+    - name: Flutter Doctor
       working-directory: mobile
-      run: |
-        echo "🔍 Flutter Environment Check:"
-        flutter --version
-        flutter doctor -v
-        echo "🔍 Android SDK Info:"
-        flutter config --android-sdk
+      run: flutter doctor -v
         
-    - name: 📦 Install Dependencies
+    - name: Install Dependencies
       working-directory: mobile
       run: |
-        echo "📥 Installing Flutter dependencies..."
         flutter pub get
         
-    - name: 🏗️ Generate Code (Build Runner)
+    - name: Generate Code
       working-directory: mobile
       run: |
-        echo "🔨 Running build_runner..."
         flutter packages pub run build_runner build --delete-conflicting-outputs
         
-    - name: 🔐 Setup Signing (if available)
-      if: ${{ secrets.KEYSTORE_BASE64 != '' }}
-      working-directory: mobile
-      env:
-        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: |
-        echo "🔐 Setting up release signing..."
-        echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
-        cat > android/key.properties <<EOF
-        storeFile=upload-keystore.jks
-        storePassword=$KEYSTORE_PASSWORD
-        keyAlias=$KEY_ALIAS
-        keyPassword=$KEY_PASSWORD
-        EOF
-        echo "✅ Keystore configured"
-        
-    - name: 🔨 Build Multi-Architecture Release APKs
+    - name: Build Release APK (ARM64)
       working-directory: mobile
       run: |
-        echo "🏗️ Building Release APKs for multiple architectures..."
         flutter build apk --release \
-          --build-number ${{ steps.version.outputs.build_number }} \
-          --target-platform android-arm,android-arm64,android-x64 \
-          --split-per-abi \
-          --analyze-size \
-          --tree-shake-icons
+          --build-number ${{ env.BUILD_NUMBER }} \
+          --target-platform android-arm64 \
+          --analyze-size
         
-        echo "📦 APK build completed!"
-        ls -la build/app/outputs/flutter-apk/
-        
-    - name: 🔨 Build Android App Bundle (AAB)
+    - name: Build AAB for Play Store
       working-directory: mobile
       run: |
-        echo "📱 Building Android App Bundle for Play Store..."
         flutter build appbundle --release \
-          --build-number ${{ steps.version.outputs.build_number }} \
-          --analyze-size \
-          --tree-shake-icons
+          --build-number ${{ env.BUILD_NUMBER }} \
+          --analyze-size
         
-        echo "📦 AAB build completed!"
-        ls -la build/app/outputs/bundle/release/
-        
-    - name: 🔨 Build Debug APKs (for testing)
+    - name: Build Debug APK
       working-directory: mobile
       run: |
-        echo "🐛 Building Debug APKs for testing..."
         flutter build apk --debug \
           --target-platform android-arm64 \
           --analyze-size
         
-        echo "🐛 Debug APK build completed!"
-        ls -la build/app/outputs/flutter-apk/
+    - name: Create Release Directory
+      run: mkdir -p releases/apk
         
-    - name: 📁 Organize Build Artifacts
-      working-directory: mobile
+    - name: Copy APK Files
       run: |
-        echo "📁 Creating release directory structure..."
-        mkdir -p ../releases/apk
+        # Copy release APK
+        cp mobile/build/app/outputs/flutter-apk/app-release.apk releases/apk/marina-hotel-v${{ env.VERSION_NAME }}-release.apk
         
-        # Map architecture names
-        map_abi() {
-          case "$1" in
-            *arm64-v8a*) echo "arm64" ;;
-            *armeabi-v7a*) echo "armv7" ;;
-            *x86_64*) echo "x86_64" ;;
-            *) echo "universal" ;;
-          esac
-        }
-        
-        # Copy release APKs with proper naming
-        for apk in build/app/outputs/flutter-apk/*-release.apk; do
-          if [[ -f "$apk" ]]; then
-            abi=$(map_abi "$(basename "$apk")")
-            dest="../releases/apk/marina-hotel-v${{ steps.version.outputs.version_name }}-${abi}.apk"
-            cp "$apk" "$dest"
-            echo "✅ Copied: $(basename "$dest")"
-          fi
-        done
-        
-        # Copy debug APK
-        if [[ -f "build/app/outputs/flutter-apk/app-debug.apk" ]]; then
-          cp "build/app/outputs/flutter-apk/app-debug.apk" "../releases/apk/marina-hotel-v${{ steps.version.outputs.version_name }}-debug.apk"
-          echo "✅ Copied: marina-hotel-v${{ steps.version.outputs.version_name }}-debug.apk"
-        fi
+        # Copy debug APK  
+        cp mobile/build/app/outputs/flutter-apk/app-debug.apk releases/apk/marina-hotel-v${{ env.VERSION_NAME }}-debug.apk
         
         # Copy AAB
-        if [[ -f "build/app/outputs/bundle/release/app-release.aab" ]]; then
-          cp "build/app/outputs/bundle/release/app-release.aab" "../releases/apk/marina-hotel-v${{ steps.version.outputs.version_name }}.aab"
-          echo "✅ Copied: marina-hotel-v${{ steps.version.outputs.version_name }}.aab"
+        if [ -f mobile/build/app/outputs/bundle/release/app-release.aab ]; then
+          cp mobile/build/app/outputs/bundle/release/app-release.aab releases/apk/marina-hotel-v${{ env.VERSION_NAME }}.aab
         fi
         
-        echo "📋 Final artifacts:"
-        ls -la ../releases/apk/
-        
-    - name: 🔍 APK Health Check & Security Scan
+    - name: Generate Checksums
       working-directory: releases/apk
       run: |
-        echo "🔍 Performing APK health checks..."
+        echo "date_utc,version,build_number,file,size_bytes,sha256" > metadata.csv
+        DATE_UTC=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
         
         for file in *.apk *.aab; do
-          if [[ -f "$file" ]]; then
-            echo "🔍 Checking: $file"
-            
-            # Basic file integrity
+          if [ -f "$file" ]; then
+            size=$(stat -c%s "$file")
+            sha256=$(sha256sum "$file" | awk '{print $1}')
+            echo "$DATE_UTC,${{ env.VERSION_NAME }},${{ env.BUILD_NUMBER }},$file,$size,$sha256" >> metadata.csv
+            echo "Generated: $file ($size bytes)"
+          fi
+        done
+        
+    - name: APK Health Check
+      working-directory: releases/apk
+      run: |
+        for file in *.apk; do
+          if [ -f "$file" ]; then
+            echo "Checking: $file"
             if ! unzip -t "$file" >/dev/null 2>&1; then
-              echo "❌ ERROR: $file is corrupted"
+              echo "ERROR: $file is corrupted"
               exit 1
             fi
-            
-            # AndroidManifest.xml presence
-            if [[ "$file" == *.apk ]] && ! unzip -l "$file" | grep -q AndroidManifest.xml; then
-              echo "❌ ERROR: $file missing AndroidManifest.xml"
+            if ! unzip -l "$file" | grep -q AndroidManifest.xml; then
+              echo "ERROR: $file missing AndroidManifest.xml"
               exit 1
             fi
-            
-            # File size check (minimum 5MB, maximum 150MB)
-            size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file")
-            if (( size < 5242880 )); then
-              echo "⚠️  WARNING: $file is suspiciously small ($(numfmt --to=iec $size))"
-            elif (( size > 157286400 )); then
-              echo "⚠️  WARNING: $file is very large ($(numfmt --to=iec $size))"
-            fi
-            
-            echo "✅ $file passed health checks"
+            echo "OK: $file passed health checks"
           fi
         done
         
-        echo "🎉 All APK health checks passed!"
-        
-    - name: 📊 Generate Checksums & Metadata
-      id: metadata
-      working-directory: releases/apk
-      run: |
-        echo "📊 Generating checksums and metadata..."
-        
-        # Create metadata CSV
-        echo "date_utc,version,build_number,file,size_bytes,size_human,sha256,md5" > metadata.csv
-        
-        # Create release info JSON
-        cat > release-info.json <<EOF
-        {
-          "version": "${{ steps.version.outputs.version_name }}",
-          "build_number": ${{ steps.version.outputs.build_number }},
-          "release_tag": "${{ steps.version.outputs.release_tag }}",
-          "build_date": "${{ steps.version.outputs.date_utc }}",
-          "commit": "${{ steps.version.outputs.commit_short }}",
-          "flutter_version": "${{ env.FLUTTER_VERSION }}",
-          "android_api": ${{ env.ANDROID_API_LEVEL }},
-          "files": [
-        EOF
-        
-        file_count=0
-        for file in *.apk *.aab; do
-          if [[ -f "$file" ]]; then
-            size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file")
-            size_human=$(numfmt --to=iec "$size" 2>/dev/null || echo "${size}B")
-            sha256=$(sha256sum "$file" 2>/dev/null | awk '{print $1}' || shasum -a 256 "$file" | awk '{print $1}')
-            md5=$(md5sum "$file" 2>/dev/null | awk '{print $1}' || md5 -q "$file" 2>/dev/null)
-            
-            # Add to CSV
-            echo "${{ steps.version.outputs.date_utc }},${{ steps.version.outputs.version_name }},${{ steps.version.outputs.build_number }},$file,$size,$size_human,$sha256,$md5" >> metadata.csv
-            
-            # Add to JSON (with comma handling)
-            if (( file_count > 0 )); then
-              echo "," >> release-info.json
-            fi
-            cat >> release-info.json <<EOF
-            {
-              "name": "$file",
-              "size": $size,
-              "size_human": "$size_human",
-              "sha256": "$sha256",
-              "md5": "$md5",
-              "type": "$(echo $file | grep -q '\.aab$' && echo 'aab' || echo 'apk')",
-              "architecture": "$(echo $file | grep -o -E '(arm64|armv7|x86_64|debug)' | head -1 || echo 'universal')"
-            }EOF
-            
-            ((file_count++))
-            echo "📋 $file: $size_human (SHA256: ${sha256:0:16}...)"
-          fi
-        done
-        
-        echo "" >> release-info.json
-        echo "          ]" >> release-info.json
-        echo "        }" >> release-info.json
-        
-        echo "✅ Metadata generation completed!"
-        echo "📁 Files generated:"
-        ls -la *.csv *.json
-        
-    - name: 📤 Upload Build Artifacts
+    - name: Upload APK Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: marina-hotel-apk-v${{ steps.version.outputs.version_name }}-build.${{ steps.version.outputs.build_number }}
+        name: marina-hotel-apk-v${{ env.VERSION_NAME }}-build${{ env.BUILD_NUMBER }}
         path: |
           releases/apk/*.apk
           releases/apk/*.aab
-          releases/apk/*.csv
-          releases/apk/*.json
-        retention-days: 90
-        
-    - name: 📤 Upload Individual APK Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: marina-hotel-individual-apks
-        path: |
-          releases/apk/marina-hotel-v${{ steps.version.outputs.version_name }}-*.apk
+          releases/apk/metadata.csv
         retention-days: 30
-  
-  create-release:
-    name: 🚀 Create GitHub Release
-    needs: build-multi-arch
-    runs-on: ubuntu-latest
-    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event.inputs.create_release == 'true'
-    
-    steps:
-    - name: 📥 Checkout Repository
-      uses: actions/checkout@v4
-      
-    - name: 📥 Download Build Artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: marina-hotel-apk-v${{ needs.build-multi-arch.outputs.version_name }}-build.${{ needs.build-multi-arch.outputs.build_number }}
-        path: ./release-assets
         
-    - name: 📝 Generate Release Notes
-      id: release_notes
-      run: |
-        cat > release-notes.md <<EOF
-        # 🏨 Marina Hotel Mobile v${{ needs.build-multi-arch.outputs.version_name }}
-        
-        **Build:** ${{ needs.build-multi-arch.outputs.build_number }} | **Date:** $(date -u +'%Y-%m-%d %H:%M UTC') | **Commit:** ${GITHUB_SHA:0:8}
-        
-        ## 🎯 What's New
-        
-        ### ✨ Core Features
-        - 🏨 **Complete Hotel Management System** - Full offline-first hotel management
-        - 🌍 **Arabic RTL Interface** - Native right-to-left support matching PHP admin
-        - 🏢 **Room Management** - Multi-floor room organization and status tracking
-        - 📋 **Advanced Booking System** - Check-in/out with dynamic night calculation
-        - 💳 **Payment Integration** - 5 payment methods (Cash, Card, Transfer, Check, Installments)
-        - 👥 **Employee Management** - Staff tracking and salary withdrawals
-        - 📊 **Expense Tracking** - Comprehensive expense management
-        - 💰 **Financial Reports** - Cash register and comprehensive reporting
-        - 📄 **PDF Generation** - Receipts, invoices, and reports
-        - 🔔 **Alerts & Notes** - Booking notes and notification system
-        - ⚙️ **Settings & Users** - Complete user and system management
-        - 🔄 **Smart Sync** - Online synchronization when internet available
-        
-        ### 🔧 Technical Specifications
-        - 📱 **Android 5.0+** (API 21+) to **Android 14** (API 35)
-        - 🗂️ **Offline SQLite Database** - Full offline functionality
-        - 🎨 **Material Design 3** - Modern UI with Bootstrap-like admin interface
-        - 📐 **Responsive Layout** - Sidebar (tablet/desktop) + drawer (mobile)
-        - 🌐 **Multi-Architecture Support** - ARM64, ARMv7, x86_64
-        - 🔒 **Secure** - Encrypted storage and secure API communication
-        
-        ### 📦 Available Downloads
-        
-        | File | Architecture | Purpose | Size |
-        |------|--------------|---------|------|
-        EOF
-        
-        # Add file information from JSON
-        if [[ -f "release-assets/release-info.json" ]]; then
-          python3 -c "
-        import json
-        import sys
-        
-        try:
-            with open('release-assets/release-info.json', 'r') as f:
-                data = json.load(f)
-            
-            for file_info in data['files']:
-                name = file_info['name']
-                arch = file_info['architecture'].upper() if file_info['architecture'] != 'universal' else 'Universal'
-                file_type = file_info['type'].upper()
-                size = file_info['size_human']
-                
-                if 'debug' in name:
-                    purpose = 'Development & Testing'
-                elif file_type == 'AAB':
-                    purpose = 'Play Store Release'
-                else:
-                    purpose = 'Production Release'
-                
-                print(f'| {name} | {arch} | {purpose} | {size} |')
-        except Exception as e:
-            print(f'| Error reading file info | - | - | - |')
-            print(f'| (Error: {e}) | - | - | - |', file=sys.stderr)
-        " >> release-notes.md
-        fi
-        
-        cat >> release-notes.md <<EOF
-        
-        ### 📱 Installation Instructions
-        
-        1. **Download** the appropriate APK for your device architecture
-        2. **Enable** "Install from Unknown Sources" in Android Settings → Security
-        3. **Install** the APK file
-        4. **Launch** Marina Hotel and start managing your hotel!
-        
-        ### 🏗️ For Play Store Distribution
-        
-        Use the `.aab` (Android App Bundle) file for uploading to Google Play Store.
-        
-        ### 🔐 Security Information
-        
-        All files include SHA256 and MD5 checksums for integrity verification. See `metadata.csv` for complete details.
-        
-        ### 🐛 Found an Issue?
-        
-        Please report bugs and feature requests on our [GitHub Issues](https://github.com/Nassaralshabi/marina-hotel-wit-app/issues) page.
-        
-        ---
-        
-        **Built with Flutter ${{ env.FLUTTER_VERSION }} • Android API ${{ env.ANDROID_API_LEVEL }} • GitHub Actions**
-        EOF
-        
-    - name: 🏷️ Create Release
-      id: create_release
+    - name: Create Release (on main push)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ needs.build-multi-arch.outputs.release_tag }}
-        name: 🏨 Marina Hotel Mobile v${{ needs.build-multi-arch.outputs.version_name }}
-        body_path: release-notes.md
+        tag_name: v${{ env.VERSION_NAME }}-build${{ env.BUILD_NUMBER }}
+        name: Marina Hotel Mobile v${{ env.VERSION_NAME }}
+        body: |
+          # Marina Hotel Mobile v${{ env.VERSION_NAME }}
+          
+          **Build Number**: ${{ env.BUILD_NUMBER }}  
+          **Date**: $(date -u +'%Y-%m-%d %H:%M UTC')  
+          **Commit**: ${{ github.sha }}
+          
+          ## Features
+          - Complete hotel management system (8 modules)
+          - Arabic RTL interface
+          - Offline-first architecture
+          - Advanced payment system (5 methods)
+          - PDF receipts and reports
+          
+          ## Files
+          - **Release APK**: For production use
+          - **Debug APK**: For development and testing  
+          - **AAB**: For Google Play Store
+          
+          ## Installation
+          1. Download the Release APK
+          2. Enable "Unknown Sources" in Android settings
+          3. Install the APK
+          
+          Built with Flutter ${{ env.FLUTTER_VERSION }}
         draft: false
         prerelease: false
         files: |
-          release-assets/*.apk
-          release-assets/*.aab
-          release-assets/metadata.csv
-          release-assets/release-info.json
+          releases/apk/*.apk
+          releases/apk/*.aab
+          releases/apk/metadata.csv
         token: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: 🎉 Release Summary
+    - name: Build Summary
       run: |
-        echo "🎉 Release created successfully!"
-        echo "📋 Release Details:"
-        echo "  🏷️ Tag: ${{ needs.build-multi-arch.outputs.release_tag }}"
-        echo "  📱 Version: ${{ needs.build-multi-arch.outputs.version_name }}"
-        echo "  🔢 Build: ${{ needs.build-multi-arch.outputs.build_number }}"
-        echo "  📅 Date: $(date -u +'%Y-%m-%d %H:%M UTC')"
-        echo "  🔗 URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.build-multi-arch.outputs.release_tag }}"
-        
-        echo "📦 Artifacts uploaded:"
-        find release-assets -name "*.apk" -o -name "*.aab" | while read file; do
-          echo "  ✅ $(basename "$file")"
-        done
-  
-  notify-completion:
-    name: 📢 Notify Build Completion
-    needs: [build-multi-arch, create-release]
-    runs-on: ubuntu-latest
-    if: always()
-    
-    steps:
-    - name: 📊 Build Summary
-      run: |
-        echo "📊 Marina Hotel APK Build Summary"
-        echo "═══════════════════════════════════"
-        echo "📱 Version: ${{ needs.build-multi-arch.outputs.version_name || 'Unknown' }}"
-        echo "🔢 Build: ${{ needs.build-multi-arch.outputs.build_number || 'Unknown' }}"
-        echo "🏷️ Tag: ${{ needs.build-multi-arch.outputs.release_tag || 'None' }}"
-        echo "📅 Date: $(date -u +'%Y-%m-%d %H:%M UTC')"
-        echo "🔗 Workflow: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        echo ""
-        echo "🏗️ Build Status: ${{ needs.build-multi-arch.result }}"
-        echo "🚀 Release Status: ${{ needs.create-release.result }}"
-        
-        # Determine overall status
-        if [[ "${{ needs.build-multi-arch.result }}" == "success" ]]; then
-          echo "✅ APK/AAB build completed successfully!"
-          
-          if [[ "${{ needs.create-release.result }}" == "success" ]]; then
-            echo "🎉 GitHub release created successfully!"
-            echo "📥 Download: https://github.com/${{ github.repository }}/releases/tag/${{ needs.build-multi-arch.outputs.release_tag }}"
-          elif [[ "${{ needs.create-release.result }}" == "skipped" ]]; then
-            echo "ℹ️ Release creation was skipped (no push to main or manual trigger)"
-            echo "📥 Artifacts available in workflow: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          else
-            echo "⚠️ Release creation failed, but APKs are available as artifacts"
-            echo "📥 Artifacts: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          fi
-        else
-          echo "❌ APK/AAB build failed!"
-          echo "🔍 Check the build logs for details: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        fi
+        echo "Marina Hotel APK Build Complete!"
+        echo "Version: ${{ env.VERSION_NAME }}"
+        echo "Build: ${{ env.BUILD_NUMBER }}"
+        echo "Files:"
+        ls -la releases/apk/

@@ -1,4 +1,4 @@
-name: 🔍 PR Quality Check
+name: PR Quality Check
 
 on:
   pull_request:
@@ -13,16 +13,16 @@ env:
 jobs:
   # فحص سريع للكود
   quick-check:
-    name: ⚡ Quick Analysis
+    name: Quick Analysis
     runs-on: ubuntu-latest
     
     steps:
-    - name: 📥 Checkout PR
+    - name: Checkout PR
       uses: actions/checkout@v4
       with:
         fetch-depth: 0 # للمقارنة مع الفرع الأساسي
         
-    - name: 🐦 Setup Flutter
+    - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -31,10 +31,10 @@ jobs:
       working-directory: ./mobile
       run: flutter pub get
       
-    - name: 🔍 Analyze code
+    - name: Analyze code
       working-directory: ./mobile
       run: |
-        echo "🔍 تحليل الكود..."
+        echo "تحليل الكود..."
         flutter analyze --fatal-infos > analysis_report.txt 2>&1 || true
         
         if [[ -s analysis_report.txt ]]; then
@@ -47,7 +47,7 @@ jobs:
         fi
       id: analyze
       
-    - name: 📊 Count changes
+    - name: Count changes
       run: |
         echo "📈 إحصائيات التغييرات:"
         
@@ -74,7 +74,7 @@ jobs:
       
     - name: 📝 Generate summary
       run: |
-        echo "## 🔍 تقرير فحص PR السريع" >> $GITHUB_STEP_SUMMARY
+        echo "## تقرير فحص PR السريع" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         if [[ "${{ steps.analyze.outputs.analyze_status }}" == "success" ]]; then
@@ -83,7 +83,7 @@ jobs:
           echo "⚠️ **تحليل الكود**: يحتاج مراجعة" >> $GITHUB_STEP_SUMMARY
         fi
         
-        echo "📊 **إحصائيات التغييرات**:" >> $GITHUB_STEP_SUMMARY
+        echo "**إحصائيات التغييرات**:" >> $GITHUB_STEP_SUMMARY
         echo "- ملفات متغيرة: ${{ steps.changes.outputs.changed_files }}" >> $GITHUB_STEP_SUMMARY
         echo "- ملفات Dart: ${{ steps.changes.outputs.dart_files }}" >> $GITHUB_STEP_SUMMARY
         echo "- سطور مضافة: ${{ steps.changes.outputs.additions }}" >> $GITHUB_STEP_SUMMARY
@@ -91,12 +91,12 @@ jobs:
 
   # بناء تجريبي للتأكد
   build-test:
-    name: 🔨 Build Test
+    name: Build Test
     runs-on: ubuntu-latest
     needs: quick-check
     
     steps:
-    - name: 📥 Checkout PR
+    - name: Checkout PR
       uses: actions/checkout@v4
       
     - name: ☕ Setup Java
@@ -105,7 +105,7 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
         
-    - name: 🐦 Setup Flutter
+    - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -121,10 +121,10 @@ jobs:
       run: |
         flutter packages pub run build_runner build --delete-conflicting-outputs
         
-    - name: 🔨 Test build
+    - name: Test build
       working-directory: ./mobile
       run: |
-        echo "🔨 اختبار البناء..."
+        echo "اختبار البناء..."
         flutter build apk --debug --target-platform android-arm64 > build_log.txt 2>&1
         
         if [[ $? -eq 0 ]]; then
@@ -133,12 +133,12 @@ jobs:
         else
           echo "❌ البناء فشل!"
           echo "build_status=failed" >> $GITHUB_OUTPUT
-          echo "🔍 سجل الأخطاء:"
+          echo "سجل الأخطاء:"
           cat build_log.txt
         fi
       id: build
       
-    - name: 📊 APK info
+    - name: APK info
       if: steps.build.outputs.build_status == 'success'
       working-directory: ./mobile
       run: |
@@ -179,13 +179,13 @@ jobs:
           
           const comment = `## ${statusIcon} تقرير فحص PR - ${statusText}
           
-          ### 🔍 تحليل الكود:
+          ### تحليل الكود:
           ${analyzeStatus === 'success' ? '✅ نظيف - لا توجد مشاكل' : '⚠️ يحتاج مراجعة'}
           
-          ### 🔨 اختبار البناء:
+          ### اختبار البناء:
           ${buildStatus === 'success' ? '✅ نجح البناء' : buildStatus === 'failed' ? '❌ فشل البناء' : '⏳ قيد المعالجة'}
           
-          ### 📊 إحصائيات التغييرات:
+          ### إحصائيات التغييرات:
           - **ملفات متغيرة**: ${{ needs.quick-check.outputs.changed_files || 'غير محدد' }}
           - **ملفات Dart**: ${{ needs.quick-check.outputs.dart_files || '0' }}  
           - **سطور مضافة**: ${{ needs.quick-check.outputs.additions || '0' }}
