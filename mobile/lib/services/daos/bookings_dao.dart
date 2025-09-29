@@ -31,6 +31,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin 
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (roomNumber != null && roomNumber.isNotEmpty) q.where((t) => t.roomNumber.equals(roomNumber));
     if (status != null && status.isNotEmpty) q.where((t) => t.status.equals(status));
+    q.orderBy([(t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)]);
     return q.watch();
   }
 
