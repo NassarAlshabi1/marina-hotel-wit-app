@@ -27,6 +27,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   late TabController _tabController;
   final _currencyFmt = NumberFormat.decimalPattern('ar');
   PaymentMethod? _selectedMethod;
+  double _remainingAmount = 0;
 
   Payment _mapDbPaymentToUi(db.Payment p) {
     return Payment(
@@ -114,15 +115,20 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         builder: (context, roomSnap) {
           final roomRate = roomSnap.data?.price ?? 0.0;
           final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-          final checkout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null;
-          final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
-          final totalAmount = nights * roomRate;
+          final plannedCheckout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null;
+          final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : null;
+          final expectedNights = widget.booking.expectedNights > 0
+              ? widget.booking.expectedNights
+              : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
+          final actualNights = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
+          final totalAmount = expectedNights * roomRate;
           return StreamBuilder<List<db.Payment>>(
             stream: paymentsRepo.paymentsByBooking(widget.booking.id),
             builder: (context, paySnap) {
               final dbPayments = paySnap.data ?? const <db.Payment>[];
               final paidAmount = dbPayments.fold<double>(0, (s, p) => s + p.amount);
               final remainingAmount = (totalAmount - paidAmount).clamp(0, totalAmount);
+              _remainingAmount = remainingAmount;
               final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
               final summary = BookingPaymentSummary(
                 bookingId: widget.booking.localUuid,
@@ -135,7 +141,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
               return Column(
                 children: [
-                  _buildPaymentSummaryCard(summary),
+                  _buildPaymentSummaryCard(
+                    summary,
+                    roomRate: roomRate,
+                    expectedNights: expectedNights,
+                    actualNights: actualNights,
+                    checkin: checkin,
+                    plannedCheckout: plannedCheckout,
+                    actualCheckout: actualCheckout,
+                  ),
                   const SizedBox(height: 16),
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -177,9 +191,25 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
-  Widget _buildPaymentSummaryCard(BookingPaymentSummary summary) {
+  Widget _buildPaymentSummaryCard(
+    BookingPaymentSummary summary, {
+    required double roomRate,
+    required int expectedNights,
+    required int actualNights,
+    required DateTime checkin,
+    DateTime? plannedCheckout,
+    DateTime? actualCheckout,
+  }) {
     final progressPercentage = summary.paidPercentage / 100;
-    
+    final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
+    final checkinText = dateFmt.format(checkin);
+    final plannedText = plannedCheckout != null ? dateFmt.format(plannedCheckout) : null;
+    final actualText = actualCheckout != null ? dateFmt.format(actualCheckout) : null;
+    final hasPhone = widget.booking.guestPhone.isNotEmpty;
+    final identityLine = widget.booking.guestIdNumber.isEmpty
+        ? widget.booking.guestIdType
+        : '${widget.booking.guestIdType} • ${widget.booking.guestIdNumber}';
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -200,7 +230,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // معلومات الحجز
           Row(
             children: [
               CircleAvatar(
@@ -223,19 +252,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       ),
                     ),
                     Text(
-                      'غرفة ${widget.booking.roomNumber} • ${widget.booking.guestPhone}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
+                      'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • ${widget.booking.guestPhone}' : ''}',
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
+                    Text(identityLine, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                    Text('الجنسية: ${widget.booking.guestNationality}', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                    Text('الوصول: $checkinText', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                    if (plannedText != null)
+                      Text('المغادرة المخطط: $plannedText', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                    if (actualText != null)
+                      Text('المغادرة الفعلي: $actualText', style: const TextStyle(fontSize: 13, color: Colors.green)),
                   ],
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: summary.isFullyPaid 
+                  color: summary.isFullyPaid
                       ? Colors.green.withOpacity(0.2)
                       : Colors.orange.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
@@ -254,10 +287,37 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ],
           ),
-          
+
+          const SizedBox(height: 12),
+
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildDetailChip(
+                context,
+                icon: Icons.attach_money,
+                label: 'سعر الليلة',
+                value: '${_currencyFmt.format(roomRate)} ر.س',
+              ),
+              _buildDetailChip(
+                context,
+                icon: Icons.nightlight_round,
+                label: 'الليالي المتوقعة',
+                value: expectedNights.toString(),
+              ),
+              _buildDetailChip(
+                context,
+                icon: Icons.task_alt,
+                label: 'الليالي الفعلية',
+                value: actualNights.toString(),
+                color: actualNights > expectedNights ? Colors.orange : Colors.green,
+              ),
+            ],
+          ),
+
           const SizedBox(height: 16),
-          
-          // شريط التقدم
+
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -288,10 +348,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
-          // ملخص المبالغ
+
           Row(
             children: [
               Expanded(child: _buildAmountChip('الإجمالي', summary.totalAmount, Colors.blue)),
@@ -331,6 +390,40 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               color: color.withOpacity(0.8),
             ),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailChip(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+    Color? color,
+  }) {
+    final chipColor = color ?? Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: chipColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: chipColor.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: chipColor),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(color: chipColor, fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: TextStyle(color: chipColor, fontSize: 12),
           ),
         ],
       ),
@@ -732,8 +825,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
     final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final nights = Time.nightsWithCutoff(checkin, checkout: widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null);
-    final total = (room?.price ?? 0) * nights;
+    final plannedCheckout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null;
+    final expectedNights = widget.booking.expectedNights > 0
+        ? widget.booking.expectedNights
+        : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
+    final total = (room?.price ?? 0) * expectedNights;
     final existingPayments = await paymentsRepo.paymentsByBooking(widget.booking.id).first;
     final paidSoFar = existingPayments.fold<double>(0, (s, p) => s + p.amount);
     final remaining = (total - paidSoFar).clamp(0, total);
@@ -827,7 +923,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   void _generateInvoice(BookingPaymentSummary summary) async {
     final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final checkout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!)! : DateTime.now();
+    final plannedCheckout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : DateTime.now();
+    final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : plannedCheckout;
     final roomsRepo = ref.read(roomsRepoProvider);
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
     final invoice = Invoice(
@@ -837,8 +934,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       guestPhone: widget.booking.guestPhone,
       roomNumber: widget.booking.roomNumber,
       checkinDate: checkin,
-      checkoutDate: checkout,
-      nights: Time.nightsWithCutoff(checkin, checkout: checkout),
+      checkoutDate: actualCheckout,
+      nights: Time.nightsWithCutoff(checkin, checkout: actualCheckout),
       roomRate: room?.price ?? 0,
       totalAmount: summary.totalAmount,
       payments: summary.payments,
@@ -877,7 +974,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   void _processCheckout() async {
     final bookingsRepo = ref.read(bookingsRepoProvider);
     final roomsRepo = ref.read(roomsRepoProvider);
-    await bookingsRepo.update(widget.booking.id, status: 'مكتمل', checkoutDate: Time.nowIso());
+    final nowIso = Time.nowIso();
+    final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+    final nowDate = DateTime.parse(nowIso);
+    final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
+    await bookingsRepo.update(
+      widget.booking.id,
+      status: 'مكتمل',
+      actualCheckout: nowIso,
+      calculatedNights: actualNights,
+    );
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
     if (room != null) {
       await roomsRepo.update(room.id, status: 'شاغرة');
