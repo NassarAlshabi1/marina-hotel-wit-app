@@ -31,13 +31,19 @@ class Bookings extends Table with SyncFields {
   TextColumn get roomNumber => text().references(Rooms, #roomNumber)();
   TextColumn get guestName => text()();
   TextColumn get guestPhone => text()();
+  TextColumn get guestIdType => text().withDefault(const Constant('بطاقة شخصية'))();
+  TextColumn get guestIdNumber => text().withDefault(const Constant(''))();
+  TextColumn get guestIdIssueDate => text().nullable()();
+  TextColumn get guestIdIssuePlace => text().nullable()();
   TextColumn get guestNationality => text()();
   TextColumn get guestEmail => text().nullable()();
   TextColumn get guestAddress => text().nullable()();
   TextColumn get checkinDate => text()();
   TextColumn get checkoutDate => text().nullable()();
+  TextColumn get actualCheckout => text().nullable()();
   TextColumn get status => text()();
   TextColumn get notes => text().nullable()();
+  IntColumn get expectedNights => integer().withDefault(const Constant(1))();
   IntColumn get calculatedNights => integer().withDefault(const Constant(1))();
 
   @override
@@ -143,7 +149,22 @@ class SyncState extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(bookings, bookings.guestIdType);
+            await m.addColumn(bookings, bookings.guestIdNumber);
+            await m.addColumn(bookings, bookings.guestIdIssueDate);
+            await m.addColumn(bookings, bookings.guestIdIssuePlace);
+            await m.addColumn(bookings, bookings.actualCheckout);
+            await m.addColumn(bookings, bookings.expectedNights);
+            await m.customStatement('UPDATE bookings SET expected_nights = calculated_nights');
+          }
+        },
+      );
 }
 
 LazyDatabase _open() {

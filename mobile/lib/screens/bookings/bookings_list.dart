@@ -78,11 +78,24 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                 final roomsList = roomsAsync.maybeWhen(data: (r) => r, orElse: () => <Room>[]);
                 final roomsMap = {for (final r in roomsList) r.roomNumber: r};
 
+                final query = _search.trim().toLowerCase();
+                bool matches(String? source) => source != null && source.toLowerCase().contains(query);
                 var filtered = bookings
-                    .where((b) => _hideEnded ? !(b.status == 'مكتمل' || b.status.toLowerCase() == 'completed') : true)
-                    .where((b) => _search.isEmpty
-                        ? true
-                        : b.guestName.contains(_search) || b.guestPhone.contains(_search) || b.roomNumber.contains(_search))
+                    .where((b) {
+                      if (_hideEnded) {
+                        final status = b.status.toLowerCase();
+                        if (status == 'مكتمل' || status == 'completed' || status == 'غادر' || status == 'departed') {
+                          return false;
+                        }
+                      }
+                      if (query.isEmpty) return true;
+                      return matches(b.guestName) ||
+                          matches(b.guestPhone) ||
+                          matches(b.roomNumber) ||
+                          matches(b.guestIdNumber) ||
+                          matches(b.guestNationality) ||
+                          matches(b.guestEmail);
+                    })
                     .toList();
 
                 filtered.sort((a, b) => (b.checkinDate).compareTo(a.checkinDate));
@@ -111,17 +124,26 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                           final booking = filtered[index - 1];
                           final room = roomsMap[booking.roomNumber];
                           final checkin = DateTime.tryParse(booking.checkinDate);
-                          final checkout = booking.checkoutDate != null ? DateTime.tryParse(booking.checkoutDate!) : null;
-                          final nights = checkin == null ? 1 : Time.nightsWithCutoff(checkin, checkout: checkout);
+                          final plannedCheckout = booking.checkoutDate != null ? DateTime.tryParse(booking.checkoutDate!) : null;
+                          final actualCheckout = booking.actualCheckout != null ? DateTime.tryParse(booking.actualCheckout!) : null;
                           final price = room?.price ?? 0;
-                          final totalAmount = (nights * price).toDouble();
+                          final expectedNights = booking.expectedNights > 0
+                              ? booking.expectedNights
+                              : (checkin == null ? 1 : Time.nightsWithCutoff(checkin, checkout: plannedCheckout));
+                          final actualNights = checkin == null
+                              ? expectedNights
+                              : Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
+                          final totalAmount = (expectedNights * price).toDouble();
                           return _BookingRow(
                             index: index,
                             booking: booking,
-                            nights: nights,
+                            expectedNights: expectedNights,
+                            actualNights: actualNights,
                             pricePerNight: price,
                             totalAmount: totalAmount,
                             currencyFmt: _currencyFmt,
+                            plannedCheckout: plannedCheckout,
+                            actualCheckout: actualCheckout,
                           );
                         },
                       ),
@@ -241,10 +263,10 @@ Widget _buildHeaderRow(BuildContext context) {
     child: Row(
       children: const [
         SizedBox(width: 40, child: Text('#')),
-        _HeaderCell('النزيل', flex: 2),
+        _HeaderCell('بيانات النزيل', flex: 2),
         _HeaderCell('الغرفة'),
         _HeaderCell('سعر الليلة'),
-        _HeaderCell('الوصول'),
+        _HeaderCell('الفترة', flex: 2),
         _HeaderCell('الليالي'),
         _HeaderCell('المدفوع'),
         _HeaderCell('المتبقي'),
@@ -274,22 +296,43 @@ class _BookingRow extends ConsumerWidget {
   const _BookingRow({
     required this.index,
     required this.booking,
-    required this.nights,
+    required this.expectedNights,
+    required this.actualNights,
     required this.pricePerNight,
     required this.totalAmount,
     required this.currencyFmt,
+    this.plannedCheckout,
+    this.actualCheckout,
   });
   final int index;
   final Booking booking;
-  final int nights;
+  final int expectedNights;
+  final int actualNights;
   final double pricePerNight;
   final double totalAmount;
   final NumberFormat currencyFmt;
+  final DateTime? plannedCheckout;
+  final DateTime? actualCheckout;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final paymentsRepo = ref.watch(paymentsRepoProvider);
     final notesRepo = ref.watch(notesRepoProvider);
+    final theme = Theme.of(context);
+    final nightsLabel = actualNights != expectedNights
+        ? '$expectedNights (${actualNights} فعلي)'
+        : expectedNights.toString();
+    final plannedText = plannedCheckout != null ? _formatDate(plannedCheckout!.toIso8601String()) : null;
+    final actualText = actualCheckout != null ? _formatDate(actualCheckout!.toIso8601String()) : null;
+    final guestTooltipLines = [
+      'الاسم: ${booking.guestName}',
+      if (booking.guestPhone.isNotEmpty) 'الهاتف: ${booking.guestPhone}',
+      if (booking.guestIdNumber.isNotEmpty) 'الهوية: ${booking.guestIdType} ${booking.guestIdNumber}',
+      if (booking.guestNationality.isNotEmpty) 'الجنسية: ${booking.guestNationality}',
+      if (booking.guestEmail != null && booking.guestEmail!.isNotEmpty) 'البريد: ${booking.guestEmail}',
+      if (booking.guestAddress != null && booking.guestAddress!.isNotEmpty) 'العنوان: ${booking.guestAddress}',
+    ];
+    final guestTooltip = guestTooltipLines.join('\n');
 
     return StreamBuilder<List<Payment>>(
       stream: paymentsRepo.paymentsByBooking(booking.id),
@@ -314,15 +357,68 @@ class _BookingRow extends ConsumerWidget {
                 flex: 2,
                 child: Align(
                   alignment: Alignment.centerRight,
-                  child: Text(booking.guestName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  child: Tooltip(
+                    message: guestTooltip,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          booking.guestName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        if (booking.guestPhone.isNotEmpty)
+                          Text(booking.guestPhone, style: theme.textTheme.bodySmall),
+                        const SizedBox(height: 2),
+                        Text(
+                          booking.guestIdNumber.isEmpty
+                              ? booking.guestIdType
+                              : '${booking.guestIdType} • ${booking.guestIdNumber}',
+                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                        if (booking.guestNationality.isNotEmpty)
+                          Text(
+                            booking.guestNationality,
+                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              Expanded(child: Center(child: Text(booking.roomNumber)) ),
-              Expanded(child: Center(child: Text(currencyFmt.format(pricePerNight)))) ,
-              Expanded(child: Center(child: Text(_formatDate(booking.checkinDate)))) ,
-              Expanded(child: Center(child: Text(nights.toString()))),
-              Expanded(child: Center(child: Text(currencyFmt.format(paid)))) ,
-              Expanded(child: Center(child: Text(currencyFmt.format(remaining)))) ,
+              Expanded(child: Center(child: Text(booking.roomNumber))),
+              Expanded(
+                child: Center(
+                  child: Text(currencyFmt.format(pricePerNight)),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_formatDate(booking.checkinDate)),
+                      if (plannedText != null)
+                        Text('حتى $plannedText', style: theme.textTheme.bodySmall),
+                      if (actualText != null)
+                        Text(
+                          'خروج فعلي $actualText',
+                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.green.shade700),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(nightsLabel, style: theme.textTheme.bodyMedium),
+                ),
+              ),
+              Expanded(child: Center(child: Text(currencyFmt.format(paid)))),
+              Expanded(child: Center(child: Text(currencyFmt.format(remaining)))),
               Expanded(
                 child: Center(
                   child: Container(
@@ -342,20 +438,26 @@ class _BookingRow extends ConsumerWidget {
                 child: StreamBuilder<List<BookingNote>>(
                   stream: notesRepo.watchByBooking(booking.id),
                   builder: (context, notesSnap) {
-                    final count = notesSnap.data?.where((n) => n.isActive == 1).length ?? 0;
+                    final notes = notesSnap.data ?? const <BookingNote>[];
+                    final active = notes.where((n) => n.isActive == 1).toList();
+                    final count = active.length;
+                    final hasHigh = active.any((n) => n.alertType == 'high');
+                    final iconColor = hasHigh
+                        ? Colors.red
+                        : (count > 0 ? Colors.orange : theme.colorScheme.onSurfaceVariant);
                     return IconButton(
                       onPressed: () => _showNotesDialog(context, ref, booking),
                       icon: Stack(
                         clipBehavior: Clip.none,
                         children: [
-                          const Icon(Icons.notifications),
+                          Icon(Icons.notifications, color: iconColor),
                           if (count > 0)
                             Positioned(
                               right: -6,
                               top: -6,
                               child: Container(
                                 padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                decoration: BoxDecoration(color: iconColor, shape: BoxShape.circle),
                                 child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 10)),
                               ),
                             )

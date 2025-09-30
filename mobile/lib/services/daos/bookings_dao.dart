@@ -88,13 +88,19 @@ class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin 
     if (comp.roomNumber.present) m['room_number'] = comp.roomNumber.value;
     if (comp.guestName.present) m['guest_name'] = comp.guestName.value;
     if (comp.guestPhone.present) m['guest_phone'] = comp.guestPhone.value;
+    if (comp.guestIdType.present) m['guest_id_type'] = comp.guestIdType.value;
+    if (comp.guestIdNumber.present) m['guest_id_number'] = comp.guestIdNumber.value;
+    if (comp.guestIdIssueDate.present) m['guest_id_issue_date'] = comp.guestIdIssueDate.value;
+    if (comp.guestIdIssuePlace.present) m['guest_id_issue_place'] = comp.guestIdIssuePlace.value;
     if (comp.guestNationality.present) m['guest_nationality'] = comp.guestNationality.value;
     if (comp.guestEmail.present) m['guest_email'] = comp.guestEmail.value;
     if (comp.guestAddress.present) m['guest_address'] = comp.guestAddress.value;
     if (comp.checkinDate.present) m['checkin_date'] = comp.checkinDate.value;
     if (comp.checkoutDate.present) m['checkout_date'] = comp.checkoutDate.value;
+    if (comp.actualCheckout.present) m['actual_checkout'] = comp.actualCheckout.value;
     if (comp.status.present) m['status'] = comp.status.value;
     if (comp.notes.present) m['notes'] = comp.notes.value;
+    if (comp.expectedNights.present) m['expected_nights'] = comp.expectedNights.value;
     if (comp.calculatedNights.present) m['calculated_nights'] = comp.calculatedNights.value;
     return m;
   }
