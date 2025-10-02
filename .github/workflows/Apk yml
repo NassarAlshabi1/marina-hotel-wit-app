@@ -1,0 +1,127 @@
+
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: بناء APK شامل (universal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    env:
+      JAVA_TOOL_OPTIONS: -Xmx3g -Dfile.encoding=UTF-8
+
+    steps:
+      - name: التحقق من الشفرة المصدرية
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: إعداد Java 17 (Temurin) مع كاش
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: عرض معلومات Java
+        run: |
+          set -euxo pipefail
+          java -version
+          echo "JAVA_HOME=$JAVA_HOME"
+        shell: bash
+
+      - name: تثبيت Flutter 3.24.0 (stable)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      - name: التحقق من إعداد Flutter
+        run: |
+          set -euxo pipefail
+          flutter --version
+          flutter doctor -v
+        shell: bash
+
+      - name: تثبيت SDK والأدوات
+        run: |
+          set -euxo pipefail
+          ANDROID_SDK_ROOT="$HOME/android-sdk"
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          curl -fsSL -o /tmp/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_SDK_ROOT/cmdline-tools"
+          mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/emulator" >> $GITHUB_PATH
+
+          yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses
+          sdkmanager --sdk_root="$ANDROID_SDK_ROOT" \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "cmdline-tools;latest"
+
+          sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --list | head -n 60 || true
+
+      - name: تهيئة الكاش لاعتماديات pub
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            mobile/.dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('mobile/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: تنظيف المشروع
+        run: |
+          set -euxo pipefail
+          flutter clean --verbose || true
+
+      - name: تثبيت الاعتماديات
+        run: |
+          set -euxo pipefail
+          flutter pub get --verbose
+
+      - name: فحص الكود (اختياري)
+        run: |
+          set -euxo pipefail
+          flutter analyze || true
+        shell: bash
+        continue-on-error: true
+
+      - name: بناء APK شامل (universal)
+        run: |
+          set -euxo pipefail
+          flutter build apk --debug --stacktrace -v
+        shell: bash
+        timeout-minutes: 20
+
+      - name: التحقق من نجاح البناء
+        run: |
+          set -euxo pipefail
+          ls -lah build/app/outputs/flutter-apk || true
+          test -f build/app/outputs/flutter-apk/app-debug.apk
+          echo "تم إنشاء APK شامل بنجاح: build/app/outputs/flutter-apk/app-debug.apk"
+        shell: bash
+
+      - name: رفع ملف الـ APK كـ Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-apk-شامل
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
