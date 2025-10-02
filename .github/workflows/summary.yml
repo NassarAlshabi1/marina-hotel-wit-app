@@ -29,6 +29,6 @@ jobs:
         run: |
           gh issue comment $ISSUE_NUMBER --body '${{ steps.inference.outputs.response }}'
         env:
-          GH_TOKEN: ${{ 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 }}
+          GH_TOKEN: ${{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 }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           RESPONSE: ${{ steps.inference.outputs.response }}
