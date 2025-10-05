@@ -54,6 +54,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 🧹 تنظيف الكاش القديم (عند workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "🧹 تنظيف gradle cache..."
+          rm -rf ~/.gradle/caches/ 2>/dev/null || true
+          rm -rf ~/.gradle/wrapper/ 2>/dev/null || true
+          echo "✅ تم تنظيف الكاش"
+
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
@@ -99,6 +107,24 @@ jobs:
       - name: Flutter Doctor
         run: flutter doctor -v
 
+      - name: 🔍 فحص المتطلبات والبيئة
+        run: |
+          echo "=== 🔍 فحص المتطلبات ==="
+          echo ""
+          echo "📱 Flutter SDK:"
+          which flutter && flutter --version || echo "❌ Flutter not found"
+          echo ""
+          echo "☕ Java version:"
+          java -version 2>&1 | head -3
+          echo ""
+          echo "💾 Available disk space:"
+          df -h | grep -E '^Filesystem|/$'
+          echo ""
+          echo "📂 Project structure:"
+          ls -la
+          echo ""
+          echo "✅ فحص المتطلبات مكتمل"
+
       - name: Verify Project Structure
         working-directory: mobile
         run: |
@@ -132,26 +158,71 @@ jobs:
 
       - name: Build Debug APK
         working-directory: mobile
+        timeout-minutes: 15
         env:
           BASE_API_URL: ${{ github.event.inputs.base_api_url || 'http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1' }}
         run: |
-          echo "Building debug APK..."
-          echo "Using BASE_API_URL: $BASE_API_URL"
+          echo "📱 بدء بناء Debug APK..."
+          echo "🌐 استخدام BASE_API_URL: $BASE_API_URL"
+          echo ""
+          
+          # تشغيل البناء مع معالجة الأخطاء
+          set +e  # السماح بالأخطاء مؤقتاً للتشخيص
           
           flutter build apk --debug \
             --dart-define=BASE_API_URL=$BASE_API_URL \
             --build-name=debug-${{ github.run_number }} \
-            --build-number=${{ github.run_number }}
+            --build-number=${{ github.run_number }} \
+            --verbose
           
-          # Verify APK was created
+          BUILD_EXIT_CODE=$?
+          set -e
+          
+          # فحص نتيجة البناء
+          if [ $BUILD_EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "❌ فشل البناء - عرض معلومات تشخيصية:"
+            echo "================================"
+            echo ""
+            echo "📂 محتويات مجلد build:"
+            find build -type f 2>/dev/null | head -20 || echo "❌ مجلد build غير موجود"
+            echo ""
+            echo "📋 آخر 50 سطر من Gradle logs:"
+            find android/.gradle -name "*.log" -type f -exec tail -50 {} \; 2>/dev/null || echo "❌ لا توجد gradle logs"
+            echo ""
+            echo "🔍 فحص اعتماديات pubspec:"
+            cat pubspec.yaml | grep -A 20 "dependencies:" || true
+            echo ""
+            exit 1
+          fi
+          
+          # التحقق من وجود APK
           APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
           if [ -f "$APK_PATH" ]; then
-            echo "✅ Debug APK built successfully"
+            echo ""
+            echo "✅ تم بناء Debug APK بنجاح"
+            echo "================================"
             ls -lh "$APK_PATH"
+            
+            APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+            APK_SIZE_BYTES=$(stat -c%s "$APK_PATH" 2>/dev/null || stat -f%z "$APK_PATH")
+            
+            echo "📦 حجم APK: $APK_SIZE ($APK_SIZE_BYTES bytes)"
+            
+            # فحص الحجم المنطقي
+            if [ "$APK_SIZE_BYTES" -lt 5000000 ]; then
+              echo "⚠️  تحذير: APK صغير جداً - قد يكون غير مكتمل"
+              exit 1
+            fi
+            
+            echo "APK_SIZE=$APK_SIZE" >> $GITHUB_ENV
             echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
           else
-            echo "❌ Debug APK build failed - file not found: $APK_PATH"
-            find build -name "*.apk" -type f || echo "No APK files found"
+            echo ""
+            echo "❌ فشل بناء APK - الملف غير موجود"
+            echo "================================"
+            echo "📂 محتويات build/app/outputs:"
+            ls -laR build/app/outputs/ 2>/dev/null || echo "❌ المجلد غير موجود"
             exit 1
           fi
 
@@ -171,6 +242,41 @@ jobs:
           
           BRANCH_NAME=${{ github.ref_name }}
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
+      - name: ✅ فحص صحة APK النهائي
+        working-directory: mobile
+        run: |
+          echo "🔍 فحص صحة APK المُنتَج..."
+          echo "================================"
+          
+          APK_PATH="${{ env.APK_PATH }}"
+          
+          if [ -z "$APK_PATH" ] || [ ! -f "$APK_PATH" ]; then
+            echo "❌ APK path غير صحيح أو الملف غير موجود"
+            echo "APK_PATH: $APK_PATH"
+            exit 1
+          fi
+          
+          # فحص الحجم
+          SIZE=$(stat -c%s "$APK_PATH" 2>/dev/null || stat -f%z "$APK_PATH")
+          MIN_SIZE=5000000  # 5 MB للـ debug
+          
+          if [ "$SIZE" -lt "$MIN_SIZE" ]; then
+            echo "❌ فشل: حجم APK صغير جداً ($SIZE bytes < $MIN_SIZE bytes)"
+            echo "⚠️  هذا يشير إلى أن البناء غير مكتمل"
+            exit 1
+          fi
+          
+          # فحص أن الملف APK صحيح (يبدأ بـ PK)
+          if ! file "$APK_PATH" | grep -q "Zip archive"; then
+            echo "❌ فشل: الملف ليس APK صحيح"
+            file "$APK_PATH"
+            exit 1
+          fi
+          
+          echo "✅ APK صحيح وجاهز"
+          echo "📦 الحجم: $SIZE bytes"
+          echo "📁 المسار: $APK_PATH"
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
