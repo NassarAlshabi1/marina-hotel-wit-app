@@ -1,9 +1,0 @@
-capy/fix-and-optimize-git-fbdd380b
-capy/cap-2-d2743352
-capy/apk-ee3d67eb
-capy/github-actions-andro-78752de1
-capy/build-marina-hotel-f-ff5e5722
-capy/cap-1-af4ee71a
-capy/cap-1-df364279
-Last_branch
-cursor/enhance-marinahotel-system-for-network-access-and-api-0a03
