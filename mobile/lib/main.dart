@@ -3,8 +3,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'utils/theme.dart';
 import 'utils/env.dart';
-import 'providers/auth_provider.dart';
-import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/rooms/rooms_list.dart';
 import 'screens/bookings/bookings_list.dart';
@@ -28,7 +26,6 @@ class App extends ConsumerWidget {
   const App({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authProvider);
     ref.listen(databaseProvider, (prev, db) async {
       await Seeder(db).seedIfEmpty();
     });
@@ -49,9 +46,8 @@ class App extends ConsumerWidget {
           '/finance/cash-register': (_) => const FinanceScreen(),
           '/finance/cash-transactions': (_) => const FinanceScreen(),
           '/reports': (_) => const ReportsScreen(),
-          '/login': (_) => const LoginScreen(),
         },
-        home: auth.isAuthenticated ? const HomeShell() : const LoginScreen(),
+        home: const HomeShell(),
       ),
     );
   }
