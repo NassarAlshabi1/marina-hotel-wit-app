@@ -116,7 +116,7 @@ class RoomsListScreen extends ConsumerWidget {
         imageUrl: imageUrl,
       );
     } else {
-      await repo.update(
+      await repo.updateByRoomNumber(
         existing.roomNumber,
         type: typeCtrl.text.trim(),
         price: double.tryParse(priceCtrl.text) ?? 0,

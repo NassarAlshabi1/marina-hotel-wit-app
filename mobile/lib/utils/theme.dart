@@ -70,7 +70,7 @@ ThemeData buildTheme() {
     ),
     
     // Card theme matching Bootstrap cards
-    cardTheme: const CardTheme(
+    cardTheme: const CardThemeData(
       color: AppColors.cardBackground,
       elevation: 1,
       margin: EdgeInsets.all(8),
@@ -144,7 +144,7 @@ ThemeData buildTheme() {
       ),
       columnSpacing: 24,
       horizontalMargin: 16,
-      minWidth: 600,
+      dataRowMinHeight: 44,
     ),
     
     // List tile theme

@@ -371,7 +371,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
 
   DateTime? _parseDateTime(String value) {
     if (value.isEmpty) return null;
-    final normalized = value.contains('T') ? value : value.replace(' ', 'T');
+    final normalized = value.contains('T') ? value : value.replaceAll(' ', 'T');
     final withSeconds = normalized.length == 16 ? '${normalized}:00' : normalized;
     try {
       return DateTime.parse(withSeconds);

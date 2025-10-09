@@ -468,7 +468,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       status: status,
                     );
                   } else {
-                    await repo.update(
+                    await repo.updateByLocalUuid(
                       employee.localUuid,
                       name: nameController.text.trim(),
                       position: positionController.text.trim(),
@@ -559,7 +559,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     
     try {
       final repo = ref.read(employeesRepoProvider);
-      await repo.update(
+      await repo.updateByLocalUuid(
         employee.localUuid,
         name: employee.name,
         position: employee.position,

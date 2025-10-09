@@ -66,9 +66,6 @@ class Employees extends Table with SyncFields {
   TextColumn get phone => text().withDefault(const Constant(''))();
   TextColumn get hireDate => text().withDefault(const Constant(''))();
   TextColumn get status => text()();
-  
-  // Getter for backward compatibility
-  RealColumn get salary => basicSalary;
 }
 
 class Expenses extends Table with SyncFields {
@@ -160,14 +157,14 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(bookings, bookings.guestIdIssuePlace);
             await m.addColumn(bookings, bookings.actualCheckout);
             await m.addColumn(bookings, bookings.expectedNights);
-            await m.customStatement('UPDATE bookings SET expected_nights = calculated_nights');
+            await m.database.customStatement('UPDATE bookings SET expected_nights = calculated_nights');
           }
           if (from < 3) {
-            await m.customStatement('ALTER TABLE rooms RENAME TO rooms_old');
+            await m.database.customStatement('ALTER TABLE rooms RENAME TO rooms_old');
             await m.createTable(rooms);
-            await m.customStatement('INSERT INTO rooms (room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin) '
+            await m.database.customStatement('INSERT INTO rooms (room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin) '
                 'SELECT room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin FROM rooms_old');
-            await m.customStatement('DROP TABLE rooms_old');
+            await m.database.customStatement('DROP TABLE rooms_old');
           }
         },
       );
@@ -178,4 +175,8 @@ LazyDatabase _open() {
     final executor = SqfliteQueryExecutor.inDatabaseFolder(path: 'marina_hotel.db', logStatements: false);
     return executor;
   });
+}
+
+extension EmployeeX on Employee {
+  double get salary => basicSalary;
 }

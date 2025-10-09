@@ -127,7 +127,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             builder: (context, paySnap) {
               final dbPayments = paySnap.data ?? const <db.Payment>[];
               final paidAmount = dbPayments.fold<double>(0, (s, p) => s + p.amount);
-              final remainingAmount = (totalAmount - paidAmount).clamp(0, totalAmount);
+              final remainingAmount = ((totalAmount - paidAmount).clamp(0.0, totalAmount)).toDouble();
               _remainingAmount = remainingAmount;
               final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
               final summary = BookingPaymentSummary(
@@ -832,7 +832,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final total = (room?.price ?? 0) * expectedNights;
     final existingPayments = await paymentsRepo.paymentsByBooking(widget.booking.id).first;
     final paidSoFar = existingPayments.fold<double>(0, (s, p) => s + p.amount);
-    final remaining = (total - paidSoFar).clamp(0, total);
+    final remaining = ((total - paidSoFar).clamp(0.0, total)).toDouble();
 
     if (amount > remaining) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('المبلغ أكبر من المتبقي (${remaining.toStringAsFixed(2)} ر.س)')));

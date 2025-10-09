@@ -33,6 +33,8 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixi
 
   Future<Employee?> getById(int id) => (select(employees)..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<Employee?> watchById(int id) => (select(employees)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<Employee?> getByLocalUuid(String localUuid) => (select(employees)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  Stream<Employee?> watchByLocalUuid(String localUuid) => (select(employees)..where((t) => t.localUuid.equals(localUuid))).watchSingleOrNull();
 
   Future<int> insertOne(EmployeesCompanion data, {bool originIsServer = false}) async {
     final now = Time.nowEpoch();
@@ -63,6 +65,18 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixi
     return rows;
   }
 
+  Future<int> updateByLocalUuid(String localUuid, EmployeesCompanion data, {bool originIsServer = false}) async {
+    final now = Time.nowEpoch();
+    final existing = await getByLocalUuid(localUuid);
+    if (existing == null) return 0;
+    final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
+    final rows = await (update(employees)..where((t) => t.localUuid.equals(localUuid))).write(comp);
+    if (rows > 0 && !originIsServer) {
+      await outboxDao.merge(entity: 'employees', op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, payload: _payloadFrom(comp, base: existing), clientTs: now);
+    }
+    return rows;
+  }
+
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
     final now = Time.nowEpoch();
     final existing = await getById(id);
@@ -82,6 +96,9 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixi
     final m = <String, dynamic>{};
     if (comp.name.present) m['name'] = comp.name.value;
     if (comp.basicSalary.present) m['basic_salary'] = comp.basicSalary.value;
+    if (comp.position.present) m['position'] = comp.position.value;
+    if (comp.phone.present) m['phone'] = comp.phone.value;
+    if (comp.hireDate.present) m['hire_date'] = comp.hireDate.value;
     if (comp.status.present) m['status'] = comp.status.value;
     return m;
   }
