@@ -50,7 +50,15 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState(false));
+  AuthNotifier() : super(const AuthState(true, currentUser: _defaultUser));
+
+  static const AuthUser _defaultUser = AuthUser(
+    id: 0,
+    username: 'admin',
+    fullName: 'مدير النظام',
+    userType: 'admin',
+    permissions: const ['all'],
+  );
 
   Future<void> login(String username, String password) async {
     try {
@@ -63,18 +71,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
-        state = const AuthState(false, error: 'بيانات الدخول غير صحيحة');
+        state = const AuthState(true, currentUser: _defaultUser, error: 'بيانات الدخول غير صحيحة');
         return;
       }
-      state = AuthState(false, error: _errorMessage(e));
+      state = AuthState(true, currentUser: _defaultUser, error: _errorMessage(e));
     } catch (_) {
-      state = const AuthState(false, error: 'حدث خطأ غير متوقع');
+      state = const AuthState(true, currentUser: _defaultUser, error: 'حدث خطأ غير متوقع');
     }
   }
 
   Future<void> logout() async {
     await ApiService.I.logout();
-    state = const AuthState(false);
+    state = const AuthState(true, currentUser: _defaultUser);
   }
 
   String _errorMessage(DioException e) {

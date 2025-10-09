@@ -188,20 +188,6 @@ class AdminSidebar extends ConsumerWidget {
                   onTap: () => onRouteSelected('/settings'),
                 ),
                 
-                const Divider(color: Colors.white24, height: 32),
-                
-                // Logout button
-                ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.white70),
-                  title: const Text(
-                    'تسجيل الخروج',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                  onTap: () {
-                    ref.read(authProvider.notifier).logout();
-                  },
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-                ),
               ],
             ),
           ),

@@ -70,12 +70,6 @@ class _AppDrawer extends StatelessWidget {
               title: const Text('الملاحظات'),
               onTap: () => Navigator.pushNamed(context, '/notes'),
             ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('تسجيل الخروج'),
-              onTap: () => Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false),
-            ),
           ],
         ),
       ),
