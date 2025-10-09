@@ -67,7 +67,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final user = AuthUser.fromJson(userData);
         state = AuthState(true, currentUser: user);
       } else {
-        state = const AuthState(true, currentUser: _defaultUser, error: 'بيانات الدخول غير صحيحة');
+        state = const AuthState(false, error: 'بيانات الدخول غير صحيحة');
       }
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
