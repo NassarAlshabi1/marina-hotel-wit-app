@@ -61,17 +61,27 @@ class ApiService {
         data: ro.data, queryParameters: ro.queryParameters, options: opts);
   }
 
-  Future<bool> login(String username, String password) async {
+  Future<Map<String, dynamic>?> login(String username, String password) async {
     final res = await _dio.post('/auth/login.php', data: jsonEncode({
       'username': username,
       'password': password,
     }));
-    if (res.statusCode == 200 && res.data['success'] == true) {
-      final token = res.data['data']['token'];
-      await _storage.write(key: _kToken, value: token);
-      return true;
+    if (res.statusCode == 200 && res.data is Map && res.data['success'] == true) {
+      final rawData = res.data['data'];
+      if (rawData is Map) {
+        final data = Map<String, dynamic>.from(rawData);
+        final token = data['token'] as String?;
+        final user = data['user'];
+        if (token != null) {
+          await _storage.write(key: _kToken, value: token);
+        }
+        if (user is Map) {
+          return Map<String, dynamic>.from(user);
+        }
+      }
+      return null;
     }
-    return false;
+    return null;
   }
 
   Future<bool> ping() async {

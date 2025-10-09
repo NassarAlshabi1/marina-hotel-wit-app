@@ -157,7 +157,7 @@ class SyncService {
         final local = await (db.select(db.rooms)..where((t) => t.roomNumber.equals(rn))).getSingleOrNull();
         if (local != null) {
           if (serverTs >= local.lastModified) {
-            await roomsDao.updateById(
+            await roomsDao.updateByNumber(
               rn,
               RoomsCompanion(
                 type: data['type'] != null ? d.Value(data['type']) : const d.Value.absent(),
