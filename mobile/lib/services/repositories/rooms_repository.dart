@@ -12,8 +12,8 @@ class RoomsRepository {
   final RoomsDao dao;
 
   Stream<List<Room>> watchAll({String? search}) => dao.watchList(search: search);
-  Stream<Room?> watchRoom(String roomNumber) => dao.watchById(roomNumber);
-  Stream<Room?> watchByNumber(String roomNumber) => dao.watchById(roomNumber);
+  Stream<Room?> watchRoom(String roomNumber) => dao.watchByNumber(roomNumber);
+  Stream<Room?> watchByNumber(String roomNumber) => dao.watchByNumber(roomNumber);
 
   Future<String> create({required String roomNumber, required String type, required double price, required String status, String? imageUrl}) {
     return dao.insertOne(
@@ -40,7 +40,7 @@ class RoomsRepository {
   }
   
   Future<int> updateByRoomNumber(String roomNumber, {String? type, double? price, String? status, String? imageUrl}) {
-    return dao.updateById(
+    return dao.updateByNumber(
       roomNumber,
       RoomsCompanion(
         type: type != null ? d.Value(type) : const d.Value.absent(),

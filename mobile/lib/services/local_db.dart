@@ -16,13 +16,12 @@ mixin SyncFields on Table {
 }
 
 class Rooms extends Table with SyncFields {
-  TextColumn get roomNumber => text()();
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get roomNumber => text().unique()();
   TextColumn get type => text()();
   RealColumn get price => real()();
   TextColumn get status => text()();
   TextColumn get imageUrl => text().nullable()();
-  @override
-  Set<Column> get primaryKey => {roomNumber};
 }
 
 class Bookings extends Table with SyncFields {
@@ -149,7 +148,7 @@ class SyncState extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -162,6 +161,13 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(bookings, bookings.actualCheckout);
             await m.addColumn(bookings, bookings.expectedNights);
             await m.customStatement('UPDATE bookings SET expected_nights = calculated_nights');
+          }
+          if (from < 3) {
+            await m.customStatement('ALTER TABLE rooms RENAME TO rooms_old');
+            await m.createTable(rooms);
+            await m.customStatement('INSERT INTO rooms (room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin) '
+                'SELECT room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin FROM rooms_old');
+            await m.customStatement('DROP TABLE rooms_old');
           }
         },
       );
