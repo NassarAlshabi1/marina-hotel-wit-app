@@ -41,13 +41,16 @@ interface RoomDao {
 @Dao
 interface BookingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(booking: BookingEntity)
+    suspend fun insert(booking: BookingEntity): Long
 
     @Update
-    suspend fun update(booking: BookingEntity)
+    suspend fun update(booking: BookingEntity): Int
 
     @Query("SELECT * FROM bookings")
     suspend fun getAll(): List<BookingEntity>
+
+    @Query("SELECT * FROM bookings WHERE booking_id = :id LIMIT 1")
+    suspend fun getById(id: Int): BookingEntity?
 
     @Query("SELECT * FROM bookings WHERE status = 'محجوزة'")
     suspend fun getActive(): List<BookingEntity>

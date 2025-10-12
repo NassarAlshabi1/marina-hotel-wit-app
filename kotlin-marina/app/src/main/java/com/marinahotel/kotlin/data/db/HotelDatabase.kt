@@ -1,9 +1,12 @@
 package com.marinahotel.kotlin.data.db
 
+import android.content.Context
 import androidx.room.Database
+import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.marinahotel.kotlin.data.entities.BookingEntity
+import kotlin.jvm.Volatile
 import com.marinahotel.kotlin.data.entities.BookingNoteEntity
 import com.marinahotel.kotlin.data.entities.CashRegisterEntity
 import com.marinahotel.kotlin.data.entities.CashTransactionEntity
@@ -63,4 +66,19 @@ abstract class HotelDatabase : RoomDatabase() {
     abstract fun invoiceDao(): InvoiceDao
     abstract fun userActivityLogDao(): UserActivityLogDao
     abstract fun failedLoginDao(): FailedLoginDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: HotelDatabase? = null
+
+        fun getInstance(context: Context): HotelDatabase {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: Room.databaseBuilder(
+                    context.applicationContext,
+                    HotelDatabase::class.java,
+                    "hotel_db"
+                ).build().also { INSTANCE = it }
+            }
+        }
+    }
 }
