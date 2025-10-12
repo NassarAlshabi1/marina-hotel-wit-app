@@ -94,7 +94,7 @@ interface PaymentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(payment: PaymentEntity)
 
-    @Query("SELECT * FROM payments WHERE booking_id = :bookingId")
+    @Query("SELECT * FROM payment WHERE booking_id = :bookingId")
     suspend fun getByBooking(bookingId: Int): List<PaymentEntity>
 }
 

@@ -5,10 +5,6 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import java.math.BigDecimal
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
 
 @Entity(
     tableName = "rooms",
@@ -23,10 +19,10 @@ data class RoomEntity(
     val type: String,
 
     @ColumnInfo(name = "price")
-    val price: BigDecimal,
+    val price: Double,
 
     @ColumnInfo(name = "status")
-    val status: String
+    val status: String = "شاغرة"
 )
 
 @Entity(
@@ -66,7 +62,7 @@ data class BookingEntity(
     val guestIdNumber: String,
 
     @ColumnInfo(name = "guest_id_issue_date")
-    val guestIdIssueDate: LocalDate?,
+    val guestIdIssueDate: String?,
 
     @ColumnInfo(name = "guest_id_issue_place")
     val guestIdIssuePlace: String?,
@@ -84,16 +80,16 @@ data class BookingEntity(
     val guestAddress: String?,
 
     @ColumnInfo(name = "guest_created_at")
-    val guestCreatedAt: Instant,
+    val guestCreatedAt: String,
 
     @ColumnInfo(name = "room_number")
     val roomNumber: String,
 
     @ColumnInfo(name = "checkin_date")
-    val checkinDate: LocalDateTime,
+    val checkinDate: String,
 
     @ColumnInfo(name = "checkout_date")
-    val checkoutDate: LocalDateTime?,
+    val checkoutDate: String?,
 
     @ColumnInfo(name = "status")
     val status: String,
@@ -102,19 +98,19 @@ data class BookingEntity(
     val notes: String?,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Instant,
+    val createdAt: String,
 
     @ColumnInfo(name = "expected_nights", defaultValue = "1")
     val expectedNights: Int = 1,
 
     @ColumnInfo(name = "actual_checkout")
-    val actualCheckout: LocalDateTime?,
+    val actualCheckout: String?,
 
     @ColumnInfo(name = "calculated_nights", defaultValue = "1")
     val calculatedNights: Int = 1,
 
     @ColumnInfo(name = "last_calculation")
-    val lastCalculation: Instant
+    val lastCalculation: String
 )
 
 @Entity(
@@ -140,16 +136,16 @@ data class BookingNoteEntity(
     val noteText: String,
 
     @ColumnInfo(name = "alert_type")
-    val alertType: String,
+    val alertType: String = "medium",
 
     @ColumnInfo(name = "alert_until")
-    val alertUntil: LocalDateTime?,
+    val alertUntil: String?,
 
     @ColumnInfo(name = "is_active", defaultValue = "1")
     val isActive: Boolean = true,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: LocalDateTime,
+    val createdAt: String,
 
     @ColumnInfo(name = "created_by")
     val createdBy: String?
@@ -165,19 +161,19 @@ data class CashRegisterEntity(
     val id: Int = 0,
 
     @ColumnInfo(name = "date")
-    val date: LocalDate,
+    val date: String,
 
     @ColumnInfo(name = "opening_balance")
-    val openingBalance: BigDecimal,
+    val openingBalance: Double,
 
     @ColumnInfo(name = "closing_balance")
-    val closingBalance: BigDecimal?,
+    val closingBalance: Double?,
 
     @ColumnInfo(name = "total_income")
-    val totalIncome: BigDecimal,
+    val totalIncome: Double,
 
     @ColumnInfo(name = "total_expense")
-    val totalExpense: BigDecimal,
+    val totalExpense: Double,
 
     @ColumnInfo(name = "notes")
     val notes: String?,
@@ -186,13 +182,13 @@ data class CashRegisterEntity(
     val createdBy: Int?,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Instant,
+    val createdAt: String,
 
     @ColumnInfo(name = "updated_at")
-    val updatedAt: Instant,
+    val updatedAt: String,
 
     @ColumnInfo(name = "status")
-    val status: String
+    val status: String = "open"
 )
 
 @Entity(
@@ -204,7 +200,8 @@ data class CashRegisterEntity(
             childColumns = ["register_id"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index("register_id")]
 )
 data class CashTransactionEntity(
     @PrimaryKey(autoGenerate = true)
@@ -230,13 +227,13 @@ data class CashTransactionEntity(
     val description: String?,
 
     @ColumnInfo(name = "transaction_time")
-    val transactionTime: LocalDateTime,
+    val transactionTime: String,
 
     @ColumnInfo(name = "created_by")
     val createdBy: Int?,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Instant
+    val createdAt: String
 )
 
 @Entity(tableName = "employees")
@@ -249,10 +246,10 @@ data class EmployeeEntity(
     val name: String,
 
     @ColumnInfo(name = "basic_salary")
-    val basicSalary: BigDecimal,
+    val basicSalary: Double,
 
     @ColumnInfo(name = "status")
-    val status: String
+    val status: String = "active"
 )
 
 @Entity(
@@ -282,10 +279,10 @@ data class ExpenseEntity(
     val description: String,
 
     @ColumnInfo(name = "amount")
-    val amount: BigDecimal,
+    val amount: Double,
 
     @ColumnInfo(name = "date")
-    val date: LocalDate,
+    val date: String,
 
     @ColumnInfo(name = "cash_transaction_id")
     val cashTransactionId: Int?,
@@ -294,7 +291,7 @@ data class ExpenseEntity(
     val createdBy: Int?,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Instant
+    val createdAt: String
 )
 
 @Entity(
@@ -306,7 +303,8 @@ data class ExpenseEntity(
             childColumns = ["expense_id"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index("expense_id")]
 )
 data class ExpenseLogEntity(
     @PrimaryKey(autoGenerate = true)
@@ -326,7 +324,7 @@ data class ExpenseLogEntity(
     val userId: Int?,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Instant
+    val createdAt: String
 )
 
 @Entity(tableName = "invoices")
@@ -345,11 +343,11 @@ data class InvoiceEntity(
     val amount: Int,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Instant
+    val createdAt: String
 )
 
 @Entity(
-    tableName = "payments",
+    tableName = "payment",
     foreignKeys = [
         ForeignKey(
             entity = BookingEntity::class,
@@ -380,38 +378,32 @@ data class InvoiceEntity(
 )
 data class PaymentEntity(
     @PrimaryKey(autoGenerate = true)
-    @ColumnInfo(name = "id")
-    val id: Int = 0,
+    @ColumnInfo(name = "payment_id")
+    val paymentId: Int = 0,
 
     @ColumnInfo(name = "booking_id")
-    val bookingId: Int?,
-
-    @ColumnInfo(name = "cash_transaction_id")
-    val cashTransactionId: Int?,
-
-    @ColumnInfo(name = "room_number")
-    val roomNumber: String?,
+    val bookingId: Int,
 
     @ColumnInfo(name = "amount")
-    val amount: BigDecimal,
+    val amount: Int,
+
+    @ColumnInfo(name = "payment_date")
+    val paymentDate: String,
+
+    @ColumnInfo(name = "notes")
+    val notes: String?,
 
     @ColumnInfo(name = "payment_method")
     val paymentMethod: String,
 
     @ColumnInfo(name = "revenue_type")
-    val revenueType: String?,
+    val revenueType: String = "room",
 
-    @ColumnInfo(name = "payment_date")
-    val paymentDate: LocalDateTime,
+    @ColumnInfo(name = "cash_transaction_id")
+    val cashTransactionId: Int?,
 
-    @ColumnInfo(name = "notes")
-    val notes: String?,
-
-    @ColumnInfo(name = "created_at")
-    val createdAt: Instant,
-
-    @ColumnInfo(name = "created_by")
-    val createdBy: Int?
+    @ColumnInfo(name = "room_number")
+    val roomNumber: String?
 )
 
 @Entity(
@@ -442,31 +434,31 @@ data class UserEntity(
     val phone: String?,
 
     @ColumnInfo(name = "user_type")
-    val userType: String,
+    val userType: String = "employee",
 
     @ColumnInfo(name = "is_active", defaultValue = "1")
     val isActive: Boolean = true,
 
     @ColumnInfo(name = "last_login")
-    val lastLogin: LocalDateTime?,
+    val lastLogin: String?,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Instant,
+    val createdAt: String,
 
     @ColumnInfo(name = "updated_at")
-    val updatedAt: Instant,
+    val updatedAt: String,
 
     @ColumnInfo(name = "failed_login_attempts", defaultValue = "0")
     val failedLoginAttempts: Int = 0,
 
     @ColumnInfo(name = "locked_until")
-    val lockedUntil: LocalDateTime?,
+    val lockedUntil: String?,
 
     @ColumnInfo(name = "password_reset_token")
     val passwordResetToken: String?,
 
     @ColumnInfo(name = "password_reset_expires")
-    val passwordResetExpires: Instant?
+    val passwordResetExpires: String?
 )
 
 @Entity(
@@ -517,7 +509,7 @@ data class UserPermissionEntity(
     val permissionId: Int,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Instant
+    val createdAt: String
 )
 
 @Entity(
@@ -541,19 +533,19 @@ data class SalaryWithdrawalEntity(
     val employeeId: Int,
 
     @ColumnInfo(name = "amount")
-    val amount: BigDecimal,
+    val amount: Double,
 
     @ColumnInfo(name = "date")
-    val date: LocalDate,
+    val date: String,
 
     @ColumnInfo(name = "notes")
     val notes: String?,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Instant,
+    val createdAt: String,
 
     @ColumnInfo(name = "withdrawal_type")
-    val withdrawalType: String
+    val withdrawalType: String = "cash"
 )
 
 @Entity(tableName = "suppliers")
@@ -599,7 +591,7 @@ data class UserActivityLogEntity(
     val userAgent: String?,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Instant
+    val createdAt: String
 )
 
 @Entity(tableName = "failed_logins")
@@ -615,5 +607,5 @@ data class FailedLoginEntity(
     val ipAddress: String?,
 
     @ColumnInfo(name = "attempt_time")
-    val attemptTime: Instant
+    val attemptTime: String
 )
