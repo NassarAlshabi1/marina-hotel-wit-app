@@ -218,7 +218,7 @@ data class CashTransactionEntity(
     val amount: Int,
 
     @ColumnInfo(name = "reference_type")
-    val referenceType: String,
+    val amount: BigDecimal,
 
     @ColumnInfo(name = "reference_id")
     val referenceId: Int?,
