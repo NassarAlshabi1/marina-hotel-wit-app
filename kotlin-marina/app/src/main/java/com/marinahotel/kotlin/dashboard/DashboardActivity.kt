@@ -5,6 +5,9 @@ import android.graphics.PorterDuff
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.marinahotel.kotlin.R
 import com.marinahotel.kotlin.bookings.BookingEditActivity
 import com.marinahotel.kotlin.bookings.BookingsListActivity
@@ -15,6 +18,7 @@ import com.marinahotel.kotlin.rooms.RoomsMainActivity
 
 class DashboardActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDashboardBinding
+    private lateinit var viewModel: DashboardViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,7 +26,8 @@ class DashboardActivity : AppCompatActivity() {
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
         binding.toolbar.setNavigationOnClickListener { finish() }
-        populateStats()
+        viewModel = ViewModelProvider(this)[DashboardViewModel::class.java]
+        observeStats()
         populateRecentActivity()
         populateQuickActions()
         binding.syncButton.setOnClickListener {
@@ -31,27 +36,33 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun populateStats() {
-        val stats = listOf(
-            DashboardStat("إجمالي الغرف", "120", android.R.drawable.ic_menu_week, R.color.primaryColor),
-            DashboardStat("الغرف المتاحة", "54", android.R.drawable.ic_menu_myplaces, android.R.color.holo_green_dark),
-            DashboardStat("الغرف المحجوزة", "66", android.R.drawable.ic_menu_edit, android.R.color.holo_red_dark),
-            DashboardStat("نسبة الإشغال", "55%", android.R.drawable.ic_menu_manage, android.R.color.holo_orange_dark)
-        )
-        binding.statsGrid.removeAllViews()
-        val inflater = layoutInflater
-        stats.forEach { stat ->
-            val view = inflater.inflate(R.layout.view_stat_card, binding.statsGrid, false)
-            val iconView = view.findViewById<android.widget.ImageView>(R.id.iconView)
-            val valueView = view.findViewById<android.widget.TextView>(R.id.valueView)
-            val titleView = view.findViewById<android.widget.TextView>(R.id.titleView)
-            val color = ContextCompat.getColor(this, stat.color)
-            iconView.setImageResource(stat.icon)
-            iconView.setColorFilter(color, PorterDuff.Mode.SRC_IN)
-            valueView.text = stat.value
-            valueView.setTextColor(color)
-            titleView.text = stat.title
-            binding.statsGrid.addView(view)
+    private fun observeStats() {
+        lifecycleScope.launchWhenStarted {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.stats.collect { s ->
+                    val stats = listOf(
+                        DashboardStat(getString(R.string.stat_total_rooms), s.totalRooms.toString(), android.R.drawable.ic_menu_week, R.color.primaryColor),
+                        DashboardStat(getString(R.string.stat_available_rooms), s.availableRooms.toString(), android.R.drawable.ic_menu_myplaces, android.R.color.holo_green_dark),
+                        DashboardStat(getString(R.string.stat_booked_rooms), s.bookedRooms.toString(), android.R.drawable.ic_menu_edit, android.R.color.holo_red_dark),
+                        DashboardStat(getString(R.string.stat_occupancy), "${s.occupancyPercent}%", android.R.drawable.ic_menu_manage, android.R.color.holo_orange_dark)
+                    )
+                    binding.statsGrid.removeAllViews()
+                    val inflater = layoutInflater
+                    stats.forEach { stat ->
+                        val view = inflater.inflate(R.layout.view_stat_card, binding.statsGrid, false)
+                        val iconView = view.findViewById<android.widget.ImageView>(R.id.iconView)
+                        val valueView = view.findViewById<android.widget.TextView>(R.id.valueView)
+                        val titleView = view.findViewById<android.widget.TextView>(R.id.titleView)
+                        val color = ContextCompat.getColor(this@DashboardActivity, stat.color)
+                        iconView.setImageResource(stat.icon)
+                        iconView.setColorFilter(color, PorterDuff.Mode.SRC_IN)
+                        valueView.text = stat.value
+                        valueView.setTextColor(color)
+                        titleView.text = stat.title
+                        binding.statsGrid.addView(view)
+                    }
+                }
+            }
         }
     }
 

@@ -4,6 +4,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
@@ -19,7 +22,7 @@ import com.marinahotel.kotlin.payments.PaymentsMainActivity
 class BookingsListActivity : AppCompatActivity(), BookingsAdapter.BookingListener {
     private lateinit var binding: ActivityBookingsListBinding
     private val adapter = BookingsAdapter(this)
-    private val allBookings = mutableListOf<BookingUi>()
+    private lateinit var viewModel: BookingsViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,7 +33,8 @@ class BookingsListActivity : AppCompatActivity(), BookingsAdapter.BookingListene
         binding.bookingsRecycler.layoutManager = LinearLayoutManager(this)
         binding.bookingsRecycler.adapter = adapter
         binding.filterChipGroup.isSingleSelection = false
-        initSampleData()
+        viewModel = ViewModelProvider(this)[BookingsViewModel::class.java]
+        observeBookings()
         binding.addBookingFab.setOnClickListener {
             startActivity(Intent(this, BookingEditActivity::class.java))
         }
@@ -38,10 +42,13 @@ class BookingsListActivity : AppCompatActivity(), BookingsAdapter.BookingListene
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                applyFilters()
+                viewModel.setQuery(s?.toString().orEmpty())
             }
         })
-        binding.filterChipGroup.setOnCheckedStateChangeListener { _, _ -> applyFilters() }
+        binding.filterChipGroup.setOnCheckedStateChangeListener { group, _ ->
+            val selected = group.checkedChipIds.mapNotNull { id -> group.findViewById<Chip>(id)?.text?.toString() }
+            viewModel.setStatusFilters(selected.toSet())
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -84,33 +91,14 @@ class BookingsListActivity : AppCompatActivity(), BookingsAdapter.BookingListene
         })
     }
 
-    private fun initSampleData() {
-        allBookings.clear()
-        allBookings.addAll(
-            listOf(
-                BookingUi("BKG-1001", "أحمد علي", "101", "نشط", "10 يناير", "12 يناير"),
-                BookingUi("BKG-1002", "سارة محمد", "205", "مؤكد", "8 يناير", "11 يناير"),
-                BookingUi("BKG-1003", "يوسف خالد", "303", "ملغى", "1 يناير", "3 يناير"),
-                BookingUi("BKG-1004", "ليلى عبد الله", "407", "مكتمل", "2 يناير", "6 يناير"),
-                BookingUi("BKG-1005", "مها ناصر", "110", "نشط", "11 يناير", "13 يناير")
-            )
-        )
-        applyFilters()
-    }
-
-    private fun applyFilters() {
-        val query = binding.searchInput.text?.toString().orEmpty()
-        val activeChips = binding.filterChipGroup.checkedChipIds.mapNotNull { id ->
-            binding.filterChipGroup.findViewById<Chip>(id)?.text?.toString()
-        }
-        val filtered = allBookings.filter { booking ->
-            val matchesQuery = query.isBlank() || booking.guestName.contains(query) || booking.code.contains(query)
-            val matchesStatus = if (activeChips.isEmpty()) true else activeChips.any { chip ->
-                booking.status.contains(chip)
+    private fun observeBookings() {
+        lifecycleScope.launchWhenStarted {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.bookings.collect { list ->
+                    adapter.submitList(list)
+                }
             }
-            matchesQuery && matchesStatus
         }
-        adapter.submitList(filtered)
     }
 }
 

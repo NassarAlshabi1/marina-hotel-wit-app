@@ -5,20 +5,21 @@ import android.view.LayoutInflater
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.marinahotel.kotlin.R
 import com.marinahotel.kotlin.databinding.ActivitySettingsEmployeesBinding
 import com.marinahotel.kotlin.databinding.DialogEmployeeFormBinding
 import com.marinahotel.kotlin.employees.EmployeeUi
 import com.marinahotel.kotlin.employees.EmployeesAdapter
+import com.marinahotel.kotlin.employees.EmployeesViewModel
 
 class SettingsEmployeesActivity : AppCompatActivity(), EmployeesAdapter.EmployeeListener {
     private lateinit var binding: ActivitySettingsEmployeesBinding
     private val adapter = EmployeesAdapter(this)
-    private val employees = mutableListOf(
-        EmployeeUi("أحمد العتيبي", "مدير استقبال", "0501234567", true, 5500.0),
-        EmployeeUi("نورة السبيعي", "مسؤولة حجوزات", "0507654321", true, 4200.0),
-        EmployeeUi("يوسف الغامدي", "خدمة غرف", "0567891234", false, 3200.0)
-    )
+    private lateinit var viewModel: EmployeesViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,16 +29,16 @@ class SettingsEmployeesActivity : AppCompatActivity(), EmployeesAdapter.Employee
         binding.toolbar.setNavigationOnClickListener { finish() }
         binding.employeesRecycler.layoutManager = LinearLayoutManager(this)
         binding.employeesRecycler.adapter = adapter
-        adapter.submitList(employees.toList())
-        refreshSummary()
+        viewModel = ViewModelProvider(this)[EmployeesViewModel::class.java]
+        observeEmployees()
         binding.addEmployeeFab.setOnClickListener { showEmployeeDialog() }
     }
 
-    private fun refreshSummary() {
-        val active = employees.count { it.isActive }
-        val total = employees.sumOf { it.salary }
-        binding.activeCount.text = "$active موظف نشط"
-        binding.monthlySalaries.text = "إجمالي الرواتب: ${total.toInt()} ر.س"
+    private fun refreshSummary(list: List<EmployeeUi>) {
+        val active = list.count { it.isActive }
+        val total = list.sumOf { it.salary }
+        binding.activeCount.text = getString(R.string.active_employees_format, active)
+        binding.monthlySalaries.text = getString(R.string.total_salaries_format, total.toInt())
     }
 
     private fun showEmployeeDialog(employee: EmployeeUi? = null) {
@@ -49,30 +50,34 @@ class SettingsEmployeesActivity : AppCompatActivity(), EmployeesAdapter.Employee
             dialogBinding.salaryInput.setText(employee.salary.toString())
             dialogBinding.activeSwitch.isChecked = employee.isActive
         }
-        AlertDialog.Builder(this)
-            .setTitle(if (employee == null) "إضافة موظف" else "تعديل الموظف")
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(if (employee == null) getString(R.string.title_employee_new) else getString(R.string.title_employee_edit))
             .setView(dialogBinding.root)
-            .setPositiveButton("حفظ") { dialog, _ ->
-                val name = dialogBinding.nameInput.text.toString()
-                val position = dialogBinding.positionInput.text.toString()
-                val phone = dialogBinding.phoneInput.text.toString()
-                val salary = dialogBinding.salaryInput.text.toString().toDoubleOrNull() ?: 0.0
+            .setPositiveButton(R.string.action_save, null)
+            .setNegativeButton(R.string.action_cancel) { d, _ -> d.dismiss() }
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val name = dialogBinding.nameInput.text?.toString()?.trim().orEmpty()
+                val position = dialogBinding.positionInput.text?.toString()?.trim().orEmpty()
+                val phone = dialogBinding.phoneInput.text?.toString()?.trim().orEmpty()
+                val salaryText = dialogBinding.salaryInput.text?.toString()?.trim().orEmpty()
+
+                var valid = true
+                if (name.isBlank()) { dialogBinding.nameLayout.error = getString(R.string.error_required_name); valid = false } else dialogBinding.nameLayout.error = null
+                if (phone.isBlank()) { dialogBinding.phoneLayout.error = getString(R.string.error_required_phone); valid = false } else dialogBinding.phoneLayout.error = null
+                val salary = salaryText.toDoubleOrNull()
+                if (salary == null || salary <= 0.0) { dialogBinding.salaryLayout.error = getString(R.string.error_positive_amount); valid = false } else dialogBinding.salaryLayout.error = null
+
+                if (!valid) return@setOnClickListener
+
                 val active = dialogBinding.activeSwitch.isChecked
-                if (employee == null) {
-                    employees.add(EmployeeUi(name, position, phone, active, salary))
-                } else {
-                    val index = employees.indexOfFirst { it.name == employee.name }
-                    if (index >= 0) {
-                        employees[index] = employee.copy(name = name, position = position, phone = phone, isActive = active, salary = salary)
-                    }
-                }
-                adapter.submitList(employees.toList())
-                refreshSummary()
-                Toast.makeText(this, "تم حفظ البيانات", Toast.LENGTH_SHORT).show()
+                viewModel.save(name, position, phone, salary!!, active)
+                Toast.makeText(this, R.string.saved_successfully, Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             }
-            .setNegativeButton("إلغاء") { dialog, _ -> dialog.dismiss() }
-            .show()
+        }
+        dialog.show()
     }
 
     override fun onEditRequested(employee: EmployeeUi) {
@@ -80,6 +85,17 @@ class SettingsEmployeesActivity : AppCompatActivity(), EmployeesAdapter.Employee
     }
 
     override fun onSalaryRequested(employee: EmployeeUi) {
-        Toast.makeText(this, "تم تسجيل صرف راتب ${employee.salary}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.salary_withdrawal_success, employee.salary.toInt()), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun observeEmployees() {
+        lifecycleScope.launchWhenStarted {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.employees.collect { list ->
+                    adapter.submitList(list)
+                    refreshSummary(list)
+                }
+            }
+        }
     }
 }
