@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import androidx.appcompat.app.ActionBarDrawerToggle
+import com.marinahotel.kotlin.BuildConfig
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import com.marinahotel.kotlin.bookings.BookingsListActivity
