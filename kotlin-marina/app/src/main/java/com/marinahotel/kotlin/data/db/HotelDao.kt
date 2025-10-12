@@ -22,6 +22,7 @@ import com.marinahotel.kotlin.data.entities.SupplierEntity
 import com.marinahotel.kotlin.data.entities.UserActivityLogEntity
 import com.marinahotel.kotlin.data.entities.UserEntity
 import com.marinahotel.kotlin.data.entities.UserPermissionEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface RoomDao {
@@ -36,6 +37,12 @@ interface RoomDao {
 
     @Query("SELECT * FROM rooms WHERE status = :status")
     suspend fun getByStatus(status: String): List<RoomEntity>
+
+    @Query("SELECT * FROM rooms")
+    fun flowAll(): Flow<List<RoomEntity>>
+
+    @Query("SELECT * FROM rooms WHERE status = :status")
+    fun flowByStatus(status: String): Flow<List<RoomEntity>>
 }
 
 @Dao
@@ -54,6 +61,15 @@ interface BookingDao {
 
     @Query("SELECT * FROM bookings WHERE status = 'محجوزة'")
     suspend fun getActive(): List<BookingEntity>
+
+    @Query("SELECT * FROM bookings ORDER BY created_at DESC")
+    fun flowAll(): Flow<List<BookingEntity>>
+
+    @Query("SELECT DISTINCT guest_name FROM bookings ORDER BY guest_name")
+    fun flowDistinctGuests(): Flow<List<String>>
+
+    @Query("SELECT COUNT(*) FROM bookings WHERE status = :status")
+    fun flowCountByStatus(status: String): Flow<Int>
 }
 
 @Dao
@@ -63,6 +79,9 @@ interface BookingNoteDao {
 
     @Query("SELECT * FROM booking_notes WHERE booking_id = :bookingId")
     suspend fun getByBooking(bookingId: Int): List<BookingNoteEntity>
+
+    @Query("SELECT * FROM booking_notes WHERE booking_id = :bookingId ORDER BY created_at DESC")
+    fun flowByBooking(bookingId: Int): Flow<List<BookingNoteEntity>>
 }
 
 @Dao
@@ -99,6 +118,12 @@ interface PaymentDao {
 
     @Query("SELECT * FROM payment WHERE booking_id = :bookingId")
     suspend fun getByBooking(bookingId: Int): List<PaymentEntity>
+
+    @Query("SELECT * FROM payment WHERE booking_id = :bookingId ORDER BY payment_date DESC")
+    fun flowByBooking(bookingId: Int): Flow<List<PaymentEntity>>
+
+    @Query("SELECT * FROM payment ORDER BY payment_date DESC LIMIT 25")
+    fun flowRecent(): Flow<List<PaymentEntity>>
 }
 
 @Dao
@@ -126,6 +151,12 @@ interface ExpenseDao {
 
     @Query("SELECT * FROM expenses ORDER BY date DESC")
     suspend fun getAll(): List<ExpenseEntity>
+
+    @Query("SELECT * FROM expenses ORDER BY date DESC")
+    fun flowAll(): Flow<List<ExpenseEntity>>
+
+    @Query("SELECT SUM(amount) FROM expenses WHERE date BETWEEN :from AND :to")
+    fun sumBetween(from: String, to: String): Flow<Double?>
 }
 
 @Dao
@@ -144,6 +175,9 @@ interface EmployeeDao {
 
     @Query("SELECT * FROM employees")
     suspend fun getAll(): List<EmployeeEntity>
+
+    @Query("SELECT * FROM employees")
+    fun flowAll(): Flow<List<EmployeeEntity>>
 }
 
 @Dao

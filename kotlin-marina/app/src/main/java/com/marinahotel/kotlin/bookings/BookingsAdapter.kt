@@ -4,12 +4,18 @@ import android.graphics.PorterDuff
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.marinahotel.kotlin.R
 import com.marinahotel.kotlin.databinding.ItemBookingBinding
 
-class BookingsAdapter(private val listener: BookingListener) : RecyclerView.Adapter<BookingsAdapter.BookingViewHolder>() {
-    private val items = mutableListOf<BookingUi>()
+class BookingsAdapter(private val listener: BookingListener) : ListAdapter<BookingUi, BookingsAdapter.BookingViewHolder>(Diff) {
+
+    object Diff : DiffUtil.ItemCallback<BookingUi>() {
+        override fun areItemsTheSame(oldItem: BookingUi, newItem: BookingUi): Boolean = oldItem.code == newItem.code
+        override fun areContentsTheSame(oldItem: BookingUi, newItem: BookingUi): Boolean = oldItem == newItem
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookingViewHolder {
         val inflater = LayoutInflater.from(parent.context)
@@ -18,24 +24,16 @@ class BookingsAdapter(private val listener: BookingListener) : RecyclerView.Adap
     }
 
     override fun onBindViewHolder(holder: BookingViewHolder, position: Int) {
-        holder.bind(items[position])
-    }
-
-    override fun getItemCount(): Int = items.size
-
-    fun submitList(data: List<BookingUi>) {
-        items.clear()
-        items.addAll(data)
-        notifyDataSetChanged()
+        holder.bind(getItem(position))
     }
 
     inner class BookingViewHolder(private val binding: ItemBookingBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: BookingUi) {
             binding.guestName.text = item.guestName
             binding.bookingCode.text = item.code
-            binding.roomInfo.text = "غرفة ${item.roomNumber}"
+            binding.roomInfo.text = binding.root.context.getString(R.string.room_number_format, item.roomNumber)
             binding.statusChip.text = item.status
-            binding.dateRange.text = "${item.arrivalDate} - ${item.departureDate}"
+            binding.dateRange.text = binding.root.context.getString(R.string.date_range_format, item.arrivalDate, item.departureDate)
             val color = when {
                 item.status.contains("نشط") -> R.color.primaryColor
                 item.status.contains("مؤكد") -> android.R.color.holo_blue_dark

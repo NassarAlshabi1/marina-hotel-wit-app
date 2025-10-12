@@ -3,12 +3,18 @@ package com.marinahotel.kotlin.rooms
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.marinahotel.kotlin.R
 import com.marinahotel.kotlin.databinding.ItemRoomBinding
 
-class RoomsAdapter(private val listener: RoomListener) : RecyclerView.Adapter<RoomsAdapter.RoomViewHolder>() {
-    private val items = mutableListOf<RoomItem>()
+class RoomsAdapter(private val listener: RoomListener) : ListAdapter<RoomItem, RoomsAdapter.RoomViewHolder>(Diff) {
+
+    object Diff : DiffUtil.ItemCallback<RoomItem>() {
+        override fun areItemsTheSame(oldItem: RoomItem, newItem: RoomItem): Boolean = oldItem.number == newItem.number
+        override fun areContentsTheSame(oldItem: RoomItem, newItem: RoomItem): Boolean = oldItem == newItem
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RoomViewHolder {
         val binding = ItemRoomBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -16,15 +22,7 @@ class RoomsAdapter(private val listener: RoomListener) : RecyclerView.Adapter<Ro
     }
 
     override fun onBindViewHolder(holder: RoomViewHolder, position: Int) {
-        holder.bind(items[position])
-    }
-
-    override fun getItemCount(): Int = items.size
-
-    fun submitList(data: List<RoomItem>) {
-        items.clear()
-        items.addAll(data)
-        notifyDataSetChanged()
+        holder.bind(getItem(position))
     }
 
     inner class RoomViewHolder(private val binding: ItemRoomBinding) : RecyclerView.ViewHolder(binding.root) {

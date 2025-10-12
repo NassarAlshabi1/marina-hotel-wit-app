@@ -2,11 +2,17 @@ package com.marinahotel.kotlin.payments
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.marinahotel.kotlin.databinding.ItemPaymentTransactionBinding
 
-class PaymentTransactionsAdapter : RecyclerView.Adapter<PaymentTransactionsAdapter.TransactionViewHolder>() {
-    private val items = mutableListOf<PaymentTransaction>()
+class PaymentTransactionsAdapter : ListAdapter<PaymentTransaction, PaymentTransactionsAdapter.TransactionViewHolder>(Diff) {
+
+    object Diff : DiffUtil.ItemCallback<PaymentTransaction>() {
+        override fun areItemsTheSame(oldItem: PaymentTransaction, newItem: PaymentTransaction): Boolean = oldItem.title == newItem.title && oldItem.date == newItem.date
+        override fun areContentsTheSame(oldItem: PaymentTransaction, newItem: PaymentTransaction): Boolean = oldItem == newItem
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TransactionViewHolder {
         val binding = ItemPaymentTransactionBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -14,15 +20,7 @@ class PaymentTransactionsAdapter : RecyclerView.Adapter<PaymentTransactionsAdapt
     }
 
     override fun onBindViewHolder(holder: TransactionViewHolder, position: Int) {
-        holder.bind(items[position])
-    }
-
-    override fun getItemCount(): Int = items.size
-
-    fun submitList(data: List<PaymentTransaction>) {
-        items.clear()
-        items.addAll(data)
-        notifyDataSetChanged()
+        holder.bind(getItem(position))
     }
 
     inner class TransactionViewHolder(private val binding: ItemPaymentTransactionBinding) : RecyclerView.ViewHolder(binding.root) {

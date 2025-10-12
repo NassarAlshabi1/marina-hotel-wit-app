@@ -2,11 +2,17 @@ package com.marinahotel.kotlin.payments
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.marinahotel.kotlin.databinding.ItemBookingBalanceBinding
 
-class PendingBookingsAdapter(private val listener: PendingBookingListener) : RecyclerView.Adapter<PendingBookingsAdapter.PendingViewHolder>() {
-    private val items = mutableListOf<PendingBookingItem>()
+class PendingBookingsAdapter(private val listener: PendingBookingListener) : ListAdapter<PendingBookingItem, PendingBookingsAdapter.PendingViewHolder>(Diff) {
+
+    object Diff : DiffUtil.ItemCallback<PendingBookingItem>() {
+        override fun areItemsTheSame(oldItem: PendingBookingItem, newItem: PendingBookingItem): Boolean = oldItem.code == newItem.code
+        override fun areContentsTheSame(oldItem: PendingBookingItem, newItem: PendingBookingItem): Boolean = oldItem == newItem
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PendingViewHolder {
         val binding = ItemBookingBalanceBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -14,15 +20,7 @@ class PendingBookingsAdapter(private val listener: PendingBookingListener) : Rec
     }
 
     override fun onBindViewHolder(holder: PendingViewHolder, position: Int) {
-        holder.bind(items[position])
-    }
-
-    override fun getItemCount(): Int = items.size
-
-    fun submitList(data: List<PendingBookingItem>) {
-        items.clear()
-        items.addAll(data)
-        notifyDataSetChanged()
+        holder.bind(getItem(position))
     }
 
     inner class PendingViewHolder(private val binding: ItemBookingBalanceBinding) : RecyclerView.ViewHolder(binding.root) {
