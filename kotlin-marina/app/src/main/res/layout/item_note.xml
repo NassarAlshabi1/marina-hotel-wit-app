@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="3dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layoutDirection="rtl"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/noteTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="عنوان الملاحظة"
+            android:textColor="@color/textPrimary"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/noteBody"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="تفاصيل"
+            android:textColor="@color/textSecondary" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/noteMeta"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="تحول الليل"
+                android:textColor="@color/textSecondary" />
+
+            <TextView
+                android:id="@+id/noteStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/view_status_chip"
+                android:paddingLeft="12dp"
+                android:paddingTop="4dp"
+                android:paddingRight="12dp"
+                android:paddingBottom="4dp"
+                android:text="عاجلة"
+                android:textColor="@color/secondaryColor" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
