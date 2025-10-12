@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Marina Hotel Native</string>
+    <string name="menu_dashboard">لوحة التحكم</string>
+    <string name="menu_bookings">الحجوزات</string>
+    <string name="menu_rooms">الغرف</string>
+    <string name="menu_payments">المدفوعات</string>
+    <string name="menu_reports">التقارير</string>
+    <string name="menu_employees">الموظفون</string>
+    <string name="menu_expenses">المصروفات</string>
+    <string name="menu_notes">الملاحظات</string>
+    <string name="menu_settings">الإعدادات</string>
+    <string name="navigation_drawer_open">فتح القائمة</string>
+    <string name="navigation_drawer_close">إغلاق القائمة</string>
+    <string name="version_format">الإصدار %1$s (كود %2$d)</string>
+</resources>
