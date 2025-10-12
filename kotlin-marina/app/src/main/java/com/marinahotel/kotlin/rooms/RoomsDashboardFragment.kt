@@ -5,6 +5,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.GridLayoutManager
 import com.marinahotel.kotlin.databinding.FragmentRoomsDashboardBinding
 
@@ -12,14 +15,7 @@ class RoomsDashboardFragment : Fragment(), RoomsAdapter.RoomListener {
     private var _binding: FragmentRoomsDashboardBinding? = null
     private val binding get() = _binding!!
     private val adapter = RoomsAdapter(this)
-    private val rooms = listOf(
-        RoomItem("101", "شاغرة", "مفردة"),
-        RoomItem("102", "محجوزة", "مزدوجة"),
-        RoomItem("103", "تنظيف", "جناح"),
-        RoomItem("201", "شاغرة", "مزدوجة"),
-        RoomItem("202", "محجوزة", "مفردة"),
-        RoomItem("203", "شاغرة", "جناح")
-    )
+    private lateinit var viewModel: RoomsViewModel
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentRoomsDashboardBinding.inflate(inflater, container, false)
@@ -30,8 +26,13 @@ class RoomsDashboardFragment : Fragment(), RoomsAdapter.RoomListener {
         super.onViewCreated(view, savedInstanceState)
         binding.roomsRecycler.layoutManager = GridLayoutManager(requireContext(), 3)
         binding.roomsRecycler.adapter = adapter
-        adapter.submitList(rooms)
-        binding.floorLabel.text = "الطابق 1"
+        viewModel = ViewModelProvider(this)[RoomsViewModel::class.java]
+        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
+            viewLifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.rooms.collect { list -> adapter.submitList(list) }
+            }
+        }
+        binding.floorLabel.text = ""
     }
 
     override fun onRoomSelected(room: RoomItem) {
