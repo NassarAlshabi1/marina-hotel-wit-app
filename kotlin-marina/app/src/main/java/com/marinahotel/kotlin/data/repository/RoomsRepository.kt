@@ -18,4 +18,8 @@ class RoomsRepository(private val roomDao: RoomDao) {
     suspend fun updateRoom(entity: RoomEntity) {
         roomDao.update(entity)
     }
+
+    suspend fun exists(roomNumber: String): Boolean {
+        return roomDao.countByNumber(roomNumber) > 0
+    }
 }
