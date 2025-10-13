@@ -1,4 +1,4 @@
-name: Kotlin Marina Android Build
+ name: Kotlin Marina Android Build
 
 on:
   push:
