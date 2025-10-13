@@ -13,7 +13,6 @@
         <item name="android:colorBackground">@color/backgroundColor</item>
         <item name="android:fontFamily">@font/cairo</item>
         <item name="fontFamily">@font/cairo</item>
-        <item name="android:forceDarkAllowed">false</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@color/backgroundColor</item>
