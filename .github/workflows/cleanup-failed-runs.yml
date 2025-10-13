@@ -35,7 +35,7 @@ jobs:
               gh api --method DELETE repos/$REPO/actions/artifacts/$artifact_id >/dev/null
             done
 
-            gh run delete $run_id -R $REPO -y
+            gh api --method DELETE repos/$REPO/actions/runs/$run_id >/dev/null
           done
 
           echo "تم حذف كل الـ workflow runs الفاشلة وكل الـ artifacts الخاصة بها."
