@@ -15,6 +15,7 @@ jobs:
 
       - name: Delete failed workflow runs and artifacts
         env:
+          GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
           echo "Fetching all completed workflow runs..."
