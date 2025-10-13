@@ -1,6 +1,6 @@
 name: Kotlin Marina Android Build
 
-on:
+on: 
   push:
     paths:
       - 'kotlin-marina/**'
