@@ -38,6 +38,9 @@ interface RoomDao {
     @Query("SELECT * FROM rooms WHERE status = :status")
     suspend fun getByStatus(status: String): List<RoomEntity>
 
+    @Query("SELECT COUNT(*) FROM rooms WHERE room_number = :roomNumber")
+    suspend fun countByNumber(roomNumber: String): Int
+
     @Query("SELECT * FROM rooms")
     fun flowAll(): Flow<List<RoomEntity>>
 
