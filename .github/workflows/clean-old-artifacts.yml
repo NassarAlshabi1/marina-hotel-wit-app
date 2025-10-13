@@ -22,16 +22,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          echo "Fetching all completed workflow runs..."
-          runs=$(gh run list -R $REPO --limit 100 --json databaseId,status --jq '.[] | select(.status=="completed") | .databaseId')
+          echo "Fetching all artifacts..."
+          artifacts=$(gh api repos/$REPO/actions/artifacts --paginate --jq '.artifacts[].id')
 
-          for run_id in $runs; do
-            echo "Processing run ID: $run_id"
-            artifacts=$(gh run-artifact list $run_id -R $REPO --json id,name --jq '.[] | .id')
-            for artifact_id in $artifacts; do
-              echo "Deleting artifact ID: $artifact_id"
-              gh run-artifact delete $artifact_id -R $REPO -y
-            done
+          for artifact_id in $artifacts; do
+            echo "Deleting artifact ID: $artifact_id"
+            gh api --method DELETE repos/$REPO/actions/artifacts/$artifact_id >/dev/null
           done
 
           echo "تم حذف كل الـ artifacts القديمة."

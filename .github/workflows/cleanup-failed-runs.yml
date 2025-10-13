@@ -22,17 +22,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          echo "Fetching all completed workflow runs..."
+          echo "Fetching failed workflow runs..."
           runs=$(gh run list -R $REPO --limit 200 --json databaseId,status,conclusion,headBranch --jq '.[] | select(.conclusion=="failure") | .databaseId')
 
           for run_id in $runs; do
             branch=$(gh run view $run_id -R $REPO --json headBranch --jq '.headBranch')
             echo "Deleting failed run ID: $run_id from branch: $branch"
 
-            artifacts=$(gh run-artifact list $run_id -R $REPO --json id --jq '.[].id')
+            artifacts=$(gh api repos/$REPO/actions/runs/$run_id/artifacts --jq '.artifacts[].id')
             for artifact_id in $artifacts; do
               echo "Deleting artifact ID: $artifact_id"
-              gh run-artifact delete $artifact_id -R $REPO -y
+              gh api --method DELETE repos/$REPO/actions/artifacts/$artifact_id >/dev/null
             done
 
             gh run delete $run_id -R $REPO -y
