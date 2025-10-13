@@ -10,6 +10,7 @@ class RoomsRepository(private val roomDao: RoomDao) {
 
     suspend fun getAll(): List<RoomEntity> = roomDao.getAll()
     suspend fun getByStatus(status: String): List<RoomEntity> = roomDao.getByStatus(status)
+    suspend fun getRoom(roomNumber: String): RoomEntity? = roomDao.getByNumber(roomNumber)
 
     suspend fun saveRoom(entity: RoomEntity) {
         roomDao.insert(entity)
@@ -17,6 +18,10 @@ class RoomsRepository(private val roomDao: RoomDao) {
 
     suspend fun updateRoom(entity: RoomEntity) {
         roomDao.update(entity)
+    }
+
+    suspend fun deleteRoom(roomNumber: String) {
+        roomDao.deleteByNumber(roomNumber)
     }
 
     suspend fun exists(roomNumber: String): Boolean {

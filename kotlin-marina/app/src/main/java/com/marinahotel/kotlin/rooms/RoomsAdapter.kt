@@ -30,6 +30,7 @@ class RoomsAdapter(private val listener: RoomListener) : ListAdapter<RoomItem, R
             binding.roomNumber.text = item.number
             binding.roomStatus.text = item.status
             binding.roomType.text = item.type
+            binding.roomPrice.text = binding.root.context.getString(R.string.room_price_format, item.price)
             val color = when {
                 item.status.contains("شاغرة") -> R.color.primaryColor
                 item.status.contains("محجوزة") -> android.R.color.holo_red_dark

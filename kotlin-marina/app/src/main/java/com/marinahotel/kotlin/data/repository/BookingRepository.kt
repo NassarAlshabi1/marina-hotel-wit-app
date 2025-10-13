@@ -1,11 +1,15 @@
 package com.marinahotel.kotlin.data.repository
 
 import com.marinahotel.kotlin.data.db.BookingDao
+import com.marinahotel.kotlin.data.db.BookingFull
 import com.marinahotel.kotlin.data.db.BookingWithGuest
+import com.marinahotel.kotlin.data.db.BookingWithPayments
 import com.marinahotel.kotlin.data.db.GuestDao
 import com.marinahotel.kotlin.data.entities.BookingEntity
 import com.marinahotel.kotlin.data.entities.GuestEntity
+import com.marinahotel.kotlin.data.entities.PaymentEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class BookingRepository(
     private val bookingDao: BookingDao,
@@ -17,6 +21,13 @@ class BookingRepository(
     }
 
     fun flowAllBookingsWithGuests(): Flow<List<BookingWithGuest>> = bookingDao.flowAllWithGuest()
+
+    fun flowBookingsWithPayments(): Flow<List<BookingWithPayments>> = bookingDao.flowAllWithPayments()
+
+    fun flowBookingDetails(): Flow<List<BookingDetail>> =
+        bookingDao.flowAllFull().map { list -> list.map { it.toDetail() } }
+
+    suspend fun getBookingDetail(id: Int): BookingDetail? = bookingDao.getFullById(id)?.toDetail()
 
     fun flowAllGuests(): Flow<List<GuestEntity>> = guestDao.flowAll()
 
@@ -94,6 +105,14 @@ class BookingRepository(
             lastCalculation = booking.lastCalculation
         )
     }
+
+    private fun BookingFull.toDetail(): BookingDetail {
+        return BookingDetail(
+            booking = booking,
+            guest = guest,
+            payments = payments
+        )
+    }
 }
 
 data class BookingDraft(
@@ -119,4 +138,10 @@ data class BookingDraft(
     val actualCheckout: String?,
     val calculatedNights: Int,
     val lastCalculation: String
+)
+
+data class BookingDetail(
+    val booking: BookingEntity,
+    val guest: GuestEntity,
+    val payments: List<PaymentEntity>
 )
