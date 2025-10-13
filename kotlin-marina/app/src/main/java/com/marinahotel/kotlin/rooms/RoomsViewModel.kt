@@ -17,9 +17,11 @@ class RoomsViewModel(application: Application) : AndroidViewModel(application) {
     private val query = MutableStateFlow("")
 
     val rooms: StateFlow<List<RoomItem>> = repo.flowAllRooms()
-        .map { list -> list.map { RoomItem(number = it.roomNumber, status = it.status, type = it.type) } }
+        .map { list -> list.map { RoomItem(number = it.roomNumber, status = it.status, type = it.type, price = it.price) } }
         .combine(query) { list, q ->
-            if (q.isBlank()) list else list.filter { it.number.contains(q) || it.status.contains(q) }
+            if (q.isBlank()) list else list.filter {
+                it.number.contains(q) || it.status.contains(q) || it.type.contains(q)
+            }
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 

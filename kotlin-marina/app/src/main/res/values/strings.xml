@@ -42,4 +42,25 @@
     <string name="method_cash">نقدي</string>
     <string name="active_employees_format">%1$d موظف نشط</string>
     <string name="total_salaries_format">إجمالي الرواتب: %1$d ر.س</string>
+    <string name="title_add_room">إضافة غرفة</string>
+    <string name="label_room_number">رقم الغرفة</string>
+    <string name="label_room_type">نوع الغرفة</string>
+    <string name="label_room_price">السعر</string>
+    <string name="label_room_status">الحالة</string>
+    <string name="hint_room_price">مثال: 150.0</string>
+    <string name="error_required_room_number">يرجى إدخال رقم الغرفة</string>
+    <string name="error_required_room_type">يرجى اختيار نوع الغرفة</string>
+    <string name="error_required_room_status">يرجى اختيار حالة الغرفة</string>
+    <string name="error_invalid_room_price">يرجى إدخال سعر صالح</string>
+    <string name="error_room_exists">رقم الغرفة موجود مسبقاً</string>
+    <string name="message_room_saved">تمت إضافة الغرفة بنجاح</string>
+    <string name="error_unexpected">حدث خطأ غير متوقع</string>
+    <string name="action_add_room">إضافة</string>
+    <string name="action_edit_room">تعديل</string>
+    <string name="action_delete">حذف</string>
+    <string name="title_edit_room">تعديل الغرفة</string>
+    <string name="confirm_delete_room">سيتم حذف الغرفة %1$s نهائيًا. هل تريد المتابعة؟</string>
+    <string name="message_room_deleted">تم حذف الغرفة</string>
+    <string name="error_room_in_use">لا يمكن حذف الغرفة لوجود حجوزات مرتبطة بها</string>
+    <string name="room_price_format">%1$.2f ر.س</string>
 </resources>

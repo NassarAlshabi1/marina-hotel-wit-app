@@ -8,7 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.marinahotel.kotlin.data.entities.BookingEntity
+import com.marinahotel.kotlin.data.repository.BookingDraft
 import com.marinahotel.kotlin.databinding.ActivityBookingEditBinding
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -24,7 +24,7 @@ class BookingEditActivity : AppCompatActivity() {
     private lateinit var viewModel: BookingViewModel
     private var dateTarget = DateTarget.ARRIVAL
     private var currentBookingId: Int = 0
-    private var currentBooking: BookingEntity? = null
+    private var currentDraft: BookingDraft? = null
 
     private val locale = Locale("ar")
     private val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", locale)
@@ -44,15 +44,15 @@ class BookingEditActivity : AppCompatActivity() {
         setupDatePickers()
 
         val bookingIdExtra = intent.getStringExtra(EXTRA_BOOKING_ID)
-        bookingIdExtra?.toIntOrNull()?.let {
-            currentBookingId = it
-            viewModel.loadBooking(it)
+        bookingIdExtra?.let { extractBookingId(it) }?.let { id ->
+            currentBookingId = id
+            viewModel.loadBooking(id)
         }
 
         binding.saveButton.setOnClickListener {
-            val entity = buildBookingEntity() ?: return@setOnClickListener
+            val draft = buildBookingDraft() ?: return@setOnClickListener
             lifecycleScope.launch {
-                val savedId = viewModel.saveBooking(entity)
+                val savedId = viewModel.saveBooking(draft)
                 currentBookingId = savedId
                 Toast.makeText(this@BookingEditActivity, "تم حفظ الحجز", Toast.LENGTH_SHORT).show()
                 finish()
@@ -60,13 +60,17 @@ class BookingEditActivity : AppCompatActivity() {
         }
     }
 
+    private fun extractBookingId(value: String): Int? {
+        return value.toIntOrNull() ?: value.filter { it.isDigit() }.toIntOrNull()
+    }
+
     private fun observeBookingUpdates() {
         lifecycleScope.launch {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                viewModel.booking.collect { entity ->
-                    entity?.let {
+                viewModel.booking.collect { draft ->
+                    draft?.let {
                         currentBookingId = it.bookingId
-                        currentBooking = it
+                        currentDraft = it
                         populateForm(it)
                     }
                 }
@@ -74,19 +78,19 @@ class BookingEditActivity : AppCompatActivity() {
         }
     }
 
-    private fun populateForm(entity: BookingEntity) {
-        binding.guestNameInput.setText(entity.guestName)
-        binding.phoneInput.setText(entity.guestPhone)
-        binding.idTypeInput.setText(entity.guestIdType, false)
-        binding.idNumberInput.setText(entity.guestIdNumber)
-        binding.emailInput.setText(entity.guestEmail ?: "")
-        binding.addressInput.setText(entity.guestAddress ?: "")
-        binding.roomNumberInput.setText(entity.roomNumber)
-        binding.statusInput.setText(entity.status, false)
-        binding.arrivalInput.setText(entity.checkinDate)
-        binding.departureInput.setText(entity.checkoutDate ?: "")
-        binding.nightsInput.setText(entity.expectedNights.toString())
-        binding.notesInput.setText(entity.notes ?: "")
+    private fun populateForm(draft: BookingDraft) {
+        binding.guestNameInput.setText(draft.guestName)
+        binding.phoneInput.setText(draft.guestPhone)
+        binding.idTypeInput.setText(draft.guestIdType ?: "", false)
+        binding.idNumberInput.setText(draft.guestIdNumber ?: "")
+        binding.emailInput.setText(draft.guestEmail ?: "")
+        binding.addressInput.setText(draft.guestAddress ?: "")
+        binding.roomNumberInput.setText(draft.roomNumber)
+        binding.statusInput.setText(draft.status, false)
+        binding.arrivalInput.setText(draft.checkinDate)
+        binding.departureInput.setText(draft.checkoutDate ?: "")
+        binding.nightsInput.setText(draft.expectedNights.toString())
+        binding.notesInput.setText(draft.notes ?: "")
         updateNightCount()
     }
 
@@ -184,7 +188,7 @@ class BookingEditActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildBookingEntity(): BookingEntity? {
+    private fun buildBookingDraft(): BookingDraft? {
         var valid = true
 
         val guestName = binding.guestNameInput.text?.toString()?.trim().orEmpty()
@@ -244,19 +248,19 @@ class BookingEditActivity : AppCompatActivity() {
 
         val now = LocalDateTime.now()
         val timestamp = timestampFormatter.format(now)
-        val existing = currentBooking
+        val existing = currentDraft
         val createdAt = existing?.createdAt ?: timestamp
         val guestCreatedAt = existing?.guestCreatedAt ?: timestamp
         val checkoutDateString = departureDate?.format(dateFormatter)
         val status = binding.statusInput.text?.toString()?.trim().takeUnless { it.isNullOrBlank() } ?: "نشط"
         val idType = binding.idTypeInput.text?.toString()?.trim().takeUnless { it.isNullOrBlank() } ?: "هوية وطنية"
 
-        return BookingEntity(
+        return BookingDraft(
             bookingId = existing?.bookingId ?: currentBookingId,
             guestId = existing?.guestId,
             guestName = guestName,
             guestIdType = idType,
-            guestIdNumber = binding.idNumberInput.text?.toString()?.trim().orEmpty(),
+            guestIdNumber = binding.idNumberInput.text?.toString()?.trim().takeUnless { it.isNullOrBlank() },
             guestIdIssueDate = existing?.guestIdIssueDate,
             guestIdIssuePlace = existing?.guestIdIssuePlace,
             guestPhone = phone,

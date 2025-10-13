@@ -26,40 +26,25 @@ data class RoomEntity(
 )
 
 @Entity(
-    tableName = "bookings",
-    foreignKeys = [
-        ForeignKey(
-            entity = RoomEntity::class,
-            parentColumns = ["room_number"],
-            childColumns = ["room_number"],
-            onUpdate = ForeignKey.CASCADE
-        )
-    ],
+    tableName = "guests",
     indices = [
-        Index("status"),
-        Index("room_number"),
         Index("guest_name"),
-        Index("checkin_date"),
-        Index("guest_phone"),
-        Index("created_at")
+        Index("guest_phone")
     ]
 )
-data class BookingEntity(
+data class GuestEntity(
     @PrimaryKey(autoGenerate = true)
-    @ColumnInfo(name = "booking_id")
-    val bookingId: Int = 0,
-
     @ColumnInfo(name = "guest_id")
-    val guestId: Int?,
+    val guestId: Int = 0,
 
     @ColumnInfo(name = "guest_name")
     val guestName: String,
 
     @ColumnInfo(name = "guest_id_type")
-    val guestIdType: String,
+    val guestIdType: String?,
 
     @ColumnInfo(name = "guest_id_number")
-    val guestIdNumber: String,
+    val guestIdNumber: String?,
 
     @ColumnInfo(name = "guest_id_issue_date")
     val guestIdIssueDate: String?,
@@ -68,7 +53,7 @@ data class BookingEntity(
     val guestIdIssuePlace: String?,
 
     @ColumnInfo(name = "guest_phone")
-    val guestPhone: String,
+    val guestPhone: String?,
 
     @ColumnInfo(name = "guest_nationality")
     val guestNationality: String?,
@@ -79,8 +64,42 @@ data class BookingEntity(
     @ColumnInfo(name = "guest_address")
     val guestAddress: String?,
 
-    @ColumnInfo(name = "guest_created_at")
-    val guestCreatedAt: String,
+    @ColumnInfo(name = "created_at")
+    val createdAt: String
+)
+
+@Entity(
+    tableName = "bookings",
+    foreignKeys = [
+        ForeignKey(
+            entity = RoomEntity::class,
+            parentColumns = ["room_number"],
+            childColumns = ["room_number"],
+            onUpdate = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = GuestEntity::class,
+            parentColumns = ["guest_id"],
+            childColumns = ["guest_id"],
+            onUpdate = ForeignKey.CASCADE,
+            onDelete = ForeignKey.RESTRICT
+        )
+    ],
+    indices = [
+        Index("status"),
+        Index("room_number"),
+        Index("guest_id"),
+        Index("checkin_date"),
+        Index("created_at")
+    ]
+)
+data class BookingEntity(
+    @PrimaryKey(autoGenerate = true)
+    @ColumnInfo(name = "booking_id")
+    val bookingId: Int = 0,
+
+    @ColumnInfo(name = "guest_id")
+    val guestId: Int,
 
     @ColumnInfo(name = "room_number")
     val roomNumber: String,

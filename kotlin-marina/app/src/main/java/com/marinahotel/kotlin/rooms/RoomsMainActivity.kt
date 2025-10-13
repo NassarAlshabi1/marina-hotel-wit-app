@@ -1,5 +1,6 @@
 package com.marinahotel.kotlin.rooms
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -38,6 +39,10 @@ class RoomsMainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.action_add_room -> {
+                startActivity(Intent(this, RoomAddActivity::class.java))
+                true
+            }
             R.id.action_sync -> {
                 Toast.makeText(this, "جاري المزامنة", Toast.LENGTH_SHORT).show()
                 true

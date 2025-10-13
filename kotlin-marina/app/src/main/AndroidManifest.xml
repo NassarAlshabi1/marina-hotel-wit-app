@@ -31,6 +31,7 @@
         <activity android:name=".notes.NotesActivity" />
         <activity android:name=".reports.ReportsActivity" />
         <activity android:name=".rooms.RoomsMainActivity" />
+        <activity android:name=".rooms.RoomAddActivity" />
         <activity android:name=".settings.SettingsMainActivity" />
         <activity android:name=".settings.employees.SettingsEmployeesActivity" />
         <activity android:name=".settings.guests.SettingsGuestsActivity" />

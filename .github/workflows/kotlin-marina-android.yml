@@ -1,0 +1,170 @@
+name: Kotlin Marina Android Build
+
+on:
+  push:
+    paths:
+      - 'kotlin-marina/**'
+      - '.github/workflows/kotlin-marina-android.yml'
+  pull_request:
+    paths:
+      - 'kotlin-marina/**'
+      - '.github/workflows/kotlin-marina-android.yml'
+  workflow_dispatch:
+    inputs:
+      build-type:
+        description: 'Select the build variant to assemble'
+        required: false
+        default: debug
+        type: choice
+        options:
+          - debug
+          - release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+    defaults:
+      run:
+        shell: bash
+        working-directory: kotlin-marina
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Install Android SDK components
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'tools platform-tools platforms;android-34 build-tools;34.0.0'
+          accept-android-sdk-licenses: true
+
+      - name: Generate local.properties
+        run: |
+          cat <<EOF > local.properties
+          sdk.dir=${ANDROID_SDK_ROOT}
+          EOF
+
+      - name: Initialize Gradle build caching
+        uses: gradle/gradle-build-action@v3
+        with:
+          build-root-directory: kotlin-marina
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x gradlew
+
+      - name: Determine build variant
+        id: determine
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          requested=""
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            requested="$(python - <<'PY'
+import json
+import os
+with open(os.environ["GITHUB_EVENT_PATH"], "r", encoding="utf-8") as fh:
+    event = json.load(fh)
+print(event.get("inputs", {}).get("build-type", ""))
+PY
+)"
+          fi
+
+          requested="${requested,,}"
+          build_type=debug
+          signing=false
+
+          if [[ "$requested" == "release" ]]; then
+            if [[ -n "$KEYSTORE_BASE64" && -n "$KEYSTORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+              build_type=release
+              signing=true
+              echo "Release build requested with complete signing secrets. Proceeding with assembleRelease."
+            else
+              echo "Release build requested but signing secrets are incomplete. Falling back to debug build."
+            fi
+          else
+            echo "Debug build selected or defaulted."
+          fi
+
+          echo "build_type=$build_type" >> "$GITHUB_OUTPUT"
+          echo "signing_enabled=$signing" >> "$GITHUB_OUTPUT"
+
+      - name: Configure release signing
+        if: steps.determine.outputs.build_type == 'release'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > keystore.jks
+          cat <<EOF > signing.properties
+          storeFile=keystore.jks
+          storePassword=${KEYSTORE_PASSWORD}
+          keyAlias=${KEY_ALIAS}
+          keyPassword=${KEY_PASSWORD}
+          EOF
+          echo "Signing configuration created for release build."
+
+      - name: Run lint (debug)
+        run: ./gradlew lintDebug
+
+      - name: Run unit tests (debug)
+        run: ./gradlew testDebugUnitTest
+
+      - name: Assemble debug APK
+        if: steps.determine.outputs.build_type == 'debug'
+        run: |
+          echo "Building debug APK."
+          ./gradlew assembleDebug
+
+      - name: Assemble release APK
+        if: steps.determine.outputs.build_type == 'release'
+        run: |
+          echo "Building release APK."
+          ./gradlew assembleRelease
+
+      - name: Upload debug APK artifact
+        if: always() && steps.determine.outputs.build_type == 'debug'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.ref_name }}-debug-apk
+          path: kotlin-marina/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload release APK artifact
+        if: always() && steps.determine.outputs.build_type == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.ref_name }}-release-apk
+          path: kotlin-marina/app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload lint and test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.ref_name }}-reports
+          path: |
+            kotlin-marina/app/build/reports/lint-results-*.html
+            kotlin-marina/app/build/reports/lint-results-*.xml
+            kotlin-marina/app/build/reports/tests/testDebugUnitTest/**
+            kotlin-marina/app/build/test-results/testDebugUnitTest/**
+          if-no-files-found: warn
+          retention-days: 7
