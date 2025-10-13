@@ -1,21 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-
-    <style name="Theme.MarinaHotel" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/primaryColor</item>
-        <item name="colorOnPrimary">@color/onPrimaryColor</item>
-        <item name="colorSecondary">@color/secondaryColor</item>
-        <item name="colorOnSecondary">@color/textPrimary</item>
-        <item name="colorSurface">@color/surfaceColor</item>
-        <item name="colorOnSurface">@color/textPrimary</item>
-        <item name="colorOnBackground">@color/textPrimary</item>
-
-        <item name="android:colorBackground">@color/backgroundColor</item>
-        <item name="android:fontFamily">@font/cairo</item>
-        <item name="fontFamily">@font/cairo</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@color/backgroundColor</item>
-    </style>
-
+<style name="Theme.MarinaHotel" parent="Theme.Material3.DayNight.NoActionBar">
+<item name="colorPrimary">@color/primaryColor</item>
+<item name="colorOnPrimary">@color/onPrimaryColor</item>
+<item name="colorSecondary">@color/secondaryColor</item>
+<item name="colorOnSecondary">@color/textPrimary</item>
+<item name="colorSurface">@color/surfaceColor</item>
+<item name="colorOnSurface">@color/textPrimary</item>
+<item name="colorOnBackground">@color/textPrimary</item>
+<item name="android:colorBackground">@color/backgroundColor</item>
+<item name="android:fontFamily">@font/cairo</item>
+<item name="fontFamily">@font/cairo</item>
+<item name="android:forceDarkAllowed">false</item>
+<item name="android:windowLightStatusBar">true</item>
+<item name="android:statusBarColor">@android:color/transparent</item>
+<item name="android:navigationBarColor">@color/backgroundColor</item>
+</style>
 </resources>
