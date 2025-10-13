@@ -103,6 +103,7 @@ class BookingsListActivity : AppCompatActivity(), BookingsAdapter.BookingListene
 }
 
 data class BookingUi(
+    val bookingId: Int,
     val code: String,
     val guestName: String,
     val roomNumber: String,
