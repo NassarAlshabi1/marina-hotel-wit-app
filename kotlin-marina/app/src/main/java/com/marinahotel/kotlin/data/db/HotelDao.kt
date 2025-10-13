@@ -4,9 +4,11 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.marinahotel.kotlin.data.entities.BookingEntity
 import com.marinahotel.kotlin.data.entities.BookingNoteEntity
+import com.marinahotel.kotlin.data.entities.GuestEntity
 import com.marinahotel.kotlin.data.entities.CashRegisterEntity
 import com.marinahotel.kotlin.data.entities.CashTransactionEntity
 import com.marinahotel.kotlin.data.entities.EmployeeEntity
@@ -62,17 +64,40 @@ interface BookingDao {
     @Query("SELECT * FROM bookings WHERE booking_id = :id LIMIT 1")
     suspend fun getById(id: Int): BookingEntity?
 
+    @Transaction
+    @Query("SELECT * FROM bookings WHERE booking_id = :id LIMIT 1")
+    suspend fun getWithGuestById(id: Int): BookingWithGuest?
+
     @Query("SELECT * FROM bookings WHERE status = 'محجوزة'")
     suspend fun getActive(): List<BookingEntity>
 
+    @Transaction
     @Query("SELECT * FROM bookings ORDER BY created_at DESC")
-    fun flowAll(): Flow<List<BookingEntity>>
-
-    @Query("SELECT DISTINCT guest_name FROM bookings ORDER BY guest_name")
-    fun flowDistinctGuests(): Flow<List<String>>
+    fun flowAllWithGuest(): Flow<List<BookingWithGuest>>
 
     @Query("SELECT COUNT(*) FROM bookings WHERE status = :status")
     fun flowCountByStatus(status: String): Flow<Int>
+}
+
+@Dao
+interface GuestDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(guest: GuestEntity): Long
+
+    @Update
+    suspend fun update(guest: GuestEntity): Int
+
+    @Query("SELECT * FROM guests WHERE guest_id = :id LIMIT 1")
+    suspend fun getById(id: Int): GuestEntity?
+
+    @Query("SELECT * FROM guests ORDER BY guest_name")
+    suspend fun getAll(): List<GuestEntity>
+
+    @Query("SELECT * FROM guests ORDER BY guest_name")
+    fun flowAll(): Flow<List<GuestEntity>>
+
+    @Query("SELECT * FROM guests WHERE guest_phone = :phone LIMIT 1")
+    suspend fun findByPhone(phone: String): GuestEntity?
 }
 
 @Dao
@@ -227,3 +252,13 @@ interface FailedLoginDao {
     @Query("SELECT * FROM failed_logins WHERE username = :username ORDER BY attempt_time DESC LIMIT 5")
     suspend fun getRecentByUser(username: String): List<FailedLoginEntity>
 }
+
+data class BookingWithGuest(
+    @androidx.room.Embedded
+    val booking: BookingEntity,
+    @androidx.room.Relation(
+        parentColumn = "guest_id",
+        entityColumn = "guest_id"
+    )
+    val guest: GuestEntity
+)

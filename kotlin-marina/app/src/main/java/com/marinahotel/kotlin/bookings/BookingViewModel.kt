@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.marinahotel.kotlin.data.db.HotelDatabase
-import com.marinahotel.kotlin.data.entities.BookingEntity
+import com.marinahotel.kotlin.data.repository.BookingDraft
 import com.marinahotel.kotlin.data.repository.BookingRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,21 +14,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class BookingViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = BookingRepository(HotelDatabase.getInstance(application).bookingDao())
+    private val database = HotelDatabase.getInstance(application)
+    private val repository = BookingRepository(database.bookingDao(), database.guestDao())
 
-    private val _booking = MutableStateFlow<BookingEntity?>(null)
-    val booking: StateFlow<BookingEntity?> = _booking.asStateFlow()
+    private val _booking = MutableStateFlow<BookingDraft?>(null)
+    val booking: StateFlow<BookingDraft?> = _booking.asStateFlow()
 
     fun loadBooking(id: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            val entity = repository.getBookingById(id)
-            _booking.value = entity
+            val draft = repository.getBookingDraftById(id)
+            _booking.value = draft
         }
     }
 
-    suspend fun saveBooking(entity: BookingEntity): Int {
+    suspend fun saveBooking(draft: BookingDraft): Int {
         return withContext(Dispatchers.IO) {
-            repository.saveBooking(entity)
+            repository.saveBooking(draft)
         }
     }
 }

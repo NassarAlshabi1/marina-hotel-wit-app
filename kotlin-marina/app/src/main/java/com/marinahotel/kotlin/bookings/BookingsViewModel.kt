@@ -13,21 +13,23 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 class BookingsViewModel(application: Application) : AndroidViewModel(application) {
-    private val repo = BookingRepository(HotelDatabase.getInstance(application).bookingDao())
+    private val database = HotelDatabase.getInstance(application)
+    private val repo = BookingRepository(database.bookingDao(), database.guestDao())
 
     private val query = MutableStateFlow("")
     private val statusFilters = MutableStateFlow<Set<String>>(emptySet())
 
-    val bookings: StateFlow<List<BookingUi>> = repo.flowAllBookings()
+    val bookings: StateFlow<List<BookingUi>> = repo.flowAllBookingsWithGuests()
         .map { list ->
             list.map {
                 BookingUi(
-                    code = "BKG-${it.bookingId}",
-                    guestName = it.guestName,
-                    roomNumber = it.roomNumber,
-                    status = it.status,
-                    arrivalDate = it.checkinDate,
-                    departureDate = it.checkoutDate ?: ""
+                    bookingId = it.booking.bookingId,
+                    code = "BKG-${it.booking.bookingId}",
+                    guestName = it.guest.guestName,
+                    roomNumber = it.booking.roomNumber,
+                    status = it.booking.status,
+                    arrivalDate = it.booking.checkinDate,
+                    departureDate = it.booking.checkoutDate ?: ""
                 )
             }
         }
