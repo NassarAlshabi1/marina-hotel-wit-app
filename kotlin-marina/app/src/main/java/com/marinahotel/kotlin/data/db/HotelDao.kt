@@ -37,11 +37,17 @@ interface RoomDao {
     @Query("SELECT * FROM rooms")
     suspend fun getAll(): List<RoomEntity>
 
+    @Query("SELECT * FROM rooms WHERE room_number = :roomNumber LIMIT 1")
+    suspend fun getByNumber(roomNumber: String): RoomEntity?
+
     @Query("SELECT * FROM rooms WHERE status = :status")
     suspend fun getByStatus(status: String): List<RoomEntity>
 
     @Query("SELECT COUNT(*) FROM rooms WHERE room_number = :roomNumber")
     suspend fun countByNumber(roomNumber: String): Int
+
+    @Query("DELETE FROM rooms WHERE room_number = :roomNumber")
+    suspend fun deleteByNumber(roomNumber: String): Int
 
     @Query("SELECT * FROM rooms")
     fun flowAll(): Flow<List<RoomEntity>>
@@ -68,12 +74,28 @@ interface BookingDao {
     @Query("SELECT * FROM bookings WHERE booking_id = :id LIMIT 1")
     suspend fun getWithGuestById(id: Int): BookingWithGuest?
 
+    @Transaction
+    @Query("SELECT * FROM bookings WHERE booking_id = :id LIMIT 1")
+    suspend fun getWithPaymentsById(id: Int): BookingWithPayments?
+
+    @Transaction
+    @Query("SELECT * FROM bookings WHERE booking_id = :id LIMIT 1")
+    suspend fun getFullById(id: Int): BookingFull?
+
     @Query("SELECT * FROM bookings WHERE status = 'محجوزة'")
     suspend fun getActive(): List<BookingEntity>
 
     @Transaction
     @Query("SELECT * FROM bookings ORDER BY created_at DESC")
     fun flowAllWithGuest(): Flow<List<BookingWithGuest>>
+
+    @Transaction
+    @Query("SELECT * FROM bookings ORDER BY created_at DESC")
+    fun flowAllWithPayments(): Flow<List<BookingWithPayments>>
+
+    @Transaction
+    @Query("SELECT * FROM bookings ORDER BY created_at DESC")
+    fun flowAllFull(): Flow<List<BookingFull>>
 
     @Query("SELECT COUNT(*) FROM bookings WHERE status = :status")
     fun flowCountByStatus(status: String): Flow<Int>
@@ -261,4 +283,29 @@ data class BookingWithGuest(
         entityColumn = "guest_id"
     )
     val guest: GuestEntity
+)
+
+data class BookingWithPayments(
+    @androidx.room.Embedded
+    val booking: BookingEntity,
+    @androidx.room.Relation(
+        parentColumn = "booking_id",
+        entityColumn = "booking_id"
+    )
+    val payments: List<PaymentEntity>
+)
+
+data class BookingFull(
+    @androidx.room.Embedded
+    val booking: BookingEntity,
+    @androidx.room.Relation(
+        parentColumn = "guest_id",
+        entityColumn = "guest_id"
+    )
+    val guest: GuestEntity,
+    @androidx.room.Relation(
+        parentColumn = "booking_id",
+        entityColumn = "booking_id"
+    )
+    val payments: List<PaymentEntity>
 )

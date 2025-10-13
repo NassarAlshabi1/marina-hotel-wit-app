@@ -1,11 +1,13 @@
 package com.marinahotel.kotlin.rooms
 
+import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -54,7 +56,19 @@ class RoomsListFragment : Fragment(), RoomsAdapter.RoomListener {
     }
 
     override fun onRoomSelected(room: RoomItem) {
-        val dialog = RoomDetailsDialog.newInstance(room)
-        dialog.show(parentFragmentManager, "room_details")
+        AlertDialog.Builder(requireContext())
+            .setTitle("غرفة ${room.number}")
+            .setMessage(
+                "النوع: ${room.type}\n" +
+                    "السعر: ${getString(R.string.room_price_format, room.price)}\n" +
+                    "الحالة: ${room.status}"
+            )
+            .setPositiveButton(R.string.action_edit_room) { _, _ ->
+                startActivity(Intent(requireContext(), RoomAddActivity::class.java).apply {
+                    putExtra(RoomAddActivity.EXTRA_ROOM_NUMBER, room.number)
+                })
+            }
+            .setNegativeButton(R.string.action_cancel, null)
+            .show()
     }
 }

@@ -1,10 +1,13 @@
 package com.marinahotel.kotlin.rooms
 
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
@@ -12,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
 import com.marinahotel.kotlin.R
 import com.marinahotel.kotlin.databinding.ActivityRoomAddBinding
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class RoomAddActivity : AppCompatActivity() {
@@ -19,6 +23,7 @@ class RoomAddActivity : AppCompatActivity() {
     private lateinit var viewModel: RoomAddViewModel
     private lateinit var roomTypes: List<String>
     private lateinit var roomStatuses: List<String>
+    private var isEditMode: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,8 +50,58 @@ class RoomAddActivity : AppCompatActivity() {
             }
         }
 
+        observeState()
+
+        val editRoomNumber = intent.getStringExtra(EXTRA_ROOM_NUMBER)
+        if (editRoomNumber != null) {
+            binding.toolbar.title = getString(R.string.title_edit_room)
+            viewModel.loadRoom(editRoomNumber)
+            binding.roomNumberInput.isEnabled = false
+            binding.roomNumberLayout.isEnabled = false
+        } else {
+            binding.toolbar.title = getString(R.string.title_add_room)
+            if (savedInstanceState == null) {
+                roomTypes.firstOrNull()?.let { binding.roomTypeInput.setText(it, false) }
+                roomStatuses.firstOrNull()?.let { binding.statusInput.setText(it, false) }
+            }
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        if (isEditMode) {
+            menuInflater.inflate(R.menu.menu_room_form, menu)
+        }
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_delete -> {
+                confirmDeletion()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun observeState() {
         lifecycleScope.launch {
-            viewModel.state.collect { state ->
+            viewModel.room.collectLatest { entity ->
+                if (entity != null) {
+                    isEditMode = true
+                    invalidateOptionsMenu()
+                    binding.saveButton.text = getString(R.string.action_edit_room)
+                    binding.cancelButton.text = getString(R.string.action_cancel)
+                    binding.roomNumberInput.setText(entity.roomNumber)
+                    binding.roomTypeInput.setText(entity.type, false)
+                    binding.priceInput.setText(entity.price.toString())
+                    binding.statusInput.setText(entity.status, false)
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            viewModel.state.collectLatest { state ->
                 binding.progressIndicator.isVisible = state.isSaving
                 binding.saveButton.isEnabled = !state.isSaving
                 binding.cancelButton.isEnabled = !state.isSaving
@@ -60,6 +115,12 @@ class RoomAddActivity : AppCompatActivity() {
                     setResult(RESULT_OK)
                     finish()
                 }
+                if (state.deleted) {
+                    Toast.makeText(this@RoomAddActivity, getString(R.string.message_room_deleted), Toast.LENGTH_SHORT).show()
+                    viewModel.resetState()
+                    setResult(RESULT_OK)
+                    finish()
+                }
             }
         }
     }
@@ -69,11 +130,7 @@ class RoomAddActivity : AppCompatActivity() {
         view.setAdapter(adapter)
         view.keyListener = null
         view.setOnClickListener { view.showDropDown() }
-        view.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) {
-                view.showDropDown()
-            }
-        }
+        view.setOnFocusChangeListener { _, hasFocus -> if (hasFocus) view.showDropDown() }
     }
 
     private fun submitForm() {
@@ -112,10 +169,24 @@ class RoomAddActivity : AppCompatActivity() {
             binding.statusLayout.error = null
         }
 
-        if (!valid) {
+        if (!valid || price == null) {
             return
         }
 
-        viewModel.saveRoom(number, type, price!!, status)
+        viewModel.saveRoom(number, type, price, status)
+    }
+
+    private fun confirmDeletion() {
+        val roomNumber = viewModel.room.value?.roomNumber ?: return
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.action_delete))
+            .setMessage(getString(R.string.confirm_delete_room, roomNumber))
+            .setPositiveButton(R.string.action_delete) { _, _ -> viewModel.deleteCurrentRoom() }
+            .setNegativeButton(R.string.action_cancel, null)
+            .show()
+    }
+
+    companion object {
+        const val EXTRA_ROOM_NUMBER = "extra_room_number"
     }
 }

@@ -56,4 +56,11 @@
     <string name="message_room_saved">تمت إضافة الغرفة بنجاح</string>
     <string name="error_unexpected">حدث خطأ غير متوقع</string>
     <string name="action_add_room">إضافة</string>
+    <string name="action_edit_room">تعديل</string>
+    <string name="action_delete">حذف</string>
+    <string name="title_edit_room">تعديل الغرفة</string>
+    <string name="confirm_delete_room">سيتم حذف الغرفة %1$s نهائيًا. هل تريد المتابعة؟</string>
+    <string name="message_room_deleted">تم حذف الغرفة</string>
+    <string name="error_room_in_use">لا يمكن حذف الغرفة لوجود حجوزات مرتبطة بها</string>
+    <string name="room_price_format">%1$.2f ر.س</string>
 </resources>
