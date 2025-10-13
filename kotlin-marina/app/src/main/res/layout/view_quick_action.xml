@@ -22,7 +22,7 @@
             android:id="@+id/iconView"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:tint="@color/primaryColor" />
+            app:tint="@color/primaryColor" />
 
         <TextView
             android:id="@+id/titleView"
