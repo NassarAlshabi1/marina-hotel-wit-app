@@ -3,6 +3,9 @@ name: Cleanup Failed Runs
 on:
   workflow_dispatch:
 
+permissions:
+  actions: write
+
 jobs:
   cleanup_failed:
     runs-on: ubuntu-latest
