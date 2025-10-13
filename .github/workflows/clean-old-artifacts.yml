@@ -1,0 +1,38 @@
+name: Clean Old Artifacts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install GitHub CLI
+        run: sudo apt update && sudo apt install gh -y
+
+      - name: Authenticate GitHub CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo $GITHUB_TOKEN | gh auth login --with-token
+
+      - name: Delete old artifacts
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Fetching all completed workflow runs..."
+          runs=$(gh run list -R $REPO --limit 100 --json databaseId,status --jq '.[] | select(.status=="completed") | .databaseId')
+
+          for run_id in $runs; do
+            echo "Processing run ID: $run_id"
+            artifacts=$(gh run-artifact list $run_id -R $REPO --json id,name --jq '.[] | .id')
+            for artifact_id in $artifacts; do
+              echo "Deleting artifact ID: $artifact_id"
+              gh run-artifact delete $artifact_id -R $REPO -y
+            done
+          done
+
+          echo "تم حذف كل الـ artifacts القديمة."
