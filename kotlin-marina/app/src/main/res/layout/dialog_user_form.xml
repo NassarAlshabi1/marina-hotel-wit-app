@@ -39,7 +39,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:hint="الدور"
-        app:endIconMode="dropdown">
+        app:endIconMode="dropdown_menu">
 
         <AutoCompleteTextView
             android:id="@+id/roleInput"

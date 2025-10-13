@@ -57,7 +57,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:hint="نوع الهوية"
-                app:endIconMode="dropdown">
+                app:endIconMode="dropdown_menu">
 
                 <AutoCompleteTextView
                     android:id="@+id/idTypeInput"
@@ -131,7 +131,7 @@
                     android:layout_marginStart="12dp"
                     android:layout_weight="1"
                     android:hint="الحالة"
-                    app:endIconMode="dropdown">
+                    app:endIconMode="dropdown_menu">
 
                     <AutoCompleteTextView
                         android:id="@+id/statusInput"
@@ -209,7 +209,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/saveButton"
-                style="@style/Widget.MaterialComponents.Button.FilledButton"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"

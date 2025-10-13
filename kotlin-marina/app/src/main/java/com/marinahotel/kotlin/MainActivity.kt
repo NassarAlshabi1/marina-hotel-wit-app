@@ -3,6 +3,8 @@ package com.marinahotel.kotlin
 import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
+import android.content.pm.PackageManager
+import android.os.Build
 import android.view.View
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
@@ -64,10 +66,27 @@ class MainActivity : AppCompatActivity() {
         binding.actionReports.setOnClickListener {
             startActivity(Intent(this, ReportsActivity::class.java))
         }
+
+        val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.getPackageInfo(
+                packageName,
+                PackageManager.PackageInfoFlags.of(0)
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getPackageInfo(packageName, 0)
+        }
+        val versionName = packageInfo.versionName ?: "1.0"
+        val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            packageInfo.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.versionCode.toLong()
+        }
         binding.versionText.text = getString(
             R.string.version_format,
-            BuildConfig.VERSION_NAME,
-            BuildConfig.VERSION_CODE
+            versionName,
+            versionCode.toInt()
         )
     }
 

@@ -135,14 +135,14 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/historyButton"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="سجل المدفوعات" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/addPaymentButton"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="إضافة دفعة"
@@ -151,7 +151,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/completeButton"
-                    style="@style/Widget.MaterialComponents.Button.FilledButton"
+                    style="@style/Widget.Material3.Button"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="إكمال الحجز"

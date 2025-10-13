@@ -87,7 +87,7 @@ class BookingPaymentActivity : AppCompatActivity() {
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val amountText = dialogBinding.amountInput.text?.toString()?.trim().orEmpty()
-                val method = dialogBinding.methodInput.text?.toString()?.trim().ifBlank { getString(R.string.method_cash) }
+                val method = dialogBinding.methodInput.text?.toString()?.trim().orEmpty().ifBlank { getString(R.string.method_cash) }
                 val note = dialogBinding.noteInput.text?.toString()?.trim().orEmpty().ifBlank { null }
 
                 val amount = amountText.toIntOrNull()
