@@ -1,0 +1,41 @@
+name: Cleanup Failed Runs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup_failed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install GitHub CLI
+        run: sudo apt update && sudo apt install gh -y
+
+      - name: Authenticate GitHub CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo $GITHUB_TOKEN | gh auth login --with-token
+
+      - name: Delete failed workflow runs and artifacts
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Fetching all completed workflow runs..."
+          runs=$(gh run list -R $REPO --limit 200 --json databaseId,status,conclusion,headBranch --jq '.[] | select(.conclusion=="failure") | .databaseId')
+
+          for run_id in $runs; do
+            branch=$(gh run view $run_id -R $REPO --json headBranch --jq '.headBranch')
+            echo "Deleting failed run ID: $run_id from branch: $branch"
+
+            artifacts=$(gh run-artifact list $run_id -R $REPO --json id --jq '.[].id')
+            for artifact_id in $artifacts; do
+              echo "Deleting artifact ID: $artifact_id"
+              gh run-artifact delete $artifact_id -R $REPO -y
+            done
+
+            gh run delete $run_id -R $REPO -y
+          done
+
+          echo "تم حذف كل الـ workflow runs الفاشلة وكل الـ artifacts الخاصة بها."
