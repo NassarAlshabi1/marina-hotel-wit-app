@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="room_types_array">
+        <item>سرير عائلي</item>
+        <item>سرير فردي</item>
+    </string-array>
+    <string-array name="room_statuses_array">
+        <item>شاغرة</item>
+        <item>محجوزة</item>
+        <item>صيانة</item>
+    </string-array>
+</resources>
