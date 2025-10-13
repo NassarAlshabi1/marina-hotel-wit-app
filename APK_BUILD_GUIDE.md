@@ -35,50 +35,35 @@ powershell -File "setup_pwa.ps1"
 
 ---
 
-### 3. 🌍 البناء عبر GitHub Actions
+### 3. 🌍 البناء عبر GitHub Actions (تطبيق Kotlin Marina الأصلي)
 
-#### الملفات المطلوبة:
+#### الملف المعتمد
+- `.github/workflows/kotlin-marina-android.yml` يتابع كل التغييرات داخل `kotlin-marina/` ويشغّل بناء Android تلقائيًا.
+- يقوم بتشغيل فحوص `lintDebug` و`testDebugUnitTest` قبل إنشاء ملفات APK.
+
+#### أهم المدخلات
 ```yaml
-# .github/workflows/build.yml
-name: Build Marina Hotel APK
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up JDK 11
-      uses: actions/setup-java@v3
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-        
-    - name: Grant execute permission for gradlew
-      run: chmod +x android_app/gradlew
-      
-    - name: Build Debug APK
-      working-directory: ./android_app
-      run: ./gradlew assembleDebug
-      
-    - name: Upload APK
-      uses: actions/upload-artifact@v3
-      with:
-        name: marina-hotel-apk
-        path: android_app/app/build/outputs/apk/debug/app-debug.apk
+workflow_dispatch:
+  inputs:
+    build-type:
+      description: Select the build variant to assemble
+      default: debug
+      options:
+        - debug
+        - release
 ```
 
-#### الخطوات:
-1. أنشئ repository في GitHub
-2. ارفع مجلد `android_app`
-3. أضف ملف workflow أعلاه
-4. ادفع التغييرات
-5. انتظر البناء (10-15 دقيقة)
-6. حمل APK من تبويب Actions
+#### كيفية الاستخدام
+1. ادفع أي تعديل داخل `kotlin-marina/` أو على ملف الـworkflow للحصول على بناء Debug تلقائي، وسيتم رفع الـAPK وتقارير الجودة في تبويب **Actions**.
+2. للبناء اليدوي من التبويب **Actions → Kotlin Marina Android Build → Run workflow**:
+   - اختر `release` من قائمة **Build type** إذا رغبت في نسخة موقعة.
+   - أضف القيم إلى أسرار المستودع (Settings → Secrets → Actions) بالأسماء: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`.
+   - عند توفر كل الأسرار يتم إنشاء `keystore.jks` و`signing.properties` تلقائيًا وتشغيل `assembleRelease` لتوليد ملف APK موقّع.
+3. إذا كانت الأسرار ناقصة فسيظهر تنبيه في السجل ويعود البناء إلى نسخة Debug بشكل تلقائي.
+
+#### المخرجات
+- ملف APK باسم يحتوي على اسم الفرع ونوع البناء (`debug` أو `release`) مع حفظ لمدة 7 أيام.
+- تقارير lint واختبارات `testDebugUnitTest` مرفوعة كـArtifact مستقل لسهولة التحليل.
 
 ---
 
