@@ -19,7 +19,7 @@
             android:id="@+id/iconView"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            app:tint="@color/primaryColor" />
+            app:tint="@color/color_primary" />
 
         <TextView
             android:id="@+id/valueView"
@@ -27,7 +27,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="0"
-            android:textColor="@color/primaryColor"
+            android:textColor="@color/color_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
 
@@ -37,7 +37,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="العنوان"
-            android:textColor="@color/textSecondary"
+            android:textColor="@color/color_text_secondary"
             android:textSize="14sp" />
     </LinearLayout>
 </androidx.cardview.widget.CardView>

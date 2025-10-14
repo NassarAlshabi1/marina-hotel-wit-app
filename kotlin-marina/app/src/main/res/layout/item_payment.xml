@@ -26,7 +26,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="حجز 101"
-                android:textColor="@color/textPrimary"
+                android:textColor="@color/color_text_primary"
                 android:textStyle="bold" />
 
             <TextView
@@ -35,7 +35,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="بطاقة ائتمان"
-                android:textColor="@color/textSecondary" />
+                android:textColor="@color/color_text_secondary" />
         </LinearLayout>
 
         <TextView
@@ -43,7 +43,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="1500 ر.س"
-            android:textColor="@color/primaryColor"
+            android:textColor="@color/color_primary"
             android:textStyle="bold" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

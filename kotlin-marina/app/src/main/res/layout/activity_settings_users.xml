@@ -40,7 +40,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="المستخدم الحالي"
-                        android:textColor="@color/textPrimary"
+                        android:textColor="@color/color_text_primary"
                         android:textStyle="bold" />
 
                     <TextView
@@ -49,7 +49,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="admin@marina.com"
-                        android:textColor="@color/textSecondary" />
+                        android:textColor="@color/color_text_secondary" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/changePasswordButton"
@@ -79,7 +79,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="خيارات الأمان"
-                        android:textColor="@color/textPrimary"
+                        android:textColor="@color/color_text_primary"
                         android:textStyle="bold" />
 
                     <LinearLayout

@@ -41,7 +41,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="BKG-1001"
-                        android:textColor="@color/textPrimary"
+                        android:textColor="@color/color_text_primary"
                         android:textStyle="bold" />
 
                     <TextView
@@ -50,7 +50,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="أحمد علي"
-                        android:textColor="@color/textSecondary" />
+                        android:textColor="@color/color_text_secondary" />
 
                     <TextView
                         android:id="@+id/roomInfo"
@@ -58,7 +58,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="غرفة 101"
-                        android:textColor="@color/textSecondary" />
+                        android:textColor="@color/color_text_secondary" />
 
                     <com.google.android.material.progressindicator.LinearProgressIndicator
                         android:id="@+id/progressIndicator"
@@ -66,7 +66,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        app:indicatorColor="@color/primaryColor" />
+                        app:indicatorColor="@color/color_primary" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -80,7 +80,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="مدفوع: 2000"
-                            android:textColor="@color/textSecondary" />
+                            android:textColor="@color/color_text_secondary" />
 
                         <TextView
                             android:id="@+id/remainingAmount"
@@ -89,7 +89,7 @@
                             android:layout_weight="1"
                             android:gravity="end"
                             android:text="متبقي: 500"
-                            android:textColor="@color/secondaryColor"
+                            android:textColor="@color/color_secondary"
                             android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
@@ -100,7 +100,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="طرق الدفع"
-                android:textColor="@color/textPrimary"
+                android:textColor="@color/color_text_primary"
                 android:textStyle="bold" />
 
             <GridLayout
@@ -116,7 +116,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="المعاملات الأخيرة"
-                android:textColor="@color/textPrimary"
+                android:textColor="@color/color_text_primary"
                 android:textStyle="bold" />
 
             <androidx.recyclerview.widget.RecyclerView

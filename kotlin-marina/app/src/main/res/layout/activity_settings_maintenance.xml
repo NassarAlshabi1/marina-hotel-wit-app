@@ -42,7 +42,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="إعادة ضبط المزامنة"
-                        android:textColor="@color/textPrimary"
+                        android:textColor="@color/color_text_primary"
                         android:textStyle="bold" />
 
                     <TextView
@@ -50,7 +50,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="تحديث البيانات المحلية"
-                        android:textColor="@color/textSecondary" />
+                        android:textColor="@color/color_text_secondary" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -73,7 +73,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="تفريغ الذاكرة المؤقتة"
-                        android:textColor="@color/textPrimary"
+                        android:textColor="@color/color_text_primary"
                         android:textStyle="bold" />
 
                     <TextView
@@ -81,7 +81,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="حذف الملفات المؤقتة"
-                        android:textColor="@color/textSecondary" />
+                        android:textColor="@color/color_text_secondary" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -103,7 +103,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="تصدير نسخة احتياطية"
-                        android:textColor="@color/textPrimary"
+                        android:textColor="@color/color_text_primary"
                         android:textStyle="bold" />
 
                     <TextView
@@ -111,7 +111,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="حفظ البيانات كملف"
-                        android:textColor="@color/textSecondary" />
+                        android:textColor="@color/color_text_secondary" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>

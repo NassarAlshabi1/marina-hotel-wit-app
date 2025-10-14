@@ -19,7 +19,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="غرفة 101"
-            android:textColor="@color/textPrimary"
+            android:textColor="@color/color_text_primary"
             android:textStyle="bold" />
 
         <TextView
@@ -28,7 +28,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="أحمد علي"
-            android:textColor="@color/textSecondary" />
+            android:textColor="@color/color_text_secondary" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -42,7 +42,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="مدفوع: 2000"
-                android:textColor="@color/textSecondary" />
+                android:textColor="@color/color_text_secondary" />
 
             <TextView
                 android:id="@+id/pendingAmount"
@@ -51,7 +51,7 @@
                 android:layout_weight="1"
                 android:gravity="end"
                 android:text="متبقي: 500"
-                android:textColor="@color/secondaryColor"
+                android:textColor="@color/color_secondary"
                 android:textStyle="bold" />
         </LinearLayout>
 
