@@ -6,7 +6,7 @@
     android:layout_marginBottom="12dp"
     app:cardCornerRadius="12dp"
     app:cardElevation="3dp"
-    app:strokeColor="@color/primaryColor"
+    app:strokeColor="@color/color_primary"
     app:strokeWidth="0.5dp">
 
     <LinearLayout
@@ -21,7 +21,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="101"
-            android:textColor="@color/primaryColor"
+            android:textColor="@color/color_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
 
@@ -31,7 +31,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="شاغرة"
-            android:textColor="@color/textSecondary" />
+            android:textColor="@color/color_text_secondary" />
 
         <TextView
             android:id="@+id/roomType"
@@ -39,7 +39,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="مزدوجة"
-            android:textColor="@color/textSecondary" />
+            android:textColor="@color/color_text_secondary" />
 
         <TextView
             android:id="@+id/roomPrice"
@@ -47,7 +47,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="150.00 ر.س"
-            android:textColor="@color/textSecondary"
+            android:textColor="@color/color_text_secondary"
             android:textStyle="bold" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

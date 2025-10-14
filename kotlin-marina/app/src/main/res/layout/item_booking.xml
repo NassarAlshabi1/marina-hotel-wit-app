@@ -6,7 +6,7 @@
     android:layout_marginBottom="12dp"
     app:cardCornerRadius="16dp"
     app:cardElevation="4dp"
-    app:strokeColor="@color/primaryColor"
+    app:strokeColor="@color/color_primary"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -21,7 +21,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="اسم النزيل"
-            android:textColor="@color/textPrimary"
+            android:textColor="@color/color_text_primary"
             android:textSize="18sp"
             android:textStyle="bold" />
 
@@ -30,7 +30,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="رمز الحجز"
-            android:textColor="@color/textSecondary"
+            android:textColor="@color/color_text_secondary"
             android:layout_marginTop="4dp" />
 
         <LinearLayout
@@ -46,7 +46,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="غرفة 101"
-                android:textColor="@color/textPrimary" />
+                android:textColor="@color/color_text_primary" />
 
             <TextView
                 android:id="@+id/statusChip"
@@ -58,7 +58,7 @@
                 android:paddingRight="12dp"
                 android:paddingBottom="4dp"
                 android:text="نشط"
-                android:textColor="@color/primaryColor" />
+                android:textColor="@color/color_primary" />
         </LinearLayout>
 
         <TextView
@@ -67,7 +67,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="10 يناير - 12 يناير"
-            android:textColor="@color/textSecondary" />
+            android:textColor="@color/color_text_secondary" />
 
         <LinearLayout
             android:layout_width="match_parent"

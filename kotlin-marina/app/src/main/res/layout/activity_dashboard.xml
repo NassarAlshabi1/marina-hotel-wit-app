@@ -35,7 +35,7 @@
                     android:layout_weight="1"
                     android:text="لوحة التحكم - نظام إدارة الفندق"
                     android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6"
-                    android:textColor="@color/textPrimary" />
+                    android:textColor="@color/color_text_primary" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/syncButton"
@@ -74,7 +74,7 @@
                         android:layout_height="wrap_content"
                         android:text="النشاط الحديث"
                         android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
-                        android:textColor="@color/textPrimary" />
+                        android:textColor="@color/color_text_primary" />
 
                     <LinearLayout
                         android:id="@+id/recentActivityContainer"
@@ -104,7 +104,7 @@
                         android:layout_height="wrap_content"
                         android:text="إجراءات سريعة"
                         android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
-                        android:textColor="@color/textPrimary" />
+                        android:textColor="@color/color_text_primary" />
 
                     <GridLayout
                         android:id="@+id/quickActionsGrid"

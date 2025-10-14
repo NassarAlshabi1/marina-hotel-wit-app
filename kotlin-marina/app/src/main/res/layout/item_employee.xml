@@ -6,7 +6,7 @@
     android:layout_marginBottom="12dp"
     app:cardCornerRadius="12dp"
     app:cardElevation="4dp"
-    app:strokeColor="@color/primaryColor"
+    app:strokeColor="@color/color_primary"
     app:strokeWidth="0.5dp">
 
     <LinearLayout
@@ -26,7 +26,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@android:drawable/ic_menu_camera"
-                app:tint="@color/primaryColor" />
+                app:tint="@color/color_primary" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -40,7 +40,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="اسم الموظف"
-                    android:textColor="@color/textPrimary"
+                    android:textColor="@color/color_text_primary"
                     android:textStyle="bold" />
 
                 <TextView
@@ -48,7 +48,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="المسمى"
-                    android:textColor="@color/textSecondary" />
+                    android:textColor="@color/color_text_secondary" />
             </LinearLayout>
 
             <TextView
@@ -61,7 +61,7 @@
                 android:paddingRight="12dp"
                 android:paddingBottom="4dp"
                 android:text="نشط"
-                android:textColor="@color/primaryColor" />
+                android:textColor="@color/color_primary" />
         </LinearLayout>
 
         <TextView
@@ -70,7 +70,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="0500000000"
-            android:textColor="@color/textSecondary" />
+            android:textColor="@color/color_text_secondary" />
 
         <LinearLayout
             android:layout_width="match_parent"

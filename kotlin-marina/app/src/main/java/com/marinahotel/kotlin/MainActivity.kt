@@ -1,100 +1,90 @@
 package com.marinahotel.kotlin
 
-import android.content.Intent
-import android.os.Bundle
-import android.view.Gravity
-import android.content.pm.PackageManager
 import android.os.Build
-import android.view.View
-import androidx.appcompat.app.ActionBarDrawerToggle
+import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
-import com.marinahotel.kotlin.bookings.BookingsListActivity
-import com.marinahotel.kotlin.dashboard.DashboardActivity
+import androidx.core.view.isVisible
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.navigation.NavController
+import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.NavigationUI
+import androidx.navigation.ui.setupActionBarWithNavController
 import com.marinahotel.kotlin.databinding.ActivityMainBinding
-import com.marinahotel.kotlin.employees.EmployeesListActivity
-import com.marinahotel.kotlin.expenses.ExpensesListActivity
-import com.marinahotel.kotlin.notes.NotesActivity
-import com.marinahotel.kotlin.payments.PaymentsMainActivity
-import com.marinahotel.kotlin.reports.ReportsActivity
-import com.marinahotel.kotlin.rooms.RoomsMainActivity
-import com.marinahotel.kotlin.settings.SettingsMainActivity
 
 class MainActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityMainBinding
+    private lateinit var navController: NavController
+    private lateinit var appBarConfiguration: AppBarConfiguration
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
-        val toggle = ActionBarDrawerToggle(
-            this,
-            binding.drawerLayout,
-            binding.toolbar,
-            R.string.navigation_drawer_open,
-            R.string.navigation_drawer_close
+
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.navHostFragment) as NavHostFragment
+        navController = navHostFragment.navController
+
+        appBarConfiguration = AppBarConfiguration(
+            setOf(
+                R.id.loginFragment,
+                R.id.dashboardFragment,
+                R.id.bookingListFragment,
+                R.id.reportsFragment
+            ),
+            binding.drawerLayout
         )
-        binding.drawerLayout.addDrawerListener(toggle)
-        toggle.syncState()
-        binding.drawerLayout.layoutDirection = View.LAYOUT_DIRECTION_RTL
-        binding.navigationView.layoutDirection = View.LAYOUT_DIRECTION_RTL
-        binding.navigationView.setNavigationItemSelectedListener { item ->
-            binding.drawerLayout.closeDrawers()
-            when (item.itemId) {
-                R.id.nav_dashboard -> startActivity(Intent(this, DashboardActivity::class.java))
-                R.id.nav_bookings -> startActivity(Intent(this, BookingsListActivity::class.java))
-                R.id.nav_rooms -> startActivity(Intent(this, RoomsMainActivity::class.java))
-                R.id.nav_payments -> startActivity(Intent(this, PaymentsMainActivity::class.java))
-                R.id.nav_reports -> startActivity(Intent(this, ReportsActivity::class.java))
-                R.id.nav_employees -> startActivity(Intent(this, EmployeesListActivity::class.java))
-                R.id.nav_expenses -> startActivity(Intent(this, ExpensesListActivity::class.java))
-                R.id.nav_notes -> startActivity(Intent(this, NotesActivity::class.java))
-                R.id.nav_settings -> startActivity(Intent(this, SettingsMainActivity::class.java))
+
+        setupActionBarWithNavController(navController, appBarConfiguration)
+        binding.navigationView.setupWithNavController(navController)
+
+        binding.navigationView.setNavigationItemSelectedListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_logout -> {
+                    navController.navigate(
+                        R.id.loginFragment,
+                        null,
+                        androidx.navigation.NavOptions.Builder()
+                            .setPopUpTo(R.id.nav_graph, true)
+                            .build()
+                    )
+                    binding.drawerLayout.closeDrawer(GravityCompat.START)
+                    true
+                }
+                else -> {
+                    val handled = NavigationUI.onNavDestinationSelected(menuItem, navController)
+                    if (handled) {
+                        binding.drawerLayout.closeDrawer(GravityCompat.START)
+                    }
+                    handled
+                }
             }
-            true
-        }
-        binding.actionBookings.setOnClickListener {
-            startActivity(Intent(this, BookingsListActivity::class.java))
-        }
-        binding.actionRooms.setOnClickListener {
-            startActivity(Intent(this, RoomsMainActivity::class.java))
-        }
-        binding.actionPayments.setOnClickListener {
-            startActivity(Intent(this, PaymentsMainActivity::class.java))
-        }
-        binding.actionReports.setOnClickListener {
-            startActivity(Intent(this, ReportsActivity::class.java))
         }
 
-        val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.getPackageInfo(
-                packageName,
-                PackageManager.PackageInfoFlags.of(0)
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            val isLogin = destination.id == R.id.loginFragment
+            binding.drawerLayout.setDrawerLockMode(
+                if (isLogin) DrawerLayout.LOCK_MODE_LOCKED_CLOSED else DrawerLayout.LOCK_MODE_UNLOCKED
             )
+            binding.toolbar.isVisible = !isLogin
+        }
+
+        val headerView = binding.navigationView.getHeaderView(0)
+        val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.getPackageInfo(packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
         } else {
             @Suppress("DEPRECATION")
             packageManager.getPackageInfo(packageName, 0)
         }
         val versionName = packageInfo.versionName ?: "1.0"
-        val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            packageInfo.longVersionCode
-        } else {
-            @Suppress("DEPRECATION")
-            packageInfo.versionCode.toLong()
-        }
-        binding.versionText.text = getString(
-            R.string.version_format,
-            versionName,
-            versionCode.toInt()
-        )
+        headerView.findViewById<android.widget.TextView>(R.id.headerSubtitle).text =
+            getString(R.string.version_format_simple, versionName)
     }
 
-    override fun onBackPressed() {
-        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START) || binding.drawerLayout.isDrawerOpen(Gravity.RIGHT)) {
-            binding.drawerLayout.closeDrawers()
-        } else {
-            super.onBackPressed()
-        }
+    override fun onSupportNavigateUp(): Boolean {
+        return NavigationUI.navigateUp(navController, appBarConfiguration) || super.onSupportNavigateUp()
     }
 }

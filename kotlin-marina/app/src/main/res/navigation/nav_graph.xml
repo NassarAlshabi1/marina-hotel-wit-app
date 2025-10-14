@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/loginFragment">
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.marinahotel.kotlin.presentation.login.LoginFragment"
+        android:label="@string/menu_login">
+        <action
+            android:id="@+id/action_loginFragment_to_dashboardFragment"
+            app:destination="@id/dashboardFragment"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/dashboardFragment"
+        android:name="com.marinahotel.kotlin.presentation.dashboard.DashboardFragment"
+        android:label="@string/menu_dashboard">
+        <action
+            android:id="@+id/action_dashboardFragment_to_bookingFormFragment"
+            app:destination="@id/bookingFormFragment" />
+        <action
+            android:id="@+id/action_dashboardFragment_to_bookingDetailsFragment"
+            app:destination="@id/bookingDetailsFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/bookingListFragment"
+        android:name="com.marinahotel.kotlin.presentation.booking.BookingListFragment"
+        android:label="@string/menu_bookings">
+        <action
+            android:id="@+id/action_bookingListFragment_to_bookingFormFragment"
+            app:destination="@id/bookingFormFragment" />
+        <action
+            android:id="@+id/action_bookingListFragment_to_bookingDetailsFragment"
+            app:destination="@id/bookingDetailsFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/bookingFormFragment"
+        android:name="com.marinahotel.kotlin.presentation.booking.BookingFormFragment"
+        android:label="@string/title_booking_form"
+        app:launchSingleTop="true">
+        <argument
+            android:name="roomNumber"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="bookingId"
+            app:argType="integer"
+            android:defaultValue="0" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/bookingDetailsFragment"
+        android:name="com.marinahotel.kotlin.presentation.booking.BookingDetailsFragment"
+        android:label="@string/title_booking_details">
+        <argument
+            android:name="bookingId"
+            app:argType="integer"
+            android:defaultValue="0" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/reportsFragment"
+        android:name="com.marinahotel.kotlin.presentation.reports.ReportsFragment"
+        android:label="@string/menu_reports" />
+</navigation>
