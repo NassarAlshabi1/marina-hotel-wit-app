@@ -1,7 +1,6 @@
 package com.marinahotel.kotlin.data.db
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -9,166 +8,277 @@ import androidx.room.Transaction
 import androidx.room.Update
 import com.marinahotel.kotlin.data.entities.BookingEntity
 import com.marinahotel.kotlin.data.entities.BookingNoteEntity
+import com.marinahotel.kotlin.data.entities.CashRegisterEntity
+import com.marinahotel.kotlin.data.entities.CashTransactionEntity
+import com.marinahotel.kotlin.data.entities.EmployeeEntity
 import com.marinahotel.kotlin.data.entities.ExpenseEntity
+import com.marinahotel.kotlin.data.entities.ExpenseLogEntity
+import com.marinahotel.kotlin.data.entities.FailedLoginEntity
 import com.marinahotel.kotlin.data.entities.GuestEntity
+import com.marinahotel.kotlin.data.entities.InvoiceEntity
 import com.marinahotel.kotlin.data.entities.PaymentEntity
+import com.marinahotel.kotlin.data.entities.PermissionEntity
 import com.marinahotel.kotlin.data.entities.RoomEntity
+import com.marinahotel.kotlin.data.entities.SalaryWithdrawalEntity
+import com.marinahotel.kotlin.data.entities.SupplierEntity
+import com.marinahotel.kotlin.data.entities.UserActivityLogEntity
+import com.marinahotel.kotlin.data.entities.UserEntity
+import com.marinahotel.kotlin.data.entities.UserPermissionEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface GuestDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insert(guest: GuestEntity): Long
-
-    @Update
-    suspend fun update(guest: GuestEntity): Int
-
-    @Delete
-    suspend fun delete(guest: GuestEntity): Int
-
-    @Query("SELECT * FROM guests WHERE guest_id = :guestId LIMIT 1")
-    suspend fun getGuestById(guestId: Int): GuestEntity?
-
-    @Query("SELECT * FROM guests WHERE guest_phone = :phone LIMIT 1")
-    suspend fun findGuestByPhone(phone: String): GuestEntity?
-
-    @Query("SELECT * FROM guests ORDER BY guest_name")
-    fun observeGuests(): Flow<List<GuestEntity>>
-}
-
-@Dao
 interface RoomDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(room: RoomEntity)
 
     @Update
-    suspend fun update(room: RoomEntity): Int
+    suspend fun update(room: RoomEntity)
 
-    @Delete
-    suspend fun delete(room: RoomEntity): Int
+    @Query("SELECT * FROM rooms")
+    suspend fun getAll(): List<RoomEntity>
 
     @Query("SELECT * FROM rooms WHERE room_number = :roomNumber LIMIT 1")
-    suspend fun getRoom(roomNumber: String): RoomEntity?
+    suspend fun getByNumber(roomNumber: String): RoomEntity?
 
-    @Query("SELECT * FROM rooms ORDER BY room_number")
-    fun observeRooms(): Flow<List<RoomEntity>>
+    @Query("SELECT * FROM rooms WHERE status = :status")
+    suspend fun getByStatus(status: String): List<RoomEntity>
 
-    @Query("SELECT * FROM rooms WHERE status = :status ORDER BY room_number")
-    fun observeRoomsByStatus(status: String): Flow<List<RoomEntity>>
+    @Query("SELECT COUNT(*) FROM rooms WHERE room_number = :roomNumber")
+    suspend fun countByNumber(roomNumber: String): Int
 
-    @Query("SELECT * FROM rooms WHERE status = 'شاغرة' ORDER BY room_number")
-    fun observeAvailableRooms(): Flow<List<RoomEntity>>
+    @Query("DELETE FROM rooms WHERE room_number = :roomNumber")
+    suspend fun deleteByNumber(roomNumber: String): Int
 
     @Query("UPDATE rooms SET status = :status WHERE room_number = :roomNumber")
-    suspend fun updateRoomStatus(roomNumber: String, status: String): Int
+    suspend fun updateStatus(roomNumber: String, status: String): Int
+
+    @Query("SELECT * FROM rooms")
+    fun flowAll(): Flow<List<RoomEntity>>
+
+    @Query("SELECT * FROM rooms WHERE status = :status")
+    fun flowByStatus(status: String): Flow<List<RoomEntity>>
 }
 
 @Dao
 interface BookingDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(booking: BookingEntity): Long
 
     @Update
     suspend fun update(booking: BookingEntity): Int
 
-    @Delete
-    suspend fun delete(booking: BookingEntity): Int
+    @Query("SELECT * FROM bookings")
+    suspend fun getAll(): List<BookingEntity>
 
-    @Query("SELECT * FROM bookings WHERE booking_id = :bookingId LIMIT 1")
-    suspend fun getBookingById(bookingId: Int): BookingEntity?
-
-    @Transaction
-    @Query("SELECT * FROM bookings WHERE booking_id = :bookingId LIMIT 1")
-    fun observeBookingWithGuest(bookingId: Int): Flow<BookingWithGuest?>
+    @Query("SELECT * FROM bookings WHERE booking_id = :id LIMIT 1")
+    suspend fun getById(id: Int): BookingEntity?
 
     @Transaction
-    @Query("SELECT * FROM bookings WHERE booking_id = :bookingId LIMIT 1")
-    fun observeBookingWithPayments(bookingId: Int): Flow<BookingWithPayments?>
+    @Query("SELECT * FROM bookings WHERE booking_id = :id LIMIT 1")
+    suspend fun getWithGuestById(id: Int): BookingWithGuest?
 
     @Transaction
-    @Query("SELECT * FROM bookings ORDER BY checkin_date DESC")
-    fun observeBookingsWithGuest(): Flow<List<BookingWithGuest>>
+    @Query("SELECT * FROM bookings WHERE booking_id = :id LIMIT 1")
+    suspend fun getWithPaymentsById(id: Int): BookingWithPayments?
 
     @Transaction
-    @Query("SELECT * FROM bookings ORDER BY checkin_date DESC")
-    fun observeBookingsWithDetails(): Flow<List<BookingDetails>>
+    @Query("SELECT * FROM bookings WHERE booking_id = :id LIMIT 1")
+    suspend fun getFullById(id: Int): BookingFull?
+
+    @Query("SELECT * FROM bookings WHERE status = 'محجوزة'")
+    suspend fun getActive(): List<BookingEntity>
+
+    @Query("SELECT * FROM bookings WHERE status = :status")
+    suspend fun getByStatus(status: String): List<BookingEntity>
 
     @Transaction
-    @Query("SELECT * FROM bookings WHERE booking_id = :bookingId LIMIT 1")
-    fun observeBookingDetails(bookingId: Int): Flow<BookingDetails?>
+    @Query("SELECT * FROM bookings ORDER BY created_at DESC")
+    fun flowAllWithGuest(): Flow<List<BookingWithGuest>>
+
+    @Transaction
+    @Query("SELECT * FROM bookings ORDER BY created_at DESC")
+    fun flowAllWithPayments(): Flow<List<BookingWithPayments>>
+
+    @Transaction
+    @Query("SELECT * FROM bookings ORDER BY created_at DESC")
+    fun flowAllFull(): Flow<List<BookingFull>>
 
     @Query("SELECT COUNT(*) FROM bookings WHERE status = :status")
-    fun observeBookingCountByStatus(status: String): Flow<Int>
-
-    @Query("SELECT * FROM bookings WHERE status = :status AND checkout_date IS NOT NULL AND checkout_date < :timestamp")
-    suspend fun getBookingsPastCheckout(status: String, timestamp: Long): List<BookingEntity>
+    fun flowCountByStatus(status: String): Flow<Int>
 }
 
 @Dao
-interface PaymentDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insert(payment: PaymentEntity): Long
+interface GuestDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(guest: GuestEntity): Long
 
     @Update
-    suspend fun update(payment: PaymentEntity): Int
+    suspend fun update(guest: GuestEntity): Int
 
-    @Delete
-    suspend fun delete(payment: PaymentEntity): Int
+    @Query("SELECT * FROM guests WHERE guest_id = :id LIMIT 1")
+    suspend fun getById(id: Int): GuestEntity?
 
-    @Query("SELECT * FROM payments WHERE booking_id = :bookingId ORDER BY payment_date DESC")
-    fun observePaymentsByBooking(bookingId: Int): Flow<List<PaymentEntity>>
+    @Query("SELECT * FROM guests ORDER BY guest_name")
+    suspend fun getAll(): List<GuestEntity>
 
-    @Query("SELECT SUM(amount) FROM payments WHERE booking_id = :bookingId")
-    fun observeTotalPaidForBooking(bookingId: Int): Flow<Int?>
+    @Query("SELECT * FROM guests ORDER BY guest_name")
+    fun flowAll(): Flow<List<GuestEntity>>
 
-    @Query("SELECT * FROM payments WHERE payment_date BETWEEN :from AND :to ORDER BY payment_date")
-    fun observePaymentsBetween(from: Long, to: Long): Flow<List<PaymentEntity>>
+    @Query("SELECT * FROM guests WHERE guest_phone = :phone LIMIT 1")
+    suspend fun findByPhone(phone: String): GuestEntity?
 }
 
 @Dao
 interface BookingNoteDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insert(note: BookingNoteEntity): Long
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(note: BookingNoteEntity)
 
-    @Update
-    suspend fun update(note: BookingNoteEntity): Int
+    @Query("SELECT * FROM booking_notes WHERE booking_id = :bookingId")
+    suspend fun getByBooking(bookingId: Int): List<BookingNoteEntity>
 
-    @Delete
-    suspend fun delete(note: BookingNoteEntity): Int
+    @Query("SELECT * FROM booking_notes WHERE booking_id = :bookingId ORDER BY created_at DESC")
+    fun flowByBooking(bookingId: Int): Flow<List<BookingNoteEntity>>
+}
 
-    @Query("SELECT * FROM booking_notes WHERE booking_id = :bookingId ORDER BY note_id DESC")
-    fun observeNotesForBooking(bookingId: Int): Flow<List<BookingNoteEntity>>
+@Dao
+interface UserDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(user: UserEntity)
 
-    @Query("SELECT * FROM booking_notes WHERE is_active = 1 ORDER BY note_id DESC")
-    fun observeActiveNotes(): Flow<List<BookingNoteEntity>>
+    @Query("SELECT * FROM users WHERE username = :username LIMIT 1")
+    suspend fun getByUsername(username: String): UserEntity?
+}
+
+@Dao
+interface PermissionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(permission: PermissionEntity)
+
+    @Query("SELECT * FROM permissions")
+    suspend fun getAll(): List<PermissionEntity>
+}
+
+@Dao
+interface UserPermissionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(permission: UserPermissionEntity)
+
+    @Query("SELECT permission_id FROM user_permissions WHERE user_id = :userId")
+    suspend fun getPermissionsFor(userId: Int): List<Int>
+}
+
+@Dao
+interface PaymentDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(payment: PaymentEntity)
+
+    @Query("SELECT * FROM payment WHERE booking_id = :bookingId")
+    suspend fun getByBooking(bookingId: Int): List<PaymentEntity>
+
+    @Query("SELECT * FROM payment WHERE booking_id = :bookingId ORDER BY payment_date DESC")
+    fun flowByBooking(bookingId: Int): Flow<List<PaymentEntity>>
+
+    @Query("SELECT * FROM payment ORDER BY payment_date DESC LIMIT 25")
+    fun flowRecent(): Flow<List<PaymentEntity>>
+}
+
+@Dao
+interface CashRegisterDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(register: CashRegisterEntity)
+
+    @Query("SELECT * FROM cash_register ORDER BY date DESC LIMIT 1")
+    suspend fun getLast(): CashRegisterEntity?
+}
+
+@Dao
+interface CashTransactionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(transaction: CashTransactionEntity)
+
+    @Query("SELECT * FROM cash_transactions WHERE register_id = :registerId")
+    suspend fun getByRegister(registerId: Int): List<CashTransactionEntity>
 }
 
 @Dao
 interface ExpenseDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insert(expense: ExpenseEntity): Long
-
-    @Update
-    suspend fun update(expense: ExpenseEntity): Int
-
-    @Delete
-    suspend fun delete(expense: ExpenseEntity): Int
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(expense: ExpenseEntity)
 
     @Query("SELECT * FROM expenses ORDER BY date DESC")
-    fun observeExpenses(): Flow<List<ExpenseEntity>>
+    suspend fun getAll(): List<ExpenseEntity>
 
-    @Query("SELECT * FROM expenses WHERE date BETWEEN :from AND :to ORDER BY date DESC")
-    fun observeExpensesBetween(from: Long, to: Long): Flow<List<ExpenseEntity>>
+    @Query("SELECT * FROM expenses ORDER BY date DESC")
+    fun flowAll(): Flow<List<ExpenseEntity>>
 
     @Query("SELECT SUM(amount) FROM expenses WHERE date BETWEEN :from AND :to")
-    fun observeExpenseTotalBetween(from: Long, to: Long): Flow<Int?>
+    fun sumBetween(from: String, to: String): Flow<Double?>
 }
 
 @Dao
-interface ReportingDao {
-    @Transaction
-    @Query("SELECT * FROM bookings WHERE status = :status ORDER BY checkin_date DESC")
-    fun observeBookingsByStatus(status: String): Flow<List<BookingDetails>>
+interface ExpenseLogDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(log: ExpenseLogEntity)
+
+    @Query("SELECT * FROM expense_logs WHERE expense_id = :expenseId ORDER BY created_at DESC")
+    suspend fun getByExpense(expenseId: Int): List<ExpenseLogEntity>
+}
+
+@Dao
+interface EmployeeDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(employee: EmployeeEntity)
+
+    @Query("SELECT * FROM employees")
+    suspend fun getAll(): List<EmployeeEntity>
+
+    @Query("SELECT * FROM employees")
+    fun flowAll(): Flow<List<EmployeeEntity>>
+}
+
+@Dao
+interface SalaryWithdrawalDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(withdrawal: SalaryWithdrawalEntity)
+
+    @Query("SELECT * FROM salary_withdrawals WHERE employee_id = :employeeId ORDER BY date DESC")
+    suspend fun getByEmployee(employeeId: Int): List<SalaryWithdrawalEntity>
+}
+
+@Dao
+interface SupplierDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(supplier: SupplierEntity)
+
+    @Query("SELECT * FROM suppliers")
+    suspend fun getAll(): List<SupplierEntity>
+}
+
+@Dao
+interface InvoiceDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(invoice: InvoiceEntity)
+
+    @Query("SELECT * FROM invoices WHERE booking_id = :bookingId")
+    suspend fun getByBooking(bookingId: Int): List<InvoiceEntity>
+}
+
+@Dao
+interface UserActivityLogDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(log: UserActivityLogEntity)
+
+    @Query("SELECT * FROM user_activity_log ORDER BY created_at DESC LIMIT 50")
+    suspend fun getRecent(): List<UserActivityLogEntity>
+}
+
+@Dao
+interface FailedLoginDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(login: FailedLoginEntity)
+
+    @Query("SELECT * FROM failed_logins WHERE username = :username ORDER BY attempt_time DESC LIMIT 5")
+    suspend fun getRecentByUser(username: String): List<FailedLoginEntity>
 }
 
 data class BookingWithGuest(
@@ -191,7 +301,7 @@ data class BookingWithPayments(
     val payments: List<PaymentEntity>
 )
 
-data class BookingDetails(
+data class BookingFull(
     @androidx.room.Embedded
     val booking: BookingEntity,
     @androidx.room.Relation(
@@ -199,11 +309,6 @@ data class BookingDetails(
         entityColumn = "guest_id"
     )
     val guest: GuestEntity,
-    @androidx.room.Relation(
-        parentColumn = "room_number",
-        entityColumn = "room_number"
-    )
-    val room: RoomEntity,
     @androidx.room.Relation(
         parentColumn = "booking_id",
         entityColumn = "booking_id"

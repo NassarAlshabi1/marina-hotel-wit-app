@@ -1,5 +1,5 @@
- name: Kotlin Marina Android CI
- 
+name: Kotlin Marina Android CI
+
 on:
   push:
     paths:
@@ -15,6 +15,10 @@ jobs:
     env:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       ANDROID_HOME: /usr/local/lib/android/sdk
+    defaults:
+      run:
+        shell: bash
+        working-directory: kotlin-marina
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,47 +26,55 @@ jobs:
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
-          cache: 'gradle'
+          cache: gradle
 
-      - name: Prepare Android SDK
-        working-directory: kotlin-marina
-        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
+      - name: Install Android SDK components
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'tools platform-tools platforms;android-34 build-tools;34.0.0'
+          accept-android-sdk-licenses: true
 
-      - name: Gradle cache
+      - name: Generate local.properties
+        run: |
+          cat <<EOF > local.properties
+          sdk.dir=${ANDROID_SDK_ROOT}
+          EOF
+
+      - name: Initialize Gradle build caching
         uses: gradle/gradle-build-action@v3
         with:
           build-root-directory: kotlin-marina
 
-      - name: Grant execute permission for gradlew
+      - name: Ensure Gradle wrapper is executable
         run: chmod +x gradlew
-        working-directory: kotlin-marina
 
-      - name: Assemble Debug
+      - name: Run lint (debug)
+        run: ./gradlew --no-daemon lintDebug
+
+      - name: Run unit tests (debug)
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Assemble debug APK
         run: ./gradlew --no-daemon assembleDebug
-        working-directory: kotlin-marina
 
-      - name: Run Lint
-        run: ./gradlew --no-daemon lint
-        working-directory: kotlin-marina
-
-      - name: Upload APK
+      - name: Upload debug APK artifact
         if: always()
-        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: kotlin-marina-app-debug-apk
-          path: kotlin-marina/app/build/outputs/apk/debug/*.apk
-          retention-days: 1
+          name: kotlin-marina-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 7
 
-      - name: Upload Lint Reports
+      - name: Upload lint reports
         if: always()
-        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: kotlin-marina-lint-reports
           path: |
-            kotlin-marina/app/build/reports/**
-            kotlin-marina/app/build/outputs/lint-results*.*
-          retention-days: 1
+            app/build/reports/lint-results-*.html
+            app/build/reports/lint-results-*.xml
+          if-no-files-found: warn
+          retention-days: 7

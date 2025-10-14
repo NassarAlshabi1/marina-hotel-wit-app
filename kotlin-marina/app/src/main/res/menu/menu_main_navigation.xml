@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_dashboard"
+            android:title="@string/menu_dashboard"
+            android:icon="@android:drawable/ic_menu_view" />
+        <item
+            android:id="@+id/nav_bookings"
+            android:title="@string/menu_bookings"
+            android:icon="@android:drawable/ic_menu_agenda" />
+        <item
+            android:id="@+id/nav_rooms"
+            android:title="@string/menu_rooms"
+            android:icon="@android:drawable/ic_menu_mapmode" />
+        <item
+            android:id="@+id/nav_payments"
+            android:title="@string/menu_payments"
+            android:icon="@android:drawable/ic_menu_my_calendar" />
+        <item
+            android:id="@+id/nav_reports"
+            android:title="@string/menu_reports"
+            android:icon="@android:drawable/ic_menu_sort_by_size" />
+        <item
+            android:id="@+id/nav_employees"
+            android:title="@string/menu_employees"
+            android:icon="@android:drawable/ic_menu_myplaces" />
+        <item
+            android:id="@+id/nav_expenses"
+            android:title="@string/menu_expenses"
+            android:icon="@android:drawable/ic_menu_manage" />
+        <item
+            android:id="@+id/nav_notes"
+            android:title="@string/menu_notes"
+            android:icon="@android:drawable/ic_menu_edit" />
+        <item
+            android:id="@+id/nav_settings"
+            android:title="@string/menu_settings"
+            android:icon="@android:drawable/ic_menu_preferences" />
+    </group>
+</menu>

@@ -19,7 +19,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="صيانة"
-            android:textColor="@color/color_text_primary"
+            android:textColor="@color/textPrimary"
             android:textStyle="bold" />
 
         <TextView
@@ -28,7 +28,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="نوع المصروف"
-            android:textColor="@color/color_text_secondary" />
+            android:textColor="@color/textSecondary" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -43,14 +43,14 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="10 يناير"
-                android:textColor="@color/color_text_secondary" />
+                android:textColor="@color/textSecondary" />
 
             <TextView
                 android:id="@+id/expenseAmount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="1500 ر.س"
-                android:textColor="@color/color_primary"
+                android:textColor="@color/primaryColor"
                 android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>

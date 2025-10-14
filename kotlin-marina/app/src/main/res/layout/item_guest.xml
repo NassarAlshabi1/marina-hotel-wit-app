@@ -19,7 +19,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="اسم النزيل"
-            android:textColor="@color/color_text_primary"
+            android:textColor="@color/textPrimary"
             android:textStyle="bold" />
 
         <TextView
@@ -28,7 +28,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="0500000000"
-            android:textColor="@color/color_text_secondary" />
+            android:textColor="@color/textSecondary" />
 
         <TextView
             android:id="@+id/guestHistory"
@@ -36,6 +36,6 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="عدد الزيارات: 3"
-            android:textColor="@color/color_text_secondary" />
+            android:textColor="@color/textSecondary" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

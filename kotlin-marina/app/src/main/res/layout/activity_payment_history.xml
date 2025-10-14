@@ -41,7 +41,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="الحجز: BKG-1001"
-                        android:textColor="@color/color_text_primary"
+                        android:textColor="@color/textPrimary"
                         android:textStyle="bold" />
 
                     <TextView
@@ -50,7 +50,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="إجمالي المدفوع: 2500 ر.س"
-                        android:textColor="@color/color_text_secondary" />
+                        android:textColor="@color/textSecondary" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

@@ -18,7 +18,7 @@
             android:id="@+id/iconView"
             android:layout_width="24dp"
             android:layout_height="24dp"
-            app:tint="@color/color_primary" />
+            app:tint="@color/primaryColor" />
     </FrameLayout>
 
     <LinearLayout
@@ -33,7 +33,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="العنوان"
-            android:textColor="@color/color_text_primary"
+            android:textColor="@color/textPrimary"
             android:textStyle="bold" />
 
         <TextView
@@ -41,6 +41,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="الوصف"
-            android:textColor="@color/color_text_secondary" />
+            android:textColor="@color/textSecondary" />
     </LinearLayout>
 </LinearLayout>

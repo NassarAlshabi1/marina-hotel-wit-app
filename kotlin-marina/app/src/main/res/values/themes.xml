@@ -1,22 +1,21 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Base.Theme.MarinaHotel" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/color_primary</item>
-        <item name="colorOnPrimary">@color/color_on_primary</item>
-        <item name="colorSecondary">@color/color_secondary</item>
-        <item name="colorOnSecondary">@color/color_on_secondary</item>
-        <item name="colorTertiary">@color/color_info</item>
-        <item name="colorOnTertiary">@color/color_text_primary</item>
-        <item name="colorSurface">@color/color_surface</item>
-        <item name="colorOnSurface">@color/color_text_primary</item>
-        <item name="colorSurfaceVariant">@color/color_outline</item>
-        <item name="colorOnSurfaceVariant">@color/color_text_secondary</item>
-        <item name="colorError">@color/color_error</item>
-        <item name="android:colorBackground">@color/color_background</item>
-        <item name="android:fontFamily">@font/tajawal</item>
-        <item name="fontFamily">@font/tajawal</item>
+        <item name="colorPrimary">@color/primaryColor</item>
+        <item name="colorOnPrimary">@color/onPrimaryColor</item>
+        <item name="colorSecondary">@color/secondaryColor</item>
+        <item name="colorOnSecondary">@color/onPrimaryColor</item>
+        <item name="colorTertiary">@color/accentColor</item>
+        <item name="colorOnTertiary">@color/textPrimary</item>
+        <item name="colorSurface">@color/surfaceColor</item>
+        <item name="colorOnSurface">@color/textPrimary</item>
+        <item name="colorOnBackground">@color/textPrimary</item>
+        <item name="colorOutline">@color/borderColor</item>
+        <item name="android:colorBackground">@color/backgroundColor</item>
+        <item name="android:fontFamily">@font/cairo</item>
+        <item name="fontFamily">@font/cairo</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@color/color_background</item>
+        <item name="android:navigationBarColor">@color/backgroundColor</item>
     </style>
 
     <style name="Theme.MarinaHotel" parent="Base.Theme.MarinaHotel" />

@@ -8,7 +8,7 @@
     android:layout_marginTop="8dp"
     app:cardCornerRadius="12dp"
     app:cardElevation="2dp"
-    app:strokeColor="@color/color_primary"
+    app:strokeColor="@color/primaryColor"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -22,7 +22,7 @@
             android:id="@+id/iconView"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            app:tint="@color/color_primary" />
+            app:tint="@color/primaryColor" />
 
         <TextView
             android:id="@+id/titleView"
@@ -30,7 +30,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="إجراء"
-            android:textColor="@color/color_primary"
+            android:textColor="@color/primaryColor"
             android:textStyle="bold" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

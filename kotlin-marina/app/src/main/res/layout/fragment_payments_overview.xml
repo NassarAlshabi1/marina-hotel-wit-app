@@ -28,7 +28,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="اليوم: 4500 ر.س"
-                    android:textColor="@color/color_text_primary"
+                    android:textColor="@color/textPrimary"
                     android:textStyle="bold" />
 
                 <TextView
@@ -37,7 +37,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="هذا الأسبوع: 22000 ر.س"
-                    android:textColor="@color/color_text_secondary" />
+                    android:textColor="@color/textSecondary" />
 
                 <TextView
                     android:id="@+id/monthTotal"
@@ -45,7 +45,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="هذا الشهر: 92000 ر.س"
-                    android:textColor="@color/color_text_secondary" />
+                    android:textColor="@color/textSecondary" />
 
                 <com.google.android.material.progressindicator.LinearProgressIndicator
                     android:id="@+id/collectionProgress"
@@ -53,8 +53,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    app:trackColor="@color/color_primary"
-                    app:indicatorColor="@color/color_secondary"
+                    app:trackColor="@color/primaryColor"
+                    app:indicatorColor="@color/secondaryColor"
                     app:indicatorDirectionLinear="endToStart"
                     app:indicatorInset="0dp" />
             </LinearLayout>
@@ -65,7 +65,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="آخر المدفوعات"
-            android:textColor="@color/color_text_primary"
+            android:textColor="@color/textPrimary"
             android:textStyle="bold" />
 
         <androidx.recyclerview.widget.RecyclerView

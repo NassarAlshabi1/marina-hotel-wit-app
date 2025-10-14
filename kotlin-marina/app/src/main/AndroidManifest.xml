@@ -15,10 +15,29 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".dashboard.DashboardActivity" />
+        <activity android:name=".bookings.BookingsListActivity" />
+        <activity android:name=".bookings.BookingEditActivity" />
+        <activity android:name=".employees.EmployeesListActivity" />
+        <activity android:name=".expenses.ExpensesListActivity" />
+        <activity android:name=".payments.PaymentsMainActivity" />
+        <activity android:name=".payments.BookingPaymentActivity" />
+        <activity android:name=".payments.BookingCheckoutActivity" />
+        <activity android:name=".payments.PaymentHistoryActivity" />
+        <activity android:name=".payments.PaymentsListActivity" />
+        <activity android:name=".finance.FinanceActivity" />
+        <activity android:name=".notes.NotesActivity" />
+        <activity android:name=".reports.ReportsActivity" />
+        <activity android:name=".rooms.RoomsMainActivity" />
+        <activity android:name=".rooms.RoomAddActivity" />
+        <activity android:name=".settings.SettingsMainActivity" />
+        <activity android:name=".settings.employees.SettingsEmployeesActivity" />
+        <activity android:name=".settings.guests.SettingsGuestsActivity" />
+        <activity android:name=".settings.maintenance.SettingsMaintenanceActivity" />
+        <activity android:name=".settings.users.SettingsUsersActivity" />
     </application>
 
 </manifest>
