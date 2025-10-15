@@ -924,8 +924,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   void _generateInvoice(BookingPaymentSummary summary) async {
     final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final plannedCheckout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : DateTime.now();
-    final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : plannedCheckout;
+    final plannedCheckout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null;
+    final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : null;
+    final effectiveCheckout = actualCheckout ?? plannedCheckout ?? checkin;
     final roomsRepo = ref.read(roomsRepoProvider);
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
     final invoice = Invoice(
@@ -935,8 +936,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       guestPhone: widget.booking.guestPhone,
       roomNumber: widget.booking.roomNumber,
       checkinDate: checkin,
-      checkoutDate: actualCheckout,
-      nights: Time.nightsWithCutoff(checkin, checkout: actualCheckout),
+      checkoutDate: effectiveCheckout,
+      nights: Time.nightsWithCutoff(checkin, checkout: effectiveCheckout),
       roomRate: room?.price ?? 0,
       totalAmount: summary.totalAmount,
       payments: summary.payments,
