@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
@@ -412,7 +413,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     showDialog(
       context: context,
       builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: Text('تاريخ حجوزات ${guest.name}'),
           content: SizedBox(
@@ -459,7 +460,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     showDialog(
       context: context,
       builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: Text('تفاصيل الضيف - ${guest.name}'),
           content: Column(

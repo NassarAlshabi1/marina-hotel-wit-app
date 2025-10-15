@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
@@ -81,7 +82,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   Widget build(BuildContext context) {
     final repo = ref.watch(bookingsRepoProvider);
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(title: Text(widget.existing == null ? 'إضافة حجز' : 'تعديل حجز')),
         body: Form(

@@ -13,6 +13,7 @@ class PaymentsRepository {
 
   Stream<List<Payment>> paymentsByBooking(int bookingLocalId) => dao.watchList(bookingLocalId: bookingLocalId);
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
+  Stream<List<Payment>> watchAll() => dao.watchList();
 
   Future<int> create({int? bookingLocalId, int? serverBookingId, String? roomNumber, required double amount, required String paymentDate, String? notes, required String paymentMethod, required String revenueType}) => dao.insertOne(
         PaymentsCompanion(

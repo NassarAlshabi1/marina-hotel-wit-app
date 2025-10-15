@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import '../../components/app_scaffold.dart';
@@ -112,7 +113,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                       }
 
                       final totalPaid = payments.fold<double>(0, (sum, payment) => sum + payment.amount);
-                      final remainingAmount = (totalDue - totalPaid).clamp(0, totalDue);
+                      final remainingAmount = (totalDue - totalPaid).clamp(0, totalDue).toDouble();
 
                       return Column(
                         children: [
@@ -200,7 +201,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                         stream: paymentsRepo.paymentsByBooking(widget.booking.id),
                         builder: (context, snapshot) {
                           final totalPaid = snapshot.data?.fold<double>(0, (sum, payment) => sum + payment.amount) ?? 0.0;
-                          final remainingAmount = (totalDue - totalPaid).clamp(0, totalDue);
+                          final remainingAmount = (totalDue - totalPaid).clamp(0, totalDue).toDouble();
                           return ElevatedButton.icon(
                             onPressed: _isProcessing || remainingAmount > 0 ? null : () => _completeCheckout(context),
                             icon: const Icon(Icons.check_circle),
@@ -248,7 +249,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('إضافة دفعة جديدة'),
           content: SingleChildScrollView(
@@ -369,7 +370,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('تأكيد إتمام الحجز'),
           content: const Text(

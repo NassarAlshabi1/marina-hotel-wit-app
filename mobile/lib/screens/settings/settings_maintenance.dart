@@ -245,7 +245,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.database, size: 48, color: Colors.green),
+            Icon(Icons.storage, size: 48, color: Colors.green),
             SizedBox(height: 16),
             Text('فحص سلامة قاعدة البيانات'),
             SizedBox(height: 8),
