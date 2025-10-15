@@ -65,7 +65,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     final paymentsRepo = ref.watch(paymentsRepoProvider);
 
     return StreamBuilder<List<Payment>>(
-      stream: paymentsRepo.paymentsByBooking(-1),
+      stream: paymentsRepo.watchAll(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

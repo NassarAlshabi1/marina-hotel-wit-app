@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 
@@ -29,7 +30,7 @@ class AdminLayout extends StatelessWidget {
     if (isTablet) {
       // Desktop/Tablet layout with sidebar (like PHP admin)
       return Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: Scaffold(
           body: Row(
             children: [
@@ -59,7 +60,7 @@ class AdminLayout extends StatelessWidget {
     } else {
       // Mobile layout with drawer
       return Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: Scaffold(
           appBar: appBar ?? _buildMobileAppBar(context),
           drawer: AdminSidebar(

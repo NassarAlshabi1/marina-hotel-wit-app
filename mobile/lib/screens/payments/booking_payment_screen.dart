@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -116,7 +117,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           final roomRate = roomSnap.data?.price ?? 0.0;
           final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
           final plannedCheckout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null;
-          final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : null;
+          final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : plannedCheckout;
           final expectedNights = widget.booking.expectedNights > 0
               ? widget.booking.expectedNights
               : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
@@ -703,7 +704,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     showDialog(
       context: context,
       builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: Row(
             children: [

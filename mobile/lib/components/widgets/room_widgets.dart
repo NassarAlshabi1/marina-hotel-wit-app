@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import '../../services/local_db.dart';
 
 /// Widget لعرض بطاقة غرفة واحدة
@@ -413,7 +414,7 @@ class RoomDetailsDialog extends StatelessWidget {
     final isAvailable = room.status == 'شاغرة';
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: ui.TextDirection.rtl,
       child: AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),

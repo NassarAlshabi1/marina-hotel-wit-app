@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
@@ -362,7 +363,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: Text(employee == null ? 'إضافة موظف جديد' : 'تعديل بيانات الموظف'),
           content: SingleChildScrollView(
@@ -505,7 +506,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: Text('سحب راتب - ${employee.name}'),
           content: Column(
