@@ -1,8 +1,6 @@
-import 'package:intl/intl.dart';
 import '../models/booking.dart';
 
 final DateTime _now = DateTime.now();
-final DateFormat _iso = DateFormat('yyyy-MM-dd HH:mm');
 
 final List<Booking> mockBookings = [
   // Fully paid, still in-house (planned checkout in future)

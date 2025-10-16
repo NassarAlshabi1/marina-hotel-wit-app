@@ -4,9 +4,14 @@ import '../models/booking.dart';
 import '../data/mock_bookings.dart';
 import 'payment_checkout_screen.dart';
 
-class BookingListScreen extends StatelessWidget {
+class BookingListScreen extends StatefulWidget {
   const BookingListScreen({super.key});
 
+  @override
+  State<BookingListScreen> createState() => _BookingListScreenState();
+}
+
+class _BookingListScreenState extends State<BookingListScreen> {
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(locale: 'ar_SA', symbol: 'ر.س', decimalDigits: 0);
@@ -19,7 +24,7 @@ class BookingListScreen extends StatelessWidget {
         itemCount: mockBookings.length,
         separatorBuilder: (_, __) => const Divider(height: 1),
         itemBuilder: (context, index) {
-          final booking = mockBookings[index];
+          final Booking booking = mockBookings[index];
           final nights = booking.nightsForDisplay();
           final remaining = booking.remaining();
 
@@ -62,12 +67,18 @@ class BookingListScreen extends StatelessWidget {
                 ),
               ],
             ),
-            onTap: () {
-              Navigator.of(context).push(
+            onTap: () async {
+              final updatedBooking = await Navigator.of(context).push<Booking>(
                 MaterialPageRoute(
                   builder: (_) => PaymentCheckoutScreen(booking: booking),
                 ),
               );
+
+              if (updatedBooking != null && mounted) {
+                setState(() {
+                  mockBookings[index] = updatedBooking;
+                });
+              }
             },
           );
         },
