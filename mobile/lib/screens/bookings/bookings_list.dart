@@ -21,7 +21,6 @@ class BookingsListScreen extends ConsumerStatefulWidget {
 }
 
 class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
-  bool _hideEnded = true;
   String _search = '';
   final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
 
@@ -45,11 +44,6 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
           onPressed: _showSearchDialog,
           icon: const Icon(Icons.search),
           tooltip: 'بحث',
-        ),
-        IconButton(
-          onPressed: () => setState(() => _hideEnded = !_hideEnded),
-          icon: Icon(_hideEnded ? Icons.visibility_off : Icons.visibility),
-          tooltip: _hideEnded ? 'إخفاء المكتملة' : 'إظهار الكل',
         ),
         IconButton(
           onPressed: () async {
@@ -84,11 +78,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                 bool matches(String? source) => source != null && source.toLowerCase().contains(query);
                 var filtered = bookings
                     .where((b) {
-                      if (_hideEnded) {
-                        final status = b.status.toLowerCase();
-                        if (status == 'مكتمل' || status == 'completed' || status == 'غادر' || status == 'departed') {
-                          return false;
-                        }
+                      final status = b.status.toLowerCase();
+                      if (status == 'مكتمل' || status == 'completed' || status == 'غادر' || status == 'departed') {
+                        return false;
                       }
                       if (query.isEmpty) return true;
                       return matches(b.guestName) ||
@@ -162,9 +154,6 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
 
   Widget _buildFiltersSummary() {
     final chips = <Widget>[];
-    if (_hideEnded) {
-      chips.add(const Chip(label: Text('إخفاء المكتملة')));
-    }
     if (_search.isNotEmpty) {
       chips.add(Chip(label: Text('بحث: $_search')));
     }
