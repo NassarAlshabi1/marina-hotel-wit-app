@@ -21,7 +21,7 @@ class BookingsListScreen extends ConsumerStatefulWidget {
 class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
   bool _hideEnded = true;
   String _search = '';
-  final _currencyFmt = NumberFormat.decimalPattern('ar');
+  final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
 
   @override
   Widget build(BuildContext context) {

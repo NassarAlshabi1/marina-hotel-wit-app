@@ -81,7 +81,7 @@ class RoomCard extends StatelessWidget {
               if (!compact && room.price > 0) ...[
                 const SizedBox(height: 2),
                 Text(
-                  '${room.price.toStringAsFixed(0)} ر.س',
+                  '${room.price.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 9,
                     color: cardColor.withOpacity(0.8),
@@ -434,7 +434,7 @@ class RoomDetailsDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildDetailRow('النوع', room.type),
-            _buildDetailRow('السعر', '${room.price.toStringAsFixed(2)} ر.س'),
+            _buildDetailRow('السعر', '${room.price.toStringAsFixed(2)}'),
             _buildDetailRow('الحالة', room.status),
             if (room.imageUrl != null && room.imageUrl!.isNotEmpty) ...[
               const SizedBox(height: 12),

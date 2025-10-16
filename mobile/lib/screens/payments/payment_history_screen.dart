@@ -185,7 +185,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${totalAmount.toStringAsFixed(2)} ريال',
+                                '${totalAmount.toStringAsFixed(2)}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
@@ -226,7 +226,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                                     ),
                                   ),
                                   title: Text(
-                                    '${payment.amount.toStringAsFixed(2)} ريال',
+                                    '${payment.amount.toStringAsFixed(2)}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -506,7 +506,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailRow('المبلغ', '${payment.amount.toStringAsFixed(2)} ريال'),
+              _buildDetailRow('المبلغ', '${payment.amount.toStringAsFixed(2)}'),
               _buildDetailRow('طريقة الدفع', payment.paymentMethod),
               _buildDetailRow('نوع الإيراد', _getRevenueTypeLabel(payment.revenueType)),
               _buildDetailRow('التاريخ', payment.paymentDate),

@@ -145,7 +145,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         Expanded(
           child: _buildStatCard(
             'الإجمالي',
-            '${totalAmount.toStringAsFixed(0)} ر.س',
+            '${totalAmount.toStringAsFixed(2)}',
             Icons.account_balance_wallet,
             Colors.green,
           ),
@@ -154,7 +154,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         Expanded(
           child: _buildStatCard(
             'هذا الشهر',
-            '${monthlyAmount.toStringAsFixed(0)} ر.س',
+            '${monthlyAmount.toStringAsFixed(2)}',
             Icons.calendar_month,
             Colors.blue,
           ),
@@ -163,7 +163,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         Expanded(
           child: _buildStatCard(
             'هذا الأسبوع',
-            '${weeklyAmount.toStringAsFixed(0)} ر.س',
+            '${weeklyAmount.toStringAsFixed(2)}',
             Icons.date_range,
             Colors.orange,
           ),
@@ -283,7 +283,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                 _getPaymentMethodIcon(payment.paymentMethod),
                 color: _getPaymentMethodColor(payment.paymentMethod),
               ),
-              title: Text('${payment.amount.toStringAsFixed(2)} ر.س'),
+              title: Text('${payment.amount.toStringAsFixed(2)}'),
               subtitle: Text('${payment.paymentMethod} • ${payment.paymentDate}'),
               trailing: payment.roomNumber != null 
                   ? Chip(

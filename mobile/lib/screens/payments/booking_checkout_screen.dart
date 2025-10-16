@@ -74,8 +74,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                         Text('الليالي المتوقعة: $expectedNights'),
                         if (actualCheckout != null)
                           Text('الليالي الفعلية: $actualNights'),
-                        Text('سعر الليلة: ${roomPrice.toStringAsFixed(2)} ريال'),
-                        Text('المبلغ المستحق: ${totalDue.toStringAsFixed(2)} ريال'),
+                        Text('سعر الليلة: ${roomPrice.toStringAsFixed(2)}'),
+                        Text('المبلغ المستحق: ${totalDue.toStringAsFixed(2)}'),
                         Text('الحالة: ${widget.booking.status}'),
                       ],
                     ),
@@ -149,7 +149,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                                       color: Colors.green,
                                     ),
                                     title: Text(
-                                      '${payment.amount.toStringAsFixed(2)} ريال',
+                                      '${payment.amount.toStringAsFixed(2)}',
                                       style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     subtitle: Column(
@@ -232,7 +232,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: color),
         ),
         Text(
-          '${amount.toStringAsFixed(2)} ريال',
+          '${amount.toStringAsFixed(2)}',
           style: TextStyle(fontWeight: FontWeight.bold, color: color),
         ),
       ],
@@ -260,7 +260,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     labelText: 'المبلغ *',
-                    suffixText: 'ريال',
+                    
                     border: OutlineInputBorder(),
                   ),
                 ),

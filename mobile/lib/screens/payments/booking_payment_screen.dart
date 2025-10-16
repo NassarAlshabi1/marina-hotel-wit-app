@@ -25,7 +25,7 @@ class BookingPaymentScreen extends ConsumerStatefulWidget {
 class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _currencyFmt = NumberFormat.decimalPattern('ar');
+  final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
   PaymentMethod? _selectedMethod;
   double _remainingAmount = 0;
 
@@ -201,7 +201,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     DateTime? actualCheckout,
   }) {
     final progressPercentage = summary.paidPercentage / 100;
-    final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
+    final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
     final checkinText = dateFmt.format(checkin);
     final plannedText = plannedCheckout != null ? dateFmt.format(plannedCheckout) : null;
     final actualText = actualCheckout != null ? dateFmt.format(actualCheckout) : null;
@@ -298,7 +298,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 context,
                 icon: Icons.attach_money,
                 label: 'سعر الليلة',
-                value: '${_currencyFmt.format(roomRate)} ر.س',
+                value: '${_currencyFmt.format(roomRate)}',
               ),
               _buildDetailChip(
                 context,
@@ -376,7 +376,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       child: Column(
         children: [
           Text(
-            '${amount.toStringAsFixed(0)} ر.س',
+            '${_currencyFmt.format(amount)}',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -563,7 +563,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       child: Column(
         children: [
           Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text('${_currencyFmt.format(amount)} ر.س', style: const TextStyle(fontSize: 12)),
+          Text('${_currencyFmt.format(amount)}', style: const TextStyle(fontSize: 12)),
         ],
       ),
     );
@@ -723,7 +723,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     decoration: const InputDecoration(
                       labelText: 'المبلغ*',
                       border: OutlineInputBorder(),
-                      suffixText: 'ر.س',
+
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [
@@ -835,7 +835,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final remaining = ((total - paidSoFar).clamp(0.0, total)).toDouble();
 
     if (amount > remaining) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('المبلغ أكبر من المتبقي (${remaining.toStringAsFixed(2)} ر.س)')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('المبلغ أكبر من المتبقي (${_currencyFmt.format(remaining)})')));
       return;
     }
 
@@ -871,7 +871,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('تم تسجيل دفعة بقيمة ${amount.toStringAsFixed(2)} ر.س'),
+        content: Text('تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}'),
         action: SnackBarAction(label: 'طباعة إيصال', onPressed: () => _generateReceipt(receipt)),
       ),
     );
@@ -887,9 +887,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           children: [
             const Icon(Icons.check_circle, color: Colors.green, size: 64),
             const SizedBox(height: 16),
-            Text('المبلغ: ${payment.amount.toStringAsFixed(2)} ر.س'),
+            Text('المبلغ: ${_currencyFmt.format(payment.amount)}'),
             Text('طريقة الدفع: ${payment.method.displayName}'),
-            Text('المتبقي: ${_remainingAmount.toStringAsFixed(2)} ر.س'),
+            Text('المتبقي: ${_currencyFmt.format(_remainingAmount)}'),
           ],
         ),
         actions: [
