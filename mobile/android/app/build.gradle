@@ -58,7 +58,8 @@ android {
         // Add app metadata
         manifestPlaceholders = [
             appName: "Marina Hotel",
-            appDescription: "Complete Hotel Management System"
+            appDescription: "Complete Hotel Management System",
+            applicationName: "io.flutter.app.FlutterApplication"
         ]
     }
 
@@ -87,6 +88,10 @@ android {
             excludes += ['META-INF/LICENSE*', 'META-INF/AL2.0', 'META-INF/LGPL2.1']
         }
     }
+}
+
+dependencies {
+    implementation "com.google.android.play:core:1.10.3"
 }
 
 flutter {
