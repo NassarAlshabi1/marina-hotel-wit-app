@@ -1,4 +1,4 @@
-name: Kotlin Marina Android CI
+ name: Kotlin Marina Android CI
  
 on:
   push:
