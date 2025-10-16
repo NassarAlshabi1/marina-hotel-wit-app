@@ -36,11 +36,7 @@ class Booking {
   });
 
   // Currency formatter (Arabic/Saudi)
-  static final NumberFormat _currency = NumberFormat.currency(
-    locale: 'ar_SA',
-    symbol: 'ر.س',
-    decimalDigits: 0,
-  );
+  static final NumberFormat _number = NumberFormat.decimalPattern('en');
 
   // Sum of payments (raw)
   double get paidTotal => payments.fold(0.0, (sum, p) => sum + p.amount);
@@ -90,7 +86,7 @@ class Booking {
   }
 
   // Formatted currency helpers
-  String formatAmount(double amount) => _currency.format(amount);
+  String formatAmount(double amount) => _number.format(amount);
   String get formattedTotalDue => formatAmount(totalDue());
   String get formattedPaid => formatAmount(paidTotal);
   String get formattedRemaining => formatAmount(remaining());

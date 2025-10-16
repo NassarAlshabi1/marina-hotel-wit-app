@@ -6,7 +6,7 @@ import 'package:marina_hotel_mobile/models/booking.dart';
 import 'package:marina_hotel_mobile/screens/payment_checkout_screen.dart';
 
 void main() {
-  final NumberFormat currency = NumberFormat.currency(locale: 'ar_SA', symbol: 'ر.س', decimalDigits: 0);
+  final NumberFormat numberFormat = NumberFormat.decimalPattern('en');
 
   Widget _wrapWithMaterial(Booking booking) {
     return MaterialApp(
@@ -48,8 +48,8 @@ void main() {
       expect(tester.widget<OutlinedButton>(addButtonFinder).onPressed, isNotNull);
 
       final summaryCard = _summaryCard();
-      expect(find.descendant(of: summaryCard, matching: find.text(currency.format(200))), findsOneWidget);
-      expect(find.descendant(of: summaryCard, matching: find.text(currency.format(400))), findsOneWidget);
+      expect(find.descendant(of: summaryCard, matching: find.text(numberFormat.format(200))), findsOneWidget);
+      expect(find.descendant(of: summaryCard, matching: find.text(numberFormat.format(400))), findsOneWidget);
 
       await tester.tap(addButtonFinder);
       await tester.pumpAndSettle();
@@ -70,8 +70,8 @@ void main() {
 
       expect(find.byType(AlertDialog), findsNothing);
 
-      expect(find.descendant(of: summaryCard, matching: find.text(currency.format(200))), findsNothing);
-      expect(find.descendant(of: summaryCard, matching: find.text(currency.format(0))), findsOneWidget);
+      expect(find.descendant(of: summaryCard, matching: find.text(numberFormat.format(200))), findsNothing);
+      expect(find.descendant(of: summaryCard, matching: find.text(numberFormat.format(0))), findsOneWidget);
 
       final addButtonAfter = tester.widget<OutlinedButton>(addButtonFinder);
       expect(addButtonAfter.onPressed, isNull);
@@ -113,8 +113,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final summaryCard = _summaryCard();
-      expect(find.descendant(of: summaryCard, matching: find.text(currency.format(550))), findsOneWidget);
-      expect(find.descendant(of: summaryCard, matching: find.text(currency.format(50))), findsOneWidget);
+      expect(find.descendant(of: summaryCard, matching: find.text(numberFormat.format(550))), findsOneWidget);
+      expect(find.descendant(of: summaryCard, matching: find.text(numberFormat.format(50))), findsOneWidget);
 
       final addButton = tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'إضافة دفعة'));
       expect(addButton.onPressed, isNotNull);
@@ -147,8 +147,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final summaryCard = _summaryCard();
-      expect(find.descendant(of: summaryCard, matching: find.text(currency.format(400))), findsOneWidget);
-      expect(find.descendant(of: summaryCard, matching: find.text(currency.format(200))), findsOneWidget);
+      expect(find.descendant(of: summaryCard, matching: find.text(numberFormat.format(400))), findsOneWidget);
+      expect(find.descendant(of: summaryCard, matching: find.text(numberFormat.format(200))), findsOneWidget);
 
       final addButton = tester.widget<OutlinedButton>(addButtonFinder);
       expect(addButton.onPressed, isNotNull);

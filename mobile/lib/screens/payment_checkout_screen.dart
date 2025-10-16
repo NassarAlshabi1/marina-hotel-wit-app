@@ -13,8 +13,8 @@ class PaymentCheckoutScreen extends StatefulWidget {
 class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
   late List<BookingPaymentEntry> _payments;
   late Booking _currentBooking;
-  final NumberFormat _currency = NumberFormat.currency(locale: 'ar_SA', symbol: 'ر.س', decimalDigits: 0);
-  final DateFormat _dateFormat = DateFormat('yyyy-MM-dd HH:mm', 'ar_SA');
+  final NumberFormat _numberFormat = NumberFormat.decimalPattern('en');
+  final DateFormat _dateFormat = DateFormat('yyyy-MM-dd HH:mm', 'en');
 
   @override
   void initState() {
@@ -113,8 +113,8 @@ class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
                   controller: amountController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    labelText: 'المبلغ (${_currency.currencySymbol})',
-                    helperText: 'الحد الأقصى: ${_currency.format(maxAllowed)}',
+                    labelText: 'المبلغ',
+                    helperText: 'الحد الأقصى: ${_numberFormat.format(maxAllowed)}',
                   ),
                   validator: (value) {
                     final raw = (value ?? '').replaceAll(',', '').trim();
@@ -126,7 +126,7 @@ class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
                       return 'يجب أن يكون المبلغ أكبر من صفر';
                     }
                     if (parsed > maxAllowed + 1e-6) {
-                      return 'لا يمكن أن يتجاوز المبلغ ${_currency.format(maxAllowed)}';
+                      return 'لا يمكن أن يتجاوز المبلغ ${_numberFormat.format(maxAllowed)}';
                     }
                     return null;
                   },
@@ -247,7 +247,7 @@ class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
                       _infoRow(
                         Icons.price_change,
                         'سعر الليلة',
-                        _currency.format(_currentBooking.nightlyRate),
+                        _numberFormat.format(_currentBooking.nightlyRate),
                       ),
                     ],
                   ),
@@ -260,13 +260,13 @@ class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
-                      _totalRow('الإجمالي', _currency.format(totalDue), Colors.blue),
+                      _totalRow('الإجمالي', _numberFormat.format(totalDue), Colors.blue),
                       const SizedBox(height: 6),
-                      _totalRow('المدفوع', _currency.format(paid), Colors.green),
+                      _totalRow('المدفوع', _numberFormat.format(paid), Colors.green),
                       const Divider(),
                       _totalRow(
                         'المتبقي',
-                        _currency.format(_remaining),
+                        _numberFormat.format(_remaining),
                         _remaining > 0 ? Colors.red : Colors.green,
                         isBold: true,
                       ),
@@ -300,7 +300,7 @@ class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
                                   child: ListTile(
                                     leading: const Icon(Icons.receipt_long, color: Colors.green),
                                     title: Text(
-                                      _currency.format(payment.amount),
+                                      _numberFormat.format(payment.amount),
                                       style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     subtitle: Column(

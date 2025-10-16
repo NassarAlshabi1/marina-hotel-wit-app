@@ -14,7 +14,7 @@ class BookingListScreen extends StatefulWidget {
 class _BookingListScreenState extends State<BookingListScreen> {
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(locale: 'ar_SA', symbol: 'ر.س', decimalDigits: 0);
+    final numberFormat = NumberFormat.decimalPattern('en');
 
     return Scaffold(
       appBar: AppBar(
@@ -54,7 +54,7 @@ class _BookingListScreenState extends State<BookingListScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  currency.format(remaining),
+                  numberFormat.format(remaining),
                   style: TextStyle(
                     color: remaining > 0 ? Colors.red : Colors.green,
                     fontWeight: FontWeight.w800,
