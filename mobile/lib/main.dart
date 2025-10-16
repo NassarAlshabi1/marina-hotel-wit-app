@@ -16,6 +16,7 @@ import 'screens/settings/settings_screen.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
 import 'components/admin_layout.dart';
+import 'screens/booking_list_screen.dart';
 
 void main() {
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
@@ -47,7 +48,7 @@ class App extends ConsumerWidget {
           '/finance/cash-transactions': (_) => const FinanceScreen(),
           '/reports': (_) => const ReportsScreen(),
         },
-        home: const HomeShell(),
+        home: const BookingListScreen(),
       ),
     );
   }
