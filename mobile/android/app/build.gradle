@@ -58,7 +58,8 @@ android {
         // Add app metadata
         manifestPlaceholders = [
             appName: "Marina Hotel",
-            appDescription: "Complete Hotel Management System"
+            appDescription: "Complete Hotel Management System",
+            applicationName: "io.flutter.app.FlutterApplication"
         ]
     }
 
