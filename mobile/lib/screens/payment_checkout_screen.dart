@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/booking.dart';
@@ -59,7 +61,7 @@ class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('حذف الدفعة'),
           content: const Text('هل أنت متأكد من حذف الدفعة المحددة؟'),
@@ -101,7 +103,7 @@ class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
     return showDialog<BookingPaymentEntry>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: Text(index == null ? 'إضافة دفعة جديدة' : 'تعديل الدفعة'),
           content: Form(

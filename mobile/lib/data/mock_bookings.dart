@@ -11,7 +11,7 @@ final List<Booking> mockBookings = [
     checkIn: _now.subtract(const Duration(days: 2)),
     plannedCheckout: _now.add(const Duration(days: 1)),
     nightlyRate: 200,
-    payments: const [
+    payments: [
       BookingPaymentEntry(amount: 200, paymentDate: DateTime(2025, 1, 10, 16, 0)),
       BookingPaymentEntry(amount: 200, paymentDate: DateTime(2025, 1, 11, 12, 30)),
     ],
@@ -25,7 +25,7 @@ final List<Booking> mockBookings = [
     checkIn: DateTime(_now.year, _now.month, _now.day).subtract(const Duration(days: 1)),
     plannedCheckout: null,
     nightlyRate: 180,
-    payments: const [
+    payments: [
       BookingPaymentEntry(amount: 100, paymentDate: DateTime(2025, 1, 10, 9, 15)),
     ],
   ),
@@ -39,7 +39,7 @@ final List<Booking> mockBookings = [
     plannedCheckout: _now.subtract(const Duration(days: 1)),
     actualCheckout: _now.subtract(const Duration(days: 1)),
     nightlyRate: 150,
-    payments: const [
+    payments: [
       BookingPaymentEntry(amount: 300, paymentDate: DateTime(2025, 1, 9, 18, 0)),
       BookingPaymentEntry(amount: 150, paymentDate: DateTime(2025, 1, 10, 18, 0)),
     ],
