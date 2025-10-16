@@ -112,7 +112,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                       }
 
                       final totalPaid = payments.fold<double>(0, (sum, payment) => sum + payment.amount);
-                      final remainingAmount = (totalDue - totalPaid).clamp(0, totalDue);
+                      final remainingAmount = (totalDue - totalPaid).clamp(0, totalDue).toDouble();
 
                       return Column(
                         children: [
