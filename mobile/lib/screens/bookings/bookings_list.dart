@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -175,7 +177,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('بحث في الحجوزات'),
           content: TextField(
@@ -562,7 +564,7 @@ class _BookingRow extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: StreamBuilder<List<BookingNote>>(
           stream: notesRepo.watchByBooking(booking.id),
           builder: (context, snap) {

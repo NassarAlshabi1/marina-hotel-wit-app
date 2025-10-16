@@ -2,10 +2,8 @@ name: Build Flutter APK
 
 on:
   push:
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/build-flutter.yml'
-  pull_request:
+    branches:
+      - main
     paths:
       - 'mobile/**'
       - '.github/workflows/build-flutter.yml'
@@ -37,11 +35,11 @@ jobs:
       - name: Generate code
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Build debug APK
+        run: flutter build apk --debug
 
-      - name: Upload artifact
+      - name: Upload debug artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: 'marina-hotel-debug-main-${{ github.run_number }}'
+          path: build/app/outputs/flutter-apk/app-debug.apk
