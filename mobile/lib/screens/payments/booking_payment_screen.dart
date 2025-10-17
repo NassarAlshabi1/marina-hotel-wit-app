@@ -27,9 +27,10 @@ class BookingPaymentScreen extends ConsumerStatefulWidget {
 class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late TextEditingController _phoneController;
   final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
-  PaymentMethod? _selectedMethod;
   double _remainingAmount = 0;
+  late String _currentGuestPhone;
 
   Payment _mapDbPaymentToUi(db.Payment p) {
     return Payment(
@@ -80,15 +81,34 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
+  String _cleanAndFormatPhone(String phone) {
+    var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
+    if (digitsOnly.isEmpty) {
+      return '';
+    }
+    if (digitsOnly.startsWith('00')) {
+      digitsOnly = digitsOnly.substring(2);
+    }
+    if (digitsOnly.startsWith('07')) {
+      digitsOnly = '967${digitsOnly.substring(1)}';
+    } else if (digitsOnly.startsWith('5') && digitsOnly.length == 9) {
+      digitsOnly = '966$digitsOnly';
+    }
+    return digitsOnly;
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _phoneController = TextEditingController(text: widget.booking.guestPhone);
+    _currentGuestPhone = widget.booking.guestPhone;
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -207,7 +227,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final checkinText = dateFmt.format(checkin);
     final plannedText = plannedCheckout != null ? dateFmt.format(plannedCheckout) : null;
     final actualText = actualCheckout != null ? dateFmt.format(actualCheckout) : null;
-    final hasPhone = widget.booking.guestPhone.isNotEmpty;
+    final hasPhone = _currentGuestPhone.isNotEmpty;
     final identityLine = widget.booking.guestIdNumber.isEmpty
         ? widget.booking.guestIdType
         : '${widget.booking.guestIdType} • ${widget.booking.guestIdNumber}';
@@ -254,7 +274,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       ),
                     ),
                     Text(
-                      'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • ${widget.booking.guestPhone}' : ''}',
+                      'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • $_currentGuestPhone' : ''}',
                       style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                     Text(identityLine, style: const TextStyle(fontSize: 13, color: Colors.grey)),
@@ -479,6 +499,21 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   Widget _buildPaymentForm(BookingPaymentSummary summary) {
     return Column(
       children: [
+        const Align(
+          alignment: Alignment.centerRight,
+          child: Text('رقم الهاتف', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'رقم هاتف النزيل',
+            border: OutlineInputBorder(),
+          ),
+          textDirection: TextDirection.ltr,
+        ),
+        const SizedBox(height: 20),
         const Align(
           alignment: Alignment.centerRight,
           child: Text('طريقة الدفع', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -808,6 +843,25 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
+  Future<void> _sendPaymentConfirmation(double amountPaidNow, double remaining, String cleanedPhone) async {
+    if (cleanedPhone.isEmpty) {
+      return;
+    }
+    final whatsappService = ref.read(whatsappServiceProvider);
+    final message = 'تم استلام دفعة بقيمة ${_currencyFmt.format(amountPaidNow)}. المتبقي عليكم ${_currencyFmt.format(remaining)}.';
+    try {
+      final success = await whatsappService.sendMessage(phoneE164: cleanedPhone, message: message);
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')));
+      }
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')));
+    }
+  }
+
   Future<void> _processPayment(
     PaymentMethod method,
     String amountText,
@@ -824,6 +878,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final roomsRepo = ref.read(roomsRepoProvider);
     final paymentsRepo = ref.read(paymentsRepoProvider);
+    final bookingsRepo = ref.read(bookingsRepoProvider);
 
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
     final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
@@ -841,6 +896,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       return;
     }
 
+    final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
+
+    await bookingsRepo.update(widget.booking.id, guestPhone: cleanedPhone);
+    if (mounted) {
+      setState(() {
+        _currentGuestPhone = cleanedPhone;
+        if (_phoneController.text != cleanedPhone) {
+          _phoneController.value = TextEditingValue(
+            text: cleanedPhone,
+            selection: TextSelection.collapsed(offset: cleanedPhone.length),
+          );
+        }
+      });
+    } else {
+      _currentGuestPhone = cleanedPhone;
+    }
+
     await paymentsRepo.create(
       bookingLocalId: widget.booking.id,
       roomNumber: widget.booking.roomNumber,
@@ -851,7 +923,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       revenueType: 'room',
     );
 
+    final newRemaining = ((remaining - amount).clamp(0.0, total)).toDouble();
+
     Navigator.pop(context);
+
+    if (mounted) {
+      setState(() {
+        _remainingAmount = newRemaining;
+      });
+    } else {
+      _remainingAmount = newRemaining;
+    }
 
     final receipt = Payment(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -870,6 +952,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
 
     _showReceiptDialog(receipt);
+
+    if (cleanedPhone.isNotEmpty) {
+      await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
+    }
+
+    if (!mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -916,7 +1006,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       receiptNumber: 'REC${DateTime.now().millisecondsSinceEpoch}',
       payment: payment,
       guestName: widget.booking.guestName,
-      guestPhone: widget.booking.guestPhone,
+      guestPhone: _currentGuestPhone,
       roomNumber: widget.booking.roomNumber,
       generatedAt: DateTime.now(),
     );
@@ -934,7 +1024,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       invoiceNumber: 'INV${DateTime.now().millisecondsSinceEpoch}',
       bookingId: widget.booking.localUuid,
       guestName: widget.booking.guestName,
-      guestPhone: widget.booking.guestPhone,
+      guestPhone: _currentGuestPhone,
       roomNumber: widget.booking.roomNumber,
       checkinDate: checkin,
       checkoutDate: checkout,
@@ -1002,7 +1092,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       builder: (context) => AlertDialog(
         title: const Text('إرسال كشف حساب'),
         content: Text(
-          'سيتم إرسال كشف حساب تفصيلي للعميل ${widget.booking.guestName} على رقم ${widget.booking.guestPhone}',
+          'سيتم إرسال كشف حساب تفصيلي للعميل ${widget.booking.guestName} على رقم $_currentGuestPhone',
         ),
         actions: [
           TextButton(

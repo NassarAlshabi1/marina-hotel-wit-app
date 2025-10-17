@@ -15,6 +15,7 @@ dependencies:
   cupertino_icons: ^1.0.6
   flutter_riverpod: ^2.6.1
   dio: ^5.7.0
+  http: ^1.2.2
   drift: ^2.20.0
   drift_sqflite: ^2.0.1
   sqlite3_flutter_libs: ^0.5.24

@@ -7,6 +7,7 @@ import 'repositories/expenses_repository.dart';
 import 'repositories/cash_repository.dart';
 import 'repositories/payments_repository.dart';
 import 'repositories/notes_repository.dart';
+import 'whatsapp_service.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
 
@@ -17,6 +18,13 @@ final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepos
 final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.read(databaseProvider)));
 final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider)));
 final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider)));
+final whatsappServiceProvider = Provider<WhatsAppService>(
+  (ref) => WhatsAppService(
+    baseUrl: 'https://7103.api.greenapi.com',
+    instanceId: 'waInstance7103894450',
+    token: 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
+  ),
+);
 
 final roomsListProvider = StreamProvider.autoDispose((ref) => ref.watch(roomsRepoProvider).watchAll());
 
