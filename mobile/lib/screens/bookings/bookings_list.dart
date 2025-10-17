@@ -21,7 +21,6 @@ class BookingsListScreen extends ConsumerStatefulWidget {
 }
 
 class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
-  String _search = '';
   final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
 
   @override
@@ -41,11 +40,6 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
           tooltip: 'إدارة المدفوعات',
         ),
         IconButton(
-          onPressed: _showSearchDialog,
-          icon: const Icon(Icons.search),
-          tooltip: 'بحث',
-        ),
-        IconButton(
           onPressed: () async {
             await Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingEditScreen()));
           },
@@ -62,10 +56,6 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
       body: Column(
         children: [
           _ActiveAlertsBar(activeNotes),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: _buildFiltersSummary(),
-          ),
           Expanded(
             child: bookingsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -74,27 +64,10 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                 final roomsList = roomsAsync.maybeWhen(data: (r) => r, orElse: () => <Room>[]);
                 final roomsMap = {for (final r in roomsList) r.roomNumber: r};
 
-                final query = _search.trim().toLowerCase();
-                bool matches(String? source) => source != null && source.toLowerCase().contains(query);
-                var filtered = bookings
-                    .where((b) {
-                      final status = b.status.toLowerCase();
-                      if (status == 'مكتمل' || status == 'completed' || status == 'غادر' || status == 'departed') {
-                        return false;
-                      }
-                      if (query.isEmpty) return true;
-                      return matches(b.guestName) ||
-                          matches(b.guestPhone) ||
-                          matches(b.roomNumber) ||
-                          matches(b.guestIdNumber) ||
-                          matches(b.guestNationality) ||
-                          matches(b.guestEmail);
-                    })
-                    .toList();
+                final rows = [...bookings];
+                rows.sort((a, b) => (b.checkinDate).compareTo(a.checkinDate));
 
-                filtered.sort((a, b) => (b.checkinDate).compareTo(a.checkinDate));
-
-                if (filtered.isEmpty) {
+                if (rows.isEmpty) {
                   return const EmptyState(
                     title: 'لا توجد حجوزات',
                     message: 'استخدم البحث أو أضف حجزاً جديداً',
@@ -111,11 +84,11 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(minWidth: 1100),
                       child: ListView.builder(
-                        itemCount: filtered.length + 1,
+                        itemCount: rows.length + 1,
                         shrinkWrap: true,
                         itemBuilder: (context, index) {
                           if (index == 0) return _buildHeaderRow(context);
-                          final booking = filtered[index - 1];
+                          final booking = rows[index - 1];
                           final room = roomsMap[booking.roomNumber];
                           final checkin = DateTime.tryParse(booking.checkinDate);
                           final plannedCheckout = booking.checkoutDate != null ? DateTime.tryParse(booking.checkoutDate!) : null;
@@ -152,39 +125,6 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
     );
   }
 
-  Widget _buildFiltersSummary() {
-    final chips = <Widget>[];
-    if (_search.isNotEmpty) {
-      chips.add(Chip(label: Text('بحث: $_search')));
-    }
-    if (chips.isEmpty) return const SizedBox.shrink();
-    return Wrap(spacing: 8, children: chips);
-  }
-
-  void _showSearchDialog() async {
-    final controller = TextEditingController(text: _search);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: AlertDialog(
-          title: const Text('بحث في الحجوزات'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'اسم النزيل / الهاتف / رقم الغرفة',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تطبيق')),
-          ],
-        ),
-      ),
-    );
-    if (ok == true) setState(() => _search = controller.text.trim());
-  }
 }
 
 class _ActiveAlertsBar extends StatelessWidget {
@@ -253,7 +193,14 @@ Widget _buildHeaderRow(BuildContext context) {
     color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
     child: Row(
       children: const [
-        SizedBox(width: 40, child: Text('#')),
+        SizedBox(
+          width: 40,
+          child: Text(
+            '#',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+        ),
         _HeaderCell('بيانات النزيل', flex: 2),
         _HeaderCell('الغرفة'),
         _HeaderCell('سعر الليلة'),
@@ -264,7 +211,14 @@ Widget _buildHeaderRow(BuildContext context) {
         _HeaderCell('حالة الدفعة'),
         _HeaderCell('حالة الحجز'),
         _HeaderCell('تنبيهات'),
-        SizedBox(width: 200, child: Text('عمليات')),
+        SizedBox(
+          width: 200,
+          child: Text(
+            'عمليات',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+        ),
       ],
     ),
   );
@@ -278,7 +232,11 @@ class _HeaderCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       flex: flex,
-      child: Text(text, textAlign: TextAlign.center),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+      ),
     );
   }
 }
@@ -343,7 +301,14 @@ class _BookingRow extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SizedBox(width: 40, child: Text(index.toString(), textAlign: TextAlign.center)),
+              SizedBox(
+                width: 40,
+                child: Text(
+                  index.toString(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.black),
+                ),
+              ),
               Expanded(
                 flex: 2,
                 child: Align(
@@ -358,31 +323,44 @@ class _BookingRow extends ConsumerWidget {
                           booking.guestName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600, fontSize: 16),
                         ),
                         if (booking.guestPhone.isNotEmpty)
-                          Text(booking.guestPhone, style: theme.textTheme.bodySmall),
+                          Text(
+                            booking.guestPhone,
+                            style: const TextStyle(color: Colors.black, fontSize: 14),
+                          ),
                         const SizedBox(height: 2),
                         Text(
                           booking.guestIdNumber.isEmpty
                               ? booking.guestIdType
                               : '${booking.guestIdType} • ${booking.guestIdNumber}',
-                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          style: const TextStyle(color: Colors.black, fontSize: 12),
                         ),
                         if (booking.guestNationality.isNotEmpty)
                           Text(
                             booking.guestNationality,
-                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
+                            style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w500),
                           ),
                       ],
                     ),
                   ),
                 ),
               ),
-              Expanded(child: Center(child: Text(booking.roomNumber))),
               Expanded(
                 child: Center(
-                  child: Text(currencyFmt.format(pricePerNight)),
+                  child: Text(
+                    booking.roomNumber,
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    currencyFmt.format(pricePerNight),
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 ),
               ),
               Expanded(
@@ -391,13 +369,19 @@ class _BookingRow extends ConsumerWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(_formatDate(booking.checkinDate)),
+                      Text(
+                        _formatDate(booking.checkinDate),
+                        style: const TextStyle(color: Colors.black),
+                      ),
                       if (plannedText != null)
-                        Text('حتى $plannedText', style: theme.textTheme.bodySmall),
+                        Text(
+                          'حتى $plannedText',
+                          style: const TextStyle(color: Colors.black, fontSize: 12),
+                        ),
                       if (actualText != null)
                         Text(
                           'خروج فعلي $actualText',
-                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.green.shade700),
+                          style: const TextStyle(color: Colors.black, fontSize: 12),
                         ),
                     ],
                   ),
@@ -405,11 +389,28 @@ class _BookingRow extends ConsumerWidget {
               ),
               Expanded(
                 child: Center(
-                  child: Text(nightsLabel, style: theme.textTheme.bodyMedium),
+                  child: Text(
+                    nightsLabel,
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 ),
               ),
-              Expanded(child: Center(child: Text(currencyFmt.format(paid)))),
-              Expanded(child: Center(child: Text(currencyFmt.format(remaining)))),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    currencyFmt.format(paid),
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    currencyFmt.format(remaining),
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                ),
+              ),
               Expanded(
                 child: Center(
                   child: Container(
