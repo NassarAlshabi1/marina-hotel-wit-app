@@ -511,7 +511,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             labelText: 'رقم هاتف النزيل',
             border: OutlineInputBorder(),
           ),
-          textDirection: TextDirection.ltr,
+          textDirection: ui.TextDirection.ltr,
         ),
         const SizedBox(height: 20),
         const Align(
