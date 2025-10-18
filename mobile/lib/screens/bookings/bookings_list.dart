@@ -275,18 +275,19 @@ class _CompactBookingCard extends StatelessWidget {
                   ],
                 ),
               ],
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildInfoChip(theme, Icons.king_bed, 'الليالي', nightsLabel),
-                  _buildInfoChip(theme, Icons.attach_money, 'سعر الليلة', currencyFmt.format(pricePerNight)),
-                  _buildInfoChip(theme, Icons.payments, 'المدفوع', currencyFmt.format(paid)),
-                  _buildInfoChip(theme, Icons.receipt_long, 'المتبقي', currencyFmt.format(remaining)),
-                  _buildInfoChip(theme, Icons.summarize, 'الإجمالي', currencyFmt.format(totalAmount)),
-                ],
-              ),
+              // تم إزالة فاصل المسافة SizedBox(height: 12) والـ Wrap بالكامل
+              // الذي كان يحتوي على شرائح المعلومات (الليالي، السعر، المدفوع، المتبقي، الإجمالي)
+              // Wrap(
+              //   spacing: 8,
+              //   runSpacing: 8,
+              //   children: [
+              //     _buildInfoChip(theme, Icons.king_bed, 'الليالي', nightsLabel),
+              //     _buildInfoChip(theme, Icons.attach_money, 'سعر الليلة', currencyFmt.format(pricePerNight)),
+              //     _buildInfoChip(theme, Icons.payments, 'المدفوع', currencyFmt.format(paid)),
+              //     _buildInfoChip(theme, Icons.receipt_long, 'المتبقي', currencyFmt.format(remaining)),
+              //     _buildInfoChip(theme, Icons.summarize, 'الإجمالي', currencyFmt.format(totalAmount)),
+              //   ],
+              // ),
             ],
           ),
         ),
