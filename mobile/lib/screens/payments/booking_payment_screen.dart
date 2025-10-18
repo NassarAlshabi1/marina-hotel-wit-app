@@ -29,6 +29,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late TextEditingController _phoneController;
+  late String _guestPhone;
   final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
   PaymentMethod? _selectedMethod;
   double _remainingAmount = 0;
@@ -151,10 +152,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     // Clean phone and update booking
     final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
-    if (cleanedPhone != widget.booking.guestPhone) {
+    if (cleanedPhone != _guestPhone) {
       await bookingsRepo.update(widget.booking.id, guestPhone: cleanedPhone);
-      // Update local booking object
-      widget.booking.guestPhone = cleanedPhone;
+      if (mounted) {
+        setState(() {
+          _guestPhone = cleanedPhone;
+        });
+      } else {
+        _guestPhone = cleanedPhone;
+      }
     }
 
     // Create payment
@@ -213,7 +219,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _phoneController = TextEditingController(text: widget.booking.guestPhone);
+    _guestPhone = widget.booking.guestPhone;
+    _phoneController = TextEditingController(text: _guestPhone);
   }
 
   @override
@@ -338,7 +345,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final checkinText = dateFmt.format(checkin);
     final plannedText = plannedCheckout != null ? dateFmt.format(plannedCheckout) : null;
     final actualText = actualCheckout != null ? dateFmt.format(actualCheckout) : null;
-    final hasPhone = widget.booking.guestPhone.isNotEmpty;
+    final hasPhone = _guestPhone.isNotEmpty;
     final identityLine = widget.booking.guestIdNumber.isEmpty
         ? widget.booking.guestIdType
         : '${widget.booking.guestIdType} • ${widget.booking.guestIdNumber}';
@@ -385,7 +392,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       ),
                     ),
                     Text(
-                      'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • ${widget.booking.guestPhone}' : ''}',
+                      'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • ${_guestPhone}' : ''}',
                       style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                     Text(identityLine, style: const TextStyle(fontSize: 13, color: Colors.grey)),
@@ -1018,7 +1025,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       receiptNumber: 'REC${DateTime.now().millisecondsSinceEpoch}',
       payment: payment,
       guestName: widget.booking.guestName,
-      guestPhone: widget.booking.guestPhone,
+      guestPhone: _guestPhone,
       roomNumber: widget.booking.roomNumber,
       generatedAt: DateTime.now(),
     );
@@ -1036,7 +1043,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       invoiceNumber: 'INV${DateTime.now().millisecondsSinceEpoch}',
       bookingId: widget.booking.localUuid,
       guestName: widget.booking.guestName,
-      guestPhone: widget.booking.guestPhone,
+      guestPhone: _guestPhone,
       roomNumber: widget.booking.roomNumber,
       checkinDate: checkin,
       checkoutDate: checkout,
@@ -1104,7 +1111,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       builder: (context) => AlertDialog(
         title: const Text('إرسال كشف حساب'),
         content: Text(
-          'سيتم إرسال كشف حساب تفصيلي للعميل ${widget.booking.guestName} على رقم ${widget.booking.guestPhone}',
+          'سيتم إرسال كشف حساب تفصيلي للعميل ${widget.booking.guestName} على رقم $_guestPhone',
         ),
         actions: [
           TextButton(
