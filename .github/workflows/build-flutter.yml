@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -31,10 +33,7 @@ jobs:
           channel: stable
           cache: false
 
-      - name: Clean build artifacts
-        run: flutter clean
-
-      - name: Flutter clean
+      - name: Flutter Clean
         run: flutter clean
 
       - name: Install dependencies
