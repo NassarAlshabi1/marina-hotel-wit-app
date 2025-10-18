@@ -311,7 +311,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                     );
                   }
 
-                  await _refreshRoomOccupancy(ref, previousRoom: previousRoomNumber);
+                  await _refreshRoomOccupancy(ref);
 
                   if (mounted) Navigator.pop(context);
                 },
