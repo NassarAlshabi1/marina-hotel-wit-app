@@ -26,8 +26,6 @@ final whatsappServiceProvider = Provider<WhatsAppService>(
   ),
 );
 
-final whatsappServiceProvider = Provider<WhatsAppService>((ref) => WhatsAppService());
-
 final roomsListProvider = StreamProvider.autoDispose((ref) => ref.watch(roomsRepoProvider).watchAll());
 
 final bookingsListProvider = StreamProvider.autoDispose((ref) => ref.watch(bookingsRepoProvider).watch());
