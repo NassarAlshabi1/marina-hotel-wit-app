@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/core_providers.dart' as coreProviders;
+import 'expenses_report_screen.dart';
+import 'payments_report_screen.dart';
+import 'salary_withdrawals_report_screen.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -20,6 +23,42 @@ class ReportsScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(12),
             children: [
+              const Text('التقارير التفصيلية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _ReportShortcut(
+                    icon: Icons.receipt_long,
+                    label: 'تقرير دفوعات النزلاء',
+                    color: Colors.green,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PaymentsReportScreen()),
+                    ),
+                  ),
+                  _ReportShortcut(
+                    icon: Icons.account_balance_wallet,
+                    label: 'تقرير المصروفات',
+                    color: Colors.orange,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
+                    ),
+                  ),
+                  _ReportShortcut(
+                    icon: Icons.payments_outlined,
+                    label: 'تقرير سحبيات الرواتب',
+                    color: Colors.blue,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SalaryWithdrawalsReportScreen()),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
               const Text('الإشغال اليومي (آخر 7 أيام)', style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height: 200, child: BarChart(BarChartData(barGroups: d['dailyOcc']))),
               const SizedBox(height: 16),
@@ -72,5 +111,49 @@ class ReportsScreen extends ConsumerWidget {
     }
 
     return {'dailyOcc': daily, 'revExp': revExp, 'topRooms': topBars};
+  }
+}
+
+class _ReportShortcut extends StatelessWidget {
+  const _ReportShortcut({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 220,
+      height: 120,
+      child: Card(
+        elevation: 2,
+        color: color.withOpacity(0.1),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(icon, size: 32, color: color),
+                Text(
+                  label,
+                  style: TextStyle(fontWeight: FontWeight.bold, color: color),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
