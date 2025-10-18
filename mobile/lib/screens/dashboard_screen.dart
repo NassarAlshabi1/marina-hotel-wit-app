@@ -1,8 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../services/local_db.dart';
 import '../services/providers.dart';
 import '../services/sync_service.dart';
-import '../utils/theme.dart';
+import '../utils/status_utils.dart';
+
+const List<String> _dashboardRoomNumbers = [
+  '101',
+  '102',
+  '103',
+  '104',
+  '201',
+  '202',
+  '203',
+  '204',
+  '301',
+  '302',
+  '303',
+  '304',
+  '401',
+  '402',
+  '403',
+  '404',
+  '501',
+  '502',
+];
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -41,23 +64,19 @@ class DashboardScreen extends ConsumerWidget {
           Consumer(
             builder: (context, ref, _) {
               final roomsAsync = ref.watch(roomsListProvider);
-              final bookingsAsync = ref.watch(bookingsListProvider);
-              
+
               return roomsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, st) => Center(child: Text('خطأ: $e')),
                 data: (rooms) {
                   final totalRooms = rooms.length;
-                  final availableRooms = rooms.where((r) => r.status == 'شاغرة').length;
-                  final occupiedRooms = rooms.where((r) => r.status == 'محجوزة').length;
+                  final availableRooms = rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).length;
+                  final occupiedRooms = rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
                   final occupancyRate = totalRooms > 0 ? ((occupiedRooms / totalRooms) * 100).round() : 0;
-                  
-                  final currentGuests = bookingsAsync.asData?.value
-                      .where((b) => b.status == 'نشط').length ?? 0;
-                  
+
                   return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Statistics Grid
                       GridView.count(
                         crossAxisCount: 2,
                         shrinkWrap: true,
@@ -92,6 +111,8 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 24),
+                      _buildRoomsStatusSection(context, rooms),
                     ],
                   );
                 },
@@ -99,154 +120,64 @@ class DashboardScreen extends ConsumerWidget {
             },
           ),
           
-          const SizedBox(height: 32),
-          
-          // Recent activity section
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'النشاط الحديث',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildRecentActivityItem(
-                    'حجوزات جديدة',
-                    'تم إضافة 3 حجوزات جديدة اليوم',
-                    Icons.assignment,
-                    Colors.green,
-                  ),
-                  const Divider(),
-                  _buildRecentActivityItem(
-                    'مدفوعات مستلمة',
-                    'تم استلام دفعات بقيمة 15000',
-                    Icons.payment,
-                    Colors.blue,
-                  ),
-                  const Divider(),
-                  _buildRecentActivityItem(
-                    'غرف تم تسجيل المغادرة',
-                    'تم تسجيل مغادرة 2 حجز اليوم',
-                    Icons.logout,
-                    Colors.orange,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 32),
-          
-          // Quick actions section
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'إجراءات سريعة',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    children: [
-                      _buildQuickActionButton(
-                        'حجز جديد',
-                        Icons.add,
-                        Colors.green,
-                        () => {},
-                      ),
-                      _buildQuickActionButton(
-                        'إدارة الغرف',
-                        Icons.bed,
-                        Colors.blue,
-                      ),
-                      _buildQuickActionButton(
-                        'إدارة المدفوعات',
-                        Icons.payment,
-                        Colors.orange,
-                      ),
-                      _buildQuickActionButton(
-                        'التقارير',
-                        Icons.bar_chart,
-                        Colors.purple,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+
         ],
       ),
     );
   }
   
-  Widget _buildRecentActivityItem(
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-  ) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: color),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(subtitle),
-      contentPadding: EdgeInsets.zero,
-    );
-  }
-  
-  Widget _buildQuickActionButton(
-    String title,
-    IconData icon,
-    Color color,
-    [VoidCallback? onTap]
-  ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 140,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: color.withOpacity(0.3)),
-          borderRadius: BorderRadius.circular(8),
-          color: color.withOpacity(0.05),
-        ),
+  Widget _buildRoomsStatusSection(BuildContext context, List<Room> rooms) {
+    final Map<String, Room> roomsMap = {for (final room in rooms) room.roomNumber: room};
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
-            Text(
-              title,
+            const Text(
+              'حالة الغرف',
               style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: _dashboardRoomNumbers.map((roomNumber) {
+                final room = roomsMap[roomNumber];
+                final bool isOccupied = room != null && StatusUtils.isRoomOccupied(room.status);
+                final bool isAvailable = room != null && StatusUtils.isRoomAvailable(room.status);
+                final Color backgroundColor = isOccupied
+                    ? Colors.red.shade600
+                    : (isAvailable ? Colors.green.shade600 : Colors.grey.shade500);
+                final bool useDarkText = backgroundColor.computeLuminance() > 0.5;
+                final Color foregroundColor = useDarkText ? Colors.black : Colors.white;
+                final String tooltipText = room != null ? room.status : 'غير مسجل في النظام';
+
+                return Tooltip(
+                  message: tooltipText,
+                  child: SizedBox(
+                    width: 80,
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: backgroundColor,
+                        foregroundColor: foregroundColor,
+                        minimumSize: const Size(80, 48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        textStyle: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      child: Text(roomNumber),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ],
         ),
