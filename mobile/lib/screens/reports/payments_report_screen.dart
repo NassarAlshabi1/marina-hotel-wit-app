@@ -109,17 +109,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
-    final fromStr = _fromDate != null ? _formatDbDate(_fromDate!, atDayEnd: false) : null;
-    final toStr = _toDate != null ? _formatDbDate(_toDate!, atDayEnd: true) : null;
-
-    final paymentsQuery = db.select(db.payments);
-    if (fromStr != null) {
-      paymentsQuery.where((tbl) => tbl.paymentDate.isBiggerOrEqualValue(fromStr));
-    }
-    if (toStr != null) {
-      paymentsQuery.where((tbl) => tbl.paymentDate.isSmallerOrEqualValue(toStr));
-    }
-    final payments = await paymentsQuery.get();
+    final payments = await (db.select(db.payments)).get();
 
     final bookingIds = payments.map((p) => p.bookingLocalId).whereType<int>().toSet();
     final bookings = bookingIds.isEmpty
@@ -143,8 +133,15 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     for (final payment in payments) {
       final booking = bookingMap[payment.bookingLocalId];
       final candidateRoom = payment.roomNumber ?? booking?.roomNumber;
-      if (_selectedRoom != null && _selectedRoom!.isNotEmpty) {
-        if (candidateRoom != _selectedRoom) continue;
+      final paymentDate = _parseDateTime(payment.paymentDate);
+      if (_fromDate != null && paymentDate.isBefore(_fromDate!)) {
+        continue;
+      }
+      if (_toDate != null && paymentDate.isAfter(_toDate!)) {
+        continue;
+      }
+      if (_selectedRoom != null && _selectedRoom!.isNotEmpty && candidateRoom != _selectedRoom) {
+        continue;
       }
       filteredPayments.add(payment);
     }
@@ -414,13 +411,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         label: Text('$label\n$text', textAlign: TextAlign.center),
       ),
     );
-  }
-
-  String _formatDbDate(DateTime date, {required bool atDayEnd}) {
-    final target = atDayEnd
-        ? DateTime(date.year, date.month, date.day, 23, 59, 59)
-        : DateTime(date.year, date.month, date.day, 0, 0, 0);
-    return DateFormat('yyyy-MM-dd HH:mm:ss').format(target);
   }
 
   DateTime _parseDateTime(String value) {

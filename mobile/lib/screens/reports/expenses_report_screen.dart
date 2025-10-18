@@ -131,16 +131,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<_ExpensesReportResult> _loadExpensesReport(AppDatabase db) async {
-    final fromStr = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : null;
-    final toStr = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : null;
-
     final query = db.select(db.expenses);
-    if (fromStr != null) {
-      query.where((tbl) => tbl.date.isBiggerOrEqualValue(fromStr));
-    }
-    if (toStr != null) {
-      query.where((tbl) => tbl.date.isSmallerOrEqualValue(toStr));
-    }
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
       query.where((tbl) => tbl.expenseType.isIn(widget.allowedTypes!.toList()));
     }
@@ -168,6 +159,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     for (final expense in expenses) {
       final employee = expense.relatedId != null ? employeeMap[expense.relatedId!] : null;
       final date = _parseExpenseDate(expense.date);
+      if (_fromDate != null && date.isBefore(_fromDate!)) {
+        continue;
+      }
+      if (_toDate != null && date.isAfter(_toDate!)) {
+        continue;
+      }
       totalAmount += expense.amount;
       rows.add(_ExpenseReportRow(
         date: date,
