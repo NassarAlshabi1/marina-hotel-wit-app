@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/widgets.dart' as pw;
 
@@ -16,5 +18,15 @@ class PdfUtils {
       base: pw.Font.ttf(baseData),
       bold: pw.Font.ttf(boldData),
     );
+  }
+
+  static Future<pw.ImageProvider?> loadLogoImage() async {
+    try {
+      final data = await rootBundle.load('assets/images/hotel_logo.jpg');
+      final Uint8List bytes = data.buffer.asUint8List();
+      return pw.MemoryImage(bytes);
+    } catch (_) {
+      return null;
+    }
   }
 }

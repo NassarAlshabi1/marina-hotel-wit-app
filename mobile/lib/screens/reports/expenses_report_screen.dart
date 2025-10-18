@@ -184,6 +184,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
     final fonts = await PdfUtils.loadArabicFonts();
+    final logo = await PdfUtils.loadLogoImage();
     final doc = pw.Document();
     final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
@@ -200,12 +201,18 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
         build: (context) {
           return [
+            if (logo != null)
+              pw.Align(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Image(logo, width: 80),
+              ),
             pw.Text(widget.title, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 12),
             pw.Text('الفترة: من $fromLabel إلى $toLabel'),
             pw.Text('${widget.typeLabel}: $typeLabel'),
             pw.SizedBox(height: 12),
             pw.Text('إجمالي المصروفات: ${_currencyFmt.format(_totalAmount)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Bullet(text: 'عدد السجلات: ${_rows.length}'),
             pw.SizedBox(height: 12),
             pw.Table.fromTextArray(
               headers: headers,

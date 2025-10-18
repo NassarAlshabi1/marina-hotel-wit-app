@@ -216,6 +216,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
     final fonts = await PdfUtils.loadArabicFonts();
+    final logo = await PdfUtils.loadLogoImage();
     final doc = pw.Document();
     final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
@@ -226,7 +227,13 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
         build: (context) {
+          final headers = ['التاريخ', 'المبلغ', 'الغرفة', 'اسم الدافع', 'طريقة الدفع'];
           return [
+            if (logo != null)
+              pw.Align(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Image(logo, width: 80),
+              ),
             pw.Text('تقرير دفوعات النزلاء', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 12),
             pw.Text('الفترة: من $fromLabel إلى $toLabel'),
@@ -236,9 +243,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             pw.SizedBox(height: 6),
             pw.Bullet(text: 'إجمالي المدفوع: ${_currencyFmt.format(_totalPaid)}'),
             pw.Bullet(text: 'الإجمالي المتبقي: ${_currencyFmt.format(_totalRemaining)}'),
+            pw.Bullet(text: 'عدد السجلات: ${_rows.length}'),
             pw.SizedBox(height: 12),
             pw.Table.fromTextArray(
-              headers: const ['التاريخ', 'المبلغ', 'الغرفة', 'اسم الدافع'],
+              headers: headers,
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
               data: _rows
                   .map((row) => [
@@ -246,6 +254,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                         _currencyFmt.format(row.amount),
                         row.roomNumber,
                         row.payerName,
+                        row.payment.paymentMethod,
                       ])
                   .toList(),
               cellAlignment: pw.Alignment.centerRight,
@@ -349,6 +358,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                                     Text('الغرفة: ${row.roomNumber}'),
                                     const SizedBox(height: 4),
                                     Text('اسم الدافع: ${row.payerName}'),
+                                    const SizedBox(height: 4),
+                                    Text('طريقة الدفع: ${row.payment.paymentMethod}'),
                                     if (row.booking != null) ...[
                                       const SizedBox(height: 4),
                                       Text('رقم الحجز: ${row.booking!.id}'),
