@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "613681749386",
+    "project_id": "ahlan-hotel-manager",
+    "storage_bucket": "ahlan-hotel-manager.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:613681749386:android:cda06975ca336acfe23c73",
+        "android_client_info": {
+          "package_name": "com.sky.marina.firebase"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbNPMmiIdQ56aqol40ARsj_XOL4Qyvb84"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
