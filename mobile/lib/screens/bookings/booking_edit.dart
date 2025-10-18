@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
@@ -29,6 +30,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
 
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
+  bool _roomInitialized = false;
 
   static const _idTypes = ['بطاقة شخصية', 'رخصة قيادة', 'جواز سفر'];
   static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
@@ -53,6 +55,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
       _notes.text = b.notes ?? '';
       _status = b.status;
       _idType = b.guestIdType;
+      _roomInitialized = true;
     } else {
       _checkin.text = _formatDateTime(DateTime.now());
     }
@@ -80,6 +83,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   @override
   Widget build(BuildContext context) {
     final repo = ref.watch(bookingsRepoProvider);
+    final roomsAsync = ref.watch(roomsListProvider);
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -170,11 +174,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      TextFormField(
-                        controller: _roomNumber,
-                        decoration: const InputDecoration(labelText: 'رقم الغرفة *'),
-                        validator: _req,
-                      ),
+                      _buildRoomSelector(roomsAsync),
+                      const SizedBox(height: 12),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _checkin,
@@ -310,6 +311,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                     );
                   }
 
+                  await _refreshRoomOccupancy(ref, previousRoom: previousRoomNumber);
+
                   if (mounted) Navigator.pop(context);
                 },
                 icon: const Icon(Icons.save),
@@ -367,6 +370,102 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     setState(() {
       _expectedNights.text = nights.toString();
     });
+  }
+
+  Widget _buildRoomSelector(AsyncValue<List<Room>> roomsAsync) {
+    return roomsAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: LinearProgressIndicator(),
+      ),
+      error: (err, stack) => TextFormField(
+        controller: _roomNumber,
+        readOnly: true,
+        decoration: const InputDecoration(
+          labelText: 'رقم الغرفة *',
+          helperText: 'تعذر تحميل قائمة الغرف، أدخل الرقم يدوياً',
+        ),
+        validator: _req,
+      ),
+      data: (rooms) {
+        final availableRooms = rooms.where((room) => StatusUtils.isRoomAvailable(room.status)).toList()
+          ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+
+        final currentValue = _roomNumber.text.trim();
+        if (!_roomInitialized && widget.existing == null && availableRooms.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _roomNumber.text = availableRooms.first.roomNumber;
+                _roomInitialized = true;
+              });
+            }
+          });
+        } else if (!_roomInitialized && widget.existing != null) {
+          _roomInitialized = true;
+        }
+
+        final items = <DropdownMenuItem<String>>[];
+        if (currentValue.isNotEmpty && !availableRooms.any((room) => room.roomNumber == currentValue)) {
+          items.add(DropdownMenuItem(value: currentValue, child: Text('$currentValue (الحالي)')));
+        }
+        items.addAll(
+          availableRooms.map((room) => DropdownMenuItem(
+                value: room.roomNumber,
+                child: Text('${room.roomNumber} • ${room.type}'),
+              )),
+        );
+
+        if (items.isEmpty) {
+          return TextFormField(
+            controller: _roomNumber,
+            readOnly: widget.existing == null,
+            decoration: const InputDecoration(
+              labelText: 'رقم الغرفة *',
+              helperText: 'لا توجد غرف شاغرة متاحة حالياً',
+            ),
+            validator: _req,
+          );
+        }
+
+        return DropdownButtonFormField<String>(
+          value: currentValue.isNotEmpty ? currentValue : null,
+          items: items,
+          onChanged: (value) {
+            setState(() {
+              _roomNumber.text = value ?? '';
+            });
+          },
+          decoration: const InputDecoration(labelText: 'رقم الغرفة *'),
+          validator: (value) => value == null || value.trim().isEmpty ? 'مطلوب' : null,
+        );
+      },
+    );
+  }
+
+  Future<void> _refreshRoomOccupancy(WidgetRef ref) async {
+    final db = ref.read(databaseProvider);
+    final roomsRepo = ref.read(roomsRepoProvider);
+    final bookings = await (db.select(db.bookings)..where((tbl) => tbl.deletedAt.isNull())).get();
+    final occupiedRooms = <String>{};
+    for (final booking in bookings) {
+      if (StatusUtils.isActiveBooking(booking.status)) {
+        occupiedRooms.add(booking.roomNumber);
+      }
+    }
+
+    final rooms = await (db.select(db.rooms)..where((tbl) => tbl.deletedAt.isNull())).get();
+    for (final room in rooms) {
+      final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
+      final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
+      final isCurrentlyAvailable = StatusUtils.isRoomAvailable(room.status);
+      final target = StatusUtils.roomStatusForOccupancy(shouldBeOccupied);
+      if (shouldBeOccupied && !isCurrentlyOccupied) {
+        await roomsRepo.updateByRoomNumber(room.roomNumber, status: target);
+      } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
+        await roomsRepo.updateByRoomNumber(room.roomNumber, status: target);
+      }
+    }
   }
 
   DateTime? _parseDateTime(String value) {

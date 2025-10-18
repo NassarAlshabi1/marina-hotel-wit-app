@@ -12,37 +12,26 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    env:
-      FLUTTER_VERSION: '3.35.6'
-      FLUTTER_HOME: "${{ runner.temp }}/flutter"
-      PUB_CACHE: "${{ runner.temp }}/pub-cache"
     defaults:
       run:
         working-directory: mobile
     steps:
       - name: Checkout repository
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Java
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Flutter
-        run: |
-          set -euo pipefail
-          mkdir -p "$PUB_CACHE"
-          rm -rf "$FLUTTER_HOME"
-          curl -L "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" -o "$RUNNER_TEMP/flutter.tar.xz"
-          tar xf "$RUNNER_TEMP/flutter.tar.xz" -C "$RUNNER_TEMP"
-          mv "$RUNNER_TEMP/flutter" "$FLUTTER_HOME"
-          echo "$FLUTTER_HOME/bin" >> "$GITHUB_PATH"
-          echo "$FLUTTER_HOME/bin/cache/dart-sdk/bin" >> "$GITHUB_PATH"
-          flutter config --no-analytics
-          flutter --version
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: false
 
       - name: Flutter Clean
         run: flutter clean
@@ -57,7 +46,7 @@ jobs:
         run: flutter build apk --debug
 
       - name: Upload debug artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        uses: actions/upload-artifact@v4
         with:
           name: 'marina-hotel-debug-main-${{ github.run_number }}'
           path: mobile/build/app/outputs/flutter-apk/*-debug*.apk

@@ -84,16 +84,56 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
             onRefresh: () async {
               await ref.read(syncServiceProvider).runSync();
             },
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 1100),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: filtered.length + 1,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 900;
+                if (isWide) {
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 1100),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: filtered.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == 0) return _buildHeaderRow(context);
+                          final booking = filtered[index - 1];
+                          final room = roomsMap[booking.roomNumber];
+                          final checkin = DateTime.tryParse(booking.checkinDate);
+                          final plannedCheckout = booking.checkoutDate != null ? DateTime.tryParse(booking.checkoutDate!) : null;
+                          final actualCheckout = booking.actualCheckout != null ? DateTime.tryParse(booking.actualCheckout!) : null;
+                          final price = room?.price ?? 0;
+                          final expectedNights = booking.expectedNights > 0
+                              ? booking.expectedNights
+                              : (checkin == null ? 1 : Time.nightsWithCutoff(checkin, checkout: plannedCheckout));
+                          final actualNights = checkin == null
+                              ? expectedNights
+                              : Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
+                          final totalAmount = (expectedNights * price).toDouble();
+                          return _BookingRow(
+                            index: index,
+                            booking: booking,
+                            expectedNights: expectedNights,
+                            actualNights: actualNights,
+                            pricePerNight: price,
+                            totalAmount: totalAmount,
+                            currencyFmt: _currencyFmt,
+                            plannedCheckout: plannedCheckout,
+                            actualCheckout: actualCheckout,
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
-                    if (index == 0) return _buildHeaderRow(context);
-                    final booking = filtered[index - 1];
+                    final booking = filtered[index];
                     final room = roomsMap[booking.roomNumber];
                     final checkin = DateTime.tryParse(booking.checkinDate);
                     final plannedCheckout = booking.checkoutDate != null ? DateTime.tryParse(booking.checkoutDate!) : null;
@@ -107,7 +147,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                         : Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
                     final totalAmount = (expectedNights * price).toDouble();
                     return _BookingRow(
-                      index: index,
+                      index: index + 1,
                       booking: booking,
                       expectedNights: expectedNights,
                       actualNights: actualNights,
@@ -116,14 +156,150 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                       currencyFmt: _currencyFmt,
                       plannedCheckout: plannedCheckout,
                       actualCheckout: actualCheckout,
+                      compact: true,
                     );
                   },
-                ),
-              ),
+                );
+              },
             ),
           );
         },
       ),
+    );
+  }
+}
+
+class _CompactBookingCard extends StatelessWidget {
+  const _CompactBookingCard({
+    required this.booking,
+    required this.index,
+    required this.nightsLabel,
+    required this.paid,
+    required this.remaining,
+    required this.statusColor,
+    required this.statusText,
+    required this.plannedText,
+    required this.actualText,
+    required this.currencyFmt,
+    required this.pricePerNight,
+    required this.totalAmount,
+  });
+
+  final Booking booking;
+  final int index;
+  final String nightsLabel;
+  final double paid;
+  final double remaining;
+  final Color statusColor;
+  final String statusText;
+  final String? plannedText;
+  final String? actualText;
+  final NumberFormat currencyFmt;
+  final double pricePerNight;
+  final double totalAmount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 1,
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => BookingPaymentScreen(booking: booking)),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    radius: 16,
+                    child: Text(index.toString()),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('الغرفة ${booking.roomNumber}', style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 4),
+                        Text(
+                          booking.guestName,
+                          style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        if (booking.guestPhone.isNotEmpty)
+                          Text(booking.guestPhone, style: theme.textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(statusText, style: theme.textTheme.labelMedium?.copyWith(color: statusColor, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 16),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _formatDate(booking.checkinDate) + (plannedText != null ? ' • حتى $plannedText' : ''),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+              if (actualText != null) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.logout, size: 16),
+                    const SizedBox(width: 6),
+                    Text('خروج فعلي $actualText', style: theme.textTheme.bodySmall),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildInfoChip(theme, Icons.king_bed, 'الليالي', nightsLabel),
+                  _buildInfoChip(theme, Icons.attach_money, 'سعر الليلة', currencyFmt.format(pricePerNight)),
+                  _buildInfoChip(theme, Icons.payments, 'المدفوع', currencyFmt.format(paid)),
+                  _buildInfoChip(theme, Icons.receipt_long, 'المتبقي', currencyFmt.format(remaining)),
+                  _buildInfoChip(theme, Icons.summarize, 'الإجمالي', currencyFmt.format(totalAmount)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(ThemeData theme, IconData icon, String label, String value) {
+    return Chip(
+      avatar: Icon(icon, size: 16),
+      label: Text('$label: $value'),
+      labelStyle: theme.textTheme.bodySmall,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     );
   }
 }
@@ -174,6 +350,7 @@ class _BookingRow extends ConsumerWidget {
     required this.currencyFmt,
     this.plannedCheckout,
     this.actualCheckout,
+    this.compact = false,
   });
 
   final int index;
@@ -185,6 +362,7 @@ class _BookingRow extends ConsumerWidget {
   final NumberFormat currencyFmt;
   final DateTime? plannedCheckout;
   final DateTime? actualCheckout;
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -220,114 +398,120 @@ class _BookingRow extends ConsumerWidget {
             ? 'مسددة'
             : (paid > 0 ? 'جزئياً' : 'غير مسددة');
 
-        return InkWell(
-          onTap: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => BookingPaymentScreen(booking: booking)),
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFFE0E0E0))),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(width: 40, child: Text(index.toString(), textAlign: TextAlign.center, style: baseTextStyle)),
-                Expanded(
-                  flex: 2,
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Tooltip(
-                      message: guestTooltip,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            booking.guestName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: boldTextStyle.copyWith(fontSize: 16),
+        return compact
+            ? _CompactBookingCard(
+                booking: booking,
+                index: index,
+                nightsLabel: nightsLabel,
+                paid: paid,
+                remaining: remaining,
+                statusColor: statusColor,
+                statusText: statusText,
+                plannedText: plannedText,
+                actualText: actualText,
+                currencyFmt: currencyFmt,
+                pricePerNight: pricePerNight,
+                totalAmount: totalAmount,
+              )
+            : InkWell(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => BookingPaymentScreen(booking: booking)),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: const BoxDecoration(
+                    border: Border(bottom: BorderSide(color: Color(0xFFE0E0E0))),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(width: 40, child: Text(index.toString(), textAlign: TextAlign.center, style: baseTextStyle)),
+                      Expanded(
+                        flex: 2,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Tooltip(
+                            message: guestTooltip,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  booking.guestName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: boldTextStyle.copyWith(fontSize: 16),
+                                ),
+                                if (booking.guestPhone.isNotEmpty)
+                                  Text(booking.guestPhone, style: smallTextStyle),
+                                const SizedBox(height: 2),
+                                Text(
+                                  booking.guestIdNumber.isEmpty
+                                      ? booking.guestIdType
+                                      : '${booking.guestIdType} • ${booking.guestIdNumber}',
+                                  style: smallTextStyle,
+                                ),
+                                if (booking.guestNationality.isNotEmpty)
+                                  Text(booking.guestNationality, style: smallTextStyle),
+                              ],
+                            ),
                           ),
-                          if (booking.guestPhone.isNotEmpty)
-                            Text(booking.guestPhone, style: smallTextStyle),
-                          const SizedBox(height: 2),
-                          Text(
-                            booking.guestIdNumber.isEmpty
-                                ? booking.guestIdType
-                                : '${booking.guestIdType} • ${booking.guestIdNumber}',
-                            style: smallTextStyle,
+                        ),
+                      ),
+                      Expanded(child: Center(child: Text(booking.roomNumber, style: baseTextStyle))),
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            currencyFmt.format(pricePerNight),
+                            style: baseTextStyle,
                           ),
-                          if (booking.guestNationality.isNotEmpty)
-                            Text(booking.guestNationality, style: smallTextStyle),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                Expanded(child: Center(child: Text(booking.roomNumber, style: baseTextStyle))),
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      currencyFmt.format(pricePerNight),
-                      style: baseTextStyle,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_formatDate(booking.checkinDate), style: baseTextStyle),
-                        if (plannedText != null)
-                          Text('حتى $plannedText', style: smallTextStyle),
-                        if (actualText != null)
-                          Text('خروج فعلي $actualText', style: smallTextStyle),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Center(
-                    child: Text(nightsLabel, style: baseTextStyle),
-                  ),
-                ),
-                Expanded(child: Center(child: Text(currencyFmt.format(paid), style: baseTextStyle))),
-                Expanded(child: Center(child: Text(currencyFmt.format(remaining), style: baseTextStyle))),
-                Expanded(
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: statusColor),
+                      Expanded(
+                        flex: 2,
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_formatDate(booking.checkinDate), style: baseTextStyle),
+                              if (plannedText != null)
+                                Text('حتى $plannedText', style: smallTextStyle),
+                              if (actualText != null)
+                                Text('خروج فعلي $actualText', style: smallTextStyle),
+                            ],
+                          ),
+                        ),
                       ),
-                      child: Text(statusText, style: baseTextStyle.copyWith(fontWeight: FontWeight.bold, fontSize: 12)),
-                    ),
+                      Expanded(
+                        child: Center(
+                          child: Text(nightsLabel, style: baseTextStyle),
+                        ),
+                      ),
+                      Expanded(child: Center(child: Text(currencyFmt.format(paid), style: baseTextStyle))),
+                      Expanded(child: Center(child: Text(currencyFmt.format(remaining), style: baseTextStyle))),
+                      Expanded(
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: statusColor),
+                            ),
+                            child: Text(statusText, style: baseTextStyle.copyWith(fontWeight: FontWeight.bold, fontSize: 12)),
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Center(child: _buildBookingStatusChip(booking.status, baseTextStyle))),
+                    ],
                   ),
                 ),
-                Expanded(child: Center(child: _buildBookingStatusChip(booking.status, baseTextStyle))),
-              ],
-            ),
-          ),
-        );
+              );
       },
     );
-  }
-
-  String _formatDate(String s) {
-    try {
-      final d = DateTime.parse(s);
-      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-    } catch (_) {
-      return s;
-    }
   }
 }
 
@@ -360,4 +544,13 @@ Widget _buildBookingStatusChip(String status, TextStyle baseTextStyle) {
     decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(16)),
     child: Text(txt, style: baseTextStyle.copyWith(fontSize: 12, fontWeight: FontWeight.w500)),
   );
+}
+
+String _formatDate(String s) {
+  try {
+    final d = DateTime.parse(s);
+    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  } catch (_) {
+    return s;
+  }
 }

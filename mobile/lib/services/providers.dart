@@ -8,6 +8,7 @@ import 'repositories/cash_repository.dart';
 import 'repositories/payments_repository.dart';
 import 'repositories/notes_repository.dart';
 import 'whatsapp_service.dart';
+import '../utils/status_utils.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
 
@@ -27,6 +28,8 @@ final whatsappServiceProvider = Provider<WhatsAppService>(
 );
 
 final roomsListProvider = StreamProvider.autoDispose((ref) => ref.watch(roomsRepoProvider).watchAll());
+final availableRoomsProvider = StreamProvider.autoDispose((ref) =>
+    ref.watch(roomsRepoProvider).watchAll().map((rooms) => rooms.where((room) => StatusUtils.isRoomAvailable(room.status)).toList()));
 
 final bookingsListProvider = StreamProvider.autoDispose((ref) => ref.watch(bookingsRepoProvider).watch());
 final activeNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(notesRepoProvider).listAllActive());
