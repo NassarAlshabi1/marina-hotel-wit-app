@@ -32,7 +32,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.marinahotel.mobile"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -47,7 +47,7 @@ android {
     defaultConfig {
         applicationId = "com.marinahotel.mobile"
         minSdk = 21
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
         multiDexEnabled = true
@@ -58,7 +58,8 @@ android {
         // Add app metadata
         manifestPlaceholders = [
             appName: "Marina Hotel",
-            appDescription: "Complete Hotel Management System"
+            appDescription: "Complete Hotel Management System",
+            applicationName: "io.flutter.app.FlutterApplication"
         ]
     }
 

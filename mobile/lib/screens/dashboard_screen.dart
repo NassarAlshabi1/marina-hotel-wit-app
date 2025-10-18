@@ -125,7 +125,7 @@ class DashboardScreen extends ConsumerWidget {
                   const Divider(),
                   _buildRecentActivityItem(
                     'مدفوعات مستلمة',
-                    'تم استلام دفعات بقيمة 15000 ريال',
+                    'تم استلام دفعات بقيمة 15000',
                     Icons.payment,
                     Colors.blue,
                   ),

@@ -270,7 +270,7 @@ class Receipt {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('المبلغ:'),
-                  pw.Text('${payment.amount.toStringAsFixed(2)} ر.س'),
+                  pw.Text('${payment.amount.toStringAsFixed(2)}'),
                 ],
               ),
               pw.Row(
@@ -493,7 +493,7 @@ class Invoice {
                     pw.Text('تاريخ الوصول: ${_formatDate(checkinDate)}'),
                     pw.Text('تاريخ المغادرة: ${_formatDate(checkoutDate)}'),
                     pw.Text('عدد الليالي: $nights'),
-                    pw.Text('سعر الليلة: ${roomRate.toStringAsFixed(2)} ر.س'),
+                    pw.Text('سعر الليلة: ${roomRate.toStringAsFixed(2)}'),
                   ],
                 ),
               ),
@@ -544,11 +544,11 @@ class Invoice {
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text('${roomRate.toStringAsFixed(2)} ر.س'),
+                    child: pw.Text('${roomRate.toStringAsFixed(2)}'),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text('${totalAmount.toStringAsFixed(2)} ر.س'),
+                    child: pw.Text('${totalAmount.toStringAsFixed(2)}'),
                   ),
                 ],
               ),
@@ -596,7 +596,7 @@ class Invoice {
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text('${payment.amount.toStringAsFixed(2)} ر.س', style: const pw.TextStyle(fontSize: 10)),
+                      child: pw.Text('${payment.amount.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 10)),
                     ),
                   ],
                 )),
@@ -620,14 +620,14 @@ class Invoice {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('إجمالي الفاتورة:', style: pw.TextStyle(fontSize: 14)),
-                  pw.Text('${totalAmount.toStringAsFixed(2)} ر.س', style: pw.TextStyle(fontSize: 14)),
+                  pw.Text('${totalAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14)),
                 ],
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('المدفوع:', style: pw.TextStyle(fontSize: 14)),
-                  pw.Text('${(totalAmount - remainingAmount).toStringAsFixed(2)} ر.س', style: pw.TextStyle(fontSize: 14)),
+                  pw.Text('${(totalAmount - remainingAmount).toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14)),
                 ],
               ),
               pw.Divider(color: PdfColors.grey300),
@@ -635,7 +635,7 @@ class Invoice {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('المتبقي:', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('${remainingAmount.toStringAsFixed(2)} ر.س', 
+                  pw.Text('${remainingAmount.toStringAsFixed(2)}', 
                     style: pw.TextStyle(
                       fontSize: 16, 
                       fontWeight: pw.FontWeight.bold,

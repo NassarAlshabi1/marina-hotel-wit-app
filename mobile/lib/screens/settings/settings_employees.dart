@@ -138,7 +138,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 const Icon(Icons.attach_money, color: Colors.green, size: 20),
                 const SizedBox(width: 4),
                 Text(
-                  'إجمالي الرواتب: ${totalSalaries.toStringAsFixed(0)} ر.س',
+                  'إجمالي الرواتب: ${totalSalaries.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -255,7 +255,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
             Row(
               children: [
                 Expanded(
-                  child: _buildDetailRow('الراتب', '${employee.salary.toStringAsFixed(0)} ر.س', Icons.attach_money),
+                  child: _buildDetailRow('الراتب', '${employee.salary.toStringAsFixed(2)}', Icons.attach_money),
                 ),
                 Expanded(
                   child: _buildDetailRow('الهاتف', employee.phone, Icons.phone),
@@ -390,7 +390,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   decoration: const InputDecoration(
                     labelText: 'الراتب*',
                     border: OutlineInputBorder(),
-                    suffixText: 'ر.س',
+                    
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -511,14 +511,14 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('الراتب الأساسي: ${employee.salary.toStringAsFixed(0)} ر.س'),
+              Text('الراتب الأساسي: ${employee.salary.toStringAsFixed(2)}'),
               const SizedBox(height: 12),
               TextField(
                 controller: amountController,
                 decoration: const InputDecoration(
                   labelText: 'المبلغ المسحوب*',
                   border: OutlineInputBorder(),
-                  suffixText: 'ر.س',
+                  
                 ),
                 keyboardType: TextInputType.number,
               ),

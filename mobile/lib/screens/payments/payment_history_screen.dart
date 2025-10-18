@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
@@ -6,8 +8,8 @@ import '../../services/local_db.dart';
 import '../../utils/time.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
-  final String bookingId;
-  const PaymentHistoryScreen({super.key, required this.bookingId});
+  final String? bookingId;
+  const PaymentHistoryScreen({super.key, this.bookingId});
 
   @override
   ConsumerState<PaymentHistoryScreen> createState() => _PaymentHistoryScreenState();
@@ -18,14 +20,15 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   String? _selectedPaymentMethod;
   DateTime? _fromDate;
   DateTime? _toDate;
-  
+
   final List<String> _revenueTypes = ['room', 'service', 'deposit', 'other'];
   final List<String> _paymentMethods = ['نقدي', 'بطاقة', 'تحويل', 'شيك'];
 
   @override
   Widget build(BuildContext context) {
     final paymentsRepo = ref.watch(paymentsRepoProvider);
-    
+    final database = ref.watch(databaseProvider);
+
     return AppScaffold(
       title: 'تاريخ المدفوعات',
       actions: [
@@ -40,281 +43,278 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
       ],
       body: Column(
         children: [
-          // شريط الفلاتر
           if (_hasActiveFilters()) _buildActiveFiltersChips(),
-          
-          // قائمة المدفوعات
           Expanded(
-            child: StreamBuilder<Booking?>(
-              stream: (ref.watch(databaseProvider).select(ref.watch(databaseProvider).bookings)
-                    ..where((t) => t.localUuid.equals(widget.bookingId)))
-                  .watchSingleOrNull(),
-              builder: (context, bookingSnap) {
-                if (bookingSnap.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (bookingSnap.hasError) {
-                  return Center(child: Text('خطأ في جلب بيانات الحجز: ${bookingSnap.error}'));
-                }
-                final booking = bookingSnap.data;
-                if (booking == null) {
-                  return const Center(child: Text('لم يتم العثور على الحجز'));
-                }
-                return StreamBuilder<List<Payment>>(
-                  stream: paymentsRepo.paymentsByBooking(booking.id),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.red.shade300,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'حدث خطأ في تحميل البيانات',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 8),
-                            Text('${snapshot.error}'),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () => setState(() {}),
-                              child: const Text('إعادة المحاولة'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    
-                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.payment_outlined,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'لا توجد مدفوعات مسجلة',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'عند إضافة مدفوعات جديدة ستظهر هنا',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    
-                    List<Payment> payments = snapshot.data!;
-                    
-                    // تطبيق الفلاتر
-                    payments = _applyFilters(payments);
-                    
-                    if (payments.isEmpty) {
-                      return const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.filter_list_off,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'لا توجد مدفوعات تطابق الفلاتر المحددة',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'جرب تعديل الفلاتر أو إزالتها',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    
-                    // حساب الإجمالي
-                    final totalAmount = payments.fold<double>(
-                      0, 
-                      (sum, payment) => sum + payment.amount,
-                    );
-                    
-                    return Column(
-                      children: [
-                        // شريط الإحصائيات
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.all(16),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Colors.green.shade400, Colors.green.shade600],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                'إجمالي المدفوعات',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${totalAmount.toStringAsFixed(2)} ريال',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'عدد المدفوعات: ${payments.length}',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        
-                        // قائمة المدفوعات
-                        Expanded(
-                          child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: payments.length,
-                            itemBuilder: (context, index) {
-                              final payment = payments[index];
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                child: ListTile(
-                                  leading: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: _getPaymentMethodColor(payment.paymentMethod).withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      _getPaymentMethodIcon(payment.paymentMethod),
-                                      color: _getPaymentMethodColor(payment.paymentMethod),
-                                    ),
-                                  ),
-                                  title: Text(
-                                    '${payment.amount.toStringAsFixed(2)} ريال',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        children: [
-                                          Icon(Icons.payment, size: 16, color: Colors.grey.shade600),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            payment.paymentMethod,
-                                            style: TextStyle(color: Colors.grey.shade700),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Icon(Icons.category, size: 16, color: Colors.grey.shade600),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            _getRevenueTypeLabel(payment.revenueType),
-                                            style: TextStyle(color: Colors.grey.shade700),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Row(
-                                        children: [
-                                          Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            payment.paymentDate,
-                                            style: TextStyle(color: Colors.grey.shade700),
-                                          ),
-                                        ],
-                                      ),
-                                      if (payment.notes != null && payment.notes!.isNotEmpty) ...[
-                                        const SizedBox(height: 2),
-                                        Row(
-                                          children: [
-                                            Icon(Icons.note, size: 16, color: Colors.grey.shade600),
-                                            const SizedBox(width: 4),
-                                            Expanded(
-                                              child: Text(
-                                                payment.notes!,
-                                                style: TextStyle(
-                                                  color: Colors.grey.shade700,
-                                                  fontStyle: FontStyle.italic,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  trailing: payment.roomNumber != null 
-                                      ? Chip(
-                                          label: Text(payment.roomNumber!),
-                                          backgroundColor: Colors.blue.shade50,
-                                        )
-                                      : null,
-                                  onTap: () => _showPaymentDetails(payment),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-            ),
+            child: widget.bookingId == null
+                ? _buildPaymentsList(paymentsRepo.watchAll())
+                : StreamBuilder<Booking?>(
+                    stream: (database.select(database.bookings)
+                          ..where((t) => t.localUuid.equals(widget.bookingId!)))
+                        .watchSingleOrNull(),
+                    builder: (context, bookingSnap) {
+                      if (bookingSnap.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (bookingSnap.hasError) {
+                        return Center(child: Text('خطأ في جلب بيانات الحجز: ${bookingSnap.error}'));
+                      }
+                      final booking = bookingSnap.data;
+                      if (booking == null) {
+                        return const Center(child: Text('لم يتم العثور على الحجز'));
+                      }
+                      return _buildPaymentsList(paymentsRepo.paymentsByBooking(booking.id));
+                    },
+                  ),
           ),
         ],
       ),
     );
   }
-  
-  bool _hasActiveFilters() {
-    return _selectedRevenueType != null || 
-           _selectedPaymentMethod != null || 
-           _fromDate != null || 
-           _toDate != null;
+
+  Widget _buildPaymentsList(Stream<List<Payment>> stream) {
+    return StreamBuilder<List<Payment>>(
+      stream: stream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red.shade300,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'حدث خطأ في تحميل البيانات',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text('${snapshot.error}'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => setState(() {}),
+                  child: const Text('إعادة المحاولة'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.payment_outlined,
+                  size: 64,
+                  color: Colors.grey,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'لا توجد مدفوعات مسجلة',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'عند إضافة مدفوعات جديدة ستظهر هنا',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+
+        var payments = snapshot.data!;
+        payments = _applyFilters(payments);
+
+        if (payments.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.filter_list_off,
+                  size: 64,
+                  color: Colors.grey,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'لا توجد مدفوعات تطابق الفلاتر المحددة',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'جرب تعديل الفلاتر أو إزالتها',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final totalAmount = payments.fold<double>(
+          0,
+          (sum, payment) => sum + payment.amount,
+        );
+
+        return Column(
+          children: [
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.green.shade400, Colors.green.shade600],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    'إجمالي المدفوعات',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${totalAmount.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'عدد المدفوعات: ${payments.length}',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: payments.length,
+                itemBuilder: (context, index) {
+                  final payment = payments[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _getPaymentMethodColor(payment.paymentMethod).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          _getPaymentMethodIcon(payment.paymentMethod),
+                          color: _getPaymentMethodColor(payment.paymentMethod),
+                        ),
+                      ),
+                      title: Text(
+                        '${payment.amount.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(Icons.payment, size: 16, color: Colors.grey.shade600),
+                              const SizedBox(width: 4),
+                              Text(
+                                payment.paymentMethod,
+                                style: TextStyle(color: Colors.grey.shade700),
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(Icons.category, size: 16, color: Colors.grey.shade600),
+                              const SizedBox(width: 4),
+                              Text(
+                                _getRevenueTypeLabel(payment.revenueType),
+                                style: TextStyle(color: Colors.grey.shade700),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                              const SizedBox(width: 4),
+                              Text(
+                                payment.paymentDate,
+                                style: TextStyle(color: Colors.grey.shade700),
+                              ),
+                            ],
+                          ),
+                          if (payment.notes != null && payment.notes!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Icon(Icons.note, size: 16, color: Colors.grey.shade600),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    payment.notes!,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                      trailing: payment.roomNumber != null
+                          ? Chip(
+                              label: Text(payment.roomNumber!),
+                              backgroundColor: Colors.blue.shade50,
+                            )
+                          : null,
+                      onTap: () => _showPaymentDetails(payment),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
-  
+
+  bool _hasActiveFilters() {
+    return _selectedRevenueType != null ||
+        _selectedPaymentMethod != null ||
+        _fromDate != null ||
+        _toDate != null;
+  }
+
   Widget _buildActiveFiltersChips() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -345,22 +345,17 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
       ),
     );
   }
-  
+
   List<Payment> _applyFilters(List<Payment> payments) {
     return payments.where((payment) {
-      // فلتر نوع الإيراد
-      if (_selectedRevenueType != null && 
-          payment.revenueType != _selectedRevenueType) {
+      if (_selectedRevenueType != null && payment.revenueType != _selectedRevenueType) {
         return false;
       }
-      
-      // فلتر طريقة الدفع
-      if (_selectedPaymentMethod != null && 
-          payment.paymentMethod != _selectedPaymentMethod) {
+
+      if (_selectedPaymentMethod != null && payment.paymentMethod != _selectedPaymentMethod) {
         return false;
       }
-      
-      // فلتر التاريخ
+
       if (_fromDate != null || _toDate != null) {
         try {
           final paymentDate = DateTime.parse(payment.paymentDate);
@@ -370,20 +365,18 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           if (_toDate != null && paymentDate.isAfter(_toDate!)) {
             return false;
           }
-        } catch (e) {
-          // إذا فشل تحليل التاريخ، تجاهل هذا الفلتر
-        }
+        } catch (e) {}
       }
-      
+
       return true;
     }).toList();
   }
-  
+
   void _showFilterDialog() {
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
             title: const Text('فلترة المدفوعات'),
@@ -391,7 +384,6 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // فلتر نوع الإيراد
                   DropdownButtonFormField<String>(
                     value: _selectedRevenueType,
                     decoration: const InputDecoration(
@@ -401,16 +393,13 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                     items: [
                       const DropdownMenuItem(value: null, child: Text('جميع الأنواع')),
                       ..._revenueTypes.map((type) => DropdownMenuItem(
-                        value: type, 
-                        child: Text(_getRevenueTypeLabel(type)),
-                      )),
+                            value: type,
+                            child: Text(_getRevenueTypeLabel(type)),
+                          )),
                     ],
                     onChanged: (value) => setDialogState(() => _selectedRevenueType = value),
                   ),
-                  
                   const SizedBox(height: 16),
-                  
-                  // فلتر طريقة الدفع
                   DropdownButtonFormField<String>(
                     value: _selectedPaymentMethod,
                     decoration: const InputDecoration(
@@ -420,16 +409,13 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                     items: [
                       const DropdownMenuItem(value: null, child: Text('جميع الطرق')),
                       ..._paymentMethods.map((method) => DropdownMenuItem(
-                        value: method, 
-                        child: Text(method),
-                      )),
+                            value: method,
+                            child: Text(method),
+                          )),
                     ],
                     onChanged: (value) => setDialogState(() => _selectedPaymentMethod = value),
                   ),
-                  
                   const SizedBox(height: 16),
-                  
-                  // فلتر التاريخ من
                   ListTile(
                     title: const Text('من تاريخ'),
                     subtitle: Text(_fromDate != null ? Time.dateToString(_fromDate!) : 'غير محدد'),
@@ -446,8 +432,6 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                       }
                     },
                   ),
-                  
-                  // فلتر التاريخ إلى
                   ListTile(
                     title: const Text('إلى تاريخ'),
                     subtitle: Text(_toDate != null ? Time.dateToString(_toDate!) : 'غير محدد'),
@@ -474,7 +458,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               ),
               ElevatedButton(
                 onPressed: () {
-                  setState(() {}); // تحديث الشاشة الرئيسية
+                  setState(() {});
                   Navigator.of(ctx).pop();
                 },
                 child: const Text('تطبيق الفلاتر'),
@@ -485,7 +469,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
       ),
     );
   }
-  
+
   void _clearFilters() {
     setState(() {
       _selectedRevenueType = null;
@@ -494,19 +478,19 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
       _toDate = null;
     });
   }
-  
+
   void _showPaymentDetails(Payment payment) {
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('تفاصيل الدفعة'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailRow('المبلغ', '${payment.amount.toStringAsFixed(2)} ريال'),
+              _buildDetailRow('المبلغ', '${payment.amount.toStringAsFixed(2)}'),
               _buildDetailRow('طريقة الدفع', payment.paymentMethod),
               _buildDetailRow('نوع الإيراد', _getRevenueTypeLabel(payment.revenueType)),
               _buildDetailRow('التاريخ', payment.paymentDate),
@@ -526,7 +510,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
       ),
     );
   }
-  
+
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -546,7 +530,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
       ),
     );
   }
-  
+
   String _getRevenueTypeLabel(String type) {
     switch (type) {
       case 'room':
@@ -561,7 +545,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
         return type;
     }
   }
-  
+
   Color _getPaymentMethodColor(String method) {
     switch (method) {
       case 'نقدي':
@@ -576,7 +560,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
         return Colors.grey;
     }
   }
-  
+
   IconData _getPaymentMethodIcon(String method) {
     switch (method) {
       case 'نقدي':

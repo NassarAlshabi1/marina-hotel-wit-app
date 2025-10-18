@@ -119,7 +119,7 @@ class PaymentSummaryWidget extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            '${amount.toStringAsFixed(0)}',
+            '${amount.toStringAsFixed(2)}',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
@@ -181,7 +181,7 @@ class PaymentCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${payment.amount.toStringAsFixed(2)} ر.س',
+                          '${payment.amount.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -474,7 +474,7 @@ class PaymentStatsWidget extends StatelessWidget {
                   const Icon(Icons.attach_money, color: Colors.green),
                   const SizedBox(width: 8),
                   Text(
-                    'إجمالي المبلغ: ${totalAmount.toStringAsFixed(2)} ر.س',
+                    'إجمالي المبلغ: ${totalAmount.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -675,13 +675,13 @@ class InvoiceSummaryWidget extends StatelessWidget {
             
             // تفاصيل الحساب
             _buildInvoiceRow('عدد الليالي', '$nights ليلة'),
-            _buildInvoiceRow('سعر الليلة', '${roomRate.toStringAsFixed(2)} ر.س'),
+            _buildInvoiceRow('سعر الليلة', '${roomRate.toStringAsFixed(2)}'),
             const Divider(),
-            _buildInvoiceRow('المبلغ الإجمالي', '${totalAmount.toStringAsFixed(2)} ر.س', isBold: true),
-            _buildInvoiceRow('المدفوع', '${paidAmount.toStringAsFixed(2)} ر.س', color: Colors.green),
+            _buildInvoiceRow('المبلغ الإجمالي', '${totalAmount.toStringAsFixed(2)}', isBold: true),
+            _buildInvoiceRow('المدفوع', '${paidAmount.toStringAsFixed(2)}', color: Colors.green),
             _buildInvoiceRow(
               'المتبقي', 
-              '${remainingAmount.toStringAsFixed(2)} ر.س', 
+              '${remainingAmount.toStringAsFixed(2)}', 
               color: remainingAmount > 0 ? Colors.red : Colors.green,
               isBold: true,
             ),
@@ -757,7 +757,7 @@ class QuickPaymentButton extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
           ),
           Text(
-            '${amount.toStringAsFixed(0)} ر.س',
+            '${amount.toStringAsFixed(2)}',
             style: const TextStyle(fontSize: 11),
           ),
         ],
