@@ -1,16 +1,14 @@
-name: Build Flutter APK
+name: Build Flutter Release APK
 
 on:
-  push:
-    branches:
-      - main
+  pull_request:
     paths:
       - 'mobile/**'
-      - '.github/workflows/build-flutter.yml'
+      - '.github/workflows/flutter-apk-release.yml'
   workflow_dispatch:
 
 jobs:
-  build-apk:
+  build-release-apk:
     runs-on: ubuntu-latest
     env:
       FLUTTER_VERSION: '3.35.6'
@@ -19,11 +17,10 @@ jobs:
     defaults:
       run:
         working-directory: mobile
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-        with:
-          fetch-depth: 0
 
       - name: Set up Java
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
@@ -44,7 +41,7 @@ jobs:
           flutter config --no-analytics
           flutter --version
 
-      - name: Flutter Clean
+      - name: Clean build artifacts
         run: flutter clean
 
       - name: Install dependencies
@@ -53,12 +50,12 @@ jobs:
       - name: Generate code
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: Build debug APK
-        run: flutter build apk --debug
+      - name: Build release APK
+        run: flutter build apk --release
 
-      - name: Upload debug artifact
+      - name: Upload release artifact
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
         with:
-          name: 'marina-hotel-debug-main-${{ github.run_number }}'
-          path: mobile/build/app/outputs/flutter-apk/*-debug*.apk
+          name: 'marina-hotel-release-${{ github.run_number }}'
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
