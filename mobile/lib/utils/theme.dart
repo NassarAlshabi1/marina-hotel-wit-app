@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 // Color scheme matching PHP Bootstrap admin design
 class AppColors {
   // Primary colors - matching PHP header/sidebar
-  static const Color primaryColor = Color(0xFF007bff);  // Bootstrap primary blue
-  static const Color primaryDark = Color(0xFF0056b3);
-  static const Color primaryLight = Color(0xFF66b2ff);
+  static const Color primaryColor = Color(0xFFCC94FF);
+  static const Color primaryDark = Color(0xFFA36BDD);
+  static const Color primaryLight = Color(0xFFE4C6FF);
   
   // Background colors
   static const Color backgroundColor = Color(0xFFf8f9fa);  // Bootstrap bg-light
