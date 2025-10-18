@@ -18,6 +18,13 @@ final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepos
 final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.read(databaseProvider)));
 final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider)));
 final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider)));
+final whatsappServiceProvider = Provider<WhatsAppService>(
+  (ref) => WhatsAppService(
+    baseUrl: 'https://7103.api.greenapi.com',
+    instanceId: 'waInstance7103894450',
+    token: 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
+  ),
+);
 
 final whatsappServiceProvider = Provider<WhatsAppService>((ref) => WhatsAppService());
 
