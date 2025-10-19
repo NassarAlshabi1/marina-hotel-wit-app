@@ -251,7 +251,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                 onPressed: () async {
                   if (!_formKey.currentState!.validate()) return;
                   final name = _guestName.text.trim();
-                  final phone = _guestPhone.text.trim();
+                  final phone = _normalizePhone(_guestPhone.text);
                   final nationality = _guestNationality.text.trim().isEmpty ? 'غير معروف' : _guestNationality.text.trim();
                   final email = _optionalText(_guestEmail.text);
                   final address = _optionalText(_guestAddress.text);
@@ -311,7 +311,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                     );
                   }
 
-                  await _refreshRoomOccupancy(ref, previousRoom: previousRoomNumber);
+                  await _refreshRoomOccupancy(ref);
 
                   if (mounted) Navigator.pop(context);
                 },
@@ -487,6 +487,24 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     final min = dt.minute.toString().padLeft(2, '0');
     final s = dt.second.toString().padLeft(2, '0');
     return '$y-$m-$d $h:$min:$s';
+  }
+
+  String _normalizePhone(String value) {
+    final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitsOnly.isEmpty) {
+      return value.trim();
+    }
+    var normalized = digitsOnly;
+    if (normalized.startsWith('00') && normalized.length > 2) {
+      normalized = normalized.substring(2);
+    }
+    if (normalized.startsWith('0') && normalized.length == 10) {
+      normalized = normalized.substring(1);
+    }
+    if (normalized.startsWith('967')) {
+      return normalized;
+    }
+    return '967$normalized';
   }
 
   String? _optionalText(String text) => text.trim().isEmpty ? null : text.trim();

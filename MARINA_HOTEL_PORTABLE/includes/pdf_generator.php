@@ -4,14 +4,59 @@
  * يستخدم FPDF مع دعم كامل للغة العربية
  */
 
+if (!function_exists('get_magic_quotes_runtime')) {
+    function get_magic_quotes_runtime()
+    {
+        return false;
+    }
+}
+
+if (!function_exists('set_magic_quotes_runtime')) {
+    function set_magic_quotes_runtime($value)
+    {
+        // Deprecated functionality retained for backwards compatibility
+    }
+}
+
+if (!defined('FPDF_FONTPATH')) {
+    define('FPDF_FONTPATH', __DIR__ . '/fpdf/font/');
+}
+
 require_once 'fpdf/fpdf.php';
 
 class ArabicPDF extends FPDF {
     private $arabic_font_loaded = false;
     
     function __construct($orientation = 'P', $unit = 'mm', $size = 'A4') {
-        parent::__construct($orientation, $unit, $size);
+        if (method_exists(get_parent_class($this), '__construct')) {
+            parent::__construct($orientation, $unit, $size);
+        } else {
+            parent::FPDF($orientation, $unit, $size);
+        }
         $this->loadArabicFont();
+    }
+    
+    private function convertText($text) {
+        if ($text === null || $text === '') {
+            return '';
+        }
+        if (!is_string($text)) {
+            $text = (string) $text;
+        }
+        $converted = iconv('UTF-8', 'CP1256//IGNORE', $text);
+        return $converted !== false ? $converted : $text;
+    }
+    
+    public function Cell($w, $h = 0, $txt = '', $border = 0, $ln = 0, $align = '', $fill = false, $link = '') {
+        parent::Cell($w, $h, $this->convertText($txt), $border, $ln, $align, $fill, $link);
+    }
+    
+    public function MultiCell($w, $h, $txt, $border = 0, $align = 'J', $fill = false) {
+        parent::MultiCell($w, $h, $this->convertText($txt), $border, $align, $fill);
+    }
+    
+    public function Write($h, $txt, $link = '') {
+        parent::Write($h, $this->convertText($txt), $link);
     }
     
     /**
@@ -22,6 +67,7 @@ class ArabicPDF extends FPDF {
             // إضافة خط عربي (يجب وضع ملف الخط في مجلد fpdf/font)
             $this->AddFont('DejaVu', '', 'DejaVuSansCondensed.php');
             $this->AddFont('DejaVu', 'B', 'DejaVuSansCondensed-Bold.php');
+            $this->SetFont('DejaVu', '', 12);
             $this->arabic_font_loaded = true;
         }
     }
