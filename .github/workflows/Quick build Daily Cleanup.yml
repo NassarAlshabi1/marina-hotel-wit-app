@@ -1,0 +1,33 @@
+name: Quick Daily Cleanup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 0'  # الأحد 2 AM
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  quick-clean:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install GitHub CLI
+        run: sudo apt update && sudo apt install gh -y
+
+      - name: Mass delete artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "🧹 Deleting all artifacts quickly..."
+          gh api repos/$REPO/actions/artifacts --paginate --jq '.artifacts[].id' | \
+          xargs -I {} gh api --method DELETE repos/$REPO/actions/artifacts/{} >/dev/null 2>&1 || true
+          echo "✅ All artifacts deleted"
+
+      - name: Clean runner
+        run: |
+          sudo rm -rf /tmp/* /var/tmp/*
+          docker system prune -af 2>/dev/null || true
+          npm cache clean --force 2>/dev/null || true
