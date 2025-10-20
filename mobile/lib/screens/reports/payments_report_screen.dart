@@ -483,13 +483,31 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<Directory> _resolveDownloadsDirectory() async {
+    final primary = Directory('/storage/emulated/0/marina-fluterr-pdf');
     try {
-      final directory = await getDownloadsDirectory();
-      if (directory != null) {
-        return directory;
+      if (!await primary.exists()) {
+        await primary.create(recursive: true);
+      }
+      return primary;
+    } catch (_) {}
+
+    try {
+      final downloads = await getDownloadsDirectory();
+      if (downloads != null) {
+        final nested = Directory('${downloads.path}/marina-fluterr-pdf');
+        if (!await nested.exists()) {
+          await nested.create(recursive: true);
+        }
+        return nested;
       }
     } catch (_) {}
-    return getApplicationDocumentsDirectory();
+
+    final docs = await getApplicationDocumentsDirectory();
+    final fallback = Directory('${docs.path}/marina-fluterr-pdf');
+    if (!await fallback.exists()) {
+      await fallback.create(recursive: true);
+    }
+    return fallback;
   }
 
   Future<void> _savePdfLocally(List<int> bytes,
