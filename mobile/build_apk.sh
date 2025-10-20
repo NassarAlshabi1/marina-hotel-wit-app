@@ -30,7 +30,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 flutter --version
-flutter clean
 flutter pub get
 flutter packages pub run build_runner build --delete-conflicting-outputs
 
@@ -41,6 +40,8 @@ if [ "$RELEASE_ONLY" = false ]; then
 fi
 
 if [ "$DEBUG_ONLY" = false ]; then
+  flutter clean
+  flutter pub get
   flutter build apk --release \
     --build-number "$BUILD_NUMBER" \
     --target-platform android-arm,android-arm64,android-x64 \
