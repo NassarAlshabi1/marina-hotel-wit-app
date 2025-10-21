@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -218,7 +220,7 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('تنظيف البيانات المؤقتة'),
           content: const Text('سيتم حذف العناصر المحذوفة نهائياً وتفريغ المخزن المؤقت. هل ترغب بالمتابعة؟'),
@@ -241,7 +243,7 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('فحص قاعدة البيانات'),
           content: const Text('سيتم تشغيل فحص سريع لسلامة قاعدة البيانات. قد يستغرق ذلك بضع ثوانٍ.'),
@@ -264,7 +266,7 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('إعادة تعيين المزامنة'),
           content: const Text('سيتم إعادة تعيين حالة المزامنة ومسح قائمة الانتظار ثم بدء مزامنة جديدة.'),
@@ -287,7 +289,7 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('تصدير البيانات'),
           content: const Text('سيتم إنشاء ملف نسخة احتياطية مضغوط في مجلد التخزين المحدد.'),
@@ -311,7 +313,7 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('استيراد البيانات'),
           content: Column(
@@ -349,7 +351,7 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('إعادة تشغيل الخدمات'),
           content: const Text('سيتم تحديث جميع المزودات وإعادة تحميل البيانات من قاعدة البيانات.'),
@@ -373,7 +375,7 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: const Text('إعادة تعيين التطبيق'),
           content: const Text('تحذير: سيؤدي هذا إلى حذف جميع البيانات المحلية وإعادة تهيئة النظام. لا يمكن التراجع عن هذه العملية.'),
@@ -591,7 +593,7 @@ class _ProgressDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: ui.TextDirection.rtl,
       child: AlertDialog(
         content: Column(
           mainAxisSize: MainAxisSize.min,
