@@ -20,6 +20,10 @@
             "package_name": "com.aden.marina",
             "certificate_hash": "711c33d04ba8549d1afdee843fed655b13b2bdd5"
           }
+        },
+        {
+          "client_id": "256666337807-561s7dakv86m3kugsalv8opa8idkjmd0.apps.googleusercontent.com",
+          "client_type": 3
         }
       ],
       "api_key": [
@@ -29,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "256666337807-561s7dakv86m3kugsalv8opa8idkjmd0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
