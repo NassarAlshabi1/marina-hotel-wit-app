@@ -421,56 +421,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       return DateTime.now();
     }
   }
-
-  Future<Directory> _resolveDownloadsDirectory() async {
-    final primary = Directory('/storage/emulated/0/marina-fluterr-pdf');
-    try {
-      if (!await primary.exists()) {
-        await primary.create(recursive: true);
-      }
-      return primary;
-    } catch (_) {}
-
-    try {
-      final downloads = await getDownloadsDirectory();
-      if (downloads != null) {
-        final nested = Directory('${downloads.path}/marina-fluterr-pdf');
-        if (!await nested.exists()) {
-          await nested.create(recursive: true);
-        }
-        return nested;
-      }
-    } catch (_) {}
-
-    final docs = await getApplicationDocumentsDirectory();
-    final fallback = Directory('${docs.path}/marina-fluterr-pdf');
-    if (!await fallback.exists()) {
-      await fallback.create(recursive: true);
-    }
-    return fallback;
-  }
-
-  Future<void> _savePdfLocally(List<int> bytes,
-      {required String prefix}) async {
-    try {
-      final directory = await _resolveDownloadsDirectory();
-      if (!await directory.exists()) {
-        await directory.create(recursive: true);
-      }
-      final timestamp = DateFormat('yyyyMMdd-HHmm').format(DateTime.now());
-      final file = File('${directory.path}/$prefix-$timestamp.pdf');
-      await file.writeAsBytes(bytes, flush: true);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم حفظ التقرير في ${file.path}')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذّر حفظ ملف PDF')),
-      );
-    }
-  }
 }
 
 class _PaymentReportRow {

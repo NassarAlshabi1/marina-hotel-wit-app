@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'drive_backup_service.dart';
 import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
 import 'repositories/bookings_repository.dart';
@@ -13,24 +12,13 @@ import '../utils/status_utils.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
 
-final driveBackupServiceProvider = Provider<GoogleDriveBackupService>((ref) {
-  final service = GoogleDriveBackupService(ref.read(databaseProvider));
-  ref.onDispose(service.dispose);
-  return service;
-});
-
-final driveBackupStateProvider = StreamProvider<DriveBackupStatus>((ref) {
-  final service = ref.watch(driveBackupServiceProvider);
-  return service.statusStream;
-});
-
-final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(ref.read(databaseProvider), ref.read(driveBackupServiceProvider)));
-final bookingsRepoProvider = Provider<BookingsRepository>((ref) => BookingsRepository(ref.read(databaseProvider), ref.read(driveBackupServiceProvider)));
-final employeesRepoProvider = Provider<EmployeesRepository>((ref) => EmployeesRepository(ref.read(databaseProvider), ref.read(driveBackupServiceProvider)));
-final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepository(ref.read(databaseProvider), ref.read(driveBackupServiceProvider)));
-final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.read(databaseProvider), ref.read(driveBackupServiceProvider)));
-final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider), ref.read(driveBackupServiceProvider)));
-final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider), ref.read(driveBackupServiceProvider)));
+final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(ref.read(databaseProvider)));
+final bookingsRepoProvider = Provider<BookingsRepository>((ref) => BookingsRepository(ref.read(databaseProvider)));
+final employeesRepoProvider = Provider<EmployeesRepository>((ref) => EmployeesRepository(ref.read(databaseProvider)));
+final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepository(ref.read(databaseProvider)));
+final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.read(databaseProvider)));
+final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider)));
+final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider)));
 final whatsappServiceProvider = Provider<WhatsAppService>(
   (ref) => WhatsAppService(
     baseUrl: 'https://7103.api.greenapi.com',
