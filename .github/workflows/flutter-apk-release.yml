@@ -1,4 +1,4 @@
-name: Build Flutter Release APK
+ name: Build Flutter Release APK
  
 on:
   pull_request:
