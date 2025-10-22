@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/core_providers.dart' as coreProviders;
-import 'comprehensive_finance_report_screen.dart';
 import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
@@ -15,22 +14,16 @@ class ReportsScreen extends ConsumerWidget {
     final db = ref.watch(coreProviders.dbProvider);
     return AppScaffold(
       title: 'التقارير',
-      actions: [
-        IconButton(
-            onPressed: () => ref.read(coreProviders.syncProvider).runSync(),
-            icon: const Icon(Icons.sync))
-      ],
+      actions: [IconButton(onPressed: () => ref.read(coreProviders.syncProvider).runSync(), icon: const Icon(Icons.sync))],
       body: FutureBuilder(
         future: _prepareData(db),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
-            return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final d = snapshot.data!;
           return ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              const Text('التقارير التفصيلية',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('التقارير التفصيلية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 12,
@@ -42,8 +35,7 @@ class ReportsScreen extends ConsumerWidget {
                     color: Colors.green,
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                          builder: (_) => const PaymentsReportScreen()),
+                      MaterialPageRoute(builder: (_) => const PaymentsReportScreen()),
                     ),
                   ),
                   _ReportShortcut(
@@ -52,19 +44,7 @@ class ReportsScreen extends ConsumerWidget {
                     color: Colors.orange,
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                          builder: (_) => const ExpensesReportScreen()),
-                    ),
-                  ),
-                  _ReportShortcut(
-                    icon: Icons.attach_money,
-                    label: 'التقرير المالي الشامل',
-                    color: Colors.teal,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const ComprehensiveFinanceReportScreen()),
+                      MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
                     ),
                   ),
                   _ReportShortcut(
@@ -73,31 +53,20 @@ class ReportsScreen extends ConsumerWidget {
                     color: Colors.blue,
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const SalaryWithdrawalsReportScreen()),
+                      MaterialPageRoute(builder: (_) => const SalaryWithdrawalsReportScreen()),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-              const Text('الإشغال اليومي (آخر 7 أيام)',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(
-                  height: 200,
-                  child: BarChart(BarChartData(barGroups: d['dailyOcc']))),
+              const Text('الإشغال اليومي (آخر 7 أيام)', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 200, child: BarChart(BarChartData(barGroups: d['dailyOcc']))),
               const SizedBox(height: 16),
-              const Text('الإيرادات مقابل المصروفات (الشهر)',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(
-                  height: 200,
-                  child: BarChart(BarChartData(barGroups: d['revExp']))),
+              const Text('الإيرادات مقابل المصروفات (الشهر)', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 200, child: BarChart(BarChartData(barGroups: d['revExp']))),
               const SizedBox(height: 16),
-              const Text('أعلى الغرف إشغالاً',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(
-                  height: 200,
-                  child: BarChart(BarChartData(barGroups: d['topRooms']))),
+              const Text('أعلى الغرف إشغالاً', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 200, child: BarChart(BarChartData(barGroups: d['topRooms']))),
             ],
           );
         },
@@ -113,8 +82,7 @@ class ReportsScreen extends ConsumerWidget {
     final daily = List.generate(7, (i) {
       final busy = rooms.where((r) => r.status == 'محجوزة').length;
       final occ = (busy * 100 / total).round();
-      return BarChartGroupData(
-          x: i, barRods: [BarChartRodData(toY: occ.toDouble())]);
+      return BarChartGroupData(x: i, barRods: [BarChartRodData(toY: occ.toDouble())]);
     });
 
     // month revenue vs expense: placeholder from local
