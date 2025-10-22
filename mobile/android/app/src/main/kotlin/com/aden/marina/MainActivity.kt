@@ -1,4 +1,4 @@
-package com.sky.marina.firebase
+package com.aden.marina
 
 import io.flutter.embedding.android.FlutterActivity
 

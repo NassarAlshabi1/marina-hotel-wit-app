@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/sync_service.dart';
+import 'settings_drive_backup.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
@@ -75,6 +76,16 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SettingsMaintenanceScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'نسخ Google Drive',
+              subtitle: 'تسجيل الدخول للنسخ التلقائي',
+              icon: Icons.cloud_sync,
+              color: Colors.teal,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsDriveBackupScreen()),
               ),
             ),
           ]),

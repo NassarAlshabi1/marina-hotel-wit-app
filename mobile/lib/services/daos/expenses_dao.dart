@@ -28,6 +28,18 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
     return q.watch();
   }
 
+  Future<List<String>> distinctTypes() async {
+    final rows = await customSelect(
+      'SELECT DISTINCT expense_type FROM expenses WHERE deleted_at IS NULL ORDER BY expense_type COLLATE NOCASE',
+    ).get();
+    final types = rows
+        .map((row) => row.data['expense_type'] as String?)
+        .where((value) => value != null && value.trim().isNotEmpty)
+        .map((value) => value!.trim())
+        .toList();
+    return types;
+  }
+
   Future<Expense?> getById(int id) => (select(expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<Expense?> watchById(int id) => (select(expenses)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
