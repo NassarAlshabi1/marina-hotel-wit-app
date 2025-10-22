@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import '../screens/dashboard_screen.dart';
 import '../screens/bookings/bookings_list.dart';
@@ -18,7 +20,7 @@ class _AppBottomNavShellState extends State<AppBottomNavShell> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         body: _pages[_index],
         bottomNavigationBar: _buildBottomNavBar(),
