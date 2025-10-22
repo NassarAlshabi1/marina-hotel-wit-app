@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
@@ -45,120 +43,33 @@ class ExpensesListScreen extends ConsumerWidget {
 
   Future<void> _edit(BuildContext context, WidgetRef ref, {Expense? existing}) async {
     final description = TextEditingController(text: existing?.description ?? '');
-    final amount = TextEditingController(text: existing != null ? existing.amount.toString() : '');
+    final amount = TextEditingController(text: existing?.amount.toString() ?? '');
+    final expenseType = TextEditingController(text: existing?.expenseType ?? 'other');
     final date = TextEditingController(text: existing?.date ?? Time.nowDateString());
-
-    final repo = ref.read(expensesRepoProvider);
-    final types = await repo.expenseTypes();
-    const customKey = '__custom__';
-
-    String? selectedType;
-    bool useCustom = false;
-    final existingType = existing?.expenseType.trim();
-    if (existingType != null && types.contains(existingType)) {
-      selectedType = existingType;
-    } else if (existingType != null && existingType.isNotEmpty) {
-      useCustom = true;
-    } else if (types.isNotEmpty) {
-      selectedType = types.first;
-    }
-
-    final customType = TextEditingController(text: useCustom ? existingType : '');
-    final formKey = GlobalKey<FormState>();
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: StatefulBuilder(
-          builder: (ctx, setState) => AlertDialog(
-            title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
-            content: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: description,
-                    decoration: const InputDecoration(labelText: 'الوصف'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'يرجى إدخال الوصف' : null,
-                  ),
-                  TextFormField(
-                    controller: amount,
-                    decoration: const InputDecoration(labelText: 'المبلغ'),
-                    keyboardType: TextInputType.number,
-                    validator: (value) => (value == null || double.tryParse(value) == null) ? 'يرجى إدخال مبلغ صحيح' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: useCustom ? customKey : (selectedType ?? (types.isNotEmpty ? types.first : customKey)),
-                    decoration: const InputDecoration(labelText: 'نوع المصروف'),
-                    items: [
-                      ...types.map((type) => DropdownMenuItem(value: type, child: Text(type))),
-                      const DropdownMenuItem(value: customKey, child: Text('إدخال نوع جديد')),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        if (value == customKey) {
-                          useCustom = true;
-                          selectedType = null;
-                        } else {
-                          useCustom = false;
-                          selectedType = value;
-                        }
-                      });
-                    },
-                  ),
-                  if (useCustom)
-                    TextFormField(
-                      controller: customType,
-                      decoration: const InputDecoration(labelText: 'اكتب نوع المصروف'),
-                      validator: (value) => (value == null || value.trim().isEmpty) ? 'يرجى إدخال نوع المصروف' : null,
-                    ),
-                  TextFormField(
-                    controller: date,
-                    decoration: const InputDecoration(labelText: 'التاريخ YYYY-MM-DD'),
-                    validator: (value) => (value == null || value.trim().length < 10) ? 'يرجى إدخال تاريخ بصيغة صحيحة' : null,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-              FilledButton(
-                onPressed: () {
-                  if (formKey.currentState?.validate() ?? false) {
-                    Navigator.pop(ctx, true);
-                  }
-                },
-                child: const Text('حفظ'),
-              ),
-            ],
-          ),
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: description, decoration: const InputDecoration(labelText: 'الوصف')),
+            TextField(controller: amount, decoration: const InputDecoration(labelText: 'المبلغ'), keyboardType: TextInputType.number),
+            TextField(controller: expenseType, decoration: const InputDecoration(labelText: 'النوع')),
+            TextField(controller: date, decoration: const InputDecoration(labelText: 'التاريخ YYYY-MM-DD')),
+          ]),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حفظ'))],
         ),
       ),
     );
     if (ok != true) return;
 
-    final typeValue = useCustom ? customType.text.trim() : (selectedType ?? '');
-    final normalizedType = typeValue.isEmpty ? 'other' : typeValue;
-    final parsedAmount = double.tryParse(amount.text) ?? 0;
-
+    final repo = ref.read(expensesRepoProvider);
     if (existing == null) {
-      await repo.create(
-        expenseType: normalizedType,
-        description: description.text.trim(),
-        amount: parsedAmount,
-        date: date.text.trim(),
-      );
+      await repo.create(expenseType: expenseType.text.trim(), description: description.text.trim(), amount: double.tryParse(amount.text) ?? 0, date: date.text.trim());
     } else {
-      await repo.update(
-        existing.id,
-        expenseType: normalizedType,
-        description: description.text.trim(),
-        amount: parsedAmount,
-        date: date.text.trim(),
-      );
+      await repo.update(existing.id, expenseType: expenseType.text.trim(), description: description.text.trim(), amount: double.tryParse(amount.text) ?? 0, date: date.text.trim());
     }
   }
 }
