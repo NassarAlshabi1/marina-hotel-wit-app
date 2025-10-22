@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 
 import 'local_db.dart';
@@ -107,9 +108,8 @@ class GoogleDriveBackupService {
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
-    final sanitizedReason = reason.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-    final timestamp = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final file = File('${directory.path}/marina-hotel-backup-$timestamp-$sanitizedReason.json.gz');
+    final fileName = _backupFileName(reason);
+    final file = File('${directory.path}/$fileName');
     final bytes = await _buildBackupBytes();
     await file.writeAsBytes(bytes, flush: true);
     return file;
@@ -285,11 +285,10 @@ class GoogleDriveBackupService {
     _emit();
     try {
       final bytes = await _buildBackupBytes();
-      final sanitizedReason = reason.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-      final timestamp = DateTime.now().toUtc().millisecondsSinceEpoch;
+      final fileName = _backupFileName(reason);
       final media = drive.Media(Stream.value(bytes), bytes.length, contentType: 'application/gzip');
       final metadata = drive.File()
-        ..name = 'marina-hotel-backup-$timestamp-$sanitizedReason.json.gz'
+        ..name = fileName
         ..parents = ['appDataFolder']
         ..mimeType = 'application/gzip';
       await _drive!.files.create(metadata, uploadMedia: media);
@@ -329,6 +328,13 @@ class GoogleDriveBackupService {
     final encoded = utf8.encode(jsonEncode(payload));
     final compressed = gzip.encode(encoded);
     return Uint8List.fromList(compressed);
+  }
+
+  String _backupFileName(String reason) {
+    final sanitized = reason.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_').trim();
+    final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now().toUtc());
+    final suffix = sanitized.isEmpty ? '' : '-$sanitized';
+    return 'marina-backup-$stamp$suffix.json.gz';
   }
 
   void _emit() {
