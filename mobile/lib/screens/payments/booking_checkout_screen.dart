@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
@@ -250,7 +248,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
+        textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: const Text('إضافة دفعة جديدة'),
           content: SingleChildScrollView(
@@ -371,7 +369,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
+        textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: const Text('تأكيد إتمام الحجز'),
           content: const Text(

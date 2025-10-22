@@ -1,15 +1,13 @@
 import 'package:drift/drift.dart' as d;
-import '../drive_backup_service.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 
 class BookingsRepository {
-  BookingsRepository(this.db, this.backupService)
+  BookingsRepository(this.db)
       : outbox = OutboxDao(db),
         dao = BookingsDao(db, OutboxDao(db));
   final AppDatabase db;
-  final GoogleDriveBackupService backupService;
   final OutboxDao outbox;
   final BookingsDao dao;
 
@@ -35,8 +33,8 @@ class BookingsRepository {
     String? notes,
     int expectedNights = 1,
     int? calculatedNights,
-  }) async {
-    final id = await dao.insertOne(
+  }) {
+    return dao.insertOne(
       BookingsCompanion(
         roomNumber: d.Value(roomNumber),
         guestName: d.Value(guestName),
@@ -57,8 +55,6 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
       ),
     );
-    backupService.scheduleAutoBackup('bookings-create');
-    return id;
   }
 
   Future<int> update(int id, {
@@ -79,8 +75,8 @@ class BookingsRepository {
     String? notes,
     int? expectedNights,
     int? calculatedNights,
-  }) async {
-    final affected = await dao.updateById(
+  }) {
+    return dao.updateById(
       id,
       BookingsCompanion(
         roomNumber: roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
@@ -102,17 +98,7 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
       ),
     );
-    if (affected > 0) {
-      backupService.scheduleAutoBackup('bookings-update');
-    }
-    return affected;
   }
 
-  Future<int> delete(int id) async {
-    final affected = await dao.softDelete(id);
-    if (affected > 0) {
-      backupService.scheduleAutoBackup('bookings-delete');
-    }
-    return affected;
-  }
+  Future<int> delete(int id) => dao.softDelete(id);
 }
