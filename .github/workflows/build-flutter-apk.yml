@@ -1,4 +1,6 @@
 name: Build Flutter APK (Unsigned Release)
+permissions:
+  contents: read
 
 on:
   push:
