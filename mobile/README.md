@@ -1,16 +1,26 @@
-# mobile
+# Marina Hotel Mobile
 
-A new Flutter project.
+## Google Sign-In and Drive backup
+- Firebase project: `aden-flutter` (project number `256666337807`).
+- Android package name: `com.aden.marina`.
+- `google-services.json` is located under `android/app/` and includes the Android OAuth client (`256666337807-vjto7nr7vhrrees1f5j9v2h4vdicmd43.apps.googleusercontent.com`).
+- The Drive backup flow uses the default `GoogleSignIn` instance in `lib/services/drive_backup_service.dart`, so no hard-coded client ID is necessary.
 
-## Getting Started
+### Rotating credentials
+1. Register a new Android app for `com.aden.marina` in Firebase and upload its SHA-1 and SHA-256 fingerprints.
+2. Run `flutterfire configure --project=aden-flutter --android-package-name=com.aden.marina` and replace `android/app/google-services.json` with the generated file.
+3. Commit only the regenerated JSON. Keep keystore files and secrets out of source control.
 
-This project is a starting point for a Flutter application.
+### Smoke test checklist
+1. Ensure an Android device or emulator is signed in with a Google account.
+2. Launch the Drive backup screen, tap “Sign in with Google”, and confirm the account email appears in the status card.
+3. Tap “نسخة احتياطية الآن” and verify a new item is pushed to the Drive `appDataFolder` without errors.
+4. Check the in-app status to confirm the last-backup timestamp updates.
 
-A few resources to get you started if this is your first Flutter project:
+### Local exports
+- Manual exports default to `/storage/emulated/0/marinabackups/`, and the folder is created automatically when external storage is accessible.
+- Backup archives use the pattern `marina-backup-YYYYMMDD_HHmmss[-reason].json.gz` so each file carries its creation date and optional reason.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Platform notes
+- For the web build, pass the associated web client ID when constructing `GoogleSignIn` (e.g. `GoogleSignIn(clientId: '<web-client-id>')`).
+- iOS builds require the corresponding GoogleService-Info.plist from the same Firebase project and a matching reversed client ID in the URL types.
