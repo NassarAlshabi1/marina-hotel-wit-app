@@ -17,6 +17,10 @@
 3. Tap “نسخة احتياطية الآن” and verify a new item is pushed to the Drive `appDataFolder` without errors.
 4. Check the in-app status to confirm the last-backup timestamp updates.
 
+### Local exports
+- Manual exports default to `/storage/emulated/0/marinabackups/`, and the folder is created automatically when external storage is accessible.
+- Backup archives use the pattern `marina-backup-YYYYMMDD_HHmmss[-reason].json.gz` so each file carries its creation date and optional reason.
+
 ### Platform notes
 - For the web build, pass the associated web client ID when constructing `GoogleSignIn` (e.g. `GoogleSignIn(clientId: '<web-client-id>')`).
 - iOS builds require the corresponding GoogleService-Info.plist from the same Firebase project and a matching reversed client ID in the URL types.

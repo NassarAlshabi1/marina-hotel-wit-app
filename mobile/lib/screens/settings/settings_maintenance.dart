@@ -309,7 +309,7 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
   }
 
   void _showImportDialog(BuildContext context) {
-    final pathController = TextEditingController(text: '/storage/emulated/0/marina-hotel-backups/');
+    final pathController = TextEditingController(text: '/storage/emulated/0/marinabackups/');
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
@@ -510,7 +510,7 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
   }
 
   Future<Directory> _preferredBackupDirectory() async {
-    final primary = Directory('/storage/emulated/0/marina-hotel-backups');
+    final primary = Directory('/storage/emulated/0/marinabackups');
     try {
       if (!await primary.exists()) {
         await primary.create(recursive: true);
@@ -521,7 +521,7 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
     try {
       final downloads = await getDownloadsDirectory();
       if (downloads != null) {
-        final nested = Directory('${downloads.path}/marina-hotel-backups');
+        final nested = Directory('${downloads.path}/marinabackups');
         if (!await nested.exists()) {
           await nested.create(recursive: true);
         }
@@ -530,7 +530,7 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
     } catch (_) {}
 
     final docs = await getApplicationDocumentsDirectory();
-    final fallback = Directory('${docs.path}/marina-hotel-backups');
+    final fallback = Directory('${docs.path}/marinabackups');
     if (!await fallback.exists()) {
       await fallback.create(recursive: true);
     }
