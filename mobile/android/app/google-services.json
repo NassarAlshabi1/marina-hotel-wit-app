@@ -1,26 +1,52 @@
 {
   "project_info": {
-    "project_number": "613681749386",
-    "project_id": "ahlan-hotel-manager",
-    "storage_bucket": "ahlan-hotel-manager.firebasestorage.app"
+    "project_number": "256666337807",
+    "project_id": "aden-flutter",
+    "storage_bucket": "aden-flutter.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:613681749386:android:cda06975ca336acfe23c73",
+        "mobilesdk_app_id": "1:256666337807:android:256825433b15f1bf07d97a",
         "android_client_info": {
-          "package_name": "com.sky.marina.firebase"
+          "package_name": "com.aden.marina"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "256666337807-k76abv15go0lidfd3ddge2101tkhlq34.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aden.marina",
+            "certificate_hash": "3d915e726608dbbecf373af4e8c2ad2278f49236"
+          }
+        },
+        {
+          "client_id": "256666337807-vjto7nr7vhrrees1f5j9v2h4vdicmd43.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aden.marina",
+            "certificate_hash": "711c33d04ba8549d1afdee843fed655b13b2bdd5"
+          }
+        },
+        {
+          "client_id": "256666337807-561s7dakv86m3kugsalv8opa8idkjmd0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyCbNPMmiIdQ56aqol40ARsj_XOL4Qyvb84"
+          "current_key": "AIzaSyC-CN6zs4Cr37j2ZPMTYBnhosGC42yt42k"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "256666337807-561s7dakv86m3kugsalv8opa8idkjmd0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
