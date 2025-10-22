@@ -32,9 +32,9 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.sky.marina.firebase"
+    namespace = "com.aden.marina"
     compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "26.1.10909125"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -46,7 +46,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.sky.marina.firebase"
+        applicationId = "com.aden.marina"
         minSdk = 21
         targetSdk = 36
         versionCode = flutterVersionCode.toInteger()
