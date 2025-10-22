@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
@@ -475,7 +477,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     showDialog(
       context: context,
       builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: StatefulBuilder(
           builder: (context, setState) => AlertDialog(
             title: Text(note == null ? 'إضافة ملاحظة جديدة' : 'تعديل الملاحظة'),

@@ -43,7 +43,7 @@ class DashboardScreen extends ConsumerWidget {
               const Text(
                 'لوحة التحكم - نظام إدارة الفندق',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
