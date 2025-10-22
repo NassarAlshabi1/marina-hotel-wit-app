@@ -47,12 +47,12 @@ jobs:
             exit 1
           fi
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/marina-release.keystore
-          cat <<EOF > android/key.properties
-storePassword=$ANDROID_KEYSTORE_PASSWORD
-keyPassword=$ANDROID_KEY_PASSWORD
-keyAlias=$ANDROID_KEY_ALIAS
-storeFile=marina-release.keystore
-EOF
+          cat <<'EOF' > android/key.properties
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=marina-release.keystore
+          EOF
 
       - name: Clean build artifacts
         run: flutter clean
