@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
 
@@ -77,6 +79,44 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState(true, currentUser: _defaultUser, error: _errorMessage(e));
     } catch (_) {
       state = const AuthState(true, currentUser: _defaultUser, error: 'حدث خطأ غير متوقع');
+    }
+  }
+
+  Future<void> googleLogin() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        // User cancelled
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      final idToken = googleAuth.idToken;
+      if (idToken == null) {
+        throw Exception('No ID token received');
+      }
+
+      final userData = await ApiService.I.loginWithGoogle(idToken);
+      if (userData != null) {
+        final user = AuthUser.fromJson(userData);
+        state = AuthState(true, currentUser: user);
+      } else {
+        state = const AuthState(false, error: 'فشل تسجيل الدخول عبر Google');
+      }
+    } on FirebaseAuthException catch (e) {
+      state = AuthState(false, error: 'خطأ في Firebase: ${e.message}');
+    } on DioException catch (e) {
+      state = AuthState(true, currentUser: _defaultUser, error: _errorMessage(e));
+    } catch (e) {
+      state = AuthState(true, currentUser: _defaultUser, error: e.toString());
     }
   }
 
