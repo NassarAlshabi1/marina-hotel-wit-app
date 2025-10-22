@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
@@ -65,7 +63,7 @@ class RoomsListScreen extends ConsumerWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
+        textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: Text(existing == null ? 'إضافة غرفة' : 'تعديل غرفة'),
           content: SingleChildScrollView(
