@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
 class AppScaffold extends StatelessWidget {
@@ -12,7 +10,7 @@ class AppScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: ui.TextDirection.rtl,
+      textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
           title: Text(title),
