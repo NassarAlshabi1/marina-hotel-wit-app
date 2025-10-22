@@ -5,6 +5,9 @@ on:
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-apk-release.yml'
+  push:
+    branches:
+      - capy/regenerate-google-se-1b859ed7
   workflow_dispatch:
 
 jobs:
