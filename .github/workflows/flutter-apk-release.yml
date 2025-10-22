@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - capy/regenerate-google-se-1b859ed7
+      - capy/google-drive-release
   workflow_dispatch:
 
 jobs:
