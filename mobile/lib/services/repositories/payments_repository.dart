@@ -1,15 +1,13 @@
 import 'package:drift/drift.dart' as d;
-import '../drive_backup_service.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
 
 class PaymentsRepository {
-  PaymentsRepository(this.db, this.backupService)
+  PaymentsRepository(this.db)
       : outbox = OutboxDao(db),
         dao = PaymentsDao(db, OutboxDao(db));
   final AppDatabase db;
-  final GoogleDriveBackupService backupService;
   final OutboxDao outbox;
   final PaymentsDao dao;
 
@@ -17,48 +15,32 @@ class PaymentsRepository {
   Stream<List<Payment>> watchAll({bool includeDeleted = false}) => dao.watchList(includeDeleted: includeDeleted);
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
-  Future<int> create({int? bookingLocalId, int? serverBookingId, String? roomNumber, required double amount, required String paymentDate, String? notes, required String paymentMethod, required String revenueType}) async {
-    final id = await dao.insertOne(
-      PaymentsCompanion(
-        bookingLocalId: d.Value(bookingLocalId),
-        serverBookingId: d.Value(serverBookingId),
-        roomNumber: d.Value(roomNumber),
-        amount: d.Value(amount),
-        paymentDate: d.Value(paymentDate),
-        notes: d.Value(notes),
-        paymentMethod: d.Value(paymentMethod),
-        revenueType: d.Value(revenueType),
-      ),
-    );
-    backupService.scheduleAutoBackup('payments-create');
-    return id;
-  }
+  Future<int> create({int? bookingLocalId, int? serverBookingId, String? roomNumber, required double amount, required String paymentDate, String? notes, required String paymentMethod, required String revenueType}) => dao.insertOne(
+        PaymentsCompanion(
+          bookingLocalId: d.Value(bookingLocalId),
+          serverBookingId: d.Value(serverBookingId),
+          roomNumber: d.Value(roomNumber),
+          amount: d.Value(amount),
+          paymentDate: d.Value(paymentDate),
+          notes: d.Value(notes),
+          paymentMethod: d.Value(paymentMethod),
+          revenueType: d.Value(revenueType),
+        ),
+      );
 
-  Future<int> update(int id, {int? bookingLocalId, int? serverBookingId, String? roomNumber, double? amount, String? paymentDate, String? notes, String? paymentMethod, String? revenueType}) async {
-    final affected = await dao.updateById(
-      id,
-      PaymentsCompanion(
-        bookingLocalId: d.Value(bookingLocalId),
-        serverBookingId: d.Value(serverBookingId),
-        roomNumber: d.Value(roomNumber),
-        amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-        paymentDate: paymentDate != null ? d.Value(paymentDate) : const d.Value.absent(),
-        notes: notes != null ? d.Value(notes) : const d.Value.absent(),
-        paymentMethod: paymentMethod != null ? d.Value(paymentMethod) : const d.Value.absent(),
-        revenueType: revenueType != null ? d.Value(revenueType) : const d.Value.absent(),
-      ),
-    );
-    if (affected > 0) {
-      backupService.scheduleAutoBackup('payments-update');
-    }
-    return affected;
-  }
+  Future<int> update(int id, {int? bookingLocalId, int? serverBookingId, String? roomNumber, double? amount, String? paymentDate, String? notes, String? paymentMethod, String? revenueType}) => dao.updateById(
+        id,
+        PaymentsCompanion(
+          bookingLocalId: d.Value(bookingLocalId),
+          serverBookingId: d.Value(serverBookingId),
+          roomNumber: d.Value(roomNumber),
+          amount: amount != null ? d.Value(amount) : const d.Value.absent(),
+          paymentDate: paymentDate != null ? d.Value(paymentDate) : const d.Value.absent(),
+          notes: notes != null ? d.Value(notes) : const d.Value.absent(),
+          paymentMethod: paymentMethod != null ? d.Value(paymentMethod) : const d.Value.absent(),
+          revenueType: revenueType != null ? d.Value(revenueType) : const d.Value.absent(),
+        ),
+      );
 
-  Future<int> delete(int id) async {
-    final affected = await dao.softDelete(id);
-    if (affected > 0) {
-      backupService.scheduleAutoBackup('payments-delete');
-    }
-    return affected;
-  }
+  Future<int> delete(int id) => dao.softDelete(id);
 }
