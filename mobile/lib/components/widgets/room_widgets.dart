@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import '../../services/local_db.dart';
 
@@ -415,7 +413,7 @@ class RoomDetailsDialog extends StatelessWidget {
     final isAvailable = room.status == 'شاغرة';
 
     return Directionality(
-      textDirection: ui.TextDirection.rtl,
+      textDirection: TextDirection.rtl,
       child: AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
