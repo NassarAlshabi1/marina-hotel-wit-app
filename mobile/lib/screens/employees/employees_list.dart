@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
@@ -49,7 +47,7 @@ class EmployeesListScreen extends ConsumerWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
+        textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: Text(existing == null ? 'إضافة موظف' : 'تعديل موظف'),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
