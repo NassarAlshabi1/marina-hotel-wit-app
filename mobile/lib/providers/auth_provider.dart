@@ -84,7 +84,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> googleLogin() async {
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignInAccount? googleUser = await GoogleSignIn(scopes: ['https://www.googleapis.com/auth/drive.file']).signIn();
       if (googleUser == null) {
         // User cancelled
         return;

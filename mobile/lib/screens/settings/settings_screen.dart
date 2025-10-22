@@ -89,7 +89,10 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'إنشاء واستعادة النسخ الاحتياطية',
               icon: Icons.backup,
               color: Colors.indigo,
-              onTap: () => _showBackupDialog(context),
+              onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const BackupScreen()),
+                  ),
             ),
             _SettingsItem(
               title: 'إعدادات التطبيق',
