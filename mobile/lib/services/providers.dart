@@ -10,9 +10,6 @@ import 'repositories/notes_repository.dart';
 import 'whatsapp_service.dart';
 import '../utils/status_utils.dart';
 
-// إضافة Backup Providers
-export '../providers/backup_provider.dart';
-
 final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
 
 final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(ref.read(databaseProvider)));
@@ -42,6 +39,3 @@ final employeesListProvider = StreamProvider.autoDispose((ref) => ref.watch(empl
 final expensesListProvider = StreamProvider.autoDispose((ref) => ref.watch(expensesRepoProvider).watchAll());
 
 final cashTransactionsListProvider = StreamProvider.autoDispose((ref) => ref.watch(cashRepoProvider).watchAll());
-
-// دالة للحصول على Database instance
-AppDatabase getDatabase() => AppDatabase();

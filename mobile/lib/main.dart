@@ -15,15 +15,9 @@ import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
-import 'services/auto_backup_task.dart';
 import 'components/admin_layout.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // تهيئة خدمة النسخ التلقائي
-  await AutoBackupTask.initialize();
-  
+void main() {
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
 }
