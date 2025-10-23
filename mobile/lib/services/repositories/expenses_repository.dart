@@ -36,38 +36,4 @@ class ExpensesRepository {
       );
 
   Future<int> delete(int id) => dao.softDelete(id);
-
-  // دوال النسخ الاحتياطي
-
-  /// تصدير بيانات المصروفات
-  Future<Map<String, dynamic>> exportData() async {
-    final expensesData = await dao.exportToJson();
-    final recordCount = await dao.getRecordCount();
-    
-    return {
-      'data': expensesData,
-      'count': recordCount,
-      'entity': 'expenses',
-    };
-  }
-
-  /// استيراد بيانات المصروفات
-  Future<void> importData(Map<String, dynamic> data) async {
-    if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data']), 
-        clearExisting: false,
-      );
-    }
-  }
-
-  /// مسح جميع البيانات
-  Future<void> clearAllData() async {
-    await dao.clearAllData();
-  }
-
-  /// الحصول على إجمالي عدد السجلات
-  Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
-  }
 }

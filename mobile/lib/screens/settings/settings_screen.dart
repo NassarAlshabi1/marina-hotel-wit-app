@@ -7,7 +7,6 @@ import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
-import 'comprehensive_backup_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -87,7 +86,7 @@ class SettingsScreen extends ConsumerWidget {
           _buildSettingsGrid(context, [
             _SettingsItem(
               title: 'النسخ الاحتياطي',
-              subtitle: 'Google Drive + التخزين المحلي',
+              subtitle: 'إنشاء واستعادة النسخ الاحتياطية',
               icon: Icons.backup,
               color: Colors.indigo,
               onTap: () => _showBackupDialog(context),
@@ -288,10 +287,17 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showBackupDialog(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ComprehensiveBackupScreen(),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('النسخ الاحتياطي'),
+        content: const Text('هذه الميزة ستكون متاحة قريباً'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
+        ],
       ),
     );
   }

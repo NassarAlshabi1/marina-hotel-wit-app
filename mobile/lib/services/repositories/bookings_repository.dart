@@ -101,38 +101,4 @@ class BookingsRepository {
   }
 
   Future<int> delete(int id) => dao.softDelete(id);
-
-  // دوال النسخ الاحتياطي
-
-  /// تصدير بيانات الحجوزات
-  Future<Map<String, dynamic>> exportData() async {
-    final bookingsData = await dao.exportToJson();
-    final recordCount = await dao.getRecordCount();
-    
-    return {
-      'data': bookingsData,
-      'count': recordCount,
-      'entity': 'bookings',
-    };
-  }
-
-  /// استيراد بيانات الحجوزات
-  Future<void> importData(Map<String, dynamic> data) async {
-    if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data']), 
-        clearExisting: false,
-      );
-    }
-  }
-
-  /// مسح جميع البيانات
-  Future<void> clearAllData() async {
-    await dao.clearAllData();
-  }
-
-  /// الحصول على إجمالي عدد السجلات
-  Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
-  }
 }
