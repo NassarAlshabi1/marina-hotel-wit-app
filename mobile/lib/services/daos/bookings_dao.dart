@@ -104,4 +104,63 @@ class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin 
     if (comp.calculatedNights.present) m['calculated_nights'] = comp.calculatedNights.value;
     return m;
   }
+
+  // دوال النسخ الاحتياطي
+
+  /// تصدير جميع الحجوزات إلى JSON
+  Future<List<Map<String, dynamic>>> exportToJson() async {
+    final bookingsList = await list(includeDeleted: false);
+    return bookingsList.map((booking) => booking.toJson()).toList();
+  }
+
+  /// استيراد الحجوزات من JSON
+  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+    if (clearExisting) {
+      await delete(bookings).go();
+    }
+
+    for (final bookingJson in data) {
+      final booking = Booking.fromJson(bookingJson);
+      await into(bookings).insertOnConflictUpdate(BookingsCompanion(
+        serverBookingId: Value(booking.serverBookingId),
+        roomNumber: Value(booking.roomNumber),
+        guestName: Value(booking.guestName),
+        guestPhone: Value(booking.guestPhone),
+        guestIdType: Value(booking.guestIdType),
+        guestIdNumber: Value(booking.guestIdNumber),
+        guestIdIssueDate: Value(booking.guestIdIssueDate),
+        guestIdIssuePlace: Value(booking.guestIdIssuePlace),
+        guestNationality: Value(booking.guestNationality),
+        guestEmail: Value(booking.guestEmail),
+        guestAddress: Value(booking.guestAddress),
+        checkinDate: Value(booking.checkinDate),
+        checkoutDate: Value(booking.checkoutDate),
+        actualCheckout: Value(booking.actualCheckout),
+        status: Value(booking.status),
+        notes: Value(booking.notes),
+        expectedNights: Value(booking.expectedNights),
+        calculatedNights: Value(booking.calculatedNights),
+        localUuid: Value(booking.localUuid),
+        serverId: Value(booking.serverId),
+        createdAt: Value(booking.createdAt),
+        updatedAt: Value(booking.updatedAt),
+        deletedAt: Value(booking.deletedAt),
+        lastModified: Value(booking.lastModified),
+        version: Value(booking.version),
+        origin: Value(booking.origin),
+      ));
+    }
+  }
+
+  /// الحصول على عدد السجلات
+  Future<int> getRecordCount() async {
+    final query = selectOnly(bookings)..addColumns([bookings.id.count()]);
+    final result = await query.getSingle();
+    return result.read(bookings.id.count()) ?? 0;
+  }
+
+  /// مسح جميع البيانات
+  Future<void> clearAllData() async {
+    await delete(bookings).go();
+  }
 }
