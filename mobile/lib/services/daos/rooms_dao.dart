@@ -102,4 +102,50 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin {
     if (comp.imageUrl.present) map['image_url'] = comp.imageUrl.value;
     return map;
   }
+
+  // دوال النسخ الاحتياطي
+
+  /// تصدير جميع الغرف إلى JSON
+  Future<List<Map<String, dynamic>>> exportToJson() async {
+    final roomsList = await list(includeDeleted: false);
+    return roomsList.map((room) => room.toJson()).toList();
+  }
+
+  /// استيراد الغرف من JSON
+  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+    if (clearExisting) {
+      await delete(rooms).go();
+    }
+
+    for (final roomJson in data) {
+      final room = Room.fromJson(roomJson);
+      await into(rooms).insertOnConflictUpdate(RoomsCompanion(
+        roomNumber: Value(room.roomNumber),
+        type: Value(room.type),
+        price: Value(room.price),
+        status: Value(room.status),
+        imageUrl: Value(room.imageUrl),
+        localUuid: Value(room.localUuid),
+        serverId: Value(room.serverId),
+        createdAt: Value(room.createdAt),
+        updatedAt: Value(room.updatedAt),
+        deletedAt: Value(room.deletedAt),
+        lastModified: Value(room.lastModified),
+        version: Value(room.version),
+        origin: Value(room.origin),
+      ));
+    }
+  }
+
+  /// الحصول على عدد السجلات
+  Future<int> getRecordCount() async {
+    final query = selectOnly(rooms)..addColumns([rooms.id.count()]);
+    final result = await query.getSingle();
+    return result.read(rooms.id.count()) ?? 0;
+  }
+
+  /// مسح جميع البيانات
+  Future<void> clearAllData() async {
+    await delete(rooms).go();
+  }
 }
