@@ -108,21 +108,6 @@ class Payments extends Table with SyncFields {
   List<Index> get indexes => [];
 }
 
-class Debts extends Table with SyncFields {
-  IntColumn get id => integer().autoIncrement()();
-  IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
-  TextColumn get guestName => text()();
-  TextColumn get checkinDate => text()();
-  TextColumn get checkoutDate => text()();
-  RealColumn get totalAmount => real()();
-  RealColumn get paidAmount => real()();
-  RealColumn get remainingAmount => real()();
-  TextColumn get paymentDate => text()();
-  TextColumn get pledge => text().nullable()();
-  TextColumn get pledgeType => text().nullable()();
-  TextColumn get note => text().nullable()();
-}
-
 class Outbox extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get entity => text()();
@@ -154,14 +139,13 @@ class SyncState extends Table {
   Expenses,
   CashTransactions,
   Payments,
-  Debts,
   Outbox,
   SyncState,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -181,9 +165,6 @@ class AppDatabase extends _$AppDatabase {
             await m.database.customStatement('INSERT INTO rooms (room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin) '
                 'SELECT room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin FROM rooms_old');
             await m.database.customStatement('DROP TABLE rooms_old');
-          }
-          if (from < 4) {
-            await m.createTable(debts);
           }
         },
       );

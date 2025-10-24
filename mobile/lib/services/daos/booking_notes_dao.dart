@@ -127,3 +127,4 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase> with _$BookingNotesD
     await delete(bookingNotes).go();
   }
 }
+}

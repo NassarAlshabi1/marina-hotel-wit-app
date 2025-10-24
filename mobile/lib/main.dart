@@ -11,11 +11,8 @@ import 'screens/expenses/expenses_list.dart';
 import 'screens/finance/finance_screen.dart';
 import 'screens/reports/reports_screen.dart';
 import 'screens/payments/payments_main_screen.dart';
-import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
-import 'screens/auth/login_screen.dart';
-import 'providers/auth_provider.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
@@ -54,42 +51,21 @@ class App extends ConsumerWidget {
           '/expenses': (_) => const ExpensesListScreen(),
           '/finance/cash-register': (_) => const FinanceScreen(),
           '/finance/cash-transactions': (_) => const FinanceScreen(),
-          '/debts': (_) => const DebtsListScreen(),
           '/reports': (_) => const ReportsScreen(),
         },
-        home: const RootRouter(),
+        home: const HomeShell(),
       ),
     );
   }
 }
 
-class RootRouter extends ConsumerWidget {
-  const RootRouter({super.key});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authProvider);
-    if (auth.isRestoring) {
-      return const Directionality(
-        textDirection: TextDirection.rtl,
-        child: Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-    if (auth.isAuthenticated) {
-      return const HomeShell();
-    }
-    return const LoginScreen();
-  }
-}
-
-class HomeShell extends ConsumerStatefulWidget {
+class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
   @override
-  ConsumerState<HomeShell> createState() => _HomeShellState();
+  State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends ConsumerState<HomeShell> {
+class _HomeShellState extends State<HomeShell> {
   String _currentRoute = '/dashboard';
   
   final Map<String, Widget> _routes = {
@@ -97,7 +73,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/rooms': const RoomsListScreen(),
     '/bookings': const BookingsListScreen(),
     '/payments': const PaymentsMainScreen(),
-    '/debts': const DebtsListScreen(),
     '/employees': const EmployeesListScreen(),
     '/expenses': const ExpensesListScreen(),
     '/finance': const FinanceScreen(),
@@ -106,25 +81,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/settings': const SettingsScreen(),
   };
   
-  bool _can(String key) {
-    final auth = ref.read(authProvider);
-    final u = auth.currentUser;
-    if (u == null) return false;
-    if (u.userType == 'admin' || u.permissions.contains('all')) return true;
-    return u.permissions.contains(key);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final routeKey = _currentRoute.replaceAll('/', '');
-    final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
-    final body = allowed
-        ? (_routes[_currentRoute] ?? const DashboardScreen())
-        : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
-
     return AdminLayout(
       currentRoute: _currentRoute,
-      body: body,
+      body: _routes[_currentRoute] ?? const DashboardScreen(),
       onRouteSelected: _navigateToRoute,
     );
   }

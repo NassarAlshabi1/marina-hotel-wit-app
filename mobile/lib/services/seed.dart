@@ -98,25 +98,5 @@ class Seeder {
     await db.into(db.payments).insert(PaymentsCompanion(
       bookingLocalId: d.Value(b2), amount: d.Value(15000), paymentDate: d.Value(now.toIso8601String()), paymentMethod: d.Value('نقدي'), revenueType: d.Value('room'), localUuid: d.Value('p-2'), createdAt: d.Value(Time.nowEpoch()), updatedAt: d.Value(Time.nowEpoch()), lastModified: d.Value(Time.nowEpoch()), version: const d.Value(1), origin: const d.Value('local'),
     ));
-
-    await db.into(db.debts).insert(DebtsCompanion(
-      bookingLocalId: d.Value(b1),
-      guestName: d.Value('محمد علي'),
-      checkinDate: d.Value(Time.dateToString(now.subtract(const Duration(days: 3)))),
-      checkoutDate: d.Value(Time.dateToString(now.add(const Duration(days: 1)))),
-      totalAmount: d.Value(120000),
-      paidAmount: d.Value(50000),
-      remainingAmount: d.Value(70000),
-      paymentDate: d.Value(Time.dateToString(now)),
-      pledge: d.Value('جواز سفر'),
-      pledgeType: d.Value('وثيقة رسمية'),
-      note: d.Value('يتم السداد عند الخروج'),
-      localUuid: d.Value('d-1'),
-      createdAt: d.Value(Time.nowEpoch()),
-      updatedAt: d.Value(Time.nowEpoch()),
-      lastModified: d.Value(Time.nowEpoch()),
-      version: const d.Value(1),
-      origin: const d.Value('local'),
-    ));
   }
 }

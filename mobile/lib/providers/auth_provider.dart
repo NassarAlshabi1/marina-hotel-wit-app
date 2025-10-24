@@ -1,5 +1,6 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/auth_local_store.dart';
+import '../services/api_service.dart';
 
 class AuthUser {
   final int id;
@@ -17,8 +18,6 @@ class AuthUser {
   });
 
   String get name => fullName.isNotEmpty ? fullName : username;
-
-  bool get isAdmin => userType == 'admin' || permissions.contains('all');
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     final rawPerms = json['permissions'];
@@ -41,95 +40,60 @@ class AuthUser {
           : const <String>[],
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'username': username,
-        'full_name': fullName,
-        'user_type': userType,
-        'permissions': permissions,
-      };
-
-  AuthUser copyWith({
-    List<String>? permissions,
-  }) {
-    return AuthUser(
-      id: id,
-      username: username,
-      fullName: fullName,
-      userType: userType,
-      permissions: permissions ?? this.permissions,
-    );
-  }
 }
 
 class AuthState {
   final bool isAuthenticated;
-  final bool isRestoring;
   final String? error;
   final AuthUser? currentUser;
-  const AuthState({
-    required this.isAuthenticated,
-    this.isRestoring = false,
-    this.error,
-    this.currentUser,
-  });
-
-  AuthState copyWith({
-    bool? isAuthenticated,
-    bool? isRestoring,
-    String? error,
-    AuthUser? currentUser,
-  }) => AuthState(
-        isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-        isRestoring: isRestoring ?? this.isRestoring,
-        error: error,
-        currentUser: currentUser ?? this.currentUser,
-      );
+  const AuthState(this.isAuthenticated, {this.error, this.currentUser});
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
-    restoreSession();
-  }
+  AuthNotifier() : super(const AuthState(true, currentUser: _defaultUser));
 
-  final _store = AuthLocalStore();
-
-  Future<void> restoreSession() async {
-    state = state.copyWith(isRestoring: true, error: null);
-    final json = await _store.loadCurrentUser();
-    if (json == null) {
-      state = const AuthState(isAuthenticated: false, isRestoring: false);
-      return;
-    }
-    final user = AuthUser.fromJson(json);
-    state = AuthState(isAuthenticated: true, isRestoring: false, currentUser: user);
-  }
+  static const AuthUser _defaultUser = AuthUser(
+    id: 0,
+    username: 'admin',
+    fullName: 'مدير النظام',
+    userType: 'admin',
+    permissions: const ['all'],
+  );
 
   Future<void> login(String username, String password) async {
-    state = state.copyWith(error: null);
-    final data = await _store.validateCredentials(username, password);
-    if (data == null) {
-      state = AuthState(isAuthenticated: false, isRestoring: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة');
-      return;
+    try {
+      final userData = await ApiService.I.login(username, password);
+      if (userData != null) {
+        final user = AuthUser.fromJson(userData);
+        state = AuthState(true, currentUser: user);
+      } else {
+        state = const AuthState(false, error: 'بيانات الدخول غير صحيحة');
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        state = const AuthState(true, currentUser: _defaultUser, error: 'بيانات الدخول غير صحيحة');
+        return;
+      }
+      state = AuthState(true, currentUser: _defaultUser, error: _errorMessage(e));
+    } catch (_) {
+      state = const AuthState(true, currentUser: _defaultUser, error: 'حدث خطأ غير متوقع');
     }
-    final user = AuthUser.fromJson(data);
-    await _store.saveCurrentUser(user.toJson());
-    state = AuthState(isAuthenticated: true, isRestoring: false, currentUser: user);
   }
 
   Future<void> logout() async {
-    await _store.clearSession();
-    state = const AuthState(isAuthenticated: false, isRestoring: false);
+    await ApiService.I.logout();
+    state = const AuthState(true, currentUser: _defaultUser);
   }
 
-  Future<void> updateUserPermissions(String username, List<String> permissions) async {
-    await _store.setPermissions(username, permissions);
-    if (state.currentUser != null && state.currentUser!.username == username) {
-      final updated = state.currentUser!.copyWith(permissions: username == 'admin' ? ['all'] : permissions);
-      await _store.saveCurrentUser(updated.toJson());
-      state = state.copyWith(currentUser: updated);
+  String _errorMessage(DioException e) {
+    final data = e.response?.data;
+    if (data is Map && data['error'] is String) {
+      return data['error'] as String;
     }
+    if (e.message != null && e.message!.isNotEmpty) {
+      return e.message!;
+    }
+    return 'تعذر الاتصال بالخادم';
   }
 }
 
