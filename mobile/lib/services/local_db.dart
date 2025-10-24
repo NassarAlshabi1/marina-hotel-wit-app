@@ -15,45 +15,121 @@ mixin SyncFields on Table {
   TextColumn get origin => text().withDefault(const Constant('local'))();
 }
 
-// ... (all table definitions remain the same)
-
-extension RoomJson on Room {
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'roomNumber': roomNumber,
-    'type': type,
-    'price': price,
-    'status': status,
-    'imageUrl': imageUrl,
-    'localUuid': localUuid,
-    'serverId': serverId,
-    'createdAt': createdAt,
-    'updatedAt': updatedAt,
-    'deletedAt': deletedAt,
-    'lastModified': lastModified,
-    'version': version,
-    'origin': origin,
-  };
-
-  static Room fromJson(Map<String, dynamic> json) => Room(
-    id: Value(json['id']),
-    roomNumber: json['roomNumber'],
-    type: json['type'],
-    price: json['price'],
-    status: json['status'],
-    imageUrl: Value(json['imageUrl']),
-    localUuid: json['localUuid'],
-    serverId: Value(json['serverId']),
-    createdAt: json['createdAt'],
-    updatedAt: json['updatedAt'],
-    deletedAt: Value(json['deletedAt']),
-    lastModified: json['lastModified'],
-    version: json['version'],
-    origin: json['origin'],
-  );
+class Rooms extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get roomNumber => text().unique()();
+  TextColumn get type => text()();
+  RealColumn get price => real()();
+  TextColumn get status => text()();
+  TextColumn get imageUrl => text().nullable()();
 }
 
-// Add similar extensions for Booking, BookingNote, Employee, Expense, CashTransaction, Payment, OutboxRow, SyncState...
+class Bookings extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get serverBookingId => integer().nullable()();
+  TextColumn get roomNumber => text().references(Rooms, #roomNumber)();
+  TextColumn get guestName => text()();
+  TextColumn get guestPhone => text()();
+  TextColumn get guestIdType => text().withDefault(const Constant('بطاقة شخصية'))();
+  TextColumn get guestIdNumber => text().withDefault(const Constant(''))();
+  TextColumn get guestIdIssueDate => text().nullable()();
+  TextColumn get guestIdIssuePlace => text().nullable()();
+  TextColumn get guestNationality => text()();
+  TextColumn get guestEmail => text().nullable()();
+  TextColumn get guestAddress => text().nullable()();
+  TextColumn get checkinDate => text()();
+  TextColumn get checkoutDate => text().nullable()();
+  TextColumn get actualCheckout => text().nullable()();
+  TextColumn get status => text()();
+  TextColumn get notes => text().nullable()();
+  IntColumn get expectedNights => integer().withDefault(const Constant(1))();
+  IntColumn get calculatedNights => integer().withDefault(const Constant(1))();
+
+  @override
+  List<Index> get indexes => [];
+}
+
+class BookingNotes extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get bookingId => integer().references(Bookings, #id)();
+  TextColumn get noteText => text()();
+  TextColumn get alertType => text()();
+  TextColumn get alertUntil => text().nullable()();
+  IntColumn get isActive => integer().withDefault(const Constant(1))();
+}
+
+class Employees extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  RealColumn get basicSalary => real()();
+  TextColumn get position => text().withDefault(const Constant('موظف'))();
+  TextColumn get phone => text().withDefault(const Constant(''))();
+  TextColumn get hireDate => text().withDefault(const Constant(''))();
+  TextColumn get status => text()();
+}
+
+class Expenses extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get expenseType => text()();
+  IntColumn get relatedId => integer().nullable()();
+  TextColumn get description => text()();
+  RealColumn get amount => real()();
+  TextColumn get date => text()();
+  IntColumn get cashTransactionId => integer().nullable()();
+}
+
+class CashTransactions extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get registerId => integer().nullable()();
+  TextColumn get transactionType => text()();
+  RealColumn get amount => real()();
+  TextColumn get referenceType => text().nullable()();
+  IntColumn get referenceId => integer().nullable()();
+  TextColumn get description => text().nullable()();
+  TextColumn get transactionTime => text()();
+  IntColumn get createdBy => integer().nullable()();
+}
+
+class Payments extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get serverPaymentId => integer().nullable()();
+  IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
+  IntColumn get serverBookingId => integer().nullable()();
+  TextColumn get roomNumber => text().nullable()();
+  RealColumn get amount => real()();
+  TextColumn get paymentDate => text()();
+  TextColumn get notes => text().nullable()();
+  TextColumn get paymentMethod => text()();
+  TextColumn get revenueType => text()();
+  IntColumn get cashTransactionLocalId => integer().nullable().references(CashTransactions, #id)();
+  IntColumn get cashTransactionServerId => integer().nullable()();
+
+  @override
+  List<Index> get indexes => [];
+}
+
+class Outbox extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get entity => text()();
+  TextColumn get op => text()();
+  TextColumn get localUuid => text()();
+  IntColumn get serverId => integer().nullable()();
+  TextColumn get payload => text()();
+  IntColumn get clientTs => integer()();
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  TextColumn get lastError => text().nullable()();
+}
+
+class SyncState extends Table {
+  IntColumn get id => integer().withDefault(const Constant(1))();
+  IntColumn get lastServerTs => integer().withDefault(const Constant(0))();
+  IntColumn get lastPullTs => integer().withDefault(const Constant(0))();
+  IntColumn get lastPushTs => integer().withDefault(const Constant(0))();
+  IntColumn get isSyncing => integer().withDefault(const Constant(0))();
+  IntColumn get version => integer().withDefault(const Constant(1))();
+  @override
+  Set<Column> get primaryKey => {id};
+}
 
 @DriftDatabase(tables: [
   Rooms,
@@ -67,5 +143,40 @@ extension RoomJson on Room {
   SyncState,
 ])
 class AppDatabase extends _$AppDatabase {
-  // ... (rest remains the same)
+  AppDatabase() : super(_open());
+  @override
+  int get schemaVersion => 3;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(bookings, bookings.guestIdType);
+            await m.addColumn(bookings, bookings.guestIdNumber);
+            await m.addColumn(bookings, bookings.guestIdIssueDate);
+            await m.addColumn(bookings, bookings.guestIdIssuePlace);
+            await m.addColumn(bookings, bookings.actualCheckout);
+            await m.addColumn(bookings, bookings.expectedNights);
+            await m.database.customStatement('UPDATE bookings SET expected_nights = calculated_nights');
+          }
+          if (from < 3) {
+            await m.database.customStatement('ALTER TABLE rooms RENAME TO rooms_old');
+            await m.createTable(rooms);
+            await m.database.customStatement('INSERT INTO rooms (room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin) '
+                'SELECT room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin FROM rooms_old');
+            await m.database.customStatement('DROP TABLE rooms_old');
+          }
+        },
+      );
+}
+
+LazyDatabase _open() {
+  return LazyDatabase(() async {
+    final executor = SqfliteQueryExecutor.inDatabaseFolder(path: 'marina_hotel.db', logStatements: false);
+    return executor;
+  });
+}
+
+extension EmployeeX on Employee {
+  double get salary => basicSalary;
 }
