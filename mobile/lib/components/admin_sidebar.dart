@@ -16,7 +16,13 @@ class AdminSidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
-    
+    bool can(String key) {
+      final u = auth.currentUser;
+      if (u == null) return false;
+      if (u.permissions.contains('all') || u.userType == 'admin') return true;
+      return u.permissions.contains(key);
+    }
+
     return Container(
       width: 280,
       color: AppColors.primaryColor,
@@ -117,85 +123,110 @@ class AdminSidebar extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16),
               children: [
-                _buildMenuItem(
-                  icon: Icons.dashboard,
-                  title: 'لوحة التحكم',
-                  route: '/dashboard',
-                  isActive: currentRoute == '/dashboard',
-                  onTap: () => onRouteSelected('/dashboard'),
-                ),
-                _buildMenuItem(
-                  icon: Icons.bed,
-                  title: 'إدارة الغرف',
-                  route: '/rooms',
-                  isActive: currentRoute.startsWith('/rooms'),
-                  onTap: () => onRouteSelected('/rooms'),
-                ),
-                _buildMenuItem(
-                  icon: Icons.assignment,
-                  title: 'إدارة الحجوزات',
-                  route: '/bookings',
-                  isActive: currentRoute.startsWith('/bookings'),
-                  onTap: () => onRouteSelected('/bookings'),
-                ),
-                _buildMenuItem(
-                  icon: Icons.attach_money,
-                  title: 'إدارة المدفوعات',
-                  route: '/payments',
-                  isActive: currentRoute.startsWith('/payments'),
-                  onTap: () => onRouteSelected('/payments'),
-                ),
-                _buildMenuItem(
-                  icon: Icons.account_balance,
-                  title: 'الديون',
-                  route: '/debts',
-                  isActive: currentRoute.startsWith('/debts'),
-                  onTap: () => onRouteSelected('/debts'),
-                ),
-                _buildMenuItem(
-                  icon: Icons.group,
-                  title: 'إدارة الموظفين',
-                  route: '/employees',
-                  isActive: currentRoute.startsWith('/employees'),
-                  onTap: () => onRouteSelected('/employees'),
-                ),
-                _buildMenuItem(
-                  icon: Icons.receipt_long,
-                  title: 'إدارة المصروفات',
-                  route: '/expenses',
-                  isActive: currentRoute.startsWith('/expenses'),
-                  onTap: () => onRouteSelected('/expenses'),
-                ),
-                _buildMenuItem(
-                  icon: Icons.account_balance_wallet,
-                  title: 'الصندوق والمالية',
-                  route: '/finance',
-                  isActive: currentRoute.startsWith('/finance'),
-                  onTap: () => onRouteSelected('/finance'),
-                ),
-                _buildMenuItem(
-                  icon: Icons.bar_chart,
-                  title: 'التقارير',
-                  route: '/reports',
-                  isActive: currentRoute.startsWith('/reports'),
-                  onTap: () => onRouteSelected('/reports'),
-                ),
-                _buildMenuItem(
-                  icon: Icons.note,
-                  title: 'الملاحظات والتنبيهات',
-                  route: '/notes',
-                  isActive: currentRoute.startsWith('/notes'),
-                  onTap: () => onRouteSelected('/notes'),
-                ),
-                _buildMenuItem(
-                  icon: Icons.settings,
-                  title: 'الإعدادات',
-                  route: '/settings',
-                  isActive: currentRoute.startsWith('/settings'),
-                  onTap: () => onRouteSelected('/settings'),
-                ),
-                
+                if (can('dashboard'))
+                  _buildMenuItem(
+                    icon: Icons.dashboard,
+                    title: 'لوحة التحكم',
+                    route: '/dashboard',
+                    isActive: currentRoute == '/dashboard',
+                    onTap: () => onRouteSelected('/dashboard'),
+                  ),
+                if (can('rooms'))
+                  _buildMenuItem(
+                    icon: Icons.bed,
+                    title: 'إدارة الغرف',
+                    route: '/rooms',
+                    isActive: currentRoute.startsWith('/rooms'),
+                    onTap: () => onRouteSelected('/rooms'),
+                  ),
+                if (can('bookings'))
+                  _buildMenuItem(
+                    icon: Icons.assignment,
+                    title: 'إدارة الحجوزات',
+                    route: '/bookings',
+                    isActive: currentRoute.startsWith('/bookings'),
+                    onTap: () => onRouteSelected('/bookings'),
+                  ),
+                if (can('payments'))
+                  _buildMenuItem(
+                    icon: Icons.attach_money,
+                    title: 'إدارة المدفوعات',
+                    route: '/payments',
+                    isActive: currentRoute.startsWith('/payments'),
+                    onTap: () => onRouteSelected('/payments'),
+                  ),
+                if (can('debts'))
+                  _buildMenuItem(
+                    icon: Icons.account_balance,
+                    title: 'الديون',
+                    route: '/debts',
+                    isActive: currentRoute.startsWith('/debts'),
+                    onTap: () => onRouteSelected('/debts'),
+                  ),
+                if (can('employees'))
+                  _buildMenuItem(
+                    icon: Icons.group,
+                    title: 'إدارة الموظفين',
+                    route: '/employees',
+                    isActive: currentRoute.startsWith('/employees'),
+                    onTap: () => onRouteSelected('/employees'),
+                  ),
+                if (can('expenses'))
+                  _buildMenuItem(
+                    icon: Icons.receipt_long,
+                    title: 'إدارة المصروفات',
+                    route: '/expenses',
+                    isActive: currentRoute.startsWith('/expenses'),
+                    onTap: () => onRouteSelected('/expenses'),
+                  ),
+                if (can('finance'))
+                  _buildMenuItem(
+                    icon: Icons.account_balance_wallet,
+                    title: 'الصندوق والمالية',
+                    route: '/finance',
+                    isActive: currentRoute.startsWith('/finance'),
+                    onTap: () => onRouteSelected('/finance'),
+                  ),
+                if (can('reports'))
+                  _buildMenuItem(
+                    icon: Icons.bar_chart,
+                    title: 'التقارير',
+                    route: '/reports',
+                    isActive: currentRoute.startsWith('/reports'),
+                    onTap: () => onRouteSelected('/reports'),
+                  ),
+                if (can('notes'))
+                  _buildMenuItem(
+                    icon: Icons.note,
+                    title: 'الملاحظات والتنبيهات',
+                    route: '/notes',
+                    isActive: currentRoute.startsWith('/notes'),
+                    onTap: () => onRouteSelected('/notes'),
+                  ),
+                if (can('settings'))
+                  _buildMenuItem(
+                    icon: Icons.settings,
+                    title: 'الإعدادات',
+                    route: '/settings',
+                    isActive: currentRoute.startsWith('/settings'),
+                    onTap: () => onRouteSelected('/settings'),
+                  ),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: _buildMenuItem(
+              icon: Icons.logout,
+              title: 'تسجيل الخروج',
+              route: '/logout',
+              isActive: false,
+              onTap: () async {
+                await ref.read(authProvider.notifier).logout();
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
+              },
             ),
           ),
         ],
