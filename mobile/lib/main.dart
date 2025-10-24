@@ -27,14 +27,8 @@ void main() async {
   // تهيئة خدمة النسخ التلقائي
   await AutoBackupTask.initialize();
   
-  final container = ProviderContainer();
-  await container.read(backupSyncServiceProvider).syncFromDriveIfNeeded();
-  
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
-  runApp(UncontrolledProviderScope(
-    container: container,
-    child: const App(),
-  ));
+  runApp(const ProviderScope(child: App()));
 }
 
 class App extends ConsumerWidget {

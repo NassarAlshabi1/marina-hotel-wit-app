@@ -1,72 +1,47 @@
-import 'dart:async';
-
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/cash_transactions_dao.dart';
-import '../backup_sync_service.dart';
 
 class CashRepository {
-  CashRepository(this.db, {BackupSyncService? backupSyncService})
+  CashRepository(this.db)
       : outbox = OutboxDao(db),
-        dao = CashTransactionsDao(db, OutboxDao(db)),
-        _backupSyncService = backupSyncService;
+        dao = CashTransactionsDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final CashTransactionsDao dao;
-  final BackupSyncService? _backupSyncService;
-
-  void _scheduleAutoBackup() {
-    unawaited(_backupSyncService?.triggerAutoBackup());
-  }
 
   Stream<List<CashTransaction>> watchAll() => dao.watchList();
   Stream<CashTransaction?> watchOne(int id) => dao.watchById(id);
 
-  Future<int> create({int? registerId, required String type, required double amount, String? referenceType, int? referenceId, String? description, required String transactionTime, int? createdBy}) async {
-    final id = await dao.insertOne(
-      CashTransactionsCompanion(
-        registerId: d.Value(registerId),
-        transactionType: d.Value(type),
-        amount: d.Value(amount),
-        referenceType: d.Value(referenceType),
-        referenceId: d.Value(referenceId),
-        description: d.Value(description),
-        transactionTime: d.Value(transactionTime),
-        createdBy: d.Value(createdBy),
-      ),
-    );
-    _scheduleAutoBackup();
-    return id;
-  }
+  Future<int> create({int? registerId, required String type, required double amount, String? referenceType, int? referenceId, String? description, required String transactionTime, int? createdBy}) => dao.insertOne(
+        CashTransactionsCompanion(
+          registerId: d.Value(registerId),
+          transactionType: d.Value(type),
+          amount: d.Value(amount),
+          referenceType: d.Value(referenceType),
+          referenceId: d.Value(referenceId),
+          description: d.Value(description),
+          transactionTime: d.Value(transactionTime),
+          createdBy: d.Value(createdBy),
+        ),
+      );
 
-  Future<int> update(int id, {int? registerId, String? type, double? amount, String? referenceType, int? referenceId, String? description, String? transactionTime, int? createdBy}) async {
-    final rows = await dao.updateById(
-      id,
-      CashTransactionsCompanion(
-        registerId: d.Value(registerId),
-        transactionType: type != null ? d.Value(type) : const d.Value.absent(),
-        amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-        referenceType: d.Value(referenceType),
-        referenceId: d.Value(referenceId),
-        description: description != null ? d.Value(description) : const d.Value.absent(),
-        transactionTime: transactionTime != null ? d.Value(transactionTime) : const d.Value.absent(),
-        createdBy: d.Value(createdBy),
-      ),
-    );
-    if (rows > 0) {
-      _scheduleAutoBackup();
-    }
-    return rows;
-  }
+  Future<int> update(int id, {int? registerId, String? type, double? amount, String? referenceType, int? referenceId, String? description, String? transactionTime, int? createdBy}) => dao.updateById(
+        id,
+        CashTransactionsCompanion(
+          registerId: d.Value(registerId),
+          transactionType: type != null ? d.Value(type) : const d.Value.absent(),
+          amount: amount != null ? d.Value(amount) : const d.Value.absent(),
+          referenceType: d.Value(referenceType),
+          referenceId: d.Value(referenceId),
+          description: description != null ? d.Value(description) : const d.Value.absent(),
+          transactionTime: transactionTime != null ? d.Value(transactionTime) : const d.Value.absent(),
+          createdBy: d.Value(createdBy),
+        ),
+      );
 
-  Future<int> delete(int id) async {
-    final rows = await dao.softDelete(id);
-    if (rows > 0) {
-      _scheduleAutoBackup();
-    }
-    return rows;
-  }
+  Future<int> delete(int id) => dao.softDelete(id);
 
   // دوال النسخ الاحتياطي
 
@@ -89,14 +64,12 @@ class CashRepository {
         List<Map<String, dynamic>>.from(data['data']), 
         clearExisting: false,
       );
-      _scheduleAutoBackup();
     }
   }
 
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await dao.clearAllData();
-    _scheduleAutoBackup();
   }
 
   /// الحصول على إجمالي عدد السجلات
