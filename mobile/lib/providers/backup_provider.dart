@@ -23,7 +23,7 @@ class AutoBackupSettings {
   final bool enableLocalBackup; // تفعيل النسخ المحلي
   final bool enableGoogleDriveBackup; // تفعيل النسخ السحابي
 
-  AutoBackupSettings({
+  const AutoBackupSettings({
     this.isEnabled = false,
     this.frequency = 'daily',
     this.time = '02:00',
