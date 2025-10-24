@@ -1,12 +1,8 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/core_providers.dart' as coreProviders;
-import '../../services/drive_service.dart';
 import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
@@ -18,33 +14,7 @@ class ReportsScreen extends ConsumerWidget {
     final db = ref.watch(coreProviders.dbProvider);
     return AppScaffold(
       title: 'التقارير',
-      actions: [
-        IconButton(onPressed: () => ref.read(coreProviders.syncProvider).runSync(), icon: const Icon(Icons.sync)),
-        IconButton(
-          onPressed: () async {
-            final pdf = pw.Document();
-            pdf.addPage(pw.Page(
-              build: (pw.Context context) => pw.Column(
-                children: [
-                  pw.Text('تقرير الإشغال اليومي', style: pw.TextStyle(fontSize: 24)),
-                  pw.Text('تاريخ التقرير: ${DateTime.now().toString().split(' ')[0]}'),
-                  pw.SizedBox(height: 20),
-                  pw.Text('ملخص التقرير: هذا تقرير تجريبي لحفظ في Google Drive.'),
-                ],
-              ),
-            ));
-            final bytes = await pdf.save();
-            final driveService = DriveService();
-            await driveService.initialize();
-            final fileId = await driveService.uploadFile('reports_${DateTime.now().millisecondsSinceEpoch}.pdf', bytes);
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم الحفظ في Drive: $fileId')));
-            }
-          },
-          icon: const Icon(Icons.cloud_upload),
-          tooltip: 'حفظ في Google Drive',
-        ),
-      ],
+      actions: [IconButton(onPressed: () => ref.read(coreProviders.syncProvider).runSync(), icon: const Icon(Icons.sync))],
       body: FutureBuilder(
         future: _prepareData(db),
         builder: (context, snapshot) {

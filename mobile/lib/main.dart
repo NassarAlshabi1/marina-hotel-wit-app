@@ -18,11 +18,12 @@ import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
 import 'components/admin_layout.dart';
 
-import 'package:firebase_core/firebase_core.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  
+  // تهيئة خدمة النسخ التلقائي
+  await AutoBackupTask.initialize();
+  
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
 }
