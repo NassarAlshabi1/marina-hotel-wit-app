@@ -1,8 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/backup_provider.dart';
+import '../../services/google_drive_backup_service.dart';
 import '../../services/local_backup_service.dart';
 import '../../services/file_management_service.dart';
 import '../../utils/theme.dart';
@@ -61,9 +64,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
             color: Colors.grey[100],
             child: TabBar(
               controller: _tabController,
-              labelColor: AppTheme.primaryColor,
+              labelColor: AppColors.primaryColor,
               unselectedLabelColor: Colors.grey,
-              indicatorColor: AppTheme.primaryColor,
+              indicatorColor: AppColors.primaryColor,
               tabs: const [
                 Tab(
                   icon: Icon(Icons.dashboard),
@@ -322,7 +325,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               LinearProgressIndicator(
                 value: state.progress,
                 backgroundColor: Colors.grey[300],
-                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
               ),
               const SizedBox(height: 8),
               Text(
@@ -573,7 +576,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                       : const Icon(Icons.login),
                   label: Text(state.status == BackupStatus.signIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
+                    backgroundColor: AppColors.primaryColor,
                     foregroundColor: Colors.white,
                   ),
                 ),
@@ -588,6 +591,13 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
   Widget _buildLocalStorageCard(BackupState state) {
     final folderInfo = state.backupFolderInfo;
     final totalSizeMB = folderInfo?['total_size_mb'] ?? '0.00';
+    final path = folderInfo?['path']?.toString() ?? '';
+    final visiblePathSegments = path.isEmpty ? <String>[] : path.split('/').where((segment) => segment.isNotEmpty).toList();
+    final displayPath = visiblePathSegments.isEmpty
+        ? 'غير معروف'
+        : (visiblePathSegments.length > 3
+            ? visiblePathSegments.sublist(visiblePathSegments.length - 3).join('/')
+            : visiblePathSegments.join('/'));
     
     return Card(
       child: Padding(
@@ -620,7 +630,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'المسار: ${folderInfo?['path']?.toString().split('/').takeLast(3).join('/') ?? 'غير معروف'}',
+                      'المسار: $displayPath',
                       style: const TextStyle(color: Colors.orange, fontSize: 12),
                     ),
                   ),
@@ -1206,7 +1216,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       initialTime: currentTime,
       builder: (context, child) {
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: ui.TextDirection.rtl,
           child: child!,
         );
       },

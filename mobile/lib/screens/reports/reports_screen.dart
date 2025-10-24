@@ -5,6 +5,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/core_providers.dart' as coreProviders;
 import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
+import 'debts_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
 
 class ReportsScreen extends ConsumerWidget {
@@ -36,6 +37,15 @@ class ReportsScreen extends ConsumerWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const PaymentsReportScreen()),
+                    ),
+                  ),
+                  _ReportShortcut(
+                    icon: Icons.pie_chart,
+                    label: 'تقرير الديون',
+                    color: Colors.purple,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DebtsReportScreen()),
                     ),
                   ),
                   _ReportShortcut(

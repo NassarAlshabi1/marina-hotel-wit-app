@@ -177,6 +177,7 @@ marina-hotel-wit-app/
 - ✅ **عند push لأي فرع capy/** - بناء للاختبار  
 - ✅ **تشغيل يدوي** - من Actions tab
 - ✅ **Pull Requests** - فحص الكود
+- 🔄 **تحديث 2025-10-23** - تم تنفيذ دفع اختباري لتأكيد تشغيل سير العمل
 
 **📥 [أحدث إصدار](https://github.com/Nassaralshabi/marina-hotel-wit-app/releases)**
 
