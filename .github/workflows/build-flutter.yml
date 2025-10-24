@@ -1,14 +1,12 @@
 name: Build Flutter APK
 
 on:
-  # Triggers:
-  # - Push to 'main' or 'capy/google-drive-c3b36ed3' (no path filters).
-  #   This ensures any commit to the capy branch runs the workflow regardless of changed files.
-  # - Manual trigger via 'workflow_dispatch'.
   push:
     branches:
       - main
-      - capy/google-drive-c3b36ed3
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/build-flutter.yml'
   workflow_dispatch:
 
 jobs:

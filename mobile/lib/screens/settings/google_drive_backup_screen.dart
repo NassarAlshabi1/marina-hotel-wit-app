@@ -191,7 +191,7 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
                       : const Icon(Icons.login),
                   label: Text(state.status == BackupStatus.signIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
+                    backgroundColor: AppTheme.primaryColor,
                     foregroundColor: Colors.white,
                   ),
                 ),
