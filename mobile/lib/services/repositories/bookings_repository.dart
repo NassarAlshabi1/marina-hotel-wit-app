@@ -1,24 +1,15 @@
-import 'dart:async';
-
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
-import '../backup_sync_service.dart';
 
 class BookingsRepository {
-  BookingsRepository(this.db, {BackupSyncService? backupSyncService})
+  BookingsRepository(this.db)
       : outbox = OutboxDao(db),
-        dao = BookingsDao(db, OutboxDao(db)),
-        _backupSyncService = backupSyncService;
+        dao = BookingsDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final BookingsDao dao;
-  final BackupSyncService? _backupSyncService;
-
-  void _scheduleAutoBackup() {
-    unawaited(_backupSyncService?.triggerAutoBackup());
-  }
 
   Stream<List<Booking>> watch({String? roomNumber, String? status}) => dao.watchList(roomNumber: roomNumber, status: status);
   Stream<List<Booking>> watchList({String? roomNumber, String? status}) => dao.watchList(roomNumber: roomNumber, status: status);
@@ -42,8 +33,8 @@ class BookingsRepository {
     String? notes,
     int expectedNights = 1,
     int? calculatedNights,
-  }) async {
-    final id = await dao.insertOne(
+  }) {
+    return dao.insertOne(
       BookingsCompanion(
         roomNumber: d.Value(roomNumber),
         guestName: d.Value(guestName),
@@ -64,8 +55,6 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
       ),
     );
-    _scheduleAutoBackup();
-    return id;
   }
 
   Future<int> update(int id, {
@@ -86,8 +75,8 @@ class BookingsRepository {
     String? notes,
     int? expectedNights,
     int? calculatedNights,
-  }) async {
-    final rows = await dao.updateById(
+  }) {
+    return dao.updateById(
       id,
       BookingsCompanion(
         roomNumber: roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
@@ -109,19 +98,9 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
       ),
     );
-    if (rows > 0) {
-      _scheduleAutoBackup();
-    }
-    return rows;
   }
 
-  Future<int> delete(int id) async {
-    final rows = await dao.softDelete(id);
-    if (rows > 0) {
-      _scheduleAutoBackup();
-    }
-    return rows;
-  }
+  Future<int> delete(int id) => dao.softDelete(id);
 
   // دوال النسخ الاحتياطي
 
@@ -144,14 +123,12 @@ class BookingsRepository {
         List<Map<String, dynamic>>.from(data['data']), 
         clearExisting: false,
       );
-      _scheduleAutoBackup();
     }
   }
 
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await dao.clearAllData();
-    _scheduleAutoBackup();
   }
 
   /// الحصول على إجمالي عدد السجلات
