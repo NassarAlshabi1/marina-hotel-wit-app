@@ -5,8 +5,6 @@ import '../../components/admin_layout.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
-import '../../services/repositories/debts_repository.dart';
-import '../runaway_guests/runaway_flow.dart';
 
 class DebtsListScreen extends ConsumerWidget {
   const DebtsListScreen({super.key});
@@ -20,11 +18,6 @@ class DebtsListScreen extends ConsumerWidget {
         IconButton(
           onPressed: () => _openDebtForm(context, ref),
           icon: const Icon(Icons.add),
-        ),
-        IconButton(
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RunawayGuestFlowScreen())),
-          tooltip: 'تسجيل هروب نزيل',
-          icon: const Icon(Icons.directions_run),
         ),
       ],
       body: debtsAsync.when(
@@ -68,12 +61,6 @@ class DebtsListScreen extends ConsumerWidget {
                           Text(debt.note?.isNotEmpty == true ? debt.note! : '-'),
                           Row(
                             children: [
-                              if (debt.debtReason == 'Evasive Guest Debt' && !debt.isSettled)
-                                IconButton(
-                                  icon: const Icon(Icons.check_circle),
-                                  onPressed: () => _settleRunawayDebt(context, ref, debt),
-                                  tooltip: 'تسوية دين هروب',
-                                ),
                               IconButton(
                                 icon: const Icon(Icons.edit),
                                 onPressed: () => _openDebtForm(context, ref, existing: debt),
@@ -254,36 +241,6 @@ class DebtsListScreen extends ConsumerWidget {
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ البيانات بنجاح')));
-    }
-  }
-
-  Future<void> _settleRunawayDebt(BuildContext context, WidgetRef ref, Debt debt) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          title: const Text('تأكيد التسوية'),
-          content: Text('سيتم تسجيل دفعة بمبلغ ${debt.amountDue.toStringAsFixed(2)} وتسوية الدين وإرجاع جميع الرهون.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('تأكيد')),
-          ],
-        ),
-      ),
-    );
-    if (confirm != true) return;
-
-    try {
-      final repo = ref.read(debtsRepoProvider);
-      await repo.settleDebtAndReturnGuarantees(debtLocalId: debt.id, paymentMethod: 'نقدي');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت التسوية بنجاح')));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل التسوية: $e')));
-      }
     }
   }
 
