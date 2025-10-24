@@ -12,6 +12,7 @@ class SalaryWithdrawalsReportScreen extends StatelessWidget {
     'salary-withdrawal',
     'رواتب',
     'سحب راتب',
+    'سحب من الراتب',
   };
 
   @override
