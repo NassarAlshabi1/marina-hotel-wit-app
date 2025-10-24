@@ -90,10 +90,7 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'Google Drive + التخزين المحلي',
               icon: Icons.backup,
               color: Colors.indigo,
-              onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const BackupScreen()),
-                  ),
+              onTap: () => _showBackupDialog(context),
             ),
             _SettingsItem(
               title: 'إعدادات التطبيق',
