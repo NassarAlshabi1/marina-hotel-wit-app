@@ -111,13 +111,21 @@ class Payments extends Table with SyncFields {
 class Debts extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
+  TextColumn get bookingRef => text().nullable()();
   TextColumn get guestName => text()();
   TextColumn get checkinDate => text()();
   TextColumn get checkoutDate => text()();
+  // Migration note: totalAmount/paidAmount/remainingAmount kept for backward compatibility with legacy debts.
+  // New field amountDue supersedes remainingAmount for runaway guest debts.
   RealColumn get totalAmount => real()();
   RealColumn get paidAmount => real()();
   RealColumn get remainingAmount => real()();
+  RealColumn get amountDue => real().withDefault(const Constant(0))();
   TextColumn get paymentDate => text()();
+  TextColumn get debtReason => text().withDefault(const Constant(''))();
+  TextColumn get dateRecorded => text().withDefault(const Constant(''))();
+  TextColumn get dateSettled => text().nullable()();
+  BoolColumn get isSettled => boolean().withDefault(const Constant(false))();
   TextColumn get pledge => text().nullable()();
   TextColumn get pledgeType => text().nullable()();
   TextColumn get note => text().nullable()();
@@ -133,6 +141,17 @@ class Outbox extends Table {
   IntColumn get clientTs => integer()();
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
+}
+
+class Guarantees extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
+  IntColumn get debtLocalId => integer().nullable().references(Debts, #id)();
+  TextColumn get bookingRef => text().nullable()();
+  TextColumn get guestName => text()();
+  TextColumn get itemType => text()();
+  BoolColumn get isReturned => boolean().withDefault(const Constant(false))();
+  TextColumn get dateReturned => text().nullable()();
 }
 
 class SyncState extends Table {
@@ -155,13 +174,14 @@ class SyncState extends Table {
   CashTransactions,
   Payments,
   Debts,
+  Guarantees,
   Outbox,
   SyncState,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -184,6 +204,17 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 4) {
             await m.createTable(debts);
+          }
+          if (from < 5) {
+            await m.addColumn(debts, debts.bookingRef);
+            await m.addColumn(debts, debts.amountDue);
+            await m.addColumn(debts, debts.debtReason);
+            await m.addColumn(debts, debts.dateRecorded);
+            await m.addColumn(debts, debts.dateSettled);
+            await m.addColumn(debts, debts.isSettled);
+            await m.createTable(guarantees);
+            await m.database.customStatement('UPDATE debts SET amount_due = remaining_amount WHERE amount_due = 0');
+            await m.database.customStatement("UPDATE debts SET debt_reason = COALESCE(debt_reason, ''), date_recorded = CASE WHEN date_recorded IS NULL OR date_recorded = '' THEN payment_date ELSE date_recorded END");
           }
         },
       );

@@ -1,15 +1,24 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/booking_notes_dao.dart';
+import '../backup_sync_service.dart';
 
 class NotesRepository {
-  NotesRepository(this.db)
+  NotesRepository(this.db, {BackupSyncService? backupSyncService})
       : outbox = OutboxDao(db),
-        dao = BookingNotesDao(db, OutboxDao(db));
+        dao = BookingNotesDao(db, OutboxDao(db)),
+        _backupSyncService = backupSyncService;
   final AppDatabase db;
   final OutboxDao outbox;
   final BookingNotesDao dao;
+  final BackupSyncService? _backupSyncService;
+
+  void _scheduleAutoBackup() {
+    unawaited(_backupSyncService?.triggerAutoBackup());
+  }
 
   Stream<List<BookingNote>> watchByBooking(int bookingId) => dao.watchByBooking(bookingId);
   Future<List<BookingNote>> listAllActive() => dao.list();
@@ -20,8 +29,8 @@ class NotesRepository {
     required String alertType,
     String? alertUntil,
     bool isActive = true,
-  }) {
-    return dao.insertOne(
+  }) async {
+    final id = await dao.insertOne(
       BookingNotesCompanion(
         bookingId: d.Value(bookingId),
         noteText: d.Value(noteText),
@@ -30,6 +39,8 @@ class NotesRepository {
         isActive: d.Value(isActive ? 1 : 0),
       ),
     );
+    _scheduleAutoBackup();
+    return id;
   }
 
   Future<int> update(int id, {
@@ -37,8 +48,8 @@ class NotesRepository {
     String? alertType,
     String? alertUntil,
     bool? isActive,
-  }) {
-    return dao.updateById(
+  }) async {
+    final rows = await dao.updateById(
       id,
       BookingNotesCompanion(
         noteText: noteText != null ? d.Value(noteText) : const d.Value.absent(),
@@ -47,9 +58,19 @@ class NotesRepository {
         isActive: isActive != null ? d.Value(isActive ? 1 : 0) : const d.Value.absent(),
       ),
     );
+    if (rows > 0) {
+      _scheduleAutoBackup();
+    }
+    return rows;
   }
 
-  Future<int> delete(int id) => dao.softDelete(id);
+  Future<int> delete(int id) async {
+    final rows = await dao.softDelete(id);
+    if (rows > 0) {
+      _scheduleAutoBackup();
+    }
+    return rows;
+  }
 
   // دوال النسخ الاحتياطي
 
@@ -72,12 +93,14 @@ class NotesRepository {
         List<Map<String, dynamic>>.from(data['data']), 
         clearExisting: false,
       );
+      _scheduleAutoBackup();
     }
   }
 
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await dao.clearAllData();
+    _scheduleAutoBackup();
   }
 
   /// الحصول على إجمالي عدد السجلات
