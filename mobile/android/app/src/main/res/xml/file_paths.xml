@@ -12,8 +12,8 @@
     <!-- مجلد Downloads -->
     <external-path name="external_downloads" path="Download" />
     
-    <!-- مجلد النسخ الاحتياطي -->
-    <external-files-path name="backup_files" path="MarinaHotelBackups" />
+    <!-- مجلد النسخ الاحتياطي في Documents -->
+    <external-path name="backup_files" path="Documents/MarinaHotelBackups" />
     
     <!-- مسار عام للملفات الخارجية -->
     <external-path name="external_storage_root" path="." />

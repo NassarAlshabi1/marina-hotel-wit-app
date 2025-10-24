@@ -12,6 +12,7 @@ import '../../components/admin_layout.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/local_db.dart';
+import '../../services/providers.dart' as providers;
 import '../../utils/pdf_utils.dart';
 import '../../utils/time.dart';
 
@@ -29,8 +30,11 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   DateTime? _fromDate;
   DateTime? _toDate;
   bool _loading = false;
+  bool _onlyRunaway = false;
+  bool _onlyUnsettled = false;
 
   List<Debt> _rows = [];
+  Map<int, int> _unreturnedCounts = {};
   List<_GuestDebtSummary> _guestSummaries = [];
   List<_MonthlyDebtSummary> _monthlySummaries = [];
 
@@ -83,16 +87,23 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       final fromFilter = _fromDate;
       final toFilter = _toDate;
       for (final debt in allDebts) {
-        final paymentDate = _parseDateTime(debt.paymentDate);
-        if (fromFilter != null && paymentDate.isBefore(fromFilter)) {
+        final recordDate = _parseDateTime(debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate);
+        if (fromFilter != null && recordDate.isBefore(fromFilter)) {
           continue;
         }
-        if (toFilter != null && paymentDate.isAfter(toFilter)) {
+        if (toFilter != null && recordDate.isAfter(toFilter)) {
+          continue;
+        }
+        if (_onlyRunaway && debt.debtReason != 'Evasive Guest Debt') {
+          continue;
+        }
+        if (_onlyUnsettled && debt.isSettled) {
           continue;
         }
         filtered.add(debt);
       }
-      filtered.sort((a, b) => _parseDateTime(b.paymentDate).compareTo(_parseDateTime(a.paymentDate)));
+      filtered.sort((a, b) => _parseDateTime(b.dateRecorded.isNotEmpty ? b.dateRecorded : b.paymentDate)
+          .compareTo(_parseDateTime(a.dateRecorded.isNotEmpty ? a.dateRecorded : a.paymentDate)));
       final guestMap = <String, _GuestDebtSummary>{};
       final monthlyMap = <String, _MonthlyDebtSummary>{};
       double totalDebt = 0;
@@ -123,8 +134,11 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
       final monthlySummaries = monthlyMap.values.toList()
         ..sort((a, b) => a.month.compareTo(b.month));
+      final guaranteesRepo = ref.read(providers.guaranteesRepoProvider);
+      final counts = await guaranteesRepo.unreturnedCountsByDebt();
       setState(() {
         _rows = filtered;
+        _unreturnedCounts = counts;
         _guestSummaries = guestSummaries;
         _monthlySummaries = monthlySummaries;
         _totalDebt = totalDebt;
@@ -164,18 +178,18 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                   ])
               .toList();
 
-          final detailHeaders = ['النزيل', 'تاريخ الدخول', 'تاريخ الخروج', 'إجمالي', 'المدفوع', 'المتبقي', 'تاريخ الدفع', 'الرهن', 'نوع الرهن'];
+          final detailHeaders = ['النزيل', 'تاريخ التسجيل', 'تاريخ الخروج', 'إجمالي', 'المدفوع', 'المتبقي', 'سبب الدين', 'مسدد؟', 'رهون غير مُعادة'];
           final detailData = _rows
               .map((debt) => [
                     debt.guestName,
-                    Time.safeIsoToDateString(debt.checkinDate),
+                    Time.safeIsoToDateString(debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate),
                     Time.safeIsoToDateString(debt.checkoutDate),
                     _currencyFormat.format(debt.totalAmount),
                     _currencyFormat.format(debt.paidAmount),
                     _currencyFormat.format(debt.remainingAmount),
-                    Time.safeIsoToDateString(debt.paymentDate),
-                    debt.pledge?.isNotEmpty == true ? debt.pledge! : '-',
-                    debt.pledgeType?.isNotEmpty == true ? debt.pledgeType! : '-',
+                    debt.debtReason.isNotEmpty ? debt.debtReason : '-',
+                    debt.isSettled ? 'نعم' : 'لا',
+                    _unreturnedCounts[debt.id] ?? 0,
                   ])
               .toList();
 
@@ -250,6 +264,16 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
               children: [
                 _buildDateSelector(label: 'من تاريخ', value: _fromDate, onPressed: () => _pickDate(isFrom: true)),
                 _buildDateSelector(label: 'إلى تاريخ', value: _toDate, onPressed: () => _pickDate(isFrom: false)),
+                FilterChip(
+                  label: const Text('الهروب فقط'),
+                  selected: _onlyRunaway,
+                  onSelected: (v) => setState(() => _onlyRunaway = v),
+                ),
+                FilterChip(
+                  label: const Text('غير مسددة فقط'),
+                  selected: _onlyUnsettled,
+                  onSelected: (v) => setState(() => _onlyUnsettled = v),
+                ),
                 ElevatedButton.icon(
                   onPressed: _loading ? null : _fetchReport,
                   icon: const Icon(Icons.search),
@@ -521,19 +545,19 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     return AdminCard(
       title: 'تفاصيل السجلات',
       child: AdminTable(
-        headers: const ['اسم النزيل', 'تاريخ الدخول', 'تاريخ الخروج', 'إجمالي الدين', 'المدفوع', 'المتبقي', 'تاريخ الدفع', 'الرهن', 'نوع الرهن'],
+        headers: const ['اسم النزيل', 'تاريخ التسجيل', 'تاريخ الخروج', 'إجمالي الدين', 'المدفوع', 'المتبقي', 'سبب الدين', 'مسدد؟', 'رهون غير مُعادة'],
         rows: _rows
             .map(
               (debt) => [
                 Text(debt.guestName),
-                Text(Time.safeIsoToDateString(debt.checkinDate)),
+                Text(Time.safeIsoToDateString(debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate)),
                 Text(Time.safeIsoToDateString(debt.checkoutDate)),
                 Text('${_currencyFormat.format(debt.totalAmount)} ر.س'),
                 Text('${_currencyFormat.format(debt.paidAmount)} ر.س'),
                 Text('${_currencyFormat.format(debt.remainingAmount)} ر.س'),
-                Text(Time.safeIsoToDateString(debt.paymentDate)),
-                Text(debt.pledge?.isNotEmpty == true ? debt.pledge! : '-'),
-                Text(debt.pledgeType?.isNotEmpty == true ? debt.pledgeType! : '-'),
+                Text(debt.debtReason.isNotEmpty ? debt.debtReason : '-'),
+                Text(debt.isSettled ? 'نعم' : 'لا'),
+                Text('${_unreturnedCounts[debt.id] ?? 0}'),
               ],
             )
             .toList(),
@@ -559,7 +583,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       return DateTime.parse(normalized);
     } catch (_) {
       final safeDate = Time.safeIsoToDateString(value);
-      return DateTime.parse('$safeDateT00:00:00');
+      return DateTime.parse('${safeDate}T00:00:00');
     }
   }
 }

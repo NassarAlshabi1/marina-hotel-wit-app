@@ -7,23 +7,55 @@ import 'repositories/expenses_repository.dart';
 import 'repositories/cash_repository.dart';
 import 'repositories/payments_repository.dart';
 import 'repositories/debts_repository.dart';
+import 'repositories/guarantees_repository.dart';
 import 'repositories/notes_repository.dart';
+import 'backup_sync_service.dart';
 import 'whatsapp_service.dart';
 import '../utils/status_utils.dart';
+import '../providers/backup_provider.dart';
 
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
 
-final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(ref.read(databaseProvider)));
-final bookingsRepoProvider = Provider<BookingsRepository>((ref) => BookingsRepository(ref.read(databaseProvider)));
-final employeesRepoProvider = Provider<EmployeesRepository>((ref) => EmployeesRepository(ref.read(databaseProvider)));
-final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepository(ref.read(databaseProvider)));
-final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.read(databaseProvider)));
-final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider)));
-final debtsRepoProvider = Provider<DebtsRepository>((ref) => DebtsRepository(ref.read(databaseProvider)));
-final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider)));
+final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(
+      ref.read(databaseProvider),
+      backupSyncService: ref.read(backupSyncServiceProvider),
+    ));
+final bookingsRepoProvider = Provider<BookingsRepository>((ref) => BookingsRepository(
+      ref.read(databaseProvider),
+      backupSyncService: ref.read(backupSyncServiceProvider),
+    ));
+final employeesRepoProvider = Provider<EmployeesRepository>((ref) => EmployeesRepository(
+      ref.read(databaseProvider),
+      backupSyncService: ref.read(backupSyncServiceProvider),
+    ));
+final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepository(
+      ref.read(databaseProvider),
+      whatsAppService: ref.read(whatsappServiceProvider),
+      backupSyncService: ref.read(backupSyncServiceProvider),
+    ));
+final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(
+      ref.read(databaseProvider),
+      backupSyncService: ref.read(backupSyncServiceProvider),
+    ));
+final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(
+      ref.read(databaseProvider),
+      backupSyncService: ref.read(backupSyncServiceProvider),
+    ));
+final debtsRepoProvider = Provider<DebtsRepository>((ref) => DebtsRepository(
+      ref.read(databaseProvider),
+      backupSyncService: ref.read(backupSyncServiceProvider),
+    ));
+final guaranteesRepoProvider = Provider<GuaranteesRepository>((ref) => GuaranteesRepository(
+      ref.read(databaseProvider),
+      backupSyncService: ref.read(backupSyncServiceProvider),
+    ));
+final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(
+      ref.read(databaseProvider),
+      backupSyncService: ref.read(backupSyncServiceProvider),
+    ));
 final whatsappServiceProvider = Provider<WhatsAppService>(
   (ref) => WhatsAppService(
     baseUrl: 'https://7103.api.greenapi.com',

@@ -39,6 +39,7 @@ class LocalBackupFile {
 
 class LocalBackupService {
   static const String _backupFolderName = 'MarinaHotelBackups';
+  static const String _androidDocumentsRoot = '/storage/emulated/0/Documents';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
   static const String _prefsLastLocalBackupKey = 'last_local_backup_timestamp';
   static const String _prefsAutoLocalBackupKey = 'auto_local_backup_enabled';
@@ -81,29 +82,39 @@ class LocalBackupService {
     }
 
     try {
-      Directory baseDir;
-      
       if (Platform.isAndroid) {
-        // محاولة استخدام External Storage أولاً
-        final externalDirs = await getExternalStorageDirectories();
-        if (externalDirs != null && externalDirs.isNotEmpty) {
-          baseDir = externalDirs.first;
+        final targetPath = '$_androidDocumentsRoot/$_backupFolderName';
+        final customDir = Directory(targetPath);
+        try {
+          if (!await customDir.exists()) {
+            await customDir.create(recursive: true);
+            debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي في Documents: $targetPath');
+          }
+          _backupDirectory = customDir;
+        } catch (e) {
+          debugPrint('⚠️ تعذر استخدام المسار المطلوب للنسخ الاحتياطي ($targetPath): $e');
+        }
+      }
+
+      if (_backupDirectory == null) {
+        Directory baseDir;
+        if (Platform.isAndroid) {
+          final externalDirs = await getExternalStorageDirectories();
+          if (externalDirs != null && externalDirs.isNotEmpty) {
+            baseDir = externalDirs.first;
+          } else {
+            baseDir = await getApplicationDocumentsDirectory();
+          }
         } else {
-          // fallback إلى Application Documents Directory
           baseDir = await getApplicationDocumentsDirectory();
         }
-      } else {
-        baseDir = await getApplicationDocumentsDirectory();
+        _backupDirectory = Directory('${baseDir.path}/$_backupFolderName');
+        if (!await _backupDirectory!.exists()) {
+          await _backupDirectory!.create(recursive: true);
+          debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${_backupDirectory!.path}');
+        }
       }
 
-      _backupDirectory = Directory('${baseDir.path}/$_backupFolderName');
-      
-      if (!await _backupDirectory!.exists()) {
-        await _backupDirectory!.create(recursive: true);
-        debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${_backupDirectory!.path}');
-      }
-
-      // حفظ مسار المجلد في التفضيلات
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefsLocalBackupPathKey, _backupDirectory!.path);
 

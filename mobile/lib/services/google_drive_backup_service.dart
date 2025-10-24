@@ -76,6 +76,8 @@ class GoogleDriveBackupService {
   static const String _backupFilePrefix = 'marina_hotel_backup_';
   static const List<String> _scopes = [drive.DriveApi.driveFileScope];
   static const String _prefsLastBackupKey = 'last_backup_timestamp';
+  static const String _prefsLastBackupFileIdKey = 'last_backup_file_id';
+  static const String _prefsLastAppliedBackupIdKey = 'last_applied_backup_id';
   static const String _prefsAutoBackupKey = 'auto_backup_enabled';
   static const String _prefsAutoBackupFrequencyKey = 'auto_backup_frequency';
   static const String _prefsAutoBackupTimeKey = 'auto_backup_time';
@@ -95,36 +97,53 @@ class GoogleDriveBackupService {
     );
   }
 
+  Future<void> _configureDriveClient(GoogleSignInAccount account) async {
+    final authentication = await account.authentication;
+    final credentials = AccessCredentials(
+      AccessToken('Bearer', authentication.accessToken!, DateTime.now().add(const Duration(hours: 1))),
+      authentication.idToken,
+      _scopes,
+    );
+    final client = authenticatedClient(http.Client(), credentials);
+    _driveApi = drive.DriveApi(client);
+  }
+
+  Future<GoogleSignInAccount?> _signIn({required bool silently}) async {
+    if (_googleSignIn == null) {
+      throw Exception('Google Sign-In لم يتم تهيئته بشكل صحيح');
+    }
+    if (_googleSignIn!.currentUser != null && _driveApi != null) {
+      return _googleSignIn!.currentUser;
+    }
+    GoogleSignInAccount? account;
+    if (silently) {
+      account = await _googleSignIn!.signInSilently();
+    } else {
+      account = await _googleSignIn!.signIn();
+    }
+    if (account != null) {
+      await _configureDriveClient(account);
+      debugPrint('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
+    }
+    return account;
+  }
+
+  Future<bool> trySilentSignIn() async {
+    if (isSignedIn && _driveApi != null) {
+      return true;
+    }
+    final account = await _signIn(silently: true);
+    return account != null;
+  }
+
   /// تسجيل الدخول في Google Drive
   Future<GoogleSignInAccount?> signInForDrive() async {
     try {
-      if (_googleSignIn == null) {
-        throw Exception('Google Sign-In لم يتم تهيئته بشكل صحيح');
+      final silentAccount = await _signIn(silently: true);
+      if (silentAccount != null) {
+        return silentAccount;
       }
-
-      // محاولة تسجيل دخول صامت أولاً
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
-      
-      if (account == null) {
-        // تسجيل دخول تفاعلي
-        account = await _googleSignIn!.signIn();
-      }
-
-      if (account != null) {
-        final authentication = await account.authentication;
-        final credentials = AccessCredentials(
-          AccessToken('Bearer', authentication.accessToken!, DateTime.now().add(Duration(hours: 1))),
-          authentication.idToken,
-          _scopes,
-        );
-
-        final client = authenticatedClient(http.Client(), credentials);
-        _driveApi = drive.DriveApi(client);
-        
-        debugPrint('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
-      }
-
-      return account;
+      return await _signIn(silently: false);
     } catch (e) {
       debugPrint('❌ خطأ في تسجيل الدخول في Google Drive: $e');
       rethrow;
@@ -274,9 +293,9 @@ class GoogleDriveBackupService {
         uploadMedia: media,
       );
 
-      // حفظ وقت آخر نسخة احتياطية
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
+      if (uploadedFile.id != null) {
+        await _persistBackupMetadata(uploadedFile.id!, timestamp);
+      }
 
       debugPrint('✅ تم رفع النسخة الاحتياطية: ${uploadedFile.id}');
       return uploadedFile.id!;
@@ -553,7 +572,7 @@ class GoogleDriveBackupService {
 
   Future<bool> isAutoBackupEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_prefsAutoBackupKey) ?? false;
+    return prefs.getBool(_prefsAutoBackupKey) ?? true;
   }
 
   Future<void> setAutoBackupFrequency(String frequency) async {
@@ -584,6 +603,39 @@ class GoogleDriveBackupService {
   Future<String> getAutoBackupTime() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_prefsAutoBackupTimeKey) ?? '02:00';
+  }
+
+  Future<DriveBackupFile?> getLatestBackupFile() async {
+    final backups = await listBackupFiles();
+    if (backups.isEmpty) {
+      return null;
+    }
+    return backups.first;
+  }
+
+  Future<void> _persistBackupMetadata(String fileId, DateTime timestamp) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
+    await prefs.setString(_prefsLastBackupFileIdKey, fileId);
+    await prefs.setString(_prefsLastAppliedBackupIdKey, fileId);
+  }
+
+  Future<String?> getLastBackupFileId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_prefsLastBackupFileIdKey);
+  }
+
+  Future<void> setLastAppliedBackupId(String fileId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsLastAppliedBackupIdKey, fileId);
+    if ((await getLastBackupFileId()) == null) {
+      await prefs.setString(_prefsLastBackupFileIdKey, fileId);
+    }
+  }
+
+  Future<String?> getLastAppliedBackupId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_prefsLastAppliedBackupIdKey);
   }
 
   /// تحديد حجم قاعدة البيانات المقدر
