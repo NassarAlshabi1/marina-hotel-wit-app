@@ -3,16 +3,23 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/expenses_dao.dart';
 import '../daos/employees_dao.dart';
+import '../whatsapp_service.dart';
 
 class ExpensesRepository {
-  ExpensesRepository(this.db)
+  ExpensesRepository(this.db, {WhatsAppService? whatsAppService})
       : outbox = OutboxDao(db),
         dao = ExpensesDao(db, OutboxDao(db)),
-        _employeesDao = EmployeesDao(db, OutboxDao(db));
+        _employeesDao = EmployeesDao(db, OutboxDao(db)),
+        _whatsAppService = whatsAppService ?? WhatsAppService(
+          baseUrl: 'https://7103.api.greenapi.com',
+          instanceId: 'waInstance7103894450',
+          token: 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
+        );
   final AppDatabase db;
   final OutboxDao outbox;
   final ExpensesDao dao;
   final EmployeesDao _employeesDao;
+  final WhatsAppService _whatsAppService;
 
   static const String _salaryWithdrawalType = 'سحب من الراتب';
 
@@ -32,6 +39,12 @@ class ExpensesRepository {
       );
       if (_isSalaryWithdrawal(expenseType) && relatedId != null) {
         await _applySalaryDelta(relatedId, -amount);
+        await _sendSalaryWithdrawalNotification(
+          employeeId: relatedId,
+          amount: amount,
+          description: description,
+          date: date,
+        );
       }
       return expenseId;
     });
@@ -72,6 +85,12 @@ class ExpensesRepository {
       final rows = await dao.softDelete(id);
       if (rows > 0 && _isSalaryWithdrawal(existing.expenseType) && existing.relatedId != null) {
         await _applySalaryDelta(existing.relatedId!, existing.amount);
+        await _sendSalaryWithdrawalNotification(
+          employeeId: existing.relatedId!,
+          amount: -existing.amount,
+          description: existing.description,
+          date: existing.date,
+        );
       }
       return rows;
     });
@@ -131,6 +150,34 @@ class ExpensesRepository {
     }
     if (_isSalaryWithdrawal(after.expenseType) && after.relatedId != null) {
       await _applySalaryDelta(after.relatedId!, -after.amount);
+      await _sendSalaryWithdrawalNotification(
+        employeeId: after.relatedId!,
+        amount: after.amount,
+        description: after.description,
+        date: after.date,
+      );
     }
+  }
+
+  Future<void> _sendSalaryWithdrawalNotification({
+    required int employeeId,
+    required double amount,
+    required String description,
+    required String date,
+  }) async {
+    final employee = await _employeesDao.getById(employeeId);
+    if (employee == null) {
+      return;
+    }
+    final phone = employee.phone?.trim() ?? '';
+    if (phone.isEmpty) {
+      return;
+    }
+    final message = StringBuffer()
+      ..writeln('مرحباً ${employee.name},')
+      ..writeln('تم تسجيل خصم من راتبك الأساسي بمبلغ ${amount.abs().toStringAsFixed(2)} ر.س بتاريخ $date.')
+      ..writeln('الوصف: ${description.isEmpty ? 'بدون وصف' : description}.')
+      ..writeln('الراتب الأساسي الحالي: ${(employee.basicSalary).toStringAsFixed(2)} ر.س.');
+    await _whatsAppService.sendMessage(phoneE164: phone.startsWith('+') ? phone : '+$phone', message: message.toString());
   }
 }
