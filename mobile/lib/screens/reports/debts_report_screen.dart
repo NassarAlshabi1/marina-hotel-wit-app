@@ -134,7 +134,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
       final monthlySummaries = monthlyMap.values.toList()
         ..sort((a, b) => a.month.compareTo(b.month));
-      final guaranteesRepo = providers.GuaranteesRepository(db);
+      final guaranteesRepo = ref.read(providers.guaranteesRepoProvider);
       final counts = await guaranteesRepo.unreturnedCountsByDebt();
       setState(() {
         _rows = filtered;
