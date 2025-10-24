@@ -155,6 +155,14 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/payments'),
                     onTap: () => onRouteSelected('/payments'),
                   ),
+                if (can('debts'))
+                  _buildMenuItem(
+                    icon: Icons.account_balance,
+                    title: 'الديون',
+                    route: '/debts',
+                    isActive: currentRoute.startsWith('/debts'),
+                    onTap: () => onRouteSelected('/debts'),
+                  ),
                 if (can('employees'))
                   _buildMenuItem(
                     icon: Icons.group,

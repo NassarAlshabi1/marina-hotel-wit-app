@@ -11,6 +11,7 @@ import 'screens/expenses/expenses_list.dart';
 import 'screens/finance/finance_screen.dart';
 import 'screens/reports/reports_screen.dart';
 import 'screens/payments/payments_main_screen.dart';
+import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -53,6 +54,7 @@ class App extends ConsumerWidget {
           '/expenses': (_) => const ExpensesListScreen(),
           '/finance/cash-register': (_) => const FinanceScreen(),
           '/finance/cash-transactions': (_) => const FinanceScreen(),
+          '/debts': (_) => const DebtsListScreen(),
           '/reports': (_) => const ReportsScreen(),
         },
         home: const RootRouter(),
@@ -95,6 +97,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/rooms': const RoomsListScreen(),
     '/bookings': const BookingsListScreen(),
     '/payments': const PaymentsMainScreen(),
+    '/debts': const DebtsListScreen(),
     '/employees': const EmployeesListScreen(),
     '/expenses': const ExpensesListScreen(),
     '/finance': const FinanceScreen(),
