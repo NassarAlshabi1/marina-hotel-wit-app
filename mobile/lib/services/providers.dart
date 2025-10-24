@@ -17,7 +17,7 @@ import '../providers/backup_provider.dart';
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
 
-final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
+final databaseProvider = Provider<AppDatabase>((ref) => DatabaseManager.instance);
 
 final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(
       ref.read(databaseProvider),
@@ -78,5 +78,5 @@ final expensesListProvider = StreamProvider.autoDispose((ref) => ref.watch(expen
 final cashTransactionsListProvider = StreamProvider.autoDispose((ref) => ref.watch(cashRepoProvider).watchAll());
 final debtsListProvider = StreamProvider.autoDispose((ref) => ref.watch(debtsRepoProvider).watchAll());
 
-// دالة للحصول على Database instance
-AppDatabase getDatabase() => AppDatabase();
+// دالة للحصول على Database instance (singleton)
+AppDatabase getDatabase() => DatabaseManager.instance;
