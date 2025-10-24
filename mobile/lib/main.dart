@@ -15,6 +15,7 @@ import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
+import 'services/auto_backup_task.dart';
 import 'components/admin_layout.dart';
 
 import 'package:firebase_core/firebase_core.dart';
