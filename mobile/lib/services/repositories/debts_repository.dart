@@ -36,7 +36,7 @@ class DebtsRepository {
     double? amountDue,
     String? dateRecorded,
   }) {
-    final remaining = (totalAmount - paidAmount).clamp(0, double.infinity);
+    final remaining = (totalAmount - paidAmount).clamp(0, double.infinity).toDouble();
     return dao.insertOne(
       DebtsCompanion(
         bookingLocalId: d.Value(bookingLocalId),
@@ -47,7 +47,7 @@ class DebtsRepository {
         totalAmount: d.Value(totalAmount),
         paidAmount: d.Value(paidAmount),
         remainingAmount: d.Value(remaining),
-        amountDue: d.Value(amountDue ?? remaining),
+        amountDue: d.Value((amountDue ?? remaining).toDouble()),
         paymentDate: d.Value(paymentDate),
         debtReason: d.Value(debtReason ?? ''),
         dateRecorded: d.Value(dateRecorded ?? paymentDate),
@@ -83,7 +83,7 @@ class DebtsRepository {
     }
     final newTotal = totalAmount ?? existing.totalAmount;
     final newPaid = paidAmount ?? existing.paidAmount;
-    final remaining = (newTotal - newPaid).clamp(0, double.infinity);
+    final remaining = (newTotal - newPaid).clamp(0, double.infinity).toDouble();
     return dao.updateById(
       id,
       DebtsCompanion(
