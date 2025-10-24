@@ -6,6 +6,7 @@ import 'repositories/employees_repository.dart';
 import 'repositories/expenses_repository.dart';
 import 'repositories/cash_repository.dart';
 import 'repositories/payments_repository.dart';
+import 'repositories/debts_repository.dart';
 import 'repositories/notes_repository.dart';
 import 'whatsapp_service.dart';
 import '../utils/status_utils.dart';
@@ -21,6 +22,7 @@ final employeesRepoProvider = Provider<EmployeesRepository>((ref) => EmployeesRe
 final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepository(ref.read(databaseProvider)));
 final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.read(databaseProvider)));
 final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider)));
+final debtsRepoProvider = Provider<DebtsRepository>((ref) => DebtsRepository(ref.read(databaseProvider)));
 final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider)));
 final whatsappServiceProvider = Provider<WhatsAppService>(
   (ref) => WhatsAppService(
@@ -42,6 +44,7 @@ final employeesListProvider = StreamProvider.autoDispose((ref) => ref.watch(empl
 final expensesListProvider = StreamProvider.autoDispose((ref) => ref.watch(expensesRepoProvider).watchAll());
 
 final cashTransactionsListProvider = StreamProvider.autoDispose((ref) => ref.watch(cashRepoProvider).watchAll());
+final debtsListProvider = StreamProvider.autoDispose((ref) => ref.watch(debtsRepoProvider).watchAll());
 
 // دالة للحصول على Database instance
 AppDatabase getDatabase() => AppDatabase();
