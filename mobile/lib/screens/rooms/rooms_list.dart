@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
+import '../../providers/auth_provider.dart';
 
 Future<ImagePicker> _lazyPicker() async => ImagePicker();
 
@@ -16,6 +17,10 @@ class RoomsListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final roomsStream = ref.watch(roomsListProvider);
+    final auth = ref.watch(authProvider);
+    final canRooms = auth.currentUser?.permissions.contains('all') == true ||
+        auth.currentUser?.userType == 'admin' ||
+        (auth.currentUser?.permissions.contains('rooms') ?? false);
     return AppScaffold(
       title: 'الغرف',
       actions: [
@@ -23,12 +28,13 @@ class RoomsListScreen extends ConsumerWidget {
           onPressed: () => ref.read(syncServiceProvider).runSync(),
           icon: const Icon(Icons.sync),
         ),
-        IconButton(
-          onPressed: () async {
-            await _editRoom(context, ref);
-          },
-          icon: const Icon(Icons.add),
-        )
+        if (canRooms)
+          IconButton(
+            onPressed: () async {
+              await _editRoom(context, ref);
+            },
+            icon: const Icon(Icons.add),
+          )
       ],
       body: roomsStream.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -41,10 +47,12 @@ class RoomsListScreen extends ConsumerWidget {
               return ListTile(
                 title: Text('${r.roomNumber} • ${r.type}'),
                 subtitle: Text('السعر: ${r.price.toStringAsFixed(2)} • الحالة: ${r.status}'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _editRoom(context, ref, existing: r),
-                ),
+                trailing: canRooms
+                    ? IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () => _editRoom(context, ref, existing: r),
+                      )
+                    : null,
               );
             },
           );
