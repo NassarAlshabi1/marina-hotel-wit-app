@@ -5,10 +5,6 @@ on:
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-apk-release.yml'
-  push:
-    branches:
-      - capy/regenerate-google-se-1b859ed7
-      - capy/google-drive-release
   workflow_dispatch:
 
 jobs:
@@ -33,26 +29,6 @@ jobs:
         with:
           channel: stable
           cache: false
-
-      - name: Configure Android signing
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          set -eo pipefail
-          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "Missing ANDROID_KEYSTORE_BASE64 secret" >&2
-            exit 1
-          fi
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/marina-release.keystore
-          cat <<'EOF' > android/key.properties
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyPassword=$ANDROID_KEY_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          storeFile=marina-release.keystore
-          EOF
 
       - name: Clean build artifacts
         run: flutter clean
