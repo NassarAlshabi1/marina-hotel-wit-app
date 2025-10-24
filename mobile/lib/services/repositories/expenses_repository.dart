@@ -1,12 +1,15 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/expenses_dao.dart';
 import '../daos/employees_dao.dart';
+import '../backup_sync_service.dart';
 import '../whatsapp_service.dart';
 
 class ExpensesRepository {
-  ExpensesRepository(this.db, {WhatsAppService? whatsAppService})
+  ExpensesRepository(this.db, {WhatsAppService? whatsAppService, BackupSyncService? backupSyncService})
       : outbox = OutboxDao(db),
         dao = ExpensesDao(db, OutboxDao(db)),
         _employeesDao = EmployeesDao(db, OutboxDao(db)),
@@ -14,14 +17,20 @@ class ExpensesRepository {
           baseUrl: 'https://7103.api.greenapi.com',
           instanceId: 'waInstance7103894450',
           token: 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
-        );
+        ),
+        _backupSyncService = backupSyncService;
   final AppDatabase db;
   final OutboxDao outbox;
   final ExpensesDao dao;
   final EmployeesDao _employeesDao;
   final WhatsAppService _whatsAppService;
+  final BackupSyncService? _backupSyncService;
 
   static const String _salaryWithdrawalType = 'سحب من الراتب';
+
+  void _scheduleAutoBackup() {
+    unawaited(_backupSyncService?.triggerAutoBackup());
+  }
 
   Stream<List<Expense>> watchAll() => dao.watchList();
   Stream<Expense?> watchOne(int id) => dao.watchById(id);
@@ -46,6 +55,7 @@ class ExpensesRepository {
           date: date,
         );
       }
+      _scheduleAutoBackup();
       return expenseId;
     });
   }
@@ -71,6 +81,7 @@ class ExpensesRepository {
         if (after != null) {
           await _reconcileSalaryWithdrawal(before, after);
         }
+        _scheduleAutoBackup();
       }
       return rows;
     });
@@ -91,6 +102,9 @@ class ExpensesRepository {
           description: existing.description,
           date: existing.date,
         );
+      }
+      if (rows > 0) {
+        _scheduleAutoBackup();
       }
       return rows;
     });
@@ -117,12 +131,14 @@ class ExpensesRepository {
         List<Map<String, dynamic>>.from(data['data']), 
         clearExisting: false,
       );
+      _scheduleAutoBackup();
     }
   }
 
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await dao.clearAllData();
+    _scheduleAutoBackup();
   }
 
   /// الحصول على إجمالي عدد السجلات

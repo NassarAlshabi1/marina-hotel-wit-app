@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/debts_dao.dart';
@@ -6,13 +8,21 @@ import '../daos/rooms_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../repositories/payments_repository.dart';
 import '../repositories/guarantees_repository.dart';
+import '../backup_sync_service.dart';
 import '../../utils/time.dart';
 
 class DebtsRepository {
-  DebtsRepository(this.db) : dao = DebtsDao(db);
+  DebtsRepository(this.db, {BackupSyncService? backupSyncService})
+      : dao = DebtsDao(db),
+        _backupSyncService = backupSyncService;
 
   final AppDatabase db;
   final DebtsDao dao;
+  final BackupSyncService? _backupSyncService;
+
+  void _scheduleAutoBackup() {
+    unawaited(_backupSyncService?.triggerAutoBackup());
+  }
 
   Stream<List<Debt>> watchAll({bool includeDeleted = false}) => dao.watchList(includeDeleted: includeDeleted);
 
@@ -35,9 +45,9 @@ class DebtsRepository {
     String? debtReason,
     double? amountDue,
     String? dateRecorded,
-  }) {
+  }) async {
     final remaining = (totalAmount - paidAmount).clamp(0, double.infinity).toDouble();
-    return dao.insertOne(
+    final id = await dao.insertOne(
       DebtsCompanion(
         bookingLocalId: d.Value(bookingLocalId),
         bookingRef: d.Value(bookingRef),
@@ -56,6 +66,8 @@ class DebtsRepository {
         note: d.Value(note),
       ),
     );
+    _scheduleAutoBackup();
+    return id;
   }
 
   Future<int> update({
@@ -84,7 +96,7 @@ class DebtsRepository {
     final newTotal = totalAmount ?? existing.totalAmount;
     final newPaid = paidAmount ?? existing.paidAmount;
     final remaining = (newTotal - newPaid).clamp(0, double.infinity).toDouble();
-    return dao.updateById(
+    final rows = await dao.updateById(
       id,
       DebtsCompanion(
         bookingLocalId: bookingLocalId != null ? d.Value(bookingLocalId) : const d.Value.absent(),
@@ -106,11 +118,24 @@ class DebtsRepository {
         isSettled: isSettled != null ? d.Value(isSettled) : const d.Value.absent(),
       ),
     );
+    if (rows > 0) {
+      _scheduleAutoBackup();
+    }
+    return rows;
   }
 
-  Future<int> delete(int id) => dao.softDelete(id);
+  Future<int> delete(int id) async {
+    final rows = await dao.softDelete(id);
+    if (rows > 0) {
+      _scheduleAutoBackup();
+    }
+    return rows;
+  }
 
-  Future<void> clearAll() => dao.clearAllData();
+  Future<void> clearAll() async {
+    await dao.clearAllData();
+    _scheduleAutoBackup();
+  }
 
   Future<Map<String, dynamic>> exportData({bool includeDeleted = false}) async {
     final data = await dao.exportToJson(includeDeleted: includeDeleted);
@@ -128,6 +153,7 @@ class DebtsRepository {
     }
     final list = List<Map<String, dynamic>>.from(payload['data'] as List);
     await dao.importFromJson(list, clearExisting: false);
+    _scheduleAutoBackup();
   }
 
   Future<int> processEvasiveGuestDebt({
@@ -139,8 +165,8 @@ class DebtsRepository {
     return await db.transaction(() async {
       final bookingsDao = BookingsDao(db, OutboxDao(db));
       final roomsDao = RoomsDao(db, OutboxDao(db));
-      final paymentsRepo = PaymentsRepository(db);
-      final guaranteesRepo = GuaranteesRepository(db);
+      final paymentsRepo = PaymentsRepository(db, backupSyncService: _backupSyncService);
+      final guaranteesRepo = GuaranteesRepository(db, backupSyncService: _backupSyncService);
 
       final booking = await bookingsDao.getById(bookingLocalId);
       if (booking == null) {
@@ -191,6 +217,7 @@ class DebtsRepository {
         );
       }
 
+      _scheduleAutoBackup();
       return debtId;
     });
   }
@@ -201,8 +228,8 @@ class DebtsRepository {
     String revenueType = 'debt_settlement',
   }) async {
     await db.transaction(() async {
-      final guaranteesRepo = GuaranteesRepository(db);
-      final paymentsRepo = PaymentsRepository(db);
+      final guaranteesRepo = GuaranteesRepository(db, backupSyncService: _backupSyncService);
+      final paymentsRepo = PaymentsRepository(db, backupSyncService: _backupSyncService);
 
       final debt = await dao.getById(debtLocalId);
       if (debt == null) throw Exception('Debt not found');
@@ -233,6 +260,7 @@ class DebtsRepository {
       ));
 
       await guaranteesRepo.markAllReturnedForDebt(debtLocalId, dateReturnedIso: nowIso);
+      _scheduleAutoBackup();
     });
   }
 }

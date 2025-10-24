@@ -5,6 +5,7 @@ import '../services/google_drive_backup_service.dart';
 import '../services/local_backup_service.dart';
 import '../services/file_management_service.dart';
 import '../services/auto_backup_task.dart';
+import '../services/backup_sync_service.dart';
 
 // حالة النسخ الاحتياطي
 enum BackupStatus { idle, signIn, uploading, downloading, restoring, success, error, checkingPermissions, importingFile }
@@ -128,13 +129,14 @@ class BackupState {
 
 // Notifier للتحكم في حالة النسخ الاحتياطي
 class BackupStatusNotifier extends StateNotifier<BackupState> {
-  BackupStatusNotifier(this._backupService, this._localBackupService, this._fileService) : super(BackupState()) {
+  BackupStatusNotifier(this._backupService, this._localBackupService, this._fileService, this._syncService) : super(BackupState()) {
     _initialize();
   }
 
   final GoogleDriveBackupService _backupService;
   final LocalBackupService _localBackupService;
   final FileManagementService _fileService;
+  final BackupSyncService _syncService;
 
   Future<void> _initialize() async {
     try {
@@ -176,6 +178,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         } catch (e) {
           debugPrint('⚠️ خطأ في جلب نسخ Google Drive: $e');
         }
+      } else {
+        await _backupService.trySilentSignIn();
       }
 
       state = state.copyWith(
@@ -226,6 +230,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           signedInAccount: account,
           availableBackups: backups,
         );
+        await _syncService.syncFromDriveIfNeeded();
       } else {
         state = state.copyWith(
           status: BackupStatus.error,
@@ -885,6 +890,11 @@ final googleDriveBackupServiceProvider = Provider<GoogleDriveBackupService>((ref
   return GoogleDriveBackupService();
 });
 
+final backupSyncServiceProvider = Provider<BackupSyncService>((ref) {
+  final driveService = ref.watch(googleDriveBackupServiceProvider);
+  return BackupSyncService(driveService);
+});
+
 final localBackupServiceProvider = Provider<LocalBackupService>((ref) {
   return LocalBackupService();
 });
@@ -898,7 +908,8 @@ final backupStatusProvider = StateNotifierProvider<BackupStatusNotifier, BackupS
   final driveService = ref.watch(googleDriveBackupServiceProvider);
   final localService = ref.watch(localBackupServiceProvider);
   final fileService = ref.watch(fileManagementServiceProvider);
-  return BackupStatusNotifier(driveService, localService, fileService);
+  final syncService = ref.watch(backupSyncServiceProvider);
+  return BackupStatusNotifier(driveService, localService, fileService, syncService);
 });
 
 // Provider للنسخ المتاحة (Google Drive)
