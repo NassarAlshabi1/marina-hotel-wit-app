@@ -13,6 +13,8 @@ import 'screens/reports/reports_screen.dart';
 import 'screens/payments/payments_main_screen.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'providers/auth_provider.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
@@ -53,19 +55,39 @@ class App extends ConsumerWidget {
           '/finance/cash-transactions': (_) => const FinanceScreen(),
           '/reports': (_) => const ReportsScreen(),
         },
-        home: const HomeShell(),
+        home: const RootRouter(),
       ),
     );
   }
 }
 
-class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
+class RootRouter extends ConsumerWidget {
+  const RootRouter({super.key});
   @override
-  State<HomeShell> createState() => _HomeShellState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
+    if (auth.isRestoring) {
+      return const Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+    if (auth.isAuthenticated) {
+      return const HomeShell();
+    }
+    return const LoginScreen();
+  }
 }
 
-class _HomeShellState extends State<HomeShell> {
+class HomeShell extends ConsumerStatefulWidget {
+  const HomeShell({super.key});
+  @override
+  ConsumerState<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends ConsumerState<HomeShell> {
   String _currentRoute = '/dashboard';
   
   final Map<String, Widget> _routes = {
@@ -81,11 +103,25 @@ class _HomeShellState extends State<HomeShell> {
     '/settings': const SettingsScreen(),
   };
   
+  bool _can(String key) {
+    final auth = ref.read(authProvider);
+    final u = auth.currentUser;
+    if (u == null) return false;
+    if (u.userType == 'admin' || u.permissions.contains('all')) return true;
+    return u.permissions.contains(key);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final routeKey = _currentRoute.replaceAll('/', '');
+    final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
+    final body = allowed
+        ? (_routes[_currentRoute] ?? const DashboardScreen())
+        : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
+
     return AdminLayout(
       currentRoute: _currentRoute,
-      body: _routes[_currentRoute] ?? const DashboardScreen(),
+      body: body,
       onRouteSelected: _navigateToRoute,
     );
   }
