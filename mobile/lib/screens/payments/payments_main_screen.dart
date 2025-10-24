@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
+import '../../services/drive_service.dart';
 import 'payment_history_screen.dart';
 import 'booking_checkout_screen.dart';
 
@@ -34,6 +38,46 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   Widget build(BuildContext context) {
     return AppScaffold(
       title: 'إدارة المدفوعات',
+      actions: [
+        IconButton(
+          onPressed: () async {
+            final paymentsRepo = ref.read(paymentsRepoProvider);
+            final payments = await paymentsRepo.paymentsByBooking(-1).first;
+            final pdf = pw.Document();
+            pdf.addPage(
+              pw.MultiPage(
+                pageFormat: PdfPageFormat.a4,
+                margin: const pw.EdgeInsets.all(32),
+                build: (pw.Context context) => [
+                  pw.Header(level: 0, child: pw.Text('تقرير المدفوعات', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
+                  pw.SizedBox(height: 20),
+                  pw.Table.fromTextArray(
+                    headers: ['الرقم', 'المبلغ', 'الطريقة', 'التاريخ', 'الغرفة'],
+                    data: [
+                      ...payments.map((p) => [
+                        p.id.toString(),
+                        p.amount.toStringAsFixed(2),
+                        p.paymentMethod,
+                        p.paymentDate,
+                        p.roomNumber ?? '',
+                      ]),
+                    ],
+                  ),
+                ],
+              ),
+            );
+            final bytes = await pdf.save();
+            final driveService = DriveService();
+            await driveService.initialize();
+            final fileId = await driveService.uploadFile('payments_${DateTime.now().millisecondsSinceEpoch}.pdf', bytes);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير المدفوعات إلى Drive: $fileId')));
+            }
+          },
+          icon: const Icon(Icons.cloud_upload),
+          tooltip: 'تصدير إلى Google Drive',
+        ),
+      ],
       body: Column(
         children: [
           TabBar(
