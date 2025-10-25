@@ -990,6 +990,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
   Widget _buildLocalBackupItem(LocalBackupFile backup, bool isWorking) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
     final sizeInMB = (backup.sizeBytes / (1024 * 1024)).toStringAsFixed(2);
+    // Access totalRecords from BackupMetadata
     final localRecords = backup.metadata?.totalRecords;
     final recordsLabel = localRecords != null && localRecords > 0 ? localRecords.toString() : '---';
     final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
