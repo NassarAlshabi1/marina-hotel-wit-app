@@ -26,7 +26,7 @@ class DebtsRepository {
     String? pledgeType,
     String? note,
   }) {
-    final remaining = (totalAmount - paidAmount).clamp(0, double.infinity);
+    final remaining = (totalAmount - paidAmount).clamp(0, double.infinity).toDouble();
     return dao.insertOne(
       DebtsCompanion(
         bookingLocalId: d.Value(bookingLocalId),
@@ -63,7 +63,7 @@ class DebtsRepository {
     }
     final newTotal = totalAmount ?? existing.totalAmount;
     final newPaid = paidAmount ?? existing.paidAmount;
-    final remaining = (newTotal - newPaid).clamp(0, double.infinity);
+    final remaining = (newTotal - newPaid).clamp(0, double.infinity).toDouble();
     return dao.updateById(
       id,
       DebtsCompanion(

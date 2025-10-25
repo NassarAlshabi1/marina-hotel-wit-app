@@ -240,15 +240,16 @@ void callbackDispatcher() {
       final prefs = await SharedPreferences.getInstance();
       final enableGoogleDrive = prefs.getBool('auto_backup_enabled') ?? false;
       final enableLocal = prefs.getBool('auto_local_backup_enabled') ?? true;
-      
+
+      final localBackupService = LocalBackupService();
+      final backupFormat = await localBackupService.getPreferredBackupFormat();
       bool success = true;
 
       // تنفيذ النسخ المحلي إذا كان مُفعلاً
       if (enableLocal) {
         try {
           debugPrint('📱 بدء النسخ الاحتياطي المحلي...');
-          final localBackupService = LocalBackupService();
-          await localBackupService.createLocalBackup();
+          await localBackupService.createLocalBackup(format: backupFormat);
           debugPrint('✅ تم النسخ الاحتياطي المحلي بنجاح');
         } catch (e) {
           debugPrint('❌ خطأ في النسخ الاحتياطي المحلي: $e');
@@ -263,7 +264,7 @@ void callbackDispatcher() {
           final driveBackupService = GoogleDriveBackupService();
           
           if (driveBackupService.isSignedIn) {
-            await driveBackupService.performAutoBackup();
+            await driveBackupService.performAutoBackup(format: backupFormat);
             debugPrint('✅ تم النسخ الاحتياطي السحابي بنجاح');
           } else {
             debugPrint('⚠️ المستخدم غير مسجل دخول في Google Drive، تم تخطي النسخ السحابي');

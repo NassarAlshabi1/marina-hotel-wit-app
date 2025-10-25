@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -14,6 +16,9 @@ enum BackupStatus { idle, signIn, uploading, downloading, restoring, success, er
 // نوع النسخ الاحتياطي
 enum BackupType { googleDrive, local, both }
 
+// تنسيقات النسخ الاحتياطي
+enum BackupFormat { json, sqlite }
+
 // حالة النسخ التلقائي
 class AutoBackupSettings {
   final bool isEnabled;
@@ -24,6 +29,7 @@ class AutoBackupSettings {
   final BackupType backupType; // نوع النسخ (Google Drive، محلي، أو كليهما)
   final bool enableLocalBackup; // تفعيل النسخ المحلي
   final bool enableGoogleDriveBackup; // تفعيل النسخ السحابي
+  final BackupFormat backupFormat; // تنسيق النسخ الاحتياطي المستخدم
 
   const AutoBackupSettings({
     this.isEnabled = false,
@@ -34,6 +40,7 @@ class AutoBackupSettings {
     this.backupType = BackupType.both,
     this.enableLocalBackup = true,
     this.enableGoogleDriveBackup = false,
+    this.backupFormat = BackupFormat.json,
   });
 
   AutoBackupSettings copyWith({
@@ -45,6 +52,7 @@ class AutoBackupSettings {
     BackupType? backupType,
     bool? enableLocalBackup,
     bool? enableGoogleDriveBackup,
+    BackupFormat? backupFormat,
   }) {
     return AutoBackupSettings(
       isEnabled: isEnabled ?? this.isEnabled,
@@ -55,6 +63,7 @@ class AutoBackupSettings {
       backupType: backupType ?? this.backupType,
       enableLocalBackup: enableLocalBackup ?? this.enableLocalBackup,
       enableGoogleDriveBackup: enableGoogleDriveBackup ?? this.enableGoogleDriveBackup,
+      backupFormat: backupFormat ?? this.backupFormat,
     );
   }
 }
@@ -170,7 +179,18 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final time = await _backupService.getAutoBackupTime();
       final enableLocal = await _localBackupService.isAutoLocalBackupEnabled();
       final localFreq = await _localBackupService.getAutoLocalBackupFrequency();
-      
+      final preferredFormat = await _localBackupService.getPreferredBackupFormat();
+
+      final isAutoEnabled = autoEnabled || enableLocal;
+      final resolvedFrequency = autoEnabled ? frequency : localFreq;
+      final resolvedBackupType = enableLocal && autoEnabled
+          ? BackupType.both
+          : enableLocal
+              ? BackupType.local
+              : autoEnabled
+                  ? BackupType.googleDrive
+                  : BackupType.both;
+
       // التحقق من تسجيل الدخول في Google Drive
       GoogleSignInAccount? account;
       List<DriveBackupFile> driveBackups = [];
@@ -194,13 +214,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         availableBackups: driveBackups,
         signedInAccount: account,
         autoSettings: AutoBackupSettings(
-          isEnabled: autoEnabled,
-          frequency: frequency,
+          isEnabled: isAutoEnabled,
+          frequency: resolvedFrequency,
           time: time,
           enableLocalBackup: enableLocal,
           enableGoogleDriveBackup: autoEnabled,
-          backupType: enableLocal && autoEnabled ? BackupType.both :
-                     enableLocal ? BackupType.local : BackupType.googleDrive,
+          backupType: resolvedBackupType,
+          backupFormat: preferredFormat,
         ),
       );
     } catch (e) {
@@ -279,20 +299,18 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     try {
       state = state.copyWith(
         status: BackupStatus.uploading,
-        message: 'تصدير البيانات...',
+        message: 'تجهيز النسخة الاحتياطية...',
         progress: 0.0,
       );
 
-      // تصدير البيانات
-      final backupData = await _backupService.exportDatabaseToJson();
-      
+      final format = state.autoSettings.backupFormat;
+
       state = state.copyWith(
         message: 'رفع النسخة الاحتياطية...',
         progress: 0.5,
       );
 
-      // رفع النسخة
-      final fileId = await _backupService.uploadBackup(backupData);
+      await _backupService.uploadBackupWithFormat(format);
       
       state = state.copyWith(
         message: 'جلب قائمة النسخ المحدثة...',
@@ -331,23 +349,33 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     }
 
     try {
+      final driveBackup = state.availableBackups.firstWhere((backup) => backup.fileId == fileId);
+
       state = state.copyWith(
         status: BackupStatus.downloading,
         message: 'تنزيل النسخة الاحتياطية...',
         progress: 0.0,
       );
 
-      // تنزيل النسخة الاحتياطية
-      final backupData = await _backupService.downloadBackup(fileId);
-      
+      final downloaded = await _backupService.downloadBackup(driveBackup);
+
       state = state.copyWith(
         status: BackupStatus.restoring,
         message: 'استعادة البيانات...',
         progress: 0.5,
       );
 
-      // استعادة البيانات
-      await _backupService.restoreFromBackup(backupData);
+      if (downloaded.format == BackupFormat.json && downloaded.data != null) {
+        await _backupService.restoreFromBackup(downloaded.data!);
+      } else if (downloaded.format == BackupFormat.sqlite && downloaded.filePath != null) {
+        try {
+          await _localBackupService.restoreFromLocalBackup(downloaded.filePath!);
+        } finally {
+          await File(downloaded.filePath!).delete().catchError((_) {});
+        }
+      } else {
+        throw Exception('تنسيق النسخة الاحتياطية غير مدعوم');
+      }
 
       state = state.copyWith(
         status: BackupStatus.success,
@@ -393,13 +421,19 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   /// تحديث إعدادات النسخ التلقائي
   Future<void> updateAutoBackupSettings(AutoBackupSettings settings) async {
     try {
-      await _backupService.setAutoBackupEnabled(settings.isEnabled);
-      
-      if (settings.isEnabled) {
-        await _backupService.setAutoBackupFrequency(settings.frequency);
-        await _backupService.setAutoBackupTime(settings.time);
-        
-        // جدولة المهمة حسب التكرار
+      final enableDrive = settings.isEnabled && settings.enableGoogleDriveBackup;
+      final enableLocal = settings.isEnabled && settings.enableLocalBackup;
+      final shouldScheduleTask = enableDrive || enableLocal;
+
+      await _backupService.setAutoBackupEnabled(enableDrive);
+      await _backupService.setAutoBackupFrequency(settings.frequency);
+      await _backupService.setAutoBackupTime(settings.time);
+
+      await _localBackupService.setAutoLocalBackupEnabled(enableLocal);
+      await _localBackupService.setAutoLocalBackupFrequency(settings.frequency);
+      await _localBackupService.setPreferredBackupFormat(settings.backupFormat);
+
+      if (shouldScheduleTask) {
         switch (settings.frequency) {
           case 'daily':
             await AutoBackupTask.scheduleDaily(time: settings.time);
@@ -416,13 +450,27 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
               day: settings.day ?? 1,
             );
             break;
+          default:
+            await AutoBackupTask.scheduleDaily(time: settings.time);
+            break;
         }
       } else {
         await AutoBackupTask.cancelScheduled();
       }
 
+      final updatedBackupType = enableDrive && enableLocal
+          ? BackupType.both
+          : enableLocal
+              ? BackupType.local
+              : enableDrive
+                  ? BackupType.googleDrive
+                  : settings.backupType;
+
       state = state.copyWith(
-        autoSettings: settings,
+        autoSettings: settings.copyWith(
+          isEnabled: shouldScheduleTask,
+          backupType: updatedBackupType,
+        ),
         status: BackupStatus.success,
         message: 'تم تحديث إعدادات النسخ التلقائي',
       );
@@ -494,7 +542,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.0,
       );
 
-      final filePath = await _localBackupService.createLocalBackup();
+      final format = state.autoSettings.backupFormat;
+      final filePath = await _localBackupService.createLocalBackup(format: format);
       
       state = state.copyWith(
         message: 'تحديث قائمة النسخ...',
@@ -761,7 +810,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           message: 'إنشاء النسخة المحلية...',
           progress: 0.2,
         );
-        await _localBackupService.createLocalBackup();
+        await _localBackupService.createLocalBackup(format: state.autoSettings.backupFormat);
       }
 
       // ثم النسخة السحابية إذا كان المستخدم مسجل الدخول
@@ -770,8 +819,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           message: 'رفع النسخة إلى Google Drive...',
           progress: 0.6,
         );
-        final backupData = await _backupService.exportDatabaseToJson();
-        await _backupService.uploadBackup(backupData);
+        await _backupService.uploadBackupWithFormat(state.autoSettings.backupFormat);
       }
 
       // تحديث جميع القوائم
