@@ -20,7 +20,7 @@ void main() {
   testWidgets('إخفاء عنصر الغرف بدون صلاحية rooms', (tester) async {
     final user = AuthUser(
       id: 2,
-      username: 'mohammed',
+      username: 'm',
       fullName: 'محمد',
       userType: 'supervisor',
       permissions: const [],

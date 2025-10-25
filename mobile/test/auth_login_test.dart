@@ -24,11 +24,11 @@ void main() {
     expect(notifier.state.error, isNotNull);
   });
 
-  test('mohammed يسجل دخول بدون صلاحيات افتراضيًا', () async {
+  test('m يسجل دخول بدون صلاحيات افتراضيًا', () async {
     final notifier = AuthNotifier();
-    await notifier.login('mohammed', '1111');
+    await notifier.login('m', '1');
     expect(notifier.state.isAuthenticated, true);
-    expect(notifier.state.currentUser?.username, 'mohammed');
+    expect(notifier.state.currentUser?.username, 'm');
     expect(notifier.state.currentUser?.permissions.isEmpty, true);
   });
 }

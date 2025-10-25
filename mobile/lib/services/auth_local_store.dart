@@ -25,8 +25,8 @@ class AuthLocalStore {
       'full_name': 'مدير النظام',
       'id': 1,
     },
-    'mohammed': {
-      'password': '1111',
+    'm': {
+      'password': '1',
       'user_type': 'supervisor',
       'full_name': 'محمد',
       'id': 2,
