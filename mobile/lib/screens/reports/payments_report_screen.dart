@@ -23,6 +23,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd HH:mm');
   final NumberFormat _currencyFmt = NumberFormat('#,##0.00', 'en_US');
 
+  String _formatNumber(num value) => value.toStringAsFixed(0);
+
   DateTime? _fromDate;
   DateTime? _toDate;
   String? _selectedRoom;
@@ -218,43 +220,86 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
     final roomLabel = _selectedRoom?.isNotEmpty == true ? _selectedRoom! : 'كل الغرف';
+    final summaryEntries = [
+      MapEntry('إجمالي المدفوع', _formatNumber(_totalPaid)),
+      MapEntry('الإجمالي المتبقي', _formatNumber(_totalRemaining)),
+      MapEntry('عدد السجلات', _rows.length.toString()),
+    ];
+
+    final headers = ['التاريخ', 'المبلغ', 'الغرفة', 'اسم الدافع', 'طريقة الدفع'];
+    final dataRows = _rows
+        .map((row) => [
+              _dateLabelFormat.format(row.paymentDate),
+              _formatNumber(row.amount),
+              row.roomNumber,
+              row.payerName,
+              row.payment.paymentMethod,
+            ])
+        .toList();
+
+    pw.Widget buildSummaryTable() => pw.Table(
+          border: pw.TableBorder.all(width: 0.5),
+          children: summaryEntries
+              .map(
+                (entry) => pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(entry.key, style: pw.TextStyle(font: fonts.bold)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(entry.value, style: pw.TextStyle(font: fonts.base)),
+                    ),
+                  ],
+                ),
+              )
+              .toList(),
+        );
 
     doc.addPage(
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+        footer: (context) => pw.Align(
+          alignment: pw.Alignment.center,
+          child: pw.Text(
+            'صفحة ${context.pageNumber} من ${context.pagesCount}',
+            style: pw.TextStyle(font: fonts.base, fontSize: 10),
+          ),
+        ),
         build: (context) {
-          final headers = ['التاريخ', 'المبلغ', 'الغرفة', 'اسم الدافع', 'طريقة الدفع'];
           return [
             if (logo != null)
               pw.Align(
                 alignment: pw.Alignment.centerRight,
                 child: pw.Image(logo, width: 80),
               ),
-            pw.Text('تقرير دفوعات النزلاء', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 12),
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text('فندق مارينا بلازا', style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
+                  pw.Text('القاهرة - شارع احمد قاسم • رقم الهاتف 02324457', style: pw.TextStyle(font: fonts.base, fontSize: 8)),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 6),
+            pw.Text('تقرير دفوعات النزلاء', style: pw.TextStyle(font: fonts.bold, fontSize: 20)),
+            pw.SizedBox(height: 8),
             pw.Text('الفترة: من $fromLabel إلى $toLabel'),
             pw.Text('الغرفة: $roomLabel'),
             pw.SizedBox(height: 12),
-            pw.Text('ملخص', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 6),
-            pw.Bullet(text: 'إجمالي المدفوع: ${_currencyFmt.format(_totalPaid)}'),
-            pw.Bullet(text: 'الإجمالي المتبقي: ${_currencyFmt.format(_totalRemaining)}'),
-            pw.Bullet(text: 'عدد السجلات: ${_rows.length}'),
+            buildSummaryTable(),
             pw.SizedBox(height: 12),
             pw.Table.fromTextArray(
               headers: headers,
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              data: _rows
-                  .map((row) => [
-                        _dateLabelFormat.format(row.paymentDate),
-                        _currencyFmt.format(row.amount),
-                        row.roomNumber,
-                        row.payerName,
-                        row.payment.paymentMethod,
-                      ])
-                  .toList(),
+              headerStyle: pw.TextStyle(font: fonts.bold),
+              cellStyle: pw.TextStyle(font: fonts.base),
+              data: dataRows,
               cellAlignment: pw.Alignment.centerRight,
+              border: pw.TableBorder.all(width: 0.5),
             ),
           ];
         },

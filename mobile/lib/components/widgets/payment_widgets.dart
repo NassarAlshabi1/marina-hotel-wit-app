@@ -158,13 +158,13 @@ class PaymentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 1,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -172,25 +172,26 @@ class PaymentCard extends StatelessWidget {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: payment.method.color.withOpacity(0.2),
-                    child: Icon(payment.method.icon, color: payment.method.color),
+                    radius: 18,
+                    backgroundColor: payment.method.color.withOpacity(0.15),
+                    child: Icon(payment.method.icon, color: payment.method.color, size: 18),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${payment.amount.toStringAsFixed(2)}',
+                          payment.amount.toStringAsFixed(0),
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
                           payment.method.displayName,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             color: Colors.grey,
                           ),
                         ),
@@ -198,7 +199,7 @@ class PaymentCard extends StatelessWidget {
                           Text(
                             'حجز #${payment.bookingId.substring(0, 8)}',
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               color: Colors.grey,
                             ),
                           ),
@@ -209,7 +210,7 @@ class PaymentCard extends StatelessWidget {
                 ],
               ),
               
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               
               // تفاصيل إضافية
               Row(
@@ -232,7 +233,7 @@ class PaymentCard extends StatelessWidget {
               ),
               
               if (payment.referenceNumber != null || payment.cardLastFourDigits != null) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     if (payment.referenceNumber != null)
@@ -244,7 +245,7 @@ class PaymentCard extends StatelessWidget {
                         ),
                       ),
                     if (payment.referenceNumber != null && payment.cardLastFourDigits != null)
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                     if (payment.cardLastFourDigits != null)
                       Expanded(
                         child: _buildDetailItem(
@@ -258,7 +259,7 @@ class PaymentCard extends StatelessWidget {
               ],
               
               if (payment.notes != null && payment.notes!.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(8),
@@ -288,7 +289,7 @@ class PaymentCard extends StatelessWidget {
               
               // أزرار العمليات
               if (actions != null && actions!.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Row(children: actions!),
               ],
             ],
@@ -301,7 +302,7 @@ class PaymentCard extends StatelessWidget {
   Widget _buildDetailItem(String label, String value, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: Colors.grey),
+        Icon(icon, size: 13, color: Colors.grey),
         const SizedBox(width: 4),
         Expanded(
           child: Column(
@@ -309,11 +310,11 @@ class PaymentCard extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(fontSize: 10, color: Colors.grey),
+                style: const TextStyle(fontSize: 9, color: Colors.grey),
               ),
               Text(
                 value,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

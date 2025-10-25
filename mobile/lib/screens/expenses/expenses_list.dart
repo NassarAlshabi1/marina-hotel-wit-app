@@ -80,6 +80,7 @@ class ExpensesListScreen extends ConsumerWidget {
         textDirection: TextDirection.rtl,
         child: StatefulBuilder(
           builder: (ctx, setState) {
+            final dropdownTextStyle = Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontSize: 14);
             return AlertDialog(
               title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
               content: SingleChildScrollView(
@@ -100,10 +101,11 @@ class ExpensesListScreen extends ConsumerWidget {
                     DropdownButtonFormField<String>(
                       value: selectedType,
                       decoration: const InputDecoration(labelText: 'نوع المصروف'),
+                      style: dropdownTextStyle,
                       items: availableTypes
                           .map((type) => DropdownMenuItem<String>(
                                 value: type,
-                                child: Text(type),
+                                child: Text(type, style: dropdownTextStyle),
                               ))
                           .toList(),
                       onChanged: (value) {
