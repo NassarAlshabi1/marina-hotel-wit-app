@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:drift_sqflite/drift_sqflite.dart';
 
@@ -113,13 +114,10 @@ class Debts extends Table with SyncFields {
   TextColumn get guestName => text()();
   TextColumn get checkinDate => text()();
   TextColumn get checkoutDate => text()();
-  TextColumn get dateRecorded => text().withDefault(const Constant(''))();
-  TextColumn get debtReason => text().withDefault(const Constant(''))();
   RealColumn get totalAmount => real()();
   RealColumn get paidAmount => real()();
   RealColumn get remainingAmount => real()();
   TextColumn get paymentDate => text()();
-  IntColumn get isSettled => integer().withDefault(const Constant(0))();
   TextColumn get pledge => text().nullable()();
   TextColumn get pledgeType => text().nullable()();
   TextColumn get note => text().nullable()();
@@ -163,7 +161,7 @@ class SyncState extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -186,11 +184,6 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 4) {
             await m.createTable(debts);
-          }
-          if (from < 5 && from >= 4) {
-            await m.addColumn(debts, debts.dateRecorded);
-            await m.addColumn(debts, debts.debtReason);
-            await m.addColumn(debts, debts.isSettled);
           }
         },
       );

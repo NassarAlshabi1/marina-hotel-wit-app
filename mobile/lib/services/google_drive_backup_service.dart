@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -9,11 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
-
 import 'local_db.dart';
 import 'providers.dart';
-
-enum BackupFormat { json, sqlite }
 
 class DriveBackupFile {
   final String fileId;
@@ -47,7 +43,6 @@ class BackupMetadata {
   final DateTime backupTimestamp;
   final int totalRecords;
   final String deviceInfo;
-  final BackupFormat format;
 
   BackupMetadata({
     required this.appVersion,
@@ -55,31 +50,23 @@ class BackupMetadata {
     required this.backupTimestamp,
     required this.totalRecords,
     required this.deviceInfo,
-    this.format = BackupFormat.json,
   });
 
   Map<String, dynamic> toJson() => {
-        'app_version': appVersion,
-        'database_version': databaseVersion,
-        'backup_timestamp': backupTimestamp.toIso8601String(),
-        'total_records': totalRecords,
-        'device_info': deviceInfo,
-        'format': format.name,
-      };
+    'app_version': appVersion,
+    'database_version': databaseVersion,
+    'backup_timestamp': backupTimestamp.toIso8601String(),
+    'total_records': totalRecords,
+    'device_info': deviceInfo,
+  };
 
   factory BackupMetadata.fromJson(Map<String, dynamic> json) {
-    final rawFormat = json['format'] as String?;
-    final format = BackupFormat.values.firstWhere(
-      (value) => value.name == rawFormat,
-      orElse: () => BackupFormat.json,
-    );
     return BackupMetadata(
       appVersion: json['app_version'] ?? '',
       databaseVersion: json['database_version'] ?? 1,
       backupTimestamp: DateTime.parse(json['backup_timestamp']),
       totalRecords: json['total_records'] ?? 0,
       deviceInfo: json['device_info'] ?? '',
-      format: format,
     );
   }
 }
@@ -104,33 +91,36 @@ class GoogleDriveBackupService {
   void _initializeGoogleSignIn() {
     _googleSignIn = GoogleSignIn(
       scopes: _scopes,
-      serverClientId: null,
+      serverClientId: null, // سيتم تكوينه من google-services.json
     );
   }
 
+  /// تسجيل الدخول في Google Drive
   Future<GoogleSignInAccount?> signInForDrive() async {
     try {
       if (_googleSignIn == null) {
         throw Exception('Google Sign-In لم يتم تهيئته بشكل صحيح');
       }
 
+      // محاولة تسجيل دخول صامت أولاً
       GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
-
+      
       if (account == null) {
+        // تسجيل دخول تفاعلي
         account = await _googleSignIn!.signIn();
       }
 
       if (account != null) {
         final authentication = await account.authentication;
         final credentials = AccessCredentials(
-          AccessToken('Bearer', authentication.accessToken!, DateTime.now().add(const Duration(hours: 1))),
+          AccessToken('Bearer', authentication.accessToken!, DateTime.now().add(Duration(hours: 1))),
           authentication.idToken,
           _scopes,
         );
 
         final client = authenticatedClient(http.Client(), credentials);
         _driveApi = drive.DriveApi(client);
-
+        
         debugPrint('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
       }
 
@@ -141,6 +131,7 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// تسجيل الخروج من Google Drive
   Future<void> signOut() async {
     try {
       await _googleSignIn?.signOut();
@@ -153,10 +144,13 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// الحصول على المستخدم الحالي
   GoogleSignInAccount? get currentUser => _googleSignIn?.currentUser;
 
+  /// التحقق من حالة تسجيل الدخول
   bool get isSignedIn => _googleSignIn?.currentUser != null;
 
+  /// إنشاء أو العثور على مجلد النسخ الاحتياطية
   Future<String> getOrCreateBackupFolder() async {
     if (_driveApi == null) {
       throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
@@ -167,6 +161,7 @@ class GoogleDriveBackupService {
     }
 
     try {
+      // البحث عن المجلد الموجود
       final query = "name='$_backupFolderName' and mimeType='application/vnd.google-apps.folder' and trashed=false";
       final searchResult = await _driveApi!.files.list(q: query);
 
@@ -174,6 +169,7 @@ class GoogleDriveBackupService {
         _backupFolderId = searchResult.files!.first.id;
         debugPrint('✅ تم العثور على مجلد النسخ الاحتياطية: $_backupFolderId');
       } else {
+        // إنشاء مجلد جديد
         final folder = drive.File()
           ..name = _backupFolderName
           ..mimeType = 'application/vnd.google-apps.folder';
@@ -190,10 +186,12 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// تصدير قاعدة البيانات إلى JSON
   Future<Map<String, dynamic>> exportDatabaseToJson() async {
     try {
       final db = getDatabase();
-
+      
+      // تصدير جميع الجداول
       final roomsData = await db.select(db.rooms).get();
       final bookingsData = await db.select(db.bookings).get();
       final bookingNotesData = await db.select(db.bookingNotes).get();
@@ -203,22 +201,22 @@ class GoogleDriveBackupService {
       final paymentsData = await db.select(db.payments).get();
       final syncStateData = await db.select(db.syncState).get();
 
-      final totalRecords =
-          roomsData.length +
-          bookingsData.length +
-          bookingNotesData.length +
-          employeesData.length +
-          expensesData.length +
-          cashTransactionsData.length +
-          paymentsData.length;
+      // حساب إجمالي السجلات
+      final totalRecords = roomsData.length + 
+                          bookingsData.length + 
+                          bookingNotesData.length + 
+                          employeesData.length + 
+                          expensesData.length + 
+                          cashTransactionsData.length + 
+                          paymentsData.length;
 
+      // إنشاء البيانات الوصفية
       final metadata = BackupMetadata(
         appVersion: '1.2.0+3',
         databaseVersion: 3,
         backupTimestamp: DateTime.now(),
         totalRecords: totalRecords,
         deviceInfo: Platform.isAndroid ? 'Android' : 'iOS',
-        format: BackupFormat.json,
       );
 
       final backupData = {
@@ -241,6 +239,7 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// رفع النسخة الاحتياطية إلى Google Drive
   Future<String> uploadBackup(Map<String, dynamic> backupData) async {
     if (_driveApi == null) {
       throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
@@ -248,26 +247,34 @@ class GoogleDriveBackupService {
 
     try {
       final folderId = await getOrCreateBackupFolder();
-
+      
+      // تحويل البيانات إلى JSON
       final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
       final jsonBytes = utf8.encode(jsonString);
 
+      // إنشاء اسم الملف
       final timestamp = DateTime.now();
       final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
 
-      final metadata = backupData['metadata'] as Map<String, dynamic>? ?? {};
-
+      // إنشاء ملف Drive
       final driveFile = drive.File()
         ..name = fileName
         ..parents = [folderId]
-        ..appProperties = _buildAppProperties(metadata, timestamp);
+        ..appProperties = {
+          'app_name': 'MarinaHotel',
+          'backup_timestamp': timestamp.toIso8601String(),
+          'records_count': backupData['metadata']['total_records'].toString(),
+          'app_version': backupData['metadata']['app_version'],
+        };
 
+      // رفع الملف
       final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
       final uploadedFile = await _driveApi!.files.create(
         driveFile,
         uploadMedia: media,
       );
 
+      // حفظ وقت آخر نسخة احتياطية
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
 
@@ -279,27 +286,7 @@ class GoogleDriveBackupService {
     }
   }
 
-  Map<String, String> _buildAppProperties(Map<String, dynamic> metadata, DateTime timestamp) {
-    final props = <String, String>{
-      'app_name': 'MarinaHotel',
-      'backup_timestamp': timestamp.toIso8601String(),
-    };
-
-    void addIfPresent(String key, dynamic value) {
-      if (value == null) return;
-      final stringValue = value.toString();
-      if (stringValue.isEmpty) return;
-      props[key] = stringValue;
-    }
-
-    addIfPresent('records_count', metadata['total_records']);
-    addIfPresent('app_version', metadata['app_version']);
-    addIfPresent('device_info', metadata['device_info']);
-    addIfPresent('format', metadata['format']);
-
-    return props;
-  }
-
+  /// جلب قائمة النسخ الاحتياطية
   Future<List<DriveBackupFile>> listBackupFiles() async {
     if (_driveApi == null) {
       throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
@@ -307,7 +294,7 @@ class GoogleDriveBackupService {
 
     try {
       final folderId = await getOrCreateBackupFolder();
-
+      
       final query = "parents in '$folderId' and name contains '$_backupFilePrefix' and trashed=false";
       final listResult = await _driveApi!.files.list(
         q: query,
@@ -331,12 +318,14 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// تنزيل النسخة الاحتياطية
   Future<Map<String, dynamic>> downloadBackup(String fileId) async {
     if (_driveApi == null) {
       throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
     }
 
     try {
+      // تنزيل محتوى الملف
       final media = await _driveApi!.files.get(
         fileId,
         downloadOptions: drive.DownloadOptions.fullMedia,
@@ -347,6 +336,7 @@ class GoogleDriveBackupService {
         dataStore.addAll(data);
       }
 
+      // تحويل البيانات إلى JSON
       final jsonString = utf8.decode(dataStore);
       final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
 
@@ -358,22 +348,26 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// استعادة البيانات من النسخة الاحتياطية
   Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
     try {
       final db = getDatabase();
 
+      // التحقق من البيانات الوصفية
       if (!backupData.containsKey('metadata')) {
         throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
       }
 
       final metadata = BackupMetadata.fromJson(backupData['metadata']);
-
+      
+      // التحقق من توافق إصدار قاعدة البيانات
       if (metadata.databaseVersion > 3) {
         throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
       }
 
       debugPrint('🔄 بدء استعادة البيانات...');
 
+      // مسح البيانات الموجودة (عدا Outbox)
       await db.delete(db.rooms).go();
       await db.delete(db.bookings).go();
       await db.delete(db.bookingNotes).go();
@@ -383,6 +377,7 @@ class GoogleDriveBackupService {
       await db.delete(db.payments).go();
       await db.delete(db.syncState).go();
 
+      // استعادة البيانات
       if (backupData.containsKey('rooms')) {
         final roomsData = backupData['rooms'] as List<dynamic>;
         for (final roomJson in roomsData) {
@@ -443,10 +438,11 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// جدولة النسخ التلقائي
   Future<void> scheduleAutoBackup() async {
     final prefs = await SharedPreferences.getInstance();
     final isEnabled = prefs.getBool(_prefsAutoBackupKey) ?? false;
-
+    
     if (!isEnabled) {
       await cancelAutoBackup();
       return;
@@ -456,22 +452,23 @@ class GoogleDriveBackupService {
     final timeString = prefs.getString(_prefsAutoBackupTimeKey) ?? '02:00';
 
     Duration initialDelay;
-    Duration frequencyDuration;
+    Duration frequency_duration;
 
     switch (frequency) {
       case 'daily':
-        frequencyDuration = const Duration(days: 1);
+        frequency_duration = const Duration(days: 1);
         break;
       case 'weekly':
-        frequencyDuration = const Duration(days: 7);
+        frequency_duration = const Duration(days: 7);
         break;
       case 'monthly':
-        frequencyDuration = const Duration(days: 30);
+        frequency_duration = const Duration(days: 30);
         break;
       default:
-        frequencyDuration = const Duration(days: 1);
+        frequency_duration = const Duration(days: 1);
     }
 
+    // حساب التأخير الأولي حتى الوقت المحدد
     final now = DateTime.now();
     final timeParts = timeString.split(':');
     final targetTime = DateTime(
@@ -483,7 +480,7 @@ class GoogleDriveBackupService {
     );
 
     if (targetTime.isBefore(now)) {
-      initialDelay = targetTime.add(frequencyDuration).difference(now);
+      initialDelay = targetTime.add(frequency_duration).difference(now);
     } else {
       initialDelay = targetTime.difference(now);
     }
@@ -492,20 +489,21 @@ class GoogleDriveBackupService {
       await Workmanager().registerPeriodicTask(
         'autoBackup',
         'autoBackupTask',
-        frequency: frequencyDuration,
+        frequency: frequency_duration,
         initialDelay: initialDelay,
         constraints: Constraints(
           networkType: NetworkType.connected,
           requiresBatteryNotLow: true,
         ),
       );
-
+      
       debugPrint('✅ تم جدولة النسخ التلقائي: $frequency في $timeString');
     } catch (e) {
       debugPrint('❌ خطأ في جدولة النسخ التلقائي: $e');
     }
   }
 
+  /// إلغاء النسخ التلقائي
   Future<void> cancelAutoBackup() async {
     try {
       await Workmanager().cancelByUniqueName('autoBackup');
@@ -515,6 +513,7 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// تنفيذ النسخ التلقائي
   Future<void> performAutoBackup() async {
     try {
       if (!isSignedIn) {
@@ -523,26 +522,28 @@ class GoogleDriveBackupService {
       }
 
       debugPrint('🔄 بدء النسخ التلقائي...');
-
+      
       final backupData = await exportDatabaseToJson();
       final fileId = await uploadBackup(backupData);
-
+      
       debugPrint('✅ تم النسخ التلقائي بنجاح: $fileId');
     } catch (e) {
       debugPrint('❌ خطأ في النسخ التلقائي: $e');
     }
   }
 
+  /// الحصول على وقت آخر نسخة احتياطية
   Future<DateTime?> getLastBackupTime() async {
     final prefs = await SharedPreferences.getInstance();
     final timeString = prefs.getString(_prefsLastBackupKey);
     return timeString != null ? DateTime.parse(timeString) : null;
   }
 
+  /// إعدادات النسخ التلقائي
   Future<void> setAutoBackupEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefsAutoBackupKey, enabled);
-
+    
     if (enabled) {
       await scheduleAutoBackup();
     } else {
@@ -558,7 +559,7 @@ class GoogleDriveBackupService {
   Future<void> setAutoBackupFrequency(String frequency) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsAutoBackupFrequencyKey, frequency);
-
+    
     final isEnabled = await isAutoBackupEnabled();
     if (isEnabled) {
       await scheduleAutoBackup();
@@ -573,7 +574,7 @@ class GoogleDriveBackupService {
   Future<void> setAutoBackupTime(String time) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsAutoBackupTimeKey, time);
-
+    
     final isEnabled = await isAutoBackupEnabled();
     if (isEnabled) {
       await scheduleAutoBackup();
@@ -585,6 +586,7 @@ class GoogleDriveBackupService {
     return prefs.getString(_prefsAutoBackupTimeKey) ?? '02:00';
   }
 
+  /// تحديد حجم قاعدة البيانات المقدر
   Future<int> estimateDatabaseSize() async {
     try {
       final backupData = await exportDatabaseToJson();

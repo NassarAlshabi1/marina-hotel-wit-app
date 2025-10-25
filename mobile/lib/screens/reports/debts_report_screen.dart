@@ -24,6 +24,8 @@ class DebtsReportScreen extends ConsumerStatefulWidget {
 
 class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   final NumberFormat _currencyFormat = NumberFormat('#,##0.00', 'en_US');
+
+  String _formatNumber(num value) => value.toStringAsFixed(0);
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
 
   DateTime? _fromDate;
@@ -148,76 +150,116 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     final fromLabel = _fromDate != null ? _dateFormat.format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
     final totalGuests = _guestSummaries.length;
+    final summaryEntries = [
+      MapEntry('إجمالي الديون', _formatNumber(_totalDebt)),
+      MapEntry('المبالغ المدفوعة', _formatNumber(_totalPaid)),
+      MapEntry('المبالغ المتبقية', _formatNumber(_totalRemaining)),
+      MapEntry('عدد السجلات', _rows.length.toString()),
+      MapEntry('عدد النزلاء', totalGuests.toString()),
+    ];
+
+    pw.Widget buildSummaryTable(ArabicPdfFonts fonts) => pw.Table(
+          border: pw.TableBorder.all(width: 0.5),
+          children: summaryEntries
+              .map(
+                (entry) => pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(entry.key, style: pw.TextStyle(font: fonts.bold)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(entry.value, style: pw.TextStyle(font: fonts.base)),
+                    ),
+                  ],
+                ),
+              )
+              .toList(),
+        );
+
+    final guestHeaders = ['النزيل', 'إجمالي الدين', 'المدفوع', 'المتبقي'];
+    final guestData = _guestSummaries
+        .map((guest) => [
+              guest.guestName,
+              _formatNumber(guest.totalAmount),
+              _formatNumber(guest.paidAmount),
+              _formatNumber(guest.remainingAmount),
+            ])
+        .toList();
+
+    final detailHeaders = ['النزيل', 'تاريخ التسجيل', 'تاريخ الخروج', 'إجمالي', 'المدفوع', 'المتبقي', 'سبب الدين', 'مسدد؟', 'رهون غير مُعادة'];
+    final detailData = _rows
+        .map((debt) => [
+              debt.guestName,
+              Time.safeIsoToDateString(debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate),
+              Time.safeIsoToDateString(debt.checkoutDate),
+              _formatNumber(debt.totalAmount),
+              _formatNumber(debt.paidAmount),
+              _formatNumber(debt.remainingAmount),
+              debt.debtReason.isNotEmpty ? debt.debtReason : '-',
+              debt.isSettled ? 'نعم' : 'لا',
+              (_unreturnedCounts[debt.id] ?? 0).toString(),
+            ])
+        .toList();
 
     doc.addPage(
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+        footer: (context) => pw.Align(
+          alignment: pw.Alignment.center,
+          child: pw.Text(
+            'صفحة ${context.pageNumber} من ${context.pagesCount}',
+            style: pw.TextStyle(font: fonts.base, fontSize: 10),
+          ),
+        ),
         build: (context) {
-          final guestHeaders = ['النزيل', 'إجمالي الدين', 'المدفوع', 'المتبقي'];
-          final guestData = _guestSummaries
-              .map((guest) => [
-                    guest.guestName,
-                    _currencyFormat.format(guest.totalAmount),
-                    _currencyFormat.format(guest.paidAmount),
-                    _currencyFormat.format(guest.remainingAmount),
-                  ])
-              .toList();
-
-          final detailHeaders = ['النزيل', 'تاريخ التسجيل', 'سبب الدين', 'تاريخ الدخول', 'تاريخ الخروج', 'إجمالي', 'المدفوع', 'المتبقي', 'تاريخ الدفع', 'حالة السداد', 'الرهن', 'نوع الرهن'];
-          final detailData = _rows
-              .map((debt) => [
-                    debt.guestName,
-                    _formatDisplayDate(debt.dateRecorded),
-                    _formatTextFallback(debt.debtReason),
-                    Time.safeIsoToDateString(debt.checkinDate),
-                    Time.safeIsoToDateString(debt.checkoutDate),
-                    _currencyFormat.format(debt.totalAmount),
-                    _currencyFormat.format(debt.paidAmount),
-                    _currencyFormat.format(debt.remainingAmount),
-                    Time.safeIsoToDateString(debt.paymentDate),
-                    _formatSettlement(debt.isSettled),
-                    debt.pledge?.isNotEmpty == true ? debt.pledge! : '-',
-                    debt.pledgeType?.isNotEmpty == true ? debt.pledgeType! : '-',
-                  ])
-              .toList();
-
           return [
             if (logo != null)
               pw.Align(
                 alignment: pw.Alignment.centerRight,
                 child: pw.Image(logo, width: 80),
               ),
-            pw.Text('تقرير الديون', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text('فندق مارينا بلازا', style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
+                  pw.Text('القاهرة - شارع احمد قاسم • رقم الهاتف 02324457', style: pw.TextStyle(font: fonts.base, fontSize: 8)),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 6),
+            pw.Text('تقرير الديون', style: pw.TextStyle(font: fonts.bold, fontSize: 20)),
             pw.SizedBox(height: 8),
             pw.Text('الفترة: من $fromLabel إلى $toLabel'),
             pw.SizedBox(height: 12),
-            pw.Text('الملخص العام', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 6),
-            pw.Bullet(text: 'إجمالي الديون: ${_currencyFormat.format(_totalDebt)} ر.س'),
-            pw.Bullet(text: 'المبالغ المدفوعة: ${_currencyFormat.format(_totalPaid)} ر.س'),
-            pw.Bullet(text: 'المبالغ المتبقية: ${_currencyFormat.format(_totalRemaining)} ر.س'),
-            pw.Bullet(text: 'عدد السجلات: ${_rows.length}'),
-            pw.Bullet(text: 'عدد النزلاء: $totalGuests'),
+            buildSummaryTable(fonts),
             if (guestData.isNotEmpty) ...[
-              pw.SizedBox(height: 16),
-              pw.Text('ملخص حسب النزلاء', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 12),
+              pw.Text('ملخص حسب النزلاء', style: pw.TextStyle(font: fonts.bold, fontSize: 14)),
               pw.SizedBox(height: 8),
               pw.Table.fromTextArray(
                 headers: guestHeaders,
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                headerStyle: pw.TextStyle(font: fonts.bold),
+                cellStyle: pw.TextStyle(font: fonts.base),
                 data: guestData,
                 cellAlignment: pw.Alignment.centerRight,
+                border: pw.TableBorder.all(width: 0.5),
               ),
             ],
-            pw.SizedBox(height: 16),
-            pw.Text('تفاصيل السجلات', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 12),
+            pw.Text('تفاصيل السجلات', style: pw.TextStyle(font: fonts.bold, fontSize: 14)),
             pw.SizedBox(height: 8),
             pw.Table.fromTextArray(
               headers: detailHeaders,
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              headerStyle: pw.TextStyle(font: fonts.bold),
+              cellStyle: pw.TextStyle(font: fonts.base),
               data: detailData,
               cellAlignment: pw.Alignment.centerRight,
+              border: pw.TableBorder.all(width: 0.5),
             ),
           ];
         },
@@ -524,20 +566,17 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     return AdminCard(
       title: 'تفاصيل السجلات',
       child: AdminTable(
-        headers: const ['اسم النزيل', 'تاريخ التسجيل', 'سبب الدين', 'تاريخ الدخول', 'تاريخ الخروج', 'إجمالي الدين', 'المدفوع', 'المتبقي', 'تاريخ الدفع', 'حالة السداد', 'الرهن', 'نوع الرهن'],
+        headers: const ['اسم النزيل', 'تاريخ الدخول', 'تاريخ الخروج', 'إجمالي الدين', 'المدفوع', 'المتبقي', 'تاريخ الدفع', 'الرهن', 'نوع الرهن'],
         rows: _rows
             .map(
               (debt) => [
                 Text(debt.guestName),
-                Text(_formatDisplayDate(debt.dateRecorded)),
-                Text(_formatTextFallback(debt.debtReason)),
                 Text(Time.safeIsoToDateString(debt.checkinDate)),
                 Text(Time.safeIsoToDateString(debt.checkoutDate)),
                 Text('${_currencyFormat.format(debt.totalAmount)} ر.س'),
                 Text('${_currencyFormat.format(debt.paidAmount)} ر.س'),
                 Text('${_currencyFormat.format(debt.remainingAmount)} ر.س'),
                 Text(Time.safeIsoToDateString(debt.paymentDate)),
-                Text(_formatSettlement(debt.isSettled)),
                 Text(debt.pledge?.isNotEmpty == true ? debt.pledge! : '-'),
                 Text(debt.pledgeType?.isNotEmpty == true ? debt.pledgeType! : '-'),
               ],
@@ -567,24 +606,6 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       final safeDate = Time.safeIsoToDateString(value);
       return DateTime.parse('${safeDate}T00:00:00');
     }
-  }
-
-  String _formatDisplayDate(String value) {
-    if (value.isEmpty) {
-      return '-';
-    }
-    return Time.safeIsoToDateString(value);
-  }
-
-  String _formatTextFallback(String value) {
-    if (value.trim().isEmpty) {
-      return '-';
-    }
-    return value;
-  }
-
-  String _formatSettlement(int value) {
-    return value == 1 ? 'مسدد' : 'غير مسدد';
   }
 }
 

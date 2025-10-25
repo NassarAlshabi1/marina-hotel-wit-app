@@ -1,11 +1,8 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/backup_provider.dart';
-import '../../services/google_drive_backup_service.dart';
 import '../../utils/theme.dart';
 
 class GoogleDriveBackupScreen extends ConsumerStatefulWidget {
@@ -297,11 +294,6 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
               'إنشاء نسخة احتياطية فورية من جميع بيانات التطبيق ورفعها إلى Google Drive',
               style: TextStyle(color: Colors.grey),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'التنسيق الحالي: ${state.autoSettings.backupFormat == BackupFormat.sqlite ? 'SQLite' : 'JSON'}',
-              style: const TextStyle(color: Colors.grey),
-            ),
             const SizedBox(height: 16),
 
             if (state.status == BackupStatus.uploading && state.progress != null) ...[
@@ -417,9 +409,6 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
     final sizeInMB = backup.size != null 
         ? (backup.size! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
-    final recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '') ?? 0;
-    final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
-    final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     return ListTile(
       leading: const Icon(Icons.backup, color: Colors.blue),
@@ -428,7 +417,7 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
       subtitle: Text(
-        'حجم: $sizeInMB ميجابايت\nالسجلات: $recordsLabel\nالتنسيق: $formatLabel',
+        'حجم: $sizeInMB ميجابايت\nسجلات: ${backup.metadata?['records_count'] ?? '---'}',
       ),
       trailing: IconButton(
         onPressed: isWorking ? null : () => _showRestoreConfirmation(backup),
@@ -441,9 +430,6 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
 
   void _showRestoreConfirmation(DriveBackupFile backup) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    final recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '') ?? 0;
-    final recordsLabel = recordsCount > 0 ? recordsCount.toString() : 'غير معروف';
-    final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
     
     showDialog(
       context: context,
@@ -459,8 +445,7 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
             ),
             const SizedBox(height: 12),
             Text('التاريخ: ${dateFormatter.format(backup.createdTime)}'),
-            Text('السجلات: $recordsLabel'),
-            Text('التنسيق: ${formatLabel}'),
+            Text('السجلات: ${backup.metadata?['records_count'] ?? 'غير معروف'}'),
             const SizedBox(height: 12),
             const Text(
               'هل أنت متأكد من المتابعة؟',
@@ -604,7 +589,7 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
       initialTime: currentTime,
       builder: (context, child) {
         return Directionality(
-          textDirection: ui.TextDirection.rtl,
+          textDirection: TextDirection.rtl,
           child: child!,
         );
       },
