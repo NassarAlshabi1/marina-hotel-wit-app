@@ -55,6 +55,7 @@ class LocalBackupService {
   static const String _prefsAutoLocalBackupFrequencyKey = 'auto_local_backup_frequency';
   static const String _prefsLocalBackupPathKey = 'local_backup_path';
   static const String _prefsBackupFormatKey = 'local_backup_format';
+  static const String _backupFilePrefixImported = 'imported_backup_';
 
   Directory? _backupDirectory;
 

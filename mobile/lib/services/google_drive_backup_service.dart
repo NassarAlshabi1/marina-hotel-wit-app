@@ -13,6 +13,8 @@ import 'package:workmanager/workmanager.dart';
 import 'local_db.dart';
 import 'providers.dart';
 
+enum BackupFormat { json, sqlite }
+
 class DriveBackupFile {
   final String fileId;
   final String fileName;
@@ -45,6 +47,7 @@ class BackupMetadata {
   final DateTime backupTimestamp;
   final int totalRecords;
   final String deviceInfo;
+  final BackupFormat format;
 
   BackupMetadata({
     required this.appVersion,
@@ -52,6 +55,7 @@ class BackupMetadata {
     required this.backupTimestamp,
     required this.totalRecords,
     required this.deviceInfo,
+    this.format = BackupFormat.json,
   });
 
   Map<String, dynamic> toJson() => {
@@ -60,15 +64,22 @@ class BackupMetadata {
         'backup_timestamp': backupTimestamp.toIso8601String(),
         'total_records': totalRecords,
         'device_info': deviceInfo,
+        'format': format.name,
       };
 
   factory BackupMetadata.fromJson(Map<String, dynamic> json) {
+    final rawFormat = json['format'] as String?;
+    final format = BackupFormat.values.firstWhere(
+      (value) => value.name == rawFormat,
+      orElse: () => BackupFormat.json,
+    );
     return BackupMetadata(
       appVersion: json['app_version'] ?? '',
       databaseVersion: json['database_version'] ?? 1,
       backupTimestamp: DateTime.parse(json['backup_timestamp']),
       totalRecords: json['total_records'] ?? 0,
       deviceInfo: json['device_info'] ?? '',
+      format: format,
     );
   }
 }
@@ -207,6 +218,7 @@ class GoogleDriveBackupService {
         backupTimestamp: DateTime.now(),
         totalRecords: totalRecords,
         deviceInfo: Platform.isAndroid ? 'Android' : 'iOS',
+        format: BackupFormat.json,
       );
 
       final backupData = {
@@ -243,29 +255,12 @@ class GoogleDriveBackupService {
       final timestamp = DateTime.now();
       final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
 
-      final metadata = backupData['metadata'] as Map<String, dynamic>?;
-      final sanitizedProperties = <String, String>{'app_name': 'MarinaHotel'};
-      if (metadata != null) {
-        final maybeProps = {
-          'backup_timestamp': metadata['backup_timestamp'],
-          'records_count': metadata['total_records'],
-          'app_version': metadata['app_version'],
-        };
-        maybeProps.forEach((key, value) {
-          if (value != null) {
-            sanitizedProperties[key] = value.toString();
-          }
-        });
-      }
-
-      if (sanitizedProperties.length == 1 && sanitizedProperties['app_name'] == 'MarinaHotel') {
-        sanitizedProperties.clear();
-      }
+      final metadata = backupData['metadata'] as Map<String, dynamic>? ?? {};
 
       final driveFile = drive.File()
         ..name = fileName
         ..parents = [folderId]
-        ..appProperties = sanitizedProperties.isEmpty ? null : sanitizedProperties;
+        ..appProperties = _buildAppProperties(metadata, timestamp);
 
       final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
       final uploadedFile = await _driveApi!.files.create(
@@ -282,6 +277,27 @@ class GoogleDriveBackupService {
       debugPrint('❌ خطأ في رفع النسخة الاحتياطية: $e');
       rethrow;
     }
+  }
+
+  Map<String, String> _buildAppProperties(Map<String, dynamic> metadata, DateTime timestamp) {
+    final props = <String, String>{
+      'app_name': 'MarinaHotel',
+      'backup_timestamp': timestamp.toIso8601String(),
+    };
+
+    void addIfPresent(String key, dynamic value) {
+      if (value == null) return;
+      final stringValue = value.toString();
+      if (stringValue.isEmpty) return;
+      props[key] = stringValue;
+    }
+
+    addIfPresent('records_count', metadata['total_records']);
+    addIfPresent('app_version', metadata['app_version']);
+    addIfPresent('device_info', metadata['device_info']);
+    addIfPresent('format', metadata['format']);
+
+    return props;
   }
 
   Future<List<DriveBackupFile>> listBackupFiles() async {
