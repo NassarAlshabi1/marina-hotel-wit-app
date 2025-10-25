@@ -349,7 +349,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     }
 
     try {
-      final driveBackup = state.availableBackups.firstWhere((backup) => backup.fileId == fileId);
+      final driveBackup = state.availableBackups.firstWhere((backup) => backup.fileId == fileId, orElse: () => throw Exception('Backup with ID "$fileId" not found.'));
 
       state = state.copyWith(
         status: BackupStatus.downloading,
