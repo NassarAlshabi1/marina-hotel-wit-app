@@ -5,6 +5,8 @@ import '../services/google_drive_backup_service.dart';
 import '../services/local_backup_service.dart';
 import '../services/file_management_service.dart';
 import '../services/auto_backup_task.dart';
+import '../services/backup_sync_service.dart';
+import '../services/sqlite_backup_restore.dart';
 
 // حالة النسخ الاحتياطي
 enum BackupStatus { idle, signIn, uploading, downloading, restoring, success, error, checkingPermissions, importingFile }
@@ -71,6 +73,7 @@ class BackupState {
   final int? databaseSizeBytes;
   final bool hasStoragePermission;
   final Map<String, dynamic>? backupFolderInfo;
+  final String? lastSqliteBackupPath;
 
   BackupState({
     this.status = BackupStatus.idle,
@@ -85,6 +88,7 @@ class BackupState {
     this.databaseSizeBytes,
     this.hasStoragePermission = false,
     this.backupFolderInfo,
+    this.lastSqliteBackupPath,
   });
 
   BackupState copyWith({
@@ -100,6 +104,7 @@ class BackupState {
     int? databaseSizeBytes,
     bool? hasStoragePermission,
     Map<String, dynamic>? backupFolderInfo,
+    String? lastSqliteBackupPath,
   }) {
     return BackupState(
       status: status ?? this.status,
@@ -114,6 +119,7 @@ class BackupState {
       databaseSizeBytes: databaseSizeBytes ?? this.databaseSizeBytes,
       hasStoragePermission: hasStoragePermission ?? this.hasStoragePermission,
       backupFolderInfo: backupFolderInfo ?? this.backupFolderInfo,
+      lastSqliteBackupPath: lastSqliteBackupPath ?? this.lastSqliteBackupPath,
     );
   }
 
@@ -539,6 +545,60 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في استعادة البيانات: ${e.toString()}',
+        progress: null,
+      );
+    }
+  }
+
+  /// إنشاء نسخة احتياطية لملف SQLite داخل مجلد Documents/MarinaHotelBackups المشارك مع المستخدم
+  Future<void> createSqliteFileBackup() async {
+    try {
+      state = state.copyWith(
+        status: BackupStatus.uploading,
+        message: 'جاري إنشاء نسخة من ملف قاعدة البيانات...',
+        progress: 0.0,
+        lastSqliteBackupPath: null,
+      );
+
+      final path = await SqliteBackupRestore.backupDatabase();
+
+      state = state.copyWith(
+        status: BackupStatus.success,
+        message: 'تم حفظ نسخة قاعدة البيانات في: $path',
+        progress: 1.0,
+        lastSqliteBackupPath: path,
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في النسخ الاحتياطي لملف SQLite: $e');
+      state = state.copyWith(
+        status: BackupStatus.error,
+        message: 'فشل إنشاء نسخة ملف قاعدة البيانات: ${e.toString()}',
+        progress: null,
+      );
+    }
+  }
+
+  /// استعادة قاعدة البيانات من ملف .db محدد
+  Future<void> restoreFromSqliteFile(String sourcePath) async {
+    try {
+      state = state.copyWith(
+        status: BackupStatus.restoring,
+        message: 'جاري استعادة ملف قاعدة البيانات...',
+        progress: 0.0,
+      );
+
+      await SqliteBackupRestore.restoreDatabase(sourcePath);
+
+      state = state.copyWith(
+        status: BackupStatus.success,
+        message: 'تمت استعادة قاعدة البيانات بنجاح',
+        progress: 1.0,
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في استعادة ملف SQLite: $e');
+      state = state.copyWith(
+        status: BackupStatus.error,
+        message: 'فشل استعادة قاعدة البيانات: ${e.toString()}',
         progress: null,
       );
     }

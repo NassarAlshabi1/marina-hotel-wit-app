@@ -3,6 +3,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../utils/pdf_utils.dart';
+
 /// أنواع طرق الدفع المتاحة
 enum PaymentMethod {
   cash('نقدي', Icons.money, Colors.green),
@@ -178,20 +180,22 @@ class Receipt {
 
   /// إنشاء PDF للإيصال
   Future<void> generatePDF() async {
+    final fonts = await PdfUtils.loadArabicFonts();
     final pdf = pw.Document();
-    
+
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a5,
         textDirection: pw.TextDirection.rtl,
-        build: (context) => _buildReceiptContent(),
+        theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+        build: (context) => _buildReceiptContent(fonts),
       ),
     );
 
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
 
-  pw.Widget _buildReceiptContent() {
+  pw.Widget _buildReceiptContent(ArabicPdfFonts fonts) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -205,15 +209,16 @@ class Receipt {
               pw.Text(
                 hotelName,
                 style: pw.TextStyle(
+                  font: fonts.bold,
                   fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
                   color: PdfColors.white,
                 ),
               ),
               pw.SizedBox(height: 4),
               pw.Text(
                 hotelAddress,
-                style: const pw.TextStyle(
+                style: pw.TextStyle(
+                  font: fonts.base,
                   fontSize: 12,
                   color: PdfColors.white,
                 ),
@@ -244,7 +249,7 @@ class Receipt {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('بيانات العميل:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('بيانات العميل:', style: pw.TextStyle(font: fonts.bold)),
               pw.SizedBox(height: 8),
               pw.Text('الاسم: $guestName'),
               pw.Text('الهاتف: $guestPhone'),
@@ -264,13 +269,13 @@ class Receipt {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('تفاصيل الدفعة:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('تفاصيل الدفعة:', style: pw.TextStyle(font: fonts.bold)),
               pw.SizedBox(height: 8),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('المبلغ:'),
-                  pw.Text('${payment.amount.toStringAsFixed(2)}'),
+                  pw.Text(payment.amount.toStringAsFixed(0)),
                 ],
               ),
               pw.Row(
@@ -385,20 +390,22 @@ class Invoice {
 
   /// إنشاء PDF للفاتورة
   Future<void> generatePDF() async {
+    final fonts = await PdfUtils.loadArabicFonts();
     final pdf = pw.Document();
-    
+
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
-        build: (context) => _buildInvoiceContent(),
+        theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+        build: (context) => _buildInvoiceContent(fonts),
       ),
     );
 
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
 
-  pw.Widget _buildInvoiceContent() {
+  pw.Widget _buildInvoiceContent(ArabicPdfFonts fonts) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -493,7 +500,7 @@ class Invoice {
                     pw.Text('تاريخ الوصول: ${_formatDate(checkinDate)}'),
                     pw.Text('تاريخ المغادرة: ${_formatDate(checkoutDate)}'),
                     pw.Text('عدد الليالي: $nights'),
-                    pw.Text('سعر الليلة: ${roomRate.toStringAsFixed(2)}'),
+                    pw.Text('سعر الليلة: ${roomRate.toStringAsFixed(0)}'),
                   ],
                 ),
               ),
@@ -544,11 +551,11 @@ class Invoice {
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text('${roomRate.toStringAsFixed(2)}'),
+                    child: pw.Text(roomRate.toStringAsFixed(0)),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text('${totalAmount.toStringAsFixed(2)}'),
+                    child: pw.Text(totalAmount.toStringAsFixed(0)),
                   ),
                 ],
               ),
@@ -596,7 +603,7 @@ class Invoice {
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text('${payment.amount.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 10)),
+                      child: pw.Text(payment.amount.toStringAsFixed(0), style: const pw.TextStyle(fontSize: 10)),
                     ),
                   ],
                 )),
@@ -620,14 +627,14 @@ class Invoice {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('إجمالي الفاتورة:', style: pw.TextStyle(fontSize: 14)),
-                  pw.Text('${totalAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14)),
+                  pw.Text(totalAmount.toStringAsFixed(0), style: pw.TextStyle(fontSize: 14)),
                 ],
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('المدفوع:', style: pw.TextStyle(fontSize: 14)),
-                  pw.Text('${(totalAmount - remainingAmount).toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14)),
+                  pw.Text((totalAmount - remainingAmount).toStringAsFixed(0), style: pw.TextStyle(fontSize: 14)),
                 ],
               ),
               pw.Divider(color: PdfColors.grey300),
@@ -635,7 +642,7 @@ class Invoice {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('المتبقي:', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('${remainingAmount.toStringAsFixed(2)}', 
+                  pw.Text(remainingAmount.toStringAsFixed(0), 
                     style: pw.TextStyle(
                       fontSize: 16, 
                       fontWeight: pw.FontWeight.bold,
