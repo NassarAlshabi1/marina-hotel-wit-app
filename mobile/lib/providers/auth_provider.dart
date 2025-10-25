@@ -50,7 +50,7 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState(true, currentUser: _defaultUser));
+  AuthNotifier() : super(const AuthState(false));
 
   static const AuthUser _defaultUser = AuthUser(
     id: 0,
