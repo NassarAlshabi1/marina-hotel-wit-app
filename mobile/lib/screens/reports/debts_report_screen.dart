@@ -604,7 +604,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       return DateTime.parse(normalized);
     } catch (_) {
       final safeDate = Time.safeIsoToDateString(value);
-      return DateTime.parse('$safeDateT00:00:00');
+      return DateTime.parse('${safeDate}T00:00:00');
     }
   }
 }
