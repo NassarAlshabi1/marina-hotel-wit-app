@@ -264,7 +264,7 @@ void callbackDispatcher() {
           final driveBackupService = GoogleDriveBackupService();
           
           if (driveBackupService.isSignedIn) {
-            await driveBackupService.performAutoBackup(format: backupFormat);
+            await driveBackupService.performAutoBackup();
             debugPrint('✅ تم النسخ الاحتياطي السحابي بنجاح');
           } else {
             debugPrint('⚠️ المستخدم غير مسجل دخول في Google Drive، تم تخطي النسخ السحابي');

@@ -40,6 +40,8 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   double _totalPaid = 0;
   double _totalRemaining = 0;
 
+  final Map<int, int> _unreturnedCounts = {};
+
   @override
   void initState() {
     super.initState();
@@ -125,6 +127,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
       final monthlySummaries = monthlyMap.values.toList()
         ..sort((a, b) => a.month.compareTo(b.month));
+      _unreturnedCounts.clear();
+      for (final debt in filtered) {
+        _unreturnedCounts[debt.id] = 0;
+      }
       setState(() {
         _rows = filtered;
         _guestSummaries = guestSummaries;
@@ -198,7 +204,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
               _formatNumber(debt.paidAmount),
               _formatNumber(debt.remainingAmount),
               debt.debtReason.isNotEmpty ? debt.debtReason : '-',
-              debt.isSettled ? 'نعم' : 'لا',
+              debt.isSettled == 1 ? 'نعم' : 'لا',
               (_unreturnedCounts[debt.id] ?? 0).toString(),
             ])
         .toList();
