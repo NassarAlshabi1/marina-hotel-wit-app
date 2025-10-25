@@ -965,7 +965,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     final sizeInMB = backup.size != null 
         ? (backup.size! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
-    final recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '') ?? 0;
+    final recordsCount = int.tryParse(backup.metadata?['records_count']?.toString() ?? '') ?? 0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
     final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
@@ -1107,7 +1107,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       description = 'سيتم تنزيل النسخة من Google Drive واستعادة البيانات';
       location = 'Google Drive';
       createdTime = backup.createdTime;
-      recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '0');
+      recordsCount = int.tryParse(backup.metadata?['records_count']?.toString() ?? '0');
     } else {
       final backup = ref.read(localBackupsProvider).firstWhere((b) => b.filePath == identifier);
       title = 'استعادة من النسخة المحلية';

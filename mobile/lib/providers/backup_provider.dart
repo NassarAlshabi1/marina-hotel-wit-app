@@ -7,7 +7,7 @@ import '../services/google_drive_backup_service.dart';
 import '../services/local_backup_service.dart';
 import '../services/file_management_service.dart';
 import '../services/auto_backup_task.dart';
-import '../services/backup_sync_service.dart';
+
 import '../services/sqlite_backup_restore.dart';
 
 // حالة النسخ الاحتياطي
@@ -305,7 +305,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.5,
       );
 
-      await _backupService.uploadBackupWithFormat(format);
+      final backupData = await _backupService.exportDatabaseToJson();
+      await _backupService.uploadBackup(backupData);
       
       state = state.copyWith(
         message: 'جلب قائمة النسخ المحدثة...',
@@ -352,7 +353,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.0,
       );
 
-      final downloaded = await _backupService.downloadBackup(driveBackup);
+      final downloaded = await _backupService.downloadBackup(driveBackup.fileId);
 
       state = state.copyWith(
         status: BackupStatus.restoring,
@@ -360,17 +361,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.5,
       );
 
-      if (downloaded.format == BackupFormat.json && downloaded.data != null) {
-        await _backupService.restoreFromBackup(downloaded.data!);
-      } else if (downloaded.format == BackupFormat.sqlite && downloaded.filePath != null) {
-        try {
-          await _localBackupService.restoreFromLocalBackup(downloaded.filePath!);
-        } finally {
-          await File(downloaded.filePath!).delete().catchError((_) {});
-        }
-      } else {
-        throw Exception('تنسيق النسخة الاحتياطية غير مدعوم');
-      }
+      await _backupService.restoreFromBackup(downloaded);
 
       state = state.copyWith(
         status: BackupStatus.success,
@@ -813,7 +804,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           message: 'رفع النسخة إلى Google Drive...',
           progress: 0.6,
         );
-        await _backupService.uploadBackupWithFormat(state.autoSettings.backupFormat);
+        final backupData = await _backupService.exportDatabaseToJson();
+        await _backupService.uploadBackup(backupData);
       }
 
       // تحديث جميع القوائم

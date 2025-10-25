@@ -22,6 +22,13 @@ class DriveBackupFile {
   final int? size;
   final Map<String, dynamic>? metadata;
 
+  Map<String, String> get appProperties => metadata?.map((k, v) => MapEntry(k, v.toString())) ?? {};
+
+  BackupFormat get format {
+    final raw = metadata?['format'] as String?;
+    return BackupFormat.values.firstWhere((f) => f.name == raw, orElse: () => BackupFormat.json);
+  }
+
   DriveBackupFile({
     required this.fileId,
     required this.fileName,

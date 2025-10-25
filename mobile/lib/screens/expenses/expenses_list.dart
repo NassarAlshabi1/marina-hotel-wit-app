@@ -16,6 +16,9 @@ class ExpensesListScreen extends ConsumerStatefulWidget {
 
 class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
   int? _selectedEmployeeId;
+  String? selectedType;
+  static const String _salaryType = 'Salary';
+  static const List<String> availableTypes = ['Salary', 'Other', 'Maintenance', 'Supplies'];
 
   @override
   Widget build(BuildContext context) {
@@ -131,6 +134,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
     final amount = TextEditingController(text: existing?.amount.toString() ?? '');
     final expenseType = TextEditingController(text: existing?.expenseType ?? 'other');
     final date = TextEditingController(text: existing?.date ?? Time.nowDateString());
+    selectedType = existing?.expenseType ?? 'Other';
 
     final employeesList = employees ?? await ref.read(employeesRepoProvider).watchAll().first;
     int? selectedEmployeeId = existing?.relatedId;
@@ -174,8 +178,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
                         setState(() {
                           selectedType = value;
                           if (selectedType == _salaryType) {
-                            if (employees.isNotEmpty) {
-                              selectedEmployeeId ??= employees.first.id;
+                            if (employees?.isNotEmpty == true) {
+                              selectedEmployeeId ??= employees!.first.id;
                             }
                           } else {
                             selectedEmployeeId = null;
@@ -185,18 +189,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
                     ),
                     if (selectedType == _salaryType) ...[
                       const SizedBox(height: 12),
-                      if (employees.isEmpty)
+                      if (employees?.isEmpty ?? true)
                         const Text('لا يوجد موظفين مسجلين حالياً.'),
-                      if (employees.isNotEmpty)
+                      if (employees?.isNotEmpty == true)
                         DropdownButtonFormField<int>(
                           value: selectedEmployeeId,
                           decoration: const InputDecoration(labelText: 'الموظف'),
-                          items: employees
-                              .map((employee) => DropdownMenuItem<int>(
+                          items: employees?.map((employee) => DropdownMenuItem<int>(
                                     value: employee.id,
                                     child: Text(employee.name),
                                   ))
-                              .toList(),
+                              .toList() ?? [],
                           onChanged: (value) => setState(() => selectedEmployeeId = value),
                         ),
                     ],
@@ -229,7 +232,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
     final repo = ref.read(expensesRepoProvider);
     final parsedAmount = double.tryParse(amount.text.trim()) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedType = expenseType.text.trim();
+    final trimmedType = (selectedType ?? 'Other').trim();
     final trimmedDate = date.text.trim();
 
     if (existing == null) {
