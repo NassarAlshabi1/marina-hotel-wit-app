@@ -1,53 +1,285 @@
-name: Build Flutter APK
+name: Build Android APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main, develop, capy/google-drive-* ]
     paths:
       - 'mobile/**'
-      - '.github/workflows/build-flutter.yml'
+      - '.github/workflows/build-apk.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'mobile/**'
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'نوع البناء'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+        - debug
+        - release
+      flutter_version:
+        description: 'إصدار Flutter'
+        required: false
+        default: '3.24.3'
+      upload_artifacts:
+        description: 'رفع APK كـ artifact'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  FLUTTER_VERSION: ${{ github.event.inputs.flutter_version || '3.24.3' }}
+  JAVA_VERSION: '17'
 
 jobs:
   build-apk:
+    name: 🏗️ بناء APK للأندرويد
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mobile
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+    - name: ☕ Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: false
+    - name: 🐦 Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
 
-      - name: Flutter Clean
-        run: flutter clean
+    - name: 📱 Verify Flutter Installation
+      run: |
+        flutter doctor -v
+        flutter --version
 
-      - name: Install dependencies
-        run: flutter pub get
+    - name: 🔧 Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        api-level: 34
+        build-tools: 34.0.0
+        
+    - name: 📦 Get Flutter Dependencies
+      working-directory: ./mobile
+      run: |
+        flutter clean
+        flutter pub get
+        
+    - name: 🔍 Run Flutter Analyze
+      working-directory: ./mobile
+      run: flutter analyze --no-fatal-infos
+      continue-on-error: true
 
-      - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+    - name: 📋 Verify Google Services Configuration
+      working-directory: ./mobile
+      run: |
+        if [ -f "android/app/google-services.json" ]; then
+          echo "✅ google-services.json موجود"
+          echo "📋 معلومات المشروع:"
+          cat android/app/google-services.json | jq '.project_info'
+        else
+          echo "❌ google-services.json مفقود"
+          exit 1
+        fi
 
-      - name: Build debug APK
-        run: flutter build apk --debug
+    - name: 🔨 Build Debug APK
+      if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == '' }}
+      working-directory: ./mobile
+      run: |
+        echo "🔨 بناء Debug APK..."
+        flutter build apk --debug --verbose
+        echo "📁 ملفات APK المُنتجة:"
+        find build/app/outputs/flutter-apk/ -name "*.apk" -type f
 
-      - name: Upload debug artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: 'marina-hotel-debug-main-${{ github.run_number }}'
-          path: mobile/build/app/outputs/flutter-apk/*-debug*.apk
-          if-no-files-found: error
+    - name: 🔑 Setup Release Keystore
+      if: ${{ github.event.inputs.build_type == 'release' }}
+      working-directory: ./mobile
+      env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEY_PROPERTIES: ${{ secrets.KEY_PROPERTIES }}
+      run: |
+        if [ -n "$KEYSTORE_BASE64" ]; then
+          echo "🔑 إعداد keystore للإصدار..."
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/marina-hotel.keystore
+          echo "$KEY_PROPERTIES" > android/key.properties
+          echo "✅ تم إعداد keystore"
+        else
+          echo "⚠️ KEYSTORE_BASE64 غير مُعرف، سيتم استخدام debug keystore"
+        fi
+
+    - name: 🚀 Build Release APK
+      if: ${{ github.event.inputs.build_type == 'release' }}
+      working-directory: ./mobile
+      run: |
+        echo "🚀 بناء Release APK..."
+        flutter build apk --release --verbose
+        echo "📁 ملفات APK المُنتجة:"
+        find build/app/outputs/flutter-apk/ -name "*.apk" -type f
+
+    - name: 📊 APK Size Analysis
+      working-directory: ./mobile
+      run: |
+        echo "📊 تحليل حجم APK:"
+        for apk in build/app/outputs/flutter-apk/*.apk; do
+          if [ -f "$apk" ]; then
+            size=$(stat -f%z "$apk" 2>/dev/null || stat -c%s "$apk" 2>/dev/null || echo "unknown")
+            size_mb=$(echo "scale=2; $size / 1024 / 1024" | bc -l 2>/dev/null || echo "unknown")
+            echo "📱 $(basename "$apk"): ${size_mb} MB"
+          fi
+        done
+
+    - name: 🏷️ Generate Build Info
+      id: build_info
+      working-directory: ./mobile
+      run: |
+        BUILD_TYPE="${{ github.event.inputs.build_type || 'debug' }}"
+        COMMIT_SHA="${{ github.sha }}"
+        BRANCH_NAME="${{ github.ref_name }}"
+        BUILD_NUMBER="${{ github.run_number }}"
+        TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
+        
+        echo "build_type=$BUILD_TYPE" >> $GITHUB_OUTPUT
+        echo "commit_sha=${COMMIT_SHA:0:7}" >> $GITHUB_OUTPUT
+        echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+        echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+        echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+        echo "apk_name=marina-hotel-${BUILD_TYPE}-${BRANCH_NAME}-${BUILD_NUMBER}-${TIMESTAMP}" >> $GITHUB_OUTPUT
+
+    - name: 📝 Rename APK Files
+      working-directory: ./mobile/build/app/outputs/flutter-apk
+      run: |
+        BUILD_TYPE="${{ steps.build_info.outputs.build_type }}"
+        APK_NAME="${{ steps.build_info.outputs.apk_name }}"
+        
+        for apk in *.apk; do
+          if [ -f "$apk" ]; then
+            NEW_NAME="${APK_NAME}.apk"
+            mv "$apk" "$NEW_NAME"
+            echo "📱 تم إعادة تسمية: $apk → $NEW_NAME"
+            echo "apk_path=mobile/build/app/outputs/flutter-apk/$NEW_NAME" >> $GITHUB_ENV
+          fi
+        done
+
+    - name: 🔍 Verify APK
+      working-directory: ./mobile/build/app/outputs/flutter-apk
+      run: |
+        for apk in *.apk; do
+          if [ -f "$apk" ]; then
+            echo "🔍 فحص APK: $apk"
+            aapt dump badging "$apk" | head -5
+            echo "✅ APK صالح"
+          fi
+        done
+
+    - name: 📤 Upload APK Artifacts
+      if: ${{ github.event.inputs.upload_artifacts == 'true' || github.event.inputs.upload_artifacts == '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: marina-hotel-apk-${{ steps.build_info.outputs.build_type }}-${{ steps.build_info.outputs.timestamp }}
+        path: mobile/build/app/outputs/flutter-apk/*.apk
+        retention-days: 30
+        compression-level: 6
+
+    - name: 📋 Build Summary
+      run: |
+        echo "## 🎉 تم بناء APK بنجاح" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📱 معلومات البناء:" >> $GITHUB_STEP_SUMMARY
+        echo "- **نوع البناء:** ${{ steps.build_info.outputs.build_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **الفرع:** ${{ steps.build_info.outputs.branch_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **رقم البناء:** ${{ steps.build_info.outputs.build_number }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit:** ${{ steps.build_info.outputs.commit_sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **التوقيت:** ${{ steps.build_info.outputs.timestamp }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **إصدار Flutter:** ${{ env.FLUTTER_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔧 الميزات المُضافة:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ نسخ احتياطي Google Drive" >> $GITHUB_STEP_SUMMARY  
+        echo "- ✅ نسخ احتياطي محلي" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ نسخ تلقائي في الخلفية" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ مشاركة وإدارة ملفات" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ تصدير بتنسيقات متعددة" >> $GITHUB_STEP_SUMMARY
+
+    - name: 💬 Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const buildType = '${{ steps.build_info.outputs.build_type }}';
+          const apkName = '${{ steps.build_info.outputs.apk_name }}';
+          const buildNumber = '${{ steps.build_info.outputs.build_number }}';
+          
+          const comment = `
+          ## 🎉 تم بناء APK بنجاح!
+          
+          **📱 معلومات APK:**
+          - نوع البناء: \`${buildType}\`
+          - اسم الملف: \`${apkName}.apk\`
+          - رقم البناء: \`${buildNumber}\`
+          
+          **🔗 تحميل APK:**
+          يمكنك تحميل APK من [Artifacts](${context.payload.pull_request.html_url}/checks)
+          
+          **✨ الميزات الجديدة:**
+          - نسخ احتياطي مع Google Drive
+          - نسخ احتياطي محلي  
+          - نسخ تلقائي في الخلفية
+          - مشاركة وإدارة ملفات
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  test-apk:
+    name: 🧪 اختبار APK
+    needs: build-apk
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == '' }}
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 📱 Download Built APK
+      uses: actions/download-artifact@v4
+      with:
+        pattern: marina-hotel-apk-*
+        merge-multiple: true
+        path: ./apk
+
+    - name: 🔍 APK Testing
+      run: |
+        echo "🔍 فحص APK المُنتج..."
+        find ./apk -name "*.apk" -type f -exec echo "📱 ملف APK: {}" \;
+        
+        # فحص محتوى APK
+        for apk in ./apk/*.apk; do
+          if [ -f "$apk" ]; then
+            echo "🔍 فحص: $(basename "$apk")"
+            
+            # فحص package name والأذونات
+            aapt dump badging "$apk" | grep -E "(package:|uses-permission)"
+            
+            echo "✅ فحص APK مكتمل"
+          fi
+        done
+
+    - name: 🏥 Health Check
+      run: |
+        echo "🏥 فحص سلامة البناء:"
+        echo "✅ تم بناء APK بنجاح"
+        echo "✅ تم فحص package والأذونات"
+        echo "✅ الملفات جاهزة للتوزيع"

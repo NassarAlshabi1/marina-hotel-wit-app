@@ -10,17 +10,6 @@ import 'package:uuid/uuid.dart';
 
 class ExpensesListScreen extends ConsumerWidget {
   const ExpensesListScreen({super.key});
-
-  static const List<String> _expenseTypes = [
-    'أخرى',
-    'سحب من الراتب',
-    'ديزل',
-    'مشتريات كهرباء وسباكة',
-    'تسديد فواتير كهرباء أو مياة او نت او هاتف',
-  ];
-  static const String _salaryType = 'سحب من الراتب';
-  static const String _defaultType = 'أخرى';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.watch(expensesRepoProvider);
@@ -53,26 +42,10 @@ class ExpensesListScreen extends ConsumerWidget {
   }
 
   Future<void> _edit(BuildContext context, WidgetRef ref, {Expense? existing}) async {
-    final employees = await ref.read(employeesRepoProvider).watchAll().first;
     final description = TextEditingController(text: existing?.description ?? '');
-    final amount = TextEditingController(text: existing != null ? existing.amount.toString() : '');
+    final amount = TextEditingController(text: existing?.amount.toString() ?? '');
+    final expenseType = TextEditingController(text: existing?.expenseType ?? 'other');
     final date = TextEditingController(text: existing?.date ?? Time.nowDateString());
-
-    final availableTypes = List<String>.from(_expenseTypes);
-    String selectedType = existing?.expenseType ?? _defaultType;
-    if (selectedType.isEmpty) {
-      selectedType = availableTypes.first;
-    } else if (!availableTypes.contains(selectedType)) {
-      availableTypes.add(selectedType);
-    }
-
-    int? selectedEmployeeId = existing?.relatedId;
-    if (selectedEmployeeId != null && !employees.any((employee) => employee.id == selectedEmployeeId)) {
-      selectedEmployeeId = employees.isNotEmpty ? employees.first.id : null;
-    }
-    if (selectedType == _salaryType && selectedEmployeeId == null && employees.isNotEmpty) {
-      selectedEmployeeId = employees.first.id;
-    }
 
     final ok = await showDialog<bool>(
       context: context,
@@ -158,42 +131,11 @@ class ExpensesListScreen extends ConsumerWidget {
     );
     if (ok != true) return;
 
-    final cleanedAmountText = amount.text.trim().replaceAll(',', '');
-    final parsedAmount = double.tryParse(cleanedAmountText);
-    if (parsedAmount == null || parsedAmount <= 0) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يرجى إدخال مبلغ صالح')));
-      }
-      return;
-    }
-    if (selectedType == _salaryType && (selectedEmployeeId == null || employees.isEmpty)) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا يمكن تسجيل سحب من الراتب بدون اختيار موظف')));
-      }
-      return;
-    }
-
     final repo = ref.read(expensesRepoProvider);
-    final sanitizedDate = date.text.trim().isEmpty ? Time.nowDateString() : date.text.trim();
-
     if (existing == null) {
-      await repo.create(
-        expenseType: selectedType,
-        relatedId: selectedType == _salaryType ? selectedEmployeeId : null,
-        description: description.text.trim(),
-        amount: parsedAmount,
-        date: sanitizedDate,
-      );
+      await repo.create(expenseType: expenseType.text.trim(), description: description.text.trim(), amount: double.tryParse(amount.text) ?? 0, date: date.text.trim());
     } else {
-      await repo.update(
-        existing.id,
-        expenseType: selectedType,
-        relatedId: selectedType == _salaryType ? selectedEmployeeId : null,
-        description: description.text.trim(),
-        amount: parsedAmount,
-        date: sanitizedDate,
-      );
+      await repo.update(existing.id, expenseType: expenseType.text.trim(), description: description.text.trim(), amount: double.tryParse(amount.text) ?? 0, date: date.text.trim());
     }
   }
 }
-

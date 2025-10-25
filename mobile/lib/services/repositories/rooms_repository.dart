@@ -1,31 +1,22 @@
-import 'dart:async';
-
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/rooms_dao.dart';
-import '../backup_sync_service.dart';
 
 class RoomsRepository {
-  RoomsRepository(this.db, {BackupSyncService? backupSyncService})
+  RoomsRepository(this.db)
       : outbox = OutboxDao(db),
-        dao = RoomsDao(db, OutboxDao(db)),
-        _backupSyncService = backupSyncService;
+        dao = RoomsDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final RoomsDao dao;
-  final BackupSyncService? _backupSyncService;
-
-  void _scheduleAutoBackup() {
-    unawaited(_backupSyncService?.triggerAutoBackup());
-  }
 
   Stream<List<Room>> watchAll({String? search}) => dao.watchList(search: search);
   Stream<Room?> watchRoom(String roomNumber) => dao.watchByNumber(roomNumber);
   Stream<Room?> watchByNumber(String roomNumber) => dao.watchByNumber(roomNumber);
 
-  Future<String> create({required String roomNumber, required String type, required double price, required String status, String? imageUrl}) async {
-    final value = await dao.insertOne(
+  Future<String> create({required String roomNumber, required String type, required double price, required String status, String? imageUrl}) {
+    return dao.insertOne(
       RoomsCompanion(
         roomNumber: d.Value(roomNumber),
         type: d.Value(type),
@@ -34,12 +25,10 @@ class RoomsRepository {
         imageUrl: d.Value(imageUrl),
       ),
     );
-    _scheduleAutoBackup();
-    return value;
   }
 
-  Future<int> update(int id, {String? type, double? price, String? status, String? imageUrl}) async {
-    final rows = await dao.updateById(
+  Future<int> update(int id, {String? type, double? price, String? status, String? imageUrl}) {
+    return dao.updateById(
       id,
       RoomsCompanion(
         type: type != null ? d.Value(type) : const d.Value.absent(),
@@ -48,14 +37,10 @@ class RoomsRepository {
         imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
       ),
     );
-    if (rows > 0) {
-      _scheduleAutoBackup();
-    }
-    return rows;
   }
   
-  Future<int> updateByRoomNumber(String roomNumber, {String? type, double? price, String? status, String? imageUrl}) async {
-    final rows = await dao.updateByNumber(
+  Future<int> updateByRoomNumber(String roomNumber, {String? type, double? price, String? status, String? imageUrl}) {
+    return dao.updateByNumber(
       roomNumber,
       RoomsCompanion(
         type: type != null ? d.Value(type) : const d.Value.absent(),
@@ -64,19 +49,9 @@ class RoomsRepository {
         imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
       ),
     );
-    if (rows > 0) {
-      _scheduleAutoBackup();
-    }
-    return rows;
   }
 
-  Future<int> delete(String roomNumber) async {
-    final rows = await dao.softDelete(roomNumber);
-    if (rows > 0) {
-      _scheduleAutoBackup();
-    }
-    return rows;
-  }
+  Future<int> delete(String roomNumber) => dao.softDelete(roomNumber);
 
   // دوال النسخ الاحتياطي
 
@@ -99,14 +74,12 @@ class RoomsRepository {
         List<Map<String, dynamic>>.from(data['data']), 
         clearExisting: false,
       );
-      _scheduleAutoBackup();
     }
   }
 
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await dao.clearAllData();
-    _scheduleAutoBackup();
   }
 
   /// الحصول على إجمالي عدد السجلات
