@@ -1114,7 +1114,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       description = 'سيتم استعادة البيانات من النسخة المحفوظة محلياً';
       location = 'التخزين المحلي';
       createdTime = backup.createdTime;
-      recordsCount = backup.metadata?['total_records'] as int?;
+      recordsCount = backup.metadata?.totalRecords;
     }
     
     showDialog(
