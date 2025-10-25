@@ -5,6 +5,8 @@ import '../services/google_drive_backup_service.dart';
 import '../services/local_backup_service.dart';
 import '../services/file_management_service.dart';
 import '../services/auto_backup_task.dart';
+import '../services/backup_sync_service.dart';
+import '../services/sqlite_backup_restore.dart';
 
 // حالة النسخ الاحتياطي
 enum BackupStatus { idle, signIn, uploading, downloading, restoring, success, error, checkingPermissions, importingFile }
@@ -71,6 +73,7 @@ class BackupState {
   final int? databaseSizeBytes;
   final bool hasStoragePermission;
   final Map<String, dynamic>? backupFolderInfo;
+  final String? lastSqliteBackupPath;
 
   BackupState({
     this.status = BackupStatus.idle,
@@ -85,6 +88,7 @@ class BackupState {
     this.databaseSizeBytes,
     this.hasStoragePermission = false,
     this.backupFolderInfo,
+    this.lastSqliteBackupPath,
   });
 
   BackupState copyWith({
@@ -100,6 +104,7 @@ class BackupState {
     int? databaseSizeBytes,
     bool? hasStoragePermission,
     Map<String, dynamic>? backupFolderInfo,
+    String? lastSqliteBackupPath,
   }) {
     return BackupState(
       status: status ?? this.status,
@@ -114,6 +119,7 @@ class BackupState {
       databaseSizeBytes: databaseSizeBytes ?? this.databaseSizeBytes,
       hasStoragePermission: hasStoragePermission ?? this.hasStoragePermission,
       backupFolderInfo: backupFolderInfo ?? this.backupFolderInfo,
+      lastSqliteBackupPath: lastSqliteBackupPath ?? this.lastSqliteBackupPath,
     );
   }
 
@@ -164,7 +170,17 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final time = await _backupService.getAutoBackupTime();
       final enableLocal = await _localBackupService.isAutoLocalBackupEnabled();
       final localFreq = await _localBackupService.getAutoLocalBackupFrequency();
-      
+
+      final isAutoEnabled = autoEnabled || enableLocal;
+      final resolvedFrequency = autoEnabled ? frequency : localFreq;
+      final resolvedBackupType = enableLocal && autoEnabled
+          ? BackupType.both
+          : enableLocal
+              ? BackupType.local
+              : autoEnabled
+                  ? BackupType.googleDrive
+                  : BackupType.both;
+
       // التحقق من تسجيل الدخول في Google Drive
       GoogleSignInAccount? account;
       List<DriveBackupFile> driveBackups = [];
@@ -188,13 +204,12 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         availableBackups: driveBackups,
         signedInAccount: account,
         autoSettings: AutoBackupSettings(
-          isEnabled: autoEnabled,
-          frequency: frequency,
+          isEnabled: isAutoEnabled,
+          frequency: resolvedFrequency,
           time: time,
           enableLocalBackup: enableLocal,
           enableGoogleDriveBackup: autoEnabled,
-          backupType: enableLocal && autoEnabled ? BackupType.both :
-                     enableLocal ? BackupType.local : BackupType.googleDrive,
+          backupType: resolvedBackupType,
         ),
       );
     } catch (e) {
@@ -387,13 +402,18 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   /// تحديث إعدادات النسخ التلقائي
   Future<void> updateAutoBackupSettings(AutoBackupSettings settings) async {
     try {
-      await _backupService.setAutoBackupEnabled(settings.isEnabled);
-      
-      if (settings.isEnabled) {
-        await _backupService.setAutoBackupFrequency(settings.frequency);
-        await _backupService.setAutoBackupTime(settings.time);
-        
-        // جدولة المهمة حسب التكرار
+      final enableDrive = settings.isEnabled && settings.enableGoogleDriveBackup;
+      final enableLocal = settings.isEnabled && settings.enableLocalBackup;
+      final shouldScheduleTask = enableDrive || enableLocal;
+
+      await _backupService.setAutoBackupEnabled(enableDrive);
+      await _backupService.setAutoBackupFrequency(settings.frequency);
+      await _backupService.setAutoBackupTime(settings.time);
+
+      await _localBackupService.setAutoLocalBackupEnabled(enableLocal);
+      await _localBackupService.setAutoLocalBackupFrequency(settings.frequency);
+
+      if (shouldScheduleTask) {
         switch (settings.frequency) {
           case 'daily':
             await AutoBackupTask.scheduleDaily(time: settings.time);
@@ -410,13 +430,27 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
               day: settings.day ?? 1,
             );
             break;
+          default:
+            await AutoBackupTask.scheduleDaily(time: settings.time);
+            break;
         }
       } else {
         await AutoBackupTask.cancelScheduled();
       }
 
+      final updatedBackupType = enableDrive && enableLocal
+          ? BackupType.both
+          : enableLocal
+              ? BackupType.local
+              : enableDrive
+                  ? BackupType.googleDrive
+                  : settings.backupType;
+
       state = state.copyWith(
-        autoSettings: settings,
+        autoSettings: settings.copyWith(
+          isEnabled: shouldScheduleTask,
+          backupType: updatedBackupType,
+        ),
         status: BackupStatus.success,
         message: 'تم تحديث إعدادات النسخ التلقائي',
       );
@@ -539,6 +573,60 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في استعادة البيانات: ${e.toString()}',
+        progress: null,
+      );
+    }
+  }
+
+  /// إنشاء نسخة احتياطية لملف SQLite داخل مجلد Documents/MarinaHotelBackups المشارك مع المستخدم
+  Future<void> createSqliteFileBackup() async {
+    try {
+      state = state.copyWith(
+        status: BackupStatus.uploading,
+        message: 'جاري إنشاء نسخة من ملف قاعدة البيانات...',
+        progress: 0.0,
+        lastSqliteBackupPath: null,
+      );
+
+      final path = await SqliteBackupRestore.backupDatabase();
+
+      state = state.copyWith(
+        status: BackupStatus.success,
+        message: 'تم حفظ نسخة قاعدة البيانات في: $path',
+        progress: 1.0,
+        lastSqliteBackupPath: path,
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في النسخ الاحتياطي لملف SQLite: $e');
+      state = state.copyWith(
+        status: BackupStatus.error,
+        message: 'فشل إنشاء نسخة ملف قاعدة البيانات: ${e.toString()}',
+        progress: null,
+      );
+    }
+  }
+
+  /// استعادة قاعدة البيانات من ملف .db محدد
+  Future<void> restoreFromSqliteFile(String sourcePath) async {
+    try {
+      state = state.copyWith(
+        status: BackupStatus.restoring,
+        message: 'جاري استعادة ملف قاعدة البيانات...',
+        progress: 0.0,
+      );
+
+      await SqliteBackupRestore.restoreDatabase(sourcePath);
+
+      state = state.copyWith(
+        status: BackupStatus.success,
+        message: 'تمت استعادة قاعدة البيانات بنجاح',
+        progress: 1.0,
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في استعادة ملف SQLite: $e');
+      state = state.copyWith(
+        status: BackupStatus.error,
+        message: 'فشل استعادة قاعدة البيانات: ${e.toString()}',
         progress: null,
       );
     }

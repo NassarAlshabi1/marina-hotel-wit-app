@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
@@ -17,9 +18,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   final _guestName = TextEditingController();
   final _guestPhone = TextEditingController();
   final _guestNationality = TextEditingController(text: 'يمني');
-  final _guestEmail = TextEditingController();
   final _guestAddress = TextEditingController();
   final _guestIdNumber = TextEditingController();
+  final _idNumberFormatter = FilteringTextInputFormatter.allow(RegExp(r'[0-9]'));
   final _guestIdIssueDate = TextEditingController();
   final _guestIdIssuePlace = TextEditingController();
   final _roomNumber = TextEditingController();
@@ -32,7 +33,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   String _idType = 'بطاقة شخصية';
   bool _roomInitialized = false;
 
-  static const _idTypes = ['بطاقة شخصية', 'رخصة قيادة', 'جواز سفر'];
+  static const _idTypes = ['بطاقة شخصية', 'جواز سفر', 'رخصة قيادة', 'بطاقة عسكرية', 'استبيان', 'شهادة ميلاد'];
   static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
 
   @override
@@ -43,7 +44,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
       _guestName.text = b.guestName;
       _guestPhone.text = b.guestPhone;
       _guestNationality.text = b.guestNationality.isEmpty ? 'يمني' : b.guestNationality;
-      _guestEmail.text = b.guestEmail ?? '';
       _guestAddress.text = b.guestAddress ?? '';
       _guestIdNumber.text = b.guestIdNumber;
       _guestIdIssueDate.text = b.guestIdIssueDate ?? '';
@@ -67,7 +67,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     _guestName.dispose();
     _guestPhone.dispose();
     _guestNationality.dispose();
-    _guestEmail.dispose();
     _guestAddress.dispose();
     _guestIdNumber.dispose();
     _guestIdIssueDate.dispose();
@@ -122,6 +121,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                       TextFormField(
                         controller: _guestIdNumber,
                         decoration: const InputDecoration(labelText: 'رقم الهوية'),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [_idNumberFormatter],
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -151,12 +152,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                         controller: _guestNationality,
                         decoration: const InputDecoration(labelText: 'الجنسية *'),
                         validator: _req,
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _guestEmail,
-                        decoration: const InputDecoration(labelText: 'البريد الإلكتروني'),
-                        keyboardType: TextInputType.emailAddress,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -253,7 +248,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                   final name = _guestName.text.trim();
                   final phone = _normalizePhone(_guestPhone.text);
                   final nationality = _guestNationality.text.trim().isEmpty ? 'غير معروف' : _guestNationality.text.trim();
-                  final email = _optionalText(_guestEmail.text);
                   final address = _optionalText(_guestAddress.text);
                   final idNumber = _guestIdNumber.text.trim();
                   final idIssueDate = _optionalText(_guestIdIssueDate.text);
@@ -268,6 +262,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                       ? expectedNights
                       : Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
                   final notes = _optionalText(_notes.text);
+                  const String? email = null;
 
                   if (widget.existing == null) {
                     await repo.create(

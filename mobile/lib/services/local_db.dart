@@ -199,3 +199,22 @@ LazyDatabase _open() {
 extension EmployeeX on Employee {
   double get salary => basicSalary;
 }
+
+/// Singleton manager for the Drift database to support clean close/reopen during file-based restores
+class DatabaseManager {
+  static AppDatabase? _instance;
+
+  static AppDatabase get instance => _instance ??= AppDatabase();
+
+  static Future<void> close() async {
+    try {
+      await _instance?.close();
+    } catch (_) {}
+    _instance = null;
+  }
+
+  static Future<void> reopen() async {
+    await close();
+    _instance = AppDatabase();
+  }
+}
