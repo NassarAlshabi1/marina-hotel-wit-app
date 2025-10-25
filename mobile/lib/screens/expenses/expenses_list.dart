@@ -16,9 +16,9 @@ class ExpensesListScreen extends ConsumerStatefulWidget {
 
 class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
   int? _selectedEmployeeId;
-  late String? selectedType;
-  final String _salaryType = 'Salary';
-  final List<String> availableTypes = ['Salary', 'Other', 'Maintenance', 'Supplies'];
+  String? selectedType;
+  static const String _salaryType = 'Salary';
+  static const List<String> availableTypes = ['Salary', 'Other', 'Maintenance', 'Supplies'];
 
   @override
   Widget build(BuildContext context) {
