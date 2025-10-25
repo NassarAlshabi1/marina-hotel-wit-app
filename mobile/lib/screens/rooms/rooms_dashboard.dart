@@ -126,7 +126,7 @@ class RoomsDashboard extends ConsumerWidget {
   void _navigateToBooking(BuildContext context, String roomNumber) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => BookingEditScreen(roomNumber: roomNumber),
+        builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
     );
   }

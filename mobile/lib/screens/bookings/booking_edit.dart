@@ -7,8 +7,9 @@ import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
-  const BookingEditScreen({super.key, this.existing});
+  const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
   final Booking? existing;
+  final String? initialRoomNumber;
   @override
   ConsumerState<BookingEditScreen> createState() => _BookingEditScreenState();
 }
@@ -57,6 +58,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
       _idType = b.guestIdType;
       _roomInitialized = true;
     } else {
+      if (widget.initialRoomNumber != null && widget.initialRoomNumber!.isNotEmpty) {
+        _roomNumber.text = widget.initialRoomNumber!;
+        _roomInitialized = true;
+      }
       _checkin.text = _formatDateTime(DateTime.now());
     }
     WidgetsBinding.instance.addPostFrameCallback((_) => _recalculateExpectedNights());

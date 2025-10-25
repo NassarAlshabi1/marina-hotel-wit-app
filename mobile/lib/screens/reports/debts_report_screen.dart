@@ -566,17 +566,20 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     return AdminCard(
       title: 'تفاصيل السجلات',
       child: AdminTable(
-        headers: const ['اسم النزيل', 'تاريخ الدخول', 'تاريخ الخروج', 'إجمالي الدين', 'المدفوع', 'المتبقي', 'تاريخ الدفع', 'الرهن', 'نوع الرهن'],
+        headers: const ['اسم النزيل', 'تاريخ التسجيل', 'سبب الدين', 'تاريخ الدخول', 'تاريخ الخروج', 'إجمالي الدين', 'المدفوع', 'المتبقي', 'تاريخ الدفع', 'حالة السداد', 'الرهن', 'نوع الرهن'],
         rows: _rows
             .map(
               (debt) => [
                 Text(debt.guestName),
+                Text(_formatDisplayDate(debt.dateRecorded)),
+                Text(_formatTextFallback(debt.debtReason)),
                 Text(Time.safeIsoToDateString(debt.checkinDate)),
                 Text(Time.safeIsoToDateString(debt.checkoutDate)),
                 Text('${_currencyFormat.format(debt.totalAmount)} ر.س'),
                 Text('${_currencyFormat.format(debt.paidAmount)} ر.س'),
                 Text('${_currencyFormat.format(debt.remainingAmount)} ر.س'),
                 Text(Time.safeIsoToDateString(debt.paymentDate)),
+                Text(_formatSettlement(debt.isSettled)),
                 Text(debt.pledge?.isNotEmpty == true ? debt.pledge! : '-'),
                 Text(debt.pledgeType?.isNotEmpty == true ? debt.pledgeType! : '-'),
               ],
@@ -606,6 +609,24 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       final safeDate = Time.safeIsoToDateString(value);
       return DateTime.parse('${safeDate}T00:00:00');
     }
+  }
+
+  String _formatDisplayDate(String value) {
+    if (value.isEmpty) {
+      return '-';
+    }
+    return Time.safeIsoToDateString(value);
+  }
+
+  String _formatTextFallback(String value) {
+    if (value.trim().isEmpty) {
+      return '-';
+    }
+    return value;
+  }
+
+  String _formatSettlement(int value) {
+    return value == 1 ? 'مسدد' : 'غير مسدد';
   }
 }
 
