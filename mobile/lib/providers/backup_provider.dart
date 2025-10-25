@@ -16,9 +16,6 @@ enum BackupStatus { idle, signIn, uploading, downloading, restoring, success, er
 // نوع النسخ الاحتياطي
 enum BackupType { googleDrive, local, both }
 
-// تنسيقات النسخ الاحتياطي
-enum BackupFormat { json, sqlite }
-
 // حالة النسخ التلقائي
 class AutoBackupSettings {
   final bool isEnabled;

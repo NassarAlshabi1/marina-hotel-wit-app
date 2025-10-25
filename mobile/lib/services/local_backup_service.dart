@@ -536,7 +536,7 @@ class LocalBackupService {
       final sourceFile = File(pickedPath);
       final backupDir = await getBackupDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final baseName = '$_backupFilePrefiximported_$timestamp';
+      final baseName = '$_backupFilePrefixImported$timestamp';
 
       if (extension == '.json') {
         final content = await sourceFile.readAsString();
