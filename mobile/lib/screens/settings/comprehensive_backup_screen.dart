@@ -965,7 +965,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     final sizeInMB = backup.size != null 
         ? (backup.size! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
-    final recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '') ?? 0;
+    final recordsCount = (backup.metadata?['total_records'] as int?) ?? int.tryParse(backup.appProperties?['records_count'] ?? '') ?? 0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
     final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
@@ -990,7 +990,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
   Widget _buildLocalBackupItem(LocalBackupFile backup, bool isWorking) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
     final sizeInMB = (backup.sizeBytes / (1024 * 1024)).toStringAsFixed(2);
-    final localRecords = backup.metadata?.totalRecords;
+    final localRecords = backup.metadata?['total_records'] as int?;
     final recordsLabel = localRecords != null && localRecords > 0 ? localRecords.toString() : '---';
     final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
@@ -1107,14 +1107,14 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       description = 'سيتم تنزيل النسخة من Google Drive واستعادة البيانات';
       location = 'Google Drive';
       createdTime = backup.createdTime;
-      recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '0');
+      recordsCount = (backup.metadata?['total_records'] as int?) ?? int.tryParse(backup.appProperties?['records_count'] ?? '0');
     } else {
       final backup = ref.read(localBackupsProvider).firstWhere((b) => b.filePath == identifier);
       title = 'استعادة من النسخة المحلية';
       description = 'سيتم استعادة البيانات من النسخة المحفوظة محلياً';
       location = 'التخزين المحلي';
       createdTime = backup.createdTime;
-      recordsCount = backup.metadata?.totalRecords;
+      recordsCount = backup.metadata?['total_records'] as int?;
     }
     
     showDialog(
