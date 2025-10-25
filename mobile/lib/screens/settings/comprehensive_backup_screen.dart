@@ -1107,7 +1107,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       description = 'سيتم تنزيل النسخة من Google Drive واستعادة البيانات';
       location = 'Google Drive';
       createdTime = backup.createdTime;
-      recordsCount = (backup.metadata?['total_records'] as int?) ?? int.tryParse(backup.appProperties?['records_count'] ?? '0');
+      recordsCount = int.tryParse(backup.metadata?['records_count']?.toString() ?? '0');
     } else {
       final backup = ref.read(localBackupsProvider).firstWhere((b) => b.filePath == identifier);
       title = 'استعادة من النسخة المحلية';
