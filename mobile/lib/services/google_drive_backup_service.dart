@@ -5,8 +5,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:workmanager/workmanager.dart';
 import 'local_db.dart';
 import 'providers.dart';
@@ -16,25 +18,91 @@ class DriveBackupFile {
   final String fileName;
   final DateTime createdTime;
   final int? size;
-  final Map<String, dynamic>? metadata;
+  final Map<String, String>? appProperties;
+  final BackupFormat format;
+  final BackupMetadata? metadata;
 
   DriveBackupFile({
     required this.fileId,
     required this.fileName,
     required this.createdTime,
     this.size,
+    this.appProperties,
+    this.format = BackupFormat.json,
     this.metadata,
   });
 
   factory DriveBackupFile.fromDriveFile(drive.File file) {
+    final props = <String, String>{};
+    if (file.appProperties != null) {
+      props.addAll(file.appProperties!);
+    }
+
+    final rawFormat = props['format'];
+    final format = BackupFormat.values.firstWhere(
+      (f) => f.name == rawFormat,
+      orElse: () => file.name?.toLowerCase().endsWith('.sqlite') == true
+          ? BackupFormat.sqlite
+          : BackupFormat.json,
+    );
+
+    BackupMetadata? metadata;
+    try {
+      metadata = BackupMetadata(
+        appVersion: props['app_version'] ?? '',
+        databaseVersion: int.tryParse(props['database_version'] ?? '') ?? 1,
+        backupTimestamp: props.containsKey('backup_timestamp')
+            ? (DateTime.tryParse(props['backup_timestamp']!) ?? file.createdTime ?? DateTime.now())
+            : file.createdTime ?? DateTime.now(),
+        totalRecords: int.tryParse(props['records_count'] ?? '') ?? 0,
+        deviceInfo: props['device_info'] ?? 'Google Drive',
+        format: format,
+      );
+    } catch (_) {
+      metadata = null;
+    }
+
     return DriveBackupFile(
       fileId: file.id!,
-      fileName: file.name!,
-      createdTime: file.createdTime!,
-      size: file.size != null ? int.parse(file.size!) : null,
-      metadata: file.appProperties,
+      fileName: file.name ?? 'backup-${file.id}',
+      createdTime: file.createdTime ?? DateTime.now(),
+      size: file.size != null ? int.tryParse(file.size!) : null,
+      appProperties: props.isEmpty ? null : props,
+      format: format,
+      metadata: metadata,
     );
   }
+}
+
+class _DriveBackupPayload {
+  _DriveBackupPayload({
+    required this.metadata,
+    required this.fileName,
+    required this.length,
+    required this.stream,
+    this.tempFilePath,
+  });
+
+  final BackupMetadata metadata;
+  final String fileName;
+  final int length;
+  final Stream<List<int>> stream;
+  final String? tempFilePath;
+}
+
+class DownloadedBackup {
+  DownloadedBackup.json(this.data, this.metadata)
+      : format = BackupFormat.json,
+        filePath = null;
+
+  DownloadedBackup.sqlite(this.filePath, this.metadata)
+      : format = BackupFormat.sqlite,
+        data = null;
+
+  final BackupFormat format;
+  final Map<String, dynamic>? data;
+  final String? filePath;
+  final BackupMetadata metadata;
 }
 
 class BackupMetadata {
@@ -43,6 +111,7 @@ class BackupMetadata {
   final DateTime backupTimestamp;
   final int totalRecords;
   final String deviceInfo;
+  final BackupFormat format;
 
   BackupMetadata({
     required this.appVersion,
@@ -50,6 +119,7 @@ class BackupMetadata {
     required this.backupTimestamp,
     required this.totalRecords,
     required this.deviceInfo,
+    this.format = BackupFormat.json,
   });
 
   Map<String, dynamic> toJson() => {
@@ -58,15 +128,21 @@ class BackupMetadata {
     'backup_timestamp': backupTimestamp.toIso8601String(),
     'total_records': totalRecords,
     'device_info': deviceInfo,
+    'format': format.name,
   };
 
   factory BackupMetadata.fromJson(Map<String, dynamic> json) {
+    final rawFormat = json['format'] as String?;
     return BackupMetadata(
       appVersion: json['app_version'] ?? '',
       databaseVersion: json['database_version'] ?? 1,
       backupTimestamp: DateTime.parse(json['backup_timestamp']),
       totalRecords: json['total_records'] ?? 0,
       deviceInfo: json['device_info'] ?? '',
+      format: BackupFormat.values.firstWhere(
+        (f) => f.name == rawFormat,
+        orElse: () => BackupFormat.json,
+      ),
     );
   }
 }
@@ -213,10 +289,11 @@ class GoogleDriveBackupService {
       // إنشاء البيانات الوصفية
       final metadata = BackupMetadata(
         appVersion: '1.2.0+3',
-        databaseVersion: 3,
+        databaseVersion: db.schemaVersion,
         backupTimestamp: DateTime.now(),
         totalRecords: totalRecords,
-        deviceInfo: Platform.isAndroid ? 'Android' : 'iOS',
+        deviceInfo: Platform.isAndroid ? 'Android Drive' : 'iOS Drive',
+        format: BackupFormat.json,
       );
 
       final backupData = {
@@ -239,50 +316,131 @@ class GoogleDriveBackupService {
     }
   }
 
-  /// رفع النسخة الاحتياطية إلى Google Drive
-  Future<String> uploadBackup(Map<String, dynamic> backupData) async {
+  Future<Map<String, int>> _collectRecordCounts(AppDatabase db) async {
+    Future<int> count(String table) async {
+      final row = await db.customSelect('SELECT COUNT(*) AS count FROM $table').getSingle();
+      final value = row.data['count'];
+      if (value is int) {
+        return value;
+      }
+      if (value is num) {
+        return value.toInt();
+      }
+      return 0;
+    }
+
+    return {
+      'rooms': await count('rooms'),
+      'bookings': await count('bookings'),
+      'booking_notes': await count('booking_notes'),
+      'employees': await count('employees'),
+      'expenses': await count('expenses'),
+      'cash_transactions': await count('cash_transactions'),
+      'payments': await count('payments'),
+    };
+  }
+
+  Future<_DriveBackupPayload> _prepareBackupPayload(BackupFormat format) async {
+    final db = getDatabase();
+    final timestamp = DateTime.now();
+    final deviceLabel = Platform.isAndroid ? 'Android Drive' : 'iOS Drive';
+
+    if (format == BackupFormat.json) {
+      final backupData = await exportDatabaseToJson();
+      final metadata = BackupMetadata.fromJson(backupData['metadata']);
+      final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
+      final jsonBytes = utf8.encode(jsonString);
+      final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
+
+      return _DriveBackupPayload(
+        metadata: metadata,
+        fileName: fileName,
+        length: jsonBytes.length,
+        stream: Stream.value(jsonBytes),
+      );
+    }
+
+    if (format == BackupFormat.sqlite) {
+      final counts = await _collectRecordCounts(db);
+      final totalRecords = counts.values.fold<int>(0, (prev, element) => prev + element);
+      final metadata = BackupMetadata(
+        appVersion: '1.2.0+3',
+        databaseVersion: db.schemaVersion,
+        backupTimestamp: timestamp,
+        totalRecords: totalRecords,
+        deviceInfo: deviceLabel,
+        format: BackupFormat.sqlite,
+      );
+
+      final databasesPath = await getDatabasesPath();
+      final dbPath = p.join(databasesPath, 'marina_hotel.db');
+      final tempDir = await getTemporaryDirectory();
+      final tempPath = p.join(tempDir.path, 'drive_${timestamp.millisecondsSinceEpoch}.sqlite');
+
+      try {
+        await db.customSelect('PRAGMA wal_checkpoint(FULL)').get();
+      } catch (_) {}
+      try {
+        await db.customStatement('VACUUM');
+      } catch (_) {}
+
+      await File(dbPath).copy(tempPath);
+      final tempFile = File(tempPath);
+      final length = await tempFile.length();
+      final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.sqlite';
+
+      return _DriveBackupPayload(
+        metadata: metadata,
+        fileName: fileName,
+        length: length,
+        stream: tempFile.openRead(),
+        tempFilePath: tempPath,
+      );
+    }
+
+    throw UnsupportedError('تنسيق النسخة الاحتياطية غير مدعوم: ${format.name}');
+  }
+
+  Future<String> _uploadBackupPayload(_DriveBackupPayload payload) async {
+    final folderId = await getOrCreateBackupFolder();
+
+    final driveFile = drive.File()
+      ..name = payload.fileName
+      ..parents = [folderId]
+      ..appProperties = {
+        'app_name': 'MarinaHotel',
+        'backup_timestamp': payload.metadata.backupTimestamp.toIso8601String(),
+        'records_count': payload.metadata.totalRecords.toString(),
+        'app_version': payload.metadata.appVersion,
+        'database_version': payload.metadata.databaseVersion.toString(),
+        'device_info': payload.metadata.deviceInfo,
+        'format': payload.metadata.format.name,
+      };
+
+    final uploadedFile = await _driveApi!.files.create(
+      driveFile,
+      uploadMedia: drive.Media(payload.stream, payload.length),
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsLastBackupKey, payload.metadata.backupTimestamp.toIso8601String());
+
+    debugPrint('✅ تم رفع النسخة الاحتياطية: ${uploadedFile.id}');
+    return uploadedFile.id!;
+  }
+
+  Future<String> uploadBackupWithFormat(BackupFormat format) async {
     if (_driveApi == null) {
       throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
     }
 
+    final payload = await _prepareBackupPayload(format);
     try {
-      final folderId = await getOrCreateBackupFolder();
-      
-      // تحويل البيانات إلى JSON
-      final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
-      final jsonBytes = utf8.encode(jsonString);
-
-      // إنشاء اسم الملف
-      final timestamp = DateTime.now();
-      final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
-
-      // إنشاء ملف Drive
-      final driveFile = drive.File()
-        ..name = fileName
-        ..parents = [folderId]
-        ..appProperties = {
-          'app_name': 'MarinaHotel',
-          'backup_timestamp': timestamp.toIso8601String(),
-          'records_count': backupData['metadata']['total_records'].toString(),
-          'app_version': backupData['metadata']['app_version'],
-        };
-
-      // رفع الملف
-      final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
-      final uploadedFile = await _driveApi!.files.create(
-        driveFile,
-        uploadMedia: media,
-      );
-
-      // حفظ وقت آخر نسخة احتياطية
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
-
-      debugPrint('✅ تم رفع النسخة الاحتياطية: ${uploadedFile.id}');
-      return uploadedFile.id!;
-    } catch (e) {
-      debugPrint('❌ خطأ في رفع النسخة الاحتياطية: $e');
-      rethrow;
+      return await _uploadBackupPayload(payload);
+    } finally {
+      if (payload.tempFilePath != null) {
+        await File(payload.tempFilePath!).delete().catchError((_) {});
+      }
     }
   }
 
@@ -319,29 +477,59 @@ class GoogleDriveBackupService {
   }
 
   /// تنزيل النسخة الاحتياطية
-  Future<Map<String, dynamic>> downloadBackup(String fileId) async {
+  Future<DownloadedBackup> downloadBackup(DriveBackupFile file) async {
     if (_driveApi == null) {
       throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
     }
 
     try {
-      // تنزيل محتوى الملف
       final media = await _driveApi!.files.get(
-        fileId,
+        file.fileId,
         downloadOptions: drive.DownloadOptions.fullMedia,
       ) as drive.Media;
 
-      final List<int> dataStore = [];
-      await for (final data in media.stream) {
-        dataStore.addAll(data);
+      if (file.format == BackupFormat.json) {
+        final List<int> dataStore = [];
+        await for (final data in media.stream) {
+          dataStore.addAll(data);
+        }
+        final jsonString = utf8.decode(dataStore);
+        final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
+        final metadata = backupData.containsKey('metadata')
+            ? BackupMetadata.fromJson(backupData['metadata'])
+            : file.metadata ??
+                BackupMetadata(
+                  appVersion: 'unknown',
+                  databaseVersion: AppDatabase().schemaVersion,
+                  backupTimestamp: file.createdTime,
+                  totalRecords: int.tryParse(file.appProperties?['records_count'] ?? '0') ?? 0,
+                  deviceInfo: file.appProperties?['device_info'] ?? 'Google Drive',
+                  format: BackupFormat.json,
+                );
+        debugPrint('✅ تم تنزيل النسخة الاحتياطية (JSON): ${file.fileId}');
+        return DownloadedBackup.json(backupData, metadata);
       }
 
-      // تحويل البيانات إلى JSON
-      final jsonString = utf8.decode(dataStore);
-      final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
+      final tempDir = await getTemporaryDirectory();
+      final tempPath = p.join(tempDir.path, '${file.fileId}_${file.fileName}');
+      final outFile = File(tempPath);
+      final sink = outFile.openWrite();
+      await media.stream.pipe(sink);
+      await sink.flush();
+      await sink.close();
 
-      debugPrint('✅ تم تنزيل النسخة الاحتياطية: $fileId');
-      return backupData;
+      final metadata = file.metadata ??
+          BackupMetadata(
+            appVersion: file.appProperties?['app_version'] ?? 'unknown',
+            databaseVersion: int.tryParse(file.appProperties?['database_version'] ?? '') ?? 1,
+            backupTimestamp: file.createdTime,
+            totalRecords: int.tryParse(file.appProperties?['records_count'] ?? '0') ?? 0,
+            deviceInfo: file.appProperties?['device_info'] ?? 'Google Drive',
+            format: BackupFormat.sqlite,
+          );
+
+      debugPrint('✅ تم تنزيل النسخة الاحتياطية (SQLite): ${file.fileId}');
+      return DownloadedBackup.sqlite(tempPath, metadata);
     } catch (e) {
       debugPrint('❌ خطأ في تنزيل النسخة الاحتياطية: $e');
       rethrow;
@@ -361,7 +549,7 @@ class GoogleDriveBackupService {
       final metadata = BackupMetadata.fromJson(backupData['metadata']);
       
       // التحقق من توافق إصدار قاعدة البيانات
-      if (metadata.databaseVersion > 3) {
+      if (metadata.databaseVersion > db.schemaVersion) {
         throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
       }
 
@@ -514,18 +702,15 @@ class GoogleDriveBackupService {
   }
 
   /// تنفيذ النسخ التلقائي
-  Future<void> performAutoBackup() async {
+  Future<void> performAutoBackup({BackupFormat format = BackupFormat.json}) async {
     try {
       if (!isSignedIn) {
         debugPrint('⚠️ المستخدم غير مسجل دخول، تم تخطي النسخ التلقائي');
         return;
       }
 
-      debugPrint('🔄 بدء النسخ التلقائي...');
-      
-      final backupData = await exportDatabaseToJson();
-      final fileId = await uploadBackup(backupData);
-      
+      debugPrint('🔄 بدء النسخ التلقائي (${format.name})...');
+      final fileId = await uploadBackupWithFormat(format);
       debugPrint('✅ تم النسخ التلقائي بنجاح: $fileId');
     } catch (e) {
       debugPrint('❌ خطأ في النسخ التلقائي: $e');
