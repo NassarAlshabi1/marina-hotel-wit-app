@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
@@ -19,6 +20,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   final _guestNationality = TextEditingController(text: 'يمني');
   final _guestAddress = TextEditingController();
   final _guestIdNumber = TextEditingController();
+  final _idNumberFormatter = FilteringTextInputFormatter.allow(RegExp(r'[0-9]'));
   final _guestIdIssueDate = TextEditingController();
   final _guestIdIssuePlace = TextEditingController();
   final _roomNumber = TextEditingController();
@@ -31,7 +33,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   String _idType = 'بطاقة شخصية';
   bool _roomInitialized = false;
 
-  static const _idTypes = ['بطاقة شخصية', 'رخصة قيادة', 'جواز سفر'];
+  static const _idTypes = ['بطاقة شخصية', 'جواز سفر', 'رخصة قيادة', 'بطاقة عسكرية', 'استبيان', 'شهادة ميلاد'];
   static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
 
   @override
@@ -119,6 +121,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                       TextFormField(
                         controller: _guestIdNumber,
                         decoration: const InputDecoration(labelText: 'رقم الهوية'),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [_idNumberFormatter],
                       ),
                       const SizedBox(height: 12),
                       Row(

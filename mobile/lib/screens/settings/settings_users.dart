@@ -60,7 +60,7 @@ class SettingsUsersScreen extends ConsumerWidget {
               const Text('صلاحيات المستخدمين', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               const UserPermissionsCard(username: 'admin', displayName: 'المدير (admin)'),
-              const UserPermissionsCard(username: 'mohammed', displayName: 'محمد (mohammed)'),
+              const UserPermissionsCard(username: 'm', displayName: 'محمد (m)'),
               const UserPermissionsCard(username: 'ahmed', displayName: 'أحمد (ahmed)'),
             ],
           ],
