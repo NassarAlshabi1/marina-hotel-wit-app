@@ -1,8 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/backup_provider.dart';
+import '../../services/google_drive_backup_service.dart';
 import '../../utils/theme.dart';
 
 class GoogleDriveBackupScreen extends ConsumerStatefulWidget {
@@ -601,7 +604,7 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
       initialTime: currentTime,
       builder: (context, child) {
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: ui.TextDirection.rtl,
           child: child!,
         );
       },
