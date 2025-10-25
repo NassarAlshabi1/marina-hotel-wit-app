@@ -467,6 +467,27 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<BackupFormat>(
+                value: state.autoSettings.backupFormat,
+                decoration: const InputDecoration(
+                  labelText: 'تنسيق النسخ الاحتياطي',
+                  border: OutlineInputBorder(),
+                ),
+                items: BackupFormat.values
+                    .map(
+                      (format) => DropdownMenuItem(
+                        value: format,
+                        child: Text(format == BackupFormat.sqlite ? 'SQLite' : 'JSON'),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    _updateBackupFormat(value);
+                  }
+                },
+              ),
             ],
           ],
         ),
@@ -758,12 +779,19 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               'حفظ نسخة احتياطية في ذاكرة الجهاز',
               style: TextStyle(color: Colors.grey),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'التنسيق الحالي: ${state.autoSettings.backupFormat == BackupFormat.sqlite ? 'SQLite' : 'JSON'}',
+              style: const TextStyle(color: Colors.grey),
+            ),
             const SizedBox(height: 16),
 
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).createLocalBackup(),
+                onPressed: state.isWorking
+                    ? null
+                    : () => ref.read(backupStatusProvider.notifier).createLocalBackup(),
                 icon: const Icon(Icons.save),
                 label: const Text('حفظ محلياً'),
                 style: ElevatedButton.styleFrom(
@@ -937,6 +965,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     final sizeInMB = backup.size != null 
         ? (backup.size! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
+    final recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '') ?? 0;
+    final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
+    final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     return ListTile(
       leading: const Icon(Icons.cloud, color: Colors.blue),
@@ -945,7 +976,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
       subtitle: Text(
-        'حجم: $sizeInMB ميجابايت\nسجلات: ${backup.metadata?['records_count'] ?? '---'}',
+        'حجم: $sizeInMB ميجابايت\nالسجلات: $recordsLabel\nالتنسيق: $formatLabel',
       ),
       trailing: IconButton(
         onPressed: isWorking ? null : () => _showRestoreConfirmation(backup.fileId, BackupType.googleDrive),
@@ -959,6 +990,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
   Widget _buildLocalBackupItem(LocalBackupFile backup, bool isWorking) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
     final sizeInMB = (backup.sizeBytes / (1024 * 1024)).toStringAsFixed(2);
+    final localRecords = backup.metadata?.totalRecords;
+    final recordsLabel = localRecords != null && localRecords > 0 ? localRecords.toString() : '---';
+    final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     return ListTile(
       leading: const Icon(Icons.phone_android, color: Colors.orange),
@@ -967,7 +1001,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
       subtitle: Text(
-        'حجم: $sizeInMB ميجابايت\nسجلات: ${backup.metadata?.totalRecords ?? '---'}',
+        'حجم: $sizeInMB ميجابايت\nالسجلات: $recordsLabel\nالتنسيق: $formatLabel',
       ),
       trailing: PopupMenuButton<String>(
         enabled: !isWorking,
@@ -1073,7 +1107,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       description = 'سيتم تنزيل النسخة من Google Drive واستعادة البيانات';
       location = 'Google Drive';
       createdTime = backup.createdTime;
-      recordsCount = int.tryParse(backup.metadata?['records_count'] ?? '0');
+      recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '0');
     } else {
       final backup = ref.read(localBackupsProvider).firstWhere((b) => b.filePath == identifier);
       title = 'استعادة من النسخة المحلية';
@@ -1143,6 +1177,13 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     final currentSettings = ref.read(backupStatusProvider).autoSettings;
     ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
       currentSettings.copyWith(isEnabled: enabled),
+    );
+  }
+
+  void _updateBackupFormat(BackupFormat format) {
+    final currentSettings = ref.read(backupStatusProvider).autoSettings;
+    ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
+      currentSettings.copyWith(backupFormat: format),
     );
   }
 

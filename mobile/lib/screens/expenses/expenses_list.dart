@@ -1,141 +1,244 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:drift/drift.dart' as d;
+
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
-import 'package:uuid/uuid.dart';
 
-class ExpensesListScreen extends ConsumerWidget {
+class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ExpensesListScreen> createState() => _ExpensesListScreenState();
+}
+
+class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
+  int? _selectedEmployeeId;
+
+  @override
+  Widget build(BuildContext context) {
     final repo = ref.watch(expensesRepoProvider);
+    final employeesAsync = ref.watch(employeesListProvider);
+
     return AppScaffold(
       title: 'المصروفات',
       actions: [
-        IconButton(onPressed: () => ref.read(syncServiceProvider).runSync(), icon: const Icon(Icons.sync)),
-        IconButton(onPressed: () => _edit(context, ref), icon: const Icon(Icons.add)),
+        IconButton(
+          onPressed: () => ref.read(syncServiceProvider).runSync(),
+          icon: const Icon(Icons.sync),
+        ),
+        IconButton(
+          onPressed: () => _edit(employees: employeesAsync.value),
+          icon: const Icon(Icons.add),
+        ),
       ],
-      body: StreamBuilder(
-        stream: repo.watchAll(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          final list = snapshot.data!;
-          return ListView.builder(
-            itemCount: list.length,
-            itemBuilder: (c, i) {
-              final e = list[i];
-              return ListTile(
-                title: Text(e.description),
-                subtitle: Text('${e.expenseType} • ${e.date}'),
-                trailing: Text(e.amount.toStringAsFixed(2)),
-                onTap: () => _edit(context, ref, existing: e),
-              );
-            },
+      body: employeesAsync.when(
+        data: (employees) {
+          final employeeNames = {for (final emp in employees) emp.id: emp.name};
+          return Column(
+            children: [
+              _buildEmployeeFilter(employees),
+              Expanded(
+                child: StreamBuilder<List<Expense>>(
+                  stream: repo.watchAll(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return const Center(child: Text('حدث خطأ أثناء تحميل المصروفات.'));
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    var expenses = snapshot.data!;
+                    if (_selectedEmployeeId != null) {
+                      expenses = expenses.where((expense) => expense.relatedId == _selectedEmployeeId).toList();
+                    }
+                    if (expenses.isEmpty) {
+                      return const Center(child: Text('لا توجد مصروفات مطابقة للعرض.'));
+                    }
+                    return ListView.builder(
+                      itemCount: expenses.length,
+                      itemBuilder: (context, index) {
+                        final expense = expenses[index];
+                        final employeeName = expense.relatedId != null ? employeeNames[expense.relatedId] : null;
+                        return ListTile(
+                          title: Text(expense.description),
+                          subtitle: Text('${expense.expenseType} • ${employeeName ?? 'بدون موظف'} • ${Time.safeIsoToDateString(expense.date)}'),
+                          trailing: Text('${expense.amount.toStringAsFixed(2)} ر.س'),
+                          onTap: () => _edit(existing: expense, employees: employees),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(child: Text('تعذر تحميل الموظفين: $error')),
       ),
     );
   }
 
-  Future<void> _edit(BuildContext context, WidgetRef ref, {Expense? existing}) async {
+  Widget _buildEmployeeFilter(List<Employee> employees) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<int?>(
+              value: _selectedEmployeeId,
+              decoration: const InputDecoration(
+                labelText: 'تصفية حسب الموظف',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                const DropdownMenuItem<int?>(value: null, child: Text('جميع الموظفين')),
+                ...employees.map(
+                  (employee) => DropdownMenuItem<int?>(
+                    value: employee.id,
+                    child: Text(employee.name),
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedEmployeeId = value;
+                });
+              },
+            ),
+          ),
+          if (_selectedEmployeeId != null) ...[
+            const SizedBox(width: 12),
+            OutlinedButton(
+              onPressed: () {
+                setState(() {
+                  _selectedEmployeeId = null;
+                });
+              },
+              child: const Text('إزالة التصفية'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
     final description = TextEditingController(text: existing?.description ?? '');
     final amount = TextEditingController(text: existing?.amount.toString() ?? '');
     final expenseType = TextEditingController(text: existing?.expenseType ?? 'other');
     final date = TextEditingController(text: existing?.date ?? Time.nowDateString());
+
+    final employeesList = employees ?? await ref.read(employeesRepoProvider).watchAll().first;
+    int? selectedEmployeeId = existing?.relatedId;
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: StatefulBuilder(
-          builder: (ctx, setState) {
-            final dropdownTextStyle = Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontSize: 14);
-            return AlertDialog(
-              title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: description,
-                      decoration: const InputDecoration(labelText: 'الوصف'),
+          builder: (dialogContext, setDialogState) => AlertDialog(
+            title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: description,
+                    decoration: const InputDecoration(labelText: 'الوصف'),
+                  ),
+                  TextField(
+                    controller: amount,
+                    decoration: const InputDecoration(labelText: 'المبلغ'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextField(
+                    controller: expenseType,
+                    decoration: const InputDecoration(labelText: 'النوع'),
+                  ),
+                  TextField(
+                    controller: date,
+                    decoration: const InputDecoration(labelText: 'التاريخ YYYY-MM-DD'),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int?>(
+                    value: selectedEmployeeId,
+                    decoration: const InputDecoration(
+                      labelText: 'الموظف',
+                      border: OutlineInputBorder(),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: amount,
-                      decoration: const InputDecoration(labelText: 'المبلغ'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: selectedType,
-                      decoration: const InputDecoration(labelText: 'نوع المصروف'),
-                      style: dropdownTextStyle,
-                      items: availableTypes
-                          .map((type) => DropdownMenuItem<String>(
-                                value: type,
-                                child: Text(type, style: dropdownTextStyle),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() {
-                          selectedType = value;
-                          if (selectedType == _salaryType) {
-                            if (employees.isNotEmpty) {
-                              selectedEmployeeId ??= employees.first.id;
-                            }
-                          } else {
-                            selectedEmployeeId = null;
-                          }
-                        });
-                      },
-                    ),
-                    if (selectedType == _salaryType) ...[
-                      const SizedBox(height: 12),
-                      if (employees.isEmpty)
-                        const Text('لا يوجد موظفين مسجلين حالياً.'),
-                      if (employees.isNotEmpty)
-                        DropdownButtonFormField<int>(
-                          value: selectedEmployeeId,
-                          decoration: const InputDecoration(labelText: 'الموظف'),
-                          items: employees
-                              .map((employee) => DropdownMenuItem<int>(
-                                    value: employee.id,
-                                    child: Text(employee.name),
-                                  ))
-                              .toList(),
-                          onChanged: (value) => setState(() => selectedEmployeeId = value),
+                    items: [
+                      const DropdownMenuItem<int?>(value: null, child: Text('بدون موظف')),
+                      ...employeesList.map(
+                        (employee) => DropdownMenuItem<int?>(
+                          value: employee.id,
+                          child: Text(employee.name),
                         ),
+                      ),
                     ],
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: date,
-                      decoration: const InputDecoration(labelText: 'التاريخ YYYY-MM-DD'),
-                    ),
-                  ],
-                ),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedEmployeeId = value;
+                      });
+                    },
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-                FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حفظ')),
-              ],
-            );
-          },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('إلغاء'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('حفظ'),
+              ),
+            ],
+          ),
         ),
       ),
     );
-    if (ok != true) return;
+
+    if (ok != true) {
+      description.dispose();
+      amount.dispose();
+      expenseType.dispose();
+      date.dispose();
+      return;
+    }
 
     final repo = ref.read(expensesRepoProvider);
+    final parsedAmount = double.tryParse(amount.text.trim()) ?? 0;
+    final trimmedDescription = description.text.trim();
+    final trimmedType = expenseType.text.trim();
+    final trimmedDate = date.text.trim();
+
     if (existing == null) {
-      await repo.create(expenseType: expenseType.text.trim(), description: description.text.trim(), amount: double.tryParse(amount.text) ?? 0, date: date.text.trim());
+      await repo.create(
+        expenseType: trimmedType,
+        relatedId: selectedEmployeeId,
+        description: trimmedDescription,
+        amount: parsedAmount,
+        date: trimmedDate,
+      );
     } else {
-      await repo.update(existing.id, expenseType: expenseType.text.trim(), description: description.text.trim(), amount: double.tryParse(amount.text) ?? 0, date: date.text.trim());
+      await repo.update(
+        existing.id,
+        expenseType: trimmedType,
+        relatedId: selectedEmployeeId,
+        description: trimmedDescription,
+        amount: parsedAmount,
+        date: trimmedDate,
+      );
     }
+
+    description.dispose();
+    amount.dispose();
+    expenseType.dispose();
+    date.dispose();
   }
 }
