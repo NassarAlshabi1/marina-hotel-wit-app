@@ -140,65 +140,80 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: StatefulBuilder(
-          builder: (dialogContext, setDialogState) => AlertDialog(
-            title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: description,
-                    decoration: const InputDecoration(labelText: 'الوصف'),
-                  ),
-                  TextField(
-                    controller: amount,
-                    decoration: const InputDecoration(labelText: 'المبلغ'),
-                    keyboardType: TextInputType.number,
-                  ),
-                  TextField(
-                    controller: expenseType,
-                    decoration: const InputDecoration(labelText: 'النوع'),
-                  ),
-                  TextField(
-                    controller: date,
-                    decoration: const InputDecoration(labelText: 'التاريخ YYYY-MM-DD'),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<int?>(
-                    value: selectedEmployeeId,
-                    decoration: const InputDecoration(
-                      labelText: 'الموظف',
-                      border: OutlineInputBorder(),
+          builder: (ctx, setState) {
+            final dropdownTextStyle = Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontSize: 14);
+            return AlertDialog(
+              title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: description,
+                      decoration: const InputDecoration(labelText: 'الوصف'),
                     ),
-                    items: [
-                      const DropdownMenuItem<int?>(value: null, child: Text('بدون موظف')),
-                      ...employeesList.map(
-                        (employee) => DropdownMenuItem<int?>(
-                          value: employee.id,
-                          child: Text(employee.name),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: amount,
+                      decoration: const InputDecoration(labelText: 'المبلغ'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedType,
+                      decoration: const InputDecoration(labelText: 'نوع المصروف'),
+                      style: dropdownTextStyle,
+                      items: availableTypes
+                          .map((type) => DropdownMenuItem<String>(
+                                value: type,
+                                child: Text(type, style: dropdownTextStyle),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() {
+                          selectedType = value;
+                          if (selectedType == _salaryType) {
+                            if (employees.isNotEmpty) {
+                              selectedEmployeeId ??= employees.first.id;
+                            }
+                          } else {
+                            selectedEmployeeId = null;
+                          }
+                        });
+                      },
+                    ),
+                    if (selectedType == _salaryType) ...[
+                      const SizedBox(height: 12),
+                      if (employees.isEmpty)
+                        const Text('لا يوجد موظفين مسجلين حالياً.'),
+                      if (employees.isNotEmpty)
+                        DropdownButtonFormField<int>(
+                          value: selectedEmployeeId,
+                          decoration: const InputDecoration(labelText: 'الموظف'),
+                          items: employees
+                              .map((employee) => DropdownMenuItem<int>(
+                                    value: employee.id,
+                                    child: Text(employee.name),
+                                  ))
+                              .toList(),
+                          onChanged: (value) => setState(() => selectedEmployeeId = value),
                         ),
-                      ),
                     ],
-                    onChanged: (value) {
-                      setDialogState(() {
-                        selectedEmployeeId = value;
-                      });
-                    },
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: date,
+                      decoration: const InputDecoration(labelText: 'التاريخ YYYY-MM-DD'),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('إلغاء'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('حفظ'),
-              ),
-            ],
-          ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حفظ')),
+              ],
+            );
+          },
         ),
       ),
     );

@@ -176,7 +176,6 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final time = await _backupService.getAutoBackupTime();
       final enableLocal = await _localBackupService.isAutoLocalBackupEnabled();
       final localFreq = await _localBackupService.getAutoLocalBackupFrequency();
-      final preferredFormat = await _localBackupService.getPreferredBackupFormat();
 
       final isAutoEnabled = autoEnabled || enableLocal;
       final resolvedFrequency = autoEnabled ? frequency : localFreq;
@@ -217,7 +216,6 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           enableLocalBackup: enableLocal,
           enableGoogleDriveBackup: autoEnabled,
           backupType: resolvedBackupType,
-          backupFormat: preferredFormat,
         ),
       );
     } catch (e) {
@@ -428,7 +426,6 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       await _localBackupService.setAutoLocalBackupEnabled(enableLocal);
       await _localBackupService.setAutoLocalBackupFrequency(settings.frequency);
-      await _localBackupService.setPreferredBackupFormat(settings.backupFormat);
 
       if (shouldScheduleTask) {
         switch (settings.frequency) {
