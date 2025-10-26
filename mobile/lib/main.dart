@@ -122,11 +122,40 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ? (_routes[_currentRoute] ?? const DashboardScreen())
         : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
 
+    final actions = _buildGlobalActions(context);
+
     return AdminLayout(
       currentRoute: _currentRoute,
       body: body,
+      actions: actions,
       onRouteSelected: _navigateToRoute,
     );
+  }
+  
+  List<Widget> _buildGlobalActions(BuildContext context) {
+    final notesAsync = ref.watch(activeNotesProvider);
+    final hasUnread = notesAsync.maybeWhen(data: (notes) => notes.isNotEmpty, orElse: () => false);
+
+    return [
+      IconButton(
+        onPressed: () {
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotesScreen()));
+        },
+        tooltip: 'التنبيهات',
+        icon: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(hasUnread ? Icons.notifications_active : Icons.notifications_none),
+            if (hasUnread)
+              const Positioned(
+                right: -2,
+                top: -2,
+                child: CircleAvatar(radius: 4, backgroundColor: Colors.red),
+              ),
+          ],
+        ),
+      ),
+    ];
   }
   
   void _navigateToRoute(String route) {
