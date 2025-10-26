@@ -76,10 +76,10 @@ jobs:
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
 
-      - name: Clean signing files
-        # Use always() to ensure sensitive files are removed even if the build fails
-        if: ${{ always() }}
-        run: |
-          echo "Cleaning up sensitive signing files..."
-          rm -f android/app/release.keystore
-          rm -f android/key.properties
+      # Signing files preserved for debugging/reuse
+      # - name: Clean signing files
+      #   if: ${{ always() }}
+      #   run: |
+      #     echo "Cleaning up sensitive signing files..."
+      #     rm -f android/app/release.keystore
+      #     rm -f android/key.properties
