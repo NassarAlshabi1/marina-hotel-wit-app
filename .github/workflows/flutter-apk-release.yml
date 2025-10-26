@@ -44,12 +44,12 @@ jobs:
 
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
 
-          cat <<EOF > android/key.properties
-storeFile=app/release.keystore
-storePassword=$KEYSTORE_PASSWORD
-keyAlias=$KEY_ALIAS
-keyPassword=$KEY_PASSWORD
-EOF
+          {
+            echo "storeFile=app/release.keystore"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
 
       - name: Clean build artifacts
         run: flutter clean
