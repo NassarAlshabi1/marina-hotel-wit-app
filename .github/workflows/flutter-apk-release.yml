@@ -37,23 +37,14 @@ jobs:
           channel: stable
           cache: false
 
-      - name: Configure Android Signing Files
-        # We use secrets directly in the 'run' command to avoid security checks
-        # that lead to false negatives (where the secrets are present but appear empty).
+      - name: Verify Android Signing Files
+        # Local keystore and key.properties are committed to repo
+        # No secrets or base64 decoding needed
         run: |
-          # 1. Decode the Base64 keystore file and save it to the Android project path
-          printf "%s" "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
-          
-          # 2. Create the key.properties file with signing credentials
-          # This file is used by the build.gradle to access the signing details.
-          {
-            echo "storeFile=release.keystore"
-            echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
-            echo "keyAlias=${{ secrets.KEY_ALIAS }}"
-            echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
-          } > android/key.properties
-          
-          echo "Signing files created successfully and securely."
+          echo "Verifying local signing files..."
+          ls -la android/app/release.keystore
+          ls -la android/key.properties
+          echo "Local signing files verified successfully."
 
       - name: Clean build artifacts
         run: flutter clean
