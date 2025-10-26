@@ -42,7 +42,7 @@ jobs:
         # that lead to false negatives (where the secrets are present but appear empty).
         run: |
           # 1. Decode the Base64 keystore file and save it to the Android project path
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+          printf "%s" "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
           
           # 2. Create the key.properties file with signing credentials
           # This file is used by the build.gradle to access the signing details.
