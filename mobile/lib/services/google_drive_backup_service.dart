@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
-import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -91,10 +90,30 @@ class BackupMetadata {
   }
 }
 
+class GoogleAuthClient extends http.BaseClient {
+  final Map<String, String> _headers;
+  final http.Client _client;
+
+  GoogleAuthClient(this._headers) : _client = http.Client();
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    request.headers.addAll(_headers);
+    return _client.send(request);
+  }
+
+  @override
+  void close() {
+    _client.close();
+    super.close();
+  }
+}
+
 class GoogleDriveBackupService {
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
   static const List<String> _scopes = [drive.DriveApi.driveFileScope];
+  static const String _serverClientId = '256666337807-8k16mnnbn1j87oaetmpsq5f9rlbolkid.apps.googleusercontent.com';
   static const String _prefsLastBackupKey = 'last_backup_timestamp';
   static const String _prefsAutoBackupKey = 'auto_backup_enabled';
   static const String _prefsAutoBackupFrequencyKey = 'auto_backup_frequency';
@@ -111,7 +130,8 @@ class GoogleDriveBackupService {
   void _initializeGoogleSignIn() {
     _googleSignIn = GoogleSignIn(
       scopes: _scopes,
-      serverClientId: null,
+      serverClientId: _serverClientId,
+      forceCodeForRefreshToken: true,
     );
   }
 
@@ -128,14 +148,8 @@ class GoogleDriveBackupService {
       }
 
       if (account != null) {
-        final authentication = await account.authentication;
-        final credentials = AccessCredentials(
-          AccessToken('Bearer', authentication.accessToken!, DateTime.now().add(const Duration(hours: 1))),
-          authentication.idToken,
-          _scopes,
-        );
-
-        final client = authenticatedClient(http.Client(), credentials);
+        final headers = await account.authHeaders;
+        final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
 
         debugPrint('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
