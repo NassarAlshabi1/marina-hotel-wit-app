@@ -30,6 +30,27 @@ jobs:
           channel: stable
           cache: false
 
+      - name: Configure Android signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [[ -z "$KEYSTORE_BASE64" || -z "$KEYSTORE_PASSWORD" || -z "$KEY_ALIAS" || -z "$KEY_PASSWORD" ]]; then
+            echo "Android signing secrets are missing. Please set KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, and KEY_PASSWORD." >&2
+            exit 1
+          fi
+
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+
+          cat <<EOF > android/key.properties
+storeFile=app/release.keystore
+storePassword=$KEYSTORE_PASSWORD
+keyAlias=$KEY_ALIAS
+keyPassword=$KEY_PASSWORD
+EOF
+
       - name: Clean build artifacts
         run: flutter clean
 
@@ -48,3 +69,9 @@ jobs:
           name: 'marina-hotel-release-${{ github.run_number }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+
+      - name: Clean signing files
+        if: ${{ success() }}
+        run: |
+          rm -f android/app/release.keystore
+          rm -f android/key.properties
