@@ -1,3 +1,7 @@
+# Name: Build Flutter Release APK
+#
+# This workflow is triggered on pull requests affecting files in the 'mobile/' directory,
+# or manually via the 'workflow_dispatch' event.
 name: Build Flutter Release APK
 
 on:
@@ -5,13 +9,16 @@ on:
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-apk-release.yml'
+  # Allows manual triggering of the workflow from the GitHub Actions tab
   workflow_dispatch:
 
 jobs:
   build-release-apk:
+    # Runs the job on the latest Ubuntu runner
     runs-on: ubuntu-latest
     defaults:
       run:
+        # All commands will execute from the 'mobile' directory
         working-directory: mobile
 
     steps:
@@ -30,16 +37,36 @@ jobs:
           channel: stable
           cache: false
 
+      - name: Configure Android Signing Files
+        # We use secrets directly in the 'run' command to avoid security checks
+        # that lead to false negatives (where the secrets are present but appear empty).
+        run: |
+          # 1. Decode the Base64 keystore file and save it to the Android project path
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+          
+          # 2. Create the key.properties file with signing credentials
+          # This file is used by the build.gradle to access the signing details.
+          {
+            echo "storeFile=release.keystore"
+            echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
+            echo "keyAlias=${{ secrets.KEY_ALIAS }}"
+            echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
+          } > android/key.properties
+          
+          echo "Signing files created successfully and securely."
+
       - name: Clean build artifacts
         run: flutter clean
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Generate code
+      - name: Generate code (e.g., using Freezed, json_serializable)
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Build release APK
+        # The signing process is now automatically handled by Gradle/Flutter using the
+        # key.properties file created in the previous step.
         run: flutter build apk --release
 
       - name: Upload release artifact
@@ -48,3 +75,11 @@ jobs:
           name: 'marina-hotel-release-${{ github.run_number }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+
+      - name: Clean signing files
+        # Use always() to ensure sensitive files are removed even if the build fails
+        if: ${{ always() }}
+        run: |
+          echo "Cleaning up sensitive signing files..."
+          rm -f android/app/release.keystore
+          rm -f android/key.properties
