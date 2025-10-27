@@ -12,13 +12,6 @@ import 'providers.dart';
 import 'sync_performance_optimizer.dart';
 import 'data_usage_manager.dart';
 
-/// استراتيجيات حل التضارب
-enum ConflictResolution {
-  newerWins, // الأحدث يفوز (افتراضي)
-  manualResolve, // طلب تدخل المستخدم
-  devicePriority, // أولوية لجهاز معين
-}
-
 /// مدير المزامنة التلقائية الذكي بين الأجهزة المتعددة
 class SmartSyncManager {
   static SmartSyncManager? _instance;
@@ -43,6 +36,13 @@ class SmartSyncManager {
   static const int _defaultSyncIntervalMinutes = 5;
   static const int _periodicFullSyncHours = 24;
   
+  /// استراتيجيات حل التضارب
+  enum ConflictResolution {
+    newerWins, // الأحدث يفوز (افتراضي)
+    manualResolve, // طلب تدخل المستخدم
+    devicePriority, // أولوية لجهاز معين
+  }
+
   /// تهيئة مدير المزامنة
   Future<void> initialize(GoogleDriveBackupService backupService) async {
     _backupService = backupService;
