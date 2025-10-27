@@ -25,14 +25,14 @@ class AdminSidebar extends ConsumerWidget {
 
     return Container(
       width: 280,
-      color: AppColors.primaryColor,
+      color: const Color(0xFF6c4a86),
       child: Column(
         children: [
           // Sidebar Header - matching PHP design
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.primaryColor.withOpacity(0.1),
+              color: const Color(0xFF6c4a86).withOpacity(0.1),
               border: Border(
                 bottom: BorderSide(
                   color: Colors.white.withOpacity(0.2),

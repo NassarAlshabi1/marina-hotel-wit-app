@@ -268,7 +268,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                           decoration: const InputDecoration(
                             labelText: 'مبلغ الدفعة المقدمة *',
                             helperText: 'أدخل المبلغ المستلم من النزيل',
-                            prefixText: 'ريال ',
+                            prefixText: 'ريال يمني ',
                           ),
                           validator: _hasAdvancePayment ? (v) {
                             if (v == null || v.trim().isEmpty) return 'مطلوب عند تحديد دفعة مقدمة';
@@ -612,7 +612,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
           }
         }
         
-        final message = 'عزيزي ${_guestName.text.trim()}، تم استلام دفعة بقيمة: ${formatAmount(amount)} ريال\n'
+        final message = 'عزيزي ${_guestName.text.trim()}، تم استلام دفعة بقيمة: ${formatAmount(amount)} ريال يمني\n'
             'رقم الغرفة: $roomNumber\n'
             'تم تسجيل حجزكم بنجاح\n'
             'شكراً لاختيارك فندق مارينا\n'
@@ -627,7 +627,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم حفظ الحجز وتسجيل دفعة مقدمة بقيمة ${formatAmount(amount)} ريال'),
+            content: Text('تم حفظ الحجز وتسجيل دفعة مقدمة بقيمة ${formatAmount(amount)} ريال يمني'),
             backgroundColor: Colors.green,
           ),
         );

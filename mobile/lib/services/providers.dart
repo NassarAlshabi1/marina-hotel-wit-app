@@ -10,6 +10,7 @@ import 'repositories/debts_repository.dart';
 import 'repositories/notes_repository.dart';
 import 'whatsapp_service.dart';
 import '../utils/status_utils.dart';
+import '../utils/time.dart';
 
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
@@ -52,3 +53,46 @@ final debtsListProvider = StreamProvider.autoDispose((ref) => ref.watch(debtsRep
 
 // دالة للحصول على Database instance (singleton)
 AppDatabase getDatabase() => DatabaseManager.instance;
+
+// Providers للمدفوعات والمصروفات اليومية
+final dailyPaymentsProvider = FutureProvider.autoDispose<double>((ref) async {
+  final paymentsRepo = ref.watch(paymentsRepoProvider);
+  final now = DateTime.now();
+  final startOfDay = DateTime(now.year, now.month, now.day); // الساعة 00:00:00
+  final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59); // الساعة 23:59:59
+  
+  final allPayments = await paymentsRepo.watchAll().first;
+  
+  double totalPayments = 0.0;
+  for (final payment in allPayments) {
+    final paymentDate = DateTime.tryParse(payment.paymentDate);
+    if (paymentDate != null && 
+        paymentDate.isAfter(startOfDay) && 
+        paymentDate.isBefore(endOfDay)) {
+      totalPayments += payment.amount;
+    }
+  }
+  
+  return totalPayments;
+});
+
+final dailyExpensesProvider = FutureProvider.autoDispose<double>((ref) async {
+  final expensesRepo = ref.watch(expensesRepoProvider);
+  final now = DateTime.now();
+  final startOfDay = DateTime(now.year, now.month, now.day, 1); // الساعة 1:00 صباحاً
+  final endOfDay = DateTime(now.year, now.month, now.day, 12); // الساعة 12:00 ظهراً
+  
+  final allExpenses = await expensesRepo.watchAll().first;
+  
+  double totalExpenses = 0.0;
+  for (final expense in allExpenses) {
+    final expenseDate = DateTime.tryParse(expense.date);
+    if (expenseDate != null && 
+        expenseDate.isAfter(startOfDay) && 
+        expenseDate.isBefore(endOfDay)) {
+      totalExpenses += expense.amount;
+    }
+  }
+  
+  return totalExpenses;
+});
