@@ -28,7 +28,6 @@ class EnhancedPaymentsReport {
 
   Future<void> generatePDF() async {
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final logo = await EnhancedPdfUtils.loadLogoImage();
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -39,7 +38,7 @@ class EnhancedPaymentsReport {
           base: fonts.regular,
           bold: fonts.bold,
         ),
-        header: (context) => _buildReportHeader(fonts, logo),
+        header: (context) => _buildReportHeader(fonts),
         footer: (context) => _buildReportFooter(context, fonts),
         build: (context) => _buildReportContent(fonts),
       ),
@@ -51,14 +50,12 @@ class EnhancedPaymentsReport {
     );
   }
 
-  pw.Widget _buildReportHeader(ArabicPdfFonts fonts, pw.ImageProvider? logo) {
+  pw.Widget _buildReportHeader(ArabicPdfFonts fonts) {
     return pw.Column(
       children: [
-        EnhancedPdfUtils.buildProfessionalHeader(
+        EnhancedPdfUtils.buildSimpleHeader(
           fonts: fonts,
-          logo: logo,
           title: 'تقرير المدفوعات',
-          subtitle: 'Payments Report',
         ),
         pw.SizedBox(height: 20),
       ],
@@ -141,7 +138,7 @@ class EnhancedPaymentsReport {
           child: EnhancedPdfUtils.buildStatisticsBox(
             title: 'إجمالي المدفوعات',
             value: EnhancedPdfUtils.formatNumber(totalAmount),
-            subtitle: 'ريال سعودي',
+            subtitle: 'ريال يمني',
             fonts: fonts,
             color: PdfColors.success,
             icon: '💰',
@@ -357,7 +354,6 @@ class EnhancedExpensesReport {
 
   Future<void> generatePDF() async {
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final logo = await EnhancedPdfUtils.loadLogoImage();
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -368,11 +364,9 @@ class EnhancedExpensesReport {
           base: fonts.regular,
           bold: fonts.bold,
         ),
-        header: (context) => EnhancedPdfUtils.buildProfessionalHeader(
+        header: (context) => EnhancedPdfUtils.buildSimpleHeader(
           fonts: fonts,
-          logo: logo,
           title: 'تقرير المصروفات',
-          subtitle: 'Expenses Report',
         ),
         footer: (context) => _buildReportFooter(context, fonts),
         build: (context) => _buildExpensesContent(fonts),
@@ -440,7 +434,7 @@ class EnhancedExpensesReport {
           child: EnhancedPdfUtils.buildStatisticsBox(
             title: 'إجمالي المصروفات',
             value: EnhancedPdfUtils.formatNumber(totalAmount),
-            subtitle: 'ريال سعودي',
+            subtitle: 'ريال يمني',
             fonts: fonts,
             color: PdfColors.danger,
             icon: '💸',

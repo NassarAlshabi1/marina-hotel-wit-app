@@ -35,7 +35,6 @@ class EnhancedPaymentReceipt {
   /// إنشاء PDF احترافي للإيصال
   Future<void> generatePDF() async {
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final logo = await EnhancedPdfUtils.loadLogoImage();
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -46,22 +45,20 @@ class EnhancedPaymentReceipt {
           base: fonts.regular,
           bold: fonts.bold,
         ),
-        build: (context) => _buildReceiptContent(fonts, logo),
+        build: (context) => _buildReceiptContent(fonts),
       ),
     );
 
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
 
-  pw.Widget _buildReceiptContent(ArabicPdfFonts fonts, pw.ImageProvider? logo) {
+  pw.Widget _buildReceiptContent(ArabicPdfFonts fonts) {
     return pw.Column(
       children: [
-        // رأس الصفحة الاحترافي
-        EnhancedPdfUtils.buildProfessionalHeader(
+        // رأس الصفحة المبسط
+        EnhancedPdfUtils.buildSimpleHeader(
           fonts: fonts,
-          logo: logo,
-          title: 'إيصال دفع',
-          subtitle: 'Receipt #$receiptNumber',
+          title: 'إيصال دفع #$receiptNumber',
         ),
 
         pw.SizedBox(height: 30),
@@ -123,7 +120,7 @@ class EnhancedPaymentReceipt {
               child: EnhancedPdfUtils.buildStatisticsBox(
                 title: 'المبلغ المدفوع',
                 value: EnhancedPdfUtils.formatCurrency(payment.amount),
-                subtitle: 'ريال سعودي',
+                subtitle: 'ريال يمني',
                 fonts: fonts,
                 color: PdfColors.success,
                 icon: '💵',
@@ -401,7 +398,6 @@ class EnhancedInvoice {
   /// إنشاء PDF احترافي للفاتورة
   Future<void> generatePDF() async {
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final logo = await EnhancedPdfUtils.loadLogoImage();
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -412,7 +408,7 @@ class EnhancedInvoice {
           base: fonts.regular,
           bold: fonts.bold,
         ),
-        header: (context) => _buildInvoiceHeader(fonts, logo),
+        header: (context) => _buildInvoiceHeader(fonts),
         footer: (context) => pw.Container(
           padding: const pw.EdgeInsets.only(top: 8),
           child: pw.Text(
@@ -428,14 +424,12 @@ class EnhancedInvoice {
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
 
-  pw.Widget _buildInvoiceHeader(ArabicPdfFonts fonts, pw.ImageProvider? logo) {
+  pw.Widget _buildInvoiceHeader(ArabicPdfFonts fonts) {
     return pw.Column(
       children: [
-        EnhancedPdfUtils.buildProfessionalHeader(
+        EnhancedPdfUtils.buildSimpleHeader(
           fonts: fonts,
-          logo: logo,
-          title: 'فاتورة ضريبية',
-          subtitle: 'Tax Invoice #$invoiceNumber',
+          title: 'فاتورة ضريبية #$invoiceNumber',
         ),
         pw.SizedBox(height: 20),
       ],
