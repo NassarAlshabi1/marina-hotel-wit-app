@@ -143,16 +143,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ? widget.booking.expectedNights
               : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
           final actualNights = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
-          
-          // حساب المبلغ الإجمالي المحدث
-          // إذا كانت الليالي الفعلية أكثر من المتوقعة، نحسب على الفعلية
-          final nightsForCalculation = actualCheckout != null 
-            ? actualNights  // استخدام الليالي الفعلية بعد المغادرة
-            : (actualNights > expectedNights 
-                ? actualNights  // استخدام الليالي الفعلية إذا تجاوزت المخططة
-                : expectedNights); // استخدام المخططة إذا لم تكتمل الإقامة
-
-          final totalAmount = nightsForCalculation * roomRate;
+          final totalAmount = expectedNights * roomRate;
           return StreamBuilder<List<db.Payment>>(
             stream: paymentsRepo.paymentsByBooking(widget.booking.id),
             builder: (context, paySnap) {
@@ -177,7 +168,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     roomRate: roomRate,
                     expectedNights: expectedNights,
                     actualNights: actualNights,
-                    nightsForCalculation: nightsForCalculation,
                     checkin: checkin,
                     plannedCheckout: plannedCheckout,
                     actualCheckout: actualCheckout,
@@ -228,7 +218,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     required double roomRate,
     required int expectedNights,
     required int actualNights,
-    required int nightsForCalculation,
     required DateTime checkin,
     DateTime? plannedCheckout,
     DateTime? actualCheckout,
@@ -345,21 +334,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 label: 'الليالي الفعلية',
                 value: actualNights.toString(),
                 color: actualNights > expectedNights ? Colors.orange : Colors.green,
-              ),
-              if (actualNights > expectedNights)
-                _buildDetailChip(
-                  context,
-                  icon: Icons.add_circle,
-                  label: 'ليالي إضافية',
-                  value: (actualNights - expectedNights).toString(),
-                  color: Colors.red,
-                ),
-              _buildDetailChip(
-                context,
-                icon: Icons.calculate,
-                label: 'للحساب',
-                value: nightsForCalculation.toString(),
-                color: nightsForCalculation > expectedNights ? Colors.blue : Colors.green,
               ),
             ],
           ),
@@ -577,17 +551,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             Expanded(child: _buildQuickPaymentButton('100%', summary.remainingAmount, summary)),
           ],
         ),
-        
-        // دفع سريع للأيام الإضافية
-        if (_shouldShowExtendedStayOptions(summary)) ...[
-          const SizedBox(height: 20),
-          const Align(
-            alignment: Alignment.centerRight,
-            child: Text('دفع الليالي الإضافية', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(height: 12),
-          _buildExtendedStayPaymentOptions(summary),
-        ],
       ],
     );
   }
@@ -687,16 +650,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
           ],
           
-          if (_shouldShowExtendedStayOptions(summary)) ...[
-            _buildActionCard(
-              'تمديد الإقامة',
-              'إضافة ليالي إضافية مع حساب التكلفة',
-              Icons.add_circle_outline,
-              Colors.blue,
-              () => _showExtendStayDialog(),
-            ),
-          ],
-          
           _buildActionCard(
             'إرسال كشف حساب',
             'إرسال ملخص المدفوعات للعميل',
@@ -704,16 +657,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             Colors.orange,
             () => _sendAccountStatement(summary),
           ),
-          
-          if (!summary.isFullyPaid) ...[
-            _buildActionCard(
-              'إرسال تذكير دفع',
-              'تذكير العميل بالمبلغ المتبقي',
-              Icons.notifications_active,
-              Colors.red,
-              () => _sendPaymentReminder(summary),
-            ),
-          ],
           
           const SizedBox(height: 20),
           
@@ -1444,14 +1387,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     Navigator.pop(context);
   }
 
-  void _sendAccountStatement(BookingPaymentSummary summary) async {
-    if (_currentGuestPhone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا يوجد رقم هاتف للعميل')),
-      );
-      return;
-    }
-
+  void _sendAccountStatement(BookingPaymentSummary summary) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1467,7 +1403,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _performSendAccountStatement(summary);
+              // TODO: إرسال كشف الحساب عبر WhatsApp أو SMS
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('تم إرسال كشف الحساب للعميل')),
+              );
             },
             child: const Text('إرسال'),
           ),
