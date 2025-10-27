@@ -29,20 +29,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   final _checkout = TextEditingController();
   final _expectedNights = TextEditingController(text: '1');
   final _notes = TextEditingController();
-  
-  // حقول الدفع المقدم
-  final _advancePayment = TextEditingController();
-  final _paymentNotes = TextEditingController();
 
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
-  String _paymentMethod = 'نقدي';
   bool _roomInitialized = false;
-  bool _hasAdvancePayment = false;
 
   static const _idTypes = ['بطاقة شخصية', 'جواز سفر', 'رخصة قيادة', 'بطاقة عسكرية', 'استبيان', 'شهادة ميلاد'];
   static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
-  static const _paymentMethods = ['نقدي', 'بطاقة', 'تحويل', 'شيك'];
 
   @override
   void initState() {
@@ -88,8 +81,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     _checkout.dispose();
     _expectedNights.dispose();
     _notes.dispose();
-    _advancePayment.dispose();
-    _paymentNotes.dispose();
     super.dispose();
   }
 
@@ -334,7 +325,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                   const String? email = null;
 
                   if (widget.existing == null) {
-                    final newBookingId = await repo.create(
+                    await repo.create(
                       roomNumber: roomNumber,
                       guestName: name,
                       guestPhone: phone,
@@ -353,11 +344,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                       expectedNights: expectedNights,
                       calculatedNights: calculatedNights,
                     );
-                    
-                    // تسجيل الدفعة المقدمة إذا كانت موجودة
-                    if (_hasAdvancePayment) {
-                      await _registerAdvancePayment(newBookingId, roomNumber);
-                    }
                   } else {
                     await repo.update(
                       widget.existing!.id,

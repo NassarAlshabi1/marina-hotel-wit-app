@@ -14,6 +14,8 @@ import 'daos/expenses_dao.dart';
 import 'daos/cash_transactions_dao.dart';
 import 'daos/payments_dao.dart';
 import 'providers.dart';
+import 'sync_performance_optimizer.dart';
+import 'package:flutter/material.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
@@ -26,7 +28,8 @@ class SyncService {
         employeesDao = EmployeesDao(db, OutboxDao(db)),
         expensesDao = ExpensesDao(db, OutboxDao(db)),
         cashDao = CashTransactionsDao(db, OutboxDao(db)),
-        paymentsDao = PaymentsDao(db, OutboxDao(db));
+        paymentsDao = PaymentsDao(db, OutboxDao(db)),
+        _performanceOptimizer = SyncPerformanceOptimizer();
 
   final AppDatabase db;
   final OutboxDao outboxDao;
@@ -37,24 +40,67 @@ class SyncService {
   final ExpensesDao expensesDao;
   final CashTransactionsDao cashDao;
   final PaymentsDao paymentsDao;
+  final SyncPerformanceOptimizer _performanceOptimizer;
 
   final _status = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get statusStream => _status.stream;
+  
+  /// تهيئة محسن الأداء
+  Future<void> initializePerformanceOptimizer() async {
+    await _performanceOptimizer.initialize();
+    debugPrint('🔧 تم تهيئة محسن أداء المزامنة');
+  }
+  
+  /// الحصول على إحصائيات الأداء
+  Map<String, dynamic> getPerformanceStats() {
+    return _performanceOptimizer.getPerformanceStats();
+  }
+  
+  /// تحديث إعدادات WiFi Only
+  Future<void> setWifiOnlyMode(bool enabled) async {
+    await _performanceOptimizer.setWifiOnlyMode(enabled);
+  }
+  
+  /// تنظيف الموارد
+  void dispose() {
+    _performanceOptimizer.dispose();
+    _status.close();
+  }
 
+  /// تشغيل المزامنة مع تحسين الأداء
   Future<void> runSync() async {
     try {
+      // التحقق من إمكانية بدء المزامنة
+      if (await _performanceOptimizer.shouldSkipSync()) {
+        debugPrint('⏭️ تم تخطي المزامنة حسب إعدادات محسن الأداء');
+        return;
+      }
+
       _status.add(SyncStatus.pushing);
       await _push();
       _status.add(SyncStatus.pulling);
       await _pull();
+      
+      // تسجيل مزامنة ناجحة
+      _performanceOptimizer.recordSyncAttempt(success: true);
       _status.add(SyncStatus.idle);
-    } catch (_) {
+      
+      debugPrint('✅ تم إنجاز المزامنة بنجاح');
+    } catch (e) {
+      // تسجيل مزامنة فاشلة
+      _performanceOptimizer.recordSyncAttempt(success: false);
       _status.add(SyncStatus.error);
+      debugPrint('❌ فشل في المزامنة: $e');
+      rethrow;
     }
   }
 
   Future<void> _push() async {
-    final batch = await outboxDao.takeBatch(50);
+    // الحصول على حجم الدفعة المثالي حسب نوع الشبكة
+    final settings = _performanceOptimizer.getCurrentPerformanceSettings();
+    final batchSize = settings['batchSize'] as int;
+    
+    final batch = await outboxDao.takeBatch(batchSize);
     if (batch.isEmpty) return;
     final changes = batch
         .map((o) => {
@@ -67,7 +113,11 @@ class SyncService {
             })
         .toList();
     try {
-      final res = await ApiService.I.syncPush(changes);
+      // الحصول على مهلة زمنية مثالية حسب نوع الشبكة
+      final settings = _performanceOptimizer.getCurrentPerformanceSettings();
+      final timeout = Duration(seconds: settings['timeout'] as int);
+      
+      final res = await ApiService.I.syncPush(changes).timeout(timeout);
       if (res['success'] == true) {
         final results = List<Map<String, dynamic>>.from(res['data']['results']);
         for (var i = 0; i < batch.length; i++) {
