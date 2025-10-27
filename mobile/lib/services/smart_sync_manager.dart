@@ -10,6 +10,7 @@ import 'google_drive_backup_service.dart';
 import 'local_db.dart';
 import 'providers.dart';
 import 'sync_performance_optimizer.dart';
+import 'data_usage_manager.dart';
 
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
@@ -101,7 +102,7 @@ class SmartSyncManager {
     
     // حساب الفترة المُحسَّنة
     final optimizedInterval = await optimizer.isAdaptiveIntervalEnabled()
-      ? optimizer.calculateOptimizedInterval(baseInterval)
+      ? await optimizer.calculateOptimizedInterval(baseInterval)
       : baseInterval;
     
     // مراقبة دورية للتحقق من النسخ الجديدة مع تحسين الأداء

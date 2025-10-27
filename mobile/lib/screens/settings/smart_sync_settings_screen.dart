@@ -418,7 +418,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       ),
       child: Text(
         explanation,
-        style: TextStyle(fontSize: 11, color: color.shade700),
+        style: TextStyle(fontSize: 11, color: color.withOpacity(0.8)),
       ),
     );
   }
