@@ -117,7 +117,7 @@ class AdminLayout extends StatelessWidget {
       title: title != null 
         ? Text(title!) 
         : const Text('فندق مارينا'),
-      backgroundColor: const Color(0xFF6c4a86),
+      backgroundColor: AppColors.primaryColor,
       foregroundColor: Colors.white,
       elevation: 0,
       actions: actions,

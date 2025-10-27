@@ -140,101 +140,6 @@ class EnhancedPdfUtils {
     }
   }
 
-  /// بناء رأس الصفحة المبسط بدون شعار
-  static pw.Widget buildSimpleHeader({
-    required ArabicPdfFonts fonts,
-    String title = '',
-    String? reportDate,
-  }) {
-    final dateStr = reportDate ?? formatDateTime(DateTime.now());
-    
-    return pw.Container(
-      width: double.infinity,
-      padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: pw.Column(
-        children: [
-          // السطر العلوي: اسم الفندق يميناً والتاريخ يساراً
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // التاريخ في أعلى اليسار
-              pw.Expanded(
-                flex: 2,
-                child: pw.Align(
-                  alignment: pw.Alignment.centerLeft,
-                  child: pw.Text(
-                    dateStr,
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 10,
-                      color: PdfColors.textLight,
-                    ),
-                  ),
-                ),
-              ),
-              
-              // فارغ
-              pw.Expanded(flex: 1, child: pw.SizedBox()),
-              
-              // اسم الفندق في أعلى اليمين بخط عريض
-              pw.Expanded(
-                flex: 2,
-                child: pw.Align(
-                  alignment: pw.Alignment.centerRight,
-                  child: pw.Text(
-                    'فندق مارينا بلازا',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 16,
-                      color: PdfColors.primary,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          
-          pw.SizedBox(height: 16),
-          
-          // اسم التقرير موسط في الأعلى
-          if (title.isNotEmpty)
-            pw.Container(
-              width: double.infinity,
-              child: pw.Text(
-                title,
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 18,
-                  color: PdfColors.textDark,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-                textAlign: pw.TextAlign.center,
-              ),
-            ),
-            
-          pw.SizedBox(height: 8),
-          
-          // خط فاصل
-          pw.Container(
-            width: double.infinity,
-            height: 2,
-            decoration: pw.BoxDecoration(
-              gradient: pw.LinearGradient(
-                colors: [
-                  PdfColors.primary,
-                  PdfColors.accent,
-                  PdfColors.primary,
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// بناء رأس الصفحة الاحترافي للفندق
   static pw.Widget buildProfessionalHeader({
     required ArabicPdfFonts fonts,
@@ -706,7 +611,7 @@ class EnhancedPdfUtils {
 
   /// تنسيق المبلغ بالعملة
   static String formatCurrency(double amount) {
-    return '${amount.toStringAsFixed(0)} ر.ي';
+    return '${amount.toStringAsFixed(0)} ر.س';
   }
 
   /// تنسيق الأرقام بالفواصل
