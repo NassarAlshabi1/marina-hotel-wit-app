@@ -327,6 +327,48 @@ class SyncPerformanceOptimizer {
     return await _isWifiOnlyEnabled();
   }
 
+  /// حساب الفترة المحسنة للمزامنة بناءً على الأداء
+  Future<int> calculateOptimizedInterval(int baseInterval) async {
+    try {
+      final isAdaptive = await isAdaptiveIntervalEnabled();
+      if (!isAdaptive) return baseInterval;
+      
+      // تحسين الفترة حسب حالة الشبكة وعدد الفشل
+      int optimizedInterval = baseInterval;
+      
+      // إذا كان على WiFi، قلل الفترة
+      if (_isOnWiFi) {
+        optimizedInterval = (baseInterval * 0.8).round().clamp(1, baseInterval);
+      } else {
+        // إذا كان على بيانات الهاتف، زد الفترة
+        optimizedInterval = (baseInterval * 1.5).round();
+      }
+      
+      // زيادة الفترة مع كل فشل متتالي
+      if (_syncAttempts > 0) {
+        optimizedInterval += (_syncAttempts * 30); // إضافة 30 ثانية لكل فشل
+      }
+      
+      debugPrint('🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)');
+      return optimizedInterval;
+    } catch (e) {
+      debugPrint('❌ خطأ في حساب الفترة المحسنة: $e');
+      return baseInterval;
+    }
+  }
+
+  /// تسجيل نجاح المزامنة
+  void recordSyncSuccess() {
+    recordSyncAttempt(success: true);
+    debugPrint('✅ تم تسجيل مزامنة ناجحة');
+  }
+
+  /// تسجيل فشل المزامنة
+  void recordSyncFailure() {
+    recordSyncAttempt(success: false);
+    debugPrint('❌ تم تسجيل فشل في المزامنة');
+  }
+
   /// تنظيف الموارد
   void dispose() {
     _connectivitySubscription?.cancel();

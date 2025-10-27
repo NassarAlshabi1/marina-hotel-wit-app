@@ -262,6 +262,12 @@ class DataUsageManager {
     await addUsage(usage);
   }
 
+  /// تسجيل استخدام البيانات بالميجابايت (مطلوب لـ SmartSyncManager)
+  Future<void> recordDataUsage(double megabytes) async {
+    await addUsage(megabytes);
+    debugPrint('📊 تم تسجيل استخدام البيانات: ${megabytes.toStringAsFixed(2)} MB');
+  }
+
   /// تنظيف الموارد
   void dispose() {
     _resetTimer?.cancel();

@@ -33,6 +33,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
   bool _roomInitialized = false;
+  
+  // متغيرات الدفع المتقدم
+  bool _hasAdvancePayment = false;
+  final _advancePayment = TextEditingController();
+  String _paymentMethod = 'نقداً';
+  final _paymentNotes = TextEditingController();
+  static const _paymentMethods = ['نقداً', 'بطاقة ائتمان', 'تحويل بنكي', 'محفظة إلكترونية'];
 
   static const _idTypes = ['بطاقة شخصية', 'جواز سفر', 'رخصة قيادة', 'بطاقة عسكرية', 'استبيان', 'شهادة ميلاد'];
   static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
@@ -81,6 +88,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     _checkout.dispose();
     _expectedNights.dispose();
     _notes.dispose();
+    // تنظيف متغيرات الدفع المتقدم
+    _advancePayment.dispose();
+    _paymentNotes.dispose();
     super.dispose();
   }
 

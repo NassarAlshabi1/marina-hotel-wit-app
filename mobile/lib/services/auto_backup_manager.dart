@@ -73,8 +73,8 @@ class AutoBackupManager {
   }
 
   /// تسجيل تغيير في قاعدة البيانات لبدء عد تنازلي للنسخ التلقائي
-  void onDataChange(String tableName, String operation, {Map<String, dynamic>? recordData}) {
-    if (!_isEnabled) return;
+  Future<void> onDataChange(String tableName, String operation, {Map<String, dynamic>? recordData}) async {
+    if (!await _isEnabled) return;
     
     _pendingChanges++;
     debugPrint('🔄 تغيير في $tableName ($operation) - تغييرات معلقة: $_pendingChanges');
