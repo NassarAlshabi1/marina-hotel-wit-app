@@ -760,7 +760,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     decoration: const InputDecoration(
                       labelText: 'المبلغ*',
                       border: OutlineInputBorder(),
-
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [
