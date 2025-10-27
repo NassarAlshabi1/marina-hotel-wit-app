@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../services/local_db.dart';
 import '../services/providers.dart';
@@ -71,8 +70,6 @@ class DashboardScreen extends ConsumerWidget {
           Consumer(
             builder: (context, ref, _) {
               final roomsAsync = ref.watch(roomsListProvider);
-              final dailyPaymentsAsync = ref.watch(dailyPaymentsProvider);
-              final dailyExpensesAsync = ref.watch(dailyExpensesProvider);
 
               return roomsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -81,7 +78,7 @@ class DashboardScreen extends ConsumerWidget {
                   final totalRooms = rooms.length;
                   final availableRooms = rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).length;
                   final occupiedRooms = rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
-                  final currencyFormat = NumberFormat('#,##0.00', 'ar');
+                  final occupancyRate = totalRooms > 0 ? ((occupiedRooms / totalRooms) * 100).round() : 0;
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,53 +109,13 @@ class DashboardScreen extends ConsumerWidget {
                             icon: Icons.bed,
                             color: Colors.red,
                           ),
-                          // بطاقة المدفوعات اليومية
-                          dailyPaymentsAsync.when(
-                            loading: () => StatCard(
-                              title: 'المدفوعات اليومية',
-                              value: '...',
-                              icon: Icons.payment,
-                              color: Colors.green,
-                            ),
-                            error: (e, st) => StatCard(
-                              title: 'المدفوعات اليومية',
-                              value: 'خطأ',
-                              icon: Icons.payment,
-                              color: Colors.grey,
-                            ),
-                            data: (amount) => StatCard(
-                              title: 'المدفوعات اليومية',
-                              value: '${currencyFormat.format(amount)} ر.ي',
-                              icon: Icons.payment,
-                              color: Colors.green,
-                            ),
+                          StatCard(
+                            title: 'نسبة الإشغال',
+                            value: '$occupancyRate%',
+                            icon: Icons.pie_chart,
+                            color: Colors.orange,
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 16),
-                      // بطاقة المصروفات اليومية
-                      Container(
-                        width: double.infinity,
-                        child: dailyExpensesAsync.when(
-                          loading: () => StatCard(
-                            title: 'المصروفات اليومية',
-                            value: '...',
-                            icon: Icons.money_off,
-                            color: Colors.red,
-                          ),
-                          error: (e, st) => StatCard(
-                            title: 'المصروفات اليومية',
-                            value: 'خطأ',
-                            icon: Icons.money_off,
-                            color: Colors.grey,
-                          ),
-                          data: (amount) => StatCard(
-                            title: 'المصروفات اليومية',
-                            value: '${currencyFormat.format(amount)} ر.ي',
-                            icon: Icons.money_off,
-                            color: Colors.red,
-                          ),
-                        ),
                       ),
                       const SizedBox(height: 24),
                       _buildRoomsStatusSection(context, rooms),
@@ -195,7 +152,6 @@ class DashboardScreen extends ConsumerWidget {
             Wrap(
               spacing: 12,
               runSpacing: 12,
-              alignment: WrapAlignment.center,
               children: _dashboardRoomNumbers.map((roomNumber) {
                 final room = roomsMap[roomNumber];
                 final bool isOccupied = room != null && StatusUtils.isRoomOccupied(room.status);

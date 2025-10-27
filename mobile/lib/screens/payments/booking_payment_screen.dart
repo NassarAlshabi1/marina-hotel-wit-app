@@ -847,30 +847,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (cleanedPhone.isEmpty) {
       return;
     }
-    
     final whatsappService = ref.read(whatsappServiceProvider);
     
-    String formatAmount(double amount) {
-      if (amount == amount.toInt()) {
-        return '${amount.toInt()}';
-      } else {
-        return _currencyFmt.format(amount);
-      }
-    }
-    
-    String message = 'عزيزي ${widget.booking.guestName}، تم استلام دفعة بقيمة: ${formatAmount(amountPaidNow)} ريال يمني\n';
-    message += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
-    message += 'المبلغ المتبقي: ${formatAmount(remaining)} ريال يمني\n';
-    message += 'شكراً لاختيارك فندق مارينا\n';
-    message += 'للاستفسار: 9677734587456';
-    
-    try {
-      await whatsappService.sendMessage(phoneE164: cleanedPhone, message: message);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')),
-        );
       }
     }
   }
@@ -1046,9 +1024,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
               child: Column(
                 children: [
-                  Text('المبلغ: ${_currencyFmt.format(amount)} ريال يمني'),
+                  Text('المبلغ: ${_currencyFmt.format(amount)} ريال'),
                   Text('عدد الليالي: $nights'),
-                  Text('سعر الليلة: ${_currencyFmt.format(amount / nights)} ريال يمني'),
+                  Text('سعر الليلة: ${_currencyFmt.format(amount / nights)} ريال'),
                 ],
               ),
             ),
@@ -1120,7 +1098,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('تم تسجيل دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية - ${_currencyFmt.format(amount)} ريال يمني'),
+        content: Text('تم تسجيل دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية - ${_currencyFmt.format(amount)} ريال'),
         backgroundColor: Colors.green,
       ),
     );
@@ -1145,10 +1123,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
     }
     
-    String message = 'عزيزي ${widget.booking.guestName}، تم استلام دفعة بقيمة: ${formatAmount(amountPaidNow)} ريال يمني\n';
+    String message = 'عزيزي ${widget.booking.guestName}، تم استلام دفعة بقيمة: ${formatAmount(amountPaidNow)} ريال\n';
     message += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
     message += 'دفع $nightsPaid ${nightsPaid == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}\n';
-    message += 'المبلغ المتبقي: ${formatAmount(remaining)} ريال يمني\n';
+    message += 'المبلغ المتبقي: ${formatAmount(remaining)} ريال\n';
     message += 'شكراً لاختيارك فندق مارينا\n';
     message += 'للاستفسار: 9677734587456';
     
@@ -1160,6 +1138,19 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')),
         );
       }
+    }
+  }
+    
+    try {
+      final success = await whatsappService.sendMessage(phoneE164: cleanedPhone, message: message);
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')));
+      }
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')));
     }
   }
 
@@ -1427,16 +1418,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       statement += 'تاريخ المغادرة: ${widget.booking.checkoutDate!.split(' ')[0]}\n';
     }
     statement += '\nتفاصيل الحساب:\n';
-    statement += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)} ريال يمني\n';
-    statement += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)} ريال يمني\n';
-    statement += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)} ريال يمني\n\n';
+    statement += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)} ريال\n';
+    statement += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)} ريال\n';
+    statement += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)} ريال\n\n';
     
     if (summary.payments.isNotEmpty) {
       statement += 'سجل المدفوعات:\n';
       for (int i = 0; i < summary.payments.length; i++) {
         final payment = summary.payments[i];
         final paymentDate = DateFormat('dd/MM/yyyy', 'ar').format(payment.paymentDate);
-        statement += '${i + 1}. ${_currencyFmt.format(payment.amount)} ريال يمني - ${payment.method.displayName} - $paymentDate\n';
+        statement += '${i + 1}. ${_currencyFmt.format(payment.amount)} ريال - ${payment.method.displayName} - $paymentDate\n';
       }
       statement += '\n';
     }
@@ -1497,9 +1488,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String reminder = 'عزيزي ${widget.booking.guestName}\n';
     reminder += 'تذكير بالمبلغ المتبقي\n';
     reminder += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
-    reminder += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)} ريال يمني\n';
-    reminder += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)} ريال يمني\n';
-    reminder += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)} ريال يمني\n\n';
+    reminder += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)} ريال\n';
+    reminder += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)} ريال\n';
+    reminder += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)} ريال\n\n';
     reminder += 'نرجو منكم تسديد المبلغ المتبقي في أقرب وقت ممكن\n\n';
     reminder += 'شكراً لتعاونكم معنا\n';
     reminder += 'للاستفسار: 9677734587456';
@@ -1574,10 +1565,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       ),
                       child: Column(
                         children: [
-                          Text('سعر الليلة: ${_currencyFmt.format(roomRate)} ريال يمني'),
+                          Text('سعر الليلة: ${_currencyFmt.format(roomRate)} ريال'),
                           Text('عدد الليالي: $nights'),
                           Text(
-                            'التكلفة الإجمالية: ${_currencyFmt.format(totalCost)} ريال يمني',
+                            'التكلفة الإجمالية: ${_currencyFmt.format(totalCost)} ريال',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -1706,7 +1697,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String message = 'عزيزي ${widget.booking.guestName}، تم تمديد إقامتكم\n';
     message += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
     message += 'ليالي إضافية: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}\n';
-    message += 'المبلغ المدفوع: ${formatAmount(amount)} ريال يمني\n';
+    message += 'المبلغ المدفوع: ${formatAmount(amount)} ريال\n';
     message += 'تاريخ المغادرة الجديد: ${newCheckout.day}/${newCheckout.month}/${newCheckout.year}\n';
     message += 'شكراً لاختيارك فندق مارينا\n';
     message += 'للاستفسار: 9677734587456';
