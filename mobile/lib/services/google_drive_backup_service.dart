@@ -648,6 +648,20 @@ class GoogleDriveBackupService {
     }
   }
 
+  Future<void> deleteBackupFile(String fileId) async {
+    if (_driveApi == null) {
+      throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
+    }
+
+    try {
+      await _driveApi!.files.delete(fileId);
+      debugPrint('🗑️ تم حذف النسخة الاحتياطية: $fileId');
+    } catch (e) {
+      debugPrint('❌ خطأ في حذف النسخة الاحتياطية: $e');
+      rethrow;
+    }
+  }
+
   void dispose() {
     _driveApi = null;
     _backupFolderId = null;

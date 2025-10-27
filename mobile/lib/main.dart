@@ -19,16 +19,41 @@ import 'providers/auth_provider.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
+import 'services/auto_backup_manager.dart';
+import 'services/google_drive_backup_service.dart';
 import 'components/admin_layout.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // تهيئة خدمة النسخ التلقائي
+  // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
   await AutoBackupTask.initialize();
+  
+  // تهيئة مدير النسخ التلقائي الذكي (على أساس التغييرات)
+  await _initializeSmartAutoBackup();
   
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
+}
+
+/// تهيئة نظام النسخ التلقائي الذكي
+Future<void> _initializeSmartAutoBackup() async {
+  try {
+    final backupService = GoogleDriveBackupService();
+    final autoBackupManager = AutoBackupManager.instance;
+    
+    // تهيئة المدير مع خدمة النسخ الاحتياطي
+    await autoBackupManager.initialize(backupService);
+    
+    // تفعيل النسخ التلقائي بشكل افتراضي
+    await autoBackupManager.setEnabled(true);
+    await autoBackupManager.setMaxBackupCount(25); // الاحتفاظ بـ 25 نسخة
+    await autoBackupManager.setRetentionDays(45); // لمدة 45 يوماً
+    
+    debugPrint('✅ تم تهيئة النسخ التلقائي الذكي بنجاح');
+  } catch (e) {
+    debugPrint('❌ خطأ في تهيئة النسخ التلقائي الذكي: $e');
+  }
 }
 
 class App extends ConsumerWidget {
