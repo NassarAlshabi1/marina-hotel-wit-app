@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
@@ -130,8 +131,6 @@ class GoogleDriveBackupService {
   void _initializeGoogleSignIn() {
     _googleSignIn = GoogleSignIn(
       scopes: _scopes,
-      serverClientId: _serverClientId,
-      forceCodeForRefreshToken: true,
     );
   }
 
@@ -158,7 +157,7 @@ class GoogleDriveBackupService {
       return account;
     } catch (e) {
       debugPrint('❌ خطأ في تسجيل الدخول في Google Drive: $e');
-      rethrow;
+      throw Exception(_getArabicErrorMessage(e));
     }
   }
 
@@ -616,6 +615,44 @@ class GoogleDriveBackupService {
       return 0;
     }
   }
+
+  @visibleForTesting
+  Map<String, dynamic> debugDescribeSignInConfig() => {
+        'scopes': List<String>.from(_scopes),
+        'serverClientId': null,
+        'forceCodeForRefreshToken': false,
+      };
+
+  @visibleForTesting
+  void overrideGoogleSignIn(GoogleSignIn instance) {
+    _googleSignIn = instance;
+  }
+
+  @visibleForTesting
+  bool get hasDriveApi => _driveApi != null;
+
+  String _getArabicErrorMessage(Object e) {
+    final s = e.toString().toLowerCase();
+    if (s.contains('apiexception') && s.contains('10')) {
+      return 'خطأ في إعدادات Google Sign-In (DEVELOPER_ERROR 10). يرجى التأكد من تكوين OAuth وملف keystore بشكل صحيح.';
+    }
+    if (s.contains('sign_in_failed')) {
+      return 'فشل تسجيل الدخول إلى Google.';
+    }
+    if (s.contains('network') || s.contains('network_error')) {
+      return 'خطأ في الشبكة. يرجى التحقق من الاتصال بالإنترنت.';
+    }
+    if (s.contains('canceled') || s.contains('sign_in_canceled')) {
+      return 'تم إلغاء عملية تسجيل الدخول من قبل المستخدم.';
+    }
+    if (s.contains('sign_in_required')) {
+      return 'مطلوب تسجيل الدخول للمتابعة.';
+    }
+    return 'حدث خطأ غير متوقع أثناء تسجيل الدخول. حاول مرة أخرى.';
+  }
+
+  @visibleForTesting
+  String getArabicErrorMessageForTest(Object e) => _getArabicErrorMessage(e);
 
   void dispose() {
     _driveApi = null;
