@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/sync_service.dart';
+import '../../widgets/smart_sync_widgets.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
 import 'comprehensive_backup_screen.dart';
+import 'auto_backup_settings_screen.dart';
+import 'smart_sync_settings_screen.dart';
+import 'sync_performance_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -91,6 +95,36 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.backup,
               color: Colors.indigo,
               onTap: () => _showBackupDialog(context),
+            ),
+            _SettingsItem(
+              title: 'النسخ التلقائي الذكي',
+              subtitle: 'نسخ احتياطي تلقائي عند التغييرات',
+              icon: Icons.auto_awesome,
+              color: Colors.amber,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AutoBackupSettingsScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'المزامنة بين الأجهزة',
+              subtitle: 'مزامنة تلقائية مع الأجهزة الأخرى',
+              icon: Icons.sync_alt,
+              color: Colors.cyan,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SmartSyncSettingsScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'تحسين أداء المزامنة',
+              subtitle: 'ضبط استهلاك البطارية والبيانات',
+              icon: Icons.tune,
+              color: Colors.deepPurple,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SyncPerformanceSettingsScreen()),
+              ),
             ),
             _SettingsItem(
               title: 'إعدادات التطبيق',

@@ -114,7 +114,29 @@ class GoogleDriveBackupService {
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
   static const List<String> _scopes = [drive.DriveApi.driveFileScope];
-  static const String _serverClientId = '256666337807-8k16mnnbn1j87oaetmpsq5f9rlbolkid.apps.googleusercontent.com';
+
+  /// تحويل رموز خطأ Google Sign-In إلى رسائل عربية واضحة
+  static String _getArabicErrorMessage(Object error) {
+    if (error is PlatformException) {
+      switch (error.code) {
+        case 'sign_in_failed':
+          if (error.message?.contains('10') == true) {
+            return 'خطأ في إعدادات التطبيق. تم إصلاح هذا الخطأ في التحديث الجديد.';
+          }
+          return 'فشل في تسجيل الدخول. تأكد من اتصال الإنترنت وأعد المحاولة.';
+        case 'network_error':
+          return 'خطأ في الشبكة. تحقق من اتصال الإنترنت وأعد المحاولة.';
+        case 'sign_in_canceled':
+          return 'تم إلغاء تسجيل الدخول من قبل المستخدم.';
+        case 'sign_in_required':
+          return 'مطلوب تسجيل الدخول للوصول إلى هذه الميزة.';
+        default:
+          return 'خطأ في تسجيل الدخول: ${error.code}';
+      }
+    }
+    return 'خطأ غير متوقع في تسجيل الدخول: $error';
+  }
+
   static const String _prefsLastBackupKey = 'last_backup_timestamp';
   static const String _prefsAutoBackupKey = 'auto_backup_enabled';
   static const String _prefsAutoBackupFrequencyKey = 'auto_backup_frequency';
@@ -140,18 +162,24 @@ class GoogleDriveBackupService {
         throw Exception('Google Sign-In لم يتم تهيئته بشكل صحيح');
       }
 
+      debugPrint('🔄 محاولة تسجيل الدخول الصامت...');
       GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
 
       if (account == null) {
+        debugPrint('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
         account = await _googleSignIn!.signIn();
       }
 
       if (account != null) {
+        debugPrint('🔑 الحصول على رؤوس المصادقة...');
         final headers = await account.authHeaders;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
 
         debugPrint('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
+        debugPrint('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
+      } else {
+        debugPrint('⚠️ تم إلغاء تسجيل الدخول أو فشل');
       }
 
       return account;
@@ -316,6 +344,9 @@ class GoogleDriveBackupService {
     addIfPresent('app_version', metadata['app_version']);
     addIfPresent('device_info', metadata['device_info']);
     addIfPresent('format', metadata['format']);
+    addIfPresent('device_id', metadata['device_id']); // معرف الجهاز للمزامنة
+    addIfPresent('backup_type', metadata['backup_type']);
+    addIfPresent('changes_count', metadata['changes_count']);
 
     return props;
   }

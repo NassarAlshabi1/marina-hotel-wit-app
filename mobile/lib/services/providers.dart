@@ -13,6 +13,10 @@ import '../utils/status_utils.dart';
 
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
+// إضافة Auto Backup Providers
+export '../providers/auto_backup_provider.dart';
+// إضافة Smart Sync Providers
+export '../providers/smart_sync_provider.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) => DatabaseManager.instance);
 
