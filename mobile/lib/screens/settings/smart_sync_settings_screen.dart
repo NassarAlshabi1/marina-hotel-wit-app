@@ -14,10 +14,10 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
   bool _isLoading = false;
   
   final List<int> _intervalOptions = [1, 2, 5, 10, 15, 30, 60]; // بالدقائق
-  final Map<SmartSyncManager.ConflictResolution, String> _conflictResolutionLabels = {
-    SmartSyncManager.ConflictResolution.newerWins: 'الأحدث يفوز (موصى به)',
-    SmartSyncManager.ConflictResolution.manualResolve: 'حل يدوي',
-    SmartSyncManager.ConflictResolution.devicePriority: 'أولوية للجهاز الرئيسي',
+  final Map<ConflictResolution, String> _conflictResolutionLabels = {
+    ConflictResolution.newerWins: 'الأحدث يفوز (موصى به)',
+    ConflictResolution.manualResolve: 'حل يدوي',
+    ConflictResolution.devicePriority: 'أولوية للجهاز الرئيسي',
   };
 
   Future<void> _toggleSync(bool enabled) async {
@@ -74,7 +74,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
     setState(() => _isLoading = false);
   }
 
-  Future<void> _changeConflictResolution(SmartSyncManager.ConflictResolution resolution) async {
+  Future<void> _changeConflictResolution(ConflictResolution resolution) async {
     setState(() => _isLoading = true);
     
     try {
@@ -345,9 +345,9 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
   }
 
   Widget _buildConflictResolutionCard(String currentResolution) {
-    final currentEnum = SmartSyncManager.ConflictResolution.values.firstWhere(
+    final currentEnum = ConflictResolution.values.firstWhere(
       (e) => e.name == currentResolution,
-      orElse: () => SmartSyncManager.ConflictResolution.newerWins,
+      orElse: () => ConflictResolution.newerWins,
     );
 
     return Card(
@@ -367,7 +367,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
             ),
             const SizedBox(height: 12),
             
-            DropdownButtonFormField<SmartSyncManager.ConflictResolution>(
+            DropdownButtonFormField<ConflictResolution>(
               value: currentEnum,
               decoration: const InputDecoration(
                 labelText: 'استراتيجية حل التضارب',
@@ -390,20 +390,20 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
     );
   }
 
-  Widget _buildConflictExplanation(SmartSyncManager.ConflictResolution resolution) {
+  Widget _buildConflictExplanation(ConflictResolution resolution) {
     String explanation;
     Color color;
     
     switch (resolution) {
-      case SmartSyncManager.ConflictResolution.newerWins:
+      case ConflictResolution.newerWins:
         explanation = '💡 البيانات الأحدث تاريخياً ستحل محل الأقدم. هذا الخيار آمن ومُوصى به.';
         color = Colors.green;
         break;
-      case SmartSyncManager.ConflictResolution.manualResolve:
+      case ConflictResolution.manualResolve:
         explanation = '⚠️ سيتم إيقاف المزامنة التلقائية وطلب تدخلك لحل التضارب يدوياً.';
         color = Colors.orange;
         break;
-      case SmartSyncManager.ConflictResolution.devicePriority:
+      case ConflictResolution.devicePriority:
         explanation = '📱 الجهاز الرئيسي له الأولوية. يتطلب تحديد الجهاز الرئيسي مسبقاً.';
         color = Colors.blue;
         break;
@@ -418,7 +418,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       ),
       child: Text(
         explanation,
-        style: TextStyle(fontSize: 11, color: color.shade700),
+        style: TextStyle(fontSize: 11, color: color.withOpacity(0.8)),
       ),
     );
   }

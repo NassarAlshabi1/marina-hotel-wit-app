@@ -10,6 +10,7 @@ import 'google_drive_backup_service.dart';
 import 'local_db.dart';
 import 'providers.dart';
 import 'sync_performance_optimizer.dart';
+import 'data_usage_manager.dart';
 
 /// مدير المزامنة التلقائية الذكي بين الأجهزة المتعددة
 class SmartSyncManager {
@@ -101,7 +102,7 @@ class SmartSyncManager {
     
     // حساب الفترة المُحسَّنة
     final optimizedInterval = await optimizer.isAdaptiveIntervalEnabled()
-      ? optimizer.calculateOptimizedInterval(baseInterval)
+      ? await optimizer.calculateOptimizedInterval(baseInterval)
       : baseInterval;
     
     // مراقبة دورية للتحقق من النسخ الجديدة مع تحسين الأداء
@@ -223,7 +224,7 @@ class SmartSyncManager {
       // تسجيل استهلاك البيانات
       final backupSize = newBackup.size ?? 0;
       if (backupSize > 0) {
-        await DataUsageManager.instance.recordDataUsage(backupSize);
+        await DataUsageManager.instance.recordDataUsage(backupSize.toDouble());
       }
       
       // تحديد استراتيجية حل التضارب
