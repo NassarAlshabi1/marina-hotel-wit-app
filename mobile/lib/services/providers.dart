@@ -58,8 +58,8 @@ AppDatabase getDatabase() => DatabaseManager.instance;
 final dailyPaymentsProvider = FutureProvider.autoDispose<double>((ref) async {
   final paymentsRepo = ref.watch(paymentsRepoProvider);
   final now = DateTime.now();
-  final startOfDay = DateTime(now.year, now.month, now.day, 1); // الساعة 1:00 صباحاً
-  final endOfDay = DateTime(now.year, now.month, now.day, 12); // الساعة 12:00 ظهراً
+  final startOfDay = DateTime(now.year, now.month, now.day); // الساعة 00:00:00
+  final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59); // الساعة 23:59:59
   
   final allPayments = await paymentsRepo.watchAll().first;
   
