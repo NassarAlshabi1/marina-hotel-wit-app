@@ -5,6 +5,7 @@ import '../services/local_db.dart';
 import '../services/providers.dart';
 import '../services/sync_service.dart';
 import '../utils/status_utils.dart';
+import '../widgets/smart_sync_widgets.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101',
@@ -59,6 +60,11 @@ class DashboardScreen extends ConsumerWidget {
           ),
           
           const SizedBox(height: 24),
+          
+          // Smart Sync Status Card
+          const SmartSyncDashboardCard(),
+          
+          const SizedBox(height: 16),
           
           // Statistics Cards
           Consumer(
