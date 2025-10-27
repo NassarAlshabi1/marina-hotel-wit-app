@@ -224,7 +224,7 @@ class SmartSyncManager {
       // تسجيل استهلاك البيانات
       final backupSize = newBackup.size ?? 0;
       if (backupSize > 0) {
-        await DataUsageManager.instance.recordDataUsage(backupSize);
+        await DataUsageManager.instance.recordDataUsage(backupSize.toDouble());
       }
       
       // تحديد استراتيجية حل التضارب
