@@ -29,20 +29,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   final _checkout = TextEditingController();
   final _expectedNights = TextEditingController(text: '1');
   final _notes = TextEditingController();
-  
-  // حقول الدفع المقدم
-  final _advancePayment = TextEditingController();
-  final _paymentNotes = TextEditingController();
 
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
-  String _paymentMethod = 'نقدي';
   bool _roomInitialized = false;
-  bool _hasAdvancePayment = false;
 
   static const _idTypes = ['بطاقة شخصية', 'جواز سفر', 'رخصة قيادة', 'بطاقة عسكرية', 'استبيان', 'شهادة ميلاد'];
   static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
-  static const _paymentMethods = ['نقدي', 'بطاقة', 'تحويل', 'شيك'];
 
   @override
   void initState() {
@@ -88,8 +81,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     _checkout.dispose();
     _expectedNights.dispose();
     _notes.dispose();
-    _advancePayment.dispose();
-    _paymentNotes.dispose();
     super.dispose();
   }
 
@@ -244,61 +235,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              _buildSectionTitle('الدفع المقدم (اختياري)'),
-              Card(
-                color: _hasAdvancePayment ? Colors.green.shade50 : Colors.grey.shade50,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      CheckboxListTile(
-                        title: const Text('هل تم استلام دفعة مقدمة؟'),
-                        subtitle: Text(_hasAdvancePayment 
-                          ? 'سيتم تسجيل الدفعة مع الحجز مباشرة'
-                          : 'يمكن تسجيل الدفعات لاحقاً من شاشة المدفوعات'),
-                        value: _hasAdvancePayment,
-                        onChanged: (value) => setState(() => _hasAdvancePayment = value ?? false),
-                        activeColor: Colors.green,
-                      ),
-                      if (_hasAdvancePayment) ...[
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _advancePayment,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'مبلغ الدفعة المقدمة *',
-                            helperText: 'أدخل المبلغ المستلم من النزيل',
-                            prefixText: 'ريال ',
-                          ),
-                          validator: _hasAdvancePayment ? (v) {
-                            if (v == null || v.trim().isEmpty) return 'مطلوب عند تحديد دفعة مقدمة';
-                            final amount = double.tryParse(v.trim());
-                            if (amount == null || amount <= 0) return 'المبلغ يجب أن يكون أكبر من صفر';
-                            return null;
-                          } : null,
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          value: _paymentMethod,
-                          items: _paymentMethods.map((method) => 
-                            DropdownMenuItem(value: method, child: Text(method))).toList(),
-                          onChanged: (value) => setState(() => _paymentMethod = value ?? _paymentMethod),
-                          decoration: const InputDecoration(labelText: 'طريقة الدفع'),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _paymentNotes,
-                          decoration: const InputDecoration(
-                            labelText: 'ملاحظات الدفعة',
-                            helperText: 'مثال: عربون لثلاث ليالي',
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
               _buildSectionTitle('ملاحظات الحجز'),
               Card(
                 child: Padding(
@@ -334,7 +270,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                   const String? email = null;
 
                   if (widget.existing == null) {
-                    final newBookingId = await repo.create(
+                    await repo.create(
                       roomNumber: roomNumber,
                       guestName: name,
                       guestPhone: phone,
@@ -353,11 +289,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                       expectedNights: expectedNights,
                       calculatedNights: calculatedNights,
                     );
-                    
-                    // تسجيل الدفعة المقدمة إذا كانت موجودة
-                    if (_hasAdvancePayment) {
-                      await _registerAdvancePayment(newBookingId, roomNumber);
-                    }
                   } else {
                     await repo.update(
                       widget.existing!.id,
@@ -578,78 +509,4 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
 
   String? _optionalText(String text) => text.trim().isEmpty ? null : text.trim();
   String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null;
-  
-  /// تسجيل الدفعة المقدمة مع الحجز الجديد
-  Future<void> _registerAdvancePayment(int bookingId, String roomNumber) async {
-    final amount = double.tryParse(_advancePayment.text.trim());
-    if (amount == null || amount <= 0) return;
-    
-    final paymentsRepo = ref.read(paymentsRepoProvider);
-    final whatsappService = ref.read(whatsappServiceProvider);
-    
-    try {
-      // تسجيل الدفعة في قاعدة البيانات
-      await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: roomNumber,
-        amount: amount,
-        paymentDate: Time.nowIso(),
-        notes: _paymentNotes.text.trim().isEmpty 
-          ? 'دفعة مقدمة عند الحجز' 
-          : _paymentNotes.text.trim(),
-        paymentMethod: _paymentMethod,
-        revenueType: 'deposit', // تسجيل كعربون
-      );
-      
-      // إرسال رسالة تأكيد بسيطة
-      final cleanedPhone = _normalizePhone(_guestPhone.text);
-      if (cleanedPhone.isNotEmpty) {
-        String formatAmount(double amount) {
-          if (amount == amount.toInt()) {
-            return '${amount.toInt()}';
-          } else {
-            return amount.toStringAsFixed(2);
-          }
-        }
-        
-        final message = 'عزيزي ${_guestName.text.trim()}، تم استلام دفعة بقيمة: ${formatAmount(amount)} ريال\n'
-            'رقم الغرفة: $roomNumber\n'
-            'تم تسجيل حجزكم بنجاح\n'
-            'شكراً لاختيارك فندق مارينا\n'
-            'للاستفسار: 9677734587456';
-            
-        await whatsappService.sendMessage(
-          phoneE164: cleanedPhone, 
-          message: message,
-        );
-      }
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تم حفظ الحجز وتسجيل دفعة مقدمة بقيمة ${formatAmount(amount)} ريال'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('خطأ في تسجيل الدفعة المقدمة: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم حفظ الحجز لكن فشل تسجيل الدفعة المقدمة'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-    }
-  }
-  
-  String formatAmount(double amount) {
-    if (amount == amount.toInt()) {
-      return '${amount.toInt()}';
-    } else {
-      return amount.toStringAsFixed(2);
-    }
-  }
 }
