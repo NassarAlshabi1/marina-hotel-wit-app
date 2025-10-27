@@ -14,6 +14,9 @@ class SyncPerformanceOptimizer {
 
   SyncPerformanceOptimizer._internal();
 
+  // إضافة static getter instance للوصول للـ singleton
+  static SyncPerformanceOptimizer get instance => _instance;
+
   // إصلاح المشكلة الأولى: تغيير نوع البيانات من ConnectivityResult إلى List<ConnectivityResult>
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   
@@ -258,6 +261,70 @@ class SyncPerformanceOptimizer {
       'lastSyncTime': _lastSyncTime?.toIso8601String(),
       'currentSettings': getCurrentPerformanceSettings(),
     };
+  }
+
+  /// الحصول على حالة الأداء (مطلوب للشاشة)
+  Map<String, dynamic> getPerformanceStatus() {
+    return {
+      'is_wifi_connected': _isOnWiFi,
+      'sync_attempts': _syncAttempts,
+      'last_sync_time': _lastSyncTime?.toIso8601String(),
+      'connection_type': _isOnWiFi ? 'WiFi' : 'Mobile',
+    };
+  }
+
+  /// إعداد الفترة التكيفية
+  Future<void> setAdaptiveInterval(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('adaptive_interval_enabled', value);
+      debugPrint('⚙️ تم تحديث الفترة التكيفية: ${value ? "مفعل" : "معطل"}');
+    } catch (e) {
+      debugPrint('❌ خطأ في حفظ إعدادات الفترة التكيفية: $e');
+    }
+  }
+
+  /// إعداد تحسين البطارية
+  Future<void> setBatteryOptimization(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('battery_optimization_enabled', value);
+      debugPrint('⚙️ تم تحديث تحسين البطارية: ${value ? "مفعل" : "معطل"}');
+    } catch (e) {
+      debugPrint('❌ خطأ في حفظ إعدادات تحسين البطارية: $e');
+    }
+  }
+
+  /// إعداد WiFi Only
+  Future<void> setWifiOnlySync(bool value) async {
+    await setWifiOnlyMode(value);
+  }
+
+  /// التحقق من تفعيل الفترة التكيفية
+  Future<bool> isAdaptiveIntervalEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('adaptive_interval_enabled') ?? true;
+    } catch (e) {
+      debugPrint('❌ خطأ في قراءة إعدادات الفترة التكيفية: $e');
+      return true;
+    }
+  }
+
+  /// التحقق من تفعيل تحسين البطارية
+  Future<bool> isBatteryOptimizationEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('battery_optimization_enabled') ?? true;
+    } catch (e) {
+      debugPrint('❌ خطأ في قراءة إعدادات تحسين البطارية: $e');
+      return true;
+    }
+  }
+
+  /// التحقق من تفعيل WiFi Only
+  Future<bool> isWifiOnlyEnabled() async {
+    return await _isWifiOnlyEnabled();
   }
 
   /// تنظيف الموارد

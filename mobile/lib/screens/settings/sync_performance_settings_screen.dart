@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/sync_performance_optimizer.dart';
+import '../../services/sync_performance_settings.dart';
+import '../../services/data_usage_manager.dart';
 
 class SyncPerformanceSettingsScreen extends ConsumerStatefulWidget {
   const SyncPerformanceSettingsScreen({super.key});
