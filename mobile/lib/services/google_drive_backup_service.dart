@@ -348,6 +348,9 @@ class GoogleDriveBackupService {
     addIfPresent('app_version', metadata['app_version']);
     addIfPresent('device_info', metadata['device_info']);
     addIfPresent('format', metadata['format']);
+    addIfPresent('device_id', metadata['device_id']); // معرف الجهاز للمزامنة
+    addIfPresent('backup_type', metadata['backup_type']);
+    addIfPresent('changes_count', metadata['changes_count']);
 
     return props;
   }

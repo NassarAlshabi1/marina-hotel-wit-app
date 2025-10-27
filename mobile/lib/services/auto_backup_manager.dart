@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,6 +27,7 @@ class AutoBackupManager {
   Timer? _cleanupTimer;
   bool _isBackingUp = false;
   int _pendingChanges = 0;
+  String? _deviceId;
   
   /// مدة انتظار قبل النسخ التلقائي (بالثواني) لتجميع التغييرات
   static const int _debounceSeconds = 30;
@@ -39,8 +41,35 @@ class AutoBackupManager {
   /// تهيئة المدير مع خدمة النسخ الاحتياطي
   Future<void> initialize(GoogleDriveBackupService backupService) async {
     _backupService = backupService;
+    await _initializeDeviceId();
     await _schedulePeriodicCleanup();
     debugPrint('🤖 مدير النسخ التلقائي: تم التهيئة بنجاح');
+  }
+
+  /// تهيئة معرف الجهاز للتمييز بين الأجهزة
+  Future<void> _initializeDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    _deviceId = prefs.getString('device_id');
+    
+    if (_deviceId == null) {
+      final deviceInfo = DeviceInfoPlugin();
+      String deviceName = 'Unknown';
+      String deviceModel = 'Unknown';
+      
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+        deviceName = androidInfo.device;
+        deviceModel = androidInfo.model;
+      } else if (Platform.isIOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        deviceName = iosInfo.name;
+        deviceModel = iosInfo.model;
+      }
+      
+      _deviceId = 'marina_${deviceName}_${deviceModel}_${DateTime.now().millisecondsSinceEpoch}';
+      await prefs.setString('device_id', _deviceId!);
+      debugPrint('🆔 تم إنشاء معرف الجهاز: $_deviceId');
+    }
   }
 
   /// تسجيل تغيير في قاعدة البيانات لبدء عد تنازلي للنسخ التلقائي
@@ -94,6 +123,8 @@ class AutoBackupManager {
       metadata['trigger_reason'] = reason;
       metadata['changes_count'] = changesCount;
       metadata['device_info'] = '${Platform.operatingSystem} (تلقائي)';
+      metadata['device_id'] = _deviceId; // معرف الجهاز للمزامنة الذكية
+      metadata['created_by_device'] = _deviceId;
       
       // رفع النسخة الاحتياطية
       final fileId = await _backupService!.uploadBackup(backupData);

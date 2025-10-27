@@ -20,6 +20,7 @@ import 'services/providers.dart';
 import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
 import 'services/auto_backup_manager.dart';
+import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'components/admin_layout.dart';
 
@@ -36,13 +37,13 @@ void main() async {
   runApp(const ProviderScope(child: App()));
 }
 
-/// تهيئة نظام النسخ التلقائي الذكي
+/// تهيئة نظام النسخ التلقائي الذكي والمزامنة بين الأجهزة
 Future<void> _initializeSmartAutoBackup() async {
   try {
     final backupService = GoogleDriveBackupService();
-    final autoBackupManager = AutoBackupManager.instance;
     
-    // تهيئة المدير مع خدمة النسخ الاحتياطي
+    // تهيئة مدير النسخ التلقائي
+    final autoBackupManager = AutoBackupManager.instance;
     await autoBackupManager.initialize(backupService);
     
     // تفعيل النسخ التلقائي بشكل افتراضي
@@ -50,9 +51,13 @@ Future<void> _initializeSmartAutoBackup() async {
     await autoBackupManager.setMaxBackupCount(25); // الاحتفاظ بـ 25 نسخة
     await autoBackupManager.setRetentionDays(45); // لمدة 45 يوماً
     
-    debugPrint('✅ تم تهيئة النسخ التلقائي الذكي بنجاح');
+    // تهيئة مدير المزامنة الذكية بين الأجهزة
+    final smartSyncManager = SmartSyncManager.instance;
+    await smartSyncManager.initialize(backupService);
+    
+    debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية بنجاح');
   } catch (e) {
-    debugPrint('❌ خطأ في تهيئة النسخ التلقائي الذكي: $e');
+    debugPrint('❌ خطأ في تهيئة النظام الذكي: $e');
   }
 }
 
