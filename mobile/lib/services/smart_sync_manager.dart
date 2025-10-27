@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
 import 'providers.dart';
+import 'sync_performance_optimizer.dart';
 
 /// مدير المزامنة التلقائية الذكي بين الأجهزة المتعددة
 class SmartSyncManager {
@@ -46,6 +47,9 @@ class SmartSyncManager {
     _backupService = backupService;
     await _initializeDeviceId();
     await _loadSettings();
+    
+    // تهيئة مُحسِّن الأداء
+    await SyncPerformanceOptimizer.instance.initialize();
     
     if (_isEnabled && _backupService?.isSignedIn == true) {
       await _startSyncMonitoring();
@@ -88,16 +92,22 @@ class SmartSyncManager {
     _isEnabled = prefs.getBool(_prefsEnabledKey) ?? false;
   }
 
-  /// بدء مراقبة المزامنة التلقائية
+  /// بدء مراقبة المزامنة التلقائية مع تحسين الأداء
   Future<void> _startSyncMonitoring() async {
     if (_syncCheckTimer?.isActive == true) return;
     
-    final intervalMinutes = await getSyncInterval();
+    final baseInterval = await getSyncInterval();
+    final optimizer = SyncPerformanceOptimizer.instance;
     
-    // مراقبة دورية للتحقق من النسخ الجديدة
+    // حساب الفترة المُحسَّنة
+    final optimizedInterval = await optimizer.isAdaptiveIntervalEnabled()
+      ? optimizer.calculateOptimizedInterval(baseInterval)
+      : baseInterval;
+    
+    // مراقبة دورية للتحقق من النسخ الجديدة مع تحسين الأداء
     _syncCheckTimer = Timer.periodic(
-      Duration(minutes: intervalMinutes),
-      (timer) => _performSyncCheck(),
+      Duration(minutes: optimizedInterval),
+      (timer) => _performOptimizedSyncCheck(),
     );
     
     // مزامنة كاملة دورية
@@ -106,10 +116,42 @@ class SmartSyncManager {
       (timer) => _performFullSync(),
     );
     
-    // تحقق فوري عند البدء
-    _performSyncCheck();
+    // تحقق فوري عند البدء (إذا لم تكن هناك قيود)
+    if (!await optimizer.shouldSkipSync()) {
+      _performOptimizedSyncCheck();
+    }
     
-    debugPrint('⏰ بدء مراقبة المزامنة كل $intervalMinutes دقائق');
+    debugPrint('⏰ بدء مراقبة المزامنة المُحسَّنة كل $optimizedInterval دقائق');
+  }
+
+  /// فحص مزامنة محسن للأداء
+  Future<void> _performOptimizedSyncCheck() async {
+    final optimizer = SyncPerformanceOptimizer.instance;
+    final dataManager = DataUsageManager.instance;
+    
+    // تحقق من قيود الأداء
+    if (await optimizer.shouldSkipSync()) {
+      debugPrint('⏸️ تم تخطي المزامنة لتوفير الطاقة');
+      return;
+    }
+    
+    // تحقق من حد البيانات
+    if (await dataManager.isLimitExceeded()) {
+      debugPrint('📊 تم تجاوز حد البيانات اليومي - تخطي المزامنة');
+      return;
+    }
+    
+    try {
+      await _performSyncCheck();
+      
+      // تسجيل نجاح المزامنة
+      optimizer.recordSyncSuccess();
+      
+    } catch (e) {
+      // تسجيل فشل المزامنة
+      optimizer.recordSyncFailure();
+      rethrow;
+    }
   }
 
   /// إيقاف مراقبة المزامنة
@@ -170,13 +212,19 @@ class SmartSyncManager {
     }
   }
 
-  /// معالجة اكتشاف نسخة احتياطية جديدة
+  /// معالجة اكتشاف نسخة احتياطية جديدة مع تحسين الأداء
   Future<void> _handleNewBackupFound(DriveBackupFile newBackup) async {
     try {
       debugPrint('🔄 بدء مزامنة النسخة الجديدة...');
 
       // تحميل بيانات النسخة الاحتياطية
       final backupData = await _backupService!.downloadBackup(newBackup.fileId);
+      
+      // تسجيل استهلاك البيانات
+      final backupSize = newBackup.size ?? 0;
+      if (backupSize > 0) {
+        await DataUsageManager.instance.recordDataUsage(backupSize);
+      }
       
       // تحديد استراتيجية حل التضارب
       final conflictResolution = await getConflictResolution();
@@ -190,13 +238,18 @@ class SmartSyncManager {
       // إشعار النجاح
       await _notifySuccessfulSync(newBackup);
       
+      // تسجيل نجاح المزامنة لتحسين الأداء
+      SyncPerformanceOptimizer.instance.recordSyncSuccess();
+      
       debugPrint('✅ تمت المزامنة بنجاح');
       
     } catch (e) {
       debugPrint('❌ خطأ في مزامنة البيانات: $e');
-      await _notifySync
-
-Error();
+      
+      // تسجيل فشل المزامنة
+      SyncPerformanceOptimizer.instance.recordSyncFailure();
+      
+      await _notifySyncError();
     }
   }
 
