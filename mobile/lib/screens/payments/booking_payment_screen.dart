@@ -853,61 +853,26 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
-  Future<void> _sendPaymentConfirmation(
-    double amountPaidNow, 
-    double remaining, 
-    String cleanedPhone,
-    [PaymentMethod? method,
-    String? reference,
-    String? cardDigits,
-    String? bank]
-  ) async {
+  Future<void> _sendPaymentConfirmation(double amountPaidNow, double remaining, String cleanedPhone) async {
     if (cleanedPhone.isEmpty) {
       return;
     }
     final whatsappService = ref.read(whatsappServiceProvider);
     
-    // بناء رسالة شاملة ومهنية
-    String message = '🏨 *مارينا هوتل*\n\n';
-    message += 'عزيزنا *${widget.booking.guestName}*\n\n';
-    message += '✅ *تم استلام دفعة بنجاح*\n';
-    message += '💰 المبلغ المستلم: *${_currencyFmt.format(amountPaidNow)} ريال*\n';
-    
-    // إضافة تفاصيل طريقة الدفع
-    if (method != null) {
-      message += '💳 طريقة الدفع: *${method.displayName}*\n';
-      
-      if (method == PaymentMethod.card && cardDigits != null && cardDigits.isNotEmpty) {
-        message += '🔢 آخر أرقام البطاقة: *****$cardDigits\n';
-      }
-      
-      if (method == PaymentMethod.transfer) {
-        if (bank != null && bank.isNotEmpty) {
-          message += '🏦 البنك: *$bank*\n';
-        }
-        if (reference != null && reference.isNotEmpty) {
-          message += '📋 رقم المرجع: *$reference*\n';
-        }
-      }
-      
-      if (method == PaymentMethod.check && reference != null && reference.isNotEmpty) {
-        message += '📋 رقم الشيك: *$reference*\n';
+    // بناء رسالة بسيطة ومباشرة
+    String formatAmount(double amount) {
+      if (amount == amount.toInt()) {
+        return '${amount.toInt()}';
+      } else {
+        return _currencyFmt.format(amount);
       }
     }
     
-    message += '🏠 رقم الغرفة: *${widget.booking.roomNumber}*\n';
-    message += '📅 التاريخ: *${DateFormat('dd/MM/yyyy - HH:mm', 'ar').format(DateTime.now())}*\n\n';
-    
-    if (remaining > 0) {
-      message += '📋 *المبلغ المتبقي: ${_currencyFmt.format(remaining)} ريال*\n\n';
-      message += '💡 يرجى تسديد المبلغ المتبقي عند المغادرة\n\n';
-    } else {
-      message += '🎉 *تم سداد المبلغ بالكامل*\n\n';
-      message += '✨ شكراً لكم على التعامل معنا\n\n';
-    }
-    
-    message += '📞 للاستفسار: اتصل بالاستقبال\n';
-    message += '🙏 شكراً لاختياركم فندق مارينا';
+    String message = 'عزيزي ${widget.booking.guestName}، تم استلام دفعة بقيمة: ${formatAmount(amountPaidNow)} ريال\n';
+    message += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
+    message += 'المبلغ المتبقي: ${formatAmount(remaining)} ريال\n';
+    message += 'شكراً لاختيارك فندق مارينا\n';
+    message += 'للاستفسار: 9677734587456';
     
     try {
       final success = await whatsappService.sendMessage(phoneE164: cleanedPhone, message: message);
@@ -1014,7 +979,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     _showReceiptDialog(receipt);
 
     if (cleanedPhone.isNotEmpty) {
-      await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone, method, reference, cardDigits, bank);
+      await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
     }
 
     if (!mounted) {
@@ -1181,21 +1146,21 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   Future<void> _performSendAccountStatement(BookingPaymentSummary summary) async {
     final whatsappService = ref.read(whatsappServiceProvider);
     
-    // بناء كشف الحساب التفصيلي
-    String statement = '🏨 *مارينا هوتل - كشف حساب*\n\n';
-    statement += '👤 العميل: *${widget.booking.guestName}*\n';
-    statement += '🏠 الغرفة: *${widget.booking.roomNumber}*\n';
-    statement += '📅 تاريخ الوصول: *${widget.booking.checkinDate.split(' ')[0]}*\n';
+    // بناء كشف الحساب البسيط
+    String statement = 'مارينا هوتل - كشف حساب\n';
+    statement += 'العميل: ${widget.booking.guestName}\n';
+    statement += 'الغرفة: ${widget.booking.roomNumber}\n';
+    statement += 'تاريخ الوصول: ${widget.booking.checkinDate.split(' ')[0]}\n';
     if (widget.booking.checkoutDate != null) {
-      statement += '📅 تاريخ المغادرة: *${widget.booking.checkoutDate!.split(' ')[0]}*\n';
+      statement += 'تاريخ المغادرة: ${widget.booking.checkoutDate!.split(' ')[0]}\n';
     }
-    statement += '\n💰 *تفاصيل الحساب:*\n';
-    statement += '• المبلغ الإجمالي: *${_currencyFmt.format(summary.totalAmount)} ريال*\n';
-    statement += '• المبلغ المدفوع: *${_currencyFmt.format(summary.paidAmount)} ريال*\n';
-    statement += '• المبلغ المتبقي: *${_currencyFmt.format(summary.remainingAmount)} ريال*\n\n';
+    statement += '\nتفاصيل الحساب:\n';
+    statement += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)} ريال\n';
+    statement += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)} ريال\n';
+    statement += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)} ريال\n\n';
     
     if (summary.payments.isNotEmpty) {
-      statement += '📋 *سجل المدفوعات:*\n';
+      statement += 'سجل المدفوعات:\n';
       for (int i = 0; i < summary.payments.length; i++) {
         final payment = summary.payments[i];
         final paymentDate = DateFormat('dd/MM/yyyy', 'ar').format(payment.paymentDate);
@@ -1205,13 +1170,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
     
     if (summary.remainingAmount > 0) {
-      statement += '⚠️ *يرجى تسديد المبلغ المتبقي*\n\n';
+      statement += 'يرجى تسديد المبلغ المتبقي\n\n';
     } else {
-      statement += '✅ *تم سداد المبلغ بالكامل*\n\n';
+      statement += 'تم سداد المبلغ بالكامل\n\n';
     }
     
-    statement += '📞 للاستفسار: اتصل بالاستقبال\n';
-    statement += '🙏 شكراً لاختياركم فندق مارينا';
+    statement += 'شكراً لاختياركم فندق مارينا\n';
+    statement += 'للاستفسار: 9677734587456';
     
     try {
       final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
@@ -1256,21 +1221,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final whatsappService = ref.read(whatsappServiceProvider);
     
-    // بناء رسالة تذكير مهذبة
-    String reminder = '🏨 *مارينا هوتل*\n\n';
-    reminder += 'عزيزنا *${widget.booking.guestName}*\n\n';
-    reminder += '⏰ *تذكير بالمبلغ المتبقي*\n\n';
-    reminder += '🏠 رقم الغرفة: *${widget.booking.roomNumber}*\n';
-    reminder += '💰 المبلغ الإجمالي: *${_currencyFmt.format(summary.totalAmount)} ريال*\n';
-    reminder += '✅ المبلغ المدفوع: *${_currencyFmt.format(summary.paidAmount)} ريال*\n';
-    reminder += '📋 *المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)} ريال*\n\n';
-    reminder += '🙏 نرجو منكم تسديد المبلغ المتبقي في أقرب وقت ممكن\n\n';
-    reminder += '💡 يمكنكم الدفع:\n';
-    reminder += '• نقداً في الاستقبال\n';
-    reminder += '• تحويل بنكي\n';
-    reminder += '• بطاقة ائتمان\n\n';
-    reminder += '📞 للاستفسار: اتصل بالاستقبال\n';
-    reminder += '🙏 شكراً لتعاونكم معنا';
+    // بناء رسالة تذكير بسيطة
+    String reminder = 'عزيزي ${widget.booking.guestName}\n';
+    reminder += 'تذكير بالمبلغ المتبقي\n';
+    reminder += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
+    reminder += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)} ريال\n';
+    reminder += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)} ريال\n';
+    reminder += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)} ريال\n\n';
+    reminder += 'نرجو منكم تسديد المبلغ المتبقي في أقرب وقت ممكن\n\n';
+    reminder += 'شكراً لتعاونكم معنا\n';
+    reminder += 'للاستفسار: 9677734587456';
     
     try {
       final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
