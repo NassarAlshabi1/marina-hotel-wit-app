@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment'])) {
     if ($amount <= 0 || $amount > $remaining) {
         $_SESSION['flash'] = [
             'type'    => 'danger',
-            'message' => 'المبلغ يجب أن يكون بين 1 و ' . number_format($remaining, 0) . ' ريال'
+            'message' => 'المبلغ يجب أن يكون بين 1 و ' . formatCurrency($remaining)
         ];
         header("Location: payment.php?id=$booking_id");
         exit();
@@ -113,8 +113,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment'])) {
     if ($st->execute()) {
         $remaining_after = max(0, $remaining - $amount);
         $msg = sprintf(
-            "عزيزي %s، تم استلام دفعة بقيمة %.2f ريال.\nرقم الحجز: %d\nالمتبقي: %.2f ريال",
-            $booking['guest_name'], $amount, $booking_id, $remaining_after
+            "عزيزي %s، تم استلام دفعة بقيمة %s.\nرقم الحجز: %d\nالمتبقي: %s",
+            $booking['guest_name'], formatCurrency($amount, true), $booking_id, formatCurrency($remaining_after, true)
         );
         $wa = send_yemeni_whatsapp($booking['guest_phone'], $msg);
         $wa_status = (is_array($wa) && $wa['status'] === 'sent')
@@ -420,19 +420,19 @@ include '../../includes/header.php';
                     <div class="col-md-3">
                         <div class="summary-item">
                             <h6>إجمالي المبلغ</h6>
-                            <h4><?= number_format($total_price, 0) ?> ريال</h4>
+                            <h4><?= formatCurrency($total_price); ?></h4>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="summary-item">
                             <h6>المبلغ المدفوع</h6>
-                            <h4 class="text-success"><?= number_format($paid_amount, 0) ?> ريال</h4>
+                            <h4 class="text-success"><?= formatCurrency($paid_amount); ?></h4>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="summary-item">
                             <h6>المبلغ المتبقي</h6>
-                            <h4 class="text-warning"><?= number_format($remaining, 0) ?> ريال</h4>
+                            <h4 class="text-warning"><?= formatCurrency($remaining); ?></h4>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -474,7 +474,7 @@ include '../../includes/header.php';
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="amount" class="form-label">المبلغ (ريال)</label>
+                                            <label for="amount" class="form-label">المبلغ (ر.س)</label>
                                             <input type="number" 
                                                    class="form-control" 
                                                    id="amount" 
@@ -483,7 +483,7 @@ include '../../includes/header.php';
                                                    max="<?= $remaining ?>" 
                                                    step="0.01" 
                                                    required>
-                                            <div class="form-text">الحد الأقصى: <?= number_format($remaining, 0) ?> ريال</div>
+                                            <div class="form-text">الحد الأقصى: <?= formatCurrency($remaining); ?></div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -597,7 +597,7 @@ include '../../includes/header.php';
                             <div class="alert alert-warning mb-0">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
                                 <strong>تنبيه:</strong> لا يمكن تسجيل المغادرة قبل تسديد كامل المبلغ. 
-                                المبلغ المتبقي: <strong><?= number_format($remaining, 0) ?> ريال</strong>
+                                المبلغ المتبقي: <strong><?= formatCurrency($remaining); ?></strong>
                             </div>
                             <?php else: ?>
                             <div class="alert alert-success mb-0">
@@ -667,7 +667,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const max = parseFloat(this.getAttribute('max'));
             
             if (value > max) {
-                this.setCustomValidity('المبلغ لا يمكن أن يتجاوز ' + max.toLocaleString() + ' ريال');
+                this.setCustomValidity('المبلغ لا يمكن أن يتجاوز ' + max.toLocaleString() + ' ر.س');
                 this.classList.add('is-invalid');
             } else if (value <= 0) {
                 this.setCustomValidity('المبلغ يجب أن يكون أكبر من صفر');

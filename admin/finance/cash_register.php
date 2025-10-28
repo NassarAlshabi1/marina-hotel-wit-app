@@ -249,25 +249,25 @@ $current_balance = $register['opening_balance'] + $register['total_income'] - $r
                             <div class="col-md-3">
                                 <div class="balance-card">
                                     <div class="balance-title">الرصيد الافتتاحي</div>
-                                    <div class="balance-amount balance-opening"><?= number_format($register['opening_balance'], 2); ?> د.إ</div>
+                                    <div class="balance-amount balance-opening"><?= formatCurrency($register['opening_balance'], true); ?></div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="balance-card">
                                     <div class="balance-title">إجمالي الإيرادات</div>
-                                    <div class="balance-amount balance-income">+ <?= number_format($register['total_income'], 2); ?> د.إ</div>
+                                    <div class="balance-amount balance-income">+ <?= formatCurrency($register['total_income'], true); ?></div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="balance-card">
                                     <div class="balance-title">إجمالي المصروفات</div>
-                                    <div class="balance-amount balance-expense">- <?= number_format($register['total_expense'], 2); ?> د.إ</div>
+                                    <div class="balance-amount balance-expense">- <?= formatCurrency($register['total_expense'], true); ?></div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="balance-card">
                                     <div class="balance-title">الرصيد الحالي</div>
-                                    <div class="balance-amount balance-current"><?= number_format($current_balance, 2); ?> د.إ</div>
+                                    <div class="balance-amount balance-current"><?= formatCurrency($current_balance, true); ?></div>
                                 </div>
                             </div>
                         </div>
@@ -393,7 +393,7 @@ $current_balance = $register['opening_balance'] + $register['total_income'] - $r
                                                 </div>
                                             </div>
                                             <div class="transaction-amount <?= $transaction['transaction_type']; ?>">
-                                                <?= $transaction['transaction_type'] === 'income' ? '+' : '-'; ?> <?= number_format($transaction['amount'], 2); ?> د.إ
+                                                <?= $transaction['transaction_type'] === 'income' ? '+' : '-'; ?> <?= formatCurrency($transaction['amount'], true); ?>
                                             </div>
                                         </div>
                                     </div>

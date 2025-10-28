@@ -858,9 +858,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final message = StringBuffer()
       ..writeln('عزيزي ${widget.booking.guestName}')
-      ..writeln('تم استلام دفعتك بقيمة ${formatAmount(amountPaidNow)} ريال يمني')
+      ..writeln('تم استلام دفعتك بقيمة ${formatAmount(amountPaidNow)} ر.س')
       ..writeln('رقم الغرفة: ${widget.booking.roomNumber}')
-      ..writeln('المبلغ المتبقي: ${formatAmount(remaining)} ريال يمني')
+      ..writeln('المبلغ المتبقي: ${formatAmount(remaining)} ر.س')
       ..writeln('شكراً لاختيارك فندق مارينا')
       ..write('للاستفسار: 9677734587456');
 
@@ -1049,9 +1049,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
               child: Column(
                 children: [
-                  Text('المبلغ: ${_currencyFmt.format(amount)} ريال'),
+                  Text('المبلغ: ${_currencyFmt.format(amount)} ر.س'),
                   Text('عدد الليالي: $nights'),
-                  Text('سعر الليلة: ${_currencyFmt.format(amount / nights)} ريال'),
+                  Text('سعر الليلة: ${_currencyFmt.format(amount / nights)} ر.س'),
                 ],
               ),
             ),
@@ -1123,7 +1123,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('تم تسجيل دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية - ${_currencyFmt.format(amount)} ريال'),
+        content: Text('تم تسجيل دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية - ${_currencyFmt.format(amount)} ر.س'),
         backgroundColor: Colors.green,
       ),
     );
@@ -1148,10 +1148,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
     }
     
-    String message = 'عزيزي ${widget.booking.guestName}، تم استلام دفعة بقيمة: ${formatAmount(amountPaidNow)} ريال\n';
+    String message = 'عزيزي ${widget.booking.guestName}، تم استلام دفعة بقيمة: ${formatAmount(amountPaidNow)} ر.س\n';
     message += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
     message += 'دفع $nightsPaid ${nightsPaid == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}\n';
-    message += 'المبلغ المتبقي: ${formatAmount(remaining)} ريال\n';
+    message += 'المبلغ المتبقي: ${formatAmount(remaining)} ر.س\n';
     message += 'شكراً لاختيارك فندق مارينا\n';
     message += 'للاستفسار: 9677734587456';
     
@@ -1430,16 +1430,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       statement += 'تاريخ المغادرة: ${widget.booking.checkoutDate!.split(' ')[0]}\n';
     }
     statement += '\nتفاصيل الحساب:\n';
-    statement += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)} ريال\n';
-    statement += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)} ريال\n';
-    statement += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)} ريال\n\n';
+    statement += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)} ر.س\n';
+    statement += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)} ر.س\n';
+    statement += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)} ر.س\n\n';
     
     if (summary.payments.isNotEmpty) {
       statement += 'سجل المدفوعات:\n';
       for (int i = 0; i < summary.payments.length; i++) {
         final payment = summary.payments[i];
         final paymentDate = DateFormat('dd/MM/yyyy', 'ar').format(payment.paymentDate);
-        statement += '${i + 1}. ${_currencyFmt.format(payment.amount)} ريال - ${payment.method.displayName} - $paymentDate\n';
+        statement += '${i + 1}. ${_currencyFmt.format(payment.amount)} ر.س - ${payment.method.displayName} - $paymentDate\n';
       }
       statement += '\n';
     }
@@ -1500,9 +1500,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String reminder = 'عزيزي ${widget.booking.guestName}\n';
     reminder += 'تذكير بالمبلغ المتبقي\n';
     reminder += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
-    reminder += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)} ريال\n';
-    reminder += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)} ريال\n';
-    reminder += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)} ريال\n\n';
+    reminder += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)} ر.س\n';
+    reminder += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)} ر.س\n';
+    reminder += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)} ر.س\n\n';
     reminder += 'نرجو منكم تسديد المبلغ المتبقي في أقرب وقت ممكن\n\n';
     reminder += 'شكراً لتعاونكم معنا\n';
     reminder += 'للاستفسار: 9677734587456';
@@ -1577,10 +1577,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       ),
                       child: Column(
                         children: [
-                          Text('سعر الليلة: ${_currencyFmt.format(roomRate)} ريال'),
+                          Text('سعر الليلة: ${_currencyFmt.format(roomRate)} ر.س'),
                           Text('عدد الليالي: $nights'),
                           Text(
-                            'التكلفة الإجمالية: ${_currencyFmt.format(totalCost)} ريال',
+                            'التكلفة الإجمالية: ${_currencyFmt.format(totalCost)} ر.س',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -1709,7 +1709,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String message = 'عزيزي ${widget.booking.guestName}، تم تمديد إقامتكم\n';
     message += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
     message += 'ليالي إضافية: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}\n';
-    message += 'المبلغ المدفوع: ${formatAmount(amount)} ريال\n';
+    message += 'المبلغ المدفوع: ${formatAmount(amount)} ر.س\n';
     message += 'تاريخ المغادرة الجديد: ${newCheckout.day}/${newCheckout.month}/${newCheckout.year}\n';
     message += 'شكراً لاختيارك فندق مارينا\n';
     message += 'للاستفسار: 9677734587456';

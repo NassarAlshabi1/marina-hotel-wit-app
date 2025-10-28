@@ -123,7 +123,7 @@ class EnhancedPaymentReceipt {
               child: EnhancedPdfUtils.buildStatisticsBox(
                 title: 'المبلغ المدفوع',
                 value: EnhancedPdfUtils.formatCurrency(payment.amount),
-                subtitle: 'ريال سعودي',
+                subtitle: 'ر.س',
                 fonts: fonts,
                 color: PdfColors.success,
                 icon: '💵',

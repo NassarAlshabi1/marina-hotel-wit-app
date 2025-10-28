@@ -274,7 +274,7 @@ $page_title = "التقارير الشاملة";
                             <div class="card bg-success text-white">
                                 <div class="card-body">
                                     <h6 class="card-title">إجمالي الإيرادات</h6>
-                                    <h3 class="card-text"><?php echo number_format($report_data['total_revenue'], 2); ?> ريال</h3>
+                                    <h3 class="card-text"><?php echo formatCurrency($report_data['total_revenue'], true); ?></h3>
                                 </div>
                             </div>
                         </div>
@@ -282,7 +282,7 @@ $page_title = "التقارير الشاملة";
                             <div class="card bg-danger text-white">
                                 <div class="card-body">
                                     <h6 class="card-title">إجمالي المصروفات</h6>
-                                    <h3 class="card-text"><?php echo number_format($report_data['total_expenses'], 2); ?> ريال</h3>
+                                    <h3 class="card-text"><?php echo formatCurrency($report_data['total_expenses'], true); ?></h3>
                                 </div>
                             </div>
                         </div>
@@ -290,7 +290,7 @@ $page_title = "التقارير الشاملة";
                             <div class="card bg-info text-white">
                                 <div class="card-body">
                                     <h6 class="card-title">صافي الربح</h6>
-                                    <h3 class="card-text"><?php echo number_format($report_data['net_profit'], 2); ?> ريال</h3>
+                                    <h3 class="card-text"><?php echo formatCurrency($report_data['net_profit'], true); ?></h3>
                                 </div>
                             </div>
                         </div>
@@ -298,7 +298,7 @@ $page_title = "التقارير الشاملة";
                             <div class="card bg-warning text-dark">
                                 <div class="card-body">
                                     <h6 class="card-title">إجمالي سحوبات الموظفين</h6>
-                                    <h3 class="card-text"><?php echo number_format($report_data['total_withdrawals'], 2); ?> ريال</h3>
+                                    <h3 class="card-text"><?php echo formatCurrency($report_data['total_withdrawals'], true); ?></h3>
                                 </div>
                             </div>
                         </div>
@@ -356,7 +356,7 @@ $page_title = "التقارير الشاملة";
                                                         <?php foreach ($report_data['revenue_data'] as $revenue): ?>
                                                         <tr>
                                                             <td><?php echo date('Y-m-d', strtotime($revenue['date'])); ?></td>
-                                                            <td><?php echo number_format($revenue['total_revenue'], 2); ?> ريال</td>
+                                                            <td><?php echo formatCurrency($revenue['total_revenue'], true); ?></td>
                                                         </tr>
                                                         <?php endforeach; ?>
                                                     </tbody>
@@ -399,7 +399,7 @@ $page_title = "التقارير الشاملة";
                                                         <?php foreach ($report_data['expenses_by_category'] as $category => $amount): ?>
                                                         <tr>
                                                             <td><?php echo $category; ?></td>
-                                                            <td><?php echo number_format($amount, 2); ?> ريال</td>
+                                                            <td><?php echo formatCurrency($amount, true); ?></td>
                                                         </tr>
                                                         <?php endforeach; ?>
                                                     </tbody>
@@ -490,7 +490,7 @@ $page_title = "التقارير الشاملة";
                                                     <td><?php echo $room['room_number']; ?></td>
                                                     <td><?php echo $room['room_type']; ?></td>
                                                     <td><?php echo $room['booking_count']; ?></td>
-                                                    <td><?php echo number_format($room['room_revenue'], 2); ?> ريال</td>
+                                                    <td><?php echo formatCurrency($room['room_revenue'], true); ?></td>
                                                 </tr>
                                                 <?php endforeach; ?>
                                             </tbody>
@@ -531,7 +531,7 @@ $page_title = "التقارير الشاملة";
                                                         <?php foreach ($report_data['withdrawals_data'] as $withdrawal): ?>
                                                         <tr>
                                                             <td><?php echo $withdrawal['employee_name']; ?></td>
-                                                            <td><?php echo number_format($withdrawal['total_withdrawals'], 2); ?> ريال</td>
+                                                            <td><?php echo formatCurrency($withdrawal['total_withdrawals'], true); ?></td>
                                                         </tr>
                                                         <?php endforeach; ?>
                                                     </tbody>
@@ -742,7 +742,7 @@ function createRevenueChart(data) {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return context.parsed.y.toLocaleString() + ' ريال';
+                            return context.parsed.y.toLocaleString() + ' ر.س';
                         }
                     }
                 }
@@ -752,7 +752,7 @@ function createRevenueChart(data) {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return value.toLocaleString() + ' ريال';
+                            return value.toLocaleString() + ' ر.س';
                         }
                     }
                 }
@@ -798,7 +798,7 @@ function createExpensesChart(categories, amounts) {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            const value = context.parsed.toLocaleString() + ' ريال';
+                            const value = context.parsed.toLocaleString() + ' ر.س';
                             const percentage = ((context.parsed / context.dataset.data.reduce((a, b) => a + b, 0)) * 100).toFixed(1) + '%';
                             return `${context.label}: ${value} (${percentage})`;
                         }
@@ -871,7 +871,7 @@ function createWithdrawalsChart(data) {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return context.parsed.x.toLocaleString() + ' ريال';
+                            return context.parsed.x.toLocaleString() + ' ر.س';
                         }
                     }
                 }
@@ -881,7 +881,7 @@ function createWithdrawalsChart(data) {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return value.toLocaleString() + ' ريال';
+                            return value.toLocaleString() + ' ر.س';
                         }
                     }
                 }

@@ -80,7 +80,7 @@ $monthly_result = $monthly_stmt->get_result();
                     <td><?= htmlspecialchars($row['checkin_date']); ?></td>
                     <td><?= htmlspecialchars($row['checkout_date']); ?></td>
                     <td><?= $row['days']; ?> ليالي</td>
-                    <td><?= number_format($row['total']); ?> </td>
+                    <td><?= formatCurrency($row['total']); ?></td>
                 </tr>
             <?php endwhile; ?>
         </tbody>
@@ -110,7 +110,7 @@ $monthly_result = $monthly_stmt->get_result();
                     <td><?= htmlspecialchars($row['checkin_date']); ?></td>
                     <td><?= htmlspecialchars($row['checkout_date']); ?></td>
                     <td><?= $row['days']; ?> ليالي</td>
-                    <td><?= number_format($row['total']); ?> درهم</td>
+                    <td><?= formatCurrency($row['total']); ?></td>
                 </tr>
             <?php endwhile; ?>
         </tbody>
