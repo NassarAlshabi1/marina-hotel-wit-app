@@ -974,8 +974,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   }
 }
 
-// Provider للخدمة
+// Provider للخدمة مع الحفاظ على حالة واحدة (Singleton)
 final googleDriveBackupServiceProvider = Provider<GoogleDriveBackupService>((ref) {
+  ref.keepAlive(); // المحافظة على الخدمة في الذاكرة
   return GoogleDriveBackupService();
 });
 

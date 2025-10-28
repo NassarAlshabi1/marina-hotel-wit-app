@@ -17,8 +17,8 @@ class ExpensesListScreen extends ConsumerStatefulWidget {
 class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
   int? _selectedEmployeeId;
   String? selectedType;
-  static const String _salaryType = 'Salary';
-  static const List<String> availableTypes = ['Salary', 'Other', 'Maintenance', 'Supplies'];
+  static const String _salaryType = 'رواتب';
+  static const List<String> availableTypes = ['رواتب', 'ديزل', 'صيانة', 'فواتير كهرباء ومياه', 'مستلزمات', 'مساعدة محتاج', 'اخرى'];
 
   @override
   Widget build(BuildContext context) {
@@ -132,9 +132,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
     final description = TextEditingController(text: existing?.description ?? '');
     final amount = TextEditingController(text: existing?.amount.toString() ?? '');
-    final expenseType = TextEditingController(text: existing?.expenseType ?? 'other');
+    final expenseType = TextEditingController(text: existing?.expenseType ?? 'اخرى');
     final date = TextEditingController(text: existing?.date ?? Time.nowDateString());
-    selectedType = existing?.expenseType ?? 'Other';
+    selectedType = existing?.expenseType ?? 'اخرى';
 
     final employeesList = employees ?? await ref.read(employeesRepoProvider).watchAll().first;
     int? selectedEmployeeId = existing?.relatedId;
@@ -213,7 +213,22 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
               ),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-                FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حفظ')),
+                FilledButton(
+                  onPressed: () {
+                    // Validate salary expenses must have employee selected
+                    if (selectedType == _salaryType && selectedEmployeeId == null) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(
+                          content: const Text('يجب اختيار موظف عند اختيار نوع المصروف "رواتب"'),
+                          backgroundColor: Theme.of(ctx).colorScheme.error,
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.pop(ctx, true);
+                  },
+                  child: const Text('حفظ'),
+                ),
               ],
             );
           },
@@ -232,7 +247,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
     final repo = ref.read(expensesRepoProvider);
     final parsedAmount = double.tryParse(amount.text.trim()) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedType = (selectedType ?? 'Other').trim();
+    final trimmedType = (selectedType ?? 'اخرى').trim();
     final trimmedDate = date.text.trim();
 
     if (existing == null) {

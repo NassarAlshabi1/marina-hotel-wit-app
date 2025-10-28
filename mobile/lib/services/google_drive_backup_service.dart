@@ -153,7 +153,24 @@ class GoogleDriveBackupService {
   void _initializeGoogleSignIn() {
     _googleSignIn = GoogleSignIn(
       scopes: _scopes,
+      forceCodeForRefreshToken: true, // لضمان الحصول على رمز التحديث
     );
+    // محاولة استعادة الجلسة السابقة
+    _attemptSilentSignIn();
+  }
+
+  Future<void> _attemptSilentSignIn() async {
+    try {
+      final account = await _googleSignIn?.signInSilently(suppressErrors: false);
+      if (account != null) {
+        debugPrint('🔄 تم استعادة جلسة Google Drive تلقائياً: ${account.email}');
+        final headers = await account.authHeaders;
+        final client = GoogleAuthClient(headers);
+        _driveApi = drive.DriveApi(client);
+      }
+    } catch (e) {
+      debugPrint('⚠️ فشل في استعادة الجلسة التلقائية: $e');
+    }
   }
 
   Future<GoogleSignInAccount?> signInForDrive() async {
@@ -163,10 +180,12 @@ class GoogleDriveBackupService {
       }
 
       debugPrint('🔄 محاولة تسجيل الدخول الصامت...');
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
+      GoogleSignInAccount? account = await _googleSignIn!.signInSilently(suppressErrors: false);
 
       if (account == null) {
         debugPrint('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
+        // تنظيف حالة سابقة قبل تسجيل الدخول الجديد
+        await _googleSignIn!.signOut();
         account = await _googleSignIn!.signIn();
       }
 
@@ -207,7 +226,7 @@ class GoogleDriveBackupService {
 
   GoogleSignInAccount? get currentUser => _googleSignIn?.currentUser;
 
-  bool get isSignedIn => _googleSignIn?.currentUser != null;
+  bool get isSignedIn => _googleSignIn?.currentUser != null && _driveApi != null;
 
   Future<String> getOrCreateBackupFolder() async {
     if (_driveApi == null) {
