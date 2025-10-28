@@ -77,4 +77,14 @@ class PaymentsRepository {
   Future<int> getRecordCount() async {
     return await dao.getRecordCount();
   }
+
+  /// الحصول على إجمالي المدفوعات لتاريخ محدد
+  Future<double> getTotalByDate(String date) async {
+    final payments = await dao.listByDate(date);
+    double total = 0;
+    for (final payment in payments) {
+      total += payment.amount;
+    }
+    return total;
+  }
 }

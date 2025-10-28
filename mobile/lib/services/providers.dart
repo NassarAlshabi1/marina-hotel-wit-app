@@ -8,6 +8,7 @@ import 'repositories/cash_repository.dart';
 import 'repositories/payments_repository.dart';
 import 'repositories/debts_repository.dart';
 import 'repositories/notes_repository.dart';
+import 'repositories/simple_notes_repository.dart';
 import 'whatsapp_service.dart';
 import '../utils/status_utils.dart';
 
@@ -28,6 +29,7 @@ final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.re
 final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider)));
 final debtsRepoProvider = Provider<DebtsRepository>((ref) => DebtsRepository(ref.read(databaseProvider)));
 final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider)));
+final simpleNotesRepoProvider = Provider<SimpleNotesRepository>((ref) => SimpleNotesRepository(ref.read(databaseProvider)));
 final whatsappServiceProvider = Provider<WhatsAppService>(
   (ref) => WhatsAppService(
     baseUrl: 'https://7103.api.greenapi.com',
@@ -43,12 +45,38 @@ final availableRoomsProvider = StreamProvider.autoDispose((ref) =>
 final bookingsListProvider = StreamProvider.autoDispose((ref) => ref.watch(bookingsRepoProvider).watch());
 final activeNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(notesRepoProvider).listAllActive());
 
+// Simple Notes Providers
+final simpleNotesListProvider = StreamProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).watchAllNotes());
+final simpleNotesUnreadCountProvider = StreamProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).watchUnreadCount());
+final allSimpleNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getAllNotes());
+final unreadSimpleNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getUnreadNotes());
+final highPrioritySimpleNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getHighPriorityNotes());
+
 final employeesListProvider = StreamProvider.autoDispose((ref) => ref.watch(employeesRepoProvider).watchAll());
 
 final expensesListProvider = StreamProvider.autoDispose((ref) => ref.watch(expensesRepoProvider).watchAll());
 
 final cashTransactionsListProvider = StreamProvider.autoDispose((ref) => ref.watch(cashRepoProvider).watchAll());
+
+// Daily Statistics Providers
+final todayPaymentsProvider = FutureProvider.autoDispose((ref) {
+  final today = DateTime.now();
+  final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+  return ref.watch(paymentsRepoProvider).getTotalByDate(todayStr);
+});
+
+final todayExpensesProvider = FutureProvider.autoDispose((ref) {
+  final today = DateTime.now();
+  final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+  return ref.watch(expensesRepoProvider).getTotalByDate(todayStr);
+});
 final debtsListProvider = StreamProvider.autoDispose((ref) => ref.watch(debtsRepoProvider).watchAll());
+final pendingDebtsProvider = StreamProvider.autoDispose((ref) => 
+  ref.watch(debtsRepoProvider).watchAll().map((debts) => 
+    debts.where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0).toList()));
+final settledDebtsProvider = StreamProvider.autoDispose((ref) => 
+  ref.watch(debtsRepoProvider).watchAll().map((debts) => 
+    debts.where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0).toList()));
 
 // دالة للحصول على Database instance (singleton)
 AppDatabase getDatabase() => DatabaseManager.instance;

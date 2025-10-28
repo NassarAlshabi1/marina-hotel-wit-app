@@ -70,4 +70,14 @@ class ExpensesRepository {
   Future<int> getRecordCount() async {
     return await dao.getRecordCount();
   }
+
+  /// الحصول على إجمالي المصروفات لتاريخ محدد
+  Future<double> getTotalByDate(String date) async {
+    final expenses = await dao.listByDate(date);
+    double total = 0;
+    for (final expense in expenses) {
+      total += expense.amount;
+    }
+    return total;
+  }
 }

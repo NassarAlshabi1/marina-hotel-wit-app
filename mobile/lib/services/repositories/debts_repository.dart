@@ -19,24 +19,31 @@ class DebtsRepository {
     required String guestName,
     required String checkinDate,
     required String checkoutDate,
+    String? dateRecorded,
+    String? debtReason,
     required double totalAmount,
     required double paidAmount,
     required String paymentDate,
+    bool? isSettled,
     String? pledge,
     String? pledgeType,
     String? note,
   }) {
     final remaining = (totalAmount - paidAmount).clamp(0, double.infinity).toDouble();
+    final settled = isSettled ?? (remaining <= 0 ? true : false);
     return dao.insertOne(
       DebtsCompanion(
         bookingLocalId: d.Value(bookingLocalId),
         guestName: d.Value(guestName),
         checkinDate: d.Value(checkinDate),
         checkoutDate: d.Value(checkoutDate),
+        dateRecorded: d.Value(dateRecorded ?? checkinDate),
+        debtReason: d.Value(debtReason ?? ''),
         totalAmount: d.Value(totalAmount),
         paidAmount: d.Value(paidAmount),
         remainingAmount: d.Value(remaining),
         paymentDate: d.Value(paymentDate),
+        isSettled: d.Value(settled ? 1 : 0),
         pledge: d.Value(pledge),
         pledgeType: d.Value(pledgeType),
         note: d.Value(note),
@@ -50,9 +57,13 @@ class DebtsRepository {
     String? guestName,
     String? checkinDate,
     String? checkoutDate,
+    String? dateRecorded,
+    String? debtReason,
     double? totalAmount,
     double? paidAmount,
+    double? remainingAmount,
     String? paymentDate,
+    int? isSettled,
     String? pledge,
     String? pledgeType,
     String? note,
@@ -63,7 +74,7 @@ class DebtsRepository {
     }
     final newTotal = totalAmount ?? existing.totalAmount;
     final newPaid = paidAmount ?? existing.paidAmount;
-    final remaining = (newTotal - newPaid).clamp(0, double.infinity).toDouble();
+    final remaining = remainingAmount ?? (newTotal - newPaid).clamp(0, double.infinity).toDouble();
     return dao.updateById(
       id,
       DebtsCompanion(
@@ -71,10 +82,13 @@ class DebtsRepository {
         guestName: guestName != null ? d.Value(guestName) : const d.Value.absent(),
         checkinDate: checkinDate != null ? d.Value(checkinDate) : const d.Value.absent(),
         checkoutDate: checkoutDate != null ? d.Value(checkoutDate) : const d.Value.absent(),
+        dateRecorded: dateRecorded != null ? d.Value(dateRecorded) : const d.Value.absent(),
+        debtReason: debtReason != null ? d.Value(debtReason) : const d.Value.absent(),
         totalAmount: totalAmount != null ? d.Value(totalAmount) : const d.Value.absent(),
         paidAmount: paidAmount != null ? d.Value(paidAmount) : const d.Value.absent(),
         remainingAmount: d.Value(remaining),
         paymentDate: paymentDate != null ? d.Value(paymentDate) : const d.Value.absent(),
+        isSettled: isSettled != null ? d.Value(isSettled) : const d.Value.absent(),
         pledge: pledge != null ? d.Value(pledge) : const d.Value.absent(),
         pledgeType: pledgeType != null ? d.Value(pledgeType) : const d.Value.absent(),
         note: note != null ? d.Value(note) : const d.Value.absent(),

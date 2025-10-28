@@ -28,6 +28,14 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
     return q.watch();
   }
 
+  /// جلب المصروفات لتاريخ محدد
+  Future<List<Expense>> listByDate(String date, {bool includeDeleted = false}) async {
+    final q = select(expenses);
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    q.where((t) => t.date.like('$date%')); // يبدأ بالتاريخ المحدد
+    return q.get();
+  }
+
   Future<Expense?> getById(int id) => (select(expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<Expense?> watchById(int id) => (select(expenses)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
