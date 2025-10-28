@@ -141,7 +141,7 @@ class EnhancedPaymentsReport {
           child: EnhancedPdfUtils.buildStatisticsBox(
             title: 'إجمالي المدفوعات',
             value: EnhancedPdfUtils.formatNumber(totalAmount),
-            subtitle: 'ريال سعودي',
+            // subtitle: '',
             fonts: fonts,
             color: PdfColors.success,
             icon: '💰',
@@ -163,7 +163,7 @@ class EnhancedPaymentsReport {
           child: EnhancedPdfUtils.buildStatisticsBox(
             title: 'متوسط المعاملة',
             value: EnhancedPdfUtils.formatNumber(totalTransactions > 0 ? totalAmount / totalTransactions : 0),
-            subtitle: 'ريال',
+            // subtitle: '',
             fonts: fonts,
             color: PdfColors.accent,
             icon: '📈',
@@ -440,7 +440,7 @@ class EnhancedExpensesReport {
           child: EnhancedPdfUtils.buildStatisticsBox(
             title: 'إجمالي المصروفات',
             value: EnhancedPdfUtils.formatNumber(totalAmount),
-            subtitle: 'ريال سعودي',
+            // subtitle: '',
             fonts: fonts,
             color: PdfColors.danger,
             icon: '💸',
@@ -462,7 +462,7 @@ class EnhancedExpensesReport {
           child: EnhancedPdfUtils.buildStatisticsBox(
             title: 'أعلى مصروف',
             value: EnhancedPdfUtils.formatNumber(highestExpense),
-            subtitle: 'ريال',
+            // subtitle: '',
             fonts: fonts,
             color: PdfColors.info,
             icon: '⬆️',

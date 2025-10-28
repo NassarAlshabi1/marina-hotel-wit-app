@@ -47,4 +47,24 @@ function send_yemeni_whatsapp($phone, $message) {
 
     return json_decode($response, true);
 }
+
+// ثوابت العملة
+define('CURRENCY_SYMBOL', 'ر.س');
+
+// دالة توحيد تنسيق العملة
+function formatCurrency($amount, $show_decimals = false) {
+    if ($show_decimals) {
+        return number_format($amount, 2) . ' ' . CURRENCY_SYMBOL;
+    } else {
+        return number_format($amount, 0) . ' ' . CURRENCY_SYMBOL;
+    }
+}
+
+// دالة تنسيق العملة مع فواصل عربية
+function formatCurrencyArabic($amount, $show_decimals = false) {
+    $formatted = formatCurrency($amount, $show_decimals);
+    // استخدام الفاصلة العربية بدلاً من الإنجليزية
+    $formatted = str_replace(',', '،', $formatted);
+    return $formatted;
+}
 ?>

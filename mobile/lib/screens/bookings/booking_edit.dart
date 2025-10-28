@@ -269,7 +269,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                           decoration: const InputDecoration(
                             labelText: 'مبلغ الدفعة المقدمة *',
                             helperText: 'أدخل المبلغ المستلم من النزيل',
-                            prefixText: 'ريال ',
+                            // prefixText: 'ر.س ',
                           ),
                           validator: _hasAdvancePayment ? (v) {
                             if (v == null || v.trim().isEmpty) return 'مطلوب عند تحديد دفعة مقدمة';
@@ -623,7 +623,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم حفظ الحجز وتسجيل دفعة مقدمة بقيمة ${formatAmount(amount)} ريال'),
+            content: Text('تم حفظ الحجز وتسجيل دفعة مقدمة بقيمة ${formatAmount(amount)}'),
             backgroundColor: Colors.green,
           ),
         );

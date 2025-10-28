@@ -152,7 +152,7 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
             foregroundColor: Colors.white,
             minimumSize: const Size(double.infinity, 48),
           ),
-          child: Text('إنشاء دين بقيمة ${(_totalCost - _paidAmount).toStringAsFixed(0)} ر.س'),
+          child: Text('إنشاء دين بقيمة ${(_totalCost - _paidAmount).toStringAsFixed(0)}'),
         ),
       ) : null,
     );
@@ -199,7 +199,7 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
                   decoration: const InputDecoration(
                     labelText: 'سعر الغرفة/الليلة',
                     border: OutlineInputBorder(),
-                    suffixText: 'ر.س',
+                    // suffixText: 'ر.س',
                   ),
                   keyboardType: TextInputType.number,
                   onChanged: (value) {
@@ -218,7 +218,7 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
             decoration: const InputDecoration(
               labelText: 'المبلغ المدفوع',
               border: OutlineInputBorder(),
-              suffixText: 'ر.س',
+              // suffixText: 'ر.س',
             ),
             keyboardType: TextInputType.number,
             onChanged: (value) {
@@ -253,7 +253,7 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('إجمالي التكلفة:'),
-                    Text('${_totalCost.toStringAsFixed(0)} ر.س', 
+                    Text('${_totalCost.toStringAsFixed(0)}', 
                          style: const TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
@@ -261,7 +261,7 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('المبلغ المدفوع:'),
-                    Text('${_paidAmount.toStringAsFixed(0)} ر.س', 
+                    Text('${_paidAmount.toStringAsFixed(0)}', 
                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700)),
                   ],
                 ),
@@ -270,7 +270,7 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('الدين المتبقي:', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text('${(_totalCost - _paidAmount).toStringAsFixed(0)} ر.س', 
+                    Text('${(_totalCost - _paidAmount).toStringAsFixed(0)}', 
                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700, fontSize: 16)),
                   ],
                 ),
@@ -331,9 +331,9 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
             Text('النزيل: ${_selectedBooking!.guestName}'),
             Text('الغرفة: ${_selectedBooking!.roomNumber}'),
             Text('عدد الليالي: $_actualNights'),
-            Text('إجمالي التكلفة: ${_totalCost.toStringAsFixed(0)} ر.س'),
-            Text('المدفوع: ${_paidAmount.toStringAsFixed(0)} ر.س'),
-            Text('الدين: ${debtAmount.toStringAsFixed(0)} ر.س', 
+            Text('إجمالي التكلفة: ${_totalCost.toStringAsFixed(0)}'),
+            Text('المدفوع: ${_paidAmount.toStringAsFixed(0)}'),
+            Text('الدين: ${debtAmount.toStringAsFixed(0)}', 
                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
           ],
         ),

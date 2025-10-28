@@ -234,7 +234,7 @@ class EnhancedPdfHelper {
                 child: EnhancedPdfUtils.buildStatisticsBox(
                   title: 'إجمالي الإيرادات',
                   value: EnhancedPdfUtils.formatNumber(totalRevenue),
-                  subtitle: 'ريال سعودي',
+                  // subtitle: '',
                   fonts: fonts,
                   color: PdfColors.success,
                   icon: '💰',
@@ -245,7 +245,7 @@ class EnhancedPdfHelper {
                 child: EnhancedPdfUtils.buildStatisticsBox(
                   title: 'إجمالي المصروفات',
                   value: EnhancedPdfUtils.formatNumber(totalExpenses),
-                  subtitle: 'ريال سعودي',
+                  // subtitle: '',
                   fonts: fonts,
                   color: PdfColors.danger,
                   icon: '💸',
@@ -312,7 +312,7 @@ class EnhancedPdfHelper {
                 children: [
                   pw.Text('متوسط الإيراد لكل حجز:', style: PdfTextStyles.bodyBold(fonts.bold)),
                   pw.Text(
-                    totalBookings > 0 ? EnhancedPdfUtils.formatCurrency(totalRevenue / totalBookings) : '0 ر.س',
+                    totalBookings > 0 ? EnhancedPdfUtils.formatCurrency(totalRevenue / totalBookings) : '0',
                     style: PdfTextStyles.body(fonts.regular),
                   ),
                 ],

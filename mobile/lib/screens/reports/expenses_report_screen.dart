@@ -370,7 +370,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                                           _dateLabelFormat.format(row.date),
                                           style: const TextStyle(fontWeight: FontWeight.bold),
                                         ),
-                                        Text('${_currencyFmt.format(row.amount)} ر.س'),
+                                        Text('${_currencyFmt.format(row.amount)}'),
                                       ],
                                     ),
                                     const SizedBox(height: 8),

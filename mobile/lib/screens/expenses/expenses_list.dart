@@ -68,7 +68,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
                         return ListTile(
                           title: Text(expense.description),
                           subtitle: Text('${expense.expenseType} • ${employeeName ?? 'بدون موظف'} • ${Time.safeIsoToDateString(expense.date)}'),
-                          trailing: Text('${expense.amount.toStringAsFixed(2)} ر.س'),
+                          trailing: Text('${expense.amount.toStringAsFixed(0)}'),
                           onTap: () => _edit(existing: expense, employees: employees),
                         );
                       },

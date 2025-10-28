@@ -1,0 +1,47 @@
+import 'package:intl/intl.dart';
+
+/// دوال تنسيق الأرقام المالية (بدون رموز عملة)
+class CurrencyFormatter {
+  /// تنسيق المبلغ بالفواصل فقط (5,000)
+  static String formatCurrency(double amount, {bool showDecimals = false}) {
+    final formatter = NumberFormat('#,###${showDecimals ? '.##' : ''}', 'ar');
+    return formatter.format(amount);
+  }
+
+  /// تنسيق المبلغ بالفواصل فقط (5,000)
+  static String formatAmount(double amount, {bool showDecimals = false}) {
+    final formatter = NumberFormat('#,###${showDecimals ? '.##' : ''}', 'ar');
+    return formatter.format(amount);
+  }
+
+  /// تنسيق المبلغ بالفواصل الإنجليزية (للأنظمة التي لا تدعم الفواصل العربية)
+  static String formatCurrencyEnglish(double amount, {bool showDecimals = false}) {
+    final formatter = NumberFormat('#,###${showDecimals ? '.##' : ''}', 'en');
+    return formatter.format(amount);
+  }
+
+  /// تنسيق المبلغ للعرض في واجهة المستخدم (أرقام فقط)
+  static String formatForDisplay(double amount, {bool showDecimals = false}) {
+    return formatAmount(amount, showDecimals: showDecimals);
+  }
+
+  /// تنسيق المبلغ للرسائل النصية (أرقام فقط)
+  static String formatForMessage(double amount, {bool showDecimals = false}) {
+    return formatAmount(amount, showDecimals: showDecimals);
+  }
+
+  /// تحويل المبلغ من النص إلى رقم
+  static double? parseAmount(String text) {
+    // إزالة الفواصل
+    String cleanText = text
+        .replaceAll('،', '')
+        .replaceAll(',', '')
+        .trim();
+    
+    return double.tryParse(cleanText);
+  }
+
+  /// إنشاء NumberFormat للاستخدام المتكرر
+  static NumberFormat get defaultFormatter => NumberFormat('#,###', 'ar');
+  static NumberFormat get decimalFormatter => NumberFormat('#,###.##', 'ar');
+}

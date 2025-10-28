@@ -530,17 +530,17 @@ class FileManagementService {
   String _formatRecordForDisplay(Map<String, dynamic> record, String tableType) {
     switch (tableType) {
       case 'rooms':
-        return 'غرفة ${record['roomNumber'] ?? 'N/A'} - ${record['type'] ?? 'N/A'} - ${record['price'] ?? 'N/A'} ريال';
+        return 'غرفة ${record['roomNumber'] ?? 'N/A'} - ${record['type'] ?? 'N/A'} - ${record['price'] ?? 'N/A'}';
       case 'bookings':
         return '${record['guestName'] ?? 'N/A'} - غرفة ${record['roomNumber'] ?? 'N/A'} - ${record['checkinDate'] ?? 'N/A'}';
       case 'employees':
-        return '${record['name'] ?? 'N/A'} - ${record['position'] ?? 'N/A'} - ${record['basicSalary'] ?? 'N/A'} ريال';
+        return '${record['name'] ?? 'N/A'} - ${record['position'] ?? 'N/A'} - ${record['basicSalary'] ?? 'N/A'}';
       case 'expenses':
-        return '${record['description'] ?? 'N/A'} - ${record['amount'] ?? 'N/A'} ريال - ${record['date'] ?? 'N/A'}';
+        return '${record['description'] ?? 'N/A'} - ${record['amount'] ?? 'N/A'} - ${record['date'] ?? 'N/A'}';
       case 'payments':
-        return 'دفعة ${record['amount'] ?? 'N/A'} ريال - ${record['paymentMethod'] ?? 'N/A'} - ${record['paymentDate'] ?? 'N/A'}';
+        return 'دفعة ${record['amount'] ?? 'N/A'} - ${record['paymentMethod'] ?? 'N/A'} - ${record['paymentDate'] ?? 'N/A'}';
       case 'cash_transactions':
-        return '${record['transactionType'] ?? 'N/A'} - ${record['amount'] ?? 'N/A'} ريال - ${record['description'] ?? 'N/A'}';
+        return '${record['transactionType'] ?? 'N/A'} - ${record['amount'] ?? 'N/A'} - ${record['description'] ?? 'N/A'}';
       default:
         return record.toString();
     }

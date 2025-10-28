@@ -611,7 +611,7 @@ class EnhancedPdfUtils {
 
   /// تنسيق المبلغ بالعملة
   static String formatCurrency(double amount) {
-    return '${amount.toStringAsFixed(0)} ر.س';
+    return '${amount.toStringAsFixed(0)}';
   }
 
   /// تنسيق الأرقام بالفواصل
