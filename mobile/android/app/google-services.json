@@ -14,11 +14,19 @@
       },
       "oauth_client": [
         {
-          "client_id": "256666337807-8k16mnnbn1j87oaetmpsq5f9rlbolkid.apps.googleusercontent.com",
+          "client_id": "256666337807-k76abv15go0lidfd3ddge2101tkhlq34.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.aden.marina",
-            "certificate_hash": "671257a29b53fa71acbc0fa8c9542f3f460ba81c"
+            "certificate_hash": "3d915e726608dbbecf373af4e8c2ad2278f49236"
+          }
+        },
+        {
+          "client_id": "256666337807-vjto7nr7vhrrees1f5j9v2h4vdicmd43.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aden.marina",
+            "certificate_hash": "711c33d04ba8549d1afdee843fed655b13b2bdd5"
           }
         },
         {
@@ -35,7 +43,7 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "113125480959164184086",
+              "client_id": "256666337807-561s7dakv86m3kugsalv8opa8idkjmd0.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
