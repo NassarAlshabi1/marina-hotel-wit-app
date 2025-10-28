@@ -71,6 +71,12 @@ final todayExpensesProvider = FutureProvider.autoDispose((ref) {
   return ref.watch(expensesRepoProvider).getTotalByDate(todayStr);
 });
 final debtsListProvider = StreamProvider.autoDispose((ref) => ref.watch(debtsRepoProvider).watchAll());
+final pendingDebtsProvider = StreamProvider.autoDispose((ref) => 
+  ref.watch(debtsRepoProvider).watchAll().map((debts) => 
+    debts.where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0).toList()));
+final settledDebtsProvider = StreamProvider.autoDispose((ref) => 
+  ref.watch(debtsRepoProvider).watchAll().map((debts) => 
+    debts.where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0).toList()));
 
 // دالة للحصول على Database instance (singleton)
 AppDatabase getDatabase() => DatabaseManager.instance;
