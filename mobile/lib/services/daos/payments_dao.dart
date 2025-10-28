@@ -28,6 +28,14 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
     return q.watch();
   }
 
+  /// جلب المدفوعات لتاريخ محدد
+  Future<List<Payment>> listByDate(String date, {bool includeDeleted = false}) async {
+    final q = select(payments);
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    q.where((t) => t.paymentDate.like('$date%')); // يبدأ بالتاريخ المحدد
+    return q.get();
+  }
+
   Future<Payment?> getById(int id) => (select(payments)..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<Payment?> watchById(int id) => (select(payments)..where((t) => t.id.equals(id))).watchSingleOrNull();
 

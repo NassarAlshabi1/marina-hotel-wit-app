@@ -130,6 +130,7 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/dashboard',
                     isActive: currentRoute == '/dashboard',
                     onTap: () => onRouteSelected('/dashboard'),
+                    context: context,
                   ),
                 if (can('rooms'))
                   _buildMenuItem(
@@ -138,6 +139,7 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/rooms',
                     isActive: currentRoute.startsWith('/rooms'),
                     onTap: () => onRouteSelected('/rooms'),
+                    context: context,
                   ),
                 if (can('bookings'))
                   _buildMenuItem(
@@ -146,6 +148,7 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/bookings',
                     isActive: currentRoute.startsWith('/bookings'),
                     onTap: () => onRouteSelected('/bookings'),
+                    context: context,
                   ),
                 if (can('payments'))
                   _buildMenuItem(
@@ -154,6 +157,7 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/payments',
                     isActive: currentRoute.startsWith('/payments'),
                     onTap: () => onRouteSelected('/payments'),
+                    context: context,
                   ),
                 if (can('debts'))
                   _buildMenuItem(
@@ -162,6 +166,7 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/debts',
                     isActive: currentRoute.startsWith('/debts'),
                     onTap: () => onRouteSelected('/debts'),
+                    context: context,
                   ),
                 if (can('employees'))
                   _buildMenuItem(
@@ -170,6 +175,7 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/employees',
                     isActive: currentRoute.startsWith('/employees'),
                     onTap: () => onRouteSelected('/employees'),
+                    context: context,
                   ),
                 if (can('expenses'))
                   _buildMenuItem(
@@ -178,6 +184,7 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/expenses',
                     isActive: currentRoute.startsWith('/expenses'),
                     onTap: () => onRouteSelected('/expenses'),
+                    context: context,
                   ),
                 if (can('finance'))
                   _buildMenuItem(
@@ -186,6 +193,7 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/finance',
                     isActive: currentRoute.startsWith('/finance'),
                     onTap: () => onRouteSelected('/finance'),
+                    context: context,
                   ),
                 if (can('reports'))
                   _buildMenuItem(
@@ -194,6 +202,7 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/reports',
                     isActive: currentRoute.startsWith('/reports'),
                     onTap: () => onRouteSelected('/reports'),
+                    context: context,
                   ),
                 if (can('notes'))
                   _buildMenuItem(
@@ -202,6 +211,7 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/notes',
                     isActive: currentRoute.startsWith('/notes'),
                     onTap: () => onRouteSelected('/notes'),
+                    context: context,
                   ),
                 if (can('settings'))
                   _buildMenuItem(
@@ -210,6 +220,7 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/settings',
                     isActive: currentRoute.startsWith('/settings'),
                     onTap: () => onRouteSelected('/settings'),
+                    context: context,
                   ),
               ],
             ),
@@ -222,11 +233,19 @@ class AdminSidebar extends ConsumerWidget {
               route: '/logout',
               isActive: false,
               onTap: () async {
-                await ref.read(authProvider.notifier).logout();
-                if (Navigator.of(context).canPop()) {
-                  Navigator.of(context).pop();
+                // إغلاق الـ Drawer في الموبايل قبل تسجيل الخروج
+                try {
+                  final isTablet = MediaQuery.of(context).size.width >= 768;
+                  if (!isTablet && Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                } catch (e) {
+                  // تجاهل الأخطاء
                 }
+                
+                await ref.read(authProvider.notifier).logout();
               },
+              context: context,
             ),
           ),
         ],
@@ -240,6 +259,7 @@ class AdminSidebar extends ConsumerWidget {
     required String route,
     required bool isActive,
     required VoidCallback onTap,
+    BuildContext? context,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
@@ -259,7 +279,21 @@ class AdminSidebar extends ConsumerWidget {
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
-        onTap: onTap,
+        onTap: () {
+          // إغلاق الـ Drawer في الموبايل قبل التنقل
+          if (context != null) {
+            try {
+              // تحقق مما إذا كان هناك drawer مفتوح وأغلقه
+              final isTablet = MediaQuery.of(context).size.width >= 768;
+              if (!isTablet && Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+            } catch (e) {
+              // تجاهل الأخطاء ومتابع
+            }
+          }
+          onTap();
+        },
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
         dense: true,
       ),

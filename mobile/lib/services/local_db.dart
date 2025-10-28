@@ -125,6 +125,19 @@ class Debts extends Table with SyncFields {
   TextColumn get note => text().nullable()();
 }
 
+// جدول الملاحظات البسيط
+class ShiftNotes extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get title => text()();
+  TextColumn get content => text()();
+  TextColumn get priority => text().withDefault(const Constant('medium'))(); // high, medium, low
+  TextColumn get shiftType => text().withDefault(const Constant('all'))(); // morning, evening, night, all
+  IntColumn get isRead => integer().withDefault(const Constant(0))(); // 0 = غير مقروء، 1 = مقروء
+  TextColumn get createdAt => text()();
+  TextColumn get expiresAt => text().nullable()();
+  TextColumn get createdBy => text().withDefault(const Constant('user'))();
+}
+
 class Outbox extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get entity => text()();
@@ -152,6 +165,7 @@ class SyncState extends Table {
   Rooms,
   Bookings,
   BookingNotes,
+  ShiftNotes,
   Employees,
   Expenses,
   CashTransactions,
@@ -163,7 +177,7 @@ class SyncState extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -191,6 +205,9 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(debts, debts.dateRecorded);
             await m.addColumn(debts, debts.debtReason);
             await m.addColumn(debts, debts.isSettled);
+          }
+          if (from < 6) {
+            await m.createTable(shiftNotes);
           }
         },
       );
