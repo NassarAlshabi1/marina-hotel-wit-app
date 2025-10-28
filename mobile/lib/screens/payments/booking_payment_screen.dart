@@ -1139,19 +1139,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
     }
   }
-    
-    try {
-      final success = await whatsappService.sendMessage(phoneE164: cleanedPhone, message: message);
-      if (!success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')));
-      }
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')));
-    }
-  }
 
   Future<void> _processPayment(
     PaymentMethod method,
