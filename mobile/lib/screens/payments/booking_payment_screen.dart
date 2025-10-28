@@ -846,8 +846,34 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (cleanedPhone.isEmpty) {
       return;
     }
+
     final whatsappService = ref.read(whatsappServiceProvider);
-    
+
+    String formatAmount(double amount) {
+      if (amount == amount.toInt()) {
+        return '${amount.toInt()}';
+      }
+      return _currencyFmt.format(amount);
+    }
+
+    final message = StringBuffer()
+      ..writeln('عزيزي ${widget.booking.guestName}')
+      ..writeln('تم استلام دفعتك بقيمة ${formatAmount(amountPaidNow)} ريال يمني')
+      ..writeln('رقم الغرفة: ${widget.booking.roomNumber}')
+      ..writeln('المبلغ المتبقي: ${formatAmount(remaining)} ريال يمني')
+      ..writeln('شكراً لاختيارك فندق مارينا')
+      ..write('للاستفسار: 9677734587456');
+
+    try {
+      await whatsappService.sendMessage(
+        phoneE164: cleanedPhone,
+        message: message.toString(),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')),
+        );
       }
     }
   }
