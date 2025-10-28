@@ -218,9 +218,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
                     // Validate salary expenses must have employee selected
                     if (selectedType == _salaryType && selectedEmployeeId == null) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                          content: Text('يجب اختيار موظف عند اختيار نوع المصروف "رواتب"'),
-                          backgroundColor: Colors.red,
+                        SnackBar(
+                          content: const Text('يجب اختيار موظف عند اختيار نوع المصروف "رواتب"'),
+                          backgroundColor: Theme.of(ctx).colorScheme.error,
                         ),
                       );
                       return;
