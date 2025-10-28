@@ -343,9 +343,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Expanded(child: _buildSummaryTile('إجمالي الديون', '${_currencyFormat.format(_totalDebt)} ر.س')),
-            Expanded(child: _buildSummaryTile('المبالغ المدفوعة', '${_currencyFormat.format(_totalPaid)} ر.س')),
-            Expanded(child: _buildSummaryTile('المبالغ المتبقية', '${_currencyFormat.format(_totalRemaining)} ر.س')),
+            Expanded(child: _buildSummaryTile('إجمالي الديون', '${_currencyFormat.format(_totalDebt)}')),
+            Expanded(child: _buildSummaryTile('المبالغ المدفوعة', '${_currencyFormat.format(_totalPaid)}')),
+            Expanded(child: _buildSummaryTile('المبالغ المتبقية', '${_currencyFormat.format(_totalRemaining)}')),
             Expanded(child: _buildSummaryTile('عدد السجلات', _rows.length.toString())),
           ],
         ),
@@ -474,14 +474,14 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(backgroundColor: colors[i % colors.length]),
                   title: Text(topGuests[i].guestName),
-                  subtitle: Text('المتبقي: ${_currencyFormat.format(topGuests[i].remainingAmount)} ر.س'),
+                  subtitle: Text('المتبقي: ${_currencyFormat.format(topGuests[i].remainingAmount)}'),
                 ),
               if (others > 0)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(backgroundColor: colors.last),
                   title: const Text('أخرى'),
-                  subtitle: Text('المتبقي: ${_currencyFormat.format(others)} ر.س'),
+                  subtitle: Text('المتبقي: ${_currencyFormat.format(others)}'),
                 ),
             ],
           ),
@@ -558,9 +558,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
             .map(
               (guest) => [
                 Text(guest.guestName),
-                Text('${_currencyFormat.format(guest.totalAmount)} ر.س'),
-                Text('${_currencyFormat.format(guest.paidAmount)} ر.س'),
-                Text('${_currencyFormat.format(guest.remainingAmount)} ر.س'),
+                Text('${_currencyFormat.format(guest.totalAmount)}'),
+                Text('${_currencyFormat.format(guest.paidAmount)}'),
+                Text('${_currencyFormat.format(guest.remainingAmount)}'),
               ],
             )
             .toList(),
@@ -581,9 +581,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                 Text(_formatTextFallback(debt.debtReason)),
                 Text(Time.safeIsoToDateString(debt.checkinDate)),
                 Text(Time.safeIsoToDateString(debt.checkoutDate)),
-                Text('${_currencyFormat.format(debt.totalAmount)} ر.س'),
-                Text('${_currencyFormat.format(debt.paidAmount)} ر.س'),
-                Text('${_currencyFormat.format(debt.remainingAmount)} ر.س'),
+                Text('${_currencyFormat.format(debt.totalAmount)}'),
+                Text('${_currencyFormat.format(debt.paidAmount)}'),
+                Text('${_currencyFormat.format(debt.remainingAmount)}'),
                 Text(Time.safeIsoToDateString(debt.paymentDate)),
                 Text(_formatSettlement(debt.isSettled)),
                 Text(debt.pledge?.isNotEmpty == true ? debt.pledge! : '-'),

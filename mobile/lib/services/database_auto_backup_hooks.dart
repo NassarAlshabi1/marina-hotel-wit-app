@@ -125,7 +125,7 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للمدفوعات
   static Future<int> insertPayment(PaymentsCompanion payment) async {
     final result = await _db.insertWithBackupTrigger(_db.payments, payment);
-    debugPrint('💰 تم إضافة دفعة جديدة (${payment.amount.value} ر.س) - سيتم النسخ التلقائي');
+    debugPrint('💰 تم إضافة دفعة جديدة (${payment.amount.value}) - سيتم النسخ التلقائي');
     return result;
   }
 
@@ -142,7 +142,7 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للمصروفات
   static Future<int> insertExpense(ExpensesCompanion expense) async {
     final result = await _db.insertWithBackupTrigger(_db.expenses, expense);
-    debugPrint('🧾 تم إضافة مصروف جديد (${expense.amount.value} ر.س) - سيتم النسخ التلقائي');
+    debugPrint('🧾 تم إضافة مصروف جديد (${expense.amount.value}) - سيتم النسخ التلقائي');
     return result;
   }
 
@@ -159,7 +159,7 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للمعاملات النقدية
   static Future<int> insertCashTransaction(CashTransactionsCompanion transaction) async {
     final result = await _db.insertWithBackupTrigger(_db.cashTransactions, transaction);
-    debugPrint('💳 تم إضافة معاملة نقدية (${transaction.amount.value} ر.س) - سيتم النسخ التلقائي');
+    debugPrint('💳 تم إضافة معاملة نقدية (${transaction.amount.value}) - سيتم النسخ التلقائي');
     return result;
   }
 
@@ -200,7 +200,7 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للديون
   static Future<int> insertDebt(DebtsCompanion debt) async {
     final result = await _db.insertWithBackupTrigger(_db.debts, debt);
-    debugPrint('💳 تم إضافة دين جديد (${debt.totalAmount.value} ر.س) - سيتم النسخ التلقائي');
+    debugPrint('💳 تم إضافة دين جديد (${debt.totalAmount.value}) - سيتم النسخ التلقائي');
     return result;
   }
 

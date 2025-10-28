@@ -133,7 +133,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
                   const SizedBox(width: 8),
                   Expanded(child: _buildStatCard('معلق', pendingDebts.toString(), Colors.orange)),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildStatCard('القيمة الإجمالية', '${totalAmount.toStringAsFixed(0)} ر.س', Colors.red)),
+                  Expanded(child: _buildStatCard('القيمة الإجمالية', '${totalAmount.toStringAsFixed(0)}', Colors.red)),
                 ],
               ),
             );
@@ -326,7 +326,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('إجمالي المبلغ', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                      Text('${debt.totalAmount.toStringAsFixed(0)} ر.س', 
+                      Text('${debt.totalAmount.toStringAsFixed(0)}', 
                            style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
@@ -336,7 +336,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('المدفوع', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                      Text('${debt.paidAmount.toStringAsFixed(0)} ر.س', 
+                      Text('${debt.paidAmount.toStringAsFixed(0)}', 
                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700)),
                     ],
                   ),
@@ -346,7 +346,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('المتبقي', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                      Text('${debt.remainingAmount.toStringAsFixed(0)} ر.س', 
+                      Text('${debt.remainingAmount.toStringAsFixed(0)}', 
                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700)),
                     ],
                   ),
@@ -668,7 +668,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
                             decoration: const InputDecoration(
                               labelText: 'إجمالي المبلغ*',
                               border: OutlineInputBorder(),
-                              suffixText: 'ر.س',
+                              // suffixText: 'ر.س',
                             ),
                             keyboardType: TextInputType.number,
                           ),
@@ -680,7 +680,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
                             decoration: const InputDecoration(
                               labelText: 'المدفوع',
                               border: OutlineInputBorder(),
-                              suffixText: 'ر.س',
+                              // suffixText: 'ر.س',
                             ),
                             keyboardType: TextInputType.number,
                           ),
@@ -693,7 +693,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
                       decoration: const InputDecoration(
                         labelText: 'المتبقي',
                         border: OutlineInputBorder(),
-                        suffixText: 'ر.س',
+                        // suffixText: 'ر.س',
                       ),
                       readOnly: true,
                     ),

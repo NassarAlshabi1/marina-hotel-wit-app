@@ -393,7 +393,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                                           _dateLabelFormat.format(row.paymentDate),
                                           style: const TextStyle(fontWeight: FontWeight.bold),
                                         ),
-                                        Text('${_currencyFmt.format(row.amount)} ر.س'),
+                                        Text('${_currencyFmt.format(row.amount)}'),
                                       ],
                                     ),
                                     const SizedBox(height: 8),

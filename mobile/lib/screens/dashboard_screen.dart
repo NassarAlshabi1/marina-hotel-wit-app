@@ -133,7 +133,7 @@ class DashboardScreen extends ConsumerWidget {
               ),
               data: (total) => _StatCard(
                 title: 'مدفوعات اليوم',
-                value: '${total.toStringAsFixed(0)} ر.س',
+                value: '${total.toStringAsFixed(0)}',
                 icon: Icons.payments,
                 color: Colors.green,
               ),
@@ -159,7 +159,7 @@ class DashboardScreen extends ConsumerWidget {
               ),
               data: (total) => _StatCard(
                 title: 'مصروفات اليوم',
-                value: '${total.toStringAsFixed(0)} ر.س',
+                value: '${total.toStringAsFixed(0)}',
                 icon: Icons.money_off,
                 color: Colors.red,
               ),

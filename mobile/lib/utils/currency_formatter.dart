@@ -1,20 +1,14 @@
 import 'package:intl/intl.dart';
 
-/// ثوابت العملة الموحدة
-class CurrencyConstants {
-  static const String currencySymbol = 'ر.س';
-  static const String currencyName = 'الريال السعودي';
-}
-
-/// دوال تنسيق العملة الموحدة
+/// دوال تنسيق الأرقام المالية (بدون رموز عملة)
 class CurrencyFormatter {
-  /// تنسيق المبلغ برمز العملة (5,000 ر.س)
+  /// تنسيق المبلغ بالفواصل فقط (5,000)
   static String formatCurrency(double amount, {bool showDecimals = false}) {
     final formatter = NumberFormat('#,###${showDecimals ? '.##' : ''}', 'ar');
-    return '${formatter.format(amount)} ${CurrencyConstants.currencySymbol}';
+    return formatter.format(amount);
   }
 
-  /// تنسيق المبلغ بدون رمز العملة (5,000)
+  /// تنسيق المبلغ بالفواصل فقط (5,000)
   static String formatAmount(double amount, {bool showDecimals = false}) {
     final formatter = NumberFormat('#,###${showDecimals ? '.##' : ''}', 'ar');
     return formatter.format(amount);
@@ -23,24 +17,23 @@ class CurrencyFormatter {
   /// تنسيق المبلغ بالفواصل الإنجليزية (للأنظمة التي لا تدعم الفواصل العربية)
   static String formatCurrencyEnglish(double amount, {bool showDecimals = false}) {
     final formatter = NumberFormat('#,###${showDecimals ? '.##' : ''}', 'en');
-    return '${formatter.format(amount)} ${CurrencyConstants.currencySymbol}';
+    return formatter.format(amount);
   }
 
-  /// تنسيق المبلغ للعرض في واجهة المستخدم
+  /// تنسيق المبلغ للعرض في واجهة المستخدم (أرقام فقط)
   static String formatForDisplay(double amount, {bool showDecimals = false}) {
-    return formatCurrency(amount, showDecimals: showDecimals);
+    return formatAmount(amount, showDecimals: showDecimals);
   }
 
-  /// تنسيق المبلغ للرسائل النصية (الواتساب)
+  /// تنسيق المبلغ للرسائل النصية (أرقام فقط)
   static String formatForMessage(double amount, {bool showDecimals = false}) {
-    return formatCurrency(amount, showDecimals: showDecimals);
+    return formatAmount(amount, showDecimals: showDecimals);
   }
 
   /// تحويل المبلغ من النص إلى رقم
   static double? parseAmount(String text) {
-    // إزالة رمز العملة والفواصل
+    // إزالة الفواصل
     String cleanText = text
-        .replaceAll(CurrencyConstants.currencySymbol, '')
         .replaceAll('،', '')
         .replaceAll(',', '')
         .trim();
