@@ -234,7 +234,7 @@ class EnhancedPdfHelper {
                 child: EnhancedPdfUtils.buildStatisticsBox(
                   title: 'إجمالي الإيرادات',
                   value: EnhancedPdfUtils.formatNumber(totalRevenue),
-                  // subtitle: '',
+                  subtitle: '',
                   fonts: fonts,
                   color: PdfColors.success,
                   icon: '💰',
@@ -245,7 +245,7 @@ class EnhancedPdfHelper {
                 child: EnhancedPdfUtils.buildStatisticsBox(
                   title: 'إجمالي المصروفات',
                   value: EnhancedPdfUtils.formatNumber(totalExpenses),
-                  // subtitle: '',
+                  subtitle: '',
                   fonts: fonts,
                   color: PdfColors.danger,
                   icon: '💸',
