@@ -315,7 +315,7 @@ class _FirebaseRealtimeDatabaseScreenState extends ConsumerState<FirebaseRealtim
             _buildInfoRow('Firebase URL', 'aden-flutter-default-rtdb.firebaseio.com'),
             _buildInfoRow('Project ID', 'aden-flutter'),
             _buildInfoRow('مسار البيانات', 'marina_hotel_data'),
-            _buildInfoRow('Cache Size', '10 MB'),
+            _buildInfoRow('Cache Size', ref.read(firebaseRealtimeDatabaseServiceProvider).cacheSizeMB), // Example
             _buildInfoRow('Offline Support', 'مُفعل'),
           ],
         ),
