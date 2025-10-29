@@ -211,10 +211,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
                   : BackupType.both;
 
       // التحقق من تسجيل الدخول في Google Drive
-      GoogleSignInAccount? account;
+      GoogleSignInAccount? currentAccount;
       List<DriveBackupFile> driveBackups = [];
       if (_backupService.isSignedIn) {
-        account = _backupService.currentUser;
+        currentAccount = _backupService.currentUser;
         // جلب قائمة النسخ المتاحة في Google Drive
         try {
           driveBackups = await _backupService.listBackupFiles();
@@ -231,7 +231,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         backupFolderInfo: folderInfo,
         localBackups: localBackups,
         availableBackups: driveBackups,
-        signedInAccount: account,
+        signedInAccount: currentAccount,
         autoSettings: AutoBackupSettings(
           isEnabled: isAutoEnabled,
           frequency: resolvedFrequency,

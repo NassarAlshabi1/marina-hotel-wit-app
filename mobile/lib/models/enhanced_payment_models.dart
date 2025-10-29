@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
@@ -81,7 +82,7 @@ class EnhancedPaymentReceipt {
         EnhancedPdfUtils.buildInfoCard(
           title: '🏨 بيانات النزيل',
           fonts: fonts,
-          borderColor: PdfColors.accent,
+          borderColor: EnhancedPdfUtils.EnhancedPdfUtils.PdfColors.accent,
           content: [
             _buildInfoRow('الاسم الكامل:', guestName, fonts),
             pw.SizedBox(height: 8),
@@ -95,7 +96,7 @@ class EnhancedPaymentReceipt {
         EnhancedPdfUtils.buildInfoCard(
           title: '💰 تفاصيل الدفعة',
           fonts: fonts,
-          borderColor: PdfColors.secondary,
+          borderColor: EnhancedPdfUtils.EnhancedPdfUtils.PdfColors.secondary,
           content: [
             _buildPaymentDetails(fonts),
           ],
@@ -106,7 +107,7 @@ class EnhancedPaymentReceipt {
           EnhancedPdfUtils.buildInfoCard(
             title: '📝 ملاحظات إضافية',
             fonts: fonts,
-            borderColor: PdfColors.info,
+            borderColor: EnhancedPdfUtils.EnhancedPdfUtils.PdfColors.info,
             content: [
               pw.Text(
                 notes!,
@@ -125,7 +126,7 @@ class EnhancedPaymentReceipt {
                 value: EnhancedPdfUtils.formatCurrency(payment.amount),
                 subtitle: '',
                 fonts: fonts,
-                color: PdfColors.success,
+                color: EnhancedPdfUtils.EnhancedPdfUtils.PdfColors.success,
                 icon: '💵',
               ),
             ),
@@ -136,7 +137,7 @@ class EnhancedPaymentReceipt {
                 value: _getPaymentMethodName(),
                 subtitle: 'Payment Method',
                 fonts: fonts,
-                color: PdfColors.info,
+                color: EnhancedPdfUtils.EnhancedPdfUtils.PdfColors.info,
                 icon: '💳',
               ),
             ),
@@ -182,7 +183,7 @@ class EnhancedPaymentReceipt {
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: pw.BoxDecoration(
-        color: PdfColors.success,
+        color: EnhancedPdfUtils.EnhancedPdfUtils.PdfColors.success,
         borderRadius: pw.BorderRadius.circular(20),
       ),
       child: pw.Text(
@@ -190,7 +191,7 @@ class EnhancedPaymentReceipt {
         style: pw.TextStyle(
           font: fonts.bold,
           fontSize: 12,
-          color: PdfColors.textWhite,
+          color: EnhancedPdfUtils.PdfColors.textWhite,
         ),
       ),
     );
@@ -218,14 +219,14 @@ class EnhancedPaymentReceipt {
         _buildInfoRow('المبلغ الأساسي:', EnhancedPdfUtils.formatCurrency(payment.amount), fonts),
         
         pw.SizedBox(height: 12),
-        pw.Divider(color: PdfColors.textLight),
+        pw.Divider(color: EnhancedPdfUtils.PdfColors.textLight),
         pw.SizedBox(height: 12),
         
         // إجمالي المبلغ مع تمييز بصري
         pw.Container(
           padding: const pw.EdgeInsets.all(12),
           decoration: pw.BoxDecoration(
-            color: PdfColors.secondary,
+            color: EnhancedPdfUtils.EnhancedPdfUtils.PdfColors.secondary,
             borderRadius: pw.BorderRadius.circular(8),
           ),
           child: pw.Row(
@@ -236,7 +237,7 @@ class EnhancedPaymentReceipt {
                 style: pw.TextStyle(
                   font: fonts.bold,
                   fontSize: 14,
-                  color: PdfColors.textWhite,
+                  color: EnhancedPdfUtils.PdfColors.textWhite,
                 ),
               ),
               pw.Text(
@@ -244,7 +245,7 @@ class EnhancedPaymentReceipt {
                 style: pw.TextStyle(
                   font: fonts.bold,
                   fontSize: 16,
-                  color: PdfColors.textWhite,
+                  color: EnhancedPdfUtils.PdfColors.textWhite,
                 ),
               ),
             ],
@@ -265,7 +266,7 @@ class EnhancedPaymentReceipt {
     return pw.Container(
       padding: const pw.EdgeInsets.all(16),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.textLight),
+        border: pw.Border.all(color: EnhancedPdfUtils.PdfColors.textLight),
         borderRadius: pw.BorderRadius.circular(8),
       ),
       child: pw.Row(
@@ -288,7 +289,7 @@ class EnhancedPaymentReceipt {
               pw.Container(
                 width: 120,
                 height: 1,
-                color: PdfColors.textLight,
+                color: EnhancedPdfUtils.PdfColors.textLight,
               ),
               pw.SizedBox(height: 4),
               pw.Text(
@@ -326,7 +327,7 @@ class EnhancedPaymentReceipt {
                 width: 60,
                 height: 60,
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.primary, width: 2),
+                  border: pw.Border.all(color: EnhancedPdfUtils.PdfColors.primary, width: 2),
                   shape: pw.BoxShape.circle,
                 ),
                 child: pw.Center(
@@ -335,7 +336,7 @@ class EnhancedPaymentReceipt {
                     style: pw.TextStyle(
                       font: fonts.bold,
                       fontSize: 10,
-                      color: PdfColors.primary,
+                      color: EnhancedPdfUtils.PdfColors.primary,
                     ),
                   ),
                 ),
@@ -488,7 +489,7 @@ class EnhancedInvoice {
     return EnhancedPdfUtils.buildInfoCard(
       title: '👤 بيانات العميل',
       fonts: fonts,
-      borderColor: PdfColors.accent,
+      borderColor: EnhancedPdfUtils.PdfColors.accent,
       content: [
         _buildInfoRow('اسم العميل:', guestName, fonts),
         pw.SizedBox(height: 6),
@@ -509,7 +510,7 @@ class EnhancedInvoice {
     return EnhancedPdfUtils.buildInfoCard(
       title: '📋 بيانات الفاتورة',
       fonts: fonts,
-      borderColor: PdfColors.secondary,
+      borderColor: EnhancedPdfUtils.PdfColors.secondary,
       content: [
         _buildInfoRow('رقم الفاتورة:', invoiceNumber, fonts),
         pw.SizedBox(height: 6),
@@ -544,19 +545,19 @@ class EnhancedInvoice {
           child: pw.Container(
             padding: const pw.EdgeInsets.all(16),
             decoration: pw.BoxDecoration(
-              border: pw.Border.all(color: PdfColors.primary),
+              border: pw.Border.all(color: EnhancedPdfUtils.PdfColors.primary),
               borderRadius: pw.BorderRadius.circular(8),
             ),
             child: pw.Column(
               children: [
                 _buildSummaryRow('المجموع الفرعي:', totalAmount, fonts),
-                pw.Divider(color: PdfColors.textLight),
+                pw.Divider(color: EnhancedPdfUtils.PdfColors.textLight),
                 _buildSummaryRow('ضريبة القيمة المضافة:', totalAmount * 0.15, fonts, isSmall: true),
-                pw.Divider(color: PdfColors.textLight),
+                pw.Divider(color: EnhancedPdfUtils.PdfColors.textLight),
                 pw.Container(
                   padding: const pw.EdgeInsets.symmetric(vertical: 8),
                   decoration: pw.BoxDecoration(
-                    color: PdfColors.primary,
+                    color: EnhancedPdfUtils.PdfColors.primary,
                     borderRadius: pw.BorderRadius.circular(4),
                   ),
                   child: pw.Row(
@@ -567,7 +568,7 @@ class EnhancedInvoice {
                         style: pw.TextStyle(
                           font: fonts.bold,
                           fontSize: 14,
-                          color: PdfColors.textWhite,
+                          color: EnhancedPdfUtils.PdfColors.textWhite,
                         ),
                       ),
                       pw.Text(
@@ -575,16 +576,16 @@ class EnhancedInvoice {
                         style: pw.TextStyle(
                           font: fonts.bold,
                           fontSize: 16,
-                          color: PdfColors.textWhite,
+                          color: EnhancedPdfUtils.PdfColors.textWhite,
                         ),
                       ),
                     ],
                   ),
                 ),
                 pw.SizedBox(height: 8),
-                _buildSummaryRow('المدفوع:', totalPaid, fonts, color: PdfColors.success),
+                _buildSummaryRow('المدفوع:', totalPaid, fonts, color: EnhancedPdfUtils.PdfColors.success),
                 _buildSummaryRow('المتبقي:', remainingBalance, fonts, 
-                  color: remainingBalance > 0 ? PdfColors.danger : PdfColors.success),
+                  color: remainingBalance > 0 ? EnhancedPdfUtils.PdfColors.danger : EnhancedPdfUtils.PdfColors.success),
               ],
             ),
           ),
@@ -607,7 +608,7 @@ class EnhancedInvoice {
             style: pw.TextStyle(
               font: fonts.regular,
               fontSize: isSmall ? 10 : 12,
-              color: color ?? PdfColors.textDark,
+              color: color ?? EnhancedPdfUtils.PdfColors.textDark,
             ),
           ),
           pw.Text(
@@ -615,7 +616,7 @@ class EnhancedInvoice {
             style: pw.TextStyle(
               font: fonts.bold,
               fontSize: isSmall ? 10 : 12,
-              color: color ?? PdfColors.textDark,
+              color: color ?? EnhancedPdfUtils.PdfColors.textDark,
             ),
           ),
         ],
@@ -627,7 +628,7 @@ class EnhancedInvoice {
     return EnhancedPdfUtils.buildInfoCard(
       title: '💰 تاريخ المدفوعات',
       fonts: fonts,
-      borderColor: PdfColors.success,
+      borderColor: EnhancedPdfUtils.PdfColors.success,
       content: [
         EnhancedPdfUtils.buildProfessionalTable(
           headers: ['التاريخ', 'المبلغ', 'طريقة الدفع', 'المحاسب'],
@@ -635,10 +636,10 @@ class EnhancedInvoice {
             EnhancedPdfUtils.formatDateTime(DateFormat('yyyy-MM-dd HH:mm:ss').parse(payment.paymentDate)),
             EnhancedPdfUtils.formatCurrency(payment.amount),
             _getPaymentMethodName(payment.paymentMethod),
-            payment.receivedBy ?? 'غير محدد'
+            'غير محدد'  // receivedBy غير متاح في Payment model
           ]).toList(),
           fonts: fonts,
-          headerColor: PdfColors.success,
+          headerColor: EnhancedPdfUtils.PdfColors.success,
         ),
       ],
     );
@@ -648,7 +649,7 @@ class EnhancedInvoice {
     return EnhancedPdfUtils.buildInfoCard(
       title: '📝 ملاحظات',
       fonts: fonts,
-      borderColor: PdfColors.info,
+      borderColor: EnhancedPdfUtils.PdfColors.info,
       content: [
         pw.Text(
           notes!,
@@ -662,7 +663,7 @@ class EnhancedInvoice {
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
-        color: PdfColors.backgroundCard,
+        color: EnhancedPdfUtils.PdfColors.backgroundCard,
         borderRadius: pw.BorderRadius.circular(6),
       ),
       child: pw.Column(
