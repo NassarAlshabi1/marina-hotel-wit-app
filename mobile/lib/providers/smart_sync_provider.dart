@@ -20,7 +20,7 @@ final smartSyncStatusProvider = FutureProvider.autoDispose<Map<String, dynamic>>
 
 /// Provider لحالة تسجيل الدخول Google Drive (في smart_sync_provider)
 final smartSyncGoogleDriveSignInStatusProvider = Provider<bool>((ref) {
-  final backupState = ref.watch(backupProvider);
+  final backupState = ref.watch(backupStatusProvider);
   return backupState.signedInAccount != null;
 });
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
@@ -172,7 +171,7 @@ class EnhancedPaymentReceipt {
         ),
         pw.SizedBox(height: 4),
         pw.Text(
-          'تاريخ الدفع: ${EnhancedPdfUtils.formatDateTime(payment.paymentDate)}',
+          'تاريخ الدفع: ${payment.paymentDate}',
           style: PdfTextStyles.bodySmall(fonts.regular),
         ),
       ],
@@ -257,8 +256,7 @@ class EnhancedPaymentReceipt {
         _buildInfoRow('طريقة الدفع:', _getPaymentMethodName(), fonts),
         pw.SizedBox(height: 8),
         
-        if (payment.referenceNumber != null)
-          _buildInfoRow('رقم المرجع:', payment.referenceNumber!, fonts),
+        // رقم المرجع غير متاح في النموذج الحالي
       ],
     );
   }
