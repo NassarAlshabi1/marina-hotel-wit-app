@@ -7,6 +7,7 @@ import '../services/google_drive_backup_service.dart';
 import '../services/local_backup_service.dart';
 import '../services/file_management_service.dart';
 import '../services/auto_backup_task.dart';
+import '../services/smart_sync_manager.dart';
 
 import '../services/sqlite_backup_restore.dart';
 
@@ -241,6 +242,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         // جلب قائمة النسخ المتاحة
         final backups = await _backupService.listBackupFiles();
         
+        // إشعار SmartSyncManager بتغيير حالة تسجيل الدخول
+        try {
+          await SmartSyncManager.instance.onSignInStatusChanged();
+        } catch (e) {
+          debugPrint('⚠️ خطأ في تحديث SmartSyncManager: $e');
+        }
+        
         state = state.copyWith(
           status: BackupStatus.success,
           message: 'تم تسجيل الدخول بنجاح',
@@ -266,6 +274,14 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   Future<void> signOut() async {
     try {
       await _backupService.signOut();
+      
+      // إشعار SmartSyncManager بتغيير حالة تسجيل الدخول
+      try {
+        await SmartSyncManager.instance.onSignInStatusChanged();
+      } catch (e) {
+        debugPrint('⚠️ خطأ في تحديث SmartSyncManager: $e');
+      }
+      
       state = state.copyWith(
         status: BackupStatus.success,
         message: 'تم تسجيل الخروج',

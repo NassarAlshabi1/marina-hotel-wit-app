@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:intl/intl.dart';
 
-import '../utils/enhanced_pdf_utils.dart';
+import '../utils/enhanced_pdf_utils.dart' as pdfUtils;
 import '../services/local_db.dart';
 
 /// نموذج إيصال دفع احترافي محسّن
@@ -632,11 +633,11 @@ class EnhancedInvoice {
       content: [
         EnhancedPdfUtils.buildProfessionalTable(
           headers: ['التاريخ', 'المبلغ', 'طريقة الدفع', 'المحاسب'],
-          data: payments.map((payment) => [
-            EnhancedPdfUtils.formatDateTime(payment.paymentDate),
+          data: payments.map((payment) => <String>[
+            EnhancedPdfUtils.formatDateTime(DateFormat('yyyy-MM-dd HH:mm:ss').parse(payment.paymentDate)),
             EnhancedPdfUtils.formatCurrency(payment.amount),
             _getPaymentMethodName(payment.paymentMethod),
-            payment.receivedBy ?? '',
+            payment.receivedBy ?? 'غير محدد'
           ]).toList(),
           fonts: fonts,
           headerColor: PdfColors.success,

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/smart_sync_manager.dart';
 import '../services/google_drive_backup_service.dart';
+import 'backup_provider.dart';
 
 /// Provider لمدير المزامنة الذكية
 final smartSyncManagerProvider = Provider<SmartSyncManager>((ref) {
@@ -10,7 +11,17 @@ final smartSyncManagerProvider = Provider<SmartSyncManager>((ref) {
 /// Provider لحالة المزامنة الذكية
 final smartSyncStatusProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final manager = ref.watch(smartSyncManagerProvider);
+  
+  // استمع لتغييرات حالة تسجيل الدخول في Google Drive
+  ref.watch(googleDriveSignInStatusProvider);
+  
   return await manager.getStatus();
+});
+
+/// Provider لحالة تسجيل الدخول Google Drive
+final googleDriveSignInStatusProvider = Provider<bool>((ref) {
+  final backupState = ref.watch(backupProvider);
+  return backupState.signedInAccount != null;
 });
 
 /// Provider لتهيئة المزامنة الذكية

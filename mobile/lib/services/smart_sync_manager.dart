@@ -52,9 +52,7 @@ class SmartSyncManager {
     // تهيئة مُحسِّن الأداء
     await SyncPerformanceOptimizer.instance.initialize();
     
-    if (_isEnabled && _backupService?.isSignedIn == true) {
-      await _startSyncMonitoring();
-    }
+    await _updateSyncState();
     
     debugPrint('🔄 مدير المزامنة الذكي: تم التهيئة بنجاح');
   }
@@ -429,11 +427,7 @@ class SmartSyncManager {
     await prefs.setBool(_prefsEnabledKey, enabled);
     _isEnabled = enabled;
     
-    if (enabled && _backupService?.isSignedIn == true) {
-      await _startSyncMonitoring();
-    } else {
-      _stopSyncMonitoring();
-    }
+    await _updateSyncState();
     
     debugPrint('🔧 المزامنة التلقائية: ${enabled ? "مُفعلة" : "معطلة"}');
   }
@@ -529,6 +523,27 @@ class SmartSyncManager {
     
     debugPrint('🚀 بدء المزامنة اليدوية الفورية...');
     await _performSyncCheck();
+  }
+  
+  /// تحديث حالة المزامنة عند تغيير تسجيل الدخول
+  Future<void> onSignInStatusChanged() async {
+    debugPrint('🔄 تحديث حالة المزامنة بعد تغيير تسجيل الدخول...');
+    await _updateSyncState();
+  }
+  
+  /// تحديث حالة المزامنة الداخلية
+  Future<void> _updateSyncState() async {
+    final isSignedIn = _backupService?.isSignedIn == true;
+    
+    if (_isEnabled && isSignedIn) {
+      if (_syncCheckTimer?.isActive != true) {
+        await _startSyncMonitoring();
+      }
+    } else {
+      _stopSyncMonitoring();
+    }
+    
+    debugPrint('🔄 حالة المزامنة محدثة: enabled=$_isEnabled, signedIn=$isSignedIn, monitoring=${_syncCheckTimer?.isActive}');
   }
 
   /// تنظيف الموارد

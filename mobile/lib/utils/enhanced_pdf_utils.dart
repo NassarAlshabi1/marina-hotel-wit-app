@@ -499,7 +499,7 @@ class EnhancedPdfUtils {
         gradient: pw.LinearGradient(
           colors: [
             color ?? PdfColors.primary,
-            (color ?? PdfColors.primary).flatten(PdfColors.textWhite, 0.2),
+            PdfColors.textWhite,
           ],
           begin: pw.Alignment.topLeft,
           end: pw.Alignment.bottomRight,
