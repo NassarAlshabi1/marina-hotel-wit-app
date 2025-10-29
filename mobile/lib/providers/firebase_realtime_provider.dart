@@ -56,11 +56,6 @@ class FirebaseRealtimeNotifier extends StateNotifier<FirebaseRealtimeState> {
     _initialize();
   }
 
-  /// الحصول على قاعدة البيانات المحلية
-  AppDatabase getDatabase() {
-    return DatabaseManager.instance;
-  }
-
   /// تهيئة Firebase
   Future<void> _initialize() async {
     try {
@@ -133,7 +128,7 @@ class FirebaseRealtimeNotifier extends StateNotifier<FirebaseRealtimeState> {
       await _service.logActivity('add_room', {
         'room_id': room.id,
         'room_number': room.roomNumber,
-        // 'floor': room.floor, // خاصية floor غير متاحة في نموذج Room
+        'floor': room.floor,
       });
       
       debugPrint('✅ تم إضافة الغرفة ${room.roomNumber} محلياً وفي Firebase');
@@ -159,8 +154,8 @@ class FirebaseRealtimeNotifier extends StateNotifier<FirebaseRealtimeState> {
       await _service.logActivity('add_booking', {
         'booking_id': booking.id,
         'guest_name': booking.guestName,
-        'room_number': booking.roomNumber,
-        'check_in': booking.checkinDate,
+        'room_id': booking.roomId,
+        'check_in': booking.checkInDate.toIso8601String(),
       });
       
       debugPrint('✅ تم إضافة الحجز ${booking.id} محلياً وفي Firebase');
@@ -186,7 +181,7 @@ class FirebaseRealtimeNotifier extends StateNotifier<FirebaseRealtimeState> {
       await _service.logActivity('add_payment', {
         'payment_id': payment.id,
         'amount': payment.amount,
-        'booking_local_id': payment.bookingLocalId,
+        'booking_id': payment.bookingId,
         'method': payment.paymentMethod,
       });
       

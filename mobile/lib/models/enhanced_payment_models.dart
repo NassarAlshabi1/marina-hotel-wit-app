@@ -172,7 +172,7 @@ class EnhancedPaymentReceipt {
         ),
         pw.SizedBox(height: 4),
         pw.Text(
-          'تاريخ الدفع: ${payment.paymentDate}',
+          'تاريخ الدفع: ${EnhancedPdfUtils.formatDateTime(payment.paymentDate)}',
           style: PdfTextStyles.bodySmall(fonts.regular),
         ),
       ],
@@ -257,7 +257,8 @@ class EnhancedPaymentReceipt {
         _buildInfoRow('طريقة الدفع:', _getPaymentMethodName(), fonts),
         pw.SizedBox(height: 8),
         
-        // رقم المرجع غير متاح في النموذج الحالي
+        if (payment.referenceNumber != null)
+          _buildInfoRow('رقم المرجع:', payment.referenceNumber!, fonts),
       ],
     );
   }
@@ -636,7 +637,7 @@ class EnhancedInvoice {
             EnhancedPdfUtils.formatDateTime(DateFormat('yyyy-MM-dd HH:mm:ss').parse(payment.paymentDate)),
             EnhancedPdfUtils.formatCurrency(payment.amount),
             _getPaymentMethodName(payment.paymentMethod),
-            'غير محدد'  // receivedBy غير متاح في Payment model
+            payment.receivedBy ?? 'غير محدد'
           ]).toList(),
           fonts: fonts,
           headerColor: PdfColors.success,

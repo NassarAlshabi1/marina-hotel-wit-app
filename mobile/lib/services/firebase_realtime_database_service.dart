@@ -31,11 +31,6 @@ class FirebaseRealtimeDatabaseService {
   FirebaseDatabase? _database;
   final List<StreamSubscription> _subscriptions = [];
   
-  /// الحصول على قاعدة البيانات المحلية
-  AppDatabase getDatabase() {
-    return DatabaseManager.instance;
-  }
-  
   /// تهيئة Firebase Database
   Future<void> initialize() async {
     try {

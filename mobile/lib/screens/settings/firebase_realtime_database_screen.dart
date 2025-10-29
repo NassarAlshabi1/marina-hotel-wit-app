@@ -113,7 +113,7 @@ class _FirebaseRealtimeDatabaseScreenState extends ConsumerState<FirebaseRealtim
             if (state.lastSyncTime != null) ...[
               const SizedBox(height: 8),
               Text(
-                'آخر مزامنة: ${state.lastSyncTime}',
+                'آخر مزامنة: ${formatArabicDateTime(DateTime.parse(state.lastSyncTime!))}',
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 14,
@@ -315,7 +315,7 @@ class _FirebaseRealtimeDatabaseScreenState extends ConsumerState<FirebaseRealtim
             _buildInfoRow('Firebase URL', 'aden-flutter-default-rtdb.firebaseio.com'),
             _buildInfoRow('Project ID', 'aden-flutter'),
             _buildInfoRow('مسار البيانات', 'marina_hotel_data'),
-            _buildInfoRow('Cache Size', '10 MB'),  // قيمة ثابتة
+            _buildInfoRow('Cache Size', ref.read(firebaseRealtimeDatabaseServiceProvider).cacheSizeMB), // Example
             _buildInfoRow('Offline Support', 'مُفعل'),
           ],
         ),
@@ -448,7 +448,7 @@ class FirebaseRealtimeMonitorScreen extends ConsumerWidget {
                             leading: CircleAvatar(
                               backgroundColor: _getStatusColor(booking.status),
                               child: Text(
-                                booking.roomNumber,
+                                booking.roomId.toString(),
                                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -456,8 +456,8 @@ class FirebaseRealtimeMonitorScreen extends ConsumerWidget {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('الغرفة: ${booking.roomNumber}'),
-                                Text('الدخول: ${booking.checkinDate}'),
+                                Text('الغرفة: ${booking.roomId}'),
+                                Text('الدخول: ${formatArabicDate(booking.checkInDate)}'),
                               ],
                             ),
                             trailing: Container(
