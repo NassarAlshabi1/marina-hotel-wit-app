@@ -151,6 +151,28 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
   Future<void> _initialize() async {
     try {
+      // فحص واستعادة جلسة Google Drive أولاً
+      debugPrint('🔄 فحص جلسة Google Drive المحفوظة...');
+      final isSignedIn = await _backupService.checkAndRestoreSession();
+      
+      GoogleSignInAccount? account;
+      List<DriveBackupFile> availableBackups = [];
+      
+      if (isSignedIn) {
+        account = _backupService.currentUser;
+        try {
+          // جلب قائمة النسخ المتاحة إذا كان مسجل دخول
+          availableBackups = await _backupService.listBackupFiles();
+          debugPrint('✅ تم استعادة جلسة Google Drive: ${account?.email}');
+        } catch (e) {
+          debugPrint('⚠️ خطأ في جلب قائمة النسخ: $e');
+        }
+      }
+      
+      // فحص واستعادة جلسة Google Drive المحفوظة
+      debugPrint('🔄 فحص جلسة Google Drive المحفوظة...');
+      await _backupService.checkAndRestoreSession();
+      
       // جلب آخر وقت نسخ احتياطي (Google Drive)
       final lastBackup = await _backupService.getLastBackupTime();
       
@@ -219,6 +241,15 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           backupType: resolvedBackupType,
         ),
       );
+      
+      // إشعار SmartSyncManager بالحالة الجديدة
+      try {
+        await SmartSyncManager.instance.onSignInStatusChanged();
+      } catch (e) {
+        debugPrint('⚠️ خطأ في تحديث SmartSyncManager: $e');
+      }
+      
+      debugPrint('✅ تمت تهيئة BackupProvider بنجاح');
     } catch (e) {
       debugPrint('❌ خطأ في تهيئة BackupStatusNotifier: $e');
       state = state.copyWith(

@@ -148,12 +148,60 @@ class GoogleDriveBackupService {
 
   GoogleDriveBackupService() {
     _initializeGoogleSignIn();
+    // استعادة الجلسة المحفوظة عند بدء التطبيق
+    _restoreSignInSession();
   }
 
   void _initializeGoogleSignIn() {
     _googleSignIn = GoogleSignIn(
       scopes: _scopes,
     );
+  }
+  
+  /// استعادة جلسة تسجيل الدخول المحفوظة
+  Future<void> _restoreSignInSession() async {
+    try {
+      if (_googleSignIn == null) return;
+      
+      debugPrint('🔄 فحص وجود جلسة محفوظة...');
+      
+      // فحص وجود مستخدم مسجل بالفعل
+      final currentUser = _googleSignIn!.currentUser;
+      if (currentUser != null) {
+        debugPrint('✅ تم العثور على جلسة محفوظة: ${currentUser.email}');
+        
+        // إعداد Drive API مع المستخدم الموجود
+        final headers = await currentUser.authHeaders;
+        final client = GoogleAuthClient(headers);
+        _driveApi = drive.DriveApi(client);
+        
+        debugPrint('✅ تم إعداد اتصال Drive API بنجاح');
+        return;
+      }
+      
+      // محاولة تسجيل الدخول الصامت
+      debugPrint('🔄 محاولة تسجيل الدخول الصامت...');
+      final account = await _googleSignIn!.signInSilently();
+      
+      if (account != null) {
+        final headers = await account.authHeaders;
+        final client = GoogleAuthClient(headers);
+        _driveApi = drive.DriveApi(client);
+        
+        debugPrint('✅ تم استعادة الجلسة بنجاح: ${account.email}');
+      } else {
+        debugPrint('⚠️ لا توجد جلسة محفوظة');
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في استعادة الجلسة: $e');
+      // لا نرمي خطأ هنا لأن هذا مجرد محاولة استعادة
+    }
+  }
+  
+  /// فحص حالة تسجيل الدخول وإعادة الاتصال إذا لزم الأمر
+  Future<bool> checkAndRestoreSession() async {
+    await _restoreSignInSession();
+    return isSignedIn;
   }
 
   Future<GoogleSignInAccount?> signInForDrive() async {

@@ -24,10 +24,13 @@ final googleDriveSignInStatusProvider = Provider<bool>((ref) {
   return backupState.signedInAccount != null;
 });
 
-/// Provider لتهيئة المزامنة الذكية
+/// Provider لتهيئة المزامنة الذكية مع فحص حالة تسجيل الدخول
 final smartSyncInitProvider = FutureProvider<void>((ref) async {
   final manager = ref.watch(smartSyncManagerProvider);
   final backupService = GoogleDriveBackupService();
+  
+  // انتظار تهيئة BackupProvider أولاً
+  await Future.delayed(const Duration(milliseconds: 500));
   
   await manager.initialize(backupService);
 });
