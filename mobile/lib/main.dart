@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'utils/theme.dart';
 import 'utils/env.dart';
 import 'screens/dashboard_screen.dart';
@@ -16,16 +17,24 @@ import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
+import 'providers/firebase_realtime_provider.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
 import 'services/auto_backup_manager.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
+import 'services/firebase_realtime_database_service.dart';
 import 'components/admin_layout.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // تهيئة Firebase
+  await Firebase.initializeApp();
+  
+  // تهيئة Firebase Realtime Database
+  await _initializeFirebaseRealtimeDatabase();
   
   // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
   await AutoBackupTask.initialize();
@@ -35,6 +44,22 @@ void main() async {
   
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
+}
+
+/// تهيئة Firebase Realtime Database
+Future<void> _initializeFirebaseRealtimeDatabase() async {
+  try {
+    final firebaseService = FirebaseRealtimeDatabaseService.instance;
+    await firebaseService.initialize();
+    
+    // تفعيل المراقبة المباشرة للبيانات الحرجة
+    firebaseService.enableRealtimeMonitoring();
+    
+    debugPrint('✅ تم تهيئة Firebase Realtime Database بنجاح');
+  } catch (e) {
+    debugPrint('⚠️ تحذير: فشل في تهيئة Firebase Database: $e');
+    debugPrint('📱 التطبيق سيعمل في وضع Offline فقط');
+  }
 }
 
 /// تهيئة نظام النسخ التلقائي الذكي والمزامنة بين الأجهزة

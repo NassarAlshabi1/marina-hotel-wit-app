@@ -12,6 +12,7 @@ import 'comprehensive_backup_screen.dart';
 import 'auto_backup_settings_screen.dart';
 import 'smart_sync_settings_screen.dart';
 import 'sync_performance_settings_screen.dart';
+import 'firebase_realtime_database_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -114,6 +115,16 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SmartSyncSettingsScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'Firebase Realtime Database',
+              subtitle: 'مزامنة فورية ومراقبة مباشرة للبيانات',
+              icon: Icons.cloud_sync,
+              color: Colors.orange[600]!,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FirebaseRealtimeDatabaseScreen()),
               ),
             ),
             _SettingsItem(
