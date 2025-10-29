@@ -4,7 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 
-import '../utils/enhanced_pdf_utils.dart' as pdfUtils;
+import '../utils/enhanced_pdf_utils.dart';
 import '../services/local_db.dart';
 
 /// نموذج إيصال دفع احترافي محسّن
