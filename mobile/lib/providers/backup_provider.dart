@@ -211,7 +211,6 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
                   : BackupType.both;
 
       // التحقق من تسجيل الدخول في Google Drive
-      GoogleSignInAccount? account;
       List<DriveBackupFile> driveBackups = [];
       if (_backupService.isSignedIn) {
         account = _backupService.currentUser;

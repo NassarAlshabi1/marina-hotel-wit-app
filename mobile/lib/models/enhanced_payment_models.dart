@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pdf/pdf.dart';
+import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
@@ -597,7 +597,7 @@ class EnhancedInvoice {
 
   pw.Widget _buildSummaryRow(String label, double amount, ArabicPdfFonts fonts, {
     bool isSmall = false,
-    PdfColor? color,
+    pdf.PdfColor? color,
   }) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 2),
@@ -637,7 +637,7 @@ class EnhancedInvoice {
             EnhancedPdfUtils.formatDateTime(DateFormat('yyyy-MM-dd HH:mm:ss').parse(payment.paymentDate)),
             EnhancedPdfUtils.formatCurrency(payment.amount),
             _getPaymentMethodName(payment.paymentMethod),
-            payment.receivedBy ?? 'غير محدد'
+            'غير محدد'  // receivedBy property doesn't exist in Payment model
           ]).toList(),
           fonts: fonts,
           headerColor: PdfColors.success,

@@ -229,9 +229,13 @@ class EnhancedPdfUtils {
                 borderRadius: pw.BorderRadius.circular(40),
                 border: pw.Border.all(color: PdfColors.secondary, width: 2),
               ),
-              child: pw.ClipRRect(
-                borderRadius: pw.BorderRadius.circular(38),
-                child: pw.Image(logo, fit: pw.BoxFit.cover),
+              child: pw.Container(
+                decoration: pw.BoxDecoration(
+                  borderRadius: pw.BorderRadius.circular(38),
+                ),
+                child: pw.ClipRRect(
+                  child: pw.Image(logo, fit: pw.BoxFit.cover),
+                ),
               ),
             )
           else
