@@ -82,6 +82,7 @@ class FirebaseRealtimeNotifier extends StateNotifier<FirebaseRealtimeState> {
       },
       onError: (error) {
         debugPrint('❌ خطأ في مراقبة الإحصائيات: $error');
+        state = state.copyWith(errorMessage: 'فشل تحديث الإحصائيات: $error');
       },
     );
   }
