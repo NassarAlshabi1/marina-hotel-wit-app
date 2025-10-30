@@ -143,7 +143,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ? widget.booking.expectedNights
               : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
           final actualNights = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
-          final totalAmount = expectedNights * roomRate;
+          
+          // التكلفة الإجمالية = الليالي الفعلية × سعر الليلة (وليس المتوقعة)
+          final totalAmount = actualNights * roomRate;
           return StreamBuilder<List<db.Payment>>(
             stream: paymentsRepo.paymentsByBooking(widget.booking.id),
             builder: (context, paySnap) {

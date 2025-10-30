@@ -41,7 +41,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
           final actualNights = checkin != null
               ? Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout)
               : expectedNights;
-          final totalDue = expectedNights * roomPrice;
+          
+          // التكلفة الإجمالية = الليالي الفعلية × سعر الليلة
+          final totalDue = actualNights * roomPrice;
 
           return Padding(
             padding: const EdgeInsets.all(16.0),

@@ -109,7 +109,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                           final actualNights = checkin == null
                               ? expectedNights
                               : Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
-                          final totalAmount = (expectedNights * price).toDouble();
+                          final totalAmount = (actualNights * price).toDouble();
                           return _BookingRow(
                             index: index,
                             booking: booking,
@@ -145,7 +145,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                     final actualNights = checkin == null
                         ? expectedNights
                         : Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
-                    final totalAmount = (expectedNights * price).toDouble();
+                    final totalAmount = (actualNights * price).toDouble();
                     return _BookingRow(
                       index: index + 1,
                       booking: booking,
