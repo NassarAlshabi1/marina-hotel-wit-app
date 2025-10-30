@@ -6,6 +6,36 @@ import '../../services/firebase_realtime_database_service.dart';
 import '../../widgets/primary_button.dart';
 import '../../utils/time.dart';
 
+// دوال مساعدة لتنسيق التاريخ بالعربية
+String _formatArabicDateTime(DateTime dateTime) {
+  const arabicMonths = [
+    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+  ];
+  final month = arabicMonths[dateTime.month - 1];
+  final day = dateTime.day;
+  final year = dateTime.year;
+  final hour = dateTime.hour.toString().padLeft(2, '0');
+  final minute = dateTime.minute.toString().padLeft(2, '0');
+  return '$day $month $year، $hour:$minute';
+}
+
+String _formatArabicDate(String dateString) {
+  try {
+    final dateTime = DateTime.parse(dateString);
+    const arabicMonths = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ];
+    final month = arabicMonths[dateTime.month - 1];
+    final day = dateTime.day;
+    final year = dateTime.year;
+    return '$day $month $year';
+  } catch (e) {
+    return dateString;
+  }
+}
+
 class FirebaseRealtimeDatabaseScreen extends ConsumerStatefulWidget {
   const FirebaseRealtimeDatabaseScreen({super.key});
 
@@ -387,35 +417,6 @@ class _FirebaseRealtimeDatabaseScreenState extends ConsumerState<FirebaseRealtim
         ),
       ),
     );
-  }
-
-  String _formatArabicDateTime(DateTime dateTime) {
-    const arabicMonths = [
-      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
-    ];
-    final month = arabicMonths[dateTime.month - 1];
-    final day = dateTime.day;
-    final year = dateTime.year;
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    return '$day $month $year، $hour:$minute';
-  }
-
-  String _formatArabicDate(String dateString) {
-    try {
-      final dateTime = DateTime.parse(dateString);
-      const arabicMonths = [
-        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
-      ];
-      final month = arabicMonths[dateTime.month - 1];
-      final day = dateTime.day;
-      final year = dateTime.year;
-      return '$day $month $year';
-    } catch (e) {
-      return dateString;
-    }
   }
 }
 

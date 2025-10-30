@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pdf/pdf.dart' as pdf;
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
@@ -41,7 +41,7 @@ class EnhancedPaymentReceipt {
 
     pdf.addPage(
       pw.Page(
-        pageFormat: pdf.PdfPageFormat.a4,
+        pageFormat: PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(
           base: fonts.regular,
@@ -407,7 +407,7 @@ class EnhancedInvoice {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: pdf.PdfPageFormat.a4,
+        pageFormat: PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(
           base: fonts.regular,
