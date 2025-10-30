@@ -102,6 +102,7 @@ class Payments extends Table with SyncFields {
   TextColumn get revenueType => text()();
   IntColumn get cashTransactionLocalId => integer().nullable().references(CashTransactions, #id)();
   IntColumn get cashTransactionServerId => integer().nullable()();
+  TextColumn get referenceNumber => text().nullable()();
 
   @override
   List<Index> get indexes => [];
@@ -177,7 +178,7 @@ class SyncState extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -208,6 +209,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 6) {
             await m.createTable(shiftNotes);
+          }
+          if (from < 7) {
+            await m.addColumn(payments, payments.referenceNumber);
           }
         },
       );
