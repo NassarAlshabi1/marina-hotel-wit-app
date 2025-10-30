@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/enhanced_payment_models.dart';
 import 'local_db.dart';
+import 'providers.dart';
 
 /// خدمة Firebase Realtime Database للتزامن الفوري والتتبع المباشر
 class FirebaseRealtimeDatabaseService {

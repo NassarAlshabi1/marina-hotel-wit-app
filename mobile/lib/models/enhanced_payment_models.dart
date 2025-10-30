@@ -41,7 +41,7 @@ class EnhancedPaymentReceipt {
 
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.a4,
+        pageFormat: pw.PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(
           base: fonts.regular,
@@ -172,7 +172,7 @@ class EnhancedPaymentReceipt {
         ),
         pw.SizedBox(height: 4),
         pw.Text(
-          'تاريخ الدفع: ${EnhancedPdfUtils.formatDateTime(payment.paymentDate)}',
+          'تاريخ الدفع: ${payment.paymentDate}',
           style: PdfTextStyles.bodySmall(fonts.regular),
         ),
       ],

@@ -113,7 +113,7 @@ class _FirebaseRealtimeDatabaseScreenState extends ConsumerState<FirebaseRealtim
             if (state.lastSyncTime != null) ...[
               const SizedBox(height: 8),
               Text(
-                'آخر مزامنة: ${formatArabicDateTime(DateTime.parse(state.lastSyncTime!))}',
+                'آخر مزامنة: ${_formatArabicDateTime(DateTime.parse(state.lastSyncTime!))}',
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 14,
@@ -315,7 +315,7 @@ class _FirebaseRealtimeDatabaseScreenState extends ConsumerState<FirebaseRealtim
             _buildInfoRow('Firebase URL', 'aden-flutter-default-rtdb.firebaseio.com'),
             _buildInfoRow('Project ID', 'aden-flutter'),
             _buildInfoRow('مسار البيانات', 'marina_hotel_data'),
-            _buildInfoRow('Cache Size', ref.read(firebaseRealtimeDatabaseServiceProvider).cacheSizeMB), // Example
+            _buildInfoRow('Cache Size', '10 MB'), // Example
             _buildInfoRow('Offline Support', 'مُفعل'),
           ],
         ),
@@ -448,7 +448,7 @@ class FirebaseRealtimeMonitorScreen extends ConsumerWidget {
                             leading: CircleAvatar(
                               backgroundColor: _getStatusColor(booking.status),
                               child: Text(
-                                booking.roomId.toString(),
+                                booking.roomNumber,
                                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -456,8 +456,8 @@ class FirebaseRealtimeMonitorScreen extends ConsumerWidget {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('الغرفة: ${booking.roomId}'),
-                                Text('الدخول: ${formatArabicDate(booking.checkInDate)}'),
+                                Text('الغرفة: ${booking.roomNumber}'),
+                                Text('الدخول: ${_formatArabicDate(booking.checkinDate)}'),
                               ],
                             ),
                             trailing: Container(
@@ -566,6 +566,35 @@ class FirebaseRealtimeMonitorScreen extends ConsumerWidget {
         return 'خرج';
       default:
         return status;
+    }
+  }
+
+  String _formatArabicDateTime(DateTime dateTime) {
+    const arabicMonths = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ];
+    final month = arabicMonths[dateTime.month - 1];
+    final day = dateTime.day;
+    final year = dateTime.year;
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$day $month $year، $hour:$minute';
+  }
+
+  String _formatArabicDate(String dateString) {
+    try {
+      final dateTime = DateTime.parse(dateString);
+      const arabicMonths = [
+        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+      ];
+      final month = arabicMonths[dateTime.month - 1];
+      final day = dateTime.day;
+      final year = dateTime.year;
+      return '$day $month $year';
+    } catch (e) {
+      return dateString;
     }
   }
 }
