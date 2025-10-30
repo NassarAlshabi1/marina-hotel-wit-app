@@ -42,7 +42,9 @@ class Time {
     }
     
     // إذا كان وقت المغادرة بعد ساعة القطع (14:00)، أضف يوماً إضافياً
-    if (end.hour > cutoffHour || (end.hour == cutoffHour && end.minute > 0)) {
+    if (end.hour > cutoffHour || 
+        (end.hour == cutoffHour && end.minute > 0) ||
+        (end.hour == cutoffHour && end.minute == 0 && end.second > 0)) {
       days += 1;
     }
     
