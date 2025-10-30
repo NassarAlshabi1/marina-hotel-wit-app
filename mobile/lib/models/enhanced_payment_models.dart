@@ -41,7 +41,7 @@ class EnhancedPaymentReceipt {
 
     pdf.addPage(
       pw.Page(
-        pageFormat: pw.PdfPageFormat.a4,
+        pageFormat: pdf.PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(
           base: fonts.regular,
@@ -407,7 +407,7 @@ class EnhancedInvoice {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: pw.PdfPageFormat.a4,
+        pageFormat: pdf.PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(
           base: fonts.regular,

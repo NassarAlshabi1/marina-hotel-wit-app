@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/enhanced_payment_models.dart';
 import '../services/firebase_realtime_database_service.dart';
 import '../services/local_db.dart';
+import '../services/providers.dart';
 
 /// حالة Firebase Realtime Database
 class FirebaseRealtimeState {
@@ -128,7 +129,7 @@ class FirebaseRealtimeNotifier extends StateNotifier<FirebaseRealtimeState> {
       await _service.logActivity('add_room', {
         'room_id': room.id,
         'room_number': room.roomNumber,
-        'floor': room.floor,
+        'type': room.type,
       });
       
       debugPrint('✅ تم إضافة الغرفة ${room.roomNumber} محلياً وفي Firebase');
@@ -154,8 +155,8 @@ class FirebaseRealtimeNotifier extends StateNotifier<FirebaseRealtimeState> {
       await _service.logActivity('add_booking', {
         'booking_id': booking.id,
         'guest_name': booking.guestName,
-        'room_id': booking.roomId,
-        'check_in': booking.checkInDate.toIso8601String(),
+        'room_number': booking.roomNumber,
+        'check_in': booking.checkinDate,
       });
       
       debugPrint('✅ تم إضافة الحجز ${booking.id} محلياً وفي Firebase');
@@ -181,7 +182,7 @@ class FirebaseRealtimeNotifier extends StateNotifier<FirebaseRealtimeState> {
       await _service.logActivity('add_payment', {
         'payment_id': payment.id,
         'amount': payment.amount,
-        'booking_id': payment.bookingId,
+        'booking_local_id': payment.bookingLocalId,
         'method': payment.paymentMethod,
       });
       

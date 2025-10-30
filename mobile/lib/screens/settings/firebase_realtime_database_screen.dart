@@ -388,6 +388,35 @@ class _FirebaseRealtimeDatabaseScreenState extends ConsumerState<FirebaseRealtim
       ),
     );
   }
+
+  String _formatArabicDateTime(DateTime dateTime) {
+    const arabicMonths = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ];
+    final month = arabicMonths[dateTime.month - 1];
+    final day = dateTime.day;
+    final year = dateTime.year;
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$day $month $year، $hour:$minute';
+  }
+
+  String _formatArabicDate(String dateString) {
+    try {
+      final dateTime = DateTime.parse(dateString);
+      const arabicMonths = [
+        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+      ];
+      final month = arabicMonths[dateTime.month - 1];
+      final day = dateTime.day;
+      final year = dateTime.year;
+      return '$day $month $year';
+    } catch (e) {
+      return dateString;
+    }
+  }
 }
 
 /// شاشة مراقبة البيانات المباشرة
@@ -566,35 +595,6 @@ class FirebaseRealtimeMonitorScreen extends ConsumerWidget {
         return 'خرج';
       default:
         return status;
-    }
-  }
-
-  String _formatArabicDateTime(DateTime dateTime) {
-    const arabicMonths = [
-      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
-    ];
-    final month = arabicMonths[dateTime.month - 1];
-    final day = dateTime.day;
-    final year = dateTime.year;
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    return '$day $month $year، $hour:$minute';
-  }
-
-  String _formatArabicDate(String dateString) {
-    try {
-      final dateTime = DateTime.parse(dateString);
-      const arabicMonths = [
-        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
-      ];
-      final month = arabicMonths[dateTime.month - 1];
-      final day = dateTime.day;
-      final year = dateTime.year;
-      return '$day $month $year';
-    } catch (e) {
-      return dateString;
     }
   }
 }
