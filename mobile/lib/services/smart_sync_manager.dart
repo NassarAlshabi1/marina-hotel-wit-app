@@ -73,15 +73,18 @@ class SmartSyncManager {
         final androidInfo = await deviceInfo.androidInfo;
         deviceName = androidInfo.device;
         deviceModel = androidInfo.model;
+        final androidId = androidInfo.id; // Android ID ثابت
+        _deviceId = 'marina_${deviceName}_${deviceModel}_${androidId}';
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
         deviceName = iosInfo.name;
         deviceModel = iosInfo.model;
+        final iosId = iosInfo.identifierForVendor ?? 'unknown';
+        _deviceId = 'marina_${deviceName}_${deviceModel}_${iosId}';
       }
       
-      _deviceId = 'marina_${deviceName}_${deviceModel}_${DateTime.now().millisecondsSinceEpoch}';
       await prefs.setString(_prefsDeviceIdKey, _deviceId!);
-      debugPrint('🆔 تم إنشاء معرف الجهاز: $_deviceId');
+      debugPrint('🆔 تم إنشاء معرف الجهاز الثابت: $_deviceId');
     } else {
       debugPrint('🆔 معرف الجهاز: $_deviceId');
     }
@@ -162,6 +165,19 @@ class SmartSyncManager {
     _syncCheckTimer = null;
     _periodicSyncTimer = null;
     debugPrint('⏸️ تم إيقاف مراقبة المزامنة');
+  }
+
+  /// استدعاء هذه الدالة عند تغير حالة تسجيل الدخول في Google Drive
+  Future<void> onGoogleDriveSignInChanged(bool isSignedIn) async {
+    debugPrint('🔔 تغيرت حالة تسجيل الدخول Google Drive: $isSignedIn');
+    
+    if (isSignedIn && _isEnabled) {
+      debugPrint('✅ بدء المراقبة بعد تسجيل الدخول...');
+      await _startSyncMonitoring();
+    } else {
+      debugPrint('⏹️ إيقاف المراقبة بعد تسجيل الخروج...');
+      _stopSyncMonitoring();
+    }
   }
 
   /// التحقق من وجود نسخ احتياطية جديدة
