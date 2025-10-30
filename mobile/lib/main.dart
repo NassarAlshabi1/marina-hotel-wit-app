@@ -42,6 +42,13 @@ Future<void> _initializeSmartAutoBackup() async {
   try {
     final backupService = GoogleDriveBackupService();
     
+    // محاولة استعادة جلسة Google Drive أولاً
+    try {
+      await backupService.attemptSilentSignIn();
+    } catch (e) {
+      debugPrint('⚠️ لم يتم استعادة جلسة Google Drive: $e');
+    }
+    
     // تهيئة مدير النسخ التلقائي
     final autoBackupManager = AutoBackupManager.instance;
     await autoBackupManager.initialize(backupService);

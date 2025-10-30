@@ -7,6 +7,7 @@ import '../services/google_drive_backup_service.dart';
 import '../services/local_backup_service.dart';
 import '../services/file_management_service.dart';
 import '../services/auto_backup_task.dart';
+import '../services/smart_sync_manager.dart';
 
 import '../services/sqlite_backup_restore.dart';
 
@@ -187,6 +188,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
                   ? BackupType.googleDrive
                   : BackupType.both;
 
+      // محاولة استعادة جلسة Google Drive تلقائياً
+      await _backupService.attemptSilentSignIn();
+      
       // التحقق من تسجيل الدخول في Google Drive
       GoogleSignInAccount? account;
       List<DriveBackupFile> driveBackups = [];
@@ -241,6 +245,14 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         // جلب قائمة النسخ المتاحة
         final backups = await _backupService.listBackupFiles();
         
+        // إشعار مدير المزامنة الذكية بتغير حالة تسجيل الدخول
+        try {
+          final smartSync = SmartSyncManager.instance;
+          await smartSync.onGoogleDriveSignInChanged(true);
+        } catch (e) {
+          debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
+        }
+        
         state = state.copyWith(
           status: BackupStatus.success,
           message: 'تم تسجيل الدخول بنجاح',
@@ -266,6 +278,15 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   Future<void> signOut() async {
     try {
       await _backupService.signOut();
+      
+      // إشعار مدير المزامنة الذكية بتسجيل الخروج
+      try {
+        final smartSync = SmartSyncManager.instance;
+        await smartSync.onGoogleDriveSignInChanged(false);
+      } catch (e) {
+        debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
+      }
+      
       state = state.copyWith(
         status: BackupStatus.success,
         message: 'تم تسجيل الخروج',

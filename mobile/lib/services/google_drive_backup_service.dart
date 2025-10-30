@@ -193,6 +193,34 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// محاولة استعادة جلسة تسجيل الدخول بشكل صامت
+  Future<GoogleSignInAccount?> attemptSilentSignIn() async {
+    try {
+      if (_googleSignIn == null) {
+        _initializeGoogleSignIn();
+      }
+      
+      debugPrint('🔄 محاولة استعادة جلسة Google Drive...');
+      GoogleSignInAccount? account = await _googleSignIn!.signInSilently(suppressErrors: true);
+      
+      if (account != null) {
+        debugPrint('🔑 الحصول على رؤوس المصادقة...');
+        final headers = await account.authHeaders;
+        final client = GoogleAuthClient(headers);
+        _driveApi = drive.DriveApi(client);
+        
+        debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
+        return account;
+      } else {
+        debugPrint('ℹ️ لا توجد جلسة محفوظة');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('⚠️ فشلت استعادة الجلسة: $e');
+      return null;
+    }
+  }
+
   Future<void> signOut() async {
     try {
       await _googleSignIn?.signOut();
