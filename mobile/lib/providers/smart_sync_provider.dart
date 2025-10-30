@@ -7,20 +7,25 @@ final smartSyncManagerProvider = Provider<SmartSyncManager>((ref) {
   return SmartSyncManager.instance;
 });
 
-/// Provider لحالة المزامنة الذكية
+/// Provider لحالة المزامنة الذكية - يستمع لتغييرات حالة الاتصال
 final smartSyncStatusProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final manager = ref.watch(smartSyncManagerProvider);
   
-  // استمع لتغييرات حالة تسجيل الدخول في Google Drive
-  ref.watch(smartSyncGoogleDriveSignInStatusProvider);
+  // استمع لتغييرات حالة تسجيل الدخول في Google Drive من المصدر الموحد
+  final isSignedIn = ref.watch(smartSyncGoogleDriveSignInStatusProvider);
   
-  return await manager.getStatus();
+  final status = await manager.getStatus();
+  // تحديث حالة تسجيل الدخول من المصدر الموحد
+  status['signed_in'] = isSignedIn;
+  
+  return status;
 });
 
-/// Provider لحالة تسجيل الدخول Google Drive (في smart_sync_provider)
+/// Provider لحالة تسجيل الدخول Google Drive - مصدر الحقيقة الموحد
 final smartSyncGoogleDriveSignInStatusProvider = Provider<bool>((ref) {
-  final backupState = ref.watch(backupStatusProvider);
-  return backupState.signedInAccount != null;
+  // قراءة من المصدر الأساسي مباشرة
+  final backupService = ref.watch(googleDriveBackupServiceProvider);
+  return backupService.isSignedIn;
 });
 
 /// Provider لتهيئة المزامنة الذكية مع فحص حالة تسجيل الدخول

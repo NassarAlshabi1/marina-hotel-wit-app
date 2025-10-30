@@ -149,7 +149,18 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   final LocalBackupService _localBackupService;
   final FileManagementService _fileService;
 
+  void _onServiceStateChanged() {
+    // تحديث الحالة عند تغيير حالة الخدمة
+    if (mounted) {
+      state = state.copyWith(
+        signedInAccount: _backupService.isSignedIn ? _backupService.currentUser : null,
+      );
+    }
+  }
+
   Future<void> _initialize() async {
+    // إضافة listener للاستماع لتغييرات حالة الخدمة
+    _backupService.addListener(_onServiceStateChanged);
     try {
       // جلب آخر وقت نسخ احتياطي (Google Drive)
       final lastBackup = await _backupService.getLastBackupTime();
@@ -229,6 +240,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'خطأ في التهيئة: ${e.toString()}',
       );
     }
+  }
+
+  @override
+  void dispose() {
+    // إزالة listener عند التخلص من الـ Notifier
+    _backupService.removeListener(_onServiceStateChanged);
+    super.dispose();
   }
 
   /// تسجيل الدخول في Google Drive
@@ -995,10 +1013,16 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   }
 }
 
-// Provider للخدمة مع الحفاظ على حالة واحدة (Singleton)
+/// Provider لخدمة Google Drive - Singleton مع إدارة حالة
 final googleDriveBackupServiceProvider = Provider<GoogleDriveBackupService>((ref) {
-  ref.keepAlive(); // المحافظة على الخدمة في الذاكرة
-  return GoogleDriveBackupService();
+  final service = GoogleDriveBackupService();
+  
+  // تنظيف عند إيقاف Provider
+  ref.onDispose(() {
+    service.dispose();
+  });
+  
+  return service;
 });
 
 final localBackupServiceProvider = Provider<LocalBackupService>((ref) {

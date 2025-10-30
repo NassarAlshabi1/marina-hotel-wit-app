@@ -110,7 +110,7 @@ class GoogleAuthClient extends http.BaseClient {
   }
 }
 
-class GoogleDriveBackupService {
+class GoogleDriveBackupService extends ChangeNotifier {
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
   static const List<String> _scopes = [drive.DriveApi.driveFileScope];
@@ -182,6 +182,7 @@ class GoogleDriveBackupService {
         debugPrint('⚠️ تم إلغاء تسجيل الدخول أو فشل');
       }
 
+      _notifyConnectionStateChanged();
       return account;
     } catch (e) {
       final arabicError = _getArabicErrorMessage(e);
@@ -210,6 +211,7 @@ class GoogleDriveBackupService {
         _driveApi = drive.DriveApi(client);
         
         debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
+        _notifyConnectionStateChanged();
         return account;
       } else {
         debugPrint('ℹ️ لا توجد جلسة محفوظة');
@@ -226,6 +228,7 @@ class GoogleDriveBackupService {
       await _googleSignIn?.signOut();
       _driveApi = null;
       _backupFolderId = null;
+      _notifyConnectionStateChanged();
       debugPrint('✅ تم تسجيل الخروج من Google Drive');
     } catch (e) {
       debugPrint('❌ خطأ في تسجيل الخروج: $e');
@@ -235,7 +238,13 @@ class GoogleDriveBackupService {
 
   GoogleSignInAccount? get currentUser => _googleSignIn?.currentUser;
 
-  bool get isSignedIn => _googleSignIn?.currentUser != null;
+  bool get isSignedIn => _googleSignIn?.currentUser != null && _driveApi != null;
+
+  /// إشعار المستمعين بتغيير حالة الاتصال
+  void _notifyConnectionStateChanged() {
+    notifyListeners();
+    debugPrint('🔔 تغيرت حالة اتصال Google Drive: isSignedIn=$isSignedIn');
+  }
 
   Future<String> getOrCreateBackupFolder() async {
     if (_driveApi == null) {
@@ -693,8 +702,10 @@ class GoogleDriveBackupService {
     }
   }
 
+  @override
   void dispose() {
     _driveApi = null;
     _backupFolderId = null;
+    super.dispose();
   }
 }
