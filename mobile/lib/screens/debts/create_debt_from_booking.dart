@@ -286,12 +286,12 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
     setState(() {
       _selectedBooking = booking;
       
-      // محاولة حساب عدد الليالي تلقائياً
+      // محاولة حساب عدد الليالي تلقائياً باستخدام منطق 14:00
       if (booking.checkinDate.isNotEmpty && booking.checkoutDate?.isNotEmpty == true) {
         final checkin = DateTime.tryParse(booking.checkinDate);
         final checkout = DateTime.tryParse(booking.checkoutDate!);
         if (checkin != null && checkout != null) {
-          _actualNights = checkout.difference(checkin).inDays;
+          _actualNights = Time.nightsWithCutoff(checkin, checkout: checkout);
         }
       } else {
         _actualNights = booking.calculatedNights;

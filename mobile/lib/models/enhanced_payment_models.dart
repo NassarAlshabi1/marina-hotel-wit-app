@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../utils/enhanced_pdf_utils.dart';
+import '../utils/time.dart';
 import '../services/local_db.dart';
 
 /// نموذج إيصال دفع احترافي محسّن
@@ -505,7 +506,7 @@ class EnhancedInvoice {
   }
 
   pw.Widget _buildInvoiceInfo(ArabicPdfFonts fonts) {
-    final duration = checkOut.difference(checkIn).inDays;
+    final duration = Time.nightsWithCutoff(checkIn, checkout: checkOut);
     
     return EnhancedPdfUtils.buildInfoCard(
       title: '📋 بيانات الفاتورة',
