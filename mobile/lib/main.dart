@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,6 +29,16 @@ import 'components/admin_layout.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  
+  // تسجيل الدخول بشكل مجهول لـ Realtime Database والتطبيق
+  try {
+    if (FirebaseAuth.instance.currentUser == null) {
+      await FirebaseAuth.instance.signInAnonymously();
+      debugPrint('✅ تم تسجيل الدخول المجهول بنجاح للوصول إلى Firebase Realtime Database');
+    }
+  } catch (e) {
+    debugPrint('⚠️ خطأ في تسجيل الدخول المجهول: $e');
+  }
   
   // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
   await AutoBackupTask.initialize();
