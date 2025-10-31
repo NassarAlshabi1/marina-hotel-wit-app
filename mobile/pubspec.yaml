@@ -36,6 +36,7 @@ dependencies:
   googleapis: ^13.2.0
   googleapis_auth: ^1.6.0
   firebase_core: ^2.27.0
+  firebase_auth: ^4.18.0
   cloud_firestore: ^4.15.9
   workmanager: ^0.9.0+2
   shared_preferences: ^2.3.2
