@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,7 +36,6 @@ class SmartSyncManager {
   String? _deviceId;
   
   final _firestore = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
   
   static const String _prefsEnabledKey = 'smart_sync_enabled';
   static const String _prefsIntervalKey = 'smart_sync_interval';
@@ -105,18 +103,17 @@ class SmartSyncManager {
   /// التحقق من حالة الاتصال ومزامنتها مع Firestore
   Future<bool> _checkAndSyncConnectionStatus() async {
     try {
-      // استخراج UID المستخدم الحالي
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) {
-        debugPrint('⚠️ لا يوجد مستخدم مسجل في Firebase Auth');
+      // استخدام device_id كمعرف فريد بدلاً من Firebase Auth UID
+      if (_deviceId == null) {
+        debugPrint('⚠️ معرف الجهاز غير متاح');
         return false;
       }
       
       // التحقق من حالة الاتصال الحالية (دون محاولة تجديد Token)
       final bool isDriveConnected = _backupService?.isSignedIn ?? false;
       
-      // تحديث Firestore باستخدام UID المستخدم
-      await _firestore.collection('users').doc(userId).set({
+      // تحديث Firestore باستخدام device_id
+      await _firestore.collection('devices').doc(_deviceId).set({
         'is_drive_connected': isDriveConnected,
         'last_drive_check': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));

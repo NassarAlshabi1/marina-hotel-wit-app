@@ -1,10 +1,9 @@
 import 'dart:ui' as ui;
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';\nimport 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/backup_provider.dart';
 import '../../services/google_drive_backup_service.dart';
@@ -18,15 +17,23 @@ class GoogleDriveBackupScreen extends ConsumerStatefulWidget {
 }
 
 class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScreen> {
-  final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
+  String? _deviceId;
   
   @override
   void initState() {
     super.initState();
+    _loadDeviceId();
     // تحديث حجم قاعدة البيانات عند دخول الشاشة
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(backupStatusProvider.notifier).updateDatabaseSize();
+    });
+  }
+  
+  Future<void> _loadDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _deviceId = prefs.getString('smart_sync_device_id');
     });
   }
 
@@ -130,8 +137,8 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
   }
 
   Widget _buildConnectionStatusCard(BackupState state) {
-    // استخراج UID المستخدم الحالي
-    final userId = _auth.currentUser?.uid;
+    // استخدام device_id بدلاً من Firebase Auth UID
+    final deviceId = _deviceId;
     
     return Card(
       child: Padding(
@@ -142,9 +149,9 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
             Row(
               children: [
                 // استخدام StreamBuilder لقراءة حالة الاتصال من Firestore
-                if (userId != null)
+                if (deviceId != null)
                   StreamBuilder<DocumentSnapshot>(
-                    stream: _firestore.collection('users').doc(userId).snapshots(),
+                    stream: _firestore.collection('devices').doc(deviceId).snapshots(),
                     builder: (context, snapshot) {
                       bool isDriveConnected = state.isSignedIn;
                       if (snapshot.hasData && snapshot.data != null) {
@@ -179,9 +186,9 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
             const SizedBox(height: 12),
             
             // استخدام StreamBuilder للتحكم في عرض المحتوى بناءً على حالة الاتصال من Firestore
-            if (userId != null)
+            if (deviceId != null)
               StreamBuilder<DocumentSnapshot>(
-                stream: _firestore.collection('users').doc(userId).snapshots(),
+                stream: _firestore.collection('devices').doc(deviceId).snapshots(),
                 builder: (context, snapshot) {
                   bool isDriveConnected = state.isSignedIn;
                   if (snapshot.hasData && snapshot.data != null) {
