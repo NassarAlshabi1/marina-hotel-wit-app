@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
@@ -22,6 +23,7 @@ export '../providers/auto_backup_provider.dart';
 // إضافة Smart Sync Providers
 export '../providers/smart_sync_provider.dart';
 // إضافة Firestore Sync Providers
+import '../providers/firestore_sync_provider.dart';
 export '../providers/firestore_sync_provider.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) => DatabaseManager.instance);
