@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -29,9 +31,13 @@ class SmartSyncManager {
   GoogleDriveBackupService? _backupService;
   Timer? _syncCheckTimer;
   Timer? _periodicSyncTimer;
+  Timer? _connectionStatusTimer;
   bool _isSyncing = false;
   bool _isEnabled = false;
   String? _deviceId;
+  
+  final _firestore = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
   
   static const String _prefsEnabledKey = 'smart_sync_enabled';
   static const String _prefsIntervalKey = 'smart_sync_interval';
@@ -96,6 +102,34 @@ class SmartSyncManager {
     _isEnabled = prefs.getBool(_prefsEnabledKey) ?? false;
   }
 
+  /// التحقق من حالة الاتصال ومزامنتها مع Firestore
+  Future<bool> _checkAndSyncConnectionStatus() async {
+    try {
+      // استخراج UID المستخدم الحالي
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) {
+        debugPrint('⚠️ لا يوجد مستخدم مسجل في Firebase Auth');
+        return false;
+      }
+      
+      // التحقق من حالة الاتصال الحالية (دون محاولة تجديد Token)
+      final bool isDriveConnected = _backupService?.isSignedIn ?? false;
+      
+      // تحديث Firestore باستخدام UID المستخدم
+      await _firestore.collection('users').doc(userId).set({
+        'is_drive_connected': isDriveConnected,
+        'last_drive_check': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      
+      debugPrint('✅ تم تحديث حالة الاتصال في Firestore: $isDriveConnected');
+      return isDriveConnected;
+      
+    } catch (e) {
+      debugPrint('❌ خطأ في مزامنة حالة الاتصال مع Firestore: $e');
+      return _backupService?.isSignedIn ?? false;
+    }
+  }
+
   /// بدء مراقبة المزامنة التلقائية مع تحسين الأداء
   Future<void> _startSyncMonitoring() async {
     if (_syncCheckTimer?.isActive == true) return;
@@ -120,10 +154,19 @@ class SmartSyncManager {
       (timer) => _performFullSync(),
     );
     
+    // مؤقت منفصل لتحديث حالة الاتصال في Firestore كل دقيقة
+    _connectionStatusTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (timer) => _checkAndSyncConnectionStatus(),
+    );
+    
     // تحقق فوري عند البدء (إذا لم تكن هناك قيود)
     if (!await optimizer.shouldSkipSync()) {
       _performOptimizedSyncCheck();
     }
+    
+    // تحديث حالة الاتصال فوراً
+    _checkAndSyncConnectionStatus();
     
     debugPrint('⏰ بدء مراقبة المزامنة المُحسَّنة كل $optimizedInterval دقائق');
   }
@@ -162,8 +205,10 @@ class SmartSyncManager {
   void _stopSyncMonitoring() {
     _syncCheckTimer?.cancel();
     _periodicSyncTimer?.cancel();
+    _connectionStatusTimer?.cancel();
     _syncCheckTimer = null;
     _periodicSyncTimer = null;
+    _connectionStatusTimer = null;
     debugPrint('⏸️ تم إيقاف مراقبة المزامنة');
   }
 
@@ -182,7 +227,14 @@ class SmartSyncManager {
 
   /// التحقق من وجود نسخ احتياطية جديدة
   Future<void> _performSyncCheck() async {
-    if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
+    if (_isSyncing || _backupService == null) {
+      return;
+    }
+
+    // التحقق من حالة الاتصال وتحديث Firestore
+    final bool isConnected = await _checkAndSyncConnectionStatus();
+    if (!isConnected) {
+      debugPrint('🛑 لا يمكن المزامنة: غير متصل بـ Google Drive.');
       return;
     }
 

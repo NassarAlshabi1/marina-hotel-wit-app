@@ -1,5 +1,7 @@
 import 'dart:ui' as ui;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -16,6 +18,9 @@ class GoogleDriveBackupScreen extends ConsumerStatefulWidget {
 }
 
 class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScreen> {
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
+  
   @override
   void initState() {
     super.initState();
@@ -125,6 +130,9 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
   }
 
   Widget _buildConnectionStatusCard(BackupState state) {
+    // استخراج UID المستخدم الحالي
+    final userId = _auth.currentUser?.uid;
+    
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -133,11 +141,28 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.cloud,
-                  color: state.isSignedIn ? Colors.green : Colors.grey,
-                  size: 24,
-                ),
+                // استخدام StreamBuilder لقراءة حالة الاتصال من Firestore
+                if (userId != null)
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: _firestore.collection('users').doc(userId).snapshots(),
+                    builder: (context, snapshot) {
+                      final isDriveConnected = snapshot.hasData && snapshot.data != null
+                          ? (snapshot.data!.data() as Map<String, dynamic>?)?['is_drive_connected'] == true
+                          : state.isSignedIn;
+                      
+                      return Icon(
+                        Icons.cloud,
+                        color: isDriveConnected ? Colors.green : Colors.grey,
+                        size: 24,
+                      );
+                    },
+                  )
+                else
+                  Icon(
+                    Icons.cloud,
+                    color: state.isSignedIn ? Colors.green : Colors.grey,
+                    size: 24,
+                  ),
                 const SizedBox(width: 12),
                 Text(
                   'Google Drive',
@@ -149,57 +174,135 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
             ),
             const SizedBox(height: 12),
             
-            if (state.isSignedIn) ...[
-              Row(
+            // استخدام StreamBuilder للتحكم في عرض المحتوى بناءً على حالة الاتصال من Firestore
+            if (userId != null)
+              StreamBuilder<DocumentSnapshot>(
+                stream: _firestore.collection('users').doc(userId).snapshots(),
+                builder: (context, snapshot) {
+                  final isDriveConnected = snapshot.hasData && snapshot.data != null
+                      ? (snapshot.data!.data() as Map<String, dynamic>?)?['is_drive_connected'] == true
+                      : state.isSignedIn;
+                  
+                  if (isDriveConnected) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.account_circle, color: Colors.green, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'متصل: ${state.signedInAccount?.email ?? 'غير معروف'}',
+                                style: const TextStyle(color: Colors.green),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signOut(),
+                            icon: const Icon(Icons.logout),
+                            label: const Text('قطع الاتصال'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '⚠️ فشل في تسجيل الدخول أو لم يتم تحديد ملف النسخ الاحتياطي عن بُعد. يُرجى محاولة تسجيل الدخول مرة أخرى.',
+                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signInToDrive(),
+                            icon: state.status == BackupStatus.signIn 
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.login),
+                            label: Text(state.status == BackupStatus.signIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryColor,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                },
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.account_circle, color: Colors.green, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'متصل: ${state.signedInAccount?.email ?? 'غير معروف'}',
-                      style: const TextStyle(color: Colors.green),
+                  if (state.isSignedIn) ...[
+                    Row(
+                      children: [
+                        const Icon(Icons.account_circle, color: Colors.green, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'متصل: ${state.signedInAccount?.email ?? 'غير معروف'}',
+                            style: const TextStyle(color: Colors.green),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signOut(),
+                        icon: const Icon(Icons.logout),
+                        label: const Text('قطع الاتصال'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    const Text(
+                      'غير متصل - يجب تسجيل الدخول أولاً للوصول إلى ميزات النسخ الاحتياطي',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signInToDrive(),
+                        icon: state.status == BackupStatus.signIn 
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.login),
+                        label: Text(state.status == BackupStatus.signIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signOut(),
-                  icon: const Icon(Icons.logout),
-                  label: const Text('قطع الاتصال'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ] else ...[
-              const Text(
-                'غير متصل - يجب تسجيل الدخول أولاً للوصول إلى ميزات النسخ الاحتياطي',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signInToDrive(),
-                  icon: state.status == BackupStatus.signIn 
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.login),
-                  label: Text(state.status == BackupStatus.signIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
