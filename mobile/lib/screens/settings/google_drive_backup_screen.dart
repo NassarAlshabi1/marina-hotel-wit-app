@@ -146,9 +146,13 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
                   StreamBuilder<DocumentSnapshot>(
                     stream: _firestore.collection('users').doc(userId).snapshots(),
                     builder: (context, snapshot) {
-                      final isDriveConnected = snapshot.hasData && snapshot.data != null
-                          ? (snapshot.data!.data() as Map<String, dynamic>?)?['is_drive_connected'] == true
-                          : state.isSignedIn;
+                      bool isDriveConnected = state.isSignedIn;
+                      if (snapshot.hasData && snapshot.data != null) {
+                        final data = snapshot.data!.data() as Map<String, dynamic>?;
+                        if (data != null && data.containsKey('is_drive_connected')) {
+                          isDriveConnected = data['is_drive_connected'] == true;
+                        }
+                      }
                       
                       return Icon(
                         Icons.cloud,
@@ -179,9 +183,13 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
               StreamBuilder<DocumentSnapshot>(
                 stream: _firestore.collection('users').doc(userId).snapshots(),
                 builder: (context, snapshot) {
-                  final isDriveConnected = snapshot.hasData && snapshot.data != null
-                      ? (snapshot.data!.data() as Map<String, dynamic>?)?['is_drive_connected'] == true
-                      : state.isSignedIn;
+                  bool isDriveConnected = state.isSignedIn;
+                  if (snapshot.hasData && snapshot.data != null) {
+                    final data = snapshot.data!.data() as Map<String, dynamic>?;
+                    if (data != null && data.containsKey('is_drive_connected')) {
+                      isDriveConnected = data['is_drive_connected'] == true;
+                    }
+                  }
                   
                   if (isDriveConnected) {
                     return Column(
