@@ -6,17 +6,22 @@ import 'package:flutter/foundation.dart';
 
 import 'local_db.dart';
 
+typedef OnSyncUpdateCallback = void Function(int syncedCount);
+
 class FirestoreShiftNotesService {
   FirestoreShiftNotesService(
     this._database, {
     FirebaseFirestore? firestore,
+    this.onSyncUpdate,
   }) : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final AppDatabase _database;
   final FirebaseFirestore _firestore;
+  final OnSyncUpdateCallback? onSyncUpdate;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subscription;
   bool _isInitialized = false;
   bool _isSyncingLocal = false;
+  int _syncedCount = 0;
 
   CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection('shift_notes');
@@ -97,6 +102,9 @@ class FirestoreShiftNotesService {
   Future<void> _handleSnapshot(
     QuerySnapshot<Map<String, dynamic>> snapshot,
   ) async {
+    _syncedCount = snapshot.docs.length;
+    onSyncUpdate?.call(_syncedCount);
+
     for (final change in snapshot.docChanges) {
       final data = change.doc.data();
       if (data == null) continue;

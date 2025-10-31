@@ -21,6 +21,8 @@ export '../providers/backup_provider.dart';
 export '../providers/auto_backup_provider.dart';
 // إضافة Smart Sync Providers
 export '../providers/smart_sync_provider.dart';
+// إضافة Firestore Sync Providers
+export '../providers/firestore_sync_provider.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) => DatabaseManager.instance);
 
@@ -35,7 +37,17 @@ final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref
 
 final firestoreShiftNotesServiceProvider = Provider<FirestoreShiftNotesService>((ref) {
   final db = ref.watch(databaseProvider);
-  final service = FirestoreShiftNotesService(db);
+  
+  final service = FirestoreShiftNotesService(
+    db,
+    onSyncUpdate: (count) {
+      try {
+        ref.read(firestoreSyncProvider.notifier).updateSyncedCount(count);
+      } catch (e) {
+        debugPrint('⚠️ تعذر تحديث عداد الملاحظات: $e');
+      }
+    },
+  );
 
   ref.onDispose(() {
     unawaited(service.dispose());

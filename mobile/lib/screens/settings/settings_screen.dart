@@ -12,6 +12,7 @@ import 'comprehensive_backup_screen.dart';
 import 'auto_backup_settings_screen.dart';
 import 'smart_sync_settings_screen.dart';
 import 'sync_performance_settings_screen.dart';
+import 'firestore_sync_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -114,6 +115,16 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SmartSyncSettingsScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'المزامنة اللحظية (Firestore)',
+              subtitle: 'تحديثات فورية عبر جميع الأجهزة',
+              icon: Icons.cloud_sync,
+              color: Colors.deepOrange,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FirestoreSyncSettingsScreen()),
               ),
             ),
             _SettingsItem(
