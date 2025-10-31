@@ -110,4 +110,3 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase> with _$ShiftNotesDaoMi
   Stream<List<ShiftNote>> watchHighPriorityNotes() =>
       (select(shiftNotes)..where((t) => t.priority.equals('high'))).watch();
 }
-}
