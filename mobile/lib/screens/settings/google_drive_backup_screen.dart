@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
-import 'package:cloud_firestore/cloud_firestore.dart';\nimport 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
