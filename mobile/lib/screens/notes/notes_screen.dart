@@ -89,7 +89,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   Widget _buildAllNotesTab() {
     return Consumer(
       builder: (context, ref, _) {
-        final notesAsync = ref.watch(allSimpleNotesProvider);
+        final notesAsync = ref.watch(simpleNotesListProvider);
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
@@ -102,7 +102,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   Widget _buildUnreadNotesTab() {
     return Consumer(
       builder: (context, ref, _) {
-        final notesAsync = ref.watch(unreadSimpleNotesProvider);
+        final notesAsync = ref.watch(simpleNotesUnreadListProvider);
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
@@ -115,7 +115,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   Widget _buildHighPriorityNotesTab() {
     return Consumer(
       builder: (context, ref, _) {
-        final notesAsync = ref.watch(highPrioritySimpleNotesProvider);
+        final notesAsync = ref.watch(simpleNotesHighPriorityListProvider);
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
@@ -221,7 +221,6 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     switch (action) {
       case 'read':
         await repo.markAsRead(note.id);
-        _refreshData();
         break;
       case 'edit':
         _editNote(note);
@@ -262,7 +261,6 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
 
     if (confirmed == true) {
       await ref.read(simpleNotesRepoProvider).deleteNote(note.id);
-      _refreshData();
     }
   }
 
@@ -362,14 +360,6 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         shiftType: shiftType,
       );
     }
-    
-    _refreshData();
-  }
-
-  void _refreshData() {
-    ref.invalidate(allSimpleNotesProvider);
-    ref.invalidate(unreadSimpleNotesProvider);
-    ref.invalidate(highPrioritySimpleNotesProvider);
   }
 
   String _formatDate(DateTime date) {

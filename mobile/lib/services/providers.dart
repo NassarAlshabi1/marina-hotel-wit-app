@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
@@ -9,6 +11,7 @@ import 'repositories/payments_repository.dart';
 import 'repositories/debts_repository.dart';
 import 'repositories/notes_repository.dart';
 import 'repositories/simple_notes_repository.dart';
+import 'firestore_shift_notes_service.dart';
 import 'whatsapp_service.dart';
 import '../utils/status_utils.dart';
 
@@ -29,7 +32,25 @@ final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.re
 final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider)));
 final debtsRepoProvider = Provider<DebtsRepository>((ref) => DebtsRepository(ref.read(databaseProvider)));
 final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider)));
-final simpleNotesRepoProvider = Provider<SimpleNotesRepository>((ref) => SimpleNotesRepository(ref.read(databaseProvider)));
+
+final firestoreShiftNotesServiceProvider = Provider<FirestoreShiftNotesService>((ref) {
+  final db = ref.watch(databaseProvider);
+  final service = FirestoreShiftNotesService(db);
+
+  ref.onDispose(() {
+    unawaited(service.dispose());
+  });
+  unawaited(service.initialize());
+
+  return service;
+});
+
+final simpleNotesRepoProvider = Provider<SimpleNotesRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  final remoteSync = ref.watch(firestoreShiftNotesServiceProvider);
+  return SimpleNotesRepository(db, remoteSync: remoteSync);
+});
+
 final whatsappServiceProvider = Provider<WhatsAppService>(
   (ref) => WhatsAppService(
     baseUrl: 'https://7103.api.greenapi.com',
@@ -48,9 +69,8 @@ final activeNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(notesR
 // Simple Notes Providers
 final simpleNotesListProvider = StreamProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).watchAllNotes());
 final simpleNotesUnreadCountProvider = StreamProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).watchUnreadCount());
-final allSimpleNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getAllNotes());
-final unreadSimpleNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getUnreadNotes());
-final highPrioritySimpleNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getHighPriorityNotes());
+final simpleNotesUnreadListProvider = StreamProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).watchUnreadNotes());
+final simpleNotesHighPriorityListProvider = StreamProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).watchHighPriorityNotes());
 
 final employeesListProvider = StreamProvider.autoDispose((ref) => ref.watch(employeesRepoProvider).watchAll());
 

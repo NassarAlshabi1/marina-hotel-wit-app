@@ -18,6 +18,10 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase> with _$ShiftNotesDaoMi
   Future<List<ShiftNote>> getHighPriorityNotes() => 
       (select(shiftNotes)..where((t) => t.priority.equals('high'))).get();
 
+  // جلب ملاحظة حسب المعرف
+  Future<ShiftNote?> getNoteById(int id) =>
+      (select(shiftNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
+
   // إضافة ملاحظة جديدة
   Future<int> addNote({
     required String title,
@@ -97,4 +101,13 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase> with _$ShiftNotesDaoMi
       ..where(shiftNotes.isRead.equals(0));
     return query.watchSingle().map((row) => row.read(shiftNotes.id.count()) ?? 0);
   }
+
+  // مراقبة الملاحظات غير المقروءة
+  Stream<List<ShiftNote>> watchUnreadNotes() =>
+      (select(shiftNotes)..where((t) => t.isRead.equals(0))).watch();
+
+  // مراقبة الملاحظات عالية الأولوية
+  Stream<List<ShiftNote>> watchHighPriorityNotes() =>
+      (select(shiftNotes)..where((t) => t.priority.equals('high'))).watch();
+}
 }
