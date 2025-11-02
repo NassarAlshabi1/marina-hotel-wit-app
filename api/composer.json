@@ -1,0 +1,7 @@
+{
+    "name": "marina-hotel/mongodb-sync",
+    "description": "MongoDB sync integration for Marina Hotel",
+    "require": {
+        "mongodb/mongodb": "^1.17"
+    }
+}
