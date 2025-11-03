@@ -3,5 +3,8 @@ class Env {
     'BASE_API_URL',
     defaultValue: 'http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1',
   );
-  // TODO: Wire actual API v1 in next phase.
+  static String pocketbaseUrl = const String.fromEnvironment(
+    'POCKETBASE_URL',
+    defaultValue: 'https://marina-hotel-pocketbase.fly.dev',
+  );
 }
