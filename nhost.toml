@@ -1,1 +1,38 @@
+[project]
+name = "marina-hotel"
+region = "eu-central-1"
 
+[git]
+base_directory = "/"
+deployment_branch = "Ali"
+
+[hasura]
+version = "v2.33.4-ce"
+adminSecret = "${HASURA_ADMIN_SECRET}"
+webhookSecret = "${HASURA_WEBHOOK_SECRET}"
+
+[[hasura.jwtSecrets]]
+type = "HS256"
+key = "${HASURA_GRAPHQL_JWT_SECRET}"
+
+[hasura.settings]
+corsDomain = ["*"]
+devMode = false
+enableConsole = true
+enableAllowList = false
+enableRemoteSchemaPermissions = false
+enabledAPIs = ["metadata", "graphql", "pgdump", "config"]
+liveQueriesMultiplexedRefetchInterval = 1000
+stringifyNumericTypes = false
+
+[hasura.logs]
+level = "warn"
+
+[hasura.events]
+httpPoolSize = 100
+
+[postgres.resources]
+storage = { capacity = 1 }
+
+[functions]
+version = 20
