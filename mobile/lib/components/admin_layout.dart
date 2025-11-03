@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/theme.dart';
 import 'admin_sidebar.dart';
+import '../services/sync_service.dart';
 
 class AdminLayout extends StatelessWidget {
   final Widget body;
@@ -106,6 +108,8 @@ class AdminLayout extends StatelessWidget {
               ),
             ],
             if (actions != null) ...actions!,
+            const SizedBox(width: 12),
+            _buildSyncIndicator(),
           ],
         ),
       ),
@@ -113,6 +117,7 @@ class AdminLayout extends StatelessWidget {
   }
 
   PreferredSizeWidget _buildMobileAppBar(BuildContext context) {
+    final extraActions = <Widget>[if (actions != null) ...actions!, _buildSyncIndicator()];
     return AppBar(
       title: title != null 
         ? Text(title!) 
@@ -120,8 +125,73 @@ class AdminLayout extends StatelessWidget {
       backgroundColor: AppColors.primaryColor,
       foregroundColor: Colors.white,
       elevation: 0,
-      actions: actions,
+      actions: extraActions,
     );
+  }
+  Widget _buildSyncIndicator() {
+    return Consumer(builder: (context, ref, _) {
+      final asyncStatus = ref.watch(syncStatusProvider);
+      final status = asyncStatus.when(
+        data: (s) => s,
+        loading: () => SyncStatus.idle,
+        error: (_, __) => SyncStatus.error,
+      );
+      IconData icon;
+      Color color;
+      String label;
+      switch (status) {
+        case SyncStatus.pushing:
+          icon = Icons.cloud_upload;
+          color = Colors.orange;
+          label = 'مزامنة: رفع';
+          break;
+        case SyncStatus.pulling:
+          icon = Icons.cloud_download;
+          color = Colors.blue;
+          label = 'مزامنة: سحب';
+          break;
+        case SyncStatus.error:
+          icon = Icons.error_outline;
+          color = Colors.red;
+          label = 'مزامنة: خطأ';
+          break;
+        case SyncStatus.idle:
+        default:
+          icon = Icons.cloud_done;
+          color = Colors.grey;
+          label = 'مزامنة: جاهز';
+      }
+      final isBusy = status == SyncStatus.pushing || status == SyncStatus.pulling;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withOpacity(0.4)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Text(label, style: TextStyle(color: color, fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'مزامنة الآن',
+            onPressed: isBusy ? null : () => ref.read(syncServiceProvider).runSync(),
+            icon: isBusy
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.sync),
+            color: AppColors.primaryColor,
+          ),
+        ],
+      );
+    });
   }
 }
 
