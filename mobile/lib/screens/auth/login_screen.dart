@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme.dart';
 import '../../components/admin_layout.dart';
+import '../../services/pocketbase_service.dart';
+import '../../services/sync_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -102,9 +104,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _onSubmit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
-    await ref.read(authProvider.notifier).login(_usernameCtrl.text.trim(), _passwordCtrl.text);
+
+    final email = _usernameCtrl.text.trim();
+    final password = _passwordCtrl.text;
+
+    final ok = await PocketBaseService.I.login(email, password);
+    if (!ok) {
+      setState(() => _submitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('فشل تسجيل الدخول عبر PocketBase، تأكد من البريد وكلمة المرور')),
+        );
+      }
+      return;
+    }
+
+    await ref.read(authProvider.notifier).login(email, password);
+
+    final syncService = ref.read(syncServiceProvider);
+    await syncService.runSync();
+
     setState(() => _submitting = false);
-    final state = ref.read(authProvider);
-    // سيقوم RootRouter بإظهار الواجهة الرئيسية تلقائيًا عند نجاح الدخول
   }
 }
