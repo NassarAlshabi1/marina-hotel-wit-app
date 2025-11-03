@@ -1,5 +1,5 @@
 [project]
-name = "marina-hotel"
+name = "hotel"
 region = "eu-central-1"
 
 [git]
@@ -8,19 +8,19 @@ deployment_branch = "Ali"
 
 [hasura]
 version = "v2.33.4-ce"
-adminSecret = "${HASURA_ADMIN_SECRET}"
-webhookSecret = "${HASURA_WEBHOOK_SECRET}"
+adminSecret = "yaWFRUH65;rEMZ-l_F2yC:f8PV@ajaa_"
+webhookSecret = "yaWFRUH65;rEMZ-l_F2yC:f8PV@ajaa_"
 
 [[hasura.jwtSecrets]]
 type = "HS256"
-key = "${HASURA_GRAPHQL_JWT_SECRET}"
+key = "yaWFRUH65;rEMZ-l_F2yC:f8PV@ajaa_"
 
 [hasura.settings]
 corsDomain = ["*"]
 devMode = false
 enableConsole = true
 enableAllowList = false
-enableRemoteSchemaPermissions = false
+enableRemoteSchemaPermissions = true
 enabledAPIs = ["metadata", "graphql", "pgdump", "config"]
 liveQueriesMultiplexedRefetchInterval = 1000
 stringifyNumericTypes = false
