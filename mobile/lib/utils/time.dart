@@ -24,12 +24,30 @@ class Time {
       return nowDateString();
     }
   }
-  static int nightsWithCutoff(DateTime checkin, {DateTime? checkout, int cutoffHour = 13}) {
+  /// حساب عدد الأيام مع قاعدة الساعة 14:00
+  /// قاعدة احتساب اليوم: يُحتسب اليوم الواحد بدءاً من وقت تسجيل الدخول الفعلي 
+  /// وحتى الساعة 14:00 من اليوم التالي.
+  /// أي مغادرة بعد الساعة 14:00، حتى لو بدقيقة واحدة، تؤدي إلى احتساب يوم إضافي كامل.
+  static int nightsWithCutoff(DateTime checkin, {DateTime? checkout, int cutoffHour = 14}) {
     final end = checkout ?? DateTime.now();
-    final startAdj = checkin.subtract(Duration(hours: cutoffHour));
-    final endAdj = end.subtract(Duration(hours: cutoffHour));
-    int nights = endAdj.difference(startAdj).inDays;
-    if (nights < 1) nights = 1;
-    return nights;
+    
+    // حساب عدد الأيام التي عبرها النزيل (وليس الأيام الكاملة)
+    final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
+    final checkoutDate = DateTime(end.year, end.month, end.day);
+    int days = checkoutDate.difference(checkinDate).inDays;
+    
+    // إذا لم يعبر أي يوم (نفس التاريخ)، فهو يوم واحد على الأقل
+    if (days == 0) {
+      days = 1;
+    }
+    
+    // إذا كان وقت المغادرة بعد ساعة القطع (14:00)، أضف يوماً إضافياً
+    if (end.hour > cutoffHour || 
+        (end.hour == cutoffHour && end.minute > 0) ||
+        (end.hour == cutoffHour && end.minute == 0 && end.second > 0)) {
+      days += 1;
+    }
+    
+    return days;
   }
 }
