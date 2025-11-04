@@ -23,8 +23,7 @@ on:
   workflow_dispatch:
 
 # المتغيرات البيئية | Environment variables
-env:
-  FLUTTER_VERSION: '3.24.0'
+# Note: Using latest stable Flutter to support all dependencies
 
 jobs:
   test:
