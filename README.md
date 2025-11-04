@@ -224,6 +224,11 @@ flutter test
 flutter analyze
 ```
 
+### إعداد Nhost السحابي
+1. ضمن لوحة Nhost افتح **Settings → Git** واضبط `Repository` على هذا المشروع، و`Base directory` على `/`، و`Deployment branch` على `Ali`.
+2. تأكد من وجود ملف `nhost.toml` في الجذر وحدّث قيم الأسرار من **Settings → Secrets** (`HASURA_ADMIN_SECRET`, `HASURA_WEBHOOK_SECRET`, `HASURA_GRAPHQL_JWT_SECRET`).
+3. بعد كل push على الفرع Ali ستعمل عملية نشر تلقائية وتطبّق المزامنة (المخططات، الميتاداتا، الوظائف) وفق إعدادات `nhost.toml`.
+
 ### المساهمة
 1. **Fork** المشروع
 2. إنشاء فرع feature (`git checkout -b feature/AmazingFeature`)
