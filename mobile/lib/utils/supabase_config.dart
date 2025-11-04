@@ -20,7 +20,7 @@ class SupabaseConfig {
   /// Get it from: Project Settings > API > Project URL
   /// 
   /// Example: https://xxxxxxxxxxx.supabase.co
-  static const String supabaseUrl = 'YOUR_SUPABASE_URL';
+  static const String supabaseUrl = 'https://mjsexsrrjphcgpvqcisb.supabase.co';
 
   /// Supabase Anonymous Key
   /// 
@@ -29,7 +29,7 @@ class SupabaseConfig {
   /// 
   /// هذا المفتاح آمن للاستخدام في التطبيق لأن RLS مفعّل
   /// This key is safe to use in the app because RLS is enabled
-  static const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qc2V4c3JyanBoY2dwdnFjaXNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMzk2ODAsImV4cCI6MjA3NzYxNTY4MH0.8mLsJqum971em7zG1Mv2h3zj8hg06KzsMXQAXsBbniA';
 
   /// Service Role Key (للاستخدام في السيرفر فقط)
   /// 
@@ -38,7 +38,7 @@ class SupabaseConfig {
   /// 
   /// احصل عليه من: Project Settings > API > Project API keys > service_role
   /// Get it from: Project Settings > API > Project API keys > service_role
-  static const String supabaseServiceRoleKey = 'YOUR_SERVICE_ROLE_KEY';
+  static const String supabaseServiceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qc2V4c3JyanBoY2dwdnFjaXNiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjAzOTY4MCwiZXhwIjoyMDc3NjE1NjgwfQ.KeX9eFC8hD0wMI_7xK84mg6pSNtLVam-y_rel5QqMKQ';
 
   /// تهيئة Supabase
   /// 

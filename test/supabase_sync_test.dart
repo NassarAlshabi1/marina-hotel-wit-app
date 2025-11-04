@@ -19,10 +19,10 @@ import 'dart:io';
 // ============================================================================
 
 class TestConfig {
-  static const String supabaseUrl = 'https://YOUR_PROJECT_ID.supabase.co';
-  static const String supabaseAnonKey = 'YOUR_ANON_KEY';
-  static const String testEmail = 'test@marina-hotel.com';
-  static const String testPassword = 'test_password_123';
+  static const String supabaseUrl = 'https://mjsexsrrjphcgpvqcisb.supabase.co';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qc2V4c3JyanBoY2dwdnFjaXNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMzk2ODAsImV4cCI6MjA3NzYxNTY4MH0.8mLsJqum971em7zG1Mv2h3zj8hg06KzsMXQAXsBbniA';
+  static const String testEmail = 'adenmarina2@gmail.com';
+  static const String testPassword = 'Tottinnbb007';
 }
 
 // ============================================================================
