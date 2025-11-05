@@ -136,9 +136,7 @@ class AuthLocalStore {
 
   Future<String?> loadSupabaseSession() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_kSupabaseSession);
-    if (raw == null || raw.isEmpty) return null;
-    return raw;
+    return prefs.getString(_kSupabaseSession);
   }
 
   Future<List<String>> getPermissions(String username) async {
