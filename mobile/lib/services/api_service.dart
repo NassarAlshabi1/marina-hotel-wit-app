@@ -15,9 +15,14 @@ class ApiService {
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await _storage.read(key: _kToken);
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
+        final override = Env.apiJwtOverride;
+        if (override.isNotEmpty) {
+          options.headers['Authorization'] = 'Bearer $override';
+        } else {
+          final token = await _storage.read(key: _kToken);
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
         }
         handler.next(options);
       },

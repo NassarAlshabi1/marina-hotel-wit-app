@@ -13,4 +13,9 @@ class Env {
     'SUPABASE_LOGIN_PASSWORD',
     defaultValue: '',
   );
+
+  static const String apiJwtOverride = String.fromEnvironment(
+    'API_JWT',
+    defaultValue: '',
+  );
 }
