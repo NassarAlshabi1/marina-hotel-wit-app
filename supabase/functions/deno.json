@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": true
+  },
+  "imports": {
+    "supabase": "https://esm.sh/@supabase/supabase-js@2.38.4"
+  },
+  "tasks": {
+    "test": "deno test --allow-all",
+    "dev": "deno run --watch --allow-all"
+  }
+}
