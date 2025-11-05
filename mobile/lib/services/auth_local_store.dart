@@ -129,20 +129,16 @@ class AuthLocalStore {
   }
 
   // دوال Supabase session
-  Future<void> saveSupabaseSession(Map<String, dynamic> session) async {
+  Future<void> saveSupabaseSession(String sessionString) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kSupabaseSession, jsonEncode(session));
+    await prefs.setString(_kSupabaseSession, sessionString);
   }
 
-  Future<Map<String, dynamic>?> loadSupabaseSession() async {
+  Future<String?> loadSupabaseSession() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kSupabaseSession);
     if (raw == null || raw.isEmpty) return null;
-    try {
-      return jsonDecode(raw) as Map<String, dynamic>;
-    } catch (_) {
-      return null;
-    }
+    return raw;
   }
 
   Future<List<String>> getPermissions(String username) async {

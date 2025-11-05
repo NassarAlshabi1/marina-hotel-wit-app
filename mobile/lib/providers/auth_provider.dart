@@ -133,18 +133,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     
     bool supabaseConnected = false;
     try {
-      final supabaseSession = await _store.loadSupabaseSession();
-      if (supabaseSession != null) {
-        final accessToken = supabaseSession['access_token'];
-        final refreshToken = supabaseSession['refresh_token'];
+      final sessionString = await _store.loadSupabaseSession();
+      if (sessionString != null && sessionString.isNotEmpty) {
+        await SupabaseConfig.client.auth.recoverSession(sessionString);
         
-        if (accessToken != null && refreshToken != null) {
-          await SupabaseConfig.client.auth.recoverSession('${accessToken}_$refreshToken');
-          
-          if (SupabaseConfig.isLoggedIn) {
-            supabaseConnected = true;
-            debugPrint('✅ تم استعادة جلسة Supabase');
-          }
+        if (SupabaseConfig.isLoggedIn) {
+          supabaseConnected = true;
+          debugPrint('✅ تم استعادة جلسة Supabase');
         }
       }
     } catch (e) {
@@ -197,12 +192,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         
         final session = SupabaseConfig.client.auth.currentSession;
         if (session != null) {
-          await _store.saveSupabaseSession({
-            'access_token': session.accessToken,
-            'refresh_token': session.refreshToken,
-            'expires_at': session.expiresAt,
-            'user_id': session.user.id,
-          });
+          await _store.saveSupabaseSession(session.persistSessionString);
           await _store.setAuthType(AuthType.hybrid);
           supabaseConnected = true;
           debugPrint('✅ Supabase تم الاتصال بـ');
