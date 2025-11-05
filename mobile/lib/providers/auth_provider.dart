@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../services/auth_local_store.dart';
+import '../utils/supabase_config.dart';
+import '../utils/env.dart';
 
 class AuthUser {
   final int id;
@@ -104,6 +107,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
     final user = AuthUser.fromJson(json);
     state = AuthState(isAuthenticated: true, isRestoring: false, currentUser: user);
+
+    try {
+      if (!SupabaseConfig.isLoggedIn &&
+          Env.supabaseLoginEmail.isNotEmpty &&
+          Env.supabaseLoginPassword.isNotEmpty) {
+        await SupabaseConfig.signInWithEmail(
+          email: Env.supabaseLoginEmail,
+          password: Env.supabaseLoginPassword,
+        );
+        debugPrint('✅ Supabase session restored after local session');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to restore Supabase session: $e');
+    }
   }
 
   Future<void> login(String username, String password) async {
@@ -116,10 +133,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final user = AuthUser.fromJson(data);
     await _store.saveCurrentUser(user.toJson());
     state = AuthState(isAuthenticated: true, isRestoring: false, currentUser: user);
+
+    // Link to Supabase session for sync
+    try {
+      if (!SupabaseConfig.isLoggedIn &&
+          Env.supabaseLoginEmail.isNotEmpty &&
+          Env.supabaseLoginPassword.isNotEmpty) {
+        await SupabaseConfig.signInWithEmail(
+          email: Env.supabaseLoginEmail,
+          password: Env.supabaseLoginPassword,
+        );
+        debugPrint('✅ Supabase sign-in completed after app login');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Supabase sign-in failed after app login: $e');
+    }
   }
 
   Future<void> logout() async {
     await _store.clearSession();
+    try {
+      await SupabaseConfig.signOut();
+    } catch (e) {
+      debugPrint('⚠️ Supabase sign-out failed: $e');
+    }
     state = const AuthState(isAuthenticated: false, isRestoring: false);
   }
 
