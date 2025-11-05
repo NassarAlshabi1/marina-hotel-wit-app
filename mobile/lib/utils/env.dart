@@ -9,10 +9,10 @@ class Env {
   // يمكنك تغيير هذه القيم حسب حساب Supabase الخاص بك
   static String supabaseLoginEmail = const String.fromEnvironment(
     'SUPABASE_LOGIN_EMAIL',
-    defaultValue: '',
+    defaultValue: 'adenmarina2@gmail.com',
   );
   static String supabaseLoginPassword = const String.fromEnvironment(
     'SUPABASE_LOGIN_PASSWORD',
-    defaultValue: '',
+    defaultValue: 'Tottinnbb007',
   );
 }
