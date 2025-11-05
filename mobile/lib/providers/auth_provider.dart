@@ -1,5 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_local_store.dart';
+import '../utils/supabase_config.dart';
+import '../utils/env.dart';
+
+export 'package:marina_hotel_wit_app/services/auth_local_store.dart' show AuthType;
 
 class AuthUser {
   final int id;
@@ -68,11 +73,18 @@ class AuthState {
   final bool isRestoring;
   final String? error;
   final AuthUser? currentUser;
+  final bool rememberMe;
+  final AuthType authType;
+  final bool isSupabaseConnected;
+  
   const AuthState({
     required this.isAuthenticated,
     this.isRestoring = false,
     this.error,
     this.currentUser,
+    this.rememberMe = false,
+    this.authType = AuthType.local,
+    this.isSupabaseConnected = false,
   });
 
   AuthState copyWith({
@@ -80,11 +92,17 @@ class AuthState {
     bool? isRestoring,
     String? error,
     AuthUser? currentUser,
+    bool? rememberMe,
+    AuthType? authType,
+    bool? isSupabaseConnected,
   }) => AuthState(
         isAuthenticated: isAuthenticated ?? this.isAuthenticated,
         isRestoring: isRestoring ?? this.isRestoring,
         error: error,
         currentUser: currentUser ?? this.currentUser,
+        rememberMe: rememberMe ?? this.rememberMe,
+        authType: authType ?? this.authType,
+        isSupabaseConnected: isSupabaseConnected ?? this.isSupabaseConnected,
       );
 }
 
@@ -97,25 +115,107 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> restoreSession() async {
     state = state.copyWith(isRestoring: true, error: null);
+    
+    final rememberMe = await _store.getRememberMe();
+    if (!rememberMe) {
+      state = const AuthState(isAuthenticated: false, isRestoring: false);
+      return;
+    }
+    
     final json = await _store.loadCurrentUser();
     if (json == null) {
       state = const AuthState(isAuthenticated: false, isRestoring: false);
       return;
     }
+    
     final user = AuthUser.fromJson(json);
-    state = AuthState(isAuthenticated: true, isRestoring: false, currentUser: user);
+    final authType = await _store.getAuthType();
+    
+    bool supabaseConnected = false;
+    try {
+      final supabaseSession = await _store.loadSupabaseSession();
+      if (supabaseSession != null) {
+        final accessToken = supabaseSession['access_token'];
+        final refreshToken = supabaseSession['refresh_token'];
+        
+        if (accessToken != null && refreshToken != null) {
+          await SupabaseConfig.client.auth.recoverSession('${accessToken}_$refreshToken');
+          
+          if (SupabaseConfig.isLoggedIn) {
+            supabaseConnected = true;
+            debugPrint('✅ تم استعادة جلسة Supabase');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ فشلت استعادة جلسة Supabase: $e');
+    }
+    
+    state = AuthState(
+      isAuthenticated: true,
+      isRestoring: false,
+      currentUser: user,
+      rememberMe: rememberMe,
+      authType: authType,
+      isSupabaseConnected: supabaseConnected,
+    );
   }
 
-  Future<void> login(String username, String password) async {
+  Future<void> login(String username, String password, {bool rememberMe = false}) async {
     state = state.copyWith(error: null);
+    
     final data = await _store.validateCredentials(username, password);
     if (data == null) {
-      state = AuthState(isAuthenticated: false, isRestoring: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة');
+      state = AuthState(
+        isAuthenticated: false,
+        isRestoring: false,
+        error: 'اسم المستخدم أو كلمة المرور غير صحيحة',
+      );
       return;
     }
+    
     final user = AuthUser.fromJson(data);
     await _store.saveCurrentUser(user.toJson());
-    state = AuthState(isAuthenticated: true, isRestoring: false, currentUser: user);
+    await _store.setRememberMe(rememberMe);
+    await _store.setAuthType(AuthType.local);
+    
+    state = AuthState(
+      isAuthenticated: true,
+      isRestoring: false,
+      currentUser: user,
+      rememberMe: rememberMe,
+      authType: AuthType.local,
+    );
+
+    bool supabaseConnected = false;
+    try {
+      if (Env.supabaseLoginEmail.isNotEmpty && Env.supabaseLoginPassword.isNotEmpty) {
+        await SupabaseConfig.signInWithEmail(
+          email: Env.supabaseLoginEmail,
+          password: Env.supabaseLoginPassword,
+        );
+        
+        final session = SupabaseConfig.client.auth.currentSession;
+        if (session != null) {
+          await _store.saveSupabaseSession({
+            'access_token': session.accessToken,
+            'refresh_token': session.refreshToken,
+            'expires_at': session.expiresAt,
+            'user_id': session.user.id,
+          });
+          await _store.setAuthType(AuthType.hybrid);
+          supabaseConnected = true;
+          debugPrint('✅ Supabase تم الاتصال بـ');
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ فشل الاتصال بـ Supabase: $e');
+    }
+    
+    state = state.copyWith(
+      isSupabaseConnected: supabaseConnected,
+      authType: supabaseConnected ? AuthType.hybrid : AuthType.local,
+    );
   }
 
   Future<void> logout() async {
@@ -129,6 +229,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final updated = state.currentUser!.copyWith(permissions: username == 'admin' ? ['all'] : permissions);
       await _store.saveCurrentUser(updated.toJson());
       state = state.copyWith(currentUser: updated);
+    }
+  }
+
+  Future<bool> checkSupabaseConnection() async {
+    try {
+      final isConnected = await SupabaseConfig.testConnection();
+      state = state.copyWith(isSupabaseConnected: isConnected);
+      return isConnected;
+    } catch (e) {
+      debugPrint('❌ خطأ في فحص اتصال Supabase: $e');
+      state = state.copyWith(isSupabaseConnected: false);
+      return false;
     }
   }
 }

@@ -1,9 +1,14 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+enum AuthType { local, supabase, hybrid }
+
 class AuthLocalStore {
   static const _kCurrentUser = 'current_user';
   static const _kPermissionsMap = 'user_permissions';
+  static const _kRememberMe = 'remember_me';
+  static const _kAuthType = 'auth_type';
+  static const _kSupabaseSession = 'supabase_session';
 
   static const List<String> permissionKeys = [
     'dashboard',
@@ -84,7 +89,60 @@ class AuthLocalStore {
 
   Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
+    final rememberMe = await getRememberMe();
+    
     await prefs.remove(_kCurrentUser);
+    await prefs.remove(_kSupabaseSession);
+    
+    // إذا كان "تذكرني" غير مفعل، امسح كل شيء
+    if (!rememberMe) {
+      await prefs.remove(_kRememberMe);
+      await prefs.remove(_kAuthType);
+    }
+  }
+
+  // دوال "تذكرني"
+  Future<void> setRememberMe(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kRememberMe, value);
+  }
+
+  Future<bool> getRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kRememberMe) ?? false;
+  }
+
+  // دوال نوع المصادقة
+  Future<void> setAuthType(AuthType type) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kAuthType, type.name);
+  }
+
+  Future<AuthType> getAuthType() async {
+    final prefs = await SharedPreferences.getInstance();
+    final typeStr = prefs.getString(_kAuthType);
+    if (typeStr == null) return AuthType.local;
+    return AuthType.values.firstWhere(
+      (e) => e.name == typeStr,
+      orElse: () => AuthType.local,
+    );
+  }
+
+  // دوال Supabase session
+  Future<void> saveSupabaseSession(Map<String, dynamic> session) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kSupabaseSession, jsonEncode(session));
+  }
+
+  Future<Map<String, dynamic>?> loadSupabaseSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kSupabaseSession);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<List<String>> getPermissions(String username) async {
