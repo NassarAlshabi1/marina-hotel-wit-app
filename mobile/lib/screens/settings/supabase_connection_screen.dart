@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/auth_local_store.dart';
 import '../../utils/supabase_config.dart';
 import '../../utils/theme.dart';
 

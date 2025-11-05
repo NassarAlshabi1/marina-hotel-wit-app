@@ -52,12 +52,9 @@ class SupabaseConfig {
       anonKey: supabaseAnonKey,
       authOptions: const FlutterAuthClientOptions(
         authFlowType: AuthFlowType.pkce,
-        // تفعيل التخزين المستمر للجلسة
-        // Enable persistent session storage
-        autoRefreshToken: true,
         // تمكين التحديث التلقائي للـ token
         // Enable auto token refresh
-        persistSession: true,
+        autoRefreshToken: true,
       ),
       realtimeClientOptions: const RealtimeClientOptions(
         // تعطيل Realtime إذا لم تكن بحاجة إليه

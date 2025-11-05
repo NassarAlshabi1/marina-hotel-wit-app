@@ -4,8 +4,6 @@ import '../services/auth_local_store.dart';
 import '../utils/supabase_config.dart';
 import '../utils/env.dart';
 
-export 'package:marina_hotel_wit_app/services/auth_local_store.dart' show AuthType;
-
 class AuthUser {
   final int id;
   final String username;
@@ -192,7 +190,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         
         final session = SupabaseConfig.client.auth.currentSession;
         if (session != null) {
-          await _store.saveSupabaseSession(session.persistSessionString);
+          await _store.saveSupabaseSession(session.persistSession());
           await _store.setAuthType(AuthType.hybrid);
           supabaseConnected = true;
           debugPrint('✅ Supabase تم الاتصال بـ');
