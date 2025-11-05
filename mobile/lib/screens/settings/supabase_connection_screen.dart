@@ -24,6 +24,7 @@ class _SupabaseConnectionScreenState extends ConsumerState<SupabaseConnectionScr
   }
 
   Future<void> _checkConnection() async {
+    if (!mounted) return;
     setState(() {
       _isChecking = true;
       _lastCheckTime = null;
@@ -33,6 +34,7 @@ class _SupabaseConnectionScreenState extends ConsumerState<SupabaseConnectionScr
       final isConnected = await ref.read(authProvider.notifier).checkSupabaseConnection();
       final projectInfo = SupabaseConfig.getProjectInfo();
       
+      if (!mounted) return;
       setState(() {
         _connectionInfo = {
           'connected': isConnected,
@@ -44,11 +46,14 @@ class _SupabaseConnectionScreenState extends ConsumerState<SupabaseConnectionScr
         _lastCheckTime = DateTime.now().toString().substring(11, 19);
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _connectionInfo = {'connected': false, 'error': e.toString()};
       });
     } finally {
-      setState(() => _isChecking = false);
+      if (mounted) {
+        setState(() => _isChecking = false);
+      }
     }
   }
 

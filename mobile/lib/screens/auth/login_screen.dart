@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/auth_local_store.dart';
 import '../../utils/theme.dart';
 import '../../components/admin_layout.dart';
 
@@ -18,6 +19,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscure = true;
   bool _submitting = false;
   bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberMe();
+  }
+
+  Future<void> _loadRememberMe() async {
+    final store = AuthLocalStore();
+    final rememberMe = await store.getRememberMe();
+    if (mounted) {
+      setState(() => _rememberMe = rememberMe);
+    }
+  }
 
   @override
   void dispose() {
