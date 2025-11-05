@@ -57,6 +57,11 @@ class DashboardScreen extends ConsumerWidget {
           _buildStatisticsCards(ref),
           
           const SizedBox(height: 24),
+
+          // Realtime Quick Actions
+          _buildRealtimeQuickActions(context),
+
+          const SizedBox(height: 24),
           
           // Rooms Status Section
           Consumer(
@@ -196,6 +201,53 @@ class DashboardScreen extends ConsumerWidget {
           },
         ),
       ],
+    );
+  }
+  
+  Widget _buildRealtimeQuickActions(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'تحديثات فورية',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.of(context).pushNamed('/realtime'),
+                  icon: const Icon(Icons.bolt),
+                  label: const Text('لوحة البث الفوري'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.of(context).pushNamed('/realtime/employees'),
+                  icon: const Icon(Icons.group),
+                  label: const Text('الموظفون (فوري)'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.of(context).pushNamed('/realtime/expenses'),
+                  icon: const Icon(Icons.receipt_long),
+                  label: const Text('المصروفات (فوري)'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.of(context).pushNamed('/realtime/payments'),
+                  icon: const Icon(Icons.attach_money),
+                  label: const Text('المدفوعات (فوري)'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
   
