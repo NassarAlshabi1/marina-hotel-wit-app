@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'utils/theme.dart';
 import 'utils/env.dart';
+import 'utils/supabase_config.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/rooms/rooms_list.dart';
 import 'screens/bookings/bookings_list.dart';
@@ -26,6 +27,14 @@ import 'components/admin_layout.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // تهيئة Supabase
+  try {
+    await SupabaseConfig.initialize();
+    debugPrint('✅ تم تهيئة Supabase بنجاح');
+  } catch (e) {
+    debugPrint('❌ خطأ في تهيئة Supabase: $e');
+  }
   
   // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
   await AutoBackupTask.initialize();
