@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/theme.dart';
 import 'admin_sidebar.dart';
+import '../widgets/realtime_status_indicator.dart';
 
 class AdminLayout extends StatelessWidget {
   final Widget body;
@@ -93,18 +94,21 @@ class AdminLayout extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Row(
           children: [
-            if (title != null) ...[
-              Expanded(
-                child: Text(
-                  title!,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            ],
+            Expanded(
+              child: title != null
+                  ? Text(
+                      title!,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            const SizedBox(width: 12),
+            const RealtimeStatusIndicator(),
+            const SizedBox(width: 8),
             if (actions != null) ...actions!,
           ],
         ),
@@ -120,7 +124,11 @@ class AdminLayout extends StatelessWidget {
       backgroundColor: AppColors.primaryColor,
       foregroundColor: Colors.white,
       elevation: 0,
-      actions: actions,
+      actions: [
+        const RealtimeStatusIndicator(),
+        const SizedBox(width: 8),
+        if (actions != null) ...actions!,
+      ],
     );
   }
 }

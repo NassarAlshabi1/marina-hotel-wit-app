@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'utils/theme.dart';
 import 'utils/env.dart';
+import 'utils/supabase_config.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/rooms/rooms_list.dart';
 import 'screens/bookings/bookings_list.dart';
@@ -23,9 +24,13 @@ import 'services/auto_backup_manager.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'components/admin_layout.dart';
+import 'services/local_db.dart';
+import 'services/supabase_realtime_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await SupabaseConfig.initialize();
   
   // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
   await AutoBackupTask.initialize();
@@ -72,9 +77,21 @@ class App extends ConsumerWidget {
   const App({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen(databaseProvider, (prev, db) async {
-      await Seeder(db).seedIfEmpty();
-    });
+    ref.listen<AppDatabase>(
+      databaseProvider,
+      (previous, database) {
+        Future.microtask(() async {
+          await Seeder(database).seedIfEmpty();
+
+          final realtimeService = ref.read(realtimeServiceProvider);
+          if (realtimeService.currentStatus == RealtimeStatus.disconnected) {
+            await realtimeService.subscribeToAll();
+            debugPrint('✅ تم تفعيل Realtime Subscriptions');
+          }
+        });
+      },
+      fireImmediately: true,
+    );
     return Directionality(
       textDirection: TextDirection.rtl,
       child: MaterialApp(
