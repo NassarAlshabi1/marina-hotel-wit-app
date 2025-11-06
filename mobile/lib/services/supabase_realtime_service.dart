@@ -91,7 +91,7 @@ class SupabaseRealtimeService {
         _expensesDao = ExpensesDao(db, OutboxDao(db)),
         _cashDao = CashTransactionsDao(db, OutboxDao(db)),
         _paymentsDao = PaymentsDao(db, OutboxDao(db)),
-        _debtsDao = DebtsDao(db, OutboxDao(db));
+        _debtsDao = DebtsDao(db);
 
   final AppDatabase db;
   final RoomsDao _roomsDao;

@@ -35,7 +35,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return (select(debts)..where((t) => t.id.equals(id))).watchSingleOrNull();
   }
 
-  Future<int> insertOne(DebtsCompanion data) async {
+  Future<int> insertOne(DebtsCompanion data, {bool originIsServer = false}) async {
     final now = Time.nowEpoch();
     final uuid = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
     final companion = data.copyWith(
@@ -44,12 +44,12 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
       updatedAt: Value(now),
       lastModified: Value(now),
       version: const Value(1),
-      origin: const Value('local'),
+      origin: data.origin.present ? data.origin : Value(originIsServer ? 'server' : 'local'),
     );
     return into(debts).insert(companion);
   }
 
-  Future<int> updateById(int id, DebtsCompanion data) async {
+  Future<int> updateById(int id, DebtsCompanion data, {bool originIsServer = false}) async {
     final existing = await getById(id);
     if (existing == null) {
       return 0;
@@ -62,7 +62,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return (update(debts)..where((t) => t.id.equals(id))).write(companion);
   }
 
-  Future<int> softDelete(int id) async {
+  Future<int> softDelete(int id, {bool originIsServer = false}) async {
     final now = Time.nowEpoch();
     return (update(debts)..where((t) => t.id.equals(id))).write(DebtsCompanion(
       deletedAt: Value(now),

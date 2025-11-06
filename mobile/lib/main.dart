@@ -75,23 +75,39 @@ Future<void> _initializeSmartAutoBackup() async {
 
 class App extends ConsumerWidget {
   const App({super.key});
+
+  static bool _hasInitializedDatabase = false;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    void scheduleDatabaseInitialization(AppDatabase database) {
+      Future.microtask(() async {
+        await Seeder(database).seedIfEmpty();
+
+        final realtimeService = ref.read(realtimeServiceProvider);
+        if (realtimeService.currentStatus == RealtimeStatus.disconnected) {
+          await realtimeService.subscribeToAll();
+          debugPrint('✅ تم تفعيل Realtime Subscriptions');
+        }
+      });
+    }
+
+    final database = ref.watch(databaseProvider);
+
+    if (!_hasInitializedDatabase) {
+      _hasInitializedDatabase = true;
+      scheduleDatabaseInitialization(database);
+    }
+
     ref.listen<AppDatabase>(
       databaseProvider,
-      (previous, database) {
-        Future.microtask(() async {
-          await Seeder(database).seedIfEmpty();
-
-          final realtimeService = ref.read(realtimeServiceProvider);
-          if (realtimeService.currentStatus == RealtimeStatus.disconnected) {
-            await realtimeService.subscribeToAll();
-            debugPrint('✅ تم تفعيل Realtime Subscriptions');
-          }
-        });
+      (previous, next) {
+        if (!identical(previous, next)) {
+          scheduleDatabaseInitialization(next);
+        }
       },
-      fireImmediately: true,
     );
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: MaterialApp(
