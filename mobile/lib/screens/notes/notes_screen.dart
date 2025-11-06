@@ -89,7 +89,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   Widget _buildAllNotesTab() {
     return Consumer(
       builder: (context, ref, _) {
-        final notesAsync = ref.watch(allSimpleNotesProvider);
+        final notesAsync = ref.watch(simpleNotesListProvider);
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
@@ -102,11 +102,14 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   Widget _buildUnreadNotesTab() {
     return Consumer(
       builder: (context, ref, _) {
-        final notesAsync = ref.watch(unreadSimpleNotesProvider);
+        final notesAsync = ref.watch(simpleNotesListProvider);
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (notes) => _buildNotesList(notes),
+          data: (notes) {
+            final unreadNotes = notes.where((n) => n.isRead == 0).toList();
+            return _buildNotesList(unreadNotes);
+          },
         );
       },
     );
@@ -115,11 +118,14 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   Widget _buildHighPriorityNotesTab() {
     return Consumer(
       builder: (context, ref, _) {
-        final notesAsync = ref.watch(highPrioritySimpleNotesProvider);
+        final notesAsync = ref.watch(simpleNotesListProvider);
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (notes) => _buildNotesList(notes),
+          data: (notes) {
+            final highPriorityNotes = notes.where((n) => n.priority == 'high').toList();
+            return _buildNotesList(highPriorityNotes);
+          },
         );
       },
     );
@@ -367,9 +373,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   }
 
   void _refreshData() {
-    ref.invalidate(allSimpleNotesProvider);
-    ref.invalidate(unreadSimpleNotesProvider);
-    ref.invalidate(highPrioritySimpleNotesProvider);
+    // لا حاجة لـ invalidate - StreamProvider يحدث تلقائياً
   }
 
   String _formatDate(DateTime date) {
