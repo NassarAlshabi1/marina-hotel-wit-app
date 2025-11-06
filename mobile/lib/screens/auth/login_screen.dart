@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/auth_local_store.dart';
 import '../../utils/theme.dart';
 import '../../components/admin_layout.dart';
 
@@ -17,6 +18,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
   bool _submitting = false;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberMe();
+  }
+
+  Future<void> _loadRememberMe() async {
+    final store = AuthLocalStore();
+    final rememberMe = await store.getRememberMe();
+    if (mounted) {
+      setState(() => _rememberMe = rememberMe);
+    }
+  }
 
   @override
   void dispose() {
@@ -76,7 +92,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           validator: (v) => (v == null || v.isEmpty) ? 'يرجى إدخال كلمة المرور' : null,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _rememberMe,
+                              onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                            ),
+                            const Text('تذكرني'),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
                         if (auth.error != null) ...[
                           Text(auth.error!, style: const TextStyle(color: AppColors.dangerColor)),
                           const SizedBox(height: 8),
@@ -102,7 +128,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _onSubmit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
-    await ref.read(authProvider.notifier).login(_usernameCtrl.text.trim(), _passwordCtrl.text);
+    await ref.read(authProvider.notifier).login(
+      _usernameCtrl.text.trim(),
+      _passwordCtrl.text,
+      rememberMe: _rememberMe,
+    );
     setState(() => _submitting = false);
     final state = ref.read(authProvider);
     // سيقوم RootRouter بإظهار الواجهة الرئيسية تلقائيًا عند نجاح الدخول

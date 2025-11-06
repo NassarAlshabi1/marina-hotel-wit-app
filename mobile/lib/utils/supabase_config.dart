@@ -52,17 +52,16 @@ class SupabaseConfig {
       anonKey: supabaseAnonKey,
       authOptions: const FlutterAuthClientOptions(
         authFlowType: AuthFlowType.pkce,
-        // تفعيل التخزين المستمر للجلسة
-        // Enable persistent session storage
-        autoRefreshToken: true,
         // تمكين التحديث التلقائي للـ token
         // Enable auto token refresh
-        persistSession: true,
+        autoRefreshToken: true,
       ),
       realtimeClientOptions: const RealtimeClientOptions(
-        // تعطيل Realtime إذا لم تكن بحاجة إليه
-        // Disable Realtime if not needed
-        eventsPerSecond: 2,
+        // تفعيل Realtime للتحديثات الفورية
+        // Enable Realtime for instant updates
+        eventsPerSecond: 10,
+        heartbeatInterval: Duration(seconds: 15),
+        logLevel: RealtimeLogLevel.info,
       ),
       postgrestOptions: const PostgrestClientOptions(
         schema: 'public',
