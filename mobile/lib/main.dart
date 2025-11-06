@@ -88,7 +88,6 @@ class App extends ConsumerWidget {
           }
         });
       },
-      fireImmediately: true,
     );
     return Directionality(
       textDirection: TextDirection.rtl,

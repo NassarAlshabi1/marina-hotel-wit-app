@@ -275,7 +275,7 @@ class SupabaseRealtimeService {
       if (event == PostgresChangeEvent.delete) {
         final roomNumber = (oldData?['room_number'] ?? oldData?['roomNumber']) as String?;
         if (roomNumber != null) {
-          await _roomsDao.softDelete(roomNumber, originIsServer: true);
+          await _roomsDao.softDelete(roomNumber);
         }
         return;
       }
@@ -306,7 +306,7 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(_toIntNullable(newData['server_id'])),
           ),
-          originIsServer: true,
+          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -322,10 +322,10 @@ class SupabaseRealtimeService {
               serverId: d.Value(_toIntNullable(newData['server_id'])),
               origin: const d.Value('server'),
             ),
-            originIsServer: true,
+            ,
           );
           if (newData['deleted_at'] != null) {
-            await _roomsDao.softDelete(roomNumber, originIsServer: true);
+            await _roomsDao.softDelete(roomNumber);
           }
         } else {
           debugPrint('⚠️ تجاهل تحديث أقدم لجدول rooms (serverTs=$serverTs, local=${existing.lastModified})');
@@ -349,7 +349,7 @@ class SupabaseRealtimeService {
                 ..where((t) => t.serverBookingId.equals(serverBookingId)))
               .getSingleOrNull();
           if (existing != null) {
-            await _bookingsDao.softDelete(existing.id, originIsServer: true);
+            await _bookingsDao.softDelete(existing.id);
           }
         }
         return;
@@ -406,7 +406,7 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(serverBookingId),
           ),
-          originIsServer: true,
+          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -443,10 +443,10 @@ class SupabaseRealtimeService {
                   : const d.Value.absent(),
               origin: const d.Value('server'),
             ),
-            originIsServer: true,
+            ,
           );
           if (newData['deleted_at'] != null) {
-            await _bookingsDao.softDelete(existing.id, originIsServer: true);
+            await _bookingsDao.softDelete(existing.id);
           }
         } else {
           debugPrint('⚠️ تجاهل تحديث أقدم لجدول bookings (serverTs=$serverTs, local=${existing.lastModified})');
@@ -470,7 +470,7 @@ class SupabaseRealtimeService {
                 ..where((t) => t.serverId.equals(serverId)))
               .getSingleOrNull();
           if (existing != null) {
-            await _notesDao.softDelete(existing.id, originIsServer: true);
+            await _notesDao.softDelete(existing.id);
           }
         }
         return;
@@ -503,7 +503,7 @@ class SupabaseRealtimeService {
             isActive: d.Value(_toInt(newData['is_active'], fallback: 1)),
             serverId: d.Value(serverId),
           ),
-          originIsServer: true,
+          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -526,10 +526,10 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverId),
               origin: const d.Value('server'),
             ),
-            originIsServer: true,
+            ,
           );
           if (newData['deleted_at'] != null) {
-            await _notesDao.softDelete(existing.id, originIsServer: true);
+            await _notesDao.softDelete(existing.id);
           }
         } else {
           debugPrint('⚠️ تجاهل تحديث أقدم لجدول booking_notes (serverTs=$serverTs, local=${existing.lastModified})');
@@ -553,7 +553,7 @@ class SupabaseRealtimeService {
                 ..where((t) => t.serverId.equals(serverId)))
               .getSingleOrNull();
           if (existing != null) {
-            await _employeesDao.softDelete(existing.id, originIsServer: true);
+            await _employeesDao.softDelete(existing.id);
           }
         }
         return;
@@ -591,7 +591,7 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(serverId),
           ),
-          originIsServer: true,
+          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -619,10 +619,10 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverId),
               origin: const d.Value('server'),
             ),
-            originIsServer: true,
+            ,
           );
           if (newData['deleted_at'] != null) {
-            await _employeesDao.softDelete(existing.id, originIsServer: true);
+            await _employeesDao.softDelete(existing.id);
           }
         } else {
           debugPrint('⚠️ تجاهل تحديث أقدم لجدول employees (serverTs=$serverTs, local=${existing.lastModified})');
@@ -646,7 +646,7 @@ class SupabaseRealtimeService {
                 ..where((t) => t.serverId.equals(serverId)))
               .getSingleOrNull();
           if (existing != null) {
-            await _expensesDao.softDelete(existing.id, originIsServer: true);
+            await _expensesDao.softDelete(existing.id);
           }
         }
         return;
@@ -682,7 +682,7 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(serverId),
           ),
-          originIsServer: true,
+          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -710,10 +710,10 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverId),
               origin: const d.Value('server'),
             ),
-            originIsServer: true,
+            ,
           );
           if (newData['deleted_at'] != null) {
-            await _expensesDao.softDelete(existing.id, originIsServer: true);
+            await _expensesDao.softDelete(existing.id);
           }
         } else {
           debugPrint('⚠️ تجاهل تحديث أقدم لجدول expenses (serverTs=$serverTs, local=${existing.lastModified})');
@@ -737,7 +737,7 @@ class SupabaseRealtimeService {
                 ..where((t) => t.serverId.equals(serverId)))
               .getSingleOrNull();
           if (existing != null) {
-            await _cashDao.softDelete(existing.id, originIsServer: true);
+            await _cashDao.softDelete(existing.id);
           }
         }
         return;
@@ -778,7 +778,7 @@ class SupabaseRealtimeService {
             transactionTime: d.Value(_stringOr(newData['transaction_time'], Time.nowIso())),
             serverId: d.Value(serverId),
           ),
-          originIsServer: true,
+          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -809,10 +809,10 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverId),
               origin: const d.Value('server'),
             ),
-            originIsServer: true,
+            ,
           );
           if (newData['deleted_at'] != null) {
-            await _cashDao.softDelete(existing.id, originIsServer: true);
+            await _cashDao.softDelete(existing.id);
           }
         } else {
           debugPrint('⚠️ تجاهل تحديث أقدم لجدول cash_transactions (serverTs=$serverTs, local=${existing.lastModified})');
@@ -836,7 +836,7 @@ class SupabaseRealtimeService {
                 ..where((t) => t.serverPaymentId.equals(serverPaymentId)))
               .getSingleOrNull();
           if (existing != null) {
-            await _paymentsDao.softDelete(existing.id, originIsServer: true);
+            await _paymentsDao.softDelete(existing.id);
           }
         }
         return;
@@ -881,7 +881,7 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(serverPaymentId),
           ),
-          originIsServer: true,
+          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -916,10 +916,10 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverPaymentId),
               origin: const d.Value('server'),
             ),
-            originIsServer: true,
+            ,
           );
           if (newData['deleted_at'] != null) {
-            await _paymentsDao.softDelete(existing.id, originIsServer: true);
+            await _paymentsDao.softDelete(existing.id);
           }
         } else {
           debugPrint('⚠️ تجاهل تحديث أقدم لجدول payments (serverTs=$serverTs, local=${existing.lastModified})');
@@ -943,7 +943,7 @@ class SupabaseRealtimeService {
                 ..where((t) => t.serverId.equals(serverId)))
               .getSingleOrNull();
           if (existing != null) {
-            await _debtsDao.softDelete(existing.id, originIsServer: true);
+            await _debtsDao.softDelete(existing.id);
           }
         }
         return;
@@ -995,7 +995,7 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(serverId),
           ),
-          originIsServer: true,
+          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -1047,10 +1047,10 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverId),
               origin: const d.Value('server'),
             ),
-            originIsServer: true,
+            ,
           );
           if (newData['deleted_at'] != null) {
-            await _debtsDao.softDelete(existing.id, originIsServer: true);
+            await _debtsDao.softDelete(existing.id);
           }
         } else {
           debugPrint('⚠️ تجاهل تحديث أقدم لجدول debts (serverTs=$serverTs, local=${existing.lastModified})');
