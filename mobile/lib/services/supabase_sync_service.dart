@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/time.dart';
+import '../utils/supabase_config.dart';
 import 'local_db.dart';
 import 'daos/outbox_dao.dart';
 import 'daos/rooms_dao.dart';
@@ -141,10 +142,15 @@ class SupabaseSyncService {
       debugPrint('📤 Pushing ${changes.length} changes to Supabase...');
 
       // استدعاء Edge Function للـ Push
+      final jwt = await SupabaseConfig.currentToken;
+      if (jwt == null || jwt.isEmpty) {
+        throw Exception('Supabase auth required: please sign in');
+      }
       final response = await _supabase.functions
           .invoke(
             'sync-push',
             body: {'changes': changes},
+            headers: {'Authorization': 'Bearer $jwt'},
           )
           .timeout(timeout);
 
@@ -206,9 +212,14 @@ class SupabaseSyncService {
       debugPrint('📥 Pulling changes from Supabase since $lastPullIso...');
 
       // استدعاء Edge Function للـ Pull
+      final jwt = await SupabaseConfig.currentToken;
+      if (jwt == null || jwt.isEmpty) {
+        throw Exception('Supabase auth required: please sign in');
+      }
       final response = await _supabase.functions.invoke(
         'sync-pull',
         body: {'last_pull_ts': lastPullIso},
+        headers: {'Authorization': 'Bearer $jwt'},
       );
 
       if (response.status == 200 && response.data != null) {

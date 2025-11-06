@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../services/auth_local_store.dart';
 import '../utils/supabase_config.dart';
 import '../utils/env.dart';
@@ -210,6 +211,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _store.clearSession();
+    try {
+      await SupabaseConfig.signOut();
+    } catch (e) {
+      debugPrint('⚠️ Supabase sign-out failed: $e');
+    }
     state = const AuthState(isAuthenticated: false, isRestoring: false);
   }
 

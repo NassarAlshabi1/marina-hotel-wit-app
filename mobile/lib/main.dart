@@ -26,18 +26,16 @@ import 'services/google_drive_backup_service.dart';
 import 'components/admin_layout.dart';
 import 'services/local_db.dart';
 import 'services/supabase_realtime_service.dart';
+import 'screens/realtime/realtime_dashboard_example.dart';
+import 'screens/realtime/employees_realtime_screen.dart';
+import 'screens/realtime/expenses_realtime_screen.dart';
+import 'screens/realtime/payments_realtime_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
   await SupabaseConfig.initialize();
-  
-  // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
   await AutoBackupTask.initialize();
-  
-  // تهيئة مدير النسخ التلقائي الذكي (على أساس التغييرات)
   await _initializeSmartAutoBackup();
-  
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
 }
@@ -158,6 +156,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/reports': const ReportsScreen(),
     '/notes': const NotesScreen(),
     '/settings': const SettingsScreen(),
+    '/realtime': const RealtimeDashboardExample(),
+    '/realtime/employees': const EmployeesRealtimeScreen(),
+    '/realtime/expenses': const ExpensesRealtimeScreen(),
+    '/realtime/payments': const PaymentsRealtimeScreen(),
   };
   
   bool _can(String key) {
@@ -165,7 +167,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final u = auth.currentUser;
     if (u == null) return false;
     if (u.userType == 'admin' || u.permissions.contains('all')) return true;
-    return u.permissions.contains(key);
+    String k = key;
+    if (k == 'realtime') k = 'dashboard';
+    if (k.startsWith('realtimeemployees')) k = 'employees';
+    if (k.startsWith('realtimeexpenses')) k = 'expenses';
+    if (k.startsWith('realtimepayments')) k = 'payments';
+    return u.permissions.contains(k);
   }
 
   @override
