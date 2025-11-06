@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
+import '../auto_backup_manager.dart';
 import '../daos/debts_dao.dart';
 
 class DebtsRepository {
@@ -28,10 +29,10 @@ class DebtsRepository {
     String? pledge,
     String? pledgeType,
     String? note,
-  }) {
+  }) async {
     final remaining = (totalAmount - paidAmount).clamp(0, double.infinity).toDouble();
     final settled = isSettled ?? (remaining <= 0 ? true : false);
-    return dao.insertOne(
+    final debtId = await dao.insertOne(
       DebtsCompanion(
         bookingLocalId: d.Value(bookingLocalId),
         guestName: d.Value(guestName),
@@ -49,6 +50,20 @@ class DebtsRepository {
         note: d.Value(note),
       ),
     );
+
+    // تسجيل التغيير للنسخ التلقاأي
+    AutoBackupManager.instance.onDataChange(
+      'debts',
+      'CREATE',
+      recordData: {
+        'id': debtId,
+        'guest_name': guestName,
+        'total_amount': totalAmount,
+        'remaining_amount': remaining,
+      },
+    );
+
+    return debtId;
   }
 
   Future<int> update({
@@ -75,7 +90,7 @@ class DebtsRepository {
     final newTotal = totalAmount ?? existing.totalAmount;
     final newPaid = paidAmount ?? existing.paidAmount;
     final remaining = remainingAmount ?? (newTotal - newPaid).clamp(0, double.infinity).toDouble();
-    return dao.updateById(
+    final updatedRows = await dao.updateById(
       id,
       DebtsCompanion(
         bookingLocalId: bookingLocalId != null ? d.Value(bookingLocalId) : const d.Value.absent(),
@@ -94,9 +109,45 @@ class DebtsRepository {
         note: note != null ? d.Value(note) : const d.Value.absent(),
       ),
     );
+
+    if (updatedRows > 0) {
+      // تسجيل التغيير للنسخ التلقائي
+      AutoBackupManager.instance.onDataChange(
+        'debts',
+        'UPDATE',
+        recordData: {
+          'id': id,
+          'guest_name': guestName,
+          'total_amount': totalAmount,
+          'remaining_amount': remaining,
+        },
+      );
+    }
+
+    return updatedRows;
   }
 
-  Future<int> delete(int id) => dao.softDelete(id);
+  Future<int> delete(int id) async {
+    // الحصول على بيانات الدين قبل الحذف
+    final debt = await dao.getById(id);
+    
+    final deletedRows = await dao.softDelete(id);
+
+    if (deletedRows > 0 && debt != null) {
+      // تسجيل التغيير للنسخ التلقائي
+      AutoBackupManager.instance.onDataChange(
+        'debts',
+        'DELETE',
+        recordData: {
+          'id': id,
+          'guest_name': debt.guestName,
+          'total_amount': debt.totalAmount,
+        },
+      );
+    }
+
+    return deletedRows;
+  }
 
   Future<void> clearAll() => dao.clearAllData();
 

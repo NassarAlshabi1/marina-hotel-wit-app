@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
+import '../auto_backup_manager.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/booking_notes_dao.dart';
 
@@ -20,8 +21,8 @@ class NotesRepository {
     required String alertType,
     String? alertUntil,
     bool isActive = true,
-  }) {
-    return dao.insertOne(
+  }) async {
+    final noteId = await dao.insertOne(
       BookingNotesCompanion(
         bookingId: d.Value(bookingId),
         noteText: d.Value(noteText),
@@ -30,6 +31,19 @@ class NotesRepository {
         isActive: d.Value(isActive ? 1 : 0),
       ),
     );
+
+    // تسجيل التغيير للنسخ التلقائي
+    AutoBackupManager.instance.onDataChange(
+      'booking_notes',
+      'CREATE',
+      recordData: {
+        'id': noteId,
+        'booking_id': bookingId,
+        'alert_type': alertType,
+      },
+    );
+
+    return noteId;
   }
 
   Future<int> update(int id, {
@@ -37,8 +51,8 @@ class NotesRepository {
     String? alertType,
     String? alertUntil,
     bool? isActive,
-  }) {
-    return dao.updateById(
+  }) async {
+    final updatedRows = await dao.updateById(
       id,
       BookingNotesCompanion(
         noteText: noteText != null ? d.Value(noteText) : const d.Value.absent(),
@@ -47,9 +61,44 @@ class NotesRepository {
         isActive: isActive != null ? d.Value(isActive ? 1 : 0) : const d.Value.absent(),
       ),
     );
+
+    if (updatedRows > 0) {
+      // تسجيل التغيير للنسخ التلقائي
+      AutoBackupManager.instance.onDataChange(
+        'booking_notes',
+        'UPDATE',
+        recordData: {
+          'id': id,
+          'alert_type': alertType,
+          'is_active': isActive,
+        },
+      );
+    }
+
+    return updatedRows;
   }
 
-  Future<int> delete(int id) => dao.softDelete(id);
+  Future<int> delete(int id) async {
+    // الحصول على بيانات الملاحظة قبل الحذف
+    final note = await (db.select(db.bookingNotes)..where((n) => n.id.equals(id))).getSingleOrNull();
+    
+    final deletedRows = await dao.softDelete(id);
+
+    if (deletedRows > 0 && note != null) {
+      // تسجيل التغيير للنسخ التلقائي
+      AutoBackupManager.instance.onDataChange(
+        'booking_notes',
+        'DELETE',
+        recordData: {
+          'id': id,
+          'booking_id': note.bookingId,
+          'alert_type': note.alertType,
+        },
+      );
+    }
+
+    return deletedRows;
+  }
 
   // دوال النسخ الاحتياطي
 

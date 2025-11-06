@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
+import '../auto_backup_manager.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 
@@ -33,8 +34,8 @@ class BookingsRepository {
     String? notes,
     int expectedNights = 1,
     int? calculatedNights,
-  }) {
-    return dao.insertOne(
+  }) async {
+    final bookingId = await dao.insertOne(
       BookingsCompanion(
         roomNumber: d.Value(roomNumber),
         guestName: d.Value(guestName),
@@ -55,6 +56,20 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
       ),
     );
+
+    // تسجيل التغيير للنسخ التلقائي
+    AutoBackupManager.instance.onDataChange(
+      'bookings',
+      'CREATE',
+      recordData: {
+        'id': bookingId,
+        'guest_name': guestName,
+        'room_number': roomNumber,
+        'status': status,
+      },
+    );
+
+    return bookingId;
   }
 
   Future<int> update(int id, {
@@ -75,8 +90,8 @@ class BookingsRepository {
     String? notes,
     int? expectedNights,
     int? calculatedNights,
-  }) {
-    return dao.updateById(
+  }) async {
+    final updatedRows = await dao.updateById(
       id,
       BookingsCompanion(
         roomNumber: roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
@@ -98,9 +113,46 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
       ),
     );
+
+    if (updatedRows > 0) {
+      // تسجيل التغيير للنسخ التلقائي
+      AutoBackupManager.instance.onDataChange(
+        'bookings',
+        'UPDATE',
+        recordData: {
+          'id': id,
+          'guest_name': guestName,
+          'room_number': roomNumber,
+          'status': status,
+        },
+      );
+    }
+
+    return updatedRows;
   }
 
-  Future<int> delete(int id) => dao.softDelete(id);
+  Future<int> delete(int id) async {
+    // الحصول على بيانات الحجز قبل الحذف
+    final booking = await (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingleOrNull();
+    
+    final deletedRows = await dao.softDelete(id);
+
+    if (deletedRows > 0 && booking != null) {
+      // تسجيل التغيير للنسخ التلقائي
+      AutoBackupManager.instance.onDataChange(
+        'bookings',
+        'DELETE',
+        recordData: {
+          'id': id,
+          'guest_name': booking.guestName,
+          'room_number': booking.roomNumber,
+          'status': booking.status,
+        },
+      );
+    }
+
+    return deletedRows;
+  }
 
   // دوال النسخ الاحتياطي
 
