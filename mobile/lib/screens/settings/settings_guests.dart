@@ -4,6 +4,7 @@ import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import 'guest_edit_screen.dart';
 
 class SettingsGuestsScreen extends ConsumerStatefulWidget {
   const SettingsGuestsScreen({super.key});
@@ -359,10 +360,18 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: ElevatedButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed: () => _showGuestDetails(context, guest),
                     icon: const Icon(Icons.info, size: 16),
                     label: const Text('التفاصيل'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _editGuestData(context, guest),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('تعديل'),
                   ),
                 ),
               ],
@@ -513,6 +522,17 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
           Expanded(child: Text(value)),
         ],
+      ),
+    );
+  }
+
+  void _editGuestData(BuildContext context, _GuestInfo guest) async {
+    final latestBooking = guest.bookings.first;
+    
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GuestEditScreen(booking: latestBooking),
       ),
     );
   }
