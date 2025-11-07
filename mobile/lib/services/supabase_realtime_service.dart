@@ -306,7 +306,6 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(_toIntNullable(newData['server_id'])),
           ),
-          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -322,7 +321,6 @@ class SupabaseRealtimeService {
               serverId: d.Value(_toIntNullable(newData['server_id'])),
               origin: const d.Value('server'),
             ),
-            ,
           );
           if (newData['deleted_at'] != null) {
             await _roomsDao.softDelete(roomNumber);
@@ -406,7 +404,6 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(serverBookingId),
           ),
-          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -443,7 +440,6 @@ class SupabaseRealtimeService {
                   : const d.Value.absent(),
               origin: const d.Value('server'),
             ),
-            ,
           );
           if (newData['deleted_at'] != null) {
             await _bookingsDao.softDelete(existing.id);
@@ -503,7 +499,6 @@ class SupabaseRealtimeService {
             isActive: d.Value(_toInt(newData['is_active'], fallback: 1)),
             serverId: d.Value(serverId),
           ),
-          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -526,7 +521,6 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverId),
               origin: const d.Value('server'),
             ),
-            ,
           );
           if (newData['deleted_at'] != null) {
             await _notesDao.softDelete(existing.id);
@@ -591,7 +585,6 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(serverId),
           ),
-          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -619,7 +612,6 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverId),
               origin: const d.Value('server'),
             ),
-            ,
           );
           if (newData['deleted_at'] != null) {
             await _employeesDao.softDelete(existing.id);
@@ -682,7 +674,6 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(serverId),
           ),
-          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -710,7 +701,6 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverId),
               origin: const d.Value('server'),
             ),
-            ,
           );
           if (newData['deleted_at'] != null) {
             await _expensesDao.softDelete(existing.id);
@@ -778,7 +768,6 @@ class SupabaseRealtimeService {
             transactionTime: d.Value(_stringOr(newData['transaction_time'], Time.nowIso())),
             serverId: d.Value(serverId),
           ),
-          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -809,7 +798,6 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverId),
               origin: const d.Value('server'),
             ),
-            ,
           );
           if (newData['deleted_at'] != null) {
             await _cashDao.softDelete(existing.id);
@@ -881,7 +869,6 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(serverPaymentId),
           ),
-          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -916,7 +903,6 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverPaymentId),
               origin: const d.Value('server'),
             ),
-            ,
           );
           if (newData['deleted_at'] != null) {
             await _paymentsDao.softDelete(existing.id);
@@ -995,7 +981,6 @@ class SupabaseRealtimeService {
                 : const d.Value.absent(),
             serverId: d.Value(serverId),
           ),
-          ,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -1047,7 +1032,6 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverId),
               origin: const d.Value('server'),
             ),
-            ,
           );
           if (newData['deleted_at'] != null) {
             await _debtsDao.softDelete(existing.id);
