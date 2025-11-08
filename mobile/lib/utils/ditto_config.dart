@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:ditto_live/ditto_live.dart';
 import 'package:flutter/foundation.dart';
 
@@ -56,8 +57,7 @@ class DittoConfig {
           config.peerToPeer.bluetoothLE.isEnabled = true;
           config.peerToPeer.lan.isEnabled = true;
           config.peerToPeer.awdl.isEnabled = true;
-          config.connect = (config.connect ?? const Connect()).copy()
-            ..webSocketUrls = {bigPeerUrl};
+          config.connect = Connect(webSocketUrls: {bigPeerUrl});
         });
         debugPrint('🌐 Connected to Big Peer: $bigPeerUrl');
       }

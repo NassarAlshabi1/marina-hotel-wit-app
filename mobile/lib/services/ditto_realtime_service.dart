@@ -200,7 +200,7 @@ class DittoRealtimeService {
 
     for (final observer in _liveQueries.values) {
       try {
-        observer.stop();
+        observer.cancel();
       } catch (e) {
         debugPrint('⚠️ Error stopping observer: $e');
       }

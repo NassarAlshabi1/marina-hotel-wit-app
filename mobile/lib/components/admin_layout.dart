@@ -108,7 +108,7 @@ class AdminLayout extends StatelessWidget {
                   : const SizedBox.shrink(),
             ),
             const SizedBox(width: 12),
-            const RealtimeStatusIndicator(),
+            RealtimeStatusIndicator(),
             const SizedBox(width: 8),
             if (actions != null) ...actions!,
             const SizedBox(width: 12),
@@ -143,28 +143,33 @@ class AdminLayout extends StatelessWidget {
       Color color;
       String label;
       switch (status) {
-        case SyncStatus.pushing:
-          icon = Icons.cloud_upload;
-          color = Colors.orange;
-          label = 'مزامنة: رفع';
-          break;
-        case SyncStatus.pulling:
-          icon = Icons.cloud_download;
+        case SyncStatus.syncing:
+          icon = Icons.sync;
           color = Colors.blue;
-          label = 'مزامنة: سحب';
+          label = 'مزامنة جارية';
           break;
         case SyncStatus.error:
           icon = Icons.error_outline;
           color = Colors.red;
-          label = 'مزامنة: خطأ';
+          label = 'خطأ في المزامنة';
+          break;
+        case SyncStatus.connected:
+          icon = Icons.cloud_done;
+          color = Colors.green;
+          label = 'متصل';
+          break;
+        case SyncStatus.disconnected:
+          icon = Icons.cloud_off;
+          color = Colors.grey;
+          label = 'غير متصل';
           break;
         case SyncStatus.idle:
         default:
           icon = Icons.cloud_done;
           color = Colors.grey;
-          label = 'مزامنة: جاهز';
+          label = 'جاهز';
       }
-      final isBusy = status == SyncStatus.pushing || status == SyncStatus.pulling;
+      final isBusy = status == SyncStatus.syncing;
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -31,7 +31,7 @@ class DittoSyncService {
         expensesDao = ExpensesDao(db, OutboxDao(db)),
         cashDao = CashTransactionsDao(db, OutboxDao(db)),
         paymentsDao = PaymentsDao(db, OutboxDao(db)),
-        debtsDao = DebtsDao(db, OutboxDao(db)),
+        debtsDao = DebtsDao(db),
         _performanceOptimizer = SyncPerformanceOptimizer();
 
   final AppDatabase db;
@@ -243,7 +243,7 @@ class DittoSyncService {
 
     if (deletedAt != null) {
       if (existing != null) {
-        await bookingsDao.softDeleteById(existing.id, originIsServer: true);
+        await bookingsDao.softDelete(existing.id, originIsServer: true);
       }
       return;
     }
@@ -258,11 +258,11 @@ class DittoSyncService {
           roomNumber: d.Value(data['room_number'] as String),
           guestName: d.Value(data['guest_name'] as String? ?? ''),
           guestPhone: d.Value(data['guest_phone'] as String? ?? ''),
-          guestIdType: d.Value(data['guest_id_type'] as String?),
-          guestIdNumber: d.Value(data['guest_id_number'] as String?),
+          guestIdType: d.Value(data['guest_id_type'] as String? ?? 'بطاقة شخصية'),
+          guestIdNumber: d.Value(data['guest_id_number'] as String? ?? ''),
           guestIdIssueDate: d.Value(data['guest_id_issue_date'] as String?),
           guestIdIssuePlace: d.Value(data['guest_id_issue_place'] as String?),
-          guestNationality: d.Value(data['guest_nationality'] as String?),
+          guestNationality: d.Value(data['guest_nationality'] as String? ?? ''),
           guestEmail: d.Value(data['guest_email'] as String?),
           guestAddress: d.Value(data['guest_address'] as String?),
           checkinDate: d.Value(data['checkin_date'] as String),
@@ -279,7 +279,7 @@ class DittoSyncService {
         originIsServer: true,
       );
     } else {
-      await bookingsDao.updateOne(
+      await bookingsDao.updateById(
         existing.id,
         BookingsCompanion(
           roomNumber: d.Value(data['room_number'] as String),
@@ -307,7 +307,7 @@ class DittoSyncService {
 
     if (deletedAt != null) {
       if (existing != null) {
-        await notesDao.softDeleteById(existing.id, originIsServer: true);
+        await notesDao.softDelete(existing.id, originIsServer: true);
       }
       return;
     }
@@ -320,7 +320,7 @@ class DittoSyncService {
       await notesDao.insertOne(
         BookingNotesCompanion(
           bookingId: d.Value(data['booking_id'] as int),
-          note: d.Value(data['note'] as String? ?? ''),
+          noteText: d.Value(data['note'] as String? ?? ''),
           createdBy: d.Value(data['created_by'] as String? ?? ''),
           localUuid: d.Value(localUuid),
           serverId: d.Value(data['server_id'] as int?),
@@ -343,7 +343,7 @@ class DittoSyncService {
 
     if (deletedAt != null) {
       if (existing != null) {
-        await employeesDao.softDeleteById(existing.id, originIsServer: true);
+        await employeesDao.softDelete(existing.id, originIsServer: true);
       }
       return;
     }
@@ -357,7 +357,7 @@ class DittoSyncService {
         EmployeesCompanion(
           name: d.Value(data['name'] as String? ?? ''),
           phone: d.Value(data['phone'] as String? ?? ''),
-          salary: d.Value((data['salary'] as num?)?.toDouble() ?? 0.0),
+          basicSalary: d.Value((data['salary'] as num?)?.toDouble() ?? 0.0),
           position: d.Value(data['position'] as String? ?? ''),
           hireDate: d.Value(data['hire_date'] as String?),
           localUuid: d.Value(localUuid),
@@ -367,12 +367,12 @@ class DittoSyncService {
         originIsServer: true,
       );
     } else {
-      await employeesDao.updateOne(
+      await employeesDao.updateById(
         existing.id,
         EmployeesCompanion(
           name: d.Value(data['name'] as String),
           phone: d.Value(data['phone'] as String),
-          salary: d.Value((data['salary'] as num).toDouble()),
+          basicSalary: d.Value((data['salary'] as num).toDouble()),
           position: d.Value(data['position'] as String),
           serverId: d.Value(data['server_id'] as int?),
           origin: const d.Value('server'),
@@ -394,7 +394,7 @@ class DittoSyncService {
 
     if (deletedAt != null) {
       if (existing != null) {
-        await expensesDao.softDeleteById(existing.id, originIsServer: true);
+        await expensesDao.softDelete(existing.id, originIsServer: true);
       }
       return;
     }
@@ -408,8 +408,8 @@ class DittoSyncService {
         ExpensesCompanion(
           description: d.Value(data['description'] as String? ?? ''),
           amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0.0),
-          category: d.Value(data['category'] as String? ?? ''),
-          expenseDate: d.Value(data['expense_date'] as String?),
+          expenseType: d.Value(data['expense_type'] as String? ?? ''),
+          date: d.Value(data['expense_date'] as String? ?? ''),
           localUuid: d.Value(localUuid),
           serverId: d.Value(data['server_id'] as int?),
           origin: const d.Value('server'),
@@ -417,12 +417,12 @@ class DittoSyncService {
         originIsServer: true,
       );
     } else {
-      await expensesDao.updateOne(
+      await expensesDao.updateById(
         existing.id,
         ExpensesCompanion(
           description: d.Value(data['description'] as String),
           amount: d.Value((data['amount'] as num).toDouble()),
-          category: d.Value(data['category'] as String),
+          expenseType: d.Value(data['expense_type'] as String),
           serverId: d.Value(data['server_id'] as int?),
           origin: const d.Value('server'),
         ),
@@ -443,7 +443,7 @@ class DittoSyncService {
 
     if (deletedAt != null) {
       if (existing != null) {
-        await cashDao.softDeleteById(existing.id, originIsServer: true);
+        await cashDao.softDelete(existing.id, originIsServer: true);
       }
       return;
     }
@@ -455,10 +455,14 @@ class DittoSyncService {
     if (existing == null) {
       await cashDao.insertOne(
         CashTransactionsCompanion(
+          registerId: d.Value(data['register_id'] as int?),
           transactionType: d.Value(data['transaction_type'] as String? ?? ''),
           amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0.0),
-          description: d.Value(data['description'] as String? ?? ''),
-          transactionDate: d.Value(data['transaction_date'] as String?),
+          referenceType: d.Value(data['reference_type'] as String?),
+          referenceId: d.Value(data['reference_id'] as int?),
+          description: d.Value(data['description'] as String?),
+          transactionTime: d.Value(data['transaction_date'] as String? ?? ''),
+          createdBy: d.Value(data['created_by'] as int?),
           localUuid: d.Value(localUuid),
           serverId: d.Value(data['server_id'] as int?),
           origin: const d.Value('server'),
@@ -480,7 +484,7 @@ class DittoSyncService {
 
     if (deletedAt != null) {
       if (existing != null) {
-        await paymentsDao.softDeleteById(existing.id, originIsServer: true);
+        await paymentsDao.softDelete(existing.id, originIsServer: true);
       }
       return;
     }
@@ -517,7 +521,7 @@ class DittoSyncService {
 
     if (deletedAt != null) {
       if (existing != null) {
-        await debtsDao.softDeleteById(existing.id, originIsServer: true);
+        await debtsDao.softDelete(existing.id, originIsServer: true);
       }
       return;
     }
@@ -541,13 +545,12 @@ class DittoSyncService {
         originIsServer: true,
       );
     } else {
-      await debtsDao.updateOne(
+      await debtsDao.updateById(
         existing.id,
         DebtsCompanion(
           guestName: d.Value(data['guest_name'] as String),
           totalAmount: d.Value((data['total_amount'] as num).toDouble()),
           paidAmount: d.Value((data['paid_amount'] as num).toDouble()),
-          status: d.Value(data['status'] as String),
           serverId: d.Value(data['server_id'] as int?),
           origin: const d.Value('server'),
         ),
@@ -661,7 +664,7 @@ class DittoSyncService {
     _isInitialized = false;
     
     for (final liveQuery in _liveQueries.values) {
-      liveQuery.stop();
+      liveQuery.cancel();
     }
     _liveQueries.clear();
 

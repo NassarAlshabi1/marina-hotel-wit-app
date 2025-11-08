@@ -134,21 +134,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final email = _usernameCtrl.text.trim();
     final password = _passwordCtrl.text;
 
-    final ok = await PocketBaseService.I.login(email, password);
-    if (!ok) {
-      setState(() => _submitting = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('فشل تسجيل الدخول عبر PocketBase، تأكد من البريد وكلمة المرور')),
-        );
-      }
-      return;
-    }
-
-    await ref.read(authProvider.notifier).login(email, password);
+    await ref.read(authProvider.notifier).login(
+      email,
+      password,
+      rememberMe: _rememberMe,
+    );
 
     final syncService = ref.read(syncServiceProvider);
-    await syncService.runSync();
+    await syncService.initialize();
 
     setState(() => _submitting = false);
   }
