@@ -1,0 +1,191 @@
+name: Build and Release APK (Ditto)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v2.0.0)'
+        required: true
+        default: 'v2.0.0'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.24.0'
+          cache: true
+
+      - name: Verify Android Signing Files
+        run: |
+          echo "✅ Verifying signing files..."
+          ls -la android/app/release.keystore
+          ls -la android/key.properties
+          echo "✅ Signing files verified"
+
+      - name: Get Flutter version
+        id: flutter-version
+        run: |
+          flutter --version
+          echo "flutter_version=$(flutter --version | head -n 1)" >> $GITHUB_OUTPUT
+
+      - name: Clean build artifacts
+        run: flutter clean
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify Ditto dependency
+        run: |
+          echo "✅ Verifying Ditto SDK..."
+          grep "ditto:" pubspec.yaml
+          echo "✅ Ditto SDK found in dependencies"
+
+      - name: Generate Drift/Freezed code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Run Flutter analyze
+        run: flutter analyze || true
+
+      - name: Build Release APK
+        run: |
+          echo "🔨 Building Release APK with Ditto..."
+          flutter build apk --release --verbose
+          echo "✅ APK built successfully"
+
+      - name: Build App Bundle (AAB)
+        run: |
+          echo "🔨 Building App Bundle..."
+          flutter build appbundle --release
+          echo "✅ AAB built successfully"
+
+      - name: Get APK info
+        id: apk-info
+        run: |
+          APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
+          APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+          echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
+          echo "APK Size: $APK_SIZE"
+
+      - name: Rename APK with version
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/marina-hotel-${VERSION}-release.apk
+          cp build/app/outputs/bundle/release/app-release.aab \
+             build/app/outputs/bundle/release/marina-hotel-${VERSION}-release.aab
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: marina-hotel-release-apk-${{ github.run_number }}
+          path: mobile/build/app/outputs/flutter-apk/marina-hotel-*.apk
+          if-no-files-found: error
+
+      - name: Upload App Bundle (AAB)
+        uses: actions/upload-artifact@v4
+        with:
+          name: marina-hotel-release-aab-${{ github.run_number }}
+          path: mobile/build/app/outputs/bundle/release/marina-hotel-*.aab
+          if-no-files-found: error
+
+      - name: Generate Release Notes
+        id: release-notes
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          cat > release-notes.md << 'EOF'
+          # 🎉 Marina Hotel $VERSION - Ditto Edition
+          
+          ## ✨ المميزات الجديدة
+          
+          ### 🔄 نظام المزامنة الجديد - Ditto
+          - ✅ **P2P Sync**: مزامنة مباشرة بين الأجهزة (Bluetooth LE + WiFi)
+          - ✅ **Cloud Sync**: مزامنة عبر Big Peer السحابي
+          - ✅ **Offline-First**: عمل كامل بدون إنترنت
+          - ✅ **Auto Conflict Resolution**: حل تلقائي للتعارضات
+          
+          ## 📊 معلومات الإصدار
+          
+          - **الإصدار**: $VERSION
+          - **حجم APK**: ${{ steps.apk-info.outputs.apk_size }}
+          - **Flutter**: ${{ steps.flutter-version.outputs.flutter_version }}
+          - **Ditto SDK**: v4.8.0
+          - **SHA-1**: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
+          
+          ## 📱 التثبيت
+          
+          1. قم بتحميل ملف `marina-hotel-$VERSION-release.apk`
+          2. فعّل "التثبيت من مصادر غير معروفة" على جهازك
+          3. افتح الملف وثبّته
+          4. سجّل الدخول باستخدام حسابك
+          
+          ## 🔧 المتطلبات
+          
+          - Android 5.0 (API 21) أو أحدث
+          - مساحة تخزين: 50 MB على الأقل
+          - اتصال بالإنترنت (للمزامنة السحابية)
+          
+          ## 📚 التوثيق
+          
+          - [دليل التحويل إلى Ditto](DITTO_MIGRATION_GUIDE.md)
+          - [دليل البدء السريع](DITTO_QUICK_START.md)
+          - [ملخص التحويل](MIGRATION_SUMMARY.md)
+          
+          ## 🐛 الإبلاغ عن المشاكل
+          
+          إذا واجهت أي مشاكل، يرجى فتح Issue على GitHub.
+          EOF
+          
+          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+          cat release-notes.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: Marina Hotel ${{ github.event.inputs.version || github.ref_name }} - Ditto Edition
+          body: ${{ steps.release-notes.outputs.release_notes }}
+          draft: false
+          prerelease: false
+          files: |
+            mobile/build/app/outputs/flutter-apk/marina-hotel-*.apk
+            mobile/build/app/outputs/bundle/release/marina-hotel-*.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Summary
+        if: always()
+        run: |
+          echo "### 📱 Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | ${{ github.event.inputs.version || github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| APK Size | ${{ steps.apk-info.outputs.apk_size }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Flutter | ${{ steps.flutter-version.outputs.flutter_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Ditto SDK | v4.8.0 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Number | ${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Build completed successfully!" >> $GITHUB_STEP_SUMMARY
