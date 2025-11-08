@@ -44,7 +44,7 @@ dependencies:
   # Ditto integration for P2P + Cloud syncing with Big Peer
   ditto_live: ^4.12.4
   # Ditto developer tools for debugging and diagnostics
-  ditto_flutter_tools: ^1.0.0
+  ditto_flutter_tools: ^2.0.0
   # Required for file-based SQLite backup/restore helpers
   sqflite: ^2.3.3+1
   path: ^1.9.0
@@ -57,6 +57,9 @@ dev_dependencies:
   build_runner: ^2.4.13
   freezed: ^2.5.7
   drift_dev: ^2.20.0
+
+dependency_overrides:
+  intl: ^0.20.2
 
 flutter:
   uses-material-design: true
