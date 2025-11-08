@@ -54,12 +54,17 @@ class DittoConfig {
 
       if (bigPeerUrl.isNotEmpty) {
         _instance!.updateTransportConfig((config) {
-          config.peerToPeer.bluetoothLE.isEnabled = true;
-          config.peerToPeer.lan.isEnabled = true;
-          config.peerToPeer.awdl.isEnabled = true;
+          // ⚠️ تعطيل جميع اتصالات P2P (Peer-to-Peer)
+          // المزامنة فقط عبر الإنترنت (Cloud Sync)
+          config.peerToPeer.bluetoothLE.isEnabled = false;
+          config.peerToPeer.lan.isEnabled = false;
+          config.peerToPeer.awdl.isEnabled = false;
+          
+          // فقط WebSocket للمزامنة السحابية
           config.connect = Connect(webSocketUrls: {bigPeerUrl});
         });
-        debugPrint('🌐 Connected to Big Peer: $bigPeerUrl');
+        debugPrint('🌐 Connected to Big Peer (Internet-only mode): $bigPeerUrl');
+        debugPrint('⚠️ P2P disabled: Bluetooth, LAN, and AWDL are off');
       }
 
       _isInitialized = true;
