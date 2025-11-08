@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
-import 'package:ditto/ditto.dart';
+import 'package:ditto_live/ditto_live.dart';
 import 'package:flutter/material.dart';
 import '../utils/time.dart';
 import '../utils/ditto_config.dart';
@@ -94,7 +94,7 @@ class DittoSyncService {
 
   Future<void> _startLiveQueries() async {
     for (final collectionName in _collections) {
-      await _subscribeTo Collection(collectionName);
+      await _subscribeToCollection(collectionName);
     }
   }
 
