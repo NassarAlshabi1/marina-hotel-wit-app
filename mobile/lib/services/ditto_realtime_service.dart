@@ -73,9 +73,9 @@ class DittoRealtimeService {
   final _eventsController = StreamController<RealtimeEvent>.broadcast();
   Stream<RealtimeEvent> get eventsStream => _eventsController.stream;
 
-  final Map<String, DittoLiveQuery> _liveQueries = {};
+  final Map<String, StoreObserver> _liveQueries = {};
   final _stats = RealtimeStats();
-  StreamSubscription<List<DittoPeer>>? _peerSubscription;
+  StreamSubscription<List<Peer>>? _peerSubscription;
 
   static const List<String> _collections = [
     'rooms',
@@ -139,15 +139,13 @@ class DittoRealtimeService {
 
   Future<void> _subscribeToCollection(String collectionName) async {
     try {
-      final collection = _ditto.store.collection(collectionName);
-
-      final liveQuery = collection.findAll().observe(
-        onDocsChanged: (docs) {
-          _handleCollectionChange(collectionName, docs);
+      final observer = _ditto.store.registerObserver(
+        'SELECT * FROM $collectionName',
+        onChange: (result) {
+          _handleCollectionChange(collectionName, result);
         },
       );
-
-      _liveQueries[collectionName] = liveQuery;
+      _liveQueries[collectionName] = observer;
       debugPrint('✓ Subscribed to: $collectionName');
     } catch (e) {
       debugPrint('❌ Failed to subscribe to $collectionName: $e');
@@ -156,25 +154,20 @@ class DittoRealtimeService {
 
   void _handleCollectionChange(
     String collectionName,
-    List<DittoDocument> docs,
+    QueryResult result,
   ) {
     try {
-      for (final doc in docs) {
-        final data = doc.value;
-        
+      for (final item in result.items) {
+        final data = item.value;
         final event = RealtimeEvent(
           collection: collectionName,
           eventType: _determineEventType(data),
           document: data,
           timestamp: DateTime.now(),
         );
-
         _stats.recordEvent(collectionName, event.eventType);
         _eventsController.add(event);
-
-        debugPrint(
-          '📥 ${event.eventType} in $collectionName: ${data['local_uuid'] ?? 'unknown'}',
-        );
+        debugPrint('📥 ${event.eventType} in $collectionName: ${data['local_uuid'] ?? 'unknown'}');
       }
     } catch (e) {
       debugPrint('❌ Error handling collection change: $e');
@@ -205,11 +198,11 @@ class DittoRealtimeService {
 
     debugPrint('🔌 Unsubscribing from all collections...');
 
-    for (final liveQuery in _liveQueries.values) {
+    for (final observer in _liveQueries.values) {
       try {
-        liveQuery.stop();
+        observer.stop();
       } catch (e) {
-        debugPrint('⚠️ Error stopping live query: $e');
+        debugPrint('⚠️ Error stopping observer: $e');
       }
     }
 
@@ -222,41 +215,41 @@ class DittoRealtimeService {
   }
 
   Future<void> subscribeToRooms(
-    Function(List<DittoDocument>) onChanged,
+    Function(List<Map<String, dynamic>>) onChanged,
   ) async {
     await _subscribeToSpecificCollection('rooms', onChanged);
   }
 
   Future<void> subscribeToBookings(
-    Function(List<DittoDocument>) onChanged,
+    Function(List<Map<String, dynamic>>) onChanged,
   ) async {
     await _subscribeToSpecificCollection('bookings', onChanged);
   }
 
   Future<void> subscribeToEmployees(
-    Function(List<DittoDocument>) onChanged,
+    Function(List<Map<String, dynamic>>) onChanged,
   ) async {
     await _subscribeToSpecificCollection('employees', onChanged);
   }
 
   Future<void> subscribeToExpenses(
-    Function(List<DittoDocument>) onChanged,
+    Function(List<Map<String, dynamic>>) onChanged,
   ) async {
     await _subscribeToSpecificCollection('expenses', onChanged);
   }
 
   Future<void> _subscribeToSpecificCollection(
     String collectionName,
-    Function(List<DittoDocument>) onChanged,
+    Function(List<Map<String, dynamic>>) onChanged,
   ) async {
     try {
-      final collection = _ditto.store.collection(collectionName);
-      
-      final liveQuery = collection.findAll().observe(
-        onDocsChanged: onChanged,
+      final observer = _ditto.store.registerObserver(
+        'SELECT * FROM $collectionName',
+        onChange: (result) {
+          onChanged(result.items.map((e) => e.value).toList());
+        },
       );
-
-      _liveQueries['custom_$collectionName'] = liveQuery;
+      _liveQueries['custom_$collectionName'] = observer;
       debugPrint('✓ Custom subscription to: $collectionName');
     } catch (e) {
       debugPrint('❌ Failed custom subscription to $collectionName: $e');

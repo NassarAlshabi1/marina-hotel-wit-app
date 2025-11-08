@@ -49,7 +49,7 @@ class DittoSyncService {
   final _status = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get statusStream => _status.stream;
 
-  final Map<String, DittoLiveQuery> _liveQueries = {};
+  final Map<String, StoreObserver> _liveQueries = {};
   final Map<String, StreamSubscription> _subscriptions = {};
   bool _isInitialized = false;
   bool _isSyncing = false;
@@ -100,15 +100,13 @@ class DittoSyncService {
 
   Future<void> _subscribeToCollection(String collectionName) async {
     try {
-      final collection = _ditto.store.collection(collectionName);
-      
-      final liveQuery = collection.findAll().observe(
-        onDocsChanged: (docs) {
-          _handleRemoteChanges(collectionName, docs);
+      final observer = _ditto.store.registerObserver(
+        'SELECT * FROM $collectionName',
+        onChange: (result) {
+          _handleRemoteChanges(collectionName, result);
         },
       );
-
-      _liveQueries[collectionName] = liveQuery;
+      _liveQueries[collectionName] = observer;
       debugPrint('✓ Subscribed to collection: $collectionName');
     } catch (e) {
       debugPrint('❌ Failed to subscribe to $collectionName: $e');
@@ -117,16 +115,17 @@ class DittoSyncService {
 
   Future<void> _handleRemoteChanges(
     String collectionName,
-    List<DittoDocument> docs,
+    QueryResult result,
   ) async {
     if (_isSyncing) return;
 
     _isSyncing = true;
     try {
-      debugPrint('📥 Received ${docs.length} docs from $collectionName');
+      final items = result.items.toList();
+      debugPrint('📥 Received ${items.length} rows from $collectionName');
 
-      for (final doc in docs) {
-        await _applyRemoteDocument(collectionName, doc);
+      for (final item in items) {
+        await _applyRemoteDocument(collectionName, item);
       }
     } catch (e) {
       debugPrint('❌ Error handling remote changes for $collectionName: $e');
@@ -137,10 +136,10 @@ class DittoSyncService {
 
   Future<void> _applyRemoteDocument(
     String collectionName,
-    DittoDocument doc,
+    QueryResultItem item,
   ) async {
     try {
-      final data = doc.value;
+      final data = item.value;
       final localUuid = data['local_uuid'] as String?;
       final serverId = data['server_id'] as int?;
       final deletedAt = data['deleted_at'] as String?;
@@ -575,19 +574,22 @@ class DittoSyncService {
 
   Future<void> _pushToCollection(OutboxData change) async {
     try {
-      final collection = _ditto.store.collection(change.entity);
       final payload = jsonDecode(change.payload) as Map<String, dynamic>;
 
       if (change.op == 'delete') {
-        await collection.findByID(change.localUuid).remove();
+        await _ditto.store.execute(
+          'DELETE FROM ${change.entity} WHERE local_uuid = :uuid',
+          arguments: {'uuid': change.localUuid},
+        );
         await outboxDao.removeById(change.id);
         debugPrint('✓ Deleted ${change.entity}/${change.localUuid}');
         return;
       }
 
-      final docId = DittoDocumentID.fromString(change.localUuid);
-      
-      await collection.upsert(payload, id: docId);
+      await _ditto.store.execute(
+        'INSERT INTO ${change.entity} DOCUMENTS [:doc] ON CONFLICT REPLACE',
+        arguments: {'doc': payload},
+      );
 
       await outboxDao.removeById(change.id);
       debugPrint('✓ Synced ${change.entity}/${change.localUuid}');

@@ -89,6 +89,10 @@ final realtimeEventsProvider = StreamProvider<RealtimeEvent>(
   (ref) => ref.read(realtimeServiceProvider).eventsStream,
 );
 
+final syncStatusProvider = StreamProvider<SyncStatus>(
+  (ref) => ref.read(syncServiceProvider).statusStream,
+);
+
 // Daily Statistics Providers
 final todayPaymentsProvider = FutureProvider.autoDispose((ref) {
   final today = DateTime.now();

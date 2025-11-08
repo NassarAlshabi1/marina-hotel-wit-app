@@ -161,18 +161,22 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
 
   Future<_DiagData> _loadData(AppDatabase db) async {
     final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
-    final countRow = await (db.selectOnly(db.outbox)..addColumns([db.outbox.id.count()])).getSingle();
-    final outboxCount = countRow.read(db.outbox.id.count()) ?? 0;
-    final errors = await (db.select(db.outbox)
-          ..where((t) => t.lastError.isNotNull())
-          ..orderBy([(t) => OrderingTerm(expression: t.clientTs, mode: OrderingMode.desc)])
-          ..limit(20))
-        .get();
-    final recent = await (db.select(db.outbox)
-          ..orderBy([(t) => OrderingTerm(expression: t.clientTs, mode: OrderingMode.desc)])
-          ..limit(20))
-        .get();
-    return _DiagData(syncState: state, outboxCount: outboxCount, outboxErrors: errors, outboxRecent: recent);
+
+    final allOutbox = await db.select(db.outbox).get();
+    final outboxCount = allOutbox.length;
+
+    final errors = allOutbox
+        .where((o) => (o.lastError ?? '').isNotEmpty)
+        .toList()
+      ..sort((a, b) => b.clientTs.compareTo(a.clientTs));
+    final recent = [...allOutbox]..sort((a, b) => b.clientTs.compareTo(a.clientTs));
+
+    return _DiagData(
+      syncState: state,
+      outboxCount: outboxCount,
+      outboxErrors: errors.take(20).toList(),
+      outboxRecent: recent.take(20).toList(),
+    );
   }
 }
 

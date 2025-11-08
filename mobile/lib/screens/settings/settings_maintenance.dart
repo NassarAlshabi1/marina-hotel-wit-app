@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
-import '../../services/sync_service.dart';
+import '../../services/providers.dart';
 
 class SettingsMaintenanceScreen extends ConsumerWidget {
   const SettingsMaintenanceScreen({super.key});

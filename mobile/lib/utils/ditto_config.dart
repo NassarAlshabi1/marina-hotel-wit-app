@@ -49,14 +49,15 @@ class DittoConfig {
 
       _instance = await Ditto.open(identity: identity);
 
-      await _instance!.startSync();
+      _instance!.startSync();
 
       if (bigPeerUrl.isNotEmpty) {
         _instance!.updateTransportConfig((config) {
           config.peerToPeer.bluetoothLE.isEnabled = true;
           config.peerToPeer.lan.isEnabled = true;
           config.peerToPeer.awdl.isEnabled = true;
-          config.connect.websocketUrls = [bigPeerUrl];
+          config.connect = (config.connect ?? const Connect()).copy()
+            ..webSocketUrls = {bigPeerUrl};
         });
         debugPrint('🌐 Connected to Big Peer: $bigPeerUrl');
       }
@@ -77,7 +78,7 @@ class DittoConfig {
     }
 
     try {
-      await _instance!.startSync();
+      _instance!.startSync();
       debugPrint('✅ Ditto sync started');
     } catch (e) {
       debugPrint('❌ Failed to start sync: $e');
@@ -91,7 +92,7 @@ class DittoConfig {
     }
 
     try {
-      await _instance!.stopSync();
+      _instance!.stopSync();
       debugPrint('🛑 Ditto sync stopped');
     } catch (e) {
       debugPrint('❌ Failed to stop sync: $e');
@@ -104,15 +105,29 @@ class DittoConfig {
       return Stream.empty();
     }
 
-    return _instance!.presence.observe();
+    final controller = StreamController<List<Peer>>.broadcast();
+    _instance!.presence.observe((graph) {
+      try {
+        final peers = <Peer>[];
+        peers.addAll(graph.remotePeers);
+        controller.add(peers);
+      } catch (e) {
+        controller.addError(e);
+      }
+    });
+    return controller.stream;
   }
 
   static Future<List<Peer>> getCurrentPeers() async {
     if (!_isInitialized || _instance == null) {
       return [];
     }
-
-    return _instance!.presence.graph.getConnections();
+    try {
+      final graph = _instance!.presence.graph;
+      return [...graph.remotePeers];
+    } catch (_) {
+      return [];
+    }
   }
 
   static Future<void> dispose() async {
@@ -168,10 +183,6 @@ class DittoConfig {
     }
   }
 
-  static SyncCollection collection(String name) {
-    if (!_isInitialized || _instance == null) {
-      throw Exception('Ditto not initialized');
-    }
-    return _instance!.store.collection(name);
-  }
+  // Helper removed: use Ditto.store.registerObserver / execute directly with DQL queries in v4.12+
+
 }
