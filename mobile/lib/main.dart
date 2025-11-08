@@ -15,6 +15,7 @@ import 'screens/payments/payments_main_screen.dart';
 import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/settings/sync_diagnostics_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
 import 'services/providers.dart';
@@ -116,6 +117,7 @@ class App extends ConsumerWidget {
           '/finance/cash-transactions': (_) => const FinanceScreen(),
           '/debts': (_) => const DebtsListScreen(),
           '/reports': (_) => const ReportsScreen(),
+          '/diagnostics/sync': (_) => const SyncDiagnosticsScreen(),
         },
         home: const RootRouter(),
       ),
@@ -214,6 +216,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               ),
           ],
         ),
+      ),
+      IconButton(
+        onPressed: () {
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SyncDiagnosticsScreen()));
+        },
+        tooltip: 'تشخيص المزامنة',
+        icon: const Icon(Icons.bug_report),
       ),
     ];
   }
