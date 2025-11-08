@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../screens/notes/notes_screen.dart';
 import '../services/providers.dart';
-import '../services/sync_service.dart';
+import '../services/ditto_sync_service.dart';
 import '../widgets/live_update_banner.dart';
 import '../widgets/realtime_status_indicator.dart';
 

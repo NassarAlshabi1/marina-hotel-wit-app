@@ -41,29 +41,23 @@ class DittoConfig {
       debugPrint('🔑 Using Ditto App ID: $appId');
       debugPrint('🌐 Big Peer URL: $bigPeerUrl');
 
-      final identity = await OnlinePlaygroundIdentity.create(
-        appId: appId,
+      final identity = OnlinePlaygroundIdentity(
+        appID: appId,
         token: token,
         enableDittoCloudSync: true,
       );
 
-      _instance = await Ditto.open(identity);
+      _instance = await Ditto.open(identity: identity);
 
-      await _instance!.sync.start();
+      await _instance!.startSync();
 
       if (bigPeerUrl.isNotEmpty) {
-        await _instance!.sync.setTransportConfig(
-          TransportConfig(
-            peerToPeer: PeerToPeerConfig(
-              bluetoothLe: BluetoothLeConfig(enabled: true),
-              lan: LanConfig(enabled: true),
-              awdl: AwdlConfig(enabled: true),
-            ),
-            connect: ConnectConfig(
-              websocketUrls: [bigPeerUrl],
-            ),
-          ),
-        );
+        _instance!.updateTransportConfig((config) {
+          config.peerToPeer.bluetoothLE.isEnabled = true;
+          config.peerToPeer.lan.isEnabled = true;
+          config.peerToPeer.awdl.isEnabled = true;
+          config.connect.websocketUrls = [bigPeerUrl];
+        });
         debugPrint('🌐 Connected to Big Peer: $bigPeerUrl');
       }
 
@@ -83,7 +77,7 @@ class DittoConfig {
     }
 
     try {
-      await _instance!.sync.start();
+      await _instance!.startSync();
       debugPrint('✅ Ditto sync started');
     } catch (e) {
       debugPrint('❌ Failed to start sync: $e');
@@ -97,7 +91,7 @@ class DittoConfig {
     }
 
     try {
-      await _instance!.sync.stop();
+      await _instance!.stopSync();
       debugPrint('🛑 Ditto sync stopped');
     } catch (e) {
       debugPrint('❌ Failed to stop sync: $e');
@@ -105,7 +99,7 @@ class DittoConfig {
     }
   }
 
-  static Stream<List<DittoPeer>> observePeers() {
+  static Stream<List<Peer>> observePeers() {
     if (!_isInitialized || _instance == null) {
       return Stream.empty();
     }
@@ -113,7 +107,7 @@ class DittoConfig {
     return _instance!.presence.observe();
   }
 
-  static Future<List<DittoPeer>> getCurrentPeers() async {
+  static Future<List<Peer>> getCurrentPeers() async {
     if (!_isInitialized || _instance == null) {
       return [];
     }
@@ -174,7 +168,7 @@ class DittoConfig {
     }
   }
 
-  static DittoCollection collection(String name) {
+  static SyncCollection collection(String name) {
     if (!_isInitialized || _instance == null) {
       throw Exception('Ditto not initialized');
     }

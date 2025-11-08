@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/providers.dart';
-import '../services/supabase_realtime_service.dart';
+import '../services/ditto_realtime_service.dart';
 
 /// بانر التحديثات الفورية (يظهر عند وصول تحديث جديد)
 class LiveUpdateBanner extends ConsumerStatefulWidget {
@@ -22,24 +22,23 @@ class _LiveUpdateBannerState extends ConsumerState<LiveUpdateBanner> {
   @override
   void initState() {
     super.initState();
-    ref.listen<AsyncValue<RealtimeEvent>>(
-      realtimeEventsProvider,
-      (previous, next) {
-        next.whenData((event) {
-          setState(() {
-            _lastEvent = event;
-            _visible = true;
-          });
-
-          _hideTimer?.cancel();
-          _hideTimer = Timer(const Duration(seconds: 3), () {
-            if (mounted) {
-              setState(() => _visible = false);
-            }
-          });
+    // Listen to Ditto realtime events
+    final dittoService = ref.read(dittoRealtimeServiceProvider);
+    dittoService.eventsStream.listen((event) {
+      if (mounted) {
+        setState(() {
+          _lastEvent = event;
+          _visible = true;
         });
-      },
-    );
+
+        _hideTimer?.cancel();
+        _hideTimer = Timer(const Duration(seconds: 3), () {
+          if (mounted) {
+            setState(() => _visible = false);
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -59,21 +58,21 @@ class _LiveUpdateBannerState extends ConsumerState<LiveUpdateBanner> {
     IconData icon;
 
     switch (event.eventType) {
-      case 'INSERT':
+      case 'insert':
         icon = Icons.add_circle;
-        message = 'إضافة جديدة في ${_tableNameArabic(event.table)}';
+        message = 'إضافة جديدة في ${_tableNameArabic(event.collection)}';
         break;
-      case 'UPDATE':
+      case 'update':
         icon = Icons.update;
-        message = 'تحديث في ${_tableNameArabic(event.table)}';
+        message = 'تحديث في ${_tableNameArabic(event.collection)}';
         break;
-      case 'DELETE':
+      case 'delete':
         icon = Icons.delete;
-        message = 'حذف من ${_tableNameArabic(event.table)}';
+        message = 'حذف من ${_tableNameArabic(event.collection)}';
         break;
       default:
         icon = Icons.info;
-        message = 'تغيير في ${_tableNameArabic(event.table)}';
+        message = 'تغيير في ${_tableNameArabic(event.collection)}';
         break;
     }
 

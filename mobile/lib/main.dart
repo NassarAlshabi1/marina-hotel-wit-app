@@ -97,7 +97,6 @@ class App extends ConsumerWidget {
           debugPrint('✅ تم تهيئة Ditto Sync Service');
         });
       },
-      fireImmediately: true,
     );
     return Directionality(
       textDirection: TextDirection.rtl,

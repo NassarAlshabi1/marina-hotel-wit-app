@@ -4,8 +4,8 @@ import '../../providers/auth_provider.dart';
 import '../../services/auth_local_store.dart';
 import '../../utils/theme.dart';
 import '../../components/admin_layout.dart';
-import '../../services/pocketbase_service.dart';
-import '../../services/sync_service.dart';
+
+import '../../services/ditto_sync_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});

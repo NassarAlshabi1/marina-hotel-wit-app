@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
-import '../../services/sync_service.dart';
+import '../../services/ditto_sync_service.dart';
 
 /// شاشة إدارة الملاحظات والتنبيهات
 class NotesScreen extends ConsumerStatefulWidget {

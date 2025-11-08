@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/admin_layout.dart';
 import '../../services/providers.dart';
-import '../../services/sync_service.dart';
+import '../../services/ditto_sync_service.dart';
+import '../../services/local_db.dart';
 
 class SyncDiagnosticsScreen extends ConsumerStatefulWidget {
   const SyncDiagnosticsScreen({super.key});
@@ -103,10 +104,12 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
     return asyncStatus.when(
       data: (s) {
         switch (s) {
-          case SyncStatus.pushing:
-            return 'رفع';
-          case SyncStatus.pulling:
-            return 'سحب';
+          case SyncStatus.syncing:
+            return 'يتم المزامنة';
+          case SyncStatus.connected:
+            return 'متصل';
+          case SyncStatus.disconnected:
+            return 'غير متصل';
           case SyncStatus.error:
             return 'خطأ';
           case SyncStatus.idle:

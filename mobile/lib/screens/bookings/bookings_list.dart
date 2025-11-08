@@ -6,7 +6,7 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../services/local_db.dart';
 import '../../services/providers.dart';
-import '../../services/sync_service.dart';
+import '../../services/ditto_sync_service.dart';
 import '../../utils/time.dart';
 import '../payments/booking_payment_screen.dart';
 import 'booking_edit.dart';

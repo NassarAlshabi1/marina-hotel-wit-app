@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/providers.dart';
-import '../services/supabase_realtime_service.dart';
+import '../services/ditto_realtime_service.dart';
 
 /// مؤشر حالة Realtime في شريط التطبيق
 class RealtimeStatusIndicator extends ConsumerWidget {
@@ -10,17 +10,10 @@ class RealtimeStatusIndicator extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statusAsync = ref.watch(realtimeStatusProvider);
+    final dittoService = ref.watch(dittoRealtimeServiceProvider);
+    final status = dittoService.currentStatus;
 
-    return statusAsync.when(
-      data: (status) => _buildIndicator(status),
-      loading: () => const SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-      error: (_, __) => const Icon(Icons.cloud_off, color: Colors.red, size: 20),
-    );
+    return _buildIndicator(status);
   }
 
   Widget _buildIndicator(RealtimeStatus status) {
