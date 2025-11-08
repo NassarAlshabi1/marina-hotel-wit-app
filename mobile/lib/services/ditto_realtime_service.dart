@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:ditto/ditto.dart';
+import 'package:ditto_live/ditto_live.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/ditto_config.dart';
