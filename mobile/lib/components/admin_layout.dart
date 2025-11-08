@@ -95,18 +95,21 @@ class AdminLayout extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Row(
           children: [
-            if (title != null) ...[
-              Expanded(
-                child: Text(
-                  title!,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            ],
+            Expanded(
+              child: title != null
+                  ? Text(
+                      title!,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            const SizedBox(width: 12),
+            const RealtimeStatusIndicator(),
+            const SizedBox(width: 8),
             if (actions != null) ...actions!,
             const SizedBox(width: 12),
             _buildSyncIndicator(),

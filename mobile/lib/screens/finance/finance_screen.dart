@@ -7,9 +7,6 @@ class FinanceScreen extends ConsumerWidget {
   const FinanceScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return const AppScaffold(
-      title: 'المالية',
-      body: PaymentsMainScreen(),
-    );
+    return const PaymentsMainScreen();
   }
 }

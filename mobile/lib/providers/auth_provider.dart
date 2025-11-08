@@ -1,5 +1,9 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_local_store.dart';
+import '../utils/ditto_config.dart';
 
 class AuthUser {
   final int id;
@@ -68,11 +72,18 @@ class AuthState {
   final bool isRestoring;
   final String? error;
   final AuthUser? currentUser;
+  final bool rememberMe;
+  final AuthType authType;
+  final bool isDittoConnected;
+  
   const AuthState({
     required this.isAuthenticated,
     this.isRestoring = false,
     this.error,
     this.currentUser,
+    this.rememberMe = false,
+    this.authType = AuthType.local,
+    this.isDittoConnected = false,
   });
 
   AuthState copyWith({
@@ -80,11 +91,17 @@ class AuthState {
     bool? isRestoring,
     String? error,
     AuthUser? currentUser,
+    bool? rememberMe,
+    AuthType? authType,
+    bool? isDittoConnected,
   }) => AuthState(
         isAuthenticated: isAuthenticated ?? this.isAuthenticated,
         isRestoring: isRestoring ?? this.isRestoring,
         error: error,
         currentUser: currentUser ?? this.currentUser,
+        rememberMe: rememberMe ?? this.rememberMe,
+        authType: authType ?? this.authType,
+        isDittoConnected: isDittoConnected ?? this.isDittoConnected,
       );
 }
 
@@ -97,25 +114,92 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> restoreSession() async {
     state = state.copyWith(isRestoring: true, error: null);
+    
+    final rememberMe = await _store.getRememberMe();
+    if (!rememberMe) {
+      state = const AuthState(isAuthenticated: false, isRestoring: false);
+      return;
+    }
+    
     final json = await _store.loadCurrentUser();
     if (json == null) {
       state = const AuthState(isAuthenticated: false, isRestoring: false);
       return;
     }
+    
     final user = AuthUser.fromJson(json);
-    state = AuthState(isAuthenticated: true, isRestoring: false, currentUser: user);
+    final authType = await _store.getAuthType();
+    
+    bool dittoConnected = false;
+    try {
+      if (DittoConfig.isInitialized) {
+        dittoConnected = true;
+        debugPrint('✅ Ditto is already initialized');
+      } else {
+        await DittoConfig.initialize();
+        dittoConnected = true;
+        debugPrint('✅ Ditto initialized successfully');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to initialize Ditto: $e');
+    }
+    
+    state = AuthState(
+      isAuthenticated: true,
+      isRestoring: false,
+      currentUser: user,
+      rememberMe: rememberMe,
+      authType: authType,
+      isDittoConnected: dittoConnected,
+    );
   }
 
-  Future<void> login(String username, String password) async {
+  Future<void> login(String username, String password, {bool rememberMe = false}) async {
     state = state.copyWith(error: null);
+    
     final data = await _store.validateCredentials(username, password);
     if (data == null) {
-      state = AuthState(isAuthenticated: false, isRestoring: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة');
+      state = AuthState(
+        isAuthenticated: false,
+        isRestoring: false,
+        error: 'اسم المستخدم أو كلمة المرور غير صحيحة',
+      );
       return;
     }
+    
     final user = AuthUser.fromJson(data);
     await _store.saveCurrentUser(user.toJson());
-    state = AuthState(isAuthenticated: true, isRestoring: false, currentUser: user);
+    await _store.setRememberMe(rememberMe);
+    await _store.setAuthType(AuthType.local);
+    
+    state = AuthState(
+      isAuthenticated: true,
+      isRestoring: false,
+      currentUser: user,
+      rememberMe: rememberMe,
+      authType: AuthType.local,
+    );
+
+    bool dittoConnected = false;
+    try {
+      if (!DittoConfig.isInitialized) {
+        await DittoConfig.initialize();
+        dittoConnected = true;
+        debugPrint('✅ تم الاتصال بـ Ditto');
+      } else {
+        dittoConnected = true;
+        debugPrint('✅ Ditto متصل بالفعل');
+      }
+
+      await _store.setAuthType(AuthType.hybrid);
+    } catch (e) {
+      debugPrint('⚠️ فشل الاتصال بـ Ditto: $e');
+    }
+    
+    state = state.copyWith(
+      isDittoConnected: dittoConnected,
+      authType: dittoConnected ? AuthType.hybrid : AuthType.local,
+    );
   }
 
   Future<void> logout() async {
@@ -129,6 +213,37 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final updated = state.currentUser!.copyWith(permissions: username == 'admin' ? ['all'] : permissions);
       await _store.saveCurrentUser(updated.toJson());
       state = state.copyWith(currentUser: updated);
+    }
+  }
+
+  Future<bool> checkDittoConnection() async {
+    try {
+      if (!DittoConfig.isInitialized) {
+        state = state.copyWith(isDittoConnected: false);
+        return false;
+      }
+
+      final status = DittoConfig.getStatus();
+      final isConnected = status['isInitialized'] == true;
+      
+      state = state.copyWith(isDittoConnected: isConnected);
+      return isConnected;
+    } catch (e) {
+      debugPrint('❌ خطأ في فحص اتصال Ditto: $e');
+      state = state.copyWith(isDittoConnected: false);
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> getDittoStatus() async {
+    try {
+      return await DittoConfig.getDetailedStatus();
+    } catch (e) {
+      debugPrint('❌ خطأ في الحصول على حالة Ditto: $e');
+      return {
+        'isInitialized': false,
+        'error': e.toString(),
+      };
     }
   }
 }

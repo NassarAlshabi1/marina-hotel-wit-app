@@ -42,6 +42,8 @@ dependencies:
   permission_handler: ^11.3.1
   pocketbase: ^0.18.0
   device_info_plus: ^10.1.2
+  # Ditto integration for P2P + Cloud syncing with Big Peer
+  ditto: ^4.8.0
   # Required for file-based SQLite backup/restore helpers
   sqflite: ^2.3.3+1
   path: ^1.9.0

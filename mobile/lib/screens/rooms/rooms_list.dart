@@ -24,10 +24,6 @@ class RoomsListScreen extends ConsumerWidget {
     return AppScaffold(
       title: 'الغرف',
       actions: [
-        IconButton(
-          onPressed: () => ref.read(syncServiceProvider).runSync(),
-          icon: const Icon(Icons.sync),
-        ),
         if (canRooms)
           IconButton(
             onPressed: () async {
