@@ -5,6 +5,7 @@ import '../../services/auth_local_store.dart';
 import '../../services/providers.dart';
 import '../../utils/theme.dart';
 import '../../components/admin_layout.dart';
+import '../../main.dart' show initializeBackgroundServices;
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -141,6 +142,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final syncService = ref.read(syncServiceProvider);
     await syncService.initialize();
+    
+    // تهيئة الخدمات الخلفية بعد تسجيل الدخول الناجح
+    final auth = ref.read(authProvider);
+    if (auth.isAuthenticated) {
+      initializeBackgroundServices().catchError((e) {
+        debugPrint('❌ خطأ في تهيئة الخدمات الخلفية: $e');
+      });
+    }
 
     setState(() => _submitting = false);
   }

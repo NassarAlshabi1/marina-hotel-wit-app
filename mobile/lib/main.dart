@@ -17,6 +17,7 @@ import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/settings/sync_diagnostics_screen.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/splash_screen.dart';
 import 'providers/auth_provider.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
@@ -33,46 +34,47 @@ import 'services/drift_ditto_sync_adapter.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // فقط Ditto - ضروري للمزامنة
   await DittoConfig.initialize();
-  
-  // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
-  await AutoBackupTask.initialize();
-  
-  // تهيئة مدير النسخ التلقائي الذكي (على أساس التغييرات)
-  await _initializeSmartAutoBackup();
   
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
 }
 
 /// تهيئة نظام النسخ التلقائي الذكي والمزامنة بين الأجهزة
-Future<void> _initializeSmartAutoBackup() async {
+/// يتم استدعاؤها بعد تسجيل الدخول الناجح لتجنب تأخير بدء التطبيق
+Future<void> initializeBackgroundServices() async {
   try {
+    debugPrint('🔄 بدء تهيئة الخدمات الخلفية...');
+    
+    // 1. تهيئة AutoBackupTask (خدمة مجدولة)
+    await AutoBackupTask.initialize();
+    
+    // 2. تهيئة Google Drive (بشكل lazy)
     final backupService = GoogleDriveBackupService();
     
-    // محاولة استعادة جلسة Google Drive أولاً
-    try {
-      await backupService.attemptSilentSignIn();
-    } catch (e) {
+    // محاولة silent sign-in بدون انتظار
+    backupService.attemptSilentSignIn().catchError((e) {
       debugPrint('⚠️ لم يتم استعادة جلسة Google Drive: $e');
-    }
+    });
     
-    // تهيئة مدير النسخ التلقائي
+    // 3. تهيئة managers بدون انتظار Google Drive
     final autoBackupManager = AutoBackupManager.instance;
-    await autoBackupManager.initialize(backupService);
+    final smartSyncManager = SmartSyncManager.instance;
+    
+    await Future.wait([
+      autoBackupManager.initialize(backupService),
+      smartSyncManager.initialize(backupService),
+    ]);
     
     // تفعيل النسخ التلقائي بشكل افتراضي
     await autoBackupManager.setEnabled(true);
     await autoBackupManager.setMaxBackupCount(25); // الاحتفاظ بـ 25 نسخة
     await autoBackupManager.setRetentionDays(45); // لمدة 45 يوماً
     
-    // تهيئة مدير المزامنة الذكية بين الأجهزة
-    final smartSyncManager = SmartSyncManager.instance;
-    await smartSyncManager.initialize(backupService);
-    
-    debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية بنجاح');
+    debugPrint('✅ تم تهيئة الخدمات الخلفية بنجاح');
   } catch (e) {
-    debugPrint('❌ خطأ في تهيئة النظام الذكي: $e');
+    debugPrint('❌ خطأ في تهيئة الخدمات الخلفية: $e');
   }
 }
 
@@ -83,18 +85,26 @@ class App extends ConsumerWidget {
     ref.listen<AppDatabase>(
       databaseProvider,
       (previous, database) {
-        Future.microtask(() async {
+        // استخدم Future عادي بدلاً من microtask لتجنب حجز UI thread
+        Future(() async {
+          // 1. Seeding أولاً
           await Seeder(database).seedIfEmpty();
-
-          final realtimeService = ref.read(dittoRealtimeServiceProvider);
-          if (realtimeService.currentStatus == RealtimeStatus.disconnected) {
-            await realtimeService.subscribeToAll();
-            debugPrint('✅ تم تفعيل Ditto Realtime Subscriptions');
-          }
           
-          final syncService = ref.read(dittoSyncServiceProvider);
-          await syncService.initialize();
-          debugPrint('✅ تم تهيئة Ditto Sync Service');
+          // 2. بعد 500ms، ابدأ Ditto subscriptions (بدون حجز UI thread)
+          Future.delayed(const Duration(milliseconds: 500), () async {
+            final realtimeService = ref.read(dittoRealtimeServiceProvider);
+            if (realtimeService.currentStatus == RealtimeStatus.disconnected) {
+              await realtimeService.subscribeToAll();
+              debugPrint('✅ تم تفعيل Ditto Realtime Subscriptions');
+            }
+          });
+          
+          // 3. بعد 1 ثانية، هيئ Ditto Sync Service
+          Future.delayed(const Duration(seconds: 1), () async {
+            final syncService = ref.read(dittoSyncServiceProvider);
+            await syncService.initialize();
+            debugPrint('✅ تم تهيئة Ditto Sync Service');
+          });
         });
       },
     );
@@ -130,12 +140,7 @@ class RootRouter extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
     if (auth.isRestoring) {
-      return const Directionality(
-        textDirection: TextDirection.rtl,
-        child: Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
-      );
+      return const SplashScreen();
     }
     if (auth.isAuthenticated) {
       return const HomeShell();
