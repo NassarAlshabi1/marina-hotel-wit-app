@@ -1,4 +1,4 @@
-import 'package:ditto/ditto.dart';
+import 'package:ditto_live/ditto_live.dart';
 import 'package:flutter/foundation.dart';
 
 class DittoConfig {
