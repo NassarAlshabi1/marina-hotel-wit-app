@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/auth_local_store.dart';
 import '../../utils/theme.dart';
 import '../../components/admin_layout.dart';
+import '../../main.dart' show initializeBackgroundServices;
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -135,6 +136,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
     setState(() => _submitting = false);
     final state = ref.read(authProvider);
+    
+    // إذا نجح تسجيل الدخول، هيئ الخدمات الخلفية بدون انتظار
+    if (state.isAuthenticated) {
+      initializeBackgroundServices().catchError((e) {
+        debugPrint('❌ خطأ في تهيئة الخدمات الخلفية: $e');
+      });
+    }
+    
     // سيقوم RootRouter بإظهار الواجهة الرئيسية تلقائيًا عند نجاح الدخول
   }
 }
