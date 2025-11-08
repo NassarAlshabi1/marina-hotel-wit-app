@@ -18,6 +18,10 @@
 # Dio/OkHttp are Dart-side; no Android rules required
 # Drift/SQLite use generated Dart code; no Java rules required
 
+# Google Play Core (Flutter dynamic feature modules)
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
+
 # Ditto Live - P2P Sync
 -keep class live.ditto.** { *; }
 -keep interface live.ditto.** { *; }
