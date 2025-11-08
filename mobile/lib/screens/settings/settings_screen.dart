@@ -12,6 +12,7 @@ import 'auto_backup_settings_screen.dart';
 import 'smart_sync_settings_screen.dart';
 import 'sync_performance_settings_screen.dart';
 import 'ditto_connection_screen.dart';
+import 'ditto_developer_tools_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -134,6 +135,16 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const DittoConnectionScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'أدوات Ditto للمطورين',
+              subtitle: 'تشخيص وتصحيح أخطاء P2P والمزامنة',
+              icon: Icons.developer_mode,
+              color: Colors.deepPurple,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const DittoDeveloperToolsScreen()),
               ),
             ),
             _SettingsItem(
