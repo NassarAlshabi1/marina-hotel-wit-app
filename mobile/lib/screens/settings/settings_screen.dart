@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
-import '../../services/sync_service.dart';
 import '../../widgets/smart_sync_widgets.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
@@ -12,7 +11,7 @@ import 'comprehensive_backup_screen.dart';
 import 'auto_backup_settings_screen.dart';
 import 'smart_sync_settings_screen.dart';
 import 'sync_performance_settings_screen.dart';
-import 'supabase_connection_screen.dart';
+import 'ditto_connection_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -128,13 +127,13 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             _SettingsItem(
-              title: 'حالة اتصال Supabase',
-              subtitle: 'فحص الاتصال مع قاعدة البيانات السحابية',
-              icon: Icons.cloud_sync,
+              title: 'حالة اتصال Ditto',
+              subtitle: 'P2P + Cloud Sync والأجهزة المتصلة',
+              icon: Icons.devices,
               color: Colors.lightBlue,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SupabaseConnectionScreen()),
+                MaterialPageRoute(builder: (context) => const DittoConnectionScreen()),
               ),
             ),
             _SettingsItem(
