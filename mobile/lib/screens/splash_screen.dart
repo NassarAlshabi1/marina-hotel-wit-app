@@ -50,7 +50,7 @@ class SplashScreen extends StatelessWidget {
                 'نظام إدارة شامل',
                 style: TextStyle(
                   fontSize: 16,
-                  color: AppColors.mutedTextColor,
+                  color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 40),
@@ -67,7 +67,7 @@ class SplashScreen extends StatelessWidget {
                 'جاري التحميل...',
                 style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.mutedTextColor,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],
