@@ -9,7 +9,9 @@ import 'repositories/payments_repository.dart';
 import 'repositories/debts_repository.dart';
 import 'repositories/notes_repository.dart';
 import 'repositories/simple_notes_repository.dart';
-import 'supabase_realtime_service.dart';
+import 'ditto_realtime_service.dart';
+import 'ditto_sync_service.dart';
+import 'drift_ditto_sync_adapter.dart';
 import 'whatsapp_service.dart';
 import '../utils/status_utils.dart';
 
@@ -59,10 +61,24 @@ final expensesListProvider = StreamProvider.autoDispose((ref) => ref.watch(expen
 
 final cashTransactionsListProvider = StreamProvider.autoDispose((ref) => ref.watch(cashRepoProvider).watchAll());
 
-final realtimeServiceProvider = Provider<SupabaseRealtimeService>((ref) {
-  final service = SupabaseRealtimeService(ref.read(databaseProvider));
-  ref.onDispose(service.dispose);
+final realtimeServiceProvider = Provider<DittoRealtimeService>((ref) {
+  final service = DittoRealtimeService();
+  ref.onDispose(() => service.dispose());
   return service;
+});
+
+final syncServiceProvider = Provider<DittoSyncService>((ref) {
+  final service = DittoSyncService(ref.read(databaseProvider));
+  ref.onDispose(() => service.dispose());
+  return service;
+});
+
+final syncAdapterProvider = Provider<DriftDittoSyncAdapter>((ref) {
+  return DriftDittoSyncAdapter(
+    db: ref.read(databaseProvider),
+    syncService: ref.read(syncServiceProvider),
+    realtimeService: ref.read(realtimeServiceProvider),
+  );
 });
 
 final realtimeStatusProvider = StreamProvider<RealtimeStatus>(

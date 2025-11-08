@@ -3,8 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_local_store.dart';
-import '../utils/supabase_config.dart';
-import '../utils/env.dart';
+import '../utils/ditto_config.dart';
 
 class AuthUser {
   final int id;
@@ -75,7 +74,7 @@ class AuthState {
   final AuthUser? currentUser;
   final bool rememberMe;
   final AuthType authType;
-  final bool isSupabaseConnected;
+  final bool isDittoConnected;
   
   const AuthState({
     required this.isAuthenticated,
@@ -84,7 +83,7 @@ class AuthState {
     this.currentUser,
     this.rememberMe = false,
     this.authType = AuthType.local,
-    this.isSupabaseConnected = false,
+    this.isDittoConnected = false,
   });
 
   AuthState copyWith({
@@ -94,7 +93,7 @@ class AuthState {
     AuthUser? currentUser,
     bool? rememberMe,
     AuthType? authType,
-    bool? isSupabaseConnected,
+    bool? isDittoConnected,
   }) => AuthState(
         isAuthenticated: isAuthenticated ?? this.isAuthenticated,
         isRestoring: isRestoring ?? this.isRestoring,
@@ -102,7 +101,7 @@ class AuthState {
         currentUser: currentUser ?? this.currentUser,
         rememberMe: rememberMe ?? this.rememberMe,
         authType: authType ?? this.authType,
-        isSupabaseConnected: isSupabaseConnected ?? this.isSupabaseConnected,
+        isDittoConnected: isDittoConnected ?? this.isDittoConnected,
       );
 }
 
@@ -131,19 +130,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final user = AuthUser.fromJson(json);
     final authType = await _store.getAuthType();
     
-    bool supabaseConnected = false;
+    bool dittoConnected = false;
     try {
-      final sessionString = await _store.loadSupabaseSession();
-      if (sessionString != null && sessionString.isNotEmpty) {
-        await SupabaseConfig.client.auth.recoverSession(sessionString);
-        
-        if (SupabaseConfig.isLoggedIn) {
-          supabaseConnected = true;
-          debugPrint('✅ تم استعادة جلسة Supabase');
-        }
+      if (DittoConfig.isInitialized) {
+        dittoConnected = true;
+        debugPrint('✅ Ditto is already initialized');
+      } else {
+        await DittoConfig.initialize();
+        dittoConnected = true;
+        debugPrint('✅ Ditto initialized successfully');
       }
     } catch (e) {
-      debugPrint('⚠️ فشلت استعادة جلسة Supabase: $e');
+      debugPrint('⚠️ Failed to initialize Ditto: $e');
     }
     
     state = AuthState(
@@ -152,7 +150,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       currentUser: user,
       rememberMe: rememberMe,
       authType: authType,
-      isSupabaseConnected: supabaseConnected,
+      isDittoConnected: dittoConnected,
     );
   }
 
@@ -182,29 +180,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
       authType: AuthType.local,
     );
 
-    bool supabaseConnected = false;
+    bool dittoConnected = false;
     try {
-      if (Env.supabaseLoginEmail.isNotEmpty && Env.supabaseLoginPassword.isNotEmpty) {
-        await SupabaseConfig.signInWithEmail(
-          email: Env.supabaseLoginEmail,
-          password: Env.supabaseLoginPassword,
-        );
-        
-        final session = SupabaseConfig.client.auth.currentSession;
-        if (session != null) {
-          await _store.saveSupabaseSession(jsonEncode(session.toJson()));
-          await _store.setAuthType(AuthType.hybrid);
-          supabaseConnected = true;
-          debugPrint('✅ Supabase تم الاتصال بـ');
-        }
+      if (!DittoConfig.isInitialized) {
+        await DittoConfig.initialize();
+        dittoConnected = true;
+        debugPrint('✅ تم الاتصال بـ Ditto');
+      } else {
+        dittoConnected = true;
+        debugPrint('✅ Ditto متصل بالفعل');
       }
+
+      await _store.setAuthType(AuthType.hybrid);
     } catch (e) {
-      debugPrint('⚠️ فشل الاتصال بـ Supabase: $e');
+      debugPrint('⚠️ فشل الاتصال بـ Ditto: $e');
     }
     
     state = state.copyWith(
-      isSupabaseConnected: supabaseConnected,
-      authType: supabaseConnected ? AuthType.hybrid : AuthType.local,
+      isDittoConnected: dittoConnected,
+      authType: dittoConnected ? AuthType.hybrid : AuthType.local,
     );
   }
 
@@ -222,15 +216,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> checkSupabaseConnection() async {
+  Future<bool> checkDittoConnection() async {
     try {
-      final isConnected = await SupabaseConfig.testConnection();
-      state = state.copyWith(isSupabaseConnected: isConnected);
+      if (!DittoConfig.isInitialized) {
+        state = state.copyWith(isDittoConnected: false);
+        return false;
+      }
+
+      final status = DittoConfig.getStatus();
+      final isConnected = status['isInitialized'] == true;
+      
+      state = state.copyWith(isDittoConnected: isConnected);
       return isConnected;
     } catch (e) {
-      debugPrint('❌ خطأ في فحص اتصال Supabase: $e');
-      state = state.copyWith(isSupabaseConnected: false);
+      debugPrint('❌ خطأ في فحص اتصال Ditto: $e');
+      state = state.copyWith(isDittoConnected: false);
       return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> getDittoStatus() async {
+    try {
+      return await DittoConfig.getDetailedStatus();
+    } catch (e) {
+      debugPrint('❌ خطأ في الحصول على حالة Ditto: $e');
+      return {
+        'isInitialized': false,
+        'error': e.toString(),
+      };
     }
   }
 }

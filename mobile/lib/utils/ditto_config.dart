@@ -1,0 +1,183 @@
+import 'package:ditto/ditto.dart';
+import 'package:flutter/foundation.dart';
+
+class DittoConfig {
+  static const String dittoAppId = '1507d904-d3ed-4ac3-824c-249c18170eee';
+  static const String dittoOnlinePlaygroundToken = 'dbae5191-2cb5-4fb5-8aca-9f9d85e0409a';
+  static const String dittoApiToken = 'Vc4wt9ruMMtlf9zS1wh8RSoqT8HN9aB8CYfeDY95KC4kKSEtkfmgHOupZBkO';
+  static const String dittoBigPeerUrl = 'wss://i83inp.cloud.dittolive.app/1507d904-d3ed-4ac3-824c-249c18170eee';
+
+  static Ditto? _instance;
+  static bool _isInitialized = false;
+
+  static Ditto get instance {
+    if (_instance == null) {
+      throw Exception(
+        'Ditto not initialized. Call DittoConfig.initialize() first.',
+      );
+    }
+    return _instance!;
+  }
+
+  static bool get isInitialized => _isInitialized;
+
+  static Future<void> initialize({
+    String? customAppId,
+    String? customToken,
+    String? customBigPeerUrl,
+  }) async {
+    if (_isInitialized) {
+      debugPrint('⚠️ Ditto already initialized');
+      return;
+    }
+
+    try {
+      debugPrint('🔄 Initializing Ditto...');
+
+      final appId = customAppId ?? dittoAppId;
+      final token = customToken ?? dittoOnlinePlaygroundToken;
+      final bigPeerUrl = customBigPeerUrl ?? dittoBigPeerUrl;
+
+      debugPrint('🔑 Using Ditto App ID: $appId');
+      debugPrint('🌐 Big Peer URL: $bigPeerUrl');
+
+      final identity = await OnlinePlaygroundIdentity.create(
+        appId: appId,
+        token: token,
+        enableDittoCloudSync: true,
+      );
+
+      _instance = await Ditto.open(identity);
+
+      await _instance!.sync.start();
+
+      if (bigPeerUrl.isNotEmpty) {
+        await _instance!.sync.setTransportConfig(
+          TransportConfig(
+            peerToPeer: PeerToPeerConfig(
+              bluetoothLe: BluetoothLeConfig(enabled: true),
+              lan: LanConfig(enabled: true),
+              awdl: AwdlConfig(enabled: true),
+            ),
+            connect: ConnectConfig(
+              websocketUrls: [bigPeerUrl],
+            ),
+          ),
+        );
+        debugPrint('🌐 Connected to Big Peer: $bigPeerUrl');
+      }
+
+      _isInitialized = true;
+      debugPrint('✅ Ditto initialized successfully');
+      debugPrint('📱 Device ID: ${_instance!.deviceName}');
+    } catch (e) {
+      debugPrint('❌ Failed to initialize Ditto: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> startSync() async {
+    if (!_isInitialized || _instance == null) {
+      debugPrint('⚠️ Cannot start sync: Ditto not initialized');
+      return;
+    }
+
+    try {
+      await _instance!.sync.start();
+      debugPrint('✅ Ditto sync started');
+    } catch (e) {
+      debugPrint('❌ Failed to start sync: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> stopSync() async {
+    if (!_isInitialized || _instance == null) {
+      return;
+    }
+
+    try {
+      await _instance!.sync.stop();
+      debugPrint('🛑 Ditto sync stopped');
+    } catch (e) {
+      debugPrint('❌ Failed to stop sync: $e');
+      rethrow;
+    }
+  }
+
+  static Stream<List<DittoPeer>> observePeers() {
+    if (!_isInitialized || _instance == null) {
+      return Stream.empty();
+    }
+
+    return _instance!.presence.observe();
+  }
+
+  static Future<List<DittoPeer>> getCurrentPeers() async {
+    if (!_isInitialized || _instance == null) {
+      return [];
+    }
+
+    return _instance!.presence.graph.getConnections();
+  }
+
+  static Future<void> dispose() async {
+    if (!_isInitialized || _instance == null) {
+      return;
+    }
+
+    try {
+      await stopSync();
+      _instance = null;
+      _isInitialized = false;
+      debugPrint('🔌 Ditto disposed');
+    } catch (e) {
+      debugPrint('❌ Error disposing Ditto: $e');
+    }
+  }
+
+  static Map<String, dynamic> getStatus() {
+    return {
+      'isInitialized': _isInitialized,
+      'deviceName': _instance?.deviceName ?? 'N/A',
+      'appId': dittoAppId,
+      'bigPeerUrl': dittoBigPeerUrl,
+    };
+  }
+
+  static Future<Map<String, dynamic>> getDetailedStatus() async {
+    if (!_isInitialized || _instance == null) {
+      return {
+        'isInitialized': false,
+        'error': 'Ditto not initialized',
+      };
+    }
+
+    try {
+      final peers = await getCurrentPeers();
+      return {
+        'isInitialized': true,
+        'deviceName': _instance!.deviceName,
+        'appId': dittoAppId,
+        'bigPeerUrl': dittoBigPeerUrl,
+        'connectedPeers': peers.length,
+        'peers': peers.map((p) => {
+          'deviceName': p.deviceName,
+          'connections': p.connections.map((c) => c.toString()).toList(),
+        }).toList(),
+      };
+    } catch (e) {
+      return {
+        'isInitialized': true,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  static DittoCollection collection(String name) {
+    if (!_isInitialized || _instance == null) {
+      throw Exception('Ditto not initialized');
+    }
+    return _instance!.store.collection(name);
+  }
+}
