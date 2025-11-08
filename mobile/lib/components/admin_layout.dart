@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 import '../services/ditto_sync_service.dart';
+import '../services/providers.dart';
+import '../widgets/realtime_status_indicator.dart';
 
 class AdminLayout extends StatelessWidget {
   final Widget body;

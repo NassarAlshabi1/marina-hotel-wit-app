@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_local_store.dart';
+import '../../services/providers.dart';
 import '../../utils/theme.dart';
 import '../../components/admin_layout.dart';
-
-import '../../services/ditto_sync_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});

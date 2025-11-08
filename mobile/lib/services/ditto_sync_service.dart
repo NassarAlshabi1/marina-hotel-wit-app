@@ -321,7 +321,7 @@ class DittoSyncService {
         BookingNotesCompanion(
           bookingId: d.Value(data['booking_id'] as int),
           noteText: d.Value(data['note'] as String? ?? ''),
-          createdBy: d.Value(data['created_by'] as String? ?? ''),
+          alertType: d.Value(data['alert_type'] as String? ?? 'تذكير'),
           localUuid: d.Value(localUuid),
           serverId: d.Value(data['server_id'] as int?),
           origin: const d.Value('server'),
@@ -359,7 +359,7 @@ class DittoSyncService {
           phone: d.Value(data['phone'] as String? ?? ''),
           basicSalary: d.Value((data['salary'] as num?)?.toDouble() ?? 0.0),
           position: d.Value(data['position'] as String? ?? ''),
-          hireDate: d.Value(data['hire_date'] as String?),
+          hireDate: d.Value(data['hire_date'] as String? ?? ''),
           localUuid: d.Value(localUuid),
           serverId: d.Value(data['server_id'] as int?),
           origin: const d.Value('server'),
@@ -496,9 +496,11 @@ class DittoSyncService {
     if (existing == null) {
       await paymentsDao.insertOne(
         PaymentsCompanion(
-          bookingId: d.Value(data['booking_id'] as int),
+          bookingLocalId: d.Value(data['booking_id'] as int?),
           amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0.0),
-          paymentMethod: d.Value(data['payment_method'] as String? ?? ''),
+          paymentMethod: d.Value(data['payment_method'] as String? ?? 'نقدي'),
+          paymentDate: d.Value(data['payment_date'] as String? ?? ''),
+          revenueType: d.Value(data['revenue_type'] as String? ?? 'حجز'),
           notes: d.Value(data['notes'] as String?),
           localUuid: d.Value(localUuid),
           serverId: d.Value(data['server_id'] as int?),
@@ -521,7 +523,7 @@ class DittoSyncService {
 
     if (deletedAt != null) {
       if (existing != null) {
-        await debtsDao.softDelete(existing.id, originIsServer: true);
+        await debtsDao.softDelete(existing.id);
       }
       return;
     }
@@ -534,15 +536,16 @@ class DittoSyncService {
       await debtsDao.insertOne(
         DebtsCompanion(
           guestName: d.Value(data['guest_name'] as String? ?? ''),
-          guestPhone: d.Value(data['guest_phone'] as String? ?? ''),
+          checkinDate: d.Value(data['checkin_date'] as String? ?? ''),
+          checkoutDate: d.Value(data['checkout_date'] as String? ?? ''),
           totalAmount: d.Value((data['total_amount'] as num?)?.toDouble() ?? 0.0),
           paidAmount: d.Value((data['paid_amount'] as num?)?.toDouble() ?? 0.0),
-          status: d.Value(data['status'] as String? ?? 'معلق'),
+          remainingAmount: d.Value((data['remaining_amount'] as num?)?.toDouble() ?? 0.0),
+          paymentDate: d.Value(data['payment_date'] as String? ?? ''),
           localUuid: d.Value(localUuid),
           serverId: d.Value(data['server_id'] as int?),
           origin: const d.Value('server'),
         ),
-        originIsServer: true,
       );
     } else {
       await debtsDao.updateById(
@@ -551,10 +554,10 @@ class DittoSyncService {
           guestName: d.Value(data['guest_name'] as String),
           totalAmount: d.Value((data['total_amount'] as num).toDouble()),
           paidAmount: d.Value((data['paid_amount'] as num).toDouble()),
+          remainingAmount: d.Value((data['remaining_amount'] as num).toDouble()),
           serverId: d.Value(data['server_id'] as int?),
           origin: const d.Value('server'),
         ),
-        originIsServer: true,
       );
     }
   }

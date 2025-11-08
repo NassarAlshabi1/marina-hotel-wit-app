@@ -120,7 +120,7 @@ class DittoDeveloperToolsScreen extends StatelessWidget {
                 onTap: () => _navigateTo(
                   context,
                   'حالة الصلاحيات',
-                  const PermissionsHealthView(),
+                  PermissionsHealthView(),
                 ),
               ),
             ]),
