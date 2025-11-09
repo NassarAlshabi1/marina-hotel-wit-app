@@ -14,6 +14,8 @@ import 'screens/finance/finance_screen.dart';
 import 'screens/reports/reports_screen.dart';
 import 'screens/payments/payments_main_screen.dart';
 import 'screens/debts/debts_list.dart';
+import 'screens/ditto_management_screen.dart';
+import 'services/ditto_cloud_sync_service.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -49,6 +51,10 @@ Future<void> _initializeServicesInBackground() async {
     _initializeSmartAutoBackupSafely().catchError((e) {
       debugPrint('⚠️ فشل تهيئة النسخ الذكي: $e');
     }),
+    // ✅ إضافة تهيئة Ditto Cloud Sync  
+    _initializeDittoCloudSafely().catchError((e) {
+      debugPrint('⚠️ فشل تهيئة Ditto Cloud Sync: $e');
+    }),
   ];
   
   // انتظار جميع العمليات مع timeout
@@ -60,8 +66,52 @@ Future<void> _initializeServicesInBackground() async {
     },
   );
   
-  debugPrint('✅ تم إكمال تهيئة الخدمات في background (بدون Supabase)');
+  debugPrint('✅ تم إكمال تهيئة الخدمات في background (مع Ditto Cloud)');
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
+}
+
+/// تهيئة Ditto Cloud Sync بأمان
+Future<void> _initializeDittoCloudSafely() async {
+  try {
+    debugPrint('🚀 بدء تهيئة Ditto Cloud Sync...');
+    
+    final dittoService = DittoCloudSyncService.instance;
+    await dittoService.initialize().timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        debugPrint('⚠️ تم تجاوز مهلة تهيئة Ditto Cloud Sync');
+        return null; // إرجاع null للمهام المؤجلة
+      },
+    );
+    
+    debugPrint('✅ تم تهيئة Ditto Cloud Sync بنجاح');
+    
+  } catch (e) {
+    debugPrint('❌ خطأ في تهيئة Ditto Cloud Sync: $e');
+    // لا نعيد رفع الخطأ لتجنب crash التطبيق
+  }
+}
+
+/// تهيئة Ditto Cloud Sync بأمان
+Future<void> _initializeDittoCloudSafely() async {
+  try {
+    debugPrint('🚀 بدء تهيئة Ditto Cloud Sync...');
+    
+    final dittoService = DittoCloudSyncService.instance;
+    await dittoService.initialize().timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        debugPrint('⚠️ تم تجاوز مهلة تهيئة Ditto Cloud Sync');
+        return null; // إرجاع null للمهام المؤجلة
+      },
+    );
+    
+    debugPrint('✅ تم تهيئة Ditto Cloud Sync بنجاح');
+    
+  } catch (e) {
+    debugPrint('❌ خطأ في تهيئة Ditto Cloud Sync: $e');
+    // لا نعيد رفع الخطأ لتجنب crash التطبيق
+  }
 }
 
 /// تهيئة نظام النسخ التلقائي الذكي والمزامنة بين الأجهزة (نسخة آمنة)
@@ -175,6 +225,7 @@ class _AppState extends ConsumerState<App> {
           '/finance/cash-transactions': (_) => const FinanceScreen(),
           '/debts': (_) => const DebtsListScreen(),
           '/reports': (_) => const ReportsScreen(),
+          '/ditto-sync': (_) => const DittoManagementScreen(),
         },
         home: const RootRouter(),
       ),
