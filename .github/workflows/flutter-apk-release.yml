@@ -55,44 +55,15 @@ jobs:
       - name: Generate code (e.g., using Freezed, json_serializable)
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: Build Release APK (ARM64 only)
-        run: |
-          echo "🔨 Building Release APK with Ditto (ARM64 only)..."
-          flutter build apk --release --target-platform android-arm64 --verbose
-          echo "✅ APK built successfully (ARM64)"
+      - name: Build release APK
+        # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
+        run: flutter build apk --release
 
-      - name: Build App Bundle (AAB) - Recommended
-        run: |
-          echo "🔨 Building App Bundle (ARM64 optimized)..."
-          flutter build appbundle --release
-          echo "✅ AAB built successfully - Recommended for distribution"
-      
-      - name: Get APK info
-        id: apk-info
-        run: |
-          APK_SIZE=$(stat -c%s "build/app/outputs/flutter-apk/app-release.apk" | numfmt --to=iec-i --suffix=B)
-          echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
-          echo "APK Size: $APK_SIZE"
-      
-      - name: Get AAB info
-        id: aab-info
-        run: |
-          AAB_SIZE=$(stat -c%s "build/app/outputs/bundle/release/app-release.aab" | numfmt --to=iec-i --suffix=B)
-          echo "aab_size=$AAB_SIZE" >> $GITHUB_OUTPUT
-          echo "AAB Size: $AAB_SIZE"
-
-      - name: Upload APK artifact
+      - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 'marina-hotel-apk-${{ github.run_number }}'
+          name: 'marina-hotel-release-${{ github.run_number }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
-          
-      - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: 'marina-hotel-aab-${{ github.run_number }}'
-          path: mobile/build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
 
       # Signing files preserved for debugging/reuse
