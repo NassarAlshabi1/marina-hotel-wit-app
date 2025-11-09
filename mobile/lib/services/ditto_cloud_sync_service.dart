@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/ditto_config.dart';
 
-/// خدمة Ditto للمزامنة السحابية فقط
+/// خدمة Ditto للمزامنة السحابية فقط (v4.7.1 compatible)
 /// تستخدم WebSocket للاتصال بـ Ditto Cloud بدون اتصال P2P محلي
 class DittoCloudSyncService {
   static DittoCloudSyncService? _instance;
@@ -42,23 +42,37 @@ class DittoCloudSyncService {
         debugPrint('📋 إعدادات Ditto: ${DittoConfig.debugInfo}');
       }
 
-      // إنشاء هوية السحابة
+      // إنشاء هوية السحابة - API v4.7.1
       final identity = OnlinePlaygroundIdentity(
-        app: _appId,
+        appId: _appId,
         token: _playgroundToken,
+        enableDittoCloudSync: false, // حسب التوثيق
       );
 
-      // فتح Ditto
-      _ditto = await Ditto.open(identity);
+      // فتح Ditto - API v4.7.1
+      _ditto = await Ditto.open(identity: identity);
 
       // ضبط إعدادات النقل للسحابة فقط
-      await _configureCloudOnlyTransport();
+      _ditto!.updateTransportConfig((config) {
+        // إضافة WebSocket للسحابة
+        config.connect.webSocketUrls.add(_webSocketUrl);
+        
+        // تعطيل جميع اتصالات P2P
+        config.peerToPeer.lan.enabled = false;
+        config.peerToPeer.awdl.enabled = false;
+        
+        // تعطيل TCP listening
+        config.listen.tcp.enabled = false;
+        config.listen.http.enabled = false;
+        
+        debugPrint('🌐 تم ضبط Ditto للسحابة فقط - WebSocket: $_webSocketUrl');
+      });
 
       // تعطيل DQL strict mode للمرونة
       await _ditto!.store.execute("ALTER SYSTEM SET DQL_STRICT_MODE = false");
 
       // بدء المزامنة
-      await _ditto!.startSync();
+      _ditto!.startSync();
 
       _isInitialized = true;
       debugPrint('✅ تم تهيئة Ditto Cloud Sync بنجاح');
@@ -67,27 +81,6 @@ class DittoCloudSyncService {
       debugPrint('❌ خطأ في تهيئة Ditto: $e');
       rethrow;
     }
-  }
-
-  /// ضبط إعدادات النقل للسحابة فقط (بدون P2P)
-  Future<void> _configureCloudOnlyTransport() async {
-    await _ditto!.updateTransportConfig((config) {
-      // إضافة WebSocket للسحابة مع العنوان الصحيح
-      config.connect.webSocketUrls.clear(); // مسح أي عناوين سابقة
-      config.connect.webSocketUrls.add(_webSocketUrl);
-      
-      // تعطيل جميع الاتصالات المحلية P2P
-      config.peerToPeer.lan.enabled = false;
-      config.peerToPeer.awdl.enabled = false;
-      
-      // تعطيل TCP listening
-      config.listen.tcp.enabled = false;
-      config.listen.http.enabled = false;
-      
-      debugPrint('🌐 تم ضبط Ditto للسحابة فقط - WebSocket: $_webSocketUrl');
-      debugPrint('📡 App ID: ${DittoConfig.appId}');
-      debugPrint('🔑 Playground Token: ${DittoConfig.playgroundToken.substring(0, 8)}***');
-    });
   }
 
   /// الحصول على معرف الجهاز الفريد
@@ -120,22 +113,23 @@ class DittoCloudSyncService {
     final bookingId = 'booking_${DateTime.now().millisecondsSinceEpoch}';
     
     try {
-      const query = 'INSERT INTO bookings DOCUMENTS (\$1)';
-      final params = {
-        '_id': bookingId,
-        'guest_name': guestName,
-        'room_number': roomNumber,
-        'checkin_date': checkinDate,
-        'checkout_date': checkoutDate,
-        'total_amount': totalAmount,
-        'notes': notes,
-        'status': 'محجوزة',
-        'created_at': DateTime.now().toIso8601String(),
-        'created_by': deviceId,
-        'device_id': deviceId,
-      };
-      
-      await _ditto!.store.execute(query, [params]);
+      await _ditto!.store.execute('''
+        INSERT INTO bookings DOCUMENTS (:booking)
+      ''', {
+        'booking': {
+          '_id': bookingId,
+          'guest_name': guestName,
+          'room_number': roomNumber,
+          'checkin_date': checkinDate,
+          'checkout_date': checkoutDate,
+          'total_amount': totalAmount,
+          'notes': notes,
+          'status': 'محجوزة',
+          'created_at': DateTime.now().toIso8601String(),
+          'created_by': deviceId,
+          'device_id': deviceId,
+        }
+      });
 
       debugPrint('✅ تم إنشاء حجز جديد: $bookingId');
       return bookingId;
@@ -153,8 +147,15 @@ class DittoCloudSyncService {
     }
 
     try {
-      const query = 'UPDATE bookings SET status = \$1, updated_at = \$2 WHERE _id = \$3';
-      await _ditto!.store.execute(query, [newStatus, DateTime.now().toIso8601String(), bookingId]);
+      await _ditto!.store.execute('''
+        UPDATE bookings 
+        SET status = :status, updated_at = :updated_at 
+        WHERE _id = :booking_id
+      ''', {
+        'status': newStatus,
+        'updated_at': DateTime.now().toIso8601String(),
+        'booking_id': bookingId,
+      });
 
       debugPrint('✅ تم تحديث حالة الحجز $bookingId إلى: $newStatus');
 
@@ -179,19 +180,20 @@ class DittoCloudSyncService {
     final paymentId = 'payment_${DateTime.now().millisecondsSinceEpoch}';
     
     try {
-      const query = 'INSERT INTO payments DOCUMENTS (\$1)';
-      final params = {
-        '_id': paymentId,
-        'booking_id': bookingId,
-        'amount': amount,
-        'payment_method': paymentMethod,
-        'notes': notes,
-        'payment_date': DateTime.now().toIso8601String(),
-        'created_by': deviceId,
-        'device_id': deviceId,
-      };
-      
-      await _ditto!.store.execute(query, [params]);
+      await _ditto!.store.execute('''
+        INSERT INTO payments DOCUMENTS (:payment)
+      ''', {
+        'payment': {
+          '_id': paymentId,
+          'booking_id': bookingId,
+          'amount': amount,
+          'payment_method': paymentMethod,
+          'notes': notes,
+          'payment_date': DateTime.now().toIso8601String(),
+          'created_by': deviceId,
+          'device_id': deviceId,
+        }
+      });
 
       debugPrint('✅ تم إنشاء دفعة جديدة: $paymentId');
       return paymentId;
@@ -211,8 +213,16 @@ class DittoCloudSyncService {
     final deviceId = await _getDeviceId();
     
     try {
-      const query = 'UPDATE rooms SET status = \$1, updated_at = \$2, updated_by = \$3 WHERE room_number = \$4';
-      await _ditto!.store.execute(query, [newStatus, DateTime.now().toIso8601String(), deviceId, roomNumber]);
+      await _ditto!.store.execute('''
+        UPDATE rooms 
+        SET status = :status, updated_at = :updated_at, updated_by = :updated_by
+        WHERE room_number = :room_number
+      ''', {
+        'status': newStatus,
+        'updated_at': DateTime.now().toIso8601String(),
+        'updated_by': deviceId,
+        'room_number': roomNumber,
+      });
 
       debugPrint('✅ تم تحديث حالة الغرفة $roomNumber إلى: $newStatus');
 
@@ -229,8 +239,11 @@ class DittoCloudSyncService {
     }
 
     try {
-      const query = "SELECT * FROM bookings WHERE status IN ('محجوزة', 'تم الدخول') ORDER BY created_at DESC";
-      final result = await _ditto!.store.execute(query);
+      final result = await _ditto!.store.execute('''
+        SELECT * FROM bookings 
+        WHERE status IN ('محجوزة', 'تم الدخول') 
+        ORDER BY created_at DESC
+      ''');
 
       return result.items.map((item) => item.value).toList();
 
@@ -247,8 +260,10 @@ class DittoCloudSyncService {
     }
 
     try {
-      const query = "SELECT * FROM rooms ORDER BY room_number";
-      final result = await _ditto!.store.execute(query);
+      final result = await _ditto!.store.execute('''
+        SELECT * FROM rooms 
+        ORDER BY room_number
+      ''');
 
       return result.items.map((item) => item.value).toList();
 
@@ -266,8 +281,10 @@ class DittoCloudSyncService {
     }
 
     try {
-      const query = "SELECT * FROM bookings ORDER BY created_at DESC";
-      final liveQuery = _ditto!.store.registerObserver(query);
+      final liveQuery = _ditto!.store.registerObserver('''
+        SELECT * FROM bookings 
+        ORDER BY created_at DESC
+      ''');
 
       await for (final result in liveQuery) {
         yield result.items.map((item) => item.value).toList();
@@ -318,9 +335,9 @@ class DittoCloudSyncService {
       debugPrint('🔄 بدء المزامنة اليدوية...');
 
       // إجبار إعادة الاتصال
-      await _ditto!.stopSync();
+      _ditto!.stopSync();
       await Future.delayed(Duration(seconds: 1));
-      await _ditto!.startSync();
+      _ditto!.startSync();
 
       await _updateLastSyncTime();
       debugPrint('✅ تمت المزامنة اليدوية بنجاح');
@@ -336,7 +353,7 @@ class DittoCloudSyncService {
   /// تنظيف الموارد
   Future<void> dispose() async {
     await _subscription?.cancel();
-    await _ditto?.stopSync();
+    _ditto?.stopSync();
     _ditto = null;
     _isInitialized = false;
     _isSyncing = false;
