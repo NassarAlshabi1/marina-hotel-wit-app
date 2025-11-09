@@ -155,7 +155,7 @@ class _AppState extends ConsumerState<App> {
   }
   
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     // ✅ إزالة fireImmediately listener ونقل التهيئة إلى initState
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -222,7 +222,7 @@ class _RootRouterState extends ConsumerState<RootRouter> {
   }
   
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     
     // ✅ تحسين loading state
