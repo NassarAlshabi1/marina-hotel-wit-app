@@ -56,6 +56,7 @@ Future<void> _initializeServicesInBackground() async {
     const Duration(seconds: 30),
     onTimeout: () {
       debugPrint('⚠️ انتهت مهلة تهيئة الخدمات - سيتم المتابعة');
+      return <dynamic>[];  // إرجاع قائمة فارغة
     },
   );
   
@@ -74,6 +75,7 @@ Future<void> _initializeSmartAutoBackupSafely() async {
         const Duration(seconds: 10),
         onTimeout: () {
           debugPrint('⚠️ تم تجاوز مهلة تسجيل الدخول لـ Google Drive');
+          return null; // إرجاع null للمهام المؤجلة
         },
       );
     } catch (e) {
@@ -211,6 +213,7 @@ class _RootRouterState extends ConsumerState<RootRouter> {
         const Duration(seconds: 10),
         onTimeout: () {
           debugPrint('⚠️ تم تجاوز مهلة استعادة الجلسة');
+          return null;  // إرجاع null للمهام المؤجلة
         },
       );
     } catch (e) {
