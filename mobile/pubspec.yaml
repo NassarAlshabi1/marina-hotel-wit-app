@@ -46,7 +46,7 @@ dependencies:
   sqflite: ^2.3.3+1
   path: ^1.9.0
   # ✅ إضافة Ditto للمزامنة السحابية
-  ditto: ^4.7.1
+  ditto_live: ^4.7.1
   # UI file picking is performed with file_picker from the UI layer
 
 dev_dependencies:

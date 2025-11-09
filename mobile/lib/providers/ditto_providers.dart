@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'ditto_cloud_sync_service.dart';
+import '../services/ditto_cloud_sync_service.dart';
 
 /// Provider لخدمة Ditto Cloud Sync
 final dittoCloudSyncProvider = Provider<DittoCloudSyncService>((ref) {

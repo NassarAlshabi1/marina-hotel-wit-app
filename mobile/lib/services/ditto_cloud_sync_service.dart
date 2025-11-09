@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:ditto/ditto.dart';
+import 'package:ditto_live/ditto_live.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/ditto_config.dart';
@@ -46,8 +46,8 @@ class DittoCloudSyncService {
       final identity = OnlinePlaygroundIdentity(
         appId: _appId,
         token: _playgroundToken,
-        customAuthUrl: DittoConfig.customAuthUrl,
-        enableDittoCloudSync: DittoConfig.enableCloudSync,
+        customAuthUrl: null,
+        enableDittoCloudSync: false,
       );
 
       // فتح Ditto

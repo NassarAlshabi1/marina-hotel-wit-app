@@ -25,7 +25,7 @@ class DittoConfig {
   static const bool enableDebugLogs = true;
   
   /// إعدادات المزامنة
-  static const bool enableCloudSync = true;
+  static const bool enableCloudSync = false;
   static const bool enableP2PSync = false; // معطل للسحابة فقط
   
   /// إعدادات الأداء
