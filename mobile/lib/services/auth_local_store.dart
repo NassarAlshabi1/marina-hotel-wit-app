@@ -129,7 +129,6 @@ class AuthLocalStore {
   }
 
   // ❌ تمت إزالة Supabase session methods
-}
 
   Future<List<String>> getPermissions(String username) async {
     if (username == 'admin') return ['all'];

@@ -1,4 +1,5 @@
-import 'dart:async' show unawaited;\nimport 'package:flutter/material.dart';
+import 'dart:async' show unawaited;
+import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'utils/theme.dart';
