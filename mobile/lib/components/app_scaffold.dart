@@ -5,7 +5,7 @@ import '../screens/notes/notes_screen.dart';
 import '../services/providers.dart';
 import '../services/sync_service.dart';
 import '../widgets/live_update_banner.dart';
-import '../widgets/realtime_status_indicator.dart';
+// ❌ تمت إزالة realtime_status_indicator.dart
 
 class AppScaffold extends ConsumerWidget {
   const AppScaffold({super.key, required this.title, required this.body, this.actions, this.fab});
@@ -26,7 +26,7 @@ class AppScaffold extends ConsumerWidget {
         appBar: AppBar(
           title: Text(title),
           actions: [
-            const RealtimeStatusIndicator(),
+            // ❌ تمت إزالة RealtimeStatusIndicator
             const SizedBox(width: 8),
             IconButton(
               onPressed: () {

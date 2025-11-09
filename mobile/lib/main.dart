@@ -3,7 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'utils/theme.dart';
 import 'utils/env.dart';
-import 'utils/supabase_config.dart';
+// ❌ تمت إزالة Supabase بالكامل
 import 'screens/dashboard_screen.dart';
 import 'screens/rooms/rooms_list.dart';
 import 'screens/bookings/bookings_list.dart';
@@ -25,7 +25,7 @@ import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'components/admin_layout.dart';
 import 'services/local_db.dart';
-import 'services/supabase_realtime_service.dart';
+// ❌ تمت إزالة supabase_realtime_service.dart
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,13 +37,11 @@ void main() async {
   _initializeServicesInBackground();
 }
 
-/// تهيئة الخدمات في background بدون تجميد UI
+/// تهيئة الخدمات في background بدون تجميد UI (بدون Supabase)
 Future<void> _initializeServicesInBackground() async {
   // تشغيل العمليات بالتوازي بدلاً من التسلسل
   final futures = <Future>[
-    SupabaseConfig.initialize().catchError((e) {
-      debugPrint('⚠️ فشل تهيئة Supabase: $e');
-    }),
+    // ❌ تمت إزالة Supabase.initialize()
     AutoBackupTask.initialize().catchError((e) {
       debugPrint('⚠️ فشل تهيئة AutoBackupTask: $e');
     }),
@@ -60,7 +58,7 @@ Future<void> _initializeServicesInBackground() async {
     },
   );
   
-  debugPrint('✅ تم إكمال تهيئة الخدمات في background');
+  debugPrint('✅ تم إكمال تهيئة الخدمات في background (بدون Supabase)');
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
 }
 
@@ -130,7 +128,7 @@ class _AppState extends ConsumerState<App> {
     });
   }
   
-  /// تهيئة قاعدة البيانات وrealtime services بعد عرض UI
+  /// تهيئة قاعدة البيانات بعد عرض UI (بدون Realtime)
   Future<void> _initializeServicesAfterUI() async {
     if (_servicesInitialized) return;
     
@@ -142,20 +140,10 @@ class _AppState extends ConsumerState<App> {
       final database = ref.read(databaseProvider);
       await Seeder(database).seedIfEmpty();
       
-      // تفعيل realtime subscriptions بعد استقرار UI
-      await Future.delayed(const Duration(seconds: 1));
-      
-      final realtimeService = ref.read(realtimeServiceProvider);
-      if (realtimeService.currentStatus == RealtimeStatus.disconnected) {
-        // تفعيل subscriptions بالتوازي بدلاً من التسلسل
-        unawaited(realtimeService.subscribeToAll().catchError((e) {
-          debugPrint('⚠️ فشل تفعيل Realtime Subscriptions: $e');
-        }));
-        debugPrint('🔄 تم بدء تفعيل Realtime Subscriptions');
-      }
+      // ❌ تمت إزالة Realtime subscriptions (Supabase)
       
       _servicesInitialized = true;
-      debugPrint('✅ تم إكمال تهيئة خدمات التطبيق بعد UI');
+      debugPrint('✅ تم إكمال تهيئة خدمات التطبيق بعد UI (بدون Supabase)');
       
     } catch (e) {
       debugPrint('❌ خطأ في تهيئة خدمات التطبيق: $e');
