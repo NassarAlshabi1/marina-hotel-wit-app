@@ -19,6 +19,7 @@ import 'services/ditto_cloud_sync_service.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/splash_screen.dart';
 import 'providers/auth_provider.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
@@ -95,6 +96,12 @@ Future<void> _initializeDittoCloudSafely() async {
 /// تهيئة نظام النسخ التلقائي الذكي والمزامنة بين الأجهزة (نسخة آمنة)
 Future<void> _initializeSmartAutoBackupSafely() async {
   try {
+    debugPrint('🔄 بدء تهيئة الخدمات الخلفية...');
+    
+    // 1. تهيئة AutoBackupTask (خدمة مجدولة)
+    await AutoBackupTask.initialize();
+    
+    // 2. تهيئة Google Drive (بشكل lazy)
     final backupService = GoogleDriveBackupService();
     
     // محاولة استعادة جلسة Google Drive بدون تجميد
@@ -108,7 +115,7 @@ Future<void> _initializeSmartAutoBackupSafely() async {
       );
     } catch (e) {
       debugPrint('⚠️ لم يتم استعادة جلسة Google Drive: $e');
-    }
+    });
     
     // تأجيل تهيئة الخدمات المعقدة إلى بعد بناء UI
     Future.delayed(const Duration(seconds: 2), () async {
