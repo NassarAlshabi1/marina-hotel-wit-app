@@ -44,10 +44,8 @@ class DittoCloudSyncService {
 
       // إنشاء هوية السحابة
       final identity = OnlinePlaygroundIdentity(
-        appId: _appId,
+        app: _appId,
         token: _playgroundToken,
-        customAuthUrl: null,
-        enableDittoCloudSync: false,
       );
 
       // فتح Ditto
@@ -79,7 +77,6 @@ class DittoCloudSyncService {
       config.connect.webSocketUrls.add(_webSocketUrl);
       
       // تعطيل جميع الاتصالات المحلية P2P
-      config.peerToPeer.bluetoothLe.enabled = false;
       config.peerToPeer.lan.enabled = false;
       config.peerToPeer.awdl.enabled = false;
       
@@ -123,23 +120,22 @@ class DittoCloudSyncService {
     final bookingId = 'booking_${DateTime.now().millisecondsSinceEpoch}';
     
     try {
-      await _ditto!.store.execute('''
-        INSERT INTO bookings DOCUMENTS (:booking)
-      ''', {
-        'booking': {
-          '_id': bookingId,
-          'guest_name': guestName,
-          'room_number': roomNumber,
-          'checkin_date': checkinDate,
-          'checkout_date': checkoutDate,
-          'total_amount': totalAmount,
-          'notes': notes,
-          'status': 'محجوزة',
-          'created_at': DateTime.now().toIso8601String(),
-          'created_by': deviceId,
-          'device_id': deviceId,
-        }
-      });
+      const query = 'INSERT INTO bookings DOCUMENTS (\$1)';
+      final params = {
+        '_id': bookingId,
+        'guest_name': guestName,
+        'room_number': roomNumber,
+        'checkin_date': checkinDate,
+        'checkout_date': checkoutDate,
+        'total_amount': totalAmount,
+        'notes': notes,
+        'status': 'محجوزة',
+        'created_at': DateTime.now().toIso8601String(),
+        'created_by': deviceId,
+        'device_id': deviceId,
+      };
+      
+      await _ditto!.store.execute(query, [params]);
 
       debugPrint('✅ تم إنشاء حجز جديد: $bookingId');
       return bookingId;
@@ -157,15 +153,8 @@ class DittoCloudSyncService {
     }
 
     try {
-      await _ditto!.store.execute('''
-        UPDATE bookings 
-        SET status = :status, updated_at = :updated_at 
-        WHERE _id = :booking_id
-      ''', {
-        'status': newStatus,
-        'updated_at': DateTime.now().toIso8601String(),
-        'booking_id': bookingId,
-      });
+      const query = 'UPDATE bookings SET status = \$1, updated_at = \$2 WHERE _id = \$3';
+      await _ditto!.store.execute(query, [newStatus, DateTime.now().toIso8601String(), bookingId]);
 
       debugPrint('✅ تم تحديث حالة الحجز $bookingId إلى: $newStatus');
 
@@ -190,20 +179,19 @@ class DittoCloudSyncService {
     final paymentId = 'payment_${DateTime.now().millisecondsSinceEpoch}';
     
     try {
-      await _ditto!.store.execute('''
-        INSERT INTO payments DOCUMENTS (:payment)
-      ''', {
-        'payment': {
-          '_id': paymentId,
-          'booking_id': bookingId,
-          'amount': amount,
-          'payment_method': paymentMethod,
-          'notes': notes,
-          'payment_date': DateTime.now().toIso8601String(),
-          'created_by': deviceId,
-          'device_id': deviceId,
-        }
-      });
+      const query = 'INSERT INTO payments DOCUMENTS (\$1)';
+      final params = {
+        '_id': paymentId,
+        'booking_id': bookingId,
+        'amount': amount,
+        'payment_method': paymentMethod,
+        'notes': notes,
+        'payment_date': DateTime.now().toIso8601String(),
+        'created_by': deviceId,
+        'device_id': deviceId,
+      };
+      
+      await _ditto!.store.execute(query, [params]);
 
       debugPrint('✅ تم إنشاء دفعة جديدة: $paymentId');
       return paymentId;
@@ -223,16 +211,8 @@ class DittoCloudSyncService {
     final deviceId = await _getDeviceId();
     
     try {
-      await _ditto!.store.execute('''
-        UPDATE rooms 
-        SET status = :status, updated_at = :updated_at, updated_by = :updated_by
-        WHERE room_number = :room_number
-      ''', {
-        'status': newStatus,
-        'updated_at': DateTime.now().toIso8601String(),
-        'updated_by': deviceId,
-        'room_number': roomNumber,
-      });
+      const query = 'UPDATE rooms SET status = \$1, updated_at = \$2, updated_by = \$3 WHERE room_number = \$4';
+      await _ditto!.store.execute(query, [newStatus, DateTime.now().toIso8601String(), deviceId, roomNumber]);
 
       debugPrint('✅ تم تحديث حالة الغرفة $roomNumber إلى: $newStatus');
 
@@ -249,11 +229,8 @@ class DittoCloudSyncService {
     }
 
     try {
-      final result = await _ditto!.store.execute('''
-        SELECT * FROM bookings 
-        WHERE status IN ('محجوزة', 'تم الدخول') 
-        ORDER BY created_at DESC
-      ''');
+      const query = "SELECT * FROM bookings WHERE status IN ('محجوزة', 'تم الدخول') ORDER BY created_at DESC";
+      final result = await _ditto!.store.execute(query);
 
       return result.items.map((item) => item.value).toList();
 
@@ -270,10 +247,8 @@ class DittoCloudSyncService {
     }
 
     try {
-      final result = await _ditto!.store.execute('''
-        SELECT * FROM rooms 
-        ORDER BY room_number
-      ''');
+      const query = "SELECT * FROM rooms ORDER BY room_number";
+      final result = await _ditto!.store.execute(query);
 
       return result.items.map((item) => item.value).toList();
 
@@ -291,10 +266,8 @@ class DittoCloudSyncService {
     }
 
     try {
-      final liveQuery = _ditto!.store.registerObserver('''
-        SELECT * FROM bookings 
-        ORDER BY created_at DESC
-      ''');
+      const query = "SELECT * FROM bookings ORDER BY created_at DESC";
+      final liveQuery = _ditto!.store.registerObserver(query);
 
       await for (final result in liveQuery) {
         yield result.items.map((item) => item.value).toList();
