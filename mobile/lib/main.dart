@@ -92,28 +92,6 @@ Future<void> _initializeDittoCloudSafely() async {
   }
 }
 
-/// تهيئة Ditto Cloud Sync بأمان
-Future<void> _initializeDittoCloudSafely() async {
-  try {
-    debugPrint('🚀 بدء تهيئة Ditto Cloud Sync...');
-    
-    final dittoService = DittoCloudSyncService.instance;
-    await dittoService.initialize().timeout(
-      const Duration(seconds: 30),
-      onTimeout: () {
-        debugPrint('⚠️ تم تجاوز مهلة تهيئة Ditto Cloud Sync');
-        return null; // إرجاع null للمهام المؤجلة
-      },
-    );
-    
-    debugPrint('✅ تم تهيئة Ditto Cloud Sync بنجاح');
-    
-  } catch (e) {
-    debugPrint('❌ خطأ في تهيئة Ditto Cloud Sync: $e');
-    // لا نعيد رفع الخطأ لتجنب crash التطبيق
-  }
-}
-
 /// تهيئة نظام النسخ التلقائي الذكي والمزامنة بين الأجهزة (نسخة آمنة)
 Future<void> _initializeSmartAutoBackupSafely() async {
   try {
