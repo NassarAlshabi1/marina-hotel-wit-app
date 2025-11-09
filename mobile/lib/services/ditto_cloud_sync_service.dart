@@ -67,6 +67,9 @@ class DittoCloudSyncService {
       // تعطيل DQL strict mode للمرونة
       await _ditto!.store.execute("ALTER SYSTEM SET DQL_STRICT_MODE = false");
 
+      // تهيئة قاعدة البيانات وإنشاء الجداول
+      await _initializeDatabase();
+
       // بدء المزامنة - بدون await لأنها void في v4.12.4
       _ditto!.startSync();
 
@@ -349,5 +352,343 @@ class DittoCloudSyncService {
     _isInitialized = false;
     _isSyncing = false;
     debugPrint('🛑 تم تنظيف موارد Ditto Cloud Sync');
+  }
+
+  /// تهيئة قاعدة البيانات وإنشاء الجداول الأساسية
+  Future<void> _initializeDatabase() async {
+    try {
+      debugPrint('📊 بدء تهيئة قاعدة البيانات...');
+      
+      // إنشاء جدول الغرف
+      await _ditto!.store.execute('''
+        CREATE TABLE IF NOT EXISTS rooms (
+          _id TEXT PRIMARY KEY,
+          room_number TEXT UNIQUE NOT NULL,
+          room_type TEXT NOT NULL DEFAULT 'standard',
+          floor INTEGER,
+          price_per_night REAL NOT NULL,
+          capacity INTEGER DEFAULT 2,
+          status TEXT DEFAULT 'available',
+          amenities TEXT,
+          description TEXT,
+          created_at TEXT,
+          updated_at TEXT,
+          updated_by TEXT
+        )
+      ''');
+
+      // إنشاء جدول الحجوزات
+      await _ditto!.store.execute('''
+        CREATE TABLE IF NOT EXISTS bookings (
+          _id TEXT PRIMARY KEY,
+          guest_name TEXT NOT NULL,
+          guest_phone TEXT,
+          guest_email TEXT,
+          room_number TEXT NOT NULL,
+          checkin_date TEXT NOT NULL,
+          checkout_date TEXT,
+          nights INTEGER,
+          total_amount REAL NOT NULL,
+          paid_amount REAL DEFAULT 0,
+          status TEXT DEFAULT 'محجوزة',
+          notes TEXT,
+          created_at TEXT NOT NULL,
+          created_by TEXT,
+          device_id TEXT
+        )
+      ''');
+
+      // إنشاء جدول المدفوعات
+      await _ditto!.store.execute('''
+        CREATE TABLE IF NOT EXISTS payments (
+          _id TEXT PRIMARY KEY,
+          booking_id TEXT NOT NULL,
+          amount REAL NOT NULL,
+          payment_method TEXT NOT NULL DEFAULT 'cash',
+          notes TEXT,
+          payment_date TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          created_by TEXT,
+          device_id TEXT
+        )
+      ''');
+
+      // إنشاء جدول المصروفات
+      await _ditto!.store.execute('''
+        CREATE TABLE IF NOT EXISTS expenses (
+          _id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          description TEXT,
+          category TEXT,
+          amount REAL NOT NULL,
+          expense_date TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          created_by TEXT,
+          device_id TEXT
+        )
+      ''');
+
+      // إنشاء جدول الملاحظات
+      await _ditto!.store.execute('''
+        CREATE TABLE IF NOT EXISTS notes (
+          _id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          content TEXT NOT NULL,
+          type TEXT DEFAULT 'general',
+          status TEXT DEFAULT 'active',
+          created_at TEXT NOT NULL,
+          created_by TEXT
+        )
+      ''');
+
+      // إدراج بيانات نموذجية للغرف إذا كانت فارغة
+      final roomsCheck = await _ditto!.store.execute('SELECT COUNT(*) as count FROM rooms');
+      final roomCount = roomsCheck.items.isNotEmpty ? 
+        (roomsCheck.items.first.value['count'] ?? 0) : 0;
+      
+      if (roomCount == 0) {
+        await _insertSampleRooms();
+      }
+
+      debugPrint('✅ تم إنشاء جداول قاعدة البيانات بنجاح');
+      
+    } catch (e) {
+      debugPrint('❌ خطأ في تهيئة قاعدة البيانات: $e');
+      rethrow;
+    }
+  }
+
+  /// إنشاء مصروف جديد
+  Future<String> createExpense({
+    required String title,
+    String? description,
+    String? category,
+    required double amount,
+    required String expenseDate,
+  }) async {
+    if (!_isInitialized || _ditto == null) {
+      throw Exception('Ditto غير مهيء');
+    }
+
+    final deviceId = await _getDeviceId();
+    final expenseId = 'expense_${DateTime.now().millisecondsSinceEpoch}';
+    
+    try {
+      final query = '''
+        INSERT INTO expenses DOCUMENTS ({
+          "_id": "$expenseId",
+          "title": "$title",
+          "description": "$description",
+          "category": "$category",
+          "amount": $amount,
+          "expense_date": "$expenseDate",
+          "created_at": "${DateTime.now().toIso8601String()}",
+          "created_by": "$deviceId",
+          "device_id": "$deviceId"
+        })
+      ''';
+      
+      await _ditto!.store.execute(query);
+
+      debugPrint('✅ تم إنشاء مصروف جديد: $expenseId');
+      return expenseId;
+
+    } catch (e) {
+      debugPrint('❌ خطأ في إنشاء المصروف: $e');
+      rethrow;
+    }
+  }
+
+  /// إنشاء ملاحظة جديدة
+  Future<String> createNote({
+    required String title,
+    required String content,
+    String? type,
+  }) async {
+    if (!_isInitialized || _ditto == null) {
+      throw Exception('Ditto غير مهيء');
+    }
+
+    final noteId = 'note_${DateTime.now().millisecondsSinceEpoch}';
+    
+    try {
+      final query = '''
+        INSERT INTO notes DOCUMENTS ({
+          "_id": "$noteId",
+          "title": "$title",
+          "content": "$content",
+          "type": "${type ?? 'general'}",
+          "status": "active",
+          "created_at": "${DateTime.now().toIso8601String()}",
+          "created_by": "system"
+        })
+      ''';
+      
+      await _ditto!.store.execute(query);
+
+      debugPrint('✅ تم إنشاء ملاحظة جديدة: $noteId');
+      return noteId;
+
+    } catch (e) {
+      debugPrint('❌ خطأ في إنشاء الملاحظة: $e');
+      rethrow;
+    }
+  }
+
+  /// الحصول على جميع الغرف
+  Future<List<Map<String, dynamic>>> getAllRooms() async {
+    if (!_isInitialized || _ditto == null) {
+      throw Exception('Ditto غير مهيء');
+    }
+
+    try {
+      const query = "SELECT * FROM rooms ORDER BY room_number";
+      final result = await _ditto!.store.execute(query);
+      return result.items.map((item) => item.value).toList();
+    } catch (e) {
+      debugPrint('❌ خطأ في جلب الغرف: $e');
+      return [];
+    }
+  }
+
+  /// الحصول على جميع المصروفات
+  Future<List<Map<String, dynamic>>> getAllExpenses() async {
+    if (!_isInitialized || _ditto == null) {
+      throw Exception('Ditto غير مهيء');
+    }
+
+    try {
+      const query = "SELECT * FROM expenses ORDER BY expense_date DESC";
+      final result = await _ditto!.store.execute(query);
+      return result.items.map((item) => item.value).toList();
+    } catch (e) {
+      debugPrint('❌ خطأ في جلب المصروفات: $e');
+      return [];
+    }
+  }
+
+  /// الحصول على جميع الملاحظات النشطة
+  Future<List<Map<String, dynamic>>> getActiveNotes() async {
+    if (!_isInitialized || _ditto == null) {
+      throw Exception('Ditto غير مهيء');
+    }
+
+    try {
+      const query = "SELECT * FROM notes WHERE status = 'active' ORDER BY created_at DESC";
+      final result = await _ditto!.store.execute(query);
+      return result.items.map((item) => item.value).toList();
+    } catch (e) {
+      debugPrint('❌ خطأ في جلب الملاحظات: $e');
+      return [];
+    }
+  }
+
+  /// الحصول على إحصائيات سريعة
+  Future<Map<String, dynamic>> getDashboardStats() async {
+    if (!_isInitialized || _ditto == null) {
+      return {
+        'total_rooms': 0,
+        'occupied_rooms': 0,
+        'total_bookings': 0,
+        'total_revenue': 0.0,
+        'pending_payments': 0.0,
+      };
+    }
+
+    try {
+      // إجمالي الغرف
+      final roomsResult = await _ditto!.store.execute('SELECT COUNT(*) as count FROM rooms');
+      final totalRooms = roomsResult.items.isNotEmpty ? 
+        (roomsResult.items.first.value['count'] ?? 0) : 0;
+
+      // الغرف المشغولة
+      final occupiedResult = await _ditto!.store.execute(
+        "SELECT COUNT(*) as count FROM bookings WHERE status = 'تم الدخول'"
+      );
+      final occupiedRooms = occupiedResult.items.isNotEmpty ? 
+        (occupiedResult.items.first.value['count'] ?? 0) : 0;
+
+      // إجمالي الحجوزات
+      final bookingsResult = await _ditto!.store.execute('SELECT COUNT(*) as count FROM bookings');
+      final totalBookings = bookingsResult.items.isNotEmpty ? 
+        (bookingsResult.items.first.value['count'] ?? 0) : 0;
+
+      // إجمالي الإيرادات
+      final revenueResult = await _ditto!.store.execute('SELECT SUM(amount) as total FROM payments');
+      final totalRevenue = revenueResult.items.isNotEmpty ? 
+        (revenueResult.items.first.value['total'] ?? 0.0) : 0.0;
+
+      return {
+        'total_rooms': totalRooms,
+        'occupied_rooms': occupiedRooms,
+        'available_rooms': totalRooms - occupiedRooms,
+        'total_bookings': totalBookings,
+        'total_revenue': totalRevenue,
+        'occupancy_rate': totalRooms > 0 ? (occupiedRooms / totalRooms * 100).round() : 0,
+      };
+
+    } catch (e) {
+      debugPrint('❌ خطأ في جلب إحصائيات اللوحة: $e');
+      return {
+        'total_rooms': 0,
+        'occupied_rooms': 0,
+        'available_rooms': 0,
+        'total_bookings': 0,
+        'total_revenue': 0.0,
+        'occupancy_rate': 0,
+      };
+    }
+  }
+  Future<void> _insertSampleRooms() async {
+    try {
+      final sampleRooms = [
+        {
+          '_id': 'room_101',
+          'room_number': '101',
+          'room_type': 'single',
+          'floor': 1,
+          'price_per_night': 150.0,
+          'capacity': 1,
+          'status': 'available',
+          'amenities': 'مكيف، تلفزيون، إنترنت مجاني',
+          'description': 'غرفة فردية مريحة',
+          'created_at': DateTime.now().toIso8601String()
+        },
+        {
+          '_id': 'room_102',
+          'room_number': '102',
+          'room_type': 'double',
+          'floor': 1,
+          'price_per_night': 200.0,
+          'capacity': 2,
+          'status': 'available',
+          'amenities': 'مكيف، تلفزيون، إنترنت مجاني، ثلاجة صغيرة',
+          'description': 'غرفة مزدوجة واسعة',
+          'created_at': DateTime.now().toIso8601String()
+        },
+        {
+          '_id': 'room_201',
+          'room_number': '201',
+          'room_type': 'suite',
+          'floor': 2,
+          'price_per_night': 350.0,
+          'capacity': 4,
+          'status': 'available',
+          'amenities': 'جاكوزي، شرفة، غرفة معيشة منفصلة',
+          'description': 'جناح فاخر مع إطلالة على البحر',
+          'created_at': DateTime.now().toIso8601String()
+        }
+      ];
+
+      for (final room in sampleRooms) {
+        final roomJson = room.entries.map((e) => '"${e.key}": "${e.value}"').join(', ');
+        await _ditto!.store.execute('INSERT INTO rooms DOCUMENTS ({$roomJson})');
+      }
+
+      debugPrint('✅ تم إدراج ${sampleRooms.length} غرف نموذجية');
+      
+    } catch (e) {
+      debugPrint('❌ خطأ في إدراج الغرف النموذجية: $e');
+    }
   }
 }
