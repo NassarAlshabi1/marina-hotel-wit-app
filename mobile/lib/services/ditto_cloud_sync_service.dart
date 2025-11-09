@@ -42,13 +42,14 @@ class DittoCloudSyncService {
         debugPrint('📋 إعدادات Ditto: ${DittoConfig.debugInfo}');
       }
 
-      // إنشاء هوية السحابة - API v4.12.4 (بدون app parameter)
+      // إنشاء هوية السحابة - API v4.12.4
       final identity = OnlinePlaygroundIdentity(
+        appID: _appId,
         token: _playgroundToken,
       );
 
-      // فتح Ditto - API v4.12.4 (بدون parameters)
-      _ditto = await Ditto.open();
+      // فتح Ditto - API v4.12.4
+      _ditto = await Ditto.open(identity: identity);
 
       // ضبط إعدادات النقل للسحابة فقط - بدون await لأنها void
       _ditto!.updateTransportConfig((config) {
