@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'dart:async' show unawaited;\nimport 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'utils/theme.dart';
@@ -30,68 +30,142 @@ import 'services/supabase_realtime_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  await SupabaseConfig.initialize();
-  
-  // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
-  await AutoBackupTask.initialize();
-  
-  // تهيئة مدير النسخ التلقائي الذكي (على أساس التغييرات)
-  await _initializeSmartAutoBackup();
-  
-  debugPrint('BASE_API_URL=' + Env.baseApiUrl);
+  // ✅ عرض UI فوراً بدون انتظار التهيئة المعقدة
   runApp(const ProviderScope(child: App()));
+  
+  // 🔄 تهيئة الخدمات في background بعد عرض UI
+  _initializeServicesInBackground();
 }
 
-/// تهيئة نظام النسخ التلقائي الذكي والمزامنة بين الأجهزة
-Future<void> _initializeSmartAutoBackup() async {
+/// تهيئة الخدمات في background بدون تجميد UI
+Future<void> _initializeServicesInBackground() async {
+  // تشغيل العمليات بالتوازي بدلاً من التسلسل
+  final futures = <Future>[
+    SupabaseConfig.initialize().catchError((e) {
+      debugPrint('⚠️ فشل تهيئة Supabase: $e');
+    }),
+    AutoBackupTask.initialize().catchError((e) {
+      debugPrint('⚠️ فشل تهيئة AutoBackupTask: $e');
+    }),
+    _initializeSmartAutoBackupSafely().catchError((e) {
+      debugPrint('⚠️ فشل تهيئة النسخ الذكي: $e');
+    }),
+  ];
+  
+  // انتظار جميع العمليات مع timeout
+  await Future.wait(futures).timeout(
+    const Duration(seconds: 30),
+    onTimeout: () {
+      debugPrint('⚠️ انتهت مهلة تهيئة الخدمات - سيتم المتابعة');
+    },
+  );
+  
+  debugPrint('✅ تم إكمال تهيئة الخدمات في background');
+  debugPrint('BASE_API_URL=' + Env.baseApiUrl);
+}
+
+/// تهيئة نظام النسخ التلقائي الذكي والمزامنة بين الأجهزة (نسخة آمنة)
+Future<void> _initializeSmartAutoBackupSafely() async {
   try {
     final backupService = GoogleDriveBackupService();
     
-    // محاولة استعادة جلسة Google Drive أولاً
+    // محاولة استعادة جلسة Google Drive بدون تجميد
     try {
-      await backupService.attemptSilentSignIn();
+      await backupService.attemptSilentSignIn().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('⚠️ تم تجاوز مهلة تسجيل الدخول لـ Google Drive');
+        },
+      );
     } catch (e) {
       debugPrint('⚠️ لم يتم استعادة جلسة Google Drive: $e');
     }
     
-    // تهيئة مدير النسخ التلقائي
-    final autoBackupManager = AutoBackupManager.instance;
-    await autoBackupManager.initialize(backupService);
+    // تأجيل تهيئة الخدمات المعقدة إلى بعد بناء UI
+    Future.delayed(const Duration(seconds: 2), () async {
+      try {
+        // تهيئة مدير النسخ التلقائي
+        final autoBackupManager = AutoBackupManager.instance;
+        await autoBackupManager.initialize(backupService);
+        
+        // تفعيل النسخ التلقائي بشكل افتراضي
+        await autoBackupManager.setEnabled(true);
+        await autoBackupManager.setMaxBackupCount(25); // الاحتفاظ بـ 25 نسخة
+        await autoBackupManager.setRetentionDays(45); // لمدة 45 يوماً
+        
+        // تهيئة مدير المزامنة الذكية بين الأجهزة
+        final smartSyncManager = SmartSyncManager.instance;
+        await smartSyncManager.initialize(backupService);
+        
+        debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية بنجاح');
+      } catch (e) {
+        debugPrint('❌ خطأ في تهيئة النظام الذكي المؤجل: $e');
+      }
+    });
     
-    // تفعيل النسخ التلقائي بشكل افتراضي
-    await autoBackupManager.setEnabled(true);
-    await autoBackupManager.setMaxBackupCount(25); // الاحتفاظ بـ 25 نسخة
-    await autoBackupManager.setRetentionDays(45); // لمدة 45 يوماً
-    
-    // تهيئة مدير المزامنة الذكية بين الأجهزة
-    final smartSyncManager = SmartSyncManager.instance;
-    await smartSyncManager.initialize(backupService);
-    
-    debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية بنجاح');
   } catch (e) {
     debugPrint('❌ خطأ في تهيئة النظام الذكي: $e');
+    // لا نعيد رفع الخطأ لتجنب crash التطبيق
   }
 }
 
-class App extends ConsumerWidget {
+class App extends ConsumerStatefulWidget {
   const App({super.key});
+  
+  @override
+  ConsumerState<App> createState() => _AppState();
+}
+
+class _AppState extends ConsumerState<App> {
+  bool _servicesInitialized = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    
+    // ✅ تأجيل تهيئة قاعدة البيانات والrealtime services
+    // إلى بعد بناء UI لتجنب التجمد
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeServicesAfterUI();
+    });
+  }
+  
+  /// تهيئة قاعدة البيانات وrealtime services بعد عرض UI
+  Future<void> _initializeServicesAfterUI() async {
+    if (_servicesInitialized) return;
+    
+    try {
+      // انتظار قصير لضمان عرض UI بسلاسة
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      // تهيئة قاعدة البيانات
+      final database = ref.read(databaseProvider);
+      await Seeder(database).seedIfEmpty();
+      
+      // تفعيل realtime subscriptions بعد استقرار UI
+      await Future.delayed(const Duration(seconds: 1));
+      
+      final realtimeService = ref.read(realtimeServiceProvider);
+      if (realtimeService.currentStatus == RealtimeStatus.disconnected) {
+        // تفعيل subscriptions بالتوازي بدلاً من التسلسل
+        unawaited(realtimeService.subscribeToAll().catchError((e) {
+          debugPrint('⚠️ فشل تفعيل Realtime Subscriptions: $e');
+        }));
+        debugPrint('🔄 تم بدء تفعيل Realtime Subscriptions');
+      }
+      
+      _servicesInitialized = true;
+      debugPrint('✅ تم إكمال تهيئة خدمات التطبيق بعد UI');
+      
+    } catch (e) {
+      debugPrint('❌ خطأ في تهيئة خدمات التطبيق: $e');
+      // لا نعيد رفع الخطأ لتجنب crash
+    }
+  }
+  
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen<AppDatabase>(
-      databaseProvider,
-      (previous, database) {
-        Future.microtask(() async {
-          await Seeder(database).seedIfEmpty();
-
-          final realtimeService = ref.read(realtimeServiceProvider);
-          if (realtimeService.currentStatus == RealtimeStatus.disconnected) {
-            await realtimeService.subscribeToAll();
-            debugPrint('✅ تم تفعيل Realtime Subscriptions');
-          }
-        });
-      },
-      fireImmediately: true,
-    );
+    // ✅ إزالة fireImmediately listener ونقل التهيئة إلى initState
     return Directionality(
       textDirection: TextDirection.rtl,
       child: MaterialApp(
@@ -117,19 +191,77 @@ class App extends ConsumerWidget {
   }
 }
 
-class RootRouter extends ConsumerWidget {
+class RootRouter extends ConsumerStatefulWidget {
   const RootRouter({super.key});
+  
+  @override
+  ConsumerState<RootRouter> createState() => _RootRouterState();
+}
+
+class _RootRouterState extends ConsumerState<RootRouter> {
+  @override
+  void initState() {
+    super.initState();
+    
+    // ✅ بدء استعادة الجلسة بعد بناء Widget لتجنب التجمد
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoreSessionSafely();
+    });
+  }
+  
+  /// استعادة الجلسة بأمان بعد عرض UI
+  Future<void> _restoreSessionSafely() async {
+    try {
+      final authNotifier = ref.read(authProvider.notifier);
+      
+      // تأخير قصير لضمان عرض loading state
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // استعادة الجلسة مع timeout
+      await authNotifier.restoreSession().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('⚠️ تم تجاوز مهلة استعادة الجلسة');
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في استعادة الجلسة: $e');
+    }
+  }
+  
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    
+    // ✅ تحسين loading state
     if (auth.isRestoring) {
       return const Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          backgroundColor: Colors.white,
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                ),
+                SizedBox(height: 24),
+                Text(
+                  'جاري تحضير التطبيق...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                    fontFamily: 'Tajawal',
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
+    
     if (auth.isAuthenticated) {
       return const HomeShell();
     }

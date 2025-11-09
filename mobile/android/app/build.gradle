@@ -53,8 +53,11 @@ android {
         versionName = flutterVersionName
         multiDexEnabled = true
         
-        // ABI filters handled by Flutter --split-per-abi during build
-        // This allows flexible multi-architecture builds via GitHub Actions
+        // ✅ استخدام ARM64 فقط للأجهزة الحديثة (Android 5.0+)
+        ndk {
+            abiFilters.clear()
+            abiFilters 'arm64-v8a'  // معمارية 64-bit فقط
+        }
         
         // Add app metadata
         manifestPlaceholders = [
@@ -94,6 +97,25 @@ android {
     packagingOptions {
         resources {
             excludes += ['META-INF/LICENSE*', 'META-INF/AL2.0', 'META-INF/LGPL2.1']
+        }
+        // ✅ ضغط Native Libraries (Ditto binaries)
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+    
+    bundle {
+        language {
+            // تضمين اللغة العربية فقط
+            enableSplit = false
+        }
+        density {
+            // تحسين حسب كثافة الشاشة
+            enableSplit = true
+        }
+        abi {
+            // تحسين حسب المعمارية (ARM64 فقط)
+            enableSplit = true
         }
     }
 }
