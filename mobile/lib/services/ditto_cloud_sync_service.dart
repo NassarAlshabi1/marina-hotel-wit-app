@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/ditto_config.dart';
 
-/// خدمة Ditto للمزامنة السحابية فقط (v4.12.4 compatible)
+/// خدمة Ditto للمزامنة السحابية فقط (v4.12.4 compatible - updated)
 /// تستخدم WebSocket للاتصال بـ Ditto Cloud بدون اتصال P2P محلي
 class DittoCloudSyncService {
   static DittoCloudSyncService? _instance;
