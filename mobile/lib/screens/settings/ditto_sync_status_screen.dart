@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/ditto_cloud_sync_service.dart';
 import '../../services/ditto_local_sync_service.dart';
+import '../../services/providers.dart';
 import 'dart:async';
 
 /// شاشة حالة المزامنة والاتصال مع Ditto Cloud

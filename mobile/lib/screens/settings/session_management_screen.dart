@@ -37,8 +37,9 @@ class _SessionManagementScreenState extends ConsumerState<SessionManagementScree
     setState(() => _isLoading = true);
 
     try {
-      // التحقق من حالة تسجيل الدخول
-      _isSignedIn = await _driveService.isSignedIn();
+      // محاولة استعادة الجلسة ثم التحقق من حالة تسجيل الدخول
+      await _driveService.attemptSilentSignIn();
+      _isSignedIn = _driveService.isSignedIn;
       
       if (_isSignedIn) {
         // جلب الجلسات المحفوظة
@@ -444,10 +445,10 @@ class _SessionManagementScreenState extends ConsumerState<SessionManagementScree
     setState(() => _isLoading = true);
 
     try {
-      final signedIn = await _driveService.signInToGoogleDrive();
+      final account = await _driveService.signInForDrive();
       
-      if (signedIn && mounted) {
-        setState(() => _isSignedIn = true);
+      if (account != null && mounted) {
+        setState(() => _isSignedIn = _driveService.isSignedIn);
         await _loadSessions();
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -544,7 +545,7 @@ class _SessionManagementScreenState extends ConsumerState<SessionManagementScree
     try {
       final saved = await _sessionManager.saveSessionToDrive(
         driveService: _driveService,
-        sessionName: sessionName.isEmpty ? null : sessionName,
+        sessionName: (sessionName ?? '').isEmpty ? null : sessionName,
       );
       
       if (saved && mounted) {

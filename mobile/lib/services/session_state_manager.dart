@@ -301,13 +301,13 @@ class SessionInfo {
   final String fileName;
   final String fileId;
   final DateTime savedAt;
-  final int size;
+  final int? size;
 
   SessionInfo({
     required this.fileName,
     required this.fileId,
     required this.savedAt,
-    required this.size,
+    this.size,
   });
 
   String get formattedDate {
@@ -315,12 +315,13 @@ class SessionInfo {
   }
 
   String get formattedSize {
-    if (size < 1024) {
-      return '$size بايت';
-    } else if (size < 1024 * 1024) {
-      return '${(size / 1024).toStringAsFixed(1)} كيلوبايت';
+    final value = size ?? 0;
+    if (value < 1024) {
+      return '$value بايت';
+    } else if (value < 1024 * 1024) {
+      return '${(value / 1024).toStringAsFixed(1)} كيلوبايت';
     } else {
-      return '${(size / (1024 * 1024)).toStringAsFixed(1)} ميغابايت';
+      return '${(value / (1024 * 1024)).toStringAsFixed(1)} ميغابايت';
     }
   }
 }
