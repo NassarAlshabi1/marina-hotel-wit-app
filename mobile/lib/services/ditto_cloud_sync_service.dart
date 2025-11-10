@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:ditto/ditto.dart';
+import 'package:ditto_live/ditto_live.dart';
 import '../utils/env.dart';
 import '../utils/ditto_config.dart';
 

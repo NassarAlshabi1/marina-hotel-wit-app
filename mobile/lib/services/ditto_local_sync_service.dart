@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:ditto/ditto.dart';
+import 'package:ditto_live/ditto_live.dart';
 import 'ditto_cloud_sync_service.dart';
 import 'ditto_schema_mapper.dart';
 import 'local_db.dart';
