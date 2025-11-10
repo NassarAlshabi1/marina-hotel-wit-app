@@ -43,7 +43,7 @@ class SessionStateManager {
         debugPrint('✅ تم حفظ الجلسة في Google Drive بنجاح');
         
         // حفظ معلومات آخر جلسة محفوظة
-        await _saveLastSessionInfo(fileName, sessionData['saved_at']);
+        await _saveLastSessionInfo('session_${DateTime.now().millisecondsSinceEpoch}.json', sessionData['saved_at']);
         
         return true;
       } else {
@@ -70,7 +70,7 @@ class SessionStateManager {
       // البحث عن الملف في Drive
       final files = await driveService.listBackupFiles();
       final sessionFile = files.firstWhere(
-        (f) => f.name == fileName,
+        (f) => f.fileName == fileName,
         orElse: () => throw Exception('الملف غير موجود'),
       );
       
@@ -108,8 +108,8 @@ class SessionStateManager {
       
       for (final file in sessionFiles) {
         sessions.add(SessionInfo(
-          fileName: file.name,
-          fileId: file.id,
+          fileName: file.fileName,
+          fileId: file.fileId,
           savedAt: file.createdTime,
           size: file.size,
         ));
