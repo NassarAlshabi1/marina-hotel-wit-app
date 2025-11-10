@@ -215,6 +215,15 @@ class AdminSidebar extends ConsumerWidget {
                   ),
                 if (can('settings'))
                   _buildMenuItem(
+                    icon: Icons.cloud_sync,
+                    title: 'إدارة Ditto Cloud Sync',
+                    route: '/ditto-sync',
+                    isActive: currentRoute == '/ditto-sync',
+                    onTap: () => onRouteSelected('/ditto-sync'),
+                    context: context,
+                  ),
+                if (can('settings'))
+                  _buildMenuItem(
                     icon: Icons.settings,
                     title: 'الإعدادات',
                     route: '/settings',

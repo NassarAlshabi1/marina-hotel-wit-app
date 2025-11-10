@@ -13,6 +13,7 @@ import 'auto_backup_settings_screen.dart';
 import 'smart_sync_settings_screen.dart';
 import 'sync_performance_settings_screen.dart';
 import 'supabase_connection_screen.dart';
+import 'session_management_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -135,6 +136,16 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SupabaseConnectionScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'إدارة جلسات التطبيق',
+              subtitle: 'حفظ واستعادة الإعدادات من Drive',
+              icon: Icons.cloud_upload,
+              color: Colors.pink,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SessionManagementScreen()),
               ),
             ),
             _SettingsItem(

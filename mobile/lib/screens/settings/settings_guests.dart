@@ -354,7 +354,15 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => _showGuestHistory(context, guest),
                     icon: const Icon(Icons.history, size: 16),
-                    label: const Text('تاريخ الحجوزات'),
+                    label: const Text('التاريخ'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _editGuest(context, guest),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('تعديل'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -515,6 +523,178 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         ],
       ),
     );
+  }
+
+  // تعديل معلومات الضيف
+  Future<void> _editGuest(BuildContext context, _GuestInfo guest) async {
+    final nameController = TextEditingController(text: guest.name);
+    final phoneController = TextEditingController(text: guest.phone);
+    final emailController = TextEditingController(text: guest.email);
+    final nationalityController = TextEditingController(text: guest.nationality);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.edit, color: Colors.blue),
+              const SizedBox(width: 8),
+              const Text('تعديل بيانات الضيف'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'الاسم',
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'رقم الهاتف',
+                    prefixIcon: Icon(Icons.phone),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'البريد الإلكتروني',
+                    prefixIcon: Icon(Icons.email),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nationalityController,
+                  decoration: const InputDecoration(
+                    labelText: 'الجنسية',
+                    prefixIcon: Icon(Icons.flag),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    border: Border.all(color: Colors.amber.shade200),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.amber.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'سيتم تحديث البيانات في جميع الحجوزات (${guest.bookings.length} حجز)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.amber.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context, true),
+              icon: const Icon(Icons.save, size: 18),
+              label: const Text('حفظ التغييرات'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      try {
+        // تحديث بيانات الضيف في جميع الحجوزات
+        final bookingsRepo = ref.read(bookingsRepoProvider);
+        final newName = nameController.text.trim();
+        final newPhone = phoneController.text.trim();
+        final newEmail = emailController.text.trim();
+        final newNationality = nationalityController.text.trim();
+
+        // التحقق من صحة البيانات
+        if (newName.isEmpty || newPhone.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ الاسم ورقم الهاتف مطلوبان'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
+
+        // تحديث كل حجز للضيف
+        int updatedCount = 0;
+        for (final booking in guest.bookings) {
+          final updatedBooking = booking.copyWith(
+            guestName: newName,
+            guestPhone: newPhone,
+            guestEmail: newEmail.isEmpty ? null : newEmail,
+            guestNationality: newNationality,
+            updatedAt: DateTime.now().toIso8601String(),
+          );
+          
+          await bookingsRepo.update(updatedBooking);
+          updatedCount++;
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ تم تحديث بيانات الضيف في $updatedCount حجز بنجاح'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          
+          // مزامنة التغييرات
+          ref.read(syncServiceProvider).runSync();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ خطأ في تحديث البيانات: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+
+    // تنظيف المتحكمات
+    nameController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
+    nationalityController.dispose();
   }
 }
 

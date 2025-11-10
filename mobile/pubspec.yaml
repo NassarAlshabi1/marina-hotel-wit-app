@@ -43,6 +43,8 @@ dependencies:
   device_info_plus: ^10.1.2
   # Supabase integration for syncing
   supabase_flutter: ^2.6.0
+  # Ditto SDK for real-time sync and offline-first data management
+  ditto: ^4.8.0
   # Required for file-based SQLite backup/restore helpers
   sqflite: ^2.3.3+1
   path: ^1.9.0
