@@ -108,7 +108,7 @@ class DittoLocalSyncService {
   Future<void> _pushRoomsToDitto() async {
     try {
       final rooms = await _database!.roomsDao.watchAll().first;
-      final ditto = _dittoService._ditto;
+      final ditto = _dittoService.ditto;
       
       if (ditto == null) return;
       
@@ -130,7 +130,7 @@ class DittoLocalSyncService {
   Future<void> _pushBookingsToDitto() async {
     try {
       final bookings = await _database!.bookingsDao.watchAll().first;
-      final ditto = _dittoService._ditto;
+      final ditto = _dittoService.ditto;
       
       if (ditto == null) return;
       
@@ -152,7 +152,7 @@ class DittoLocalSyncService {
   Future<void> _pushEmployeesToDitto() async {
     try {
       final employees = await _database!.employeesDao.watchAll().first;
-      final ditto = _dittoService._ditto;
+      final ditto = _dittoService.ditto;
       
       if (ditto == null) return;
       
@@ -174,7 +174,7 @@ class DittoLocalSyncService {
   Future<void> _pushPaymentsToDitto() async {
     try {
       final payments = await _database!.paymentsDao.watchAll().first;
-      final ditto = _dittoService._ditto;
+      final ditto = _dittoService.ditto;
       
       if (ditto == null) return;
       
@@ -220,7 +220,7 @@ class DittoLocalSyncService {
   /// تنزيل الغرف من Ditto
   Future<void> _pullRoomsFromDitto() async {
     try {
-      final ditto = _dittoService._ditto;
+      final ditto = _dittoService.ditto;
       if (ditto == null) return;
       
       final collection = ditto.store.collection(DittoSchemaMapper.roomsCollection);
@@ -258,7 +258,7 @@ class DittoLocalSyncService {
   /// تنزيل الحجوزات من Ditto (مثال مبسط)
   Future<void> _pullBookingsFromDitto() async {
     try {
-      final ditto = _dittoService._ditto;
+      final ditto = _dittoService.ditto;
       if (ditto == null) return;
       
       final collection = ditto.store.collection(DittoSchemaMapper.bookingsCollection);
@@ -276,7 +276,7 @@ class DittoLocalSyncService {
   /// تنزيل الموظفين من Ditto (مثال مبسط)
   Future<void> _pullEmployeesFromDitto() async {
     try {
-      final ditto = _dittoService._ditto;
+      final ditto = _dittoService.ditto;
       if (ditto == null) return;
       
       final collection = ditto.store.collection(DittoSchemaMapper.employeesCollection);
@@ -294,7 +294,7 @@ class DittoLocalSyncService {
   /// تنزيل المدفوعات من Ditto (مثال مبسط)
   Future<void> _pullPaymentsFromDitto() async {
     try {
-      final ditto = _dittoService._ditto;
+      final ditto = _dittoService.ditto;
       if (ditto == null) return;
       
       final collection = ditto.store.collection(DittoSchemaMapper.paymentsCollection);
@@ -329,7 +329,7 @@ class DittoLocalSyncService {
 
   /// مراقبة التغييرات في الغرف
   void _observeRoomsChanges() {
-    final ditto = _dittoService._ditto;
+    final ditto = _dittoService.ditto;
     if (ditto == null) return;
     
     final collection = ditto.store.collection(DittoSchemaMapper.roomsCollection);
@@ -342,7 +342,7 @@ class DittoLocalSyncService {
 
   /// مراقبة التغييرات في الحجوزات
   void _observeBookingsChanges() {
-    final ditto = _dittoService._ditto;
+    final ditto = _dittoService.ditto;
     if (ditto == null) return;
     
     final collection = ditto.store.collection(DittoSchemaMapper.bookingsCollection);
@@ -356,7 +356,7 @@ class DittoLocalSyncService {
   /// الحصول على إحصائيات المزامنة
   Future<Map<String, dynamic>> getSyncStats() async {
     try {
-      final ditto = _dittoService._ditto;
+      final ditto = _dittoService.ditto;
       if (ditto == null) {
         return {'error': 'Ditto غير مهيء'};
       }

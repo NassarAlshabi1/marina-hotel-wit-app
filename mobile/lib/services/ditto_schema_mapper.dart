@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:drift/drift.dart';
 import 'local_db.dart';
 
 /// خريطة تطابق بين قاعدة البيانات المحلية (Drift) و Ditto Collections

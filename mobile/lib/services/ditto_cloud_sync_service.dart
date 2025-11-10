@@ -36,6 +36,9 @@ class DittoCloudSyncService {
   /// عدد الأجهزة المتصلة
   int get peersCount => _peersCount;
 
+  /// الوصول إلى Ditto instance
+  Ditto? get ditto => _ditto;
+
   /// تهيئة Ditto Cloud SDK
   Future<bool> initialize() async {
     if (_isInitialized) return true;

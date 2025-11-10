@@ -36,27 +36,10 @@ class SessionStateManager {
       // تحويل البيانات إلى JSON
       final jsonString = jsonEncode(sessionData);
       
-      // إنشاء ملف مؤقت
-      final tempDir = await getTemporaryDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final tempFile = File('${tempDir.path}/session_$timestamp.json');
-      await tempFile.writeAsString(jsonString);
+      // رفع البيانات إلى Google Drive مباشرة
+      final fileId = await driveService.uploadBackup(sessionData);
       
-      // رفع الملف إلى Google Drive
-      final fileName = sessionName != null 
-          ? '${sessionName}_$timestamp.json'
-          : 'session_$timestamp.json';
-          
-      final uploaded = await driveService.uploadFile(
-        tempFile,
-        fileName: fileName,
-        folderName: _sessionFolderName,
-      );
-      
-      // حذف الملف المؤقت
-      await tempFile.delete();
-      
-      if (uploaded) {
+      if (fileId.isNotEmpty) {
         debugPrint('✅ تم حفظ الجلسة في Google Drive بنجاح');
         
         // حفظ معلومات آخر جلسة محفوظة
@@ -85,34 +68,17 @@ class SessionStateManager {
       debugPrint('🔄 جاري استعادة الجلسة من Google Drive...');
       
       // البحث عن الملف في Drive
-      final files = await driveService.listBackups();
+      final files = await driveService.listBackupFiles();
       final sessionFile = files.firstWhere(
         (f) => f.name == fileName,
         orElse: () => throw Exception('الملف غير موجود'),
       );
       
-      // تنزيل الملف
-      final tempDir = await getTemporaryDirectory();
-      final localFile = File('${tempDir.path}/restored_session.json');
-      
-      final downloaded = await driveService.downloadFile(
-        sessionFile.id,
-        localFile.path,
-      );
-      
-      if (!downloaded) {
-        throw Exception('فشل في تنزيل الملف');
-      }
-      
-      // قراءة البيانات
-      final jsonString = await localFile.readAsString();
-      final sessionData = jsonDecode(jsonString) as Map<String, dynamic>;
+      // تنزيل البيانات مباشرة
+      final sessionData = await driveService.downloadBackup(sessionFile.fileId);
       
       // استعادة البيانات
       await _restoreSessionData(sessionData);
-      
-      // حذف الملف المؤقت
-      await localFile.delete();
       
       debugPrint('✅ تم استعادة الجلسة بنجاح');
       return true;
@@ -133,7 +99,7 @@ class SessionStateManager {
     try {
       debugPrint('🔄 جاري البحث عن الجلسات المحفوظة...');
       
-      final files = await driveService.listBackups();
+      final files = await driveService.listBackupFiles();
       final sessionFiles = files.where((f) => 
         f.name.startsWith('session_') || f.name.endsWith('.json')
       ).toList();
@@ -169,7 +135,8 @@ class SessionStateManager {
     try {
       debugPrint('🔄 جاري حذف الجلسة...');
       
-      final deleted = await driveService.deleteBackup(fileId);
+      await driveService.deleteBackupFile(fileId);
+      final deleted = true;
       
       if (deleted) {
         debugPrint('✅ تم حذف الجلسة بنجاح');
