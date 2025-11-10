@@ -4,7 +4,7 @@ import '../utils/env.dart';
 import '../utils/ditto_config.dart';
 
 /// خدمة Ditto Cloud Sync لإدارة مزامنة البيانات مع Ditto Cloud
-/// 
+///
 /// هذه الخدمة تدير العمليات المتعلقة بـ Ditto Cloud بما في ذلك:
 /// - تهيئة Ditto SDK
 /// - تنفيذ استعلامات DQL المخصصة
@@ -20,19 +20,19 @@ class DittoCloudSyncService {
   bool _isInitialized = false;
   bool _isSyncing = false;
   String _lastError = '';
-  
+
   // متغير لمراقبة عدد الأجهزة المتصلة
   int _peersCount = 0;
-  
+
   /// حالة الاتصال مع Ditto Cloud
   bool get isConnected => _isInitialized && _ditto != null;
-  
+
   /// حالة المزامنة
   bool get isSyncing => _isSyncing;
-  
+
   /// آخر خطأ حدث
   String get lastError => _lastError;
-  
+
   /// عدد الأجهزة المتصلة
   int get peersCount => _peersCount;
 
@@ -42,69 +42,53 @@ class DittoCloudSyncService {
   /// تهيئة Ditto Cloud SDK
   Future<bool> initialize() async {
     if (_isInitialized) return true;
-    
+
     // التحقق من صحة الإعدادات
     if (!DittoConfig.isConfigured()) {
       _lastError = DittoConfig.getConfigurationWarning() ?? 'Ditto غير مُعد بشكل صحيح';
       debugPrint('⚠️ $_lastError');
       return false;
     }
-    
+
     try {
       debugPrint('🔄 جاري تهيئة Ditto Cloud SDK...');
-      
-      // تحديد نوع Identity بناءً على الإعدادات
-      final DittoIdentity identity;
-      
-      if (Env.dittoUsePlayground) {
-        // استخدام Online Playground للتطوير والاختبار
-        identity = await DittoIdentity.onlinePlayground(
-          appID: Env.dittoAppId,
-          token: Env.dittoPlaygroundToken,
-          enableDittoCloudSync: true,
-        );
-        debugPrint('✅ استخدام Ditto Online Playground');
-      } else {
-        // استخدام Production License للإنتاج
-        final licenseToken = DittoConfig.licenseToken;
-        if (licenseToken == null || licenseToken.isEmpty) {
-          throw Exception('Production License Token مفقود');
-        }
-        identity = await DittoIdentity.onlineWithAuthentication(
-          appID: Env.dittoAppId,
-          authenticationDelegate: _DittoAuthDelegate(),
-          enableDittoCloudSync: true,
-        );
-        debugPrint('✅ استخدام Ditto Production Mode');
-      }
-      
-      // إنشاء Ditto instance
+
+      final identity = Env.dittoUsePlayground
+          ? OnlinePlaygroundIdentity(
+              appID: Env.dittoAppId,
+              token: Env.dittoPlaygroundToken,
+              enableDittoCloudSync: DittoConfig.enableCloud,
+            )
+          : OnlineWithAuthenticationIdentity(
+              appID: Env.dittoAppId,
+              authenticationHandler: _DittoAuthHandler(),
+              enableDittoCloudSync: DittoConfig.enableCloud,
+            );
+
+      await Ditto.init();
       _ditto = await Ditto.open(identity: identity);
-      
-      // تفعيل وضع التصحيح إذا لزم الأمر
+
       if (DittoConfig.enableDebugLogging && kDebugMode) {
-        await _ditto!.setMinimumLogLevel(DittoLogLevel.debug);
+        DittoLogger.isEnabled = true;
+        DittoLogger.minimumLogLevel = LogLevel.debug;
         debugPrint('🐛 تم تفعيل سجلات التصحيح');
       }
-      
-      // بدء المزامنة إذا كانت مفعلة تلقائياً
+
       if (DittoConfig.autoStartSync) {
         await startSync();
       }
-      
-      // مراقبة عدد الأجهزة المتصلة
+
       _ditto!.presence.observe((graph) {
         _peersCount = graph.remotePeers.length;
         debugPrint('📱 الأجهزة المتصلة: $_peersCount');
       });
-      
+
       _isInitialized = true;
       _lastError = '';
-      
+
       debugPrint('✅ تم تهيئة Ditto Cloud بنجاح');
       debugPrint('📊 App ID: ${Env.dittoAppId}');
       return true;
-      
     } catch (e, stackTrace) {
       _lastError = 'فشل في تهيئة Ditto: $e';
       debugPrint('❌ $_lastError');
@@ -120,15 +104,15 @@ class DittoCloudSyncService {
     try {
       if (_isInitialized && _ditto != null) {
         debugPrint('🔄 جاري إيقاف Ditto...');
-        
+
         await stopSync();
         await _ditto!.close();
-        
+
         _ditto = null;
         _isInitialized = false;
         _isSyncing = false;
         _peersCount = 0;
-        
+
         debugPrint('✅ تم إيقاف Ditto بنجاح');
       }
     } catch (e) {
@@ -146,30 +130,21 @@ class DittoCloudSyncService {
 
     try {
       debugPrint('🔄 جاري بدء المزامنة عبر الإنترنت...');
-      
-      // تكوين نقاط المزامنة (Transport Configuration)
-      final transportConfig = DittoTransportConfig();
-      
-      // تفعيل المزامنة السحابية فقط (عبر الإنترنت)
-      if (DittoConfig.enableCloud) {
-        transportConfig.connect(kind: DittoSyncKind.cloud);
-        debugPrint('☁️ تم تفعيل المزامنة السحابية عبر الإنترنت');
-      } else {
+
+      if (!DittoConfig.enableCloud) {
         debugPrint('⚠️ المزامنة السحابية معطلة في الإعدادات');
         _lastError = 'المزامنة السحابية معطلة';
         return false;
       }
-      
-      // تطبيق التكوين
-      await _ditto!.setTransportConfig(transportConfig);
-      
-      // بدء المزامنة
-      await _ditto!.startSync();
-      
+
+      _ditto!.updateTransportConfig((config) {
+        config.connect.webSocketUrls = ['wss://${Env.dittoCloudWebhook}'];
+        config.peerToPeer.setAllEnabled(false);
+      });
+
+      _ditto!.startSync();
       _isSyncing = true;
       debugPrint('✅ تم بدء المزامنة عبر الإنترنت بنجاح');
-      debugPrint('📡 وضع المزامنة: Cloud Only (Internet)');
-      
       return true;
     } catch (e) {
       _lastError = 'فشل في بدء المزامنة: $e';
@@ -184,7 +159,7 @@ class DittoCloudSyncService {
     try {
       if (_ditto != null && _isSyncing) {
         debugPrint('🔄 جاري إيقاف المزامنة...');
-        await _ditto!.stopSync();
+        _ditto!.stopSync();
         _isSyncing = false;
         debugPrint('✅ تم إيقاف المزامنة بنجاح');
       }
@@ -198,17 +173,13 @@ class DittoCloudSyncService {
   Future<Map<String, dynamic>> checkConnectionStatus() async {
     try {
       debugPrint('🔄 جاري فحص حالة الاتصال...');
-      
+
       final isConnected = _isInitialized && _ditto != null;
-      
-      // الحصول على معلومات الأجهزة المتصلة
       final peers = isConnected ? _peersCount : 0;
-      
-      // آخر وقت مزامنة (يمكن تحسينه بإضافة timestamp فعلي)
-      final lastSync = isConnected && _isSyncing 
-          ? DateTime.now().subtract(const Duration(minutes: 2)) 
+      final lastSync = isConnected && _isSyncing
+          ? DateTime.now().subtract(const Duration(minutes: 2))
           : null;
-      
+
       return {
         'isConnected': isConnected,
         'peersCount': peers,
@@ -238,17 +209,15 @@ class DittoCloudSyncService {
 
     try {
       debugPrint('🔄 جاري جلب إحصائيات الحجوزات...');
-      
-      // استعلام DQL لجلب الإحصائيات
-      final query = '''
-        SELECT status, COUNT(*) as count 
-        FROM bookings 
+
+      final query = """
+        SELECT status, COUNT(*) as count
+        FROM bookings
         GROUP BY status
-      ''';
-      
+      """;
+
       final result = await _ditto!.store.execute(query);
-      
-      // تحويل النتائج إلى Map
+
       final Map<String, int> stats = {};
       for (var item in result.items) {
         final status = item.value['status'] as String?;
@@ -257,13 +226,11 @@ class DittoCloudSyncService {
           stats[status] = count;
         }
       }
-      
+
       debugPrint('✅ تم جلب الإحصائيات: $stats');
       return stats;
-      
     } catch (e) {
       debugPrint('❌ خطأ في جلب الإحصائيات: $e');
-      // إرجاع بيانات فارغة في حالة الخطأ
       return {};
     }
   }
@@ -276,17 +243,14 @@ class DittoCloudSyncService {
 
     try {
       debugPrint('🔄 جاري جلب حالة الغرف...');
-      
-      // استعلام DQL للحصول على الغرف
+
       final query = 'SELECT * FROM rooms ORDER BY room_number';
       final result = await _ditto!.store.execute(query);
-      
-      // تحويل النتائج إلى List
+
       final rooms = result.items.map((item) => item.value).toList();
-      
+
       debugPrint('✅ تم جلب ${rooms.length} غرفة');
       return rooms;
-      
     } catch (e) {
       debugPrint('❌ خطأ في جلب حالة الغرف: $e');
       return [];
@@ -294,38 +258,32 @@ class DittoCloudSyncService {
   }
 
   /// الاستعلام عن الحجوزات ذات القيمة العالية
-  /// 
-  /// هذا هو الاستعلام المخصص المطلوب في المتطلبات
   Future<List<Map<String, dynamic>>> getHighValueBookings({required double minAmount}) async {
     if (!_isInitialized || _ditto == null) {
       throw Exception('Ditto غير مهيء');
     }
 
     try {
-      // استعلام DQL مع معاملات آمنة
-      final query = '''
-        SELECT * FROM bookings 
-        WHERE total_amount > \$minAmount 
+      final query = """
+        SELECT * FROM bookings
+        WHERE total_amount > \$minAmount
         ORDER BY total_amount DESC
-      ''';
-      
+      """;
+
       debugPrint('🔄 تنفيذ استعلام DQL: $query');
       debugPrint('📊 المعاملات: minAmount = $minAmount');
-      
-      // تنفيذ الاستعلام مع المعاملات الآمنة
+
       final result = await _ditto!.store.execute(
         query,
         arguments: {
           'minAmount': minAmount,
         },
       );
-      
-      // تحويل النتائج إلى قائمة
+
       final bookings = result.items.map((item) => item.value).toList();
-      
+
       debugPrint('✅ تم جلب ${bookings.length} حجوزات بمبلغ أكبر من $minAmount');
       return bookings;
-
     } catch (e) {
       debugPrint('❌ خطأ في جلب الحجوزات ذات القيمة العالية: $e');
       return [];
@@ -341,17 +299,14 @@ class DittoCloudSyncService {
 
     try {
       debugPrint('📡 بدء مراقبة الحجوزات المباشرة...');
-      
-      // استعلام Collection للحصول على الحجوزات
+
       final collection = _ditto!.store.collection('bookings');
-      
-      // مراقبة التغييرات في الوقت الفعلي
+
       await for (var docs in collection.findAll().observeLocal()) {
         final bookings = docs.map((doc) => doc.value).toList();
         debugPrint('📊 تحديث مباشر: ${bookings.length} حجز');
         yield bookings;
       }
-      
     } catch (e) {
       debugPrint('❌ خطأ في مراقبة البيانات المباشرة: $e');
       yield [];
@@ -367,19 +322,16 @@ class DittoCloudSyncService {
 
     try {
       debugPrint('🔄 جاري تنفيذ مزامنة فورية...');
-      
-      // إعادة تشغيل المزامنة لضمان التحديث الفوري
+
       if (_isSyncing) {
         await stopSync();
       }
       await startSync();
-      
-      // الانتظار قليلاً للسماح بالمزامنة
+
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       debugPrint('✅ تمت المزامنة الفورية بنجاح');
       return true;
-      
     } catch (e) {
       _lastError = 'فشل في المزامنة الفورية: $e';
       debugPrint('❌ $_lastError');
@@ -394,11 +346,10 @@ class DittoCloudSyncService {
     }
 
     try {
-      final deviceId = _ditto!.deviceId;
-      final presence = _ditto!.presence;
-      
+      final deviceName = _ditto!.deviceName;
+
       return {
-        'deviceId': deviceId,
+        'deviceName': deviceName,
         'peersCount': _peersCount,
         'isSyncing': _isSyncing,
         'appId': Env.dittoAppId,
@@ -418,18 +369,16 @@ class DittoCloudSyncService {
 
     try {
       debugPrint('⚠️ جاري حذف جميع البيانات...');
-      
-      // حذف جميع المجموعات
+
       final collections = ['bookings', 'rooms', 'guests', 'payments'];
       for (final collectionName in collections) {
         final collection = _ditto!.store.collection(collectionName);
         await collection.findAll().evict();
         debugPrint('🗑️ تم حذف مجموعة: $collectionName');
       }
-      
+
       debugPrint('✅ تم حذف جميع البيانات بنجاح');
       return true;
-      
     } catch (e) {
       _lastError = 'فشل في حذف البيانات: $e';
       debugPrint('❌ $_lastError');
@@ -443,25 +392,14 @@ class DittoCloudSyncService {
   }
 }
 
-/// Ditto Authentication Delegate للاستخدام في Production Mode
-class _DittoAuthDelegate implements DittoAuthenticationDelegate {
+class _DittoAuthHandler extends AuthenticationHandler {
   @override
-  Future<String?> authenticationRequired(DittoAuthenticator authenticator) async {
-    // في Production، يجب تنفيذ آلية المصادقة الخاصة بك هنا
-    // مثال: الحصول على JWT token من سيرفر المصادقة
-    debugPrint('⚠️ مطلوب مصادقة Ditto');
-    
-    // يمكنك تنفيذ مصادقة مخصصة هنا
-    // مثال:
-    // final token = await yourAuthService.getToken();
-    // await authenticator.loginWithToken(token);
-    
-    return null;
+  Future<void> authenticationExpiringSoon(Authenticator authenticator, int secondsRemaining) async {
+    debugPrint('⏰ انتهاء صلاحية المصادقة خلال $secondsRemaining ثانية');
   }
 
   @override
-  void authenticationExpiringSoon(DittoAuthenticator authenticator, int secondsRemaining) {
-    debugPrint('⏰ انتهاء صلاحية المصادقة خلال $secondsRemaining ثانية');
-    // قم بتجديد التوكن هنا
+  Future<void> authenticationRequired(Authenticator authenticator) async {
+    debugPrint('⚠️ مطلوب مصادقة Ditto');
   }
 }

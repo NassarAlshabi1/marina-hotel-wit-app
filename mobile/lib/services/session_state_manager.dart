@@ -1,9 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'google_drive_backup_service.dart';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'google_drive_backup_service.dart';
 
 /// خدمة حفظ واستعادة جلسة التطبيق (Session State) في Google Drive
 /// 
@@ -33,17 +32,24 @@ class SessionStateManager {
       sessionData['saved_at'] = DateTime.now().toIso8601String();
       sessionData['device_info'] = await _getDeviceInfo();
       
-      // تحويل البيانات إلى JSON
-      final jsonString = jsonEncode(sessionData);
-      
       // رفع البيانات إلى Google Drive مباشرة
       final fileId = await driveService.uploadBackup(sessionData);
       
       if (fileId.isNotEmpty) {
         debugPrint('✅ تم حفظ الجلسة في Google Drive بنجاح');
         
+        DriveBackupFile? uploadedFile;
+        final uploadedFiles = await driveService.listBackupFiles();
+        if (uploadedFiles.isNotEmpty) {
+          uploadedFile = uploadedFiles.firstWhere(
+            (f) => f.fileId == fileId,
+            orElse: () => uploadedFiles.first,
+          );
+        }
+        final storedFileName = uploadedFile?.fileName ?? 'جلسة بدون اسم ($fileId)';
+        
         // حفظ معلومات آخر جلسة محفوظة
-        await _saveLastSessionInfo('session_${DateTime.now().millisecondsSinceEpoch}.json', sessionData['saved_at']);
+        await _saveLastSessionInfo(storedFileName, sessionData['saved_at']);
         
         return true;
       } else {
@@ -101,7 +107,7 @@ class SessionStateManager {
       
       final files = await driveService.listBackupFiles();
       final sessionFiles = files.where((f) => 
-        f.name.startsWith('session_') || f.name.endsWith('.json')
+        f.fileName.startsWith('session_') || f.fileName.endsWith('.json')
       ).toList();
       
       final sessions = <SessionInfo>[];

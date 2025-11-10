@@ -41,8 +41,6 @@ dependencies:
   share_plus: ^10.1.1
   permission_handler: ^11.3.1
   device_info_plus: ^10.1.2
-  # Supabase integration for syncing
-  supabase_flutter: ^2.6.0
   # Ditto SDK for real-time sync and offline-first data management
   ditto_live: ^4.12.4
   # Required for file-based SQLite backup/restore helpers

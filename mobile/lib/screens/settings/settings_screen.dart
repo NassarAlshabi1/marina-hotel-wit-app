@@ -12,7 +12,6 @@ import 'comprehensive_backup_screen.dart';
 import 'auto_backup_settings_screen.dart';
 import 'smart_sync_settings_screen.dart';
 import 'sync_performance_settings_screen.dart';
-import 'supabase_connection_screen.dart';
 import 'session_management_screen.dart';
 import 'ditto_sync_status_screen.dart';
 
@@ -127,16 +126,6 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SyncPerformanceSettingsScreen()),
-              ),
-            ),
-            _SettingsItem(
-              title: 'حالة اتصال Supabase',
-              subtitle: 'فحص الاتصال مع قاعدة البيانات السحابية',
-              icon: Icons.cloud_sync,
-              color: Colors.lightBlue,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SupabaseConnectionScreen()),
               ),
             ),
             _SettingsItem(

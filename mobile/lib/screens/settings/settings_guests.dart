@@ -654,15 +654,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         // تحديث كل حجز للضيف
         int updatedCount = 0;
         for (final booking in guest.bookings) {
-          final updatedBooking = booking.copyWith(
+          await bookingsRepo.update(
+            booking.id,
             guestName: newName,
             guestPhone: newPhone,
             guestEmail: newEmail.isEmpty ? null : newEmail,
             guestNationality: newNationality,
-            updatedAt: DateTime.now().toIso8601String(),
           );
-          
-          await bookingsRepo.update(updatedBooking);
           updatedCount++;
         }
 

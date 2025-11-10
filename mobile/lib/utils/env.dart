@@ -5,17 +5,6 @@ class Env {
   );
   // TODO: Wire actual API v1 in next phase.
 
-  // Supabase Login Credentials
-  // يمكنك تغيير هذه القيم حسب حساب Supabase الخاص بك
-  static String supabaseLoginEmail = const String.fromEnvironment(
-    'SUPABASE_LOGIN_EMAIL',
-    defaultValue: 'adenmarina2@gmail.com',
-  );
-  static String supabaseLoginPassword = const String.fromEnvironment(
-    'SUPABASE_LOGIN_PASSWORD',
-    defaultValue: 'Tottinnbb007',
-  );
-
   // Ditto Cloud Configuration
   // ⚠️ معلومات حساسة - لا تشارك هذه البيانات
   static String dittoAppId = const String.fromEnvironment(
