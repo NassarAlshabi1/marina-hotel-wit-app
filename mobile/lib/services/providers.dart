@@ -12,6 +12,7 @@ import 'repositories/simple_notes_repository.dart';
 import 'supabase_realtime_service.dart';
 import 'whatsapp_service.dart';
 import 'ditto_cloud_sync_service.dart';
+import 'ditto_local_sync_service.dart';
 import '../utils/status_utils.dart';
 
 // إضافة Backup Providers
@@ -42,6 +43,9 @@ final whatsappServiceProvider = Provider<WhatsAppService>(
 
 // Ditto Cloud Sync Service Provider
 final dittoCloudSyncProvider = Provider<DittoCloudSyncService>((ref) => DittoCloudSyncService());
+
+// Ditto Local Sync Service Provider
+final dittoLocalSyncProvider = Provider<DittoLocalSyncService>((ref) => DittoLocalSyncService());
 
 final roomsListProvider = StreamProvider.autoDispose((ref) => ref.watch(roomsRepoProvider).watchAll());
 final availableRoomsProvider = StreamProvider.autoDispose((ref) =>
