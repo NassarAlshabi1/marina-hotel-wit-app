@@ -142,7 +142,6 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 COMMENT ON FUNCTION broadcast_table_changes() IS 
 'دالة لبث التغييرات على الجداول إلى قنوات Realtime';
 
