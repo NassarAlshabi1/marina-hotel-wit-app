@@ -204,42 +204,6 @@ class AdminSidebar extends ConsumerWidget {
                     onTap: () => onRouteSelected('/reports'),
                     context: context,
                   ),
-                if (can('dashboard'))
-                  _buildMenuItem(
-                    icon: Icons.bolt,
-                    title: 'البث الفوري',
-                    route: '/realtime',
-                    isActive: currentRoute == '/realtime',
-                    onTap: () => onRouteSelected('/realtime'),
-                    context: context,
-                  ),
-                if (can('employees'))
-                  _buildMenuItem(
-                    icon: Icons.group,
-                    title: 'الموظفون (فوري)',
-                    route: '/realtime/employees',
-                    isActive: currentRoute == '/realtime/employees',
-                    onTap: () => onRouteSelected('/realtime/employees'),
-                    context: context,
-                  ),
-                if (can('expenses'))
-                  _buildMenuItem(
-                    icon: Icons.receipt_long,
-                    title: 'المصروفات (فوري)',
-                    route: '/realtime/expenses',
-                    isActive: currentRoute == '/realtime/expenses',
-                    onTap: () => onRouteSelected('/realtime/expenses'),
-                    context: context,
-                  ),
-                if (can('payments'))
-                  _buildMenuItem(
-                    icon: Icons.attach_money,
-                    title: 'المدفوعات (فوري)',
-                    route: '/realtime/payments',
-                    isActive: currentRoute == '/realtime/payments',
-                    onTap: () => onRouteSelected('/realtime/payments'),
-                    context: context,
-                  ),
                 if (can('notes'))
                   _buildMenuItem(
                     icon: Icons.note,

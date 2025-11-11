@@ -3,7 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'utils/theme.dart';
 import 'utils/env.dart';
-import 'utils/supabase_config.dart';
+
 import 'screens/dashboard_screen.dart';
 import 'screens/rooms/rooms_list.dart';
 import 'screens/bookings/bookings_list.dart';
@@ -25,16 +25,12 @@ import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'components/admin_layout.dart';
 import 'services/local_db.dart';
-import 'services/supabase_realtime_service.dart';
-import 'screens/realtime/realtime_dashboard_example.dart';
-import 'screens/realtime/employees_realtime_screen.dart';
-import 'screens/realtime/expenses_realtime_screen.dart';
-import 'screens/realtime/payments_realtime_screen.dart';
+
 import 'services/ditto_local_sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SupabaseConfig.initialize();
+
   await AutoBackupTask.initialize();
   await _initializeSmartAutoBackup();
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
@@ -81,12 +77,6 @@ class App extends ConsumerWidget {
       (previous, database) {
         Future.microtask(() async {
           await Seeder(database).seedIfEmpty();
-
-          final realtimeService = ref.read(realtimeServiceProvider);
-          if (realtimeService.currentStatus == RealtimeStatus.disconnected) {
-            await realtimeService.subscribeToAll();
-            debugPrint('✅ تم تفعيل Realtime Subscriptions');
-          }
 
           final dittoService = DittoLocalSyncService();
           await dittoService.maybeAutoSync(database);
@@ -159,10 +149,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/reports': const ReportsScreen(),
     '/notes': const NotesScreen(),
     '/settings': const SettingsScreen(),
-    '/realtime': const RealtimeDashboardExample(),
-    '/realtime/employees': const EmployeesRealtimeScreen(),
-    '/realtime/expenses': const ExpensesRealtimeScreen(),
-    '/realtime/payments': const PaymentsRealtimeScreen(),
+
   };
   
   bool _can(String key) {
