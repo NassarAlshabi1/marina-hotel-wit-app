@@ -9,7 +9,7 @@ import 'repositories/payments_repository.dart';
 import 'repositories/debts_repository.dart';
 import 'repositories/notes_repository.dart';
 import 'repositories/simple_notes_repository.dart';
-import 'supabase_realtime_service.dart';
+
 import 'whatsapp_service.dart';
 import '../utils/status_utils.dart';
 
@@ -60,20 +60,6 @@ final employeesListProvider = StreamProvider.autoDispose((ref) => ref.watch(empl
 final expensesListProvider = StreamProvider.autoDispose((ref) => ref.watch(expensesRepoProvider).watchAll());
 
 final cashTransactionsListProvider = StreamProvider.autoDispose((ref) => ref.watch(cashRepoProvider).watchAll());
-
-final realtimeServiceProvider = Provider<SupabaseRealtimeService>((ref) {
-  final service = SupabaseRealtimeService(ref.read(databaseProvider));
-  ref.onDispose(service.dispose);
-  return service;
-});
-
-final realtimeStatusProvider = StreamProvider<RealtimeStatus>(
-  (ref) => ref.read(realtimeServiceProvider).statusStream,
-);
-
-final realtimeEventsProvider = StreamProvider<RealtimeEvent>(
-  (ref) => ref.read(realtimeServiceProvider).eventsStream,
-);
 
 // Daily Statistics Providers
 final todayPaymentsProvider = FutureProvider.autoDispose((ref) {
