@@ -26,6 +26,7 @@ import 'services/google_drive_backup_service.dart';
 import 'components/admin_layout.dart';
 import 'services/local_db.dart';
 import 'services/supabase_realtime_service.dart';
+import 'services/ditto_local_sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -88,6 +89,9 @@ class App extends ConsumerWidget {
             await realtimeService.subscribeToAll();
             debugPrint('✅ تم تفعيل Realtime Subscriptions');
           }
+
+          final dittoService = DittoLocalSyncService();
+          await dittoService.maybeAutoSync(database);
         });
       },
       fireImmediately: true,
