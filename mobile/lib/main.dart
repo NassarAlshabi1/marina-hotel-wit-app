@@ -30,6 +30,7 @@ import 'screens/realtime/realtime_dashboard_example.dart';
 import 'screens/realtime/employees_realtime_screen.dart';
 import 'screens/realtime/expenses_realtime_screen.dart';
 import 'screens/realtime/payments_realtime_screen.dart';
+import 'services/ditto_local_sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,6 +87,9 @@ class App extends ConsumerWidget {
             await realtimeService.subscribeToAll();
             debugPrint('✅ تم تفعيل Realtime Subscriptions');
           }
+
+          final dittoService = DittoLocalSyncService();
+          await dittoService.maybeAutoSync(database);
         });
       },
     );

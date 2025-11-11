@@ -91,7 +91,7 @@ class SupabaseRealtimeService {
         _expensesDao = ExpensesDao(db, OutboxDao(db)),
         _cashDao = CashTransactionsDao(db, OutboxDao(db)),
         _paymentsDao = PaymentsDao(db, OutboxDao(db)),
-        _debtsDao = DebtsDao(db, OutboxDao(db));
+        _debtsDao = DebtsDao(db);
 
   final AppDatabase db;
   final RoomsDao _roomsDao;
@@ -980,6 +980,7 @@ class SupabaseRealtimeService {
                 ? d.Value(newData['note'] as String?)
                 : const d.Value.absent(),
             serverId: d.Value(serverId),
+            origin: const d.Value('server'),
           ),
         );
       } else {
