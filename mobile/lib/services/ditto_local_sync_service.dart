@@ -124,7 +124,7 @@ class DittoLocalSyncService {
       required Future<List<T>> Function() fetch,
       required Map<String, dynamic> Function(T item) toDocument,
     }) async {
-      final collection = _ditto!.store.collection(label);
+      final collection = _ditto!.store[label];
       int success = 0;
       try {
         final items = await fetch();
@@ -214,7 +214,7 @@ class DittoLocalSyncService {
     }) async {
       int success = 0;
       try {
-        final collection = _ditto!.store.collection(label);
+        final collection = _ditto!.store[label];
         final results = await collection.find('!DELETED').exec();
         for (final item in results.items) {
           if (item.value is! Map<String, dynamic>) {
