@@ -124,7 +124,6 @@ class DittoLocalSyncService {
       required Future<List<T>> Function() fetch,
       required Map<String, dynamic> Function(T item) toDocument,
     }) async {
-      final collection = _ditto!.store[label];
       int success = 0;
       try {
         final items = await fetch();
@@ -136,7 +135,11 @@ class DittoLocalSyncService {
         for (final item in items) {
           try {
             final doc = toDocument(item);
-            await collection.upsert(doc);
+            // استخدام DQL بدلاً من legacy API
+            await _ditto!.store.execute(
+              query: "INSERT INTO $label DOCUMENTS (:doc) ON ID CONFLICT DO UPDATE",
+              arguments: {"doc": doc},
+            );
             success++;
           } catch (error) {
             debugPrint('❌ فشل رفع عنصر من $label: $error');
@@ -214,8 +217,11 @@ class DittoLocalSyncService {
     }) async {
       int success = 0;
       try {
-        final collection = _ditto!.store[label];
-        final results = await collection.find('!DELETED').exec();
+        // استخدام DQL بدلاً من legacy API
+        final results = await _ditto!.store.execute(
+          query: "SELECT * FROM $label WHERE !DELETED",
+          arguments: {},
+        );
         for (final item in results.items) {
           if (item.value is! Map<String, dynamic>) {
             continue;
