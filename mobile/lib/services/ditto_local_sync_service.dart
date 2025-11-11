@@ -137,7 +137,7 @@ class DittoLocalSyncService {
             final doc = toDocument(item);
             // استخدام DQL بدلاً من legacy API
             await _ditto!.store.execute(
-              query: "INSERT INTO $label DOCUMENTS (:doc) ON ID CONFLICT DO UPDATE",
+              "INSERT INTO $label DOCUMENTS (:doc) ON ID CONFLICT DO UPDATE",
               arguments: {"doc": doc},
             );
             success++;
@@ -219,7 +219,7 @@ class DittoLocalSyncService {
       try {
         // استخدام DQL بدلاً من legacy API
         final results = await _ditto!.store.execute(
-          query: "SELECT * FROM $label WHERE !DELETED",
+          "SELECT * FROM $label WHERE !DELETED",
           arguments: {},
         );
         for (final item in results.items) {
