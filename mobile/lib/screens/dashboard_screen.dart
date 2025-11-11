@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/local_db.dart';
 import '../services/providers.dart';
-import '../services/sync_service.dart';
 import '../utils/status_utils.dart';
 import '../widgets/smart_sync_widgets.dart';
 
@@ -27,21 +26,13 @@ class DashboardScreen extends ConsumerWidget {
         children: [
           // Header with sync button
           Row(
-            children: [
-              const Text(
+            children: const [
+              Text(
                 'لوحة التحكم - نظام إدارة الفندق',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
-              ),
-              const Spacer(),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  await ref.read(syncServiceProvider).runSync();
-                },
-                icon: const Icon(Icons.sync, size: 16),
-                label: const Text('مزامنة احتياطية'),
               ),
             ],
           ),
@@ -56,11 +47,6 @@ class DashboardScreen extends ConsumerWidget {
           // Statistics Cards - بطاقات أصغر مع إحصائيات مفيدة أكثر
           _buildStatisticsCards(ref),
           
-          const SizedBox(height: 24),
-
-          // Realtime Quick Actions
-          _buildRealtimeQuickActions(context),
-
           const SizedBox(height: 24),
           
           // Rooms Status Section
@@ -201,53 +187,6 @@ class DashboardScreen extends ConsumerWidget {
           },
         ),
       ],
-    );
-  }
-  
-  Widget _buildRealtimeQuickActions(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'تحديثات فورية',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.of(context).pushNamed('/realtime'),
-                  icon: const Icon(Icons.bolt),
-                  label: const Text('لوحة البث الفوري'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.of(context).pushNamed('/realtime/employees'),
-                  icon: const Icon(Icons.group),
-                  label: const Text('الموظفون (فوري)'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.of(context).pushNamed('/realtime/expenses'),
-                  icon: const Icon(Icons.receipt_long),
-                  label: const Text('المصروفات (فوري)'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.of(context).pushNamed('/realtime/payments'),
-                  icon: const Icon(Icons.attach_money),
-                  label: const Text('المدفوعات (فوري)'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
   
