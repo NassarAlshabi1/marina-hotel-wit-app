@@ -590,10 +590,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
+      final roomsRepo = ref.read(roomsRepoProvider);
       for (final booking in guest.bookings) {
         await bookingsRepo.delete(booking.id);
+        await roomsRepo.updateByRoomNumber(booking.roomNumber, status: 'شاغرة');
       }
       ref.invalidate(bookingsListProvider);
+      ref.invalidate(roomsListProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم حذف بيانات الضيف بنجاح')),
