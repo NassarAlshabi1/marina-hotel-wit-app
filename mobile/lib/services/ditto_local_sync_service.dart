@@ -67,7 +67,7 @@ class DittoLocalSyncService {
     _expensesDao = ExpensesDao(database, _outboxDao!);
     _cashTransactionsDao = CashTransactionsDao(database, _outboxDao!);
     _paymentsDao = PaymentsDao(database, _outboxDao!);
-    _debtsDao = DebtsDao(database);
+    _debtsDao = DebtsDao(database, _outboxDao!);
     _shiftNotesDao = ShiftNotesDao(database);
     try {
       if (!_dittoSdkInitialized) {

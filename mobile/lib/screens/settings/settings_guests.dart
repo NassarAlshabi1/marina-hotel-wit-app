@@ -4,7 +4,6 @@ import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
-import 'guest_edit_screen.dart';
 
 class SettingsGuestsScreen extends ConsumerStatefulWidget {
   const SettingsGuestsScreen({super.key});
@@ -527,12 +526,10 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _editGuestData(BuildContext context, _GuestInfo guest) async {
-    final latestBooking = guest.bookings.first;
-    
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => GuestEditScreen(booking: latestBooking),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('ميزة تعديل بيانات النزيل غير متاحة حالياً'),
+        duration: Duration(seconds: 2),
       ),
     );
   }
