@@ -91,7 +91,7 @@ class SupabaseRealtimeService {
         _expensesDao = ExpensesDao(db, OutboxDao(db)),
         _cashDao = CashTransactionsDao(db, OutboxDao(db)),
         _paymentsDao = PaymentsDao(db, OutboxDao(db)),
-        _debtsDao = DebtsDao(db, OutboxDao(db));
+        _debtsDao = DebtsDao(db);
 
   final AppDatabase db;
   final RoomsDao _roomsDao;
@@ -943,7 +943,7 @@ class SupabaseRealtimeService {
                 ..where((t) => t.serverId.equals(serverId)))
               .getSingleOrNull();
           if (existing != null) {
-            await _debtsDao.softDelete(existing.id, originIsServer: true);
+            await _debtsDao.softDelete(existing.id);
           }
         }
         return;
@@ -994,8 +994,8 @@ class SupabaseRealtimeService {
                 ? d.Value(newData['note'] as String?)
                 : const d.Value.absent(),
             serverId: d.Value(serverId),
+            origin: const d.Value('server'),
           ),
-          originIsServer: true,
         );
       } else {
         if (serverTs >= existing.lastModified) {
@@ -1047,10 +1047,9 @@ class SupabaseRealtimeService {
               serverId: d.Value(serverId),
               origin: const d.Value('server'),
             ),
-            originIsServer: true,
           );
           if (newData['deleted_at'] != null) {
-            await _debtsDao.softDelete(existing.id, originIsServer: true);
+            await _debtsDao.softDelete(existing.id);
           }
         } else {
           debugPrint('⚠️ تجاهل تحديث أقدم لجدول debts (serverTs=$serverTs, local=${existing.lastModified})');

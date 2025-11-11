@@ -60,7 +60,6 @@ class SupabaseConfig {
         // تفعيل Realtime للتحديثات الفورية
         // Enable Realtime for instant updates
         eventsPerSecond: 10,
-        heartbeatInterval: Duration(seconds: 15),
         logLevel: RealtimeLogLevel.info,
       ),
       postgrestOptions: const PostgrestClientOptions(

@@ -32,6 +32,7 @@ class DittoLocalSyncService {
   Ditto? _ditto;
   AppDatabase? _database;
   static const _autoSyncPrefKey = 'ditto_auto_sync_enabled';
+  static bool _dittoSdkInitialized = false;
 
   bool _isInitialized = false;
   bool _isSyncing = false;
@@ -69,8 +70,9 @@ class DittoLocalSyncService {
     _debtsDao = DebtsDao(database);
     _shiftNotesDao = ShiftNotesDao(database);
     try {
-      if (!Ditto.isInitialized) {
+      if (!_dittoSdkInitialized) {
         await Ditto.init();
+        _dittoSdkInitialized = true;
       }
       final identity = await _buildIdentity();
       final instance = await Ditto.open(identity: identity);
@@ -80,7 +82,6 @@ class DittoLocalSyncService {
         config.connect.webSocketUrls
           ..clear()
           ..add('wss://${Env.dittoAppId}.cloud.ditto.live');
-        config.connect.tcpAddresses.clear();
       });
       if (DittoConfig.enableCloudTransport && instance.deviceName.isNotEmpty) {
         instance.deviceName = DittoConfig.deviceName(instance.deviceName);
@@ -102,7 +103,7 @@ class DittoLocalSyncService {
 
   Future<void> startSync() async {
     _ensureReady();
-    await _ditto!.startSync();
+    _ditto!.startSync();
     debugPrint('🛰️ تم تشغيل المزامنة مع Ditto');
   }
 
@@ -110,7 +111,7 @@ class DittoLocalSyncService {
     if (_ditto == null) {
       return;
     }
-    await _ditto!.stopSync();
+    _ditto!.stopSync();
     debugPrint('⏹️ تم إيقاف المزامنة مع Ditto');
   }
 
@@ -123,7 +124,7 @@ class DittoLocalSyncService {
       required Future<List<T>> Function() fetch,
       required Map<String, dynamic> Function(T item) toDocument,
     }) async {
-      final collection = _ditto!.store[label];
+      final collection = _ditto!.store.collection(label);
       int success = 0;
       try {
         final items = await fetch();
@@ -135,7 +136,7 @@ class DittoLocalSyncService {
         for (final item in items) {
           try {
             final doc = toDocument(item);
-            await collection.upsert(doc, isDefault: false);
+            await collection.upsert(doc);
             success++;
           } catch (error) {
             debugPrint('❌ فشل رفع عنصر من $label: $error');
@@ -213,7 +214,7 @@ class DittoLocalSyncService {
     }) async {
       int success = 0;
       try {
-        final collection = _ditto!.store[label];
+        final collection = _ditto!.store.collection(label);
         final results = await collection.find('!DELETED').exec();
         for (final item in results.items) {
           if (item.value is! Map<String, dynamic>) {
@@ -377,7 +378,7 @@ class DittoLocalSyncService {
     _subscriptionsRegistered = false;
     if (_ditto != null) {
       try {
-        await _ditto!.stopSync();
+        _ditto!.stopSync();
       } catch (_) {}
       await _ditto!.close();
     }

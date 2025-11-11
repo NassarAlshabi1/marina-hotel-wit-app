@@ -76,7 +76,7 @@ class DittoSchemaMapper {
       lastModified: Value(_requireInt(doc, 'last_modified')),
       version: Value(_requireInt(doc, 'version')),
       origin: Value(_requireString(doc, 'origin')),
-      id: _optionalInt(doc, 'id'),
+      id: _optionalPrimaryKey(doc, 'id'),
       roomNumber: Value(_requireString(doc, 'room_number')),
       type: Value(_requireString(doc, 'type')),
       price: Value(price),
@@ -149,7 +149,7 @@ class DittoSchemaMapper {
       lastModified: Value(_requireInt(doc, 'last_modified')),
       version: Value(_requireInt(doc, 'version')),
       origin: Value(_requireString(doc, 'origin')),
-      id: _optionalInt(doc, 'id'),
+      id: _optionalPrimaryKey(doc, 'id'),
       serverBookingId: _optionalInt(doc, 'server_booking_id'),
       roomNumber: Value(_requireString(doc, 'room_number')),
       guestName: Value(_requireString(doc, 'guest_name')),
@@ -208,7 +208,7 @@ class DittoSchemaMapper {
       lastModified: Value(_requireInt(doc, 'last_modified')),
       version: Value(_requireInt(doc, 'version')),
       origin: Value(_requireString(doc, 'origin')),
-      id: _optionalInt(doc, 'id'),
+      id: _optionalPrimaryKey(doc, 'id'),
       bookingId: Value(_requireInt(doc, 'booking_id')),
       noteText: Value(_requireString(doc, 'note_text')),
       alertType: Value(_requireString(doc, 'alert_type')),
@@ -253,7 +253,7 @@ class DittoSchemaMapper {
       lastModified: Value(_requireInt(doc, 'last_modified')),
       version: Value(_requireInt(doc, 'version')),
       origin: Value(_requireString(doc, 'origin')),
-      id: _optionalInt(doc, 'id'),
+      id: _optionalPrimaryKey(doc, 'id'),
       name: Value(_requireString(doc, 'name')),
       basicSalary: Value(_requireDouble(doc, 'basic_salary')),
       position: Value(_requireString(doc, 'position')),
@@ -303,7 +303,7 @@ class DittoSchemaMapper {
       lastModified: Value(_requireInt(doc, 'last_modified')),
       version: Value(_requireInt(doc, 'version')),
       origin: Value(_requireString(doc, 'origin')),
-      id: _optionalInt(doc, 'id'),
+      id: _optionalPrimaryKey(doc, 'id'),
       expenseType: Value(_requireString(doc, 'expense_type')),
       relatedId: _optionalInt(doc, 'related_id'),
       description: Value(_requireString(doc, 'description')),
@@ -361,7 +361,7 @@ class DittoSchemaMapper {
       lastModified: Value(_requireInt(doc, 'last_modified')),
       version: Value(_requireInt(doc, 'version')),
       origin: Value(_requireString(doc, 'origin')),
-      id: _optionalInt(doc, 'id'),
+      id: _optionalPrimaryKey(doc, 'id'),
       registerId: _optionalInt(doc, 'register_id'),
       transactionType: Value(_requireString(doc, 'transaction_type')),
       amount: Value(_requireDouble(doc, 'amount')),
@@ -431,7 +431,7 @@ class DittoSchemaMapper {
       lastModified: Value(_requireInt(doc, 'last_modified')),
       version: Value(_requireInt(doc, 'version')),
       origin: Value(_requireString(doc, 'origin')),
-      id: _optionalInt(doc, 'id'),
+      id: _optionalPrimaryKey(doc, 'id'),
       serverPaymentId: _optionalInt(doc, 'server_payment_id'),
       bookingLocalId: _optionalInt(doc, 'booking_local_id'),
       serverBookingId: _optionalInt(doc, 'server_booking_id'),
@@ -499,7 +499,7 @@ class DittoSchemaMapper {
       lastModified: Value(_requireInt(doc, 'last_modified')),
       version: Value(_requireInt(doc, 'version')),
       origin: Value(_requireString(doc, 'origin')),
-      id: _optionalInt(doc, 'id'),
+      id: _optionalPrimaryKey(doc, 'id'),
       bookingLocalId: _optionalInt(doc, 'booking_local_id'),
       guestName: Value(_requireString(doc, 'guest_name')),
       checkinDate: Value(_requireString(doc, 'checkin_date')),
@@ -581,20 +581,28 @@ class DittoSchemaMapper {
     return map;
   }
 
-  static Value<int>? _optionalInt(Map<String, dynamic> doc, String key) {
+  static Value<int?> _optionalInt(Map<String, dynamic> doc, String key) {
     final value = _asInt(doc[key]);
     if (value == null) {
-      return const Value.absent();
+      return const Value<int?>.absent();
+    }
+    return Value<int?>(value);
+  }
+
+  static Value<int> _optionalPrimaryKey(Map<String, dynamic> doc, String key) {
+    final value = _asInt(doc[key]);
+    if (value == null) {
+      return const Value<int>.absent();
     }
     return Value(value);
   }
 
-  static Value<String>? _optionalString(Map<String, dynamic> doc, String key) {
+  static Value<String?> _optionalString(Map<String, dynamic> doc, String key) {
     final value = _asString(doc[key]);
     if (value == null) {
-      return const Value.absent();
+      return const Value<String?>.absent();
     }
-    return Value(value);
+    return Value<String?>(value);
   }
 
   static String _requireString(Map<String, dynamic> doc, String key, {String? fallback}) {

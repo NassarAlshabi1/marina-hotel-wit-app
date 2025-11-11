@@ -94,7 +94,6 @@ class App extends ConsumerWidget {
           await dittoService.maybeAutoSync(database);
         });
       },
-      fireImmediately: true,
     );
     return Directionality(
       textDirection: TextDirection.rtl,
