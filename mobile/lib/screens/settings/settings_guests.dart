@@ -103,6 +103,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           phone: booking.guestPhone,
           email: booking.guestEmail ?? '',
           nationality: booking.guestNationality,
+          idType: booking.guestIdType,
+          idNumber: booking.guestIdNumber,
+          idIssueDate: booking.guestIdIssueDate,
+          idIssuePlace: booking.guestIdIssuePlace,
+          address: booking.guestAddress,
           bookings: [],
         );
       }
