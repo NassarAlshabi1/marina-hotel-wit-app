@@ -688,11 +688,15 @@ class GoogleDriveSyncService {
   Future<List<DriveBackupFile>> listBackupFiles() async {
     final api = await _ensureDrive();
     final file = await _ensureRemoteFile();
-    final meta = await api.files.get(file.id!, $fields: 'id, name, createdTime, size');
+    final drive.File meta = await api.files.get(
+      file.id!,
+      $fields: 'id, name, createdTime, size, appProperties',
+    );
+
     return [
       DriveBackupFile(
-        fileId: meta.id!,
-        fileName: meta.name!,
+        fileId: meta.id ?? 'unknown',
+        fileName: meta.name ?? _options.driveFileName,
         createdTime: meta.createdTime ?? DateTime.now().toUtc(),
         size: meta.size != null ? int.tryParse(meta.size!) : null,
         appProperties: meta.appProperties,
