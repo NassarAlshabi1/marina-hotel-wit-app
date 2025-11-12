@@ -106,9 +106,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                           final expectedNights = booking.expectedNights > 0
                               ? booking.expectedNights
                               : (checkin == null ? 1 : Time.nightsWithCutoff(checkin, checkout: plannedCheckout));
-                          final actualNights = checkin == null
-                              ? expectedNights
-                              : Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? DateTime.now());
+                          final actualNights = actualCheckout != null && checkin != null
+                              ? Time.nightsWithCutoff(checkin, checkout: actualCheckout)
+                              : expectedNights;
                           final totalAmount = (actualNights * price).toDouble();
                           return _BookingRow(
                             index: index,
@@ -142,9 +142,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                     final expectedNights = booking.expectedNights > 0
                         ? booking.expectedNights
                         : (checkin == null ? 1 : Time.nightsWithCutoff(checkin, checkout: plannedCheckout));
-                    final actualNights = checkin == null
-                        ? expectedNights
-                        : Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? DateTime.now());
+                    final actualNights = actualCheckout != null && checkin != null
+                        ? Time.nightsWithCutoff(checkin, checkout: actualCheckout)
+                        : expectedNights;
                     final totalAmount = (actualNights * price).toDouble();
                     return _BookingRow(
                       index: index + 1,
