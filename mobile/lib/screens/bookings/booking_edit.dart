@@ -204,8 +204,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                           helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
                           suffixIcon: Icon(Icons.event_busy),
                         ),
-                        onChanged: (_) => _recalculateExpectedNights(),
-                        onTap: () => _pickDate(_checkout),
+                        onTap: () async {
+                          await _pickDate(_checkout);
+                          _recalculateExpectedNights();
+                        },
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
@@ -407,6 +409,18 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     setState(() {
       controller.text = _formatDateTime(selected);
     });
+    if (controller == _checkin || controller == _checkout) {
+      _recalculateExpectedNights();
+    }
+  }
+
+  void _recalculateExpectedNights() {
+    final checkinDt = _parseDateTime(_checkin.text);
+    final checkoutDt = _parseDateTime(_checkout.text);
+    if (checkinDt != null && checkoutDt != null) {
+      final nights = Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
+      debugPrint('إعادة حساب الليالي: $nights ليلة من ${_checkin.text} إلى ${_checkout.text}');
+    }
   }
 
   Widget _buildRoomSelector(AsyncValue<List<Room>> roomsAsync) {
