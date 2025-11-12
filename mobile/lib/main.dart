@@ -25,6 +25,8 @@ import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'components/admin_layout.dart';
 import 'services/local_db.dart';
+import 'services/sync_notification_manager.dart';
+import 'providers/smart_sync_provider.dart';
 
 import 'services/ditto_local_sync_service.dart';
 
@@ -167,6 +169,40 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    // الاستماع لأحداث المزامنة وعرض الإشعارات
+    ref.listen<AsyncValue<SyncEvent>>(syncEventsProvider, (previous, next) {
+      next.whenData((event) {
+        if (!mounted) return;
+        
+        switch (event.type) {
+          case SyncEventType.success:
+            SyncNotificationManager.showSyncSuccess(
+              context,
+              fromDevice: event.deviceId ?? 'جهاز آخر',
+              recordsCount: event.recordsCount ?? 0,
+              syncTime: event.timestamp ?? DateTime.now(),
+            );
+            break;
+          case SyncEventType.error:
+            SyncNotificationManager.showSyncError(
+              context,
+              error: event.error ?? 'حدث خطأ في المزامنة',
+              onRetry: () {
+                final manager = ref.read(smartSyncManagerProvider);
+                manager.forceSyncNow();
+              },
+            );
+            break;
+          case SyncEventType.started:
+            SyncNotificationManager.showSyncStarted(context);
+            break;
+          case SyncEventType.newDataDetected:
+            // يمكن إضافة معالجة للبيانات الجديدة المكتشفة
+            break;
+        }
+      });
+    });
+    
     final routeKey = _currentRoute.replaceAll('/', '');
     final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
     final body = allowed
