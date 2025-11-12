@@ -33,3 +33,9 @@ final smartSyncInitProvider = FutureProvider<void>((ref) async {
   
   await manager.initialize(backupService);
 });
+
+/// Provider لأحداث المزامنة (Stream)
+final syncEventsProvider = StreamProvider.autoDispose((ref) {
+  final manager = ref.watch(smartSyncManagerProvider);
+  return manager.syncEvents;
+});
