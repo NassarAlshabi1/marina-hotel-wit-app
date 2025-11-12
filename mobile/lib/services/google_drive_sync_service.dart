@@ -123,18 +123,27 @@ class DriveBackupFile {
     required this.fileName,
     required this.createdTime,
     this.size,
+    this.appProperties,
+    this.metadata,
+    this.format,
   });
 
   final String fileId;
   final String fileName;
   final DateTime createdTime;
   final int? size;
+  final Map<String, String>? appProperties;
+  final Map<String, dynamic>? metadata;
+  final BackupFormat? format;
 
   Map<String, dynamic> toJson() => {
         'file_id': fileId,
         'file_name': fileName,
         'created_time': createdTime.toIso8601String(),
         'size': size ?? 0,
+        if (appProperties != null) 'app_properties': appProperties,
+        if (metadata != null) 'metadata': metadata,
+        if (format != null) 'format': format!.name,
       };
 }
 
@@ -146,6 +155,11 @@ class BackupMetadata {
     required this.backupTimestamp,
     required this.totalRecords,
     required this.deviceInfo,
+    this.backupType = '',
+    this.triggerReason = '',
+    this.deviceId = '',
+    this.createdByDevice = '',
+    this.format,
   });
 
   final String appVersion;
@@ -153,6 +167,53 @@ class BackupMetadata {
   final DateTime backupTimestamp;
   final int totalRecords;
   final String deviceInfo;
+  final String backupType;
+  final String triggerReason;
+  final String deviceId;
+  final String createdByDevice;
+  final BackupFormat? format;
+
+  factory BackupMetadata.fromJson(Map<String, dynamic> json) {
+    DateTime parseTimestamp(dynamic value) {
+      if (value is String) {
+        return DateTime.tryParse(value) ?? DateTime.now().toUtc();
+      }
+      if (value is int) {
+        return DateTime.fromMillisecondsSinceEpoch(value);
+      }
+      if (value is num) {
+        return DateTime.fromMillisecondsSinceEpoch(value.toInt());
+      }
+      return DateTime.now().toUtc();
+    }
+
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    BackupFormat? parseFormat(String? value) {
+      if (value == null) return null;
+      return BackupFormat.values.firstWhere(
+        (e) => e.name == value || e.toString() == 'BackupFormat.$value',
+        orElse: () => BackupFormat.json,
+      );
+    }
+
+    return BackupMetadata(
+      appVersion: json['app_version']?.toString() ?? '',
+      databaseVersion: parseInt(json['database_version']),
+      backupTimestamp: parseTimestamp(json['backup_timestamp']),
+      totalRecords: parseInt(json['total_records']),
+      deviceInfo: json['device_info']?.toString() ?? '',
+      backupType: json['backup_type']?.toString() ?? '',
+      triggerReason: json['trigger_reason']?.toString() ?? '',
+      deviceId: json['device_id']?.toString() ?? '',
+      createdByDevice: json['created_by_device']?.toString() ?? '',
+      format: parseFormat(json['format']?.toString()),
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'app_version': appVersion,
@@ -160,6 +221,11 @@ class BackupMetadata {
         'backup_timestamp': backupTimestamp.toIso8601String(),
         'total_records': totalRecords,
         'device_info': deviceInfo,
+        if (backupType.isNotEmpty) 'backup_type': backupType,
+        if (triggerReason.isNotEmpty) 'trigger_reason': triggerReason,
+        if (deviceId.isNotEmpty) 'device_id': deviceId,
+        if (createdByDevice.isNotEmpty) 'created_by_device': createdByDevice,
+        if (format != null) 'format': format!.name,
       };
 }
 
@@ -332,7 +398,7 @@ class GoogleDriveSyncService {
     var len = cipher.processBytes(data, 0, data.length, out, 0);
     len += cipher.doFinal(out, len);
     final cipherText = out.sublist(0, len);
-    final mac = cipher.mac.bytes;
+    final mac = Uint8List.fromList(cipher.mac);
 
     final builder = BytesBuilder();
     builder.add(iv);
@@ -416,7 +482,7 @@ class GoogleDriveSyncService {
     if (file.id == null) return null;
 
     try {
-      final media = await api.files.get(file.id!, downloadOptions: drive.DownloadOptions.bytes) as drive.Media?;
+      final media = await api.files.get(file.id!, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media?;
       if (media == null) return null;
       final builder = BytesBuilder();
       await for (final chunk in media.stream) {
@@ -619,13 +685,16 @@ class GoogleDriveSyncService {
         fileName: meta.name!,
         createdTime: meta.createdTime ?? DateTime.now().toUtc(),
         size: meta.size != null ? int.tryParse(meta.size!) : null,
+        appProperties: meta.appProperties,
+        metadata: null,
+        format: null,
       ),
     ];
   }
 
   Future<Map<String, dynamic>> downloadBackup(String fileId) async {
     final api = await _ensureDrive();
-    final media = await api.files.get(fileId, downloadOptions: drive.DownloadOptions.bytes) as drive.Media?;
+    final media = await api.files.get(fileId, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media?;
     if (media == null) throw GoogleDriveSyncException('تعذر تنزيل الملف: $fileId');
     final builder = BytesBuilder();
     await for (final chunk in media.stream) {
@@ -664,7 +733,7 @@ class GoogleDriveSyncService {
   Future<void> signOut() async {
     await _appendLog('👋 تسجيل الخروج من Google Drive');
     try {
-      await _authClient?.close();
+      _authClient?.close();
       await _signIn.disconnect();
     } catch (_) {}
     _authClient = null;
@@ -750,7 +819,5 @@ class AuthenticatedClient extends http.BaseClient {
     super.close();
   }
 }
-
-typedef GoogleDriveBackupService = GoogleDriveSyncService;
 
 typedef GoogleDriveBackupService = GoogleDriveSyncService;

@@ -44,7 +44,7 @@ class GoogleDriveAutoSyncTask {
           ? const Duration(minutes: 15)
           : interval,
       initialDelay: const Duration(minutes: 1),
-      constraints: const Constraints(
+      constraints: Constraints(
         networkType: NetworkType.connected,
       ),
       backoffPolicy: BackoffPolicy.exponential,
