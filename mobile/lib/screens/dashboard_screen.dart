@@ -5,6 +5,7 @@ import '../services/local_db.dart';
 import '../services/providers.dart';
 import '../utils/status_utils.dart';
 import '../widgets/smart_sync_widgets.dart';
+import '../providers/smart_sync_provider.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101', '102', '103', '104',
@@ -26,14 +27,16 @@ class DashboardScreen extends ConsumerWidget {
         children: [
           // Header with sync button
           Row(
-            children: const [
-              Text(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
                 'لوحة التحكم - نظام إدارة الفندق',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              _buildQuickSyncButton(context, ref),
             ],
           ),
           
@@ -246,6 +249,69 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildQuickSyncButton(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(smartSyncStatusProvider);
+    
+    return statusAsync.when(
+      loading: () => const SizedBox(
+        width: 40,
+        height: 40,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+      error: (error, stack) => const SizedBox.shrink(),
+      data: (status) {
+        final isEnabled = status['enabled'] as bool? ?? false;
+        final isSyncing = status['is_syncing'] as bool? ?? false;
+        final isSignedIn = status['signed_in'] as bool? ?? false;
+        
+        if (!isSignedIn || !isEnabled) {
+          return const SizedBox.shrink();
+        }
+        
+        return FloatingActionButton.small(
+          heroTag: 'quick_sync_button',
+          onPressed: isSyncing ? null : () async {
+            try {
+              final manager = ref.read(smartSyncManagerProvider);
+              await manager.forceSyncNow();
+              
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم بدء المزامنة'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('فشل في المزامنة: $e'),
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+            }
+          },
+          tooltip: isSyncing ? 'جارِ المزامنة...' : 'مزامنة سريعة',
+          child: isSyncing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.sync, size: 20),
+        );
+      },
     );
   }
 }
