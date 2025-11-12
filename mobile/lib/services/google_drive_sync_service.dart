@@ -123,25 +123,35 @@ class DriveBackupFile {
     required this.fileName,
     required this.createdTime,
     this.size,
-    this.appProperties,
+    Map<String, String>? appProperties,
     this.metadata,
     this.format,
-  });
+  }) : _appProperties = appProperties;
 
   final String fileId;
   final String fileName;
   final DateTime createdTime;
   final int? size;
-  final Map<String, String>? appProperties;
+  final Map<String, String>? _appProperties;
   final Map<String, dynamic>? metadata;
   final BackupFormat? format;
+
+  Map<String, String> get appProperties {
+    if (_appProperties != null) {
+      return _appProperties!;
+    }
+    if (metadata != null) {
+      return metadata!.map((key, value) => MapEntry(key, '${value ?? ''}'));
+    }
+    return const {};
+  }
 
   Map<String, dynamic> toJson() => {
         'file_id': fileId,
         'file_name': fileName,
         'created_time': createdTime.toIso8601String(),
         'size': size ?? 0,
-        if (appProperties != null) 'app_properties': appProperties,
+        if (_appProperties != null) 'app_properties': _appProperties,
         if (metadata != null) 'metadata': metadata,
         if (format != null) 'format': format!.name,
       };
