@@ -108,7 +108,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                               : (checkin == null ? 1 : Time.nightsWithCutoff(checkin, checkout: plannedCheckout));
                           final actualNights = checkin == null
                               ? expectedNights
-                              : Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
+                              : Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? DateTime.now());
                           final totalAmount = (actualNights * price).toDouble();
                           return _BookingRow(
                             index: index,
@@ -144,7 +144,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                         : (checkin == null ? 1 : Time.nightsWithCutoff(checkin, checkout: plannedCheckout));
                     final actualNights = checkin == null
                         ? expectedNights
-                        : Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
+                        : Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? DateTime.now());
                     final totalAmount = (actualNights * price).toDouble();
                     return _BookingRow(
                       index: index + 1,
@@ -316,7 +316,7 @@ Widget _buildHeaderRow(BuildContext context) {
         _HeaderCell('الغرفة'),
         _HeaderCell('سعر الليلة'),
         _HeaderCell('الفترة', flex: 2),
-        _HeaderCell('الليالي'),
+        _HeaderCell('الليالي الفعلية'),
         _HeaderCell('المدفوع'),
         _HeaderCell('المتبقي'),
         _HeaderCell('حالة الدفعة'),
@@ -371,9 +371,7 @@ class _BookingRow extends ConsumerWidget {
     final baseTextStyle = const TextStyle(color: Colors.black);
     final smallTextStyle = baseTextStyle.copyWith(fontSize: 12);
     final boldTextStyle = baseTextStyle.copyWith(fontWeight: FontWeight.w600);
-    final nightsLabel = actualNights != expectedNights
-        ? '$expectedNights (${actualNights} فعلي)'
-        : expectedNights.toString();
+    final nightsLabel = '${actualNights} ليلة';
     final plannedText = plannedCheckout != null ? _formatDate(plannedCheckout!.toIso8601String()) : null;
     final actualText = actualCheckout != null ? _formatDate(actualCheckout!.toIso8601String()) : null;
 

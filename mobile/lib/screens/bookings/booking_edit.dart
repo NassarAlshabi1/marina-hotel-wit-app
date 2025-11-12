@@ -27,7 +27,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   final _roomNumber = TextEditingController();
   final _checkin = TextEditingController();
   final _checkout = TextEditingController();
-  final _expectedNights = TextEditingController(text: '1');
   final _notes = TextEditingController();
 
   String _status = 'محجوزة';
@@ -59,7 +58,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
       _roomNumber.text = b.roomNumber;
       _checkin.text = b.checkinDate;
       _checkout.text = b.checkoutDate ?? '';
-      _expectedNights.text = b.expectedNights.toString();
       _notes.text = b.notes ?? '';
       _status = b.status;
       _idType = b.guestIdType;
@@ -86,7 +84,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     _roomNumber.dispose();
     _checkin.dispose();
     _checkout.dispose();
-    _expectedNights.dispose();
     _notes.dispose();
     // تنظيف متغيرات الدفع المتقدم
     _advancePayment.dispose();
@@ -211,18 +208,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                         onTap: () => _pickDate(_checkout),
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _expectedNights,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'عدد الليالي المتوقع *'),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'مطلوب';
-                          final value = int.tryParse(v.trim());
-                          if (value == null || value < 1) return 'عدد الليالي غير صحيح';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         value: _status,
                         items: _statusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -325,12 +310,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                   final roomNumber = _roomNumber.text.trim();
                   final checkin = _checkin.text.trim();
                   final checkout = _optionalText(_checkout.text);
-                  final expectedNights = int.tryParse(_expectedNights.text.trim()) ?? 1;
                   final checkinDt = _parseDateTime(checkin);
                   final checkoutDt = checkout != null ? _parseDateTime(checkout) : null;
-                  final calculatedNights = checkinDt == null
-                      ? expectedNights
-                      : Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
+                  final expectedNights = checkinDt != null
+                      ? Time.nightsWithCutoff(checkinDt, checkout: checkoutDt)
+                      : 1;
+                  final calculatedNights = expectedNights;
                   final notes = _optionalText(_notes.text);
                   const String? email = null;
 
@@ -421,19 +406,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     final selected = DateTime(date.year, date.month, date.day, time.hour, time.minute);
     setState(() {
       controller.text = _formatDateTime(selected);
-    });
-    if (controller == _checkout || controller == _checkin) {
-      _recalculateExpectedNights();
-    }
-  }
-
-  void _recalculateExpectedNights() {
-    final checkinDt = _parseDateTime(_checkin.text.trim());
-    if (checkinDt == null) return;
-    final checkoutDt = _parseDateTime(_checkout.text.trim());
-    final nights = Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
-    setState(() {
-      _expectedNights.text = nights.toString();
     });
   }
 
