@@ -12,6 +12,33 @@ import 'providers.dart';
 import 'sync_performance_optimizer.dart';
 import 'data_usage_manager.dart';
 
+/// أحداث المزامنة
+class SyncEvent {
+  final SyncEventType type;
+  final String? message;
+  final String? deviceId;
+  final int? recordsCount;
+  final DateTime? timestamp;
+  final String? error;
+
+  SyncEvent({
+    required this.type,
+    this.message,
+    this.deviceId,
+    this.recordsCount,
+    this.timestamp,
+    this.error,
+  });
+}
+
+/// أنواع أحداث المزامنة
+enum SyncEventType {
+  started,
+  success,
+  error,
+  newDataDetected,
+}
+
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
   newerWins, // الأحدث يفوز (افتراضي)
@@ -32,6 +59,10 @@ class SmartSyncManager {
   bool _isSyncing = false;
   bool _isEnabled = false;
   String? _deviceId;
+  
+  // Stream للإشعارات
+  final _syncEventsController = StreamController<SyncEvent>.broadcast();
+  Stream<SyncEvent> get syncEvents => _syncEventsController.stream;
   
   static const String _prefsEnabledKey = 'smart_sync_enabled';
   static const String _prefsIntervalKey = 'smart_sync_interval';
@@ -266,7 +297,7 @@ class SmartSyncManager {
       // تسجيل فشل المزامنة
       SyncPerformanceOptimizer.instance.recordSyncFailure();
       
-      await _notifySyncError();
+      await _notifySyncError(e.toString());
     }
   }
 
@@ -425,17 +456,33 @@ class SmartSyncManager {
 
   /// إشعار نجاح المزامنة
   Future<void> _notifySuccessfulSync(DriveBackupFile backup) async {
-    // يمكن إضافة إشعار للمستخدم هنا
-    debugPrint('🎉 تمت مزامنة البيانات من ${backup.appProperties['device_id'] ?? 'جهاز آخر'}');
-    debugPrint('📅 تاريخ النسخة: ${backup.createdTime}');
+    final deviceId = backup.appProperties['device_id'] ?? 'جهاز آخر';
+    final recordsCountStr = backup.appProperties['records_count'] ?? '0';
+    final recordsCount = int.tryParse(recordsCountStr.toString()) ?? 0;
     
-    final recordsCount = backup.appProperties['records_count'] ?? 'غير محدد';
+    debugPrint('🎉 تمت مزامنة البيانات من $deviceId');
+    debugPrint('📅 تاريخ النسخة: ${backup.createdTime}');
     debugPrint('📊 عدد السجلات: $recordsCount');
+    
+    // إرسال حدث النجاح
+    _syncEventsController.add(SyncEvent(
+      type: SyncEventType.success,
+      deviceId: deviceId,
+      recordsCount: recordsCount,
+      timestamp: backup.createdTime,
+    ));
   }
 
   /// إشعار خطأ في المزامنة
-  Future<void> _notifySyncError() async {
-    debugPrint('❌ فشلت المزامنة التلقائية');
+  Future<void> _notifySyncError([String? errorMessage]) async {
+    debugPrint('❌ فشلت المزامنة التلقائية: $errorMessage');
+    
+    // إرسال حدث الخطأ
+    _syncEventsController.add(SyncEvent(
+      type: SyncEventType.error,
+      error: errorMessage ?? 'فشلت المزامنة التلقائية',
+      timestamp: DateTime.now(),
+    ));
   }
 
   /// الإعدادات والتحكم
@@ -544,12 +591,24 @@ class SmartSyncManager {
     }
     
     debugPrint('🚀 بدء المزامنة اليدوية الفورية...');
+    _notifySyncStarted();
     await _performSyncCheck();
   }
 
+  /// إرسال حدث بدء المزامنة
+  void _notifySyncStarted() {
+    debugPrint('🔄 بدأت المزامنة...');
+    
+    _syncEventsController.add(SyncEvent(
+      type: SyncEventType.started,
+      timestamp: DateTime.now(),
+    ));
+  }
+  
   /// تنظيف الموارد
   void dispose() {
     _stopSyncMonitoring();
+    _syncEventsController.close();
     debugPrint('🛑 مدير المزامنة الذكي: تم التنظيف');
   }
 
