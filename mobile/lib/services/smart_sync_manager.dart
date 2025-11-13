@@ -19,6 +19,29 @@ enum ConflictResolution {
   devicePriority, // أولوية لجهاز معين
 }
 
+enum SyncEventType {
+  started,
+  success,
+  error,
+  newDataDetected,
+}
+
+class SyncEvent {
+  final SyncEventType type;
+  final String? deviceId;
+  final int? recordsCount;
+  final DateTime? timestamp;
+  final String? error;
+
+  SyncEvent({
+    required this.type,
+    this.deviceId,
+    this.recordsCount,
+    this.timestamp,
+    this.error,
+  });
+}
+
 /// مدير المزامنة التلقائية الذكي بين الأجهزة المتعددة
 class SmartSyncManager {
   static SmartSyncManager? _instance;
@@ -29,9 +52,12 @@ class SmartSyncManager {
   GoogleDriveBackupService? _backupService;
   Timer? _syncCheckTimer;
   Timer? _periodicSyncTimer;
+  final StreamController<SyncEvent> _syncEventsController = StreamController<SyncEvent>.broadcast();
   bool _isSyncing = false;
   bool _isEnabled = false;
   String? _deviceId;
+  
+  Stream<SyncEvent> get syncEvents => _syncEventsController.stream;
   
   static const String _prefsEnabledKey = 'smart_sync_enabled';
   static const String _prefsIntervalKey = 'smart_sync_interval';
@@ -188,6 +214,13 @@ class SmartSyncManager {
 
     try {
       _isSyncing = true;
+      _syncEventsController.add(
+        SyncEvent(
+          type: SyncEventType.started,
+          deviceId: _deviceId,
+          timestamp: DateTime.now(),
+        ),
+      );
       debugPrint('🔍 فحص وجود نسخ احتياطية جديدة...');
 
       // جلب قائمة النسخ الاحتياطية من Google Drive
@@ -223,6 +256,14 @@ class SmartSyncManager {
       await _updateLastSyncTime();
       
     } catch (e) {
+      _syncEventsController.add(
+        SyncEvent(
+          type: SyncEventType.error,
+          deviceId: _deviceId,
+          error: e.toString(),
+          timestamp: DateTime.now(),
+        ),
+      );
       debugPrint('❌ خطأ في فحص المزامنة: $e');
     } finally {
       _isSyncing = false;
@@ -231,7 +272,24 @@ class SmartSyncManager {
 
   /// معالجة اكتشاف نسخة احتياطية جديدة مع تحسين الأداء
   Future<void> _handleNewBackupFound(DriveBackupFile newBackup) async {
+    String? deviceId;
+    int? recordsCount;
+
     try {
+      final deviceIdValue = newBackup.appProperties['device_id'];
+      deviceId = deviceIdValue is String ? deviceIdValue : deviceIdValue?.toString();
+      final recordsCountValue = newBackup.appProperties['records_count'];
+      recordsCount = recordsCountValue is int
+          ? recordsCountValue
+          : int.tryParse(recordsCountValue?.toString() ?? '');
+      _syncEventsController.add(
+        SyncEvent(
+          type: SyncEventType.newDataDetected,
+          deviceId: deviceId,
+          recordsCount: recordsCount,
+          timestamp: DateTime.now(),
+        ),
+      );
       debugPrint('🔄 بدء مزامنة النسخة الجديدة...');
 
       // تحميل بيانات النسخة الاحتياطية
@@ -257,6 +315,14 @@ class SmartSyncManager {
       
       // تسجيل نجاح المزامنة لتحسين الأداء
       SyncPerformanceOptimizer.instance.recordSyncSuccess();
+      _syncEventsController.add(
+        SyncEvent(
+          type: SyncEventType.success,
+          deviceId: deviceId ?? _deviceId,
+          recordsCount: recordsCount,
+          timestamp: DateTime.now(),
+        ),
+      );
       
       debugPrint('✅ تمت المزامنة بنجاح');
       
@@ -265,6 +331,14 @@ class SmartSyncManager {
       
       // تسجيل فشل المزامنة
       SyncPerformanceOptimizer.instance.recordSyncFailure();
+      _syncEventsController.add(
+        SyncEvent(
+          type: SyncEventType.error,
+          deviceId: deviceId ?? _deviceId,
+          error: e.toString(),
+          timestamp: DateTime.now(),
+        ),
+      );
       
       await _notifySyncError();
     }
@@ -550,6 +624,7 @@ class SmartSyncManager {
   /// تنظيف الموارد
   void dispose() {
     _stopSyncMonitoring();
+    _syncEventsController.close();
     debugPrint('🛑 مدير المزامنة الذكي: تم التنظيف');
   }
 
