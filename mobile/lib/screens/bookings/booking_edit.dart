@@ -27,12 +27,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   final _roomNumber = TextEditingController();
   final _checkin = TextEditingController();
   final _checkout = TextEditingController();
-  final _expectedNights = TextEditingController(text: '1');
   final _notes = TextEditingController();
 
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
   bool _roomInitialized = false;
+  String? _originalRoomNumber;
   
   // متغيرات الدفع المتقدم
   bool _hasAdvancePayment = false;
@@ -59,11 +59,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
       _roomNumber.text = b.roomNumber;
       _checkin.text = b.checkinDate;
       _checkout.text = b.checkoutDate ?? '';
-      _expectedNights.text = b.expectedNights.toString();
       _notes.text = b.notes ?? '';
       _status = b.status;
       _idType = b.guestIdType;
       _roomInitialized = true;
+      _originalRoomNumber = b.roomNumber;
     } else {
       if (widget.initialRoomNumber != null && widget.initialRoomNumber!.isNotEmpty) {
         _roomNumber.text = widget.initialRoomNumber!;
@@ -86,7 +86,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     _roomNumber.dispose();
     _checkin.dispose();
     _checkout.dispose();
-    _expectedNights.dispose();
     _notes.dispose();
     // تنظيف متغيرات الدفع المتقدم
     _advancePayment.dispose();
@@ -207,19 +206,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                           helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
                           suffixIcon: Icon(Icons.event_busy),
                         ),
-                        onChanged: (_) => _recalculateExpectedNights(),
-                        onTap: () => _pickDate(_checkout),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _expectedNights,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'عدد الليالي المتوقع *'),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'مطلوب';
-                          final value = int.tryParse(v.trim());
-                          if (value == null || value < 1) return 'عدد الليالي غير صحيح';
-                          return null;
+                        onTap: () async {
+                          await _pickDate(_checkout);
+                          _recalculateExpectedNights();
                         },
                       ),
                       const SizedBox(height: 12),
@@ -315,6 +304,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
               FilledButton.icon(
                 onPressed: () async {
                   if (!_formKey.currentState!.validate()) return;
+                  
+                  final roomNumber = _roomNumber.text.trim();
+                  final roomChanged = widget.existing != null && 
+                                     _originalRoomNumber != null && 
+                                     _originalRoomNumber != roomNumber;
+                  
+                  if (roomChanged) {
+                    final confirmed = await _showRoomChangeConfirmation(
+                      _originalRoomNumber!,
+                      roomNumber,
+                    );
+                    if (confirmed != true) return;
+                  }
+                  
                   final name = _guestName.text.trim();
                   final phone = _normalizePhone(_guestPhone.text);
                   final nationality = _guestNationality.text.trim().isEmpty ? 'غير معروف' : _guestNationality.text.trim();
@@ -322,15 +325,14 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                   final idNumber = _guestIdNumber.text.trim();
                   final idIssueDate = _optionalText(_guestIdIssueDate.text);
                   final idIssuePlace = _optionalText(_guestIdIssuePlace.text);
-                  final roomNumber = _roomNumber.text.trim();
                   final checkin = _checkin.text.trim();
                   final checkout = _optionalText(_checkout.text);
-                  final expectedNights = int.tryParse(_expectedNights.text.trim()) ?? 1;
                   final checkinDt = _parseDateTime(checkin);
                   final checkoutDt = checkout != null ? _parseDateTime(checkout) : null;
-                  final calculatedNights = checkinDt == null
-                      ? expectedNights
-                      : Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
+                  final expectedNights = checkinDt != null
+                      ? Time.nightsWithCutoff(checkinDt, checkout: checkoutDt)
+                      : 1;
+                  final calculatedNights = expectedNights;
                   final notes = _optionalText(_notes.text);
                   const String? email = null;
 
@@ -374,11 +376,29 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                       expectedNights: expectedNights,
                       calculatedNights: calculatedNights,
                     );
+                    
+                    if (roomChanged) {
+                      await _transferFinancialData(
+                        bookingId: widget.existing!.id,
+                        oldRoomNumber: _originalRoomNumber!,
+                        newRoomNumber: roomNumber,
+                      );
+                    }
                   }
 
                   await _refreshRoomOccupancy(ref);
 
-                  if (mounted) Navigator.pop(context);
+                  if (mounted) {
+                    if (roomChanged) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('تم تحديث الحجز ونقل البيانات المالية بنجاح'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                    Navigator.pop(context);
+                  }
                 },
                 icon: const Icon(Icons.save),
                 label: const Text('حفظ الحجز'),
@@ -422,19 +442,18 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     setState(() {
       controller.text = _formatDateTime(selected);
     });
-    if (controller == _checkout || controller == _checkin) {
+    if (controller == _checkin || controller == _checkout) {
       _recalculateExpectedNights();
     }
   }
 
   void _recalculateExpectedNights() {
-    final checkinDt = _parseDateTime(_checkin.text.trim());
-    if (checkinDt == null) return;
-    final checkoutDt = _parseDateTime(_checkout.text.trim());
-    final nights = Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
-    setState(() {
-      _expectedNights.text = nights.toString();
-    });
+    final checkinDt = _parseDateTime(_checkin.text);
+    final checkoutDt = _parseDateTime(_checkout.text);
+    if (checkinDt != null && checkoutDt != null) {
+      final nights = Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
+      debugPrint('إعادة حساب الليالي: $nights ليلة من ${_checkin.text} إلى ${_checkout.text}');
+    }
   }
 
   Widget _buildRoomSelector(AsyncValue<List<Room>> roomsAsync) {
@@ -574,6 +593,101 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
 
   String? _optionalText(String text) => text.trim().isEmpty ? null : text.trim();
   String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null;
+  
+  /// عرض رسالة تأكيد عند تغيير الغرفة
+  Future<bool?> _showRoomChangeConfirmation(String oldRoom, String newRoom) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تأكيد تغيير الغرفة'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('سيتم نقل الحجز من الغرفة $oldRoom إلى الغرفة $newRoom'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 18, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Text(
+                          'سيتم تلقائياً:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text('• نقل جميع المدفوعات إلى الغرفة الجديدة'),
+                    Text('• تحديث حالة الغرف'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('هل تريد المتابعة؟'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('نعم، نقل الحجز'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// نقل البيانات المالية عند تغيير الغرفة
+  Future<void> _transferFinancialData({
+    required int bookingId,
+    required String oldRoomNumber,
+    required String newRoomNumber,
+  }) async {
+    try {
+      final db = ref.read(databaseProvider);
+      final paymentsRepo = ref.read(paymentsRepoProvider);
+
+      final payments = await (db.select(db.payments)
+            ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
+            ..where((tbl) => tbl.deletedAt.isNull()))
+          .get();
+
+      for (final payment in payments) {
+        await paymentsRepo.update(
+          payment.id,
+          roomNumber: newRoomNumber,
+        );
+      }
+
+      debugPrint('تم نقل ${payments.length} دفعة من الغرفة $oldRoomNumber إلى $newRoomNumber');
+    } catch (e) {
+      debugPrint('خطأ في نقل البيانات المالية: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تحذير: فشل نقل بعض البيانات المالية - $e'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
   
   /// تسجيل الدفعة المقدمة مع الحجز الجديد
   Future<void> _registerAdvancePayment(int bookingId, String roomNumber) async {

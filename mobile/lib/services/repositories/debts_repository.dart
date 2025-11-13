@@ -1,9 +1,10 @@
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/debts_dao.dart';
+import '../daos/outbox_dao.dart';
 
 class DebtsRepository {
-  DebtsRepository(this.db) : dao = DebtsDao(db);
+  DebtsRepository(this.db) : dao = DebtsDao(db, OutboxDao(db));
 
   final AppDatabase db;
   final DebtsDao dao;

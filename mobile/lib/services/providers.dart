@@ -9,7 +9,7 @@ import 'repositories/payments_repository.dart';
 import 'repositories/debts_repository.dart';
 import 'repositories/notes_repository.dart';
 import 'repositories/simple_notes_repository.dart';
-import 'supabase_realtime_service.dart';
+
 import 'whatsapp_service.dart';
 import '../utils/status_utils.dart';
 
@@ -19,6 +19,8 @@ export '../providers/backup_provider.dart';
 export '../providers/auto_backup_provider.dart';
 // إضافة Smart Sync Providers
 export '../providers/smart_sync_provider.dart';
+// إضافة Ditto Sync Providers
+export '../providers/ditto_sync_provider.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) => DatabaseManager.instance);
 
@@ -58,20 +60,6 @@ final employeesListProvider = StreamProvider.autoDispose((ref) => ref.watch(empl
 final expensesListProvider = StreamProvider.autoDispose((ref) => ref.watch(expensesRepoProvider).watchAll());
 
 final cashTransactionsListProvider = StreamProvider.autoDispose((ref) => ref.watch(cashRepoProvider).watchAll());
-
-final realtimeServiceProvider = Provider<SupabaseRealtimeService>((ref) {
-  final service = SupabaseRealtimeService(ref.read(databaseProvider));
-  ref.onDispose(service.dispose);
-  return service;
-});
-
-final realtimeStatusProvider = StreamProvider<RealtimeStatus>(
-  (ref) => ref.read(realtimeServiceProvider).statusStream,
-);
-
-final realtimeEventsProvider = StreamProvider<RealtimeEvent>(
-  (ref) => ref.read(realtimeServiceProvider).eventsStream,
-);
 
 // Daily Statistics Providers
 final todayPaymentsProvider = FutureProvider.autoDispose((ref) {
