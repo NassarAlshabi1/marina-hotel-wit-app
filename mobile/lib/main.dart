@@ -3,7 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'utils/theme.dart';
 import 'utils/env.dart';
-import 'utils/supabase_config.dart';
+
 import 'screens/dashboard_screen.dart';
 import 'screens/rooms/rooms_list.dart';
 import 'screens/bookings/bookings_list.dart';
@@ -25,19 +25,16 @@ import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'components/admin_layout.dart';
 import 'services/local_db.dart';
-import 'services/supabase_realtime_service.dart';
+import 'services/sync_notification_manager.dart';
+import 'providers/smart_sync_provider.dart';
+
+import 'services/ditto_local_sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  await SupabaseConfig.initialize();
-  
-  // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
+
   await AutoBackupTask.initialize();
-  
-  // تهيئة مدير النسخ التلقائي الذكي (على أساس التغييرات)
   await _initializeSmartAutoBackup();
-  
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
 }
@@ -83,14 +80,10 @@ class App extends ConsumerWidget {
         Future.microtask(() async {
           await Seeder(database).seedIfEmpty();
 
-          final realtimeService = ref.read(realtimeServiceProvider);
-          if (realtimeService.currentStatus == RealtimeStatus.disconnected) {
-            await realtimeService.subscribeToAll();
-            debugPrint('✅ تم تفعيل Realtime Subscriptions');
-          }
+          final dittoService = DittoLocalSyncService();
+          await dittoService.maybeAutoSync(database);
         });
       },
-      fireImmediately: true,
     );
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -158,6 +151,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/reports': const ReportsScreen(),
     '/notes': const NotesScreen(),
     '/settings': const SettingsScreen(),
+
   };
   
   bool _can(String key) {
@@ -165,11 +159,50 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final u = auth.currentUser;
     if (u == null) return false;
     if (u.userType == 'admin' || u.permissions.contains('all')) return true;
-    return u.permissions.contains(key);
+    String k = key;
+    if (k == 'realtime') k = 'dashboard';
+    if (k.startsWith('realtimeemployees')) k = 'employees';
+    if (k.startsWith('realtimeexpenses')) k = 'expenses';
+    if (k.startsWith('realtimepayments')) k = 'payments';
+    return u.permissions.contains(k);
   }
 
   @override
   Widget build(BuildContext context) {
+    // الاستماع لأحداث المزامنة وعرض الإشعارات
+    ref.listen<AsyncValue<SyncEvent>>(syncEventsProvider, (previous, next) {
+      next.whenData((event) {
+        if (!mounted) return;
+        
+        switch (event.type) {
+          case SyncEventType.success:
+            SyncNotificationManager.showSyncSuccess(
+              context,
+              fromDevice: event.deviceId ?? 'جهاز آخر',
+              recordsCount: event.recordsCount ?? 0,
+              syncTime: event.timestamp ?? DateTime.now(),
+            );
+            break;
+          case SyncEventType.error:
+            SyncNotificationManager.showSyncError(
+              context,
+              error: event.error ?? 'حدث خطأ في المزامنة',
+              onRetry: () {
+                final manager = ref.read(smartSyncManagerProvider);
+                manager.forceSyncNow();
+              },
+            );
+            break;
+          case SyncEventType.started:
+            SyncNotificationManager.showSyncStarted(context);
+            break;
+          case SyncEventType.newDataDetected:
+            // يمكن إضافة معالجة للبيانات الجديدة المكتشفة
+            break;
+        }
+      });
+    });
+    
     final routeKey = _currentRoute.replaceAll('/', '');
     final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
     final body = allowed

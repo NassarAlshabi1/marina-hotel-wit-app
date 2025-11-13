@@ -4,6 +4,8 @@ import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import 'guest_edit_screen.dart';
+import 'guest_info.dart';
 
 class SettingsGuestsScreen extends ConsumerStatefulWidget {
   const SettingsGuestsScreen({super.key});
@@ -89,18 +91,23 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  List<_GuestInfo> _groupGuestsFromBookings(List<Booking> bookings) {
-    final Map<String, _GuestInfo> guestMap = {};
+  List<GuestInfo> _groupGuestsFromBookings(List<Booking> bookings) {
+    final Map<String, GuestInfo> guestMap = {};
 
     for (final booking in bookings) {
       final key = '${booking.guestName}_${booking.guestPhone}';
       
       if (!guestMap.containsKey(key)) {
-        guestMap[key] = _GuestInfo(
+        guestMap[key] = GuestInfo(
           name: booking.guestName,
           phone: booking.guestPhone,
           email: booking.guestEmail ?? '',
           nationality: booking.guestNationality,
+          idType: booking.guestIdType,
+          idNumber: booking.guestIdNumber,
+          idIssueDate: booking.guestIdIssueDate,
+          idIssuePlace: booking.guestIdIssuePlace,
+          address: booking.guestAddress,
           bookings: [],
         );
       }
@@ -109,7 +116,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
 
     // ترتيب الحجوزات حسب التاريخ
-    for (final guest in guestMap.values) {
+    for (final GuestInfo guest in guestMap.values) {
       guest.bookings.sort((a, b) => b.checkinDate.compareTo(a.checkinDate));
     }
 
@@ -118,7 +125,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       ..sort((a, b) => b.bookings.first.checkinDate.compareTo(a.bookings.first.checkinDate));
   }
 
-  List<_GuestInfo> _filterGuests(List<_GuestInfo> guests) {
+  List<GuestInfo> _filterGuests(List<GuestInfo> guests) {
     if (_searchQuery.isEmpty) return guests;
     
     return guests.where((guest) {
@@ -155,7 +162,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Widget _buildGuestStats(List<_GuestInfo> guests) {
+  Widget _buildGuestStats(List<GuestInfo> guests) {
     final totalGuests = guests.length;
     final activeGuests = guests.where((g) => 
       g.bookings.any((b) => b.status == 'محجوزة')).length;
@@ -239,7 +246,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Widget _buildGuestCard(BuildContext context, _GuestInfo guest) {
+  Widget _buildGuestCard(BuildContext context, GuestInfo guest) {
     final activeBookings = guest.bookings.where((b) => b.status == 'محجوزة').length;
     final lastVisit = guest.bookings.first.checkinDate;
     
@@ -359,10 +366,37 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: ElevatedButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed: () => _showGuestDetails(context, guest),
                     icon: const Icon(Icons.info, size: 16),
                     label: const Text('التفاصيل'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final updated = await _editGuestData(context, guest);
+                      if (updated && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('تم تحديث بيانات الضيف')),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('تعديل'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _deleteGuest(context, guest),
+                    icon: const Icon(Icons.delete, size: 16),
+                    label: const Text('حذف'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                    ),
                   ),
                 ),
               ],
@@ -408,7 +442,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
   }
 
-  void _showGuestHistory(BuildContext context, _GuestInfo guest) {
+  void _showGuestHistory(BuildContext context, GuestInfo guest) {
     showDialog(
       context: context,
       builder: (context) => Directionality(
@@ -455,7 +489,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  void _showGuestDetails(BuildContext context, _GuestInfo guest) {
+  void _showGuestDetails(BuildContext context, GuestInfo guest) {
     showDialog(
       context: context,
       builder: (context) => Directionality(
@@ -516,20 +550,72 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       ),
     );
   }
-}
 
-class _GuestInfo {
-  final String name;
-  final String phone;
-  final String email;
-  final String nationality;
-  final List<Booking> bookings;
+  Future<bool> _editGuestData(BuildContext context, GuestInfo guest) async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GuestEditScreen(guest: guest),
+      ),
+    );
+    if (updated == true) {
+      ref.invalidate(bookingsListProvider);
+      setState(() {});
+      return true;
+    }
+    return false;
+  }
 
-  _GuestInfo({
-    required this.name,
-    required this.phone,
-    required this.email,
-    required this.nationality,
-    required this.bookings,
-  });
+  Future<void> _deleteGuest(BuildContext context, GuestInfo guest) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('حذف الضيف'),
+          content: Text('سيتم حذف ${guest.bookings.length} حجز مرتبط بهذا الضيف. هل تريد المتابعة؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('حذف'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true) {
+      return;
+    }
+
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final roomsRepo = ref.read(roomsRepoProvider);
+      for (final booking in guest.bookings) {
+        await bookingsRepo.delete(booking.id);
+        await roomsRepo.updateByRoomNumber(booking.roomNumber, status: 'شاغرة');
+      }
+      ref.invalidate(bookingsListProvider);
+      ref.invalidate(roomsListProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم حذف بيانات الضيف بنجاح')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل حذف الضيف: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 }

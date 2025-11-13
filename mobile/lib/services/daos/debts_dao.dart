@@ -2,12 +2,14 @@ import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
+import 'outbox_dao.dart';
 
 part 'debts_dao.g.dart';
 
 @DriftAccessor(tables: [Debts])
 class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
-  DebtsDao(AppDatabase db) : super(db);
+  DebtsDao(AppDatabase db, this.outboxDao) : super(db);
+  final OutboxDao outboxDao;
 
   Future<List<Debt>> list({bool includeDeleted = false}) {
     final query = select(debts);

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import 'backup_cache_service.dart';
 import 'local_db.dart';
 import 'providers.dart';
 
@@ -115,7 +117,6 @@ class GoogleDriveBackupService {
   static const String _backupFilePrefix = 'marina_hotel_backup_';
   static const List<String> _scopes = [drive.DriveApi.driveFileScope];
 
-  /// تحويل رموز خطأ Google Sign-In إلى رسائل عربية واضحة
   static String _getArabicErrorMessage(Object error) {
     if (error is PlatformException) {
       switch (error.code) {
@@ -187,28 +188,26 @@ class GoogleDriveBackupService {
       final arabicError = _getArabicErrorMessage(e);
       debugPrint('❌ خطأ في تسجيل الدخول في Google Drive: $arabicError');
       debugPrint('❌ تفاصيل الخطأ التقنية: $e');
-      
-      // رمي الخطأ مع الرسالة العربية
+
       throw Exception(arabicError);
     }
   }
 
-  /// محاولة استعادة جلسة تسجيل الدخول بشكل صامت
   Future<GoogleSignInAccount?> attemptSilentSignIn() async {
     try {
       if (_googleSignIn == null) {
         _initializeGoogleSignIn();
       }
-      
+
       debugPrint('🔄 محاولة استعادة جلسة Google Drive...');
       GoogleSignInAccount? account = await _googleSignIn!.signInSilently(suppressErrors: true);
-      
+
       if (account != null) {
         debugPrint('🔑 الحصول على رؤوس المصادقة...');
         final headers = await account.authHeaders;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
-        
+
         debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
         return account;
       } else {
@@ -274,14 +273,25 @@ class GoogleDriveBackupService {
     try {
       final db = getDatabase();
 
-      final roomsData = await db.select(db.rooms).get();
-      final bookingsData = await db.select(db.bookings).get();
-      final bookingNotesData = await db.select(db.bookingNotes).get();
-      final employeesData = await db.select(db.employees).get();
-      final expensesData = await db.select(db.expenses).get();
-      final cashTransactionsData = await db.select(db.cashTransactions).get();
-      final paymentsData = await db.select(db.payments).get();
-      final syncStateData = await db.select(db.syncState).get();
+      final results = await Future.wait([
+        db.select(db.rooms).get(),
+        db.select(db.bookings).get(),
+        db.select(db.bookingNotes).get(),
+        db.select(db.employees).get(),
+        db.select(db.expenses).get(),
+        db.select(db.cashTransactions).get(),
+        db.select(db.payments).get(),
+        db.select(db.syncState).get(),
+      ]);
+
+      final roomsData = results[0] as List<dynamic>;
+      final bookingsData = results[1] as List<dynamic>;
+      final bookingNotesData = results[2] as List<dynamic>;
+      final employeesData = results[3] as List<dynamic>;
+      final expensesData = results[4] as List<dynamic>;
+      final cashTransactionsData = results[5] as List<dynamic>;
+      final paymentsData = results[6] as List<dynamic>;
+      final syncStateData = results[7] as List<dynamic>;
 
       final totalRecords =
           roomsData.length +
@@ -326,36 +336,114 @@ class GoogleDriveBackupService {
       throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
     }
 
+    final mainStopwatch = Stopwatch()..start();
+    final Map<String, int> timings = {};
+
     try {
-      final folderId = await getOrCreateBackupFolder();
-
+      final swPrepare = Stopwatch()..start();
       final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
-      final jsonBytes = utf8.encode(jsonString);
+      final dataBytes = Uint8List.fromList(utf8.encode(jsonString));
+      swPrepare.stop();
+      timings['prepare'] = swPrepare.elapsedMilliseconds;
 
+      final swProps = Stopwatch()..start();
       final timestamp = DateTime.now();
       final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
-
       final metadata = backupData['metadata'] as Map<String, dynamic>? ?? {};
+      final appProps = _buildAppProperties(metadata, timestamp);
+      swProps.stop();
+      timings['props'] = swProps.elapsedMilliseconds;
 
-      final driveFile = drive.File()
-        ..name = fileName
-        ..parents = [folderId]
-        ..appProperties = _buildAppProperties(metadata, timestamp);
+      final swUpload = Stopwatch()..start();
 
-      final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
-      final uploadedFile = await _driveApi!.files.create(
-        driveFile,
-        uploadMedia: media,
+      final folderId = await getOrCreateBackupFolder();
+      final existingFiles = await _driveApi!.files.list(
+        q: "parents in '$folderId' and name contains '$_backupFilePrefix' and trashed=false",
+        orderBy: 'createdTime desc',
+        $fields: 'files(id)',
       );
+
+      String? resultId;
+      if (existingFiles.files != null && existingFiles.files!.isNotEmpty) {
+        final latestFileId = existingFiles.files!.first.id!;
+        resultId = await _updateExistingFile(
+          fileId: latestFileId,
+          data: dataBytes,
+          metadata: appProps,
+        );
+      } else {
+        final driveFile = drive.File()
+          ..name = fileName
+          ..parents = [folderId]
+          ..appProperties = appProps;
+
+        final media = drive.Media(Stream.value(dataBytes), dataBytes.length);
+        final uploadedFile = await _driveApi!.files.create(
+          driveFile,
+          uploadMedia: media,
+        );
+        resultId = uploadedFile.id;
+      }
+
+      swUpload.stop();
+      timings['upload'] = swUpload.elapsedMilliseconds;
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
 
-      debugPrint('✅ تم رفع النسخة الاحتياطية: ${uploadedFile.id}');
-      return uploadedFile.id!;
+      await BackupCacheService.saveToCache(dataBytes);
+
+      mainStopwatch.stop();
+
+      debugPrint('⏱️  توزيع الوقت:');
+      debugPrint('   تحضير: ${timings['prepare']}ms (${_percentage(timings['prepare']!, mainStopwatch.elapsedMilliseconds)}%)');
+      debugPrint('   خصائص: ${timings['props']}ms (${_percentage(timings['props']!, mainStopwatch.elapsedMilliseconds)}%)');
+      debugPrint('   رفع/تحديث: ${timings['upload']}ms (${_percentage(timings['upload']!, mainStopwatch.elapsedMilliseconds)}%)');
+      debugPrint('   الإجمالي: ${mainStopwatch.elapsedMilliseconds}ms');
+
+      if (resultId == null) {
+        throw Exception('فشل رفع/تحديث الملف');
+      }
+
+      debugPrint('✅ تم رفع/تحديث النسخة الاحتياطية: $resultId');
+      return resultId;
     } catch (e) {
+      mainStopwatch.stop();
       debugPrint('❌ خطأ في رفع النسخة الاحتياطية: $e');
       rethrow;
+    }
+  }
+
+  String _percentage(int part, int total) {
+    if (total == 0) return '0.0';
+    return ((part / total) * 100).toStringAsFixed(1);
+  }
+
+  Future<String?> _updateExistingFile({
+    required String fileId,
+    required Uint8List data,
+    required Map<String, String> metadata,
+  }) async {
+    try {
+      debugPrint('🔄 تحديث ملف موجود: $fileId');
+
+      final driveFile = drive.File()..appProperties = metadata;
+      final media = drive.Media(
+        Stream.value(data),
+        data.length,
+      );
+
+      final updatedFile = await _driveApi!.files.update(
+        driveFile,
+        fileId,
+        uploadMedia: media,
+      );
+
+      debugPrint('✅ تم تحديث الملف بنجاح: ${updatedFile.id}');
+      return updatedFile.id;
+    } catch (e) {
+      debugPrint('❌ خطأ في تحديث الملف: $e');
+      return null;
     }
   }
 
@@ -376,7 +464,7 @@ class GoogleDriveBackupService {
     addIfPresent('app_version', metadata['app_version']);
     addIfPresent('device_info', metadata['device_info']);
     addIfPresent('format', metadata['format']);
-    addIfPresent('device_id', metadata['device_id']); // معرف الجهاز للمزامنة
+    addIfPresent('device_id', metadata['device_id']);
     addIfPresent('backup_type', metadata['backup_type']);
     addIfPresent('changes_count', metadata['changes_count']);
 
@@ -432,6 +520,9 @@ class GoogleDriveBackupService {
 
       final jsonString = utf8.decode(dataStore);
       final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
+
+      // حفظ نسخة في الكاش لاستخدامها لاحقاً للعرض الفوري
+      await BackupCacheService.saveToCache(Uint8List.fromList(dataStore));
 
       debugPrint('✅ تم تنزيل النسخة الاحتياطية: $fileId');
       return backupData;
@@ -620,7 +711,7 @@ class GoogleDriveBackupService {
     final prefs = await SharedPreferences.getInstance();
     final timeString = prefs.getString(_prefsLastBackupKey);
     return timeString != null ? DateTime.parse(timeString) : null;
-  }
+    }
 
   Future<void> setAutoBackupEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();

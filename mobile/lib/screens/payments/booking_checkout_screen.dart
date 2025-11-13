@@ -38,8 +38,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
           final expectedNights = widget.booking.expectedNights > 0
               ? widget.booking.expectedNights
               : (checkin != null ? Time.nightsWithCutoff(checkin, checkout: plannedCheckout) : 1);
-          final actualNights = checkin != null
-              ? Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout)
+          final actualNights = actualCheckout != null && checkin != null
+              ? Time.nightsWithCutoff(checkin, checkout: actualCheckout)
               : expectedNights;
           
           // التكلفة الإجمالية = الليالي الفعلية × سعر الليلة
