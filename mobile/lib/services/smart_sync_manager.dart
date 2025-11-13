@@ -222,12 +222,11 @@ class SmartSyncManager {
     final mainSw = Stopwatch()..start();
 
     try {
-      _isSyncing = true;
       _syncEventsController.add(
         SyncEvent(
           type: SyncEventType.started,
           deviceId: _deviceId,
-          timestamp: DateTime.now(),
+          timestamp: syncStart,
         ),
       );
       debugPrint('🔍 فحص وجود نسخ احتياطية جديدة...');
@@ -274,17 +273,21 @@ class SmartSyncManager {
   }
 
   /// معالجة اكتشاف نسخة احتياطية جديدة مع تحسين الأداء
-  Future<void> _handleNewBackupFound(DriveBackupFile newBackup) async {
+  Future<void> _handleNewBackupFound(DriveBackupFile newBackup, DateTime syncStart) async {
     String? deviceId;
     int? recordsCount;
+    final mainStopwatch = Stopwatch()..start();
 
     try {
       final deviceIdValue = newBackup.appProperties['device_id'];
       deviceId = deviceIdValue is String ? deviceIdValue : deviceIdValue?.toString();
       final recordsCountValue = newBackup.appProperties['records_count'];
-      recordsCount = recordsCountValue is int
-          ? recordsCountValue
-          : int.tryParse(recordsCountValue?.toString() ?? '');
+      if (recordsCountValue is int) {
+        recordsCount = recordsCountValue;
+      } else if (recordsCountValue is String) {
+        recordsCount = int.tryParse(recordsCountValue);
+      }
+
       _syncEventsController.add(
         SyncEvent(
           type: SyncEventType.newDataDetected,
@@ -295,10 +298,7 @@ class SmartSyncManager {
       );
       debugPrint('🔄 بدء مزامنة النسخة الجديدة...');
 
-      var sw = Stopwatch()..start();
       final backupData = await _backupService!.downloadBackup(newBackup.fileId);
-      sw.stop();
-      timings['download'] = sw.elapsedMilliseconds;
       
       final backupSize = newBackup.size ?? 0;
       if (backupSize > 0) {
@@ -307,10 +307,7 @@ class SmartSyncManager {
       
       final conflictResolution = await getConflictResolution();
       
-      sw = Stopwatch()..start();
       await _performDataSync(backupData, newBackup, conflictResolution);
-      sw.stop();
-      timings['merge'] = sw.elapsedMilliseconds;
 
       await _setLastRemoteTimestamp(newBackup.createdTime);
       await _notifySuccessfulSync(newBackup);
@@ -321,6 +318,23 @@ class SmartSyncManager {
           deviceId: deviceId ?? _deviceId,
           recordsCount: recordsCount,
           timestamp: DateTime.now(),
+        ),
+      );
+
+      mainStopwatch.stop();
+
+      final downloadedRecords = (backupData['metadata']?['total_records'] as int?) ?? 0;
+      final dataSizeKb = (newBackup.size ?? utf8.encode(jsonEncode(backupData)).length) / 1024;
+
+      await SyncPerformanceTracker.recordMetrics(
+        SyncPerformanceMetrics(
+          syncTime: syncStart,
+          uploadedRecords: 0,
+          downloadedRecords: downloadedRecords,
+          durationMs: mainStopwatch.elapsedMilliseconds,
+          dataSizeKb: dataSizeKb.toDouble(),
+          syncType: 'full',
+          success: true,
         ),
       );
       
@@ -336,6 +350,19 @@ class SmartSyncManager {
           deviceId: deviceId ?? _deviceId,
           error: e.toString(),
           timestamp: DateTime.now(),
+        ),
+      );
+
+      await SyncPerformanceTracker.recordMetrics(
+        SyncPerformanceMetrics(
+          syncTime: syncStart,
+          uploadedRecords: 0,
+          downloadedRecords: 0,
+          durationMs: mainStopwatch.elapsedMilliseconds,
+          dataSizeKb: 0,
+          syncType: 'failed',
+          success: false,
+          errorMessage: e.toString(),
         ),
       );
       
