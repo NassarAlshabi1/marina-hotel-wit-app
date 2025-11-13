@@ -20,6 +20,30 @@ enum ConflictResolution {
   devicePriority,
 }
 
+enum SyncEventType {
+  started,
+  success,
+  error,
+  newDataDetected,
+}
+
+class SyncEvent {
+  final SyncEventType type;
+  final String? deviceId;
+  final int? recordsCount;
+  final DateTime? timestamp;
+  final String? error;
+
+  SyncEvent({
+    required this.type,
+    this.deviceId,
+    this.recordsCount,
+    this.timestamp,
+    this.error,
+  });
+}
+
+/// مدير المزامنة التلقائية الذكي بين الأجهزة المتعددة
 class SmartSyncManager {
   static SmartSyncManager? _instance;
   static SmartSyncManager get instance => _instance ??= SmartSyncManager._();
@@ -29,9 +53,12 @@ class SmartSyncManager {
   GoogleDriveBackupService? _backupService;
   Timer? _syncCheckTimer;
   Timer? _periodicSyncTimer;
+  final StreamController<SyncEvent> _syncEventsController = StreamController<SyncEvent>.broadcast();
   bool _isSyncing = false;
   bool _isEnabled = false;
   String? _deviceId;
+  
+  Stream<SyncEvent> get syncEvents => _syncEventsController.stream;
   
   static const String _prefsEnabledKey = 'smart_sync_enabled';
   static const String _prefsIntervalKey = 'smart_sync_interval';
@@ -195,6 +222,14 @@ class SmartSyncManager {
     final mainSw = Stopwatch()..start();
 
     try {
+      _isSyncing = true;
+      _syncEventsController.add(
+        SyncEvent(
+          type: SyncEventType.started,
+          deviceId: _deviceId,
+          timestamp: DateTime.now(),
+        ),
+      );
       debugPrint('🔍 فحص وجود نسخ احتياطية جديدة...');
 
       final backupFiles = await _backupService!.listBackupFiles();
@@ -223,6 +258,14 @@ class SmartSyncManager {
       await _updateLastSyncTime();
       
     } catch (e) {
+      _syncEventsController.add(
+        SyncEvent(
+          type: SyncEventType.error,
+          deviceId: _deviceId,
+          error: e.toString(),
+          timestamp: DateTime.now(),
+        ),
+      );
       debugPrint('❌ خطأ في فحص المزامنة: $e');
     } finally {
       mainSw.stop();
@@ -230,11 +273,26 @@ class SmartSyncManager {
     }
   }
 
-  Future<void> _handleNewBackupFound(DriveBackupFile newBackup, DateTime syncStart) async {
-    final mainStopwatch = Stopwatch()..start();
-    final Map<String, int> timings = {};
+  /// معالجة اكتشاف نسخة احتياطية جديدة مع تحسين الأداء
+  Future<void> _handleNewBackupFound(DriveBackupFile newBackup) async {
+    String? deviceId;
+    int? recordsCount;
 
     try {
+      final deviceIdValue = newBackup.appProperties['device_id'];
+      deviceId = deviceIdValue is String ? deviceIdValue : deviceIdValue?.toString();
+      final recordsCountValue = newBackup.appProperties['records_count'];
+      recordsCount = recordsCountValue is int
+          ? recordsCountValue
+          : int.tryParse(recordsCountValue?.toString() ?? '');
+      _syncEventsController.add(
+        SyncEvent(
+          type: SyncEventType.newDataDetected,
+          deviceId: deviceId,
+          recordsCount: recordsCount,
+          timestamp: DateTime.now(),
+        ),
+      );
       debugPrint('🔄 بدء مزامنة النسخة الجديدة...');
 
       var sw = Stopwatch()..start();
@@ -257,44 +315,30 @@ class SmartSyncManager {
       await _setLastRemoteTimestamp(newBackup.createdTime);
       await _notifySuccessfulSync(newBackup);
       SyncPerformanceOptimizer.instance.recordSyncSuccess();
-
-      mainStopwatch.stop();
-
-      final downloadedRecords = (backupData['metadata']?['total_records'] as int?) ?? 0;
-      final dataSizeKb = (newBackup.size ?? utf8.encode(jsonEncode(backupData)).length) / 1024;
-
-      await SyncPerformanceTracker.recordMetrics(
-        SyncPerformanceMetrics(
-          syncTime: syncStart,
-          uploadedRecords: 0,
-          downloadedRecords: downloadedRecords,
-          durationMs: mainStopwatch.elapsedMilliseconds,
-          dataSizeKb: dataSizeKb.toDouble(),
-          syncType: 'full',
-          success: true,
+      _syncEventsController.add(
+        SyncEvent(
+          type: SyncEventType.success,
+          deviceId: deviceId ?? _deviceId,
+          recordsCount: recordsCount,
+          timestamp: DateTime.now(),
         ),
       );
-
+      
       debugPrint('✅ تمت المزامنة بنجاح');
       
     } catch (e) {
       mainStopwatch.stop();
       debugPrint('❌ خطأ في مزامنة البيانات: $e');
       SyncPerformanceOptimizer.instance.recordSyncFailure();
-
-      await SyncPerformanceTracker.recordMetrics(
-        SyncPerformanceMetrics(
-          syncTime: syncStart,
-          uploadedRecords: 0,
-          downloadedRecords: 0,
-          durationMs: mainStopwatch.elapsedMilliseconds,
-          dataSizeKb: 0,
-          syncType: 'failed',
-          success: false,
-          errorMessage: e.toString(),
+      _syncEventsController.add(
+        SyncEvent(
+          type: SyncEventType.error,
+          deviceId: deviceId ?? _deviceId,
+          error: e.toString(),
+          timestamp: DateTime.now(),
         ),
       );
-
+      
       await _notifySyncError();
     }
   }
@@ -578,6 +622,7 @@ class SmartSyncManager {
 
   void dispose() {
     _stopSyncMonitoring();
+    _syncEventsController.close();
     debugPrint('🛑 مدير المزامنة الذكي: تم التنظيف');
   }
 
