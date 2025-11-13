@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/backup_provider.dart';
 import '../../services/auth_local_store.dart';
 import '../../utils/theme.dart';
 import '../../components/admin_layout.dart';
@@ -44,6 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
+    final backupState = ref.watch(backupStatusProvider);
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -70,6 +72,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
+                        if (!backupState.isSignedIn && backupState.hasSkippedDriveLogin) ..[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.warning_amber, color: Colors.orange.shade800, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'المزامنة التلقائية معطلة. يمكنك تفعيلها من الإعدادات لاحقاً.',
+                                    style: TextStyle(color: Colors.orange.shade900, fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         TextFormField(
                           controller: _usernameCtrl,
                           decoration: const InputDecoration(
