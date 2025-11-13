@@ -231,23 +231,40 @@ class SmartSyncManager {
 
   /// معالجة اكتشاف نسخة احتياطية جديدة مع تحسين الأداء
   Future<void> _handleNewBackupFound(DriveBackupFile newBackup) async {
+    final stopwatch = Stopwatch()..start();
+    
     try {
       debugPrint('🔄 بدء مزامنة النسخة الجديدة...');
+      debugPrint('   نوع النسخة: ${newBackup.format.name}');
 
-      // تحميل بيانات النسخة الاحتياطية
-      final backupData = await _backupService!.downloadBackup(newBackup.fileId);
+      // تحديد نوع النسخة (Delta أو Full)
+      final isDeltaBackup = newBackup.format == BackupFormat.delta || 
+                            newBackup.format == BackupFormat.deltaCompressed;
+
+      if (isDeltaBackup) {
+        debugPrint('📦 نسخة Delta - تطبيق التغييرات فقط...');
+        
+        // تنزيل وتطبيق Delta مباشرة
+        await _backupService!.downloadAndApplyDelta(newBackup.fileId);
+        
+      } else {
+        debugPrint('📦 نسخة كاملة - تحميل جميع البيانات...');
+        
+        // تحميل بيانات النسخة الاحتياطية
+        final backupData = await _backupService!.downloadBackup(newBackup.fileId);
+        
+        // تحديد استراتيجية حل التضارب
+        final conflictResolution = await getConflictResolution();
+        
+        // تنفيذ المزامنة
+        await _performDataSync(backupData, newBackup, conflictResolution);
+      }
       
       // تسجيل استهلاك البيانات
       final backupSize = newBackup.size ?? 0;
       if (backupSize > 0) {
         await DataUsageManager.instance.recordDataUsage(backupSize.toDouble());
       }
-      
-      // تحديد استراتيجية حل التضارب
-      final conflictResolution = await getConflictResolution();
-      
-      // تنفيذ المزامنة
-      await _performDataSync(backupData, newBackup, conflictResolution);
       
       // حفظ timestamp النسخة الجديدة
       await _setLastRemoteTimestamp(newBackup.createdTime);
@@ -258,7 +275,11 @@ class SmartSyncManager {
       // تسجيل نجاح المزامنة لتحسين الأداء
       SyncPerformanceOptimizer.instance.recordSyncSuccess();
       
+      stopwatch.stop();
+      
       debugPrint('✅ تمت المزامنة بنجاح');
+      debugPrint('   الوقت الكلي: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint('   نوع المزامنة: ${isDeltaBackup ? "Delta" : "Full"}');
       
     } catch (e) {
       debugPrint('❌ خطأ في مزامنة البيانات: $e');
@@ -545,6 +566,36 @@ class SmartSyncManager {
     
     debugPrint('🚀 بدء المزامنة اليدوية الفورية...');
     await _performSyncCheck();
+  }
+
+  /// رفع التغييرات المحلية إلى Google Drive
+  Future<String?> pushLocalChanges({
+    bool forceFullBackup = false,
+  }) async {
+    if (_backupService == null || !_backupService!.isSignedIn) {
+      debugPrint('⚠️ غير متصل بـ Google Drive');
+      return null;
+    }
+
+    try {
+      debugPrint('📤 بدء رفع التغييرات المحلية...');
+      
+      final fileId = await _backupService!.createSmartBackup(
+        forceFullBackup: forceFullBackup,
+      );
+      
+      if (fileId == 'NO_CHANGES') {
+        debugPrint('ℹ️ لا توجد تغييرات للرفع');
+        return null;
+      }
+      
+      debugPrint('✅ تم رفع التغييرات بنجاح: $fileId');
+      return fileId;
+      
+    } catch (e) {
+      debugPrint('❌ خطأ في رفع التغييرات: $e');
+      return null;
+    }
   }
 
   /// تنظيف الموارد

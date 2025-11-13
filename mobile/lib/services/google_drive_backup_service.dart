@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -12,8 +13,16 @@ import 'package:workmanager/workmanager.dart';
 
 import 'local_db.dart';
 import 'providers.dart';
+import 'compression_service.dart';
+import 'delta_sync_service.dart';
 
-enum BackupFormat { json, sqlite }
+enum BackupFormat { 
+  json,
+  jsonCompressed,
+  delta,
+  deltaCompressed,
+  sqlite 
+}
 
 class DriveBackupFile {
   final String fileId;
@@ -321,42 +330,91 @@ class GoogleDriveBackupService {
     }
   }
 
-  Future<String> uploadBackup(Map<String, dynamic> backupData) async {
+  Future<String> uploadBackup(
+    Map<String, dynamic> backupData, {
+    BackupFormat format = BackupFormat.jsonCompressed,
+  }) async {
     if (_driveApi == null) {
       throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
     }
 
+    final stopwatch = Stopwatch()..start();
+
     try {
       final folderId = await getOrCreateBackupFolder();
-
-      final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
-      final jsonBytes = utf8.encode(jsonString);
-
       final timestamp = DateTime.now();
-      final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
 
+      debugPrint('📤 بدء رفع النسخة الاحتياطية...');
+      debugPrint('   التنسيق: ${format.name}');
+
+      Uint8List dataBytes;
+      String fileExtension;
+      int originalSize = 0;
+
+      switch (format) {
+        case BackupFormat.jsonCompressed:
+          final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
+          originalSize = utf8.encode(jsonString).length;
+          dataBytes = CompressionService.compressJson(backupData);
+          fileExtension = 'json.gz';
+          break;
+
+        case BackupFormat.json:
+          final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
+          dataBytes = Uint8List.fromList(utf8.encode(jsonString));
+          originalSize = dataBytes.length;
+          fileExtension = 'json';
+          break;
+
+        default:
+          throw Exception('تنسيق النسخ الاحتياطي غير مدعوم: $format');
+      }
+
+      final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.$fileExtension';
       final metadata = backupData['metadata'] as Map<String, dynamic>? ?? {};
+      metadata['format'] = format.name;
+      metadata['original_size'] = originalSize;
+      metadata['compressed_size'] = dataBytes.length;
 
       final driveFile = drive.File()
         ..name = fileName
         ..parents = [folderId]
         ..appProperties = _buildAppProperties(metadata, timestamp);
 
-      final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
+      final uploadStart = DateTime.now();
+      final media = drive.Media(Stream.value(dataBytes), dataBytes.length);
       final uploadedFile = await _driveApi!.files.create(
         driveFile,
         uploadMedia: media,
       );
+      final uploadDuration = DateTime.now().difference(uploadStart);
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
 
-      debugPrint('✅ تم رفع النسخة الاحتياطية: ${uploadedFile.id}');
+      stopwatch.stop();
+
+      debugPrint('✅ تم رفع النسخة الاحتياطية بنجاح');
+      debugPrint('   File ID: ${uploadedFile.id}');
+      debugPrint('   حجم البيانات: ${_formatBytes(dataBytes.length)}');
+      if (format == BackupFormat.jsonCompressed) {
+        final ratio = ((1 - (dataBytes.length / originalSize)) * 100).toStringAsFixed(1);
+        debugPrint('   نسبة الضغط: $ratio%');
+      }
+      debugPrint('   وقت الرفع: ${uploadDuration.inSeconds}s');
+      debugPrint('   الوقت الكلي: ${stopwatch.elapsedMilliseconds}ms');
+
       return uploadedFile.id!;
     } catch (e) {
       debugPrint('❌ خطأ في رفع النسخة الاحتياطية: $e');
       rethrow;
     }
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
   }
 
   Map<String, String> _buildAppProperties(Map<String, dynamic> metadata, DateTime timestamp) {
@@ -419,7 +477,11 @@ class GoogleDriveBackupService {
       throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
     }
 
+    final stopwatch = Stopwatch()..start();
+
     try {
+      debugPrint('📥 بدء تنزيل النسخة الاحتياطية...');
+
       final media = await _driveApi!.files.get(
         fileId,
         downloadOptions: drive.DownloadOptions.fullMedia,
@@ -430,10 +492,25 @@ class GoogleDriveBackupService {
         dataStore.addAll(data);
       }
 
-      final jsonString = utf8.decode(dataStore);
-      final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
+      final dataBytes = Uint8List.fromList(dataStore);
+      debugPrint('   حجم البيانات المحملة: ${_formatBytes(dataBytes.length)}');
 
-      debugPrint('✅ تم تنزيل النسخة الاحتياطية: $fileId');
+      Map<String, dynamic> backupData;
+
+      if (CompressionService.isCompressed(dataBytes)) {
+        debugPrint('   النسخة مضغوطة، جاري فك الضغط...');
+        backupData = CompressionService.decompressToJson(dataBytes);
+      } else {
+        debugPrint('   النسخة غير مضغوطة، جاري التحليل...');
+        final jsonString = utf8.decode(dataStore);
+        backupData = jsonDecode(jsonString) as Map<String, dynamic>;
+      }
+
+      stopwatch.stop();
+
+      debugPrint('✅ تم تنزيل النسخة الاحتياطية بنجاح');
+      debugPrint('   الوقت المستغرق: ${stopwatch.elapsedMilliseconds}ms');
+
       return backupData;
     } catch (e) {
       debugPrint('❌ خطأ في تنزيل النسخة الاحتياطية: $e');
@@ -689,6 +766,187 @@ class GoogleDriveBackupService {
       debugPrint('🗑️ تم حذف النسخة الاحتياطية: $fileId');
     } catch (e) {
       debugPrint('❌ خطأ في حذف النسخة الاحتياطية: $e');
+      rethrow;
+    }
+  }
+
+  /// رفع حزمة Delta (التغييرات فقط)
+  Future<String> uploadDeltaPackage(DeltaPackage package, {
+    bool compressed = true,
+  }) async {
+    if (_driveApi == null) {
+      throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
+    }
+
+    final stopwatch = Stopwatch()..start();
+
+    try {
+      final folderId = await getOrCreateBackupFolder();
+      final timestamp = DateTime.now();
+
+      debugPrint('📤 بدء رفع حزمة Delta...');
+      debugPrint('   عدد التغييرات: ${package.changesCount}');
+
+      final packageJson = package.toJson();
+      Uint8List dataBytes;
+      String fileExtension;
+      int originalSize = 0;
+
+      if (compressed) {
+        originalSize = utf8.encode(jsonEncode(packageJson)).length;
+        dataBytes = CompressionService.compressJson(packageJson);
+        fileExtension = 'delta.gz';
+      } else {
+        final jsonString = const JsonEncoder.withIndent('  ').convert(packageJson);
+        dataBytes = Uint8List.fromList(utf8.encode(jsonString));
+        originalSize = dataBytes.length;
+        fileExtension = 'delta';
+      }
+
+      final fileName = '${_backupFilePrefix}delta_${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.$fileExtension';
+
+      final metadata = <String, String>{
+        'app_name': 'MarinaHotel',
+        'backup_timestamp': timestamp.toIso8601String(),
+        'backup_type': 'delta',
+        'changes_count': package.changesCount.toString(),
+        'format': compressed ? 'deltaCompressed' : 'delta',
+        'original_size': originalSize.toString(),
+        'compressed_size': dataBytes.length.toString(),
+      };
+
+      final driveFile = drive.File()
+        ..name = fileName
+        ..parents = [folderId]
+        ..appProperties = metadata;
+
+      final uploadStart = DateTime.now();
+      final media = drive.Media(Stream.value(dataBytes), dataBytes.length);
+      final uploadedFile = await _driveApi!.files.create(
+        driveFile,
+        uploadMedia: media,
+      );
+      final uploadDuration = DateTime.now().difference(uploadStart);
+
+      await DeltaSyncService.setLastSyncTimestamp(timestamp);
+      await DeltaSyncService.clearPendingChanges();
+
+      stopwatch.stop();
+
+      debugPrint('✅ تم رفع حزمة Delta بنجاح');
+      debugPrint('   File ID: ${uploadedFile.id}');
+      debugPrint('   حجم البيانات: ${_formatBytes(dataBytes.length)}');
+      if (compressed) {
+        final ratio = ((1 - (dataBytes.length / originalSize)) * 100).toStringAsFixed(1);
+        debugPrint('   نسبة الضغط: $ratio%');
+      }
+      debugPrint('   وقت الرفع: ${uploadDuration.inSeconds}s');
+      debugPrint('   الوقت الكلي: ${stopwatch.elapsedMilliseconds}ms');
+
+      return uploadedFile.id!;
+    } catch (e) {
+      debugPrint('❌ خطأ في رفع حزمة Delta: $e');
+      rethrow;
+    }
+  }
+
+  /// تنزيل وتطبيق حزمة Delta
+  Future<void> downloadAndApplyDelta(String fileId) async {
+    if (_driveApi == null) {
+      throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
+    }
+
+    final stopwatch = Stopwatch()..start();
+
+    try {
+      debugPrint('📥 بدء تنزيل حزمة Delta...');
+
+      final media = await _driveApi!.files.get(
+        fileId,
+        downloadOptions: drive.DownloadOptions.fullMedia,
+      ) as drive.Media;
+
+      final List<int> dataStore = [];
+      await for (final data in media.stream) {
+        dataStore.addAll(data);
+      }
+
+      final dataBytes = Uint8List.fromList(dataStore);
+      debugPrint('   حجم البيانات المحملة: ${_formatBytes(dataBytes.length)}');
+
+      Map<String, dynamic> packageJson;
+
+      if (CompressionService.isCompressed(dataBytes)) {
+        debugPrint('   الحزمة مضغوطة، جاري فك الضغط...');
+        packageJson = CompressionService.decompressToJson(dataBytes);
+      } else {
+        debugPrint('   الحزمة غير مضغوطة، جاري التحليل...');
+        final jsonString = utf8.decode(dataStore);
+        packageJson = jsonDecode(jsonString) as Map<String, dynamic>;
+      }
+
+      final package = DeltaPackage.fromJson(packageJson);
+      debugPrint('   عدد التغييرات: ${package.changesCount}');
+
+      await DeltaSyncService.applyDeltaPackage(package);
+
+      stopwatch.stop();
+
+      debugPrint('✅ تم تنزيل وتطبيق حزمة Delta بنجاح');
+      debugPrint('   الوقت المستغرق: ${stopwatch.elapsedMilliseconds}ms');
+    } catch (e) {
+      debugPrint('❌ خطأ في تنزيل/تطبيق حزمة Delta: $e');
+      rethrow;
+    }
+  }
+
+  /// إنشاء ورفع نسخة احتياطية ذكية (Delta أو Full حسب الحاجة)
+  Future<String> createSmartBackup({
+    bool forceFullBackup = false,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+
+    try {
+      debugPrint('🧠 بدء النسخ الاحتياطي الذكي...');
+
+      final lastSync = await DeltaSyncService.getLastSyncTimestamp();
+      final shouldUseDelta = !forceFullBackup && lastSync != null;
+
+      if (shouldUseDelta) {
+        debugPrint('   الطريقة: Delta Sync (التغييرات فقط)');
+        
+        final deltaPackage = await DeltaSyncService.createDeltaPackage();
+        
+        if (deltaPackage == null || deltaPackage.changesCount == 0) {
+          debugPrint('ℹ️ لا توجد تغييرات للمزامنة');
+          return 'NO_CHANGES';
+        }
+
+        final fileId = await uploadDeltaPackage(deltaPackage);
+        
+        stopwatch.stop();
+        debugPrint('✅ تم النسخ الاحتياطي الذكي (Delta)');
+        debugPrint('   التغييرات: ${deltaPackage.changesCount}');
+        debugPrint('   الوقت الكلي: ${stopwatch.elapsedMilliseconds}ms');
+        
+        return fileId;
+      } else {
+        debugPrint('   الطريقة: Full Backup (نسخة كاملة)');
+        
+        final backupData = await exportDatabaseToJson();
+        final fileId = await uploadBackup(backupData, format: BackupFormat.jsonCompressed);
+        
+        await DeltaSyncService.setLastSyncTimestamp(DateTime.now());
+        await DeltaSyncService.clearPendingChanges();
+        
+        stopwatch.stop();
+        debugPrint('✅ تم النسخ الاحتياطي الذكي (Full)');
+        debugPrint('   الوقت الكلي: ${stopwatch.elapsedMilliseconds}ms');
+        
+        return fileId;
+      }
+    } catch (e) {
+      debugPrint('❌ خطأ في النسخ الاحتياطي الذكي: $e');
       rethrow;
     }
   }
