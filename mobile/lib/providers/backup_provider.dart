@@ -8,6 +8,7 @@ import '../services/local_backup_service.dart';
 import '../services/file_management_service.dart';
 import '../services/auto_backup_task.dart';
 import '../services/smart_sync_manager.dart';
+import '../services/auth_local_store.dart';
 
 import '../services/sqlite_backup_restore.dart';
 
@@ -81,6 +82,7 @@ class BackupState {
   final bool hasStoragePermission;
   final Map<String, dynamic>? backupFolderInfo;
   final String? lastSqliteBackupPath;
+  final bool hasSkippedDriveLogin;
 
   BackupState({
     this.status = BackupStatus.idle,
@@ -96,6 +98,7 @@ class BackupState {
     this.hasStoragePermission = false,
     this.backupFolderInfo,
     this.lastSqliteBackupPath,
+    this.hasSkippedDriveLogin = false,
   });
 
   BackupState copyWith({
@@ -112,6 +115,7 @@ class BackupState {
     bool? hasStoragePermission,
     Map<String, dynamic>? backupFolderInfo,
     String? lastSqliteBackupPath,
+    bool? hasSkippedDriveLogin,
   }) {
     return BackupState(
       status: status ?? this.status,
@@ -127,6 +131,7 @@ class BackupState {
       hasStoragePermission: hasStoragePermission ?? this.hasStoragePermission,
       backupFolderInfo: backupFolderInfo ?? this.backupFolderInfo,
       lastSqliteBackupPath: lastSqliteBackupPath ?? this.lastSqliteBackupPath,
+      hasSkippedDriveLogin: hasSkippedDriveLogin ?? this.hasSkippedDriveLogin,
     );
   }
 
@@ -204,6 +209,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         }
       }
 
+      // جلب حالة تخطي Google Drive
+      final authStore = AuthLocalStore();
+      final hasSkipped = await authStore.getSkippedGoogleDrive();
+
       state = state.copyWith(
         lastBackupTime: lastBackup,
         lastLocalBackupTime: lastLocalBackup,
@@ -221,6 +230,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           enableGoogleDriveBackup: autoEnabled,
           backupType: resolvedBackupType,
         ),
+        hasSkippedDriveLogin: hasSkipped,
       );
     } catch (e) {
       debugPrint('❌ خطأ في تهيئة BackupStatusNotifier: $e');
@@ -253,11 +263,16 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
         }
         
+        // إلغاء حالة التخطي بعد نجاح تسجيل الدخول
+        final authStore = AuthLocalStore();
+        await authStore.setSkippedGoogleDrive(false);
+        
         state = state.copyWith(
           status: BackupStatus.success,
           message: 'تم تسجيل الدخول بنجاح',
           signedInAccount: account,
           availableBackups: backups,
+          hasSkippedDriveLogin: false,
         );
       } else {
         state = state.copyWith(
@@ -300,6 +315,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'خطأ في تسجيل الخروج: ${e.toString()}',
       );
     }
+  }
+
+  /// تعيين حالة تخطي Google Drive
+  Future<void> setSkippedDriveLogin(bool skipped) async {
+    final authStore = AuthLocalStore();
+    await authStore.setSkippedGoogleDrive(skipped);
+    state = state.copyWith(hasSkippedDriveLogin: skipped);
   }
 
   /// إنشاء نسخة احتياطية

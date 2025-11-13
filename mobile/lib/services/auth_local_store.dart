@@ -8,6 +8,7 @@ class AuthLocalStore {
   static const _kPermissionsMap = 'user_permissions';
   static const _kRememberMe = 'remember_me';
   static const _kAuthType = 'auth_type';
+  static const _kSkippedDrive = 'skipped_google_drive';
 
   static const List<String> permissionKeys = [
     'dashboard',
@@ -164,5 +165,15 @@ class AuthLocalStore {
     if (username == 'admin') {
       map[username] = ['all'];
     }
+  }
+
+  Future<void> setSkippedGoogleDrive(bool skipped) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kSkippedDrive, skipped);
+  }
+
+  Future<bool> getSkippedGoogleDrive() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kSkippedDrive) ?? false;
   }
 }
