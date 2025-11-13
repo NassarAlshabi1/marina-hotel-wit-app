@@ -203,7 +203,7 @@ mobile/
 │   └── utils/
 │       ├── ditto_config.dart                ← إعدادات Ditto
 │       └── env.dart                         ← متغيرات البيئة
-├── pubspec.yaml                             ← ditto_live: ^4.12.4
+├── pubspec.yaml                             ← ditto_live: 4.10.2
 └── DITTO_SYNC_DATA_DOCUMENTATION.md         ← التوثيق الكامل
 ```
 

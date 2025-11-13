@@ -61,7 +61,7 @@
 - supabase_flutter: ^2.6.0
 
 # تم الاحتفاظ بـ:
-✅ ditto_live: ^4.12.4
+✅ ditto_live: 4.10.2
 ```
 
 #### `mobile/lib/main.dart`

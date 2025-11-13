@@ -106,7 +106,7 @@ $ grep -r "supabase\|Supabase" mobile/lib/ --include="*.dart"
 ```yaml
 # pubspec.yaml
 dependencies:
-  ditto_live: ^4.12.4  ✅
+  ditto_live: 4.10.2  ✅
   # supabase_flutter: تم الحذف ✅
 ```
 
