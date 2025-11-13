@@ -283,7 +283,7 @@ class SmartSyncManager {
       deviceId = deviceIdValue is String ? deviceIdValue : deviceIdValue?.toString();
       final recordsCountValue = newBackup.appProperties['records_count'];
       if (recordsCountValue is int) {
-        recordsCount = recordsCountValue as int;
+        recordsCount = recordsCountValue;
       } else if (recordsCountValue is String) {
         recordsCount = int.tryParse(recordsCountValue);
       }
