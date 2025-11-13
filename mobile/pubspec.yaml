@@ -42,6 +42,7 @@ dependencies:
   share_plus: ^10.1.1
   permission_handler: ^11.3.1
   device_info_plus: ^10.1.2
+  crypto: ^3.0.3
   # Ditto realtime sync SDK
   ditto_live: ^4.12.4
   # Required for file-based SQLite backup/restore helpers

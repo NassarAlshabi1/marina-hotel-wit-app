@@ -784,6 +784,71 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// Upload raw binary data to Google Drive
+  /// Used by OptimizedSyncService for compressed delta packages
+  Future<String> uploadRawData(
+    Uint8List data,
+    String fileName, {
+    Map<String, String>? appProperties,
+  }) async {
+    if (_driveApi == null) {
+      throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
+    }
+
+    try {
+      final folderId = await getOrCreateBackupFolder();
+      
+      final driveFile = drive.File()
+        ..name = fileName
+        ..parents = [folderId]
+        ..appProperties = appProperties;
+
+      final media = drive.Media(
+        Stream.value(data),
+        data.length,
+        contentType: 'application/octet-stream',
+      );
+
+      final result = await _driveApi!.files.create(
+        driveFile,
+        uploadMedia: media,
+      );
+
+      debugPrint('✅ Uploaded raw file: $fileName (${result.id})');
+      return result.id!;
+    } catch (e) {
+      debugPrint('❌ Error uploading raw data: $e');
+      rethrow;
+    }
+  }
+
+  /// Download raw binary data from Google Drive
+  /// Used by OptimizedSyncService for compressed delta packages
+  Future<Uint8List> downloadBackupRaw(String fileId) async {
+    if (_driveApi == null) {
+      throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
+    }
+
+    try {
+      final media = await _driveApi!.files.get(
+        fileId,
+        downloadOptions: drive.DownloadOptions.fullMedia,
+      ) as drive.Media;
+
+      final dataStore = <int>[];
+      await for (final data in media.stream) {
+        dataStore.addAll(data);
+      }
+
+      final result = Uint8List.fromList(dataStore);
+      debugPrint('✅ Downloaded raw file: $fileId (${result.length} bytes)');
+      return result;
+    } catch (e) {
+      debugPrint('❌ Error downloading raw data: $e');
+      rethrow;
+    }
+  }
+
   void dispose() {
     _driveApi = null;
     _backupFolderId = null;
