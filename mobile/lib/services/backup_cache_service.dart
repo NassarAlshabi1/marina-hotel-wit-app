@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class BackupCacheService {
-  static const String _cacheFileName = 'last_backup_cache.gz';
+  static const String _cacheFileName = 'last_backup_cache.json';
   static const String _cacheTimestampKey = 'cache_timestamp';
 
   static Future<void> saveToCache(Uint8List compressedData) async {
