@@ -30,7 +30,6 @@ import 'services/local_db.dart';
 import 'services/sync_notification_manager.dart';
 import 'providers/smart_sync_provider.dart';
 
-import 'services/ditto_local_sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -82,8 +81,6 @@ class App extends ConsumerWidget {
         Future.microtask(() async {
           await Seeder(database).seedIfEmpty();
 
-          final dittoService = DittoLocalSyncService();
-          await dittoService.maybeAutoSync(database);
         });
       },
     );

@@ -12,7 +12,6 @@ import 'comprehensive_backup_screen.dart';
 import 'auto_backup_settings_screen.dart';
 import 'smart_sync_settings_screen.dart';
 import 'sync_performance_settings_screen.dart';
-import 'ditto_settings_screen.dart';
 
 
 class SettingsScreen extends ConsumerWidget {
@@ -116,16 +115,6 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SmartSyncSettingsScreen()),
-              ),
-            ),
-            _SettingsItem(
-              title: 'إعدادات Ditto',
-              subtitle: 'مراقبة حالة المزامنة السحابية',
-              icon: Icons.cloud_sync,
-              color: Colors.blueGrey,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const DittoSettingsScreen()),
               ),
             ),
             _SettingsItem(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/ditto_sync_provider.dart';
 import '../../services/providers.dart';
 import '../../services/smart_sync_manager.dart';
 import '../../providers/smart_sync_provider.dart';
@@ -168,35 +167,12 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
             ],
           ),
         ),
-        data: (status) {
-          final autoSyncAsync = ref.watch(dittoAutoSyncStatusProvider);
-          return autoSyncAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('خطأ في تحميل إعدادات مزامنة Ditto: $error'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      ref.invalidate(dittoAutoSyncStatusProvider);
-                    },
-                    child: const Text('إعادة المحاولة'),
-                  ),
-                ],
-              ),
-            ),
-            data: (autoSyncEnabled) => _buildSettingsUI(status, autoSyncEnabled),
-          );
-        },
+        data: (status) => _buildSettingsUI(status),
       ),
     );
   }
 
-  Widget _buildSettingsUI(Map<String, dynamic> status, bool dittoAutoSyncEnabled) {
+  Widget _buildSettingsUI(Map<String, dynamic> status) {
     final isEnabled = status['enabled'] as bool;
     final isSyncing = status['is_syncing'] as bool;
     final syncInterval = status['sync_interval_minutes'] as int;
@@ -221,9 +197,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
           
           const SizedBox(height: 20),
 
-          _buildDittoAutoSyncCard(dittoAutoSyncEnabled),
-          
-          const SizedBox(height: 20),
           
           // إعدادات الفترة الزمنية
           if (isEnabled) _buildIntervalCard(syncInterval),
@@ -335,36 +308,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
     );
   }
 
-  Widget _buildDittoAutoSyncCard(bool currentValue) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'مزامنة Ditto السحابية عند تشغيل التطبيق',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'عند التفعيل سيتم تهيئة Ditto وتشغيل مزامنة كاملة تلقائياً مع كل تشغيل للتطبيق.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              title: const Text('تشغيل المزامنة التلقائية لـ Ditto عند فتح التطبيق'),
-              subtitle: Text(currentValue
-                  ? 'مفعل - سيتم تشغيل المزامنة فور فتح التطبيق'
-                  : 'معطل - المزامنة تتم يدوياً فقط'),
-              value: currentValue,
-              onChanged: _isLoading ? null : _toggleDittoAutoSync,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildIntervalCard(int currentInterval) {
     return Card(
@@ -589,34 +532,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
     );
   }
 
-  Future<void> _toggleDittoAutoSync(bool enabled) async {
-    setState(() => _isLoading = true);
-    try {
-      final service = ref.read(dittoSyncServiceProvider);
-      await service.setAutoSyncEnabled(enabled);
-      if (enabled) {
-        final database = ref.read(databaseProvider);
-        await service.maybeAutoSync(database);
-      }
-      ref.invalidate(dittoAutoSyncStatusProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(enabled
-              ? '✅ سيتم تشغيل مزامنة Ditto تلقائياً عند فتح التطبيق'
-              : '⏸️ تم إيقاف المزامنة التلقائية لـ Ditto'),
-          backgroundColor: enabled ? Colors.green : Colors.orange,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ تعذر تحديث إعداد مزامنة Ditto: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-    setState(() => _isLoading = false);
-  }
 
   String _getIntervalLabel(int minutes) {
     if (minutes < 60) {

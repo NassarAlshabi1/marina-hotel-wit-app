@@ -72,7 +72,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        if (!backupState.isSignedIn && backupState.hasSkippedDriveLogin) ..[
+                        if (!backupState.isSignedIn && backupState.hasSkippedDriveLogin) ...[
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
