@@ -1,14 +1,14 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum AuthType { local, supabase, hybrid }
+enum AuthType { local }
 
 class AuthLocalStore {
   static const _kCurrentUser = 'current_user';
   static const _kPermissionsMap = 'user_permissions';
   static const _kRememberMe = 'remember_me';
   static const _kAuthType = 'auth_type';
-  static const _kSupabaseSession = 'supabase_session';
+
 
   static const List<String> permissionKeys = [
     'dashboard',
@@ -92,7 +92,7 @@ class AuthLocalStore {
     final rememberMe = await getRememberMe();
     
     await prefs.remove(_kCurrentUser);
-    await prefs.remove(_kSupabaseSession);
+
     
     // إذا كان "تذكرني" غير مفعل، امسح كل شيء
     if (!rememberMe) {
@@ -128,16 +128,7 @@ class AuthLocalStore {
     );
   }
 
-  // دوال Supabase session
-  Future<void> saveSupabaseSession(String sessionString) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kSupabaseSession, sessionString);
-  }
 
-  Future<String?> loadSupabaseSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_kSupabaseSession);
-  }
 
   Future<List<String>> getPermissions(String username) async {
     if (username == 'admin') return ['all'];
