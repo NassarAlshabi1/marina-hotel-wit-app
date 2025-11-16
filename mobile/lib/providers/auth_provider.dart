@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_local_store.dart';
-import '../utils/supabase_config.dart';
+
 import '../utils/env.dart';
 
 class AuthUser {
@@ -75,7 +75,7 @@ class AuthState {
   final AuthUser? currentUser;
   final bool rememberMe;
   final AuthType authType;
-  final bool isSupabaseConnected;
+
   
   const AuthState({
     required this.isAuthenticated,
@@ -84,7 +84,7 @@ class AuthState {
     this.currentUser,
     this.rememberMe = false,
     this.authType = AuthType.local,
-    this.isSupabaseConnected = false,
+
   });
 
   AuthState copyWith({
@@ -94,7 +94,7 @@ class AuthState {
     AuthUser? currentUser,
     bool? rememberMe,
     AuthType? authType,
-    bool? isSupabaseConnected,
+
   }) => AuthState(
         isAuthenticated: isAuthenticated ?? this.isAuthenticated,
         isRestoring: isRestoring ?? this.isRestoring,
@@ -102,7 +102,7 @@ class AuthState {
         currentUser: currentUser ?? this.currentUser,
         rememberMe: rememberMe ?? this.rememberMe,
         authType: authType ?? this.authType,
-        isSupabaseConnected: isSupabaseConnected ?? this.isSupabaseConnected,
+
       );
 }
 
@@ -131,20 +131,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final user = AuthUser.fromJson(json);
     final authType = await _store.getAuthType();
     
-    bool supabaseConnected = false;
-    try {
-      final sessionString = await _store.loadSupabaseSession();
-      if (sessionString != null && sessionString.isNotEmpty) {
-        await SupabaseConfig.client.auth.recoverSession(sessionString);
-        
-        if (SupabaseConfig.isLoggedIn) {
-          supabaseConnected = true;
-          debugPrint('✅ تم استعادة جلسة Supabase');
-        }
-      }
-    } catch (e) {
-      debugPrint('⚠️ فشلت استعادة جلسة Supabase: $e');
-    }
+
     
     state = AuthState(
       isAuthenticated: true,
@@ -152,7 +139,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       currentUser: user,
       rememberMe: rememberMe,
       authType: authType,
-      isSupabaseConnected: supabaseConnected,
+
     );
   }
 
@@ -182,30 +169,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       authType: AuthType.local,
     );
 
-    bool supabaseConnected = false;
-    try {
-      if (Env.supabaseLoginEmail.isNotEmpty && Env.supabaseLoginPassword.isNotEmpty) {
-        await SupabaseConfig.signInWithEmail(
-          email: Env.supabaseLoginEmail,
-          password: Env.supabaseLoginPassword,
-        );
-        
-        final session = SupabaseConfig.client.auth.currentSession;
-        if (session != null) {
-          await _store.saveSupabaseSession(jsonEncode(session.toJson()));
-          await _store.setAuthType(AuthType.hybrid);
-          supabaseConnected = true;
-          debugPrint('✅ Supabase تم الاتصال بـ');
-        }
-      }
-    } catch (e) {
-      debugPrint('⚠️ فشل الاتصال بـ Supabase: $e');
-    }
-    
-    state = state.copyWith(
-      isSupabaseConnected: supabaseConnected,
-      authType: supabaseConnected ? AuthType.hybrid : AuthType.local,
-    );
+
   }
 
   Future<void> logout() async {
@@ -222,17 +186,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> checkSupabaseConnection() async {
-    try {
-      final isConnected = await SupabaseConfig.testConnection();
-      state = state.copyWith(isSupabaseConnected: isConnected);
-      return isConnected;
-    } catch (e) {
-      debugPrint('❌ خطأ في فحص اتصال Supabase: $e');
-      state = state.copyWith(isSupabaseConnected: false);
-      return false;
-    }
-  }
+
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());

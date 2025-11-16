@@ -5,7 +5,7 @@ import '../services/local_db.dart';
 import '../services/providers.dart';
 import '../services/sync_service.dart';
 import '../utils/status_utils.dart';
-import '../widgets/live_update_banner.dart';
+
 import '../widgets/smart_sync_widgets.dart';
 import 'bookings/booking_edit.dart';
 import 'bookings/bookings_list.dart';
@@ -28,8 +28,7 @@ class DashboardScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const LiveUpdateBanner(),
-          const SizedBox(height: 12),
+
           // Header with sync button
           Row(
             children: [
