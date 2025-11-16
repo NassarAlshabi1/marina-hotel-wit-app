@@ -74,9 +74,7 @@ class AppScaffold extends ConsumerWidget {
           ],
         ),
         body: SafeArea(
-          child: Column(
-            child: body,
-          ),
+          child: body,
         ),
         floatingActionButton: fab,
       ),
