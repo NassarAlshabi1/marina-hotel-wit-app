@@ -7,6 +7,8 @@ import '../services/sync_service.dart';
 import '../utils/status_utils.dart';
 import '../widgets/live_update_banner.dart';
 import '../widgets/smart_sync_widgets.dart';
+import 'bookings/booking_edit.dart';
+import 'bookings/bookings_list.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101', '102', '103', '104',
@@ -276,8 +278,20 @@ class DashboardScreen extends ConsumerWidget {
       // منطق خاص للغرف الجديدة
       _showNewRoomDialog(context, roomNumber);
     } else if (room != null) {
-      // منطق للغرف الموجودة
-      _showRoomDetailsDialog(context, room);
+      // فحص حالة الغرفة
+      final isAvailable = StatusUtils.isRoomAvailable(room.status);
+      final isOccupied = StatusUtils.isRoomOccupied(room.status);
+      
+      if (isAvailable) {
+        // الغرفة شاغرة - انتقال لشاشة حجز جديد
+        _navigateToNewBooking(context, roomNumber);
+      } else if (isOccupied) {
+        // الغرفة محجوزة - عرض تفاصيل الغرفة
+        _showRoomDetailsDialog(context, room);
+      } else {
+        // حالة غير معروفة - عرض تفاصيل
+        _showRoomDetailsDialog(context, room);
+      }
     } else {
       // غرف غير مسجلة
       ScaffoldMessenger.of(context).showSnackBar(
@@ -287,6 +301,26 @@ class DashboardScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+  
+  /// الانتقال إلى شاشة حجز جديد مع رقم الغرفة المحدد
+  void _navigateToNewBooking(BuildContext context, String roomNumber) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => BookingEditScreen(
+          initialRoomNumber: roomNumber,
+        ),
+      ),
+    );
+  }
+  
+  /// الانتقال إلى قائمة الحجوزات لغرفة محددة
+  void _navigateToBookingsForRoom(BuildContext context, String roomNumber) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const BookingsListScreen(),
+      ),
+    );
   }
   
   /// إظهار حوار للغرف الجديدة 503 و 504
@@ -382,7 +416,7 @@ class DashboardScreen extends ConsumerWidget {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // يمكن إضافة منطق للانتقال لشاشة الحجوزات
+                _navigateToBookingsForRoom(context, room.roomNumber);
               },
               child: const Text('عرض الحجز'),
             ),
@@ -390,7 +424,7 @@ class DashboardScreen extends ConsumerWidget {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // يمكن إضافة منطق للانتقال لشاشة الحجز الجديد
+                _navigateToNewBooking(context, room.roomNumber);
               },
               child: const Text('حجز جديد'),
             ),
