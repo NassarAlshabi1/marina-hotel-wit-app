@@ -10,6 +10,8 @@ import '../services/auto_backup_task.dart';
 import '../services/smart_sync_manager.dart';
 
 import '../services/sqlite_backup_restore.dart';
+import '../services/restore_fix_service.dart';
+import '../services/local_db.dart';
 
 // حالة النسخ الاحتياطي
 enum BackupStatus { idle, signIn, uploading, downloading, restoring, success, error, checkingPermissions, importingFile }
@@ -384,6 +386,22 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       await _backupService.restoreFromBackup(downloaded);
 
+      // تشغيل الإصلاح التلقائي
+      state = state.copyWith(
+        status: BackupStatus.restoring,
+        message: 'تشغيل عملية الإصلاح التلقائي...',
+        progress: 0.8,
+      );
+
+      final fixService = RestoreFixService(DatabaseManager.instance);
+      final fixReport = await fixService.runAutoFixAfterRestore();
+
+      if (!fixReport.success) {
+        debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
+      } else {
+        debugPrint('✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
+      }
+
       state = state.copyWith(
         status: BackupStatus.success,
         message: 'تم استعادة البيانات بنجاح',
@@ -590,6 +608,22 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       await _localBackupService.restoreFromLocalBackup(filePath);
 
+      // تشغيل الإصلاح التلقائي
+      state = state.copyWith(
+        status: BackupStatus.restoring,
+        message: 'تشغيل عملية الإصلاح التلقائي...',
+        progress: 0.8,
+      );
+
+      final fixService = RestoreFixService(DatabaseManager.instance);
+      final fixReport = await fixService.runAutoFixAfterRestore();
+
+      if (!fixReport.success) {
+        debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
+      } else {
+        debugPrint('✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
+      }
+
       state = state.copyWith(
         status: BackupStatus.success,
         message: 'تم استعادة البيانات من النسخة المحلية بنجاح',
@@ -643,6 +677,22 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       );
 
       await SqliteBackupRestore.restoreDatabase(sourcePath);
+
+      // تشغيل الإصلاح التلقائي
+      state = state.copyWith(
+        status: BackupStatus.restoring,
+        message: 'تشغيل عملية الإصلاح التلقائي...',
+        progress: 0.8,
+      );
+
+      final fixService = RestoreFixService(DatabaseManager.instance);
+      final fixReport = await fixService.runAutoFixAfterRestore();
+
+      if (!fixReport.success) {
+        debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
+      } else {
+        debugPrint('✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
+      }
 
       state = state.copyWith(
         status: BackupStatus.success,

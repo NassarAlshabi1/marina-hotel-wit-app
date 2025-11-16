@@ -4,8 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../screens/notes/notes_screen.dart';
 import '../services/providers.dart';
 import '../services/sync_service.dart';
-import '../widgets/live_update_banner.dart';
-import '../widgets/realtime_status_indicator.dart';
+
 
 class AppScaffold extends ConsumerWidget {
   const AppScaffold({super.key, required this.title, required this.body, this.actions, this.fab});
@@ -26,8 +25,7 @@ class AppScaffold extends ConsumerWidget {
         appBar: AppBar(
           title: Text(title),
           actions: [
-            const RealtimeStatusIndicator(),
-            const SizedBox(width: 8),
+
             IconButton(
               onPressed: () {
                 Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotesScreen()));
@@ -76,12 +74,7 @@ class AppScaffold extends ConsumerWidget {
           ],
         ),
         body: SafeArea(
-          child: Column(
-            children: [
-              const LiveUpdateBanner(),
-              Expanded(child: body),
-            ],
-          ),
+          child: body,
         ),
         floatingActionButton: fab,
       ),

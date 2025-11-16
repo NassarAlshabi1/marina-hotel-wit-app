@@ -162,6 +162,19 @@ class SyncState extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class RestoreFixLog extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get fixId => text().unique()(); // UUID
+  IntColumn get executedAt => integer()(); // Epoch timestamp
+  TextColumn get targetTable => text()(); // 'bookings', 'rooms', 'payments'
+  IntColumn get targetRecordId => integer()(); // Record ID
+  TextColumn get fieldName => text()(); // Field that was changed
+  TextColumn get oldValue => text().nullable()(); // JSON of old value
+  TextColumn get newValue => text().nullable()(); // JSON of new value
+  TextColumn get reason => text()(); // Why it was changed
+  TextColumn get fixType => text()(); // 'nights_recalc', 'room_status', 'payment_check'
+}
+
 @DriftDatabase(tables: [
   Rooms,
   Bookings,
@@ -174,11 +187,12 @@ class SyncState extends Table {
   Debts,
   Outbox,
   SyncState,
+  RestoreFixLog,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -212,6 +226,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 7) {
             await m.addColumn(payments, payments.referenceNumber);
+          }
+          if (from < 10) {
+            await m.createTable(restoreFixLog);
           }
         },
       );

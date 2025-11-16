@@ -43,16 +43,6 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Deep Links for Supabase Auth -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <!-- تغيير الـ scheme والـ host حسب مشروع Supabase الخاص بك -->
-                <data
-                    android:scheme="io.supabase.marinahotel"
-                    android:host="login-callback" />
-            </intent-filter>
         </activity>
         
         <!-- File Provider for sharing backup files -->

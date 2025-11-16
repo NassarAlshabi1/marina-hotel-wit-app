@@ -5,15 +5,17 @@ import '../services/local_db.dart';
 import '../services/providers.dart';
 import '../services/sync_service.dart';
 import '../utils/status_utils.dart';
-import '../widgets/live_update_banner.dart';
+
 import '../widgets/smart_sync_widgets.dart';
+import 'bookings/booking_edit.dart';
+import 'bookings/bookings_list.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101', '102', '103', '104',
   '201', '202', '203', '204',
   '301', '302', '303', '304',
   '401', '402', '403', '404',
-  '501', '502',
+  '501', '502', '503', '504',
 ];
 
 class DashboardScreen extends ConsumerWidget {
@@ -26,8 +28,7 @@ class DashboardScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const LiveUpdateBanner(),
-          const SizedBox(height: 12),
+
           // Header with sync button
           Row(
             children: [
@@ -226,19 +227,28 @@ class DashboardScreen extends ConsumerWidget {
                 final room = roomsMap[roomNumber];
                 final bool isOccupied = room != null && StatusUtils.isRoomOccupied(room.status);
                 final bool isAvailable = room != null && StatusUtils.isRoomAvailable(room.status);
+                final bool isNewRoom = roomNumber == '503' || roomNumber == '504';
                 final Color backgroundColor = isOccupied
                     ? Colors.red.shade600
-                    : (isAvailable ? Colors.green.shade600 : Colors.grey.shade500);
+                    : (isAvailable 
+                        ? Colors.green.shade600 
+                        : (isNewRoom 
+                            ? Colors.blue.shade400  // لون أزرق للغرف الجديدة
+                            : Colors.grey.shade500));
                 final bool useDarkText = backgroundColor.computeLuminance() > 0.5;
                 final Color foregroundColor = useDarkText ? Colors.black : Colors.white;
-                final String tooltipText = room != null ? room.status : 'غير مسجل في النظام';
+                final String tooltipText = room != null 
+                    ? room.status 
+                    : (roomNumber == '503' || roomNumber == '504') 
+                        ? 'غرفة جديدة - قيد التجهيز'
+                        : 'غير مسجل في النظام';
 
                 return Tooltip(
                   message: tooltipText,
                   child: SizedBox(
                     width: 60, // تصغير الأزرار
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () => _handleRoomTap(context, roomNumber, room),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: backgroundColor,
                         foregroundColor: foregroundColor,
@@ -257,6 +267,171 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+  
+  /// التعامل مع الضغط على أزرار الغرف
+  void _handleRoomTap(BuildContext context, String roomNumber, Room? room) {
+    if (roomNumber == '503' || roomNumber == '504') {
+      // منطق خاص للغرف الجديدة
+      _showNewRoomDialog(context, roomNumber);
+    } else if (room != null) {
+      // فحص حالة الغرفة
+      final isAvailable = StatusUtils.isRoomAvailable(room.status);
+      final isOccupied = StatusUtils.isRoomOccupied(room.status);
+      
+      if (isAvailable) {
+        // الغرفة شاغرة - انتقال لشاشة حجز جديد
+        _navigateToNewBooking(context, roomNumber);
+      } else if (isOccupied) {
+        // الغرفة محجوزة - عرض تفاصيل الغرفة
+        _showRoomDetailsDialog(context, room);
+      } else {
+        // حالة غير معروفة - عرض تفاصيل
+        _showRoomDetailsDialog(context, room);
+      }
+    } else {
+      // غرف غير مسجلة
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+  
+  /// الانتقال إلى شاشة حجز جديد مع رقم الغرفة المحدد
+  void _navigateToNewBooking(BuildContext context, String roomNumber) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => BookingEditScreen(
+          initialRoomNumber: roomNumber,
+        ),
+      ),
+    );
+  }
+  
+  /// الانتقال إلى قائمة الحجوزات لغرفة محددة
+  void _navigateToBookingsForRoom(BuildContext context, String roomNumber) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const BookingsListScreen(),
+      ),
+    );
+  }
+  
+  /// إظهار حوار للغرف الجديدة 503 و 504
+  void _showNewRoomDialog(BuildContext context, String roomNumber) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('الغرفة $roomNumber'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.hotel,
+              size: 48,
+              color: Colors.blue,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'غرفة جديدة قيد التجهيز',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text('نوع الغرفة: سرير فردي'),
+            const Text('السعر المتوقع: 7,000 ريال'),
+            const Text('الحالة: قيد التجهيز'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: const Text(
+                '💡 هذه الغرفة متوفرة في الواجهة فقط ولم تُضف إلى قاعدة البيانات بعد.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.blue,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('موافق'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// إظهار تفاصيل الغرف الموجودة
+  void _showRoomDetailsDialog(BuildContext context, Room room) {
+    final isOccupied = StatusUtils.isRoomOccupied(room.status);
+    final statusColor = isOccupied ? Colors.red : Colors.green;
+    final statusIcon = isOccupied ? Icons.person : Icons.person_outline;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('الغرفة ${room.roomNumber}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(statusIcon, color: statusColor, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  room.status,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text('نوع الغرفة: ${room.type}'),
+            Text('السعر: ${room.price.toStringAsFixed(0)} ريال'),
+          ],
+        ),
+        actions: [
+          if (isOccupied)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToBookingsForRoom(context, room.roomNumber);
+              },
+              child: const Text('عرض الحجز'),
+            ),
+          if (!isOccupied)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToNewBooking(context, room.roomNumber);
+              },
+              child: const Text('حجز جديد'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('إغلاق'),
+          ),
+        ],
       ),
     );
   }
