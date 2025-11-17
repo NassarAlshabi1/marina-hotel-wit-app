@@ -4,7 +4,6 @@ import '../screens/bookings/bookings_list.dart';
 import '../screens/rooms/rooms_main.dart';
 import '../screens/reports/reports_screen.dart';
 import '../screens/settings/settings_screen.dart';
-import '../screens/notes/notes_screen.dart';
 
 class AppBottomNavShell extends StatefulWidget {
   const AppBottomNavShell({super.key});

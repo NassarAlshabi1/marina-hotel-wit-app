@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -321,8 +319,6 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.0,
       );
 
-      final format = state.autoSettings.backupFormat;
-
       state = state.copyWith(
         message: 'رفع النسخة الاحتياطية...',
         progress: 0.5,
@@ -566,8 +562,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.0,
       );
 
-      final format = state.autoSettings.backupFormat;
-      final filePath = await _localBackupService.createLocalBackup(format: format);
+      final backupPath = await _localBackupService.createLocalBackup(
+        format: state.autoSettings.backupFormat,
+      );
       
       state = state.copyWith(
         message: 'تحديث قائمة النسخ...',
@@ -581,12 +578,14 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       state = state.copyWith(
         status: BackupStatus.success,
-        message: 'تم إنشاء النسخة الاحتياطية المحلية بنجاح',
+        message: 'تم إنشاء النسخة الاحتياطية المحلية بنجاح في: $backupPath',
         progress: 1.0,
         localBackups: localBackups,
         lastLocalBackupTime: lastLocalBackup,
         backupFolderInfo: folderInfo,
       );
+
+      debugPrint('💾 Local backup saved at $backupPath');
     } catch (e) {
       debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية المحلية: $e');
       state = state.copyWith(
@@ -735,7 +734,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.0,
       );
 
-      final filePath = await _localBackupService.importBackupFromFile();
+      final importedPath = await _localBackupService.importBackupFromFile();
       
       state = state.copyWith(
         message: 'تحديث قائمة النسخ...',
@@ -748,11 +747,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       state = state.copyWith(
         status: BackupStatus.success,
-        message: 'تم استيراد النسخة الاحتياطية بنجاح',
+        message: 'تم استيراد النسخة الاحتياطية من: $importedPath',
         progress: 1.0,
         localBackups: localBackups,
         backupFolderInfo: folderInfo,
       );
+
+      debugPrint('📥 Imported backup from $importedPath');
     } catch (e) {
       debugPrint('❌ خطأ في استيراد النسخة الاحتياطية: $e');
       state = state.copyWith(
@@ -776,9 +777,11 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       state = state.copyWith(
         status: BackupStatus.success,
-        message: 'تم تصدير النسخة الاحتياطية إلى: Downloads',
+        message: 'تم تصدير النسخة الاحتياطية إلى: $exportPath',
         progress: 1.0,
       );
+
+      debugPrint('📤 Exported backup to $exportPath');
     } catch (e) {
       debugPrint('❌ خطأ في تصدير النسخة الاحتياطية: $e');
       state = state.copyWith(
@@ -923,9 +926,11 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       state = state.copyWith(
         status: BackupStatus.success,
-        message: 'تم تصدير البيانات إلى CSV بنجاح',
+        message: 'تم تصدير البيانات إلى CSV: $csvPath',
         progress: 1.0,
       );
+
+      debugPrint('📊 CSV exported to $csvPath');
     } catch (e) {
       debugPrint('❌ خطأ في تصدير البيانات إلى CSV: $e');
       state = state.copyWith(
@@ -949,9 +954,11 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       state = state.copyWith(
         status: BackupStatus.success,
-        message: 'تم إنشاء التقرير الشامل بنجاح',
+        message: 'تم إنشاء التقرير الشامل في: $reportPath',
         progress: 1.0,
       );
+
+      debugPrint('📝 Readable report generated at $reportPath');
     } catch (e) {
       debugPrint('❌ خطأ في إنشاء التقرير الشامل: $e');
       state = state.copyWith(
@@ -995,9 +1002,11 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       state = state.copyWith(
         status: BackupStatus.success,
-        message: 'تم دمج النسخ الاحتياطية بنجاح',
+        message: 'تم دمج النسخ الاحتياطية في: $mergedPath',
         progress: 1.0,
       );
+
+      debugPrint('🗂️ Backup files merged into $mergedPath');
     } catch (e) {
       debugPrint('❌ خطأ في دمج النسخ الاحتياطية: $e');
       state = state.copyWith(

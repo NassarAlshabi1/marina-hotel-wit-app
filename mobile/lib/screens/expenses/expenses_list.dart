@@ -136,7 +136,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
     final date = TextEditingController(text: existing?.date ?? Time.nowDateString());
     selectedType = existing?.expenseType ?? 'اخرى';
 
-    final employeesList = employees ?? await ref.read(employeesRepoProvider).watchAll().first;
+    final availableEmployees = employees ?? await ref.read(employeesRepoProvider).watchAll().first;
     int? selectedEmployeeId = existing?.relatedId;
 
     final ok = await showDialog<bool>(
@@ -178,8 +178,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
                         setState(() {
                           selectedType = value;
                           if (selectedType == _salaryType) {
-                            if (employees?.isNotEmpty == true) {
-                              selectedEmployeeId ??= employees!.first.id;
+                            if (availableEmployees.isNotEmpty) {
+                              selectedEmployeeId ??= availableEmployees.first.id;
                             }
                           } else {
                             selectedEmployeeId = null;
@@ -189,17 +189,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
                     ),
                     if (selectedType == _salaryType) ...[
                       const SizedBox(height: 12),
-                      if (employees?.isEmpty ?? true)
+                      if (availableEmployees.isEmpty)
                         const Text('لا يوجد موظفين مسجلين حالياً.'),
-                      if (employees?.isNotEmpty == true)
+                      if (availableEmployees.isNotEmpty)
                         DropdownButtonFormField<int>(
                           value: selectedEmployeeId,
                           decoration: const InputDecoration(labelText: 'الموظف'),
-                          items: employees?.map((employee) => DropdownMenuItem<int>(
+                          items: availableEmployees
+                              .map((employee) => DropdownMenuItem<int>(
                                     value: employee.id,
                                     child: Text(employee.name),
                                   ))
-                              .toList() ?? [],
+                              .toList(),
                           onChanged: (value) => setState(() => selectedEmployeeId = value),
                         ),
                     ],

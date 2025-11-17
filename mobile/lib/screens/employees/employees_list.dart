@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:drift/drift.dart' as d;
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
-import 'package:uuid/uuid.dart';
 
 class EmployeesListScreen extends ConsumerWidget {
   const EmployeesListScreen({super.key});
