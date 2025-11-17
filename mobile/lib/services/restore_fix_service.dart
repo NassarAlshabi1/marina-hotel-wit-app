@@ -672,4 +672,3 @@ class _RoomStatusUpdate {
   final Room room;
   final String status;
 }
-}

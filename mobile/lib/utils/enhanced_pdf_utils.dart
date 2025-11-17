@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:pdf/pdf.dart';
+import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 
 /// ألوان مخصصة للـ PDF
@@ -488,7 +488,7 @@ class EnhancedPdfUtils {
   static pw.Widget buildStatisticsBox({
     required String title,
     required String value,
-    required String subtitle,
+    String? subtitle,
     required ArabicPdfFonts fonts,
     PdfColor? color,
     String? icon,
@@ -541,15 +541,16 @@ class EnhancedPdfUtils {
             ),
             textAlign: pw.TextAlign.center,
           ),
-          pw.Text(
-            subtitle,
-            style: pw.TextStyle(
-              font: fonts.regular,
-              fontSize: 9,
-              color: PdfColors.textWhite,
+          if (subtitle != null && subtitle.isNotEmpty)
+            pw.Text(
+              subtitle,
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 9,
+                color: PdfColors.textWhite,
+              ),
+              textAlign: pw.TextAlign.center,
             ),
-            textAlign: pw.TextAlign.center,
-          ),
         ],
       ),
     );

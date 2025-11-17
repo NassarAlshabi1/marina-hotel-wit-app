@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pdf/pdf.dart';
+import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -158,6 +158,7 @@ class EnhancedPaymentReceipt {
   }
 
   pw.Widget _buildReceiptInfo(ArabicPdfFonts fonts) {
+    final paymentDate = DateTime.tryParse(payment.paymentDate) ?? DateTime.now();
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -172,7 +173,7 @@ class EnhancedPaymentReceipt {
         ),
         pw.SizedBox(height: 4),
         pw.Text(
-          'تاريخ الدفع: ${EnhancedPdfUtils.formatDateTime(payment.paymentDate)}',
+          'تاريخ الدفع: ${EnhancedPdfUtils.formatDateTime(paymentDate)}',
           style: PdfTextStyles.bodySmall(fonts.regular),
         ),
       ],
@@ -257,8 +258,6 @@ class EnhancedPaymentReceipt {
         _buildInfoRow('طريقة الدفع:', _getPaymentMethodName(), fonts),
         pw.SizedBox(height: 8),
         
-        if (payment.referenceNumber != null)
-          _buildInfoRow('رقم المرجع:', payment.referenceNumber!, fonts),
       ],
     );
   }
@@ -633,12 +632,15 @@ class EnhancedInvoice {
       content: [
         EnhancedPdfUtils.buildProfessionalTable(
           headers: ['التاريخ', 'المبلغ', 'طريقة الدفع', 'المحاسب'],
-          data: payments.map((payment) => [
-            EnhancedPdfUtils.formatDateTime(payment.paymentDate),
-            EnhancedPdfUtils.formatCurrency(payment.amount),
-            _getPaymentMethodName(payment.paymentMethod),
-            payment.receivedBy ?? '',
-          ]).toList(),
+          data: payments.map((payment) {
+            final date = DateTime.tryParse(payment.paymentDate) ?? DateTime.now();
+            return [
+              EnhancedPdfUtils.formatDateTime(date),
+              EnhancedPdfUtils.formatCurrency(payment.amount),
+              _getPaymentMethodName(payment.paymentMethod),
+              'غير متوفر',
+            ];
+          }).toList(),
           fonts: fonts,
           headerColor: PdfColors.success,
         ),
