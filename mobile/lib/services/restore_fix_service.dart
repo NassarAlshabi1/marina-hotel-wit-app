@@ -398,15 +398,17 @@ class RestoreFixService {
             ..where((d) => d.deletedAt.isNull()))
           .get();
       if (debts.isNotEmpty && expectedTotal != null) {
-        final recalculatedRemaining = expectedTotal - totalPaid;
-        final normalizedRemaining = double.parse(recalculatedRemaining.toStringAsFixed(2));
-        final normalizedPaid = double.parse(totalPaid.toStringAsFixed(2));
-        final normalizedTotal = double.parse(expectedTotal.toStringAsFixed(2));
-        final isSettled = normalizedRemaining <= 0 ? 1 : 0;
+        final expectedCents = (expectedTotal * 100).round();
+        final paidCents = (totalPaid * 100).round();
+        final remainingCents = expectedCents - paidCents;
+        final isSettled = remainingCents <= 0 ? 1 : 0;
         for (final debt in debts) {
-          final shouldUpdate = (debt.totalAmount - normalizedTotal).abs() > 0.01 ||
-              (debt.paidAmount - normalizedPaid).abs() > 0.01 ||
-              (debt.remainingAmount - normalizedRemaining).abs() > 0.01 ||
+          final debtTotalCents = (debt.totalAmount * 100).round();
+          final debtPaidCents = (debt.paidAmount * 100).round();
+          final debtRemainingCents = (debt.remainingAmount * 100).round();
+          final shouldUpdate = debtTotalCents != expectedCents ||
+              debtPaidCents != paidCents ||
+              debtRemainingCents != remainingCents ||
               debt.isSettled != isSettled;
           if (shouldUpdate) {
             await _logConflict(
@@ -421,21 +423,21 @@ class RestoreFixService {
                 'is_settled': debt.isSettled,
               },
               newData: {
-                'total_amount': normalizedTotal,
-                'paid_amount': normalizedPaid,
-                'remaining_amount': normalizedRemaining,
+                'total_amount': expectedTotal,
+                'paid_amount': totalPaid,
+                'remaining_amount': remainingCents / 100,
                 'is_settled': isSettled,
               },
             );
             await (db.update(db.debts)..where((t) => t.id.equals(debt.id))).write(DebtsCompanion(
-              totalAmount: Value(normalizedTotal),
-              paidAmount: Value(normalizedPaid),
-              remainingAmount: Value(normalizedRemaining),
+              totalAmount: Value(expectedCents / 100),
+              paidAmount: Value(paidCents / 100),
+              remainingAmount: Value(remainingCents / 100),
               isSettled: Value(isSettled),
               updatedAt: Value(Time.nowEpoch()),
               lastModified: Value(Time.nowEpoch()),
             ));
-            changes.add('إعادة احتساب الدين للحجز #${booking.id}: المتبقي ${normalizedRemaining.toStringAsFixed(2)}، تم ${isSettled == 1 ? 'إغلاق الدين' : 'تحديثه'}');
+            changes.add('إعادة احتساب الدين للحجز #${booking.id}: المتبقي ${(remainingCents / 100).toStringAsFixed(2)}، تم ${isSettled == 1 ? 'إغلاق الدين' : 'تحديثه'}');
           }
         }
       }
