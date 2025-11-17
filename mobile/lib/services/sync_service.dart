@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import '../utils/time.dart';
@@ -15,24 +14,24 @@ import 'daos/cash_transactions_dao.dart';
 import 'daos/payments_dao.dart';
 import 'providers.dart';
 import 'sync_performance_optimizer.dart';
+import 'delta_sync_service.dart';
 import 'package:flutter/material.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
 class SyncService {
   SyncService(this.db)
-      : outboxDao = OutboxDao(db),
-        roomsDao = RoomsDao(db, OutboxDao(db)),
+      : roomsDao = RoomsDao(db, OutboxDao(db)),
         bookingsDao = BookingsDao(db, OutboxDao(db)),
         notesDao = BookingNotesDao(db, OutboxDao(db)),
         employeesDao = EmployeesDao(db, OutboxDao(db)),
         expensesDao = ExpensesDao(db, OutboxDao(db)),
         cashDao = CashTransactionsDao(db, OutboxDao(db)),
         paymentsDao = PaymentsDao(db, OutboxDao(db)),
+        deltaSyncService = DeltaSyncService(db),
         _performanceOptimizer = SyncPerformanceOptimizer();
 
   final AppDatabase db;
-  final OutboxDao outboxDao;
   final RoomsDao roomsDao;
   final BookingsDao bookingsDao;
   final BookingNotesDao notesDao;
@@ -40,6 +39,7 @@ class SyncService {
   final ExpensesDao expensesDao;
   final CashTransactionsDao cashDao;
   final PaymentsDao paymentsDao;
+  final DeltaSyncService deltaSyncService;
   final SyncPerformanceOptimizer _performanceOptimizer;
 
   final _status = StreamController<SyncStatus>.broadcast();
@@ -96,48 +96,43 @@ class SyncService {
   }
 
   Future<void> _push() async {
-    // الحصول على حجم الدفعة المثالي حسب نوع الشبكة
     final settings = _performanceOptimizer.getCurrentPerformanceSettings();
-    final batchSize = settings['batchSize'] as int;
-    
-    final batch = await outboxDao.takeBatch(batchSize);
-    if (batch.isEmpty) return;
-    final changes = batch
-        .map((o) => {
-              'entity': o.entity,
-              'op': o.op,
-              'uuid': o.localUuid,
-              'server_id': o.serverId,
-              'data': jsonDecode(o.payload),
-              'client_ts': o.clientTs,
-            })
-        .toList();
+    final timeout = Duration(seconds: settings['timeout'] as int);
+    final computation = await deltaSyncService.compute();
+    if (computation.changes.isEmpty) {
+      return;
+    }
+    final payload = computation.toPayload();
     try {
-      // الحصول على مهلة زمنية مثالية حسب نوع الشبكة
-      final settings = _performanceOptimizer.getCurrentPerformanceSettings();
-      final timeout = Duration(seconds: settings['timeout'] as int);
-      
-      final res = await ApiService.I.syncPush(changes).timeout(timeout);
-      if (res['success'] == true) {
-        final results = List<Map<String, dynamic>>.from(res['data']['results']);
-        for (var i = 0; i < batch.length; i++) {
-          final o = batch[i];
-          final r = results[i];
-          if (r['success'] == true) {
-            final sid = r['server_id'];
-            await _applyServerId(o.entity, o.localUuid, sid);
-            await outboxDao.removeById(o.id);
+      final response = await ApiService.I.syncPush(payload).timeout(timeout);
+      if (response['success'] == true) {
+        final results = List<Map<String, dynamic>>.from(response['data']['results']);
+        var allSucceeded = true;
+        for (var index = 0; index < results.length && index < computation.changes.length; index++) {
+          final result = results[index];
+          final change = computation.changes[index];
+          if (result['success'] == true) {
+            await _applyServerId(change.entity, change.localUuid, result['server_id']);
           } else {
-            final attempts = o.attempts + 1;
-            await outboxDao.setError(o.id, r['error']?.toString() ?? 'error', attempts);
+            allSucceeded = false;
+            debugPrint('❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}');
           }
+        }
+        if (allSucceeded) {
+          await deltaSyncService.persistMirror(computation);
+          final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
+          final now = Time.nowEpoch();
+          await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
+            id: const d.Value(1),
+            lastServerTs: d.Value(state?.lastServerTs ?? 0),
+            lastPullTs: d.Value(state?.lastPullTs ?? 0),
+            lastPushTs: d.Value(now),
+            isSyncing: const d.Value(0),
+          ));
         }
       }
     } catch (e) {
-      for (final o in batch) {
-        final attempts = o.attempts + 1;
-        await outboxDao.setError(o.id, e.toString(), attempts);
-      }
+      debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
       rethrow;
     }
   }
@@ -196,6 +191,10 @@ class SyncService {
       case 'payments':
         final rowP = await (db.select(db.payments)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
         if (rowP != null) await (db.update(db.payments)..where((t) => t.id.equals(rowP.id))).write(PaymentsCompanion(serverPaymentId: d.Value(serverId is int ? serverId : null), serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
+        break;
+      case 'debts':
+        final rowD = await (db.select(db.debts)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        if (rowD != null) await (db.update(db.debts)..where((t) => t.id.equals(rowD.id))).write(DebtsCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
         break;
     }
   }

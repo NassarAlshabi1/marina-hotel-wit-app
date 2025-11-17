@@ -12,6 +12,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'local_db.dart';
 import 'providers.dart';
+import 'restore_fix_service.dart';
 
 enum BackupFormat { json, sqlite }
 
@@ -520,6 +521,8 @@ class GoogleDriveBackupService {
       }
 
       debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
+      final fixService = RestoreFixService(db);
+      await fixService.runAutoFixAfterRestore(backupTimestamp: metadata.backupTimestamp);
     } catch (e) {
       debugPrint('❌ خطأ في استعادة البيانات: $e');
       rethrow;

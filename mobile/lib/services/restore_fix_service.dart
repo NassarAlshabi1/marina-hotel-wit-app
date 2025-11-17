@@ -8,6 +8,7 @@ import 'daos/bookings_dao.dart';
 import 'daos/rooms_dao.dart';
 import 'daos/payments_dao.dart';
 import 'daos/outbox_dao.dart';
+import 'daos/debts_dao.dart';
 import '../utils/time.dart';
 import '../utils/status_utils.dart';
 import '../utils/id.dart';
@@ -93,60 +94,68 @@ class RestoreFixService {
   final BookingsDao bookingsDao;
   final RoomsDao roomsDao;
   final PaymentsDao paymentsDao;
+  final DebtsDao debtsDao;
+  final Future<void> Function()? onBeforeCommit;
+  bool _conflictTableReady = false;
   
-  RestoreFixService(this.db) : 
+  RestoreFixService(this.db, {this.onBeforeCommit}) : 
     bookingsDao = BookingsDao(db, OutboxDao(db)),
     roomsDao = RoomsDao(db, OutboxDao(db)),
-    paymentsDao = PaymentsDao(db, OutboxDao(db));
+    paymentsDao = PaymentsDao(db, OutboxDao(db)),
+    debtsDao = DebtsDao(db);
 
   /// إنشاء لقطة احتياطية محلية قبل بدء عملية الإصلاح
   Future<RestoreSnapshot> createLocalSnapshot(String prefix) async {
     debugPrint('📸 إنشاء لقطة احتياطية أمان: ${prefix}_restore_snapshot_${Time.nowEpoch()}.json');
     
-    final directory = await getApplicationCacheDirectory();
-    final timestamp = Time.nowEpoch();
-    final filename = '${prefix}_restore_snapshot_$timestamp.json';
-    final filePath = '${directory.path}/$filename';
-    
-    try {
-      // تصدير البيانات الحالية
-      final bookingsData = await bookingsDao.exportToJson();
-      final roomsData = await roomsDao.exportToJson();
-      final paymentsData = await paymentsDao.exportToJson();
+    return await db.transaction<RestoreSnapshot>(() async {
+      final directory = await getApplicationCacheDirectory();
+      final timestamp = Time.nowEpoch();
+      final filename = '${prefix}_restore_snapshot_$timestamp.json';
+      final filePath = '${directory.path}/$filename';
       
-      final snapshotData = {
-        'metadata': {
-          'timestamp': timestamp,
-          'createdAt': DateTime.now().toIso8601String(),
-          'deviceId': 'local_device',
-          'version': '1.0',
-        },
-        'bookings': bookingsData,
-        'rooms': roomsData,
-        'payments': paymentsData,
-      };
-
-      final jsonString = jsonEncode(snapshotData);
-      final file = File(filePath);
-      await file.writeAsString(jsonString);
-      
-      final recordCounts = {
-        'bookings': (bookingsData as List).length,
-        'rooms': (roomsData as List).length,
-        'payments': (paymentsData as List).length,
-      };
-
-      return RestoreSnapshot(
-        filePath: filePath,
-        createdAt: DateTime.now(),
-        recordCounts: recordCounts,
-        totalSizeBytes: await file.length(),
-      );
-      
-    } catch (e) {
-      debugPrint('❌ خطأ في إنشاء اللقطة الاحتياطية: $e');
-      rethrow;
-    }
+      try {
+        final bookingsData = await bookingsDao.exportToJson();
+        final roomsData = await roomsDao.exportToJson();
+        final paymentsData = await paymentsDao.exportToJson();
+        final debtsData = await debtsDao.exportToJson(includeDeleted: true);
+        
+        final snapshotData = {
+          'metadata': {
+            'timestamp': timestamp,
+            'createdAt': DateTime.now().toIso8601String(),
+            'deviceId': 'local_device',
+            'version': '1.0',
+          },
+          'bookings': bookingsData,
+          'rooms': roomsData,
+          'payments': paymentsData,
+          'debts': debtsData,
+        };
+  
+        final jsonString = jsonEncode(snapshotData);
+        final file = File(filePath);
+        await file.writeAsString(jsonString);
+        
+        final recordCounts = {
+          'bookings': bookingsData.length,
+          'rooms': roomsData.length,
+          'payments': paymentsData.length,
+          'debts': debtsData.length,
+        };
+  
+        return RestoreSnapshot(
+          filePath: filePath,
+          createdAt: DateTime.now(),
+          recordCounts: recordCounts,
+          totalSizeBytes: await file.length(),
+        );
+        
+      } catch (e) {
+        debugPrint('❌ خطأ في إنشاء اللقطة الاحتياطية: $e');
+        rethrow;
+      }
+    });
   }
 
   /// الدالة الرئيسية لتشغيل الإصلاح التلقائي
@@ -191,6 +200,9 @@ class RestoreFixService {
         final roomChanges = await _updateRoomStatusesFromBookings(fixId);
         roomsUpdated = roomChanges.length;
         changes.addAll(roomChanges);
+        if (onBeforeCommit != null) {
+          await onBeforeCommit!();
+        }
       });
       
       // حذف اللقطة الاحتياطية عند النجاح
@@ -262,6 +274,11 @@ class RestoreFixService {
     // التأكد من وجود تواريخ الدخول والخروج
     query.where((b) => b.checkinDate.isNotNull() & b.checkoutDate.isNotNull());
     
+    if (backupDate != null) {
+      final cutoff = backupDate.millisecondsSinceEpoch ~/ 1000;
+      query.where((b) => b.updatedAt.isBiggerOrEqualValue(cutoff));
+    }
+    
     return await query.get();
   }
 
@@ -293,8 +310,22 @@ class RestoreFixService {
           reason: 'إعادة حساب الليالي بناءً على تاريخ الدخول والخروج مع قاعدة 14:00',
           fixType: 'nights_recalc',
         );
+
+        await _logConflict(
+          fixId: fixId,
+          tableName: 'bookings',
+          fixType: 'nights_recalc',
+          localUuid: booking.localUuid,
+          oldData: {
+            'calculated_nights': booking.calculatedNights,
+            'expected_nights': booking.expectedNights,
+          },
+          newData: {
+            'calculated_nights': calculatedNights,
+            'expected_nights': calculatedNights,
+          },
+        );
         
-        // تحديث الحجز
         await bookingsDao.updateById(
           booking.id,
           BookingsCompanion(
@@ -320,28 +351,20 @@ class RestoreFixService {
 
   /// إعادة حساب المعاملات المالية للحجز
   Future<List<String>> _recalculateBookingFinancials(Booking booking, String fixId) async {
-    List<String> changes = [];
-    
+    final changes = <String>[];
     try {
-      // استعلام المدفوعات المرتبطة بالحجز
       final payments = await (db.select(db.payments)
-        ..where((p) => p.bookingLocalId.equals(booking.id))
-        ..where((p) => p.deletedAt.isNull()))
-        .get();
-      
+            ..where((p) => p.bookingLocalId.equals(booking.id))
+            ..where((p) => p.deletedAt.isNull()))
+          .get();
       final totalPaid = payments.fold<double>(0.0, (sum, payment) => sum + payment.amount);
-      
-      // الحصول على سعر الغرفة
       final room = await (db.select(db.rooms)
-        ..where((r) => r.roomNumber.equals(booking.roomNumber)))
-        .getSingleOrNull();
-      
+            ..where((r) => r.roomNumber.equals(booking.roomNumber)))
+          .getSingleOrNull();
+      double? expectedTotal;
       if (room != null) {
-        final expectedTotal = booking.calculatedNights * room.price;
-        
-        // التحقق من التطابق
+        expectedTotal = booking.calculatedNights * room.price;
         if ((totalPaid - expectedTotal).abs() > 0.01) {
-          // تسجيل التحذير
           await _logChange(
             fixId: fixId,
             targetTable: 'payments',
@@ -352,46 +375,94 @@ class RestoreFixService {
             reason: 'مبلغ الدفع لا يتطابق مع المبلغ المتوقع (${booking.calculatedNights} × ${room.price})',
             fixType: 'payment_check',
           );
-          
+          await _logConflict(
+            fixId: fixId,
+            tableName: 'payments',
+            fixType: 'payment_check',
+            localUuid: booking.localUuid,
+            oldData: {
+              'total_paid': totalPaid,
+            },
+            newData: {
+              'expected_total': expectedTotal,
+            },
+          );
           final warningMsg = 'تنبيه: الحجز #${booking.id} - إجمالي المدفوعات (${totalPaid.toStringAsFixed(2)}) لا يتطابق مع المتوقع (${expectedTotal.toStringAsFixed(2)})';
           changes.add(warningMsg);
           debugPrint('⚠️ $warningMsg');
         }
       }
-      
+
+      final debts = await (db.select(db.debts)
+            ..where((d) => d.bookingLocalId.equals(booking.id))
+            ..where((d) => d.deletedAt.isNull()))
+          .get();
+      if (debts.isNotEmpty && expectedTotal != null) {
+        final recalculatedRemaining = expectedTotal - totalPaid;
+        final normalizedRemaining = double.parse(recalculatedRemaining.toStringAsFixed(2));
+        final normalizedPaid = double.parse(totalPaid.toStringAsFixed(2));
+        final normalizedTotal = double.parse(expectedTotal.toStringAsFixed(2));
+        final isSettled = normalizedRemaining <= 0 ? 1 : 0;
+        for (final debt in debts) {
+          final shouldUpdate = (debt.totalAmount - normalizedTotal).abs() > 0.01 ||
+              (debt.paidAmount - normalizedPaid).abs() > 0.01 ||
+              (debt.remainingAmount - normalizedRemaining).abs() > 0.01 ||
+              debt.isSettled != isSettled;
+          if (shouldUpdate) {
+            await _logConflict(
+              fixId: fixId,
+              tableName: 'debts',
+              fixType: 'debt_recalc',
+              localUuid: debt.localUuid,
+              oldData: {
+                'total_amount': debt.totalAmount,
+                'paid_amount': debt.paidAmount,
+                'remaining_amount': debt.remainingAmount,
+                'is_settled': debt.isSettled,
+              },
+              newData: {
+                'total_amount': normalizedTotal,
+                'paid_amount': normalizedPaid,
+                'remaining_amount': normalizedRemaining,
+                'is_settled': isSettled,
+              },
+            );
+            await (db.update(db.debts)..where((t) => t.id.equals(debt.id))).write(DebtsCompanion(
+              totalAmount: Value(normalizedTotal),
+              paidAmount: Value(normalizedPaid),
+              remainingAmount: Value(normalizedRemaining),
+              isSettled: Value(isSettled),
+              updatedAt: Value(Time.nowEpoch()),
+              lastModified: Value(Time.nowEpoch()),
+            ));
+            changes.add('إعادة احتساب الدين للحجز #${booking.id}: المتبقي ${normalizedRemaining.toStringAsFixed(2)}، تم ${isSettled == 1 ? 'إغلاق الدين' : 'تحديثه'}');
+          }
+        }
+      }
     } catch (e) {
       debugPrint('⚠️ خطأ في فحص المدفوعات للحجز #${booking.id}: $e');
     }
-    
     return changes;
   }
 
   /// تحديث حالات الغرف بناءً على الحجوزات النشطة
   Future<List<String>> _updateRoomStatusesFromBookings(String fixId) async {
-    List<String> changes = [];
-    
+    final changes = <String>[];
     try {
-      // الحصول على الحجوزات النشطة
       final activeBookings = await (db.select(db.bookings)
-        ..where((b) => b.deletedAt.isNull())
-        ..where((b) => b.status.equals('محجوزة') | b.status.equals('active')))
-        .get();
-      
+            ..where((b) => b.deletedAt.isNull())
+            ..where((b) => b.status.equals('محجوزة') | b.status.equals('active')))
+          .get();
       final occupiedRooms = activeBookings.map((b) => b.roomNumber).toSet();
-      
-      // الحصول على جميع الغرف
       final rooms = await (db.select(db.rooms)
-        ..where((r) => r.deletedAt.isNull()))
-        .get();
-      
+            ..where((r) => r.deletedAt.isNull()))
+          .get();
+      final updates = <_RoomStatusUpdate>[];
       for (final room in rooms) {
         final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
         final currentlyOccupied = StatusUtils.isRoomOccupied(room.status);
-        
         if (shouldBeOccupied != currentlyOccupied) {
           final newStatus = StatusUtils.roomStatusForOccupancy(shouldBeOccupied);
-          
-          // تسجيل التغيير
           await _logChange(
             fixId: fixId,
             targetTable: 'rooms',
@@ -402,23 +473,43 @@ class RestoreFixService {
             reason: 'تحديث الحالة بناءً على الحجوزات النشطة',
             fixType: 'room_status',
           );
-          
-          // تحديث الغرفة
-          await roomsDao.updateByNumber(
-            room.roomNumber,
-            RoomsCompanion(status: Value(newStatus)),
+          await _logConflict(
+            fixId: fixId,
+            tableName: 'rooms',
+            fixType: 'room_status',
+            localUuid: room.localUuid,
+            oldData: {
+              'status': room.status,
+            },
+            newData: {
+              'status': newStatus,
+            },
           );
-          
+          updates.add(_RoomStatusUpdate(room: room, status: newStatus));
           final changeMsg = 'إصلاح الغرفة ${room.roomNumber}: تحديث الحالة من \'${room.status}\' إلى \'$newStatus\'';
           changes.add(changeMsg);
           debugPrint('✏️ $changeMsg');
         }
       }
-      
+      if (updates.isNotEmpty) {
+        final now = Time.nowEpoch();
+        await db.batch((batch) {
+          for (final update in updates) {
+            batch.update(
+              db.rooms,
+              RoomsCompanion(
+                status: Value(update.status),
+                updatedAt: Value(now),
+                lastModified: Value(now),
+              ),
+              where: (tbl) => tbl.id.equals(update.room.id),
+            );
+          }
+        });
+      }
     } catch (e) {
       debugPrint('⚠️ خطأ في تحديث حالات الغرف: $e');
     }
-    
     return changes;
   }
 
@@ -448,6 +539,39 @@ class RestoreFixService {
     );
   }
 
+  Future<void> _ensureConflictLogTable() async {
+    if (_conflictTableReady) {
+      return;
+    }
+    await db.customStatement('CREATE TABLE IF NOT EXISTS restore_conflict_log (id INTEGER PRIMARY KEY AUTOINCREMENT, fix_id TEXT, fix_type TEXT, table_name TEXT, local_uuid TEXT, old_data TEXT, new_data TEXT, occurred_at INTEGER)');
+    _conflictTableReady = true;
+  }
+
+  Future<void> _logConflict({
+    required String fixId,
+    required String tableName,
+    required String fixType,
+    String? localUuid,
+    required Map<String, dynamic> oldData,
+    required Map<String, dynamic> newData,
+  }) async {
+    await _ensureConflictLogTable();
+    final epoch = Time.nowEpoch();
+    final normalized = epoch < 1000000000000 ? epoch * 1000 : epoch;
+    await db.customStatement(
+      'INSERT INTO restore_conflict_log (fix_id, fix_type, table_name, local_uuid, old_data, new_data, occurred_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        fixId,
+        fixType,
+        tableName,
+        localUuid,
+        jsonEncode(oldData),
+        jsonEncode(newData),
+        normalized,
+      ],
+    );
+  }
+
   /// استعادة البيانات من اللقطة الاحتياطية
   Future<void> _restoreFromSnapshot(String snapshotPath) async {
     try {
@@ -464,16 +588,20 @@ class RestoreFixService {
         await db.delete(db.bookings).go();
         await db.delete(db.rooms).go();
         await db.delete(db.payments).go();
+        await db.delete(db.debts).go();
         
         // استعادة البيانات
         if (snapshotData.containsKey('bookings')) {
-          await bookingsDao.importFromJson(snapshotData['bookings'], clearExisting: false);
+          await bookingsDao.importFromJson(List<Map<String, dynamic>>.from(snapshotData['bookings']), clearExisting: false);
         }
         if (snapshotData.containsKey('rooms')) {
-          await roomsDao.importFromJson(snapshotData['rooms'], clearExisting: false);
+          await roomsDao.importFromJson(List<Map<String, dynamic>>.from(snapshotData['rooms']), clearExisting: false);
         }
         if (snapshotData.containsKey('payments')) {
-          await paymentsDao.importFromJson(snapshotData['payments'], clearExisting: false);
+          await paymentsDao.importFromJson(List<Map<String, dynamic>>.from(snapshotData['payments']), clearExisting: false);
+        }
+        if (snapshotData.containsKey('debts')) {
+          await debtsDao.importFromJson(List<Map<String, dynamic>>.from(snapshotData['debts']), clearExisting: false);
         }
       });
       
@@ -536,4 +664,12 @@ class RestoreFixService {
       }).toList(),
     };
   }
+}
+
+class _RoomStatusUpdate {
+  _RoomStatusUpdate({required this.room, required this.status});
+
+  final Room room;
+  final String status;
+}
 }

@@ -164,15 +164,15 @@ class SyncState extends Table {
 
 class RestoreFixLog extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get fixId => text().unique()(); // UUID
-  IntColumn get executedAt => integer()(); // Epoch timestamp
-  TextColumn get targetTable => text()(); // 'bookings', 'rooms', 'payments'
-  IntColumn get targetRecordId => integer()(); // Record ID
-  TextColumn get fieldName => text()(); // Field that was changed
-  TextColumn get oldValue => text().nullable()(); // JSON of old value
-  TextColumn get newValue => text().nullable()(); // JSON of new value
-  TextColumn get reason => text()(); // Why it was changed
-  TextColumn get fixType => text()(); // 'nights_recalc', 'room_status', 'payment_check'
+  TextColumn get fixId => text().unique()();
+  IntColumn get executedAt => integer()();
+  TextColumn get targetTable => text()();
+  IntColumn get targetRecordId => integer()();
+  TextColumn get fieldName => text()();
+  TextColumn get oldValue => text().nullable()();
+  TextColumn get newValue => text().nullable()();
+  TextColumn get reason => text()();
+  TextColumn get fixType => text()();
 }
 
 @DriftDatabase(tables: [
