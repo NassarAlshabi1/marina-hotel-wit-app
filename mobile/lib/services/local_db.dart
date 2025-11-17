@@ -191,6 +191,10 @@ class RestoreFixLog extends Table {
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
+  AppDatabase._internal(QueryExecutor executor) : super(executor);
+
+  static AppDatabase forTesting(QueryExecutor executor) => AppDatabase._internal(executor);
+
   @override
   int get schemaVersion => 10;
 
