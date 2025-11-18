@@ -1,6 +1,6 @@
 import '../local_db.dart';
 import '../daos/shift_notes_dao.dart';
-import '../../models/shift_note_adapter.dart';
+import '../../models/shift_note_adapter.dart' as adapter;
 
 class SimpleNotesRepository {
   SimpleNotesRepository(this.db) : dao = ShiftNotesDao(db);
@@ -9,19 +9,19 @@ class SimpleNotesRepository {
   final ShiftNotesDao dao;
 
   // جلب جميع الملاحظات
-  Future<List<ShiftNoteAdapter.ShiftNote>> getAllNotes() async {
+  Future<List<adapter.ShiftNote>> getAllNotes() async {
     final dbNotes = await dao.getAllNotes();
     return dbNotes.map(_convertToModel).toList();
   }
 
   // جلب الملاحظات غير المقروءة
-  Future<List<ShiftNoteAdapter.ShiftNote>> getUnreadNotes() async {
+  Future<List<adapter.ShiftNote>> getUnreadNotes() async {
     final dbNotes = await dao.getUnreadNotes();
     return dbNotes.map(_convertToModel).toList();
   }
 
   // جلب الملاحظات عالية الأولوية
-  Future<List<ShiftNoteAdapter.ShiftNote>> getHighPriorityNotes() async {
+  Future<List<adapter.ShiftNote>> getHighPriorityNotes() async {
     final dbNotes = await dao.getHighPriorityNotes();
     return dbNotes.map(_convertToModel).toList();
   }
@@ -83,7 +83,7 @@ class SimpleNotesRepository {
   Future<int> getUnreadCount() => dao.getUnreadCount();
 
   // مراقبة التغييرات
-  Stream<List<ShiftNoteAdapter.ShiftNote>> watchAllNotes() {
+  Stream<List<adapter.ShiftNote>> watchAllNotes() {
     return dao.watchAllNotes().map((dbNotes) => 
         dbNotes.map(_convertToModel).toList());
   }
@@ -91,14 +91,14 @@ class SimpleNotesRepository {
   Stream<int> watchUnreadCount() => dao.watchUnreadCount();
 
   // تحويل من نوع قاعدة البيانات إلى نوع النموذج
-  ShiftNoteAdapter.ShiftNote _convertToModel(ShiftNote dbNote) {
-    final priority = dbNote.priority == 'high' ? NotePriority.high :
-                     dbNote.priority == 'medium' ? NotePriority.medium : NotePriority.low;
-    final shiftType = dbNote.shiftType == 'morning' ? ShiftType.morning :
-                      dbNote.shiftType == 'evening' ? ShiftType.evening :
-                      dbNote.shiftType == 'night' ? ShiftType.night : ShiftType.all;
+  adapter.ShiftNote _convertToModel(ShiftNote dbNote) {
+    final priority = dbNote.priority == 'high' ? adapter.NotePriority.high :
+                     dbNote.priority == 'medium' ? adapter.NotePriority.medium : adapter.NotePriority.low;
+    final shiftType = dbNote.shiftType == 'morning' ? adapter.ShiftType.morning :
+                      dbNote.shiftType == 'evening' ? adapter.ShiftType.evening :
+                      dbNote.shiftType == 'night' ? adapter.ShiftType.night : adapter.ShiftType.all;
     
-    return ShiftNoteAdapter.ShiftNote(
+    return adapter.ShiftNote(
       id: dbNote.id.toString(),
       title: dbNote.title,
       content: dbNote.content,

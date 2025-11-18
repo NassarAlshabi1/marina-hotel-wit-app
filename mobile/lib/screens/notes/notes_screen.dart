@@ -165,7 +165,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           note.title,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: note.isRead == 1 ? Colors.grey : Colors.black,
+            color: note.isRead ? Colors.grey : Colors.black,
           ),
         ),
         subtitle: Column(
@@ -182,7 +182,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (note.isRead == 0)
+            if (!note.isRead)
               Container(
                 width: 8,
                 height: 8,
@@ -193,7 +193,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               ),
             PopupMenuButton(
               itemBuilder: (context) => [
-                if (note.isRead == 0)
+                if (!note.isRead)
                   const PopupMenuItem(
                     value: 'read',
                     child: Text('وضع علامة مقروء'),
