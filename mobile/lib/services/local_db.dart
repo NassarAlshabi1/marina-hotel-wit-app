@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:drift_sqflite/drift_sqflite.dart';
 
@@ -175,6 +177,42 @@ class RestoreFixLog extends Table {
   TextColumn get fixType => text()();
 }
 
+class SyncQueue extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get uuid => text()();
+  TextColumn get tableName => text()();
+  TextColumn get operation => text()();
+  TextColumn get payload => text()();
+  TextColumn get updatedAt => text()();
+  TextColumn get deviceId => text()();
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+  TextColumn get createdAt => text()();
+}
+
+class SyncLog extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get syncId => text()();
+  TextColumn get direction => text()();
+  TextColumn get deviceId => text()();
+  TextColumn get metadata => text()();
+  TextColumn get operations => text()();
+  IntColumn get checksumMatched => integer().withDefault(const Constant(0))();
+  TextColumn get status => text().withDefault(const Constant('success'))();
+  TextColumn get createdAt => text()();
+  TextColumn get completedAt => text().nullable()();
+}
+
+class SyncConflicts extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get logId => integer().references(SyncLog, #id)();
+  TextColumn get tableName => text()();
+  TextColumn get uuid => text()();
+  TextColumn get resolution => text()();
+  TextColumn get localPayload => text()();
+  TextColumn get remotePayload => text()();
+  TextColumn get createdAt => text()();
+}
+
 @DriftDatabase(tables: [
   Rooms,
   Bookings,
@@ -188,6 +226,9 @@ class RestoreFixLog extends Table {
   Outbox,
   SyncState,
   RestoreFixLog,
+  SyncQueue,
+  SyncLog,
+  SyncConflicts,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
@@ -196,7 +237,7 @@ class AppDatabase extends _$AppDatabase {
   static AppDatabase forTesting(QueryExecutor executor) => AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -234,8 +275,71 @@ class AppDatabase extends _$AppDatabase {
           if (from < 10) {
             await m.createTable(restoreFixLog);
           }
+          if (from < 11) {
+            await m.createTable(syncQueue);
+          }
+          if (from < 12) {
+            await m.createTable(syncLog);
+            await m.createTable(syncConflicts);
+          }
         },
       );
+
+  /// تجميع جميع الجداول المطلوب مزامنتها في خريطة JSON
+  Future<Map<String, dynamic>> getAllTablesAsJson() async {
+    final roomsData = await select(rooms).get();
+    final bookingsData = await select(bookings).get();
+    final bookingNotesData = await select(bookingNotes).get();
+    final employeesData = await select(employees).get();
+    final expensesData = await select(expenses).get();
+    final cashTransactionsData = await select(cashTransactions).get();
+    final paymentsData = await select(payments).get();
+    final debtsData = await select(debts).get();
+
+    return {
+      'rooms': roomsData.map((e) => e.toJson()).toList(),
+      'bookings': bookingsData.map((e) => e.toJson()).toList(),
+      'booking_notes': bookingNotesData.map((e) => e.toJson()).toList(),
+      'employees': employeesData.map((e) => e.toJson()).toList(),
+      'expenses': expensesData.map((e) => e.toJson()).toList(),
+      'cash_transactions': cashTransactionsData.map((e) => e.toJson()).toList(),
+      'payments': paymentsData.map((e) => e.toJson()).toList(),
+      'debts': debtsData.map((e) => e.toJson()).toList(),
+      'guests': <Map<String, dynamic>>[],
+      'services': <Map<String, dynamic>>[],
+      'settings': <Map<String, dynamic>>[],
+    };
+  }
+
+  /// تطبيق البيانات المدمجة على قاعدة البيانات المحلية داخل معاملة واحدة
+  Future<void> applyMergedData(Map<String, dynamic> merged) async {
+    await transaction(() async {
+      Future<void> replaceTable<T extends Insertable<dynamic>>(TableInfo<Table, dynamic> table, List<T> rows) async {
+        await delete(table).go();
+        if (rows.isEmpty) {
+          return;
+        }
+        await batch((batch) {
+          batch.insertAll(table, rows, mode: InsertMode.insertOrReplace);
+        });
+      }
+
+      List<Map<String, dynamic>> _asList(String key) {
+        return (merged[key] as List<dynamic>? ?? [])
+            .map((row) => Map<String, dynamic>.from(row as Map))
+            .toList();
+      }
+
+      await replaceTable<Room>(rooms, _asList('rooms').map((row) => Room.fromJson(row)).toList());
+      await replaceTable<Booking>(bookings, _asList('bookings').map((row) => Booking.fromJson(row)).toList());
+      await replaceTable<BookingNote>(bookingNotes, _asList('booking_notes').map((row) => BookingNote.fromJson(row)).toList());
+      await replaceTable<Employee>(employees, _asList('employees').map((row) => Employee.fromJson(row)).toList());
+      await replaceTable<Expense>(expenses, _asList('expenses').map((row) => Expense.fromJson(row)).toList());
+      await replaceTable<CashTransaction>(cashTransactions, _asList('cash_transactions').map((row) => CashTransaction.fromJson(row)).toList());
+      await replaceTable<Payment>(payments, _asList('payments').map((row) => Payment.fromJson(row)).toList());
+      await replaceTable<Debt>(debts, _asList('debts').map((row) => Debt.fromJson(row)).toList());
+    });
+  }
 }
 
 LazyDatabase _open() {
@@ -265,5 +369,76 @@ class DatabaseManager {
   static Future<void> reopen() async {
     await close();
     _instance = AppDatabase();
+  }
+}
+
+/// DAO خاص بسجلات المزامنة والتضارب لتسهيل التدقيق والاسترجاع
+class SyncAuditDao {
+  SyncAuditDao(this._db);
+
+  final AppDatabase _db;
+
+  Future<int> insertSyncLog({
+    required String syncId,
+    required String direction,
+    required String deviceId,
+    required Map<String, dynamic> metadata,
+    required List<SyncOperation> appliedOperations,
+    required List<SyncConflict> conflicts,
+    required bool checksumMatched,
+  }) async {
+    final createdAt = DateTime.now().toUtc().toIso8601String();
+    return _db.transaction(() async {
+      final logId = await _db.into(_db.syncLog).insert(
+            SyncLogCompanion.insert(
+              syncId: syncId,
+              direction: direction,
+              deviceId: deviceId,
+              metadata: jsonEncode(metadata),
+              operations: jsonEncode(appliedOperations.map((e) => {
+                    'table': e.table,
+                    'uuid': e.uuid,
+                    'operation': e.operation,
+                    'payload': e.payload,
+                    'timestamp': e.timestamp,
+                  }).toList()),
+              checksumMatched: Value(checksumMatched ? 1 : 0),
+              createdAt: createdAt,
+              completedAt: Value(createdAt),
+            ),
+          );
+
+      if (conflicts.isNotEmpty) {
+        await _db.batch((batch) {
+          for (final conflict in conflicts) {
+            batch.insert(
+              _db.syncConflicts,
+              SyncConflictsCompanion.insert(
+                logId: logId,
+                tableName: conflict.table,
+                uuid: conflict.uuid,
+                resolution: conflict.resolution,
+                localPayload: jsonEncode(conflict.localPayload),
+                remotePayload: jsonEncode(conflict.remotePayload),
+                createdAt: createdAt,
+              ),
+            );
+          }
+        });
+      }
+
+      return logId;
+    });
+  }
+
+  Future<List<SyncLogData>> fetchRecentLogs(int limit) {
+    return (_db.select(_db.syncLog)
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)])
+          ..limit(limit))
+        .get();
+  }
+
+  Future<List<SyncConflictsData>> fetchConflictsForLog(int logId) {
+    return (_db.select(_db.syncConflicts)..where((tbl) => tbl.logId.equals(logId))).get();
   }
 }
