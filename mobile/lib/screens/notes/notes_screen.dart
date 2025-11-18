@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
-import '../../services/local_db.dart';
 import '../../models/shift_note_adapter.dart';
 
 /// شاشة الملاحظات البسيطة
