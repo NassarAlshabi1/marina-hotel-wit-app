@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/google_drive_backup_service.dart';
 import '../services/local_backup_service.dart';
 import '../services/file_management_service.dart';
@@ -10,6 +11,8 @@ import '../services/smart_sync_manager.dart';
 import '../services/sqlite_backup_restore.dart';
 import '../services/restore_fix_service.dart';
 import '../services/local_db.dart';
+
+const _driveLoginSkippedKey = 'drive_login_skipped';
 
 // حالة النسخ الاحتياطي
 enum BackupStatus { idle, signIn, uploading, downloading, restoring, success, error, checkingPermissions, importingFile }
@@ -81,6 +84,7 @@ class BackupState {
   final bool hasStoragePermission;
   final Map<String, dynamic>? backupFolderInfo;
   final String? lastSqliteBackupPath;
+  final bool driveLoginSkipped;
 
   BackupState({
     this.status = BackupStatus.idle,
@@ -96,6 +100,7 @@ class BackupState {
     this.hasStoragePermission = false,
     this.backupFolderInfo,
     this.lastSqliteBackupPath,
+    this.driveLoginSkipped = false,
   });
 
   BackupState copyWith({
@@ -112,6 +117,7 @@ class BackupState {
     bool? hasStoragePermission,
     Map<String, dynamic>? backupFolderInfo,
     String? lastSqliteBackupPath,
+    bool? driveLoginSkipped,
   }) {
     return BackupState(
       status: status ?? this.status,
@@ -127,10 +133,12 @@ class BackupState {
       hasStoragePermission: hasStoragePermission ?? this.hasStoragePermission,
       backupFolderInfo: backupFolderInfo ?? this.backupFolderInfo,
       lastSqliteBackupPath: lastSqliteBackupPath ?? this.lastSqliteBackupPath,
+      driveLoginSkipped: driveLoginSkipped ?? this.driveLoginSkipped,
     );
   }
 
   bool get isSignedIn => signedInAccount != null;
+  bool get requiresDriveLogin => !isSignedIn && !driveLoginSkipped;
   bool get isWorking => status == BackupStatus.signIn || 
                        status == BackupStatus.uploading ||
                        status == BackupStatus.downloading ||
@@ -151,6 +159,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
   Future<void> _initialize() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final skipPref = prefs.getBool(_driveLoginSkippedKey) ?? false;
       // جلب آخر وقت نسخ احتياطي (Google Drive)
       final lastBackup = await _backupService.getLastBackupTime();
       
@@ -204,6 +214,11 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         }
       }
 
+      if (account != null && skipPref) {
+        await prefs.setBool(_driveLoginSkippedKey, false);
+      }
+      final driveLoginSkipped = account == null && skipPref;
+
       state = state.copyWith(
         lastBackupTime: lastBackup,
         lastLocalBackupTime: lastLocalBackup,
@@ -221,6 +236,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           enableGoogleDriveBackup: autoEnabled,
           backupType: resolvedBackupType,
         ),
+        driveLoginSkipped: driveLoginSkipped,
       );
     } catch (e) {
       debugPrint('❌ خطأ في تهيئة BackupStatusNotifier: $e');
@@ -229,6 +245,12 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'خطأ في التهيئة: ${e.toString()}',
       );
     }
+  }
+
+  Future<void> setSkippedDriveLogin(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_driveLoginSkippedKey, value);
+    state = state.copyWith(driveLoginSkipped: value);
   }
 
   /// تسجيل الدخول في Google Drive
@@ -242,6 +264,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final account = await _backupService.signInForDrive();
       
       if (account != null) {
+        await setSkippedDriveLogin(false);
         // جلب قائمة النسخ المتاحة
         final backups = await _backupService.listBackupFiles();
         
@@ -278,6 +301,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   Future<void> signOut() async {
     try {
       await _backupService.signOut();
+      await setSkippedDriveLogin(false);
       
       // إشعار مدير المزامنة الذكية بتسجيل الخروج
       try {

@@ -15,6 +15,7 @@ import 'screens/payments/payments_main_screen.dart';
 import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
 import 'services/providers.dart';
@@ -117,6 +118,7 @@ class RootRouter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    final backup = ref.watch(backupStatusProvider);
     if (auth.isRestoring) {
       return const Directionality(
         textDirection: TextDirection.rtl,
@@ -124,6 +126,9 @@ class RootRouter extends ConsumerWidget {
           body: Center(child: CircularProgressIndicator()),
         ),
       );
+    }
+    if (!auth.isAuthenticated && backup.requiresDriveLogin) {
+      return const GoogleDriveLoginScreen();
     }
     if (auth.isAuthenticated) {
       return const HomeShell();
