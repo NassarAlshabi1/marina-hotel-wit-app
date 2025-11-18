@@ -1274,8 +1274,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           textDirection: TextDirection.rtl,
           child: AlertDialog(
             title: const Text('المبلغ أكبر من المتبقي'),
-            content: Text('المبلغ المتبقي هو ${_currencyFmt.format(remaining)} ريال، بينما أدخلت ${_currencyFmt.format(amount)} ريال.
-هل تريد المتابعة؟'),
+            content: Text('المبلغ المتبقي هو ${_currencyFmt.format(remaining)} ريال، بينما أدخلت ${_currencyFmt.format(amount)} ريال.\nهل تريد المتابعة؟'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
