@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:drift_sqflite/drift_sqflite.dart';
 
-import '../data/sync_models.dart';
+import '../data/sync_models.dart' as sync_models;
 
 part 'local_db.g.dart';
 
@@ -385,8 +385,8 @@ class SyncAuditDao {
     required String direction,
     required String deviceId,
     required Map<String, dynamic> metadata,
-    required List<SyncOperation> appliedOperations,
-    required List<SyncConflict> conflicts,
+    required List<sync_models.SyncOperation> appliedOperations,
+    required List<sync_models.SyncConflict> conflicts,
     required bool checksumMatched,
   }) async {
     final createdAt = DateTime.now().toUtc().toIso8601String();
@@ -397,7 +397,7 @@ class SyncAuditDao {
               direction: direction,
               deviceId: deviceId,
               metadata: jsonEncode(metadata),
-              operations: jsonEncode(appliedOperations.map((SyncOperation e) => {
+              operations: jsonEncode(appliedOperations.map((sync_models.SyncOperation e) => {
                     'table': e.table,
                     'uuid': e.uuid,
                     'operation': e.operation,
