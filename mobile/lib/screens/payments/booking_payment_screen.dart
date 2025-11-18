@@ -1268,6 +1268,32 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     double updatedRemainingBeforePayment = remaining;
 
     if (amount > remaining + epsilon) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('المبلغ أكبر من المتبقي'),
+            content: Text('المبلغ المتبقي هو ${_currencyFmt.format(remaining)} ريال، بينما أدخلت ${_currencyFmt.format(amount)} ريال.
+هل تريد المتابعة؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('إلغاء'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('متابعة'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (confirmed != true) {
+        return;
+      }
+
       if (roomRate <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا يمكن تمديد الإقامة لأن سعر الليلة غير محدد')));
         return;

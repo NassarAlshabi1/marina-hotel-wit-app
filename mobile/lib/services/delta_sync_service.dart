@@ -109,8 +109,13 @@ class DeltaSyncService {
           debugPrint('إرسال كـ DELETE: ${config.entity}/$localUuid');
           emitted = true;
         } else {
-          final shouldInsert = (createdAt != null && createdAt > normalizedSince) || (hasMirror && previous == null);
-          if (shouldInsert || (!hasMirror && createdAt != null && createdAt > normalizedSince)) {
+          final isFirstSyncForTable = !hasMirror;
+          final isNewRecordInMirror = previous == null;
+          final createdAfterLastSync = createdAt != null && createdAt > normalizedSince;
+
+          final shouldInsert = isFirstSyncForTable || (hasMirror && isNewRecordInMirror) || createdAfterLastSync;
+
+          if (shouldInsert) {
             changes.add(DeltaSyncChange(
               entity: config.entity,
               operation: 'insert',
@@ -142,18 +147,6 @@ class DeltaSyncService {
           lastSeenAt: nowTs,
         );
         seen.add(localUuid);
-
-        if (!emitted && !hasMirror && createdAt != null && createdAt > normalizedSince) {
-          changes.add(DeltaSyncChange(
-            entity: config.entity,
-            operation: 'insert',
-            data: payload,
-            rowHash: rowHash,
-            localUuid: localUuid,
-            clientTimestamp: clientTs,
-          ));
-          debugPrint('إرسال كـ INSERT: ${config.entity}/$localUuid');
-        }
       }
 
       final missing = existingMirror.keys.where((uuid) => !seen.contains(uuid)).toList();
