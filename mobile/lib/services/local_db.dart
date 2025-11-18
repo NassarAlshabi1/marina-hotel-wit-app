@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:drift_sqflite/drift_sqflite.dart';
 
+import '../data/sync_models.dart';
+
 part 'local_db.g.dart';
 
 mixin SyncFields on Table {
@@ -395,7 +397,7 @@ class SyncAuditDao {
               direction: direction,
               deviceId: deviceId,
               metadata: jsonEncode(metadata),
-              operations: jsonEncode(appliedOperations.map((e) => {
+              operations: jsonEncode(appliedOperations.map((SyncOperation e) => {
                     'table': e.table,
                     'uuid': e.uuid,
                     'operation': e.operation,

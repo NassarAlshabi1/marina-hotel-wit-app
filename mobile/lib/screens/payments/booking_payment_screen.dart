@@ -1271,7 +1271,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: ui.TextDirection.rtl,
           child: AlertDialog(
             title: const Text('المبلغ أكبر من المتبقي'),
             content: Text('المبلغ المتبقي هو ${_currencyFmt.format(remaining)} ريال، بينما أدخلت ${_currencyFmt.format(amount)} ريال.\nهل تريد المتابعة؟'),
