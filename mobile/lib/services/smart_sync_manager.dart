@@ -33,6 +33,8 @@ class SmartSyncManager {
   bool _isEnabled = false;
   String? _deviceId;
   
+  String? get deviceId => _deviceId;
+  
   static const String _prefsEnabledKey = 'smart_sync_enabled';
   static const String _prefsIntervalKey = 'smart_sync_interval';
   static const String _prefsLastSyncKey = 'smart_sync_last_check';

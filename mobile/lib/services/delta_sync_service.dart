@@ -307,6 +307,24 @@ class DeltaSyncService {
         deletedAt: (row) => row.deletedAt,
         toJson: (row) => row.toJson(),
       ),
+      _EntityConfig<BookingNight>(
+        entity: 'booking_nights',
+        fetchAll: () => db.select(db.bookingNights).get(),
+        localUuid: (row) => row.localUuid,
+        createdAt: (row) => row.createdAt,
+        lastModified: (row) => row.lastModified,
+        deletedAt: (row) => row.deletedAt,
+        toJson: (row) => row.toJson(),
+      ),
+      _EntityConfig<HotelDayLedgerEntry>(
+        entity: 'hotel_day_ledger',
+        fetchAll: () => db.select(db.hotelDayLedger).get(),
+        localUuid: (row) => row.localUuid,
+        createdAt: (row) => row.createdAt,
+        lastModified: (row) => row.lastModified,
+        deletedAt: (row) => row.deletedAt,
+        toJson: (row) => row.toJson(),
+      ),
     ];
   }
 }
