@@ -8641,10 +8641,10 @@ class $SyncQueueTable extends SyncQueue
   late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
       'uuid', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _tableNameMeta =
-      const VerificationMeta('tableName');
+  static const VerificationMeta _targetTableMeta =
+      const VerificationMeta('targetTable');
   @override
-  late final GeneratedColumn<String> tableName = GeneratedColumn<String>(
+  late final GeneratedColumn<String> targetTable = GeneratedColumn<String>(
       'table_name', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _operationMeta =
@@ -8688,7 +8688,7 @@ class $SyncQueueTable extends SyncQueue
   List<GeneratedColumn> get $columns => [
         id,
         uuid,
-        tableName,
+        targetTable,
         operation,
         payload,
         updatedAt,
@@ -8716,10 +8716,10 @@ class $SyncQueueTable extends SyncQueue
       context.missing(_uuidMeta);
     }
     if (data.containsKey('table_name')) {
-      context.handle(_tableNameMeta,
-          tableName.isAcceptableOrUnknown(data['table_name']!, _tableNameMeta));
+      context.handle(_targetTableMeta,
+          targetTable.isAcceptableOrUnknown(data['table_name']!, _targetTableMeta));
     } else if (isInserting) {
-      context.missing(_tableNameMeta);
+      context.missing(_targetTableMeta);
     }
     if (data.containsKey('operation')) {
       context.handle(_operationMeta,
@@ -8768,7 +8768,7 @@ class $SyncQueueTable extends SyncQueue
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       uuid: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}uuid'])!,
-      tableName: attachedDatabase.typeMapping
+      targetTable: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}table_name'])!,
       operation: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}operation'])!,
@@ -8794,7 +8794,7 @@ class $SyncQueueTable extends SyncQueue
 class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
   final int id;
   final String uuid;
-  final String tableName;
+  final String targetTable;
   final String operation;
   final String payload;
   final String updatedAt;
@@ -8804,7 +8804,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
   const SyncQueueData(
       {required this.id,
       required this.uuid,
-      required this.tableName,
+      required this.targetTable,
       required this.operation,
       required this.payload,
       required this.updatedAt,
@@ -8816,7 +8816,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['uuid'] = Variable<String>(uuid);
-    map['table_name'] = Variable<String>(tableName);
+    map['table_name'] = Variable<String>(targetTable);
     map['operation'] = Variable<String>(operation);
     map['payload'] = Variable<String>(payload);
     map['updated_at'] = Variable<String>(updatedAt);
@@ -8830,7 +8830,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
     return SyncQueueCompanion(
       id: Value(id),
       uuid: Value(uuid),
-      tableName: Value(tableName),
+      targetTable: Value(targetTable),
       operation: Value(operation),
       payload: Value(payload),
       updatedAt: Value(updatedAt),
@@ -8846,7 +8846,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
     return SyncQueueData(
       id: serializer.fromJson<int>(json['id']),
       uuid: serializer.fromJson<String>(json['uuid']),
-      tableName: serializer.fromJson<String>(json['tableName']),
+      targetTable: serializer.fromJson<String>(json['tableName']),
       operation: serializer.fromJson<String>(json['operation']),
       payload: serializer.fromJson<String>(json['payload']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
@@ -8861,7 +8861,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'uuid': serializer.toJson<String>(uuid),
-      'tableName': serializer.toJson<String>(tableName),
+      'tableName': serializer.toJson<String>(targetTable),
       'operation': serializer.toJson<String>(operation),
       'payload': serializer.toJson<String>(payload),
       'updatedAt': serializer.toJson<String>(updatedAt),
@@ -8874,7 +8874,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
   SyncQueueData copyWith(
           {int? id,
           String? uuid,
-          String? tableName,
+          String? targetTable,
           String? operation,
           String? payload,
           String? updatedAt,
@@ -8884,7 +8884,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
       SyncQueueData(
         id: id ?? this.id,
         uuid: uuid ?? this.uuid,
-        tableName: tableName ?? this.tableName,
+        targetTable: targetTable ?? this.targetTable,
         operation: operation ?? this.operation,
         payload: payload ?? this.payload,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -8896,7 +8896,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
     return SyncQueueData(
       id: data.id.present ? data.id.value : this.id,
       uuid: data.uuid.present ? data.uuid.value : this.uuid,
-      tableName: data.tableName.present ? data.tableName.value : this.tableName,
+      targetTable: data.targetTable.present ? data.targetTable.value : this.targetTable,
       operation: data.operation.present ? data.operation.value : this.operation,
       payload: data.payload.present ? data.payload.value : this.payload,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -8911,7 +8911,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
     return (StringBuffer('SyncQueueData(')
           ..write('id: $id, ')
           ..write('uuid: $uuid, ')
-          ..write('tableName: $tableName, ')
+          ..write('targetTable: $targetTable, ')
           ..write('operation: $operation, ')
           ..write('payload: $payload, ')
           ..write('updatedAt: $updatedAt, ')
@@ -8923,7 +8923,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
   }
 
   @override
-  int get hashCode => Object.hash(id, uuid, tableName, operation, payload,
+  int get hashCode => Object.hash(id, uuid, targetTable, operation, payload,
       updatedAt, deviceId, status, createdAt);
   @override
   bool operator ==(Object other) =>
@@ -8931,7 +8931,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
       (other is SyncQueueData &&
           other.id == this.id &&
           other.uuid == this.uuid &&
-          other.tableName == this.tableName &&
+          other.targetTable == this.targetTable &&
           other.operation == this.operation &&
           other.payload == this.payload &&
           other.updatedAt == this.updatedAt &&
@@ -8943,7 +8943,7 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
 class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
   final Value<int> id;
   final Value<String> uuid;
-  final Value<String> tableName;
+  final Value<String> targetTable;
   final Value<String> operation;
   final Value<String> payload;
   final Value<String> updatedAt;
@@ -8953,7 +8953,7 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
   const SyncQueueCompanion({
     this.id = const Value.absent(),
     this.uuid = const Value.absent(),
-    this.tableName = const Value.absent(),
+    this.targetTable = const Value.absent(),
     this.operation = const Value.absent(),
     this.payload = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -8964,7 +8964,7 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
   SyncQueueCompanion.insert({
     this.id = const Value.absent(),
     required String uuid,
-    required String tableName,
+    required String targetTable,
     required String operation,
     required String payload,
     required String updatedAt,
@@ -8972,7 +8972,7 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
     this.status = const Value.absent(),
     required String createdAt,
   })  : uuid = Value(uuid),
-        tableName = Value(tableName),
+        targetTable = Value(targetTable),
         operation = Value(operation),
         payload = Value(payload),
         updatedAt = Value(updatedAt),
@@ -8981,7 +8981,7 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
   static Insertable<SyncQueueData> custom({
     Expression<int>? id,
     Expression<String>? uuid,
-    Expression<String>? tableName,
+    Expression<String>? targetTable,
     Expression<String>? operation,
     Expression<String>? payload,
     Expression<String>? updatedAt,
@@ -8992,7 +8992,7 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (uuid != null) 'uuid': uuid,
-      if (tableName != null) 'table_name': tableName,
+      if (targetTable != null) 'table_name': targetTable,
       if (operation != null) 'operation': operation,
       if (payload != null) 'payload': payload,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -9005,7 +9005,7 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
   SyncQueueCompanion copyWith(
       {Value<int>? id,
       Value<String>? uuid,
-      Value<String>? tableName,
+      Value<String>? targetTable,
       Value<String>? operation,
       Value<String>? payload,
       Value<String>? updatedAt,
@@ -9015,7 +9015,7 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
     return SyncQueueCompanion(
       id: id ?? this.id,
       uuid: uuid ?? this.uuid,
-      tableName: tableName ?? this.tableName,
+      targetTable: targetTable ?? this.targetTable,
       operation: operation ?? this.operation,
       payload: payload ?? this.payload,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -9034,8 +9034,8 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
     if (uuid.present) {
       map['uuid'] = Variable<String>(uuid.value);
     }
-    if (tableName.present) {
-      map['table_name'] = Variable<String>(tableName.value);
+    if (targetTable.present) {
+      map['table_name'] = Variable<String>(targetTable.value);
     }
     if (operation.present) {
       map['operation'] = Variable<String>(operation.value);
@@ -9063,7 +9063,7 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
     return (StringBuffer('SyncQueueCompanion(')
           ..write('id: $id, ')
           ..write('uuid: $uuid, ')
-          ..write('tableName: $tableName, ')
+          ..write('targetTable: $targetTable, ')
           ..write('operation: $operation, ')
           ..write('payload: $payload, ')
           ..write('updatedAt: $updatedAt, ')
@@ -9599,10 +9599,10 @@ class $SyncConflictsTable extends SyncConflicts
       requiredDuringInsert: true,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES sync_log (id)'));
-  static const VerificationMeta _tableNameMeta =
-      const VerificationMeta('tableName');
+  static const VerificationMeta _targetTableMeta =
+      const VerificationMeta('targetTable');
   @override
-  late final GeneratedColumn<String> tableName = GeneratedColumn<String>(
+  late final GeneratedColumn<String> targetTable = GeneratedColumn<String>(
       'table_name', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
@@ -9638,7 +9638,7 @@ class $SyncConflictsTable extends SyncConflicts
   List<GeneratedColumn> get $columns => [
         id,
         logId,
-        tableName,
+        targetTable,
         uuid,
         resolution,
         localPayload,
@@ -9665,10 +9665,10 @@ class $SyncConflictsTable extends SyncConflicts
       context.missing(_logIdMeta);
     }
     if (data.containsKey('table_name')) {
-      context.handle(_tableNameMeta,
-          tableName.isAcceptableOrUnknown(data['table_name']!, _tableNameMeta));
+      context.handle(_targetTableMeta,
+          targetTable.isAcceptableOrUnknown(data['table_name']!, _targetTableMeta));
     } else if (isInserting) {
-      context.missing(_tableNameMeta);
+      context.missing(_targetTableMeta);
     }
     if (data.containsKey('uuid')) {
       context.handle(
@@ -9719,7 +9719,7 @@ class $SyncConflictsTable extends SyncConflicts
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       logId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}log_id'])!,
-      tableName: attachedDatabase.typeMapping
+      targetTable: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}table_name'])!,
       uuid: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}uuid'])!,
@@ -9743,7 +9743,7 @@ class $SyncConflictsTable extends SyncConflicts
 class SyncConflict extends DataClass implements Insertable<SyncConflict> {
   final int id;
   final int logId;
-  final String tableName;
+  final String targetTable;
   final String uuid;
   final String resolution;
   final String localPayload;
@@ -9752,7 +9752,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
   const SyncConflict(
       {required this.id,
       required this.logId,
-      required this.tableName,
+      required this.targetTable,
       required this.uuid,
       required this.resolution,
       required this.localPayload,
@@ -9763,7 +9763,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['log_id'] = Variable<int>(logId);
-    map['table_name'] = Variable<String>(tableName);
+    map['table_name'] = Variable<String>(targetTable);
     map['uuid'] = Variable<String>(uuid);
     map['resolution'] = Variable<String>(resolution);
     map['local_payload'] = Variable<String>(localPayload);
@@ -9776,7 +9776,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
     return SyncConflictsCompanion(
       id: Value(id),
       logId: Value(logId),
-      tableName: Value(tableName),
+      targetTable: Value(targetTable),
       uuid: Value(uuid),
       resolution: Value(resolution),
       localPayload: Value(localPayload),
@@ -9791,7 +9791,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
     return SyncConflict(
       id: serializer.fromJson<int>(json['id']),
       logId: serializer.fromJson<int>(json['logId']),
-      tableName: serializer.fromJson<String>(json['tableName']),
+      targetTable: serializer.fromJson<String>(json['tableName']),
       uuid: serializer.fromJson<String>(json['uuid']),
       resolution: serializer.fromJson<String>(json['resolution']),
       localPayload: serializer.fromJson<String>(json['localPayload']),
@@ -9805,7 +9805,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'logId': serializer.toJson<int>(logId),
-      'tableName': serializer.toJson<String>(tableName),
+      'tableName': serializer.toJson<String>(targetTable),
       'uuid': serializer.toJson<String>(uuid),
       'resolution': serializer.toJson<String>(resolution),
       'localPayload': serializer.toJson<String>(localPayload),
@@ -9817,7 +9817,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
   SyncConflict copyWith(
           {int? id,
           int? logId,
-          String? tableName,
+          String? targetTable,
           String? uuid,
           String? resolution,
           String? localPayload,
@@ -9826,7 +9826,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
       SyncConflict(
         id: id ?? this.id,
         logId: logId ?? this.logId,
-        tableName: tableName ?? this.tableName,
+        targetTable: targetTable ?? this.targetTable,
         uuid: uuid ?? this.uuid,
         resolution: resolution ?? this.resolution,
         localPayload: localPayload ?? this.localPayload,
@@ -9837,7 +9837,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
     return SyncConflict(
       id: data.id.present ? data.id.value : this.id,
       logId: data.logId.present ? data.logId.value : this.logId,
-      tableName: data.tableName.present ? data.tableName.value : this.tableName,
+      targetTable: data.targetTable.present ? data.targetTable.value : this.targetTable,
       uuid: data.uuid.present ? data.uuid.value : this.uuid,
       resolution:
           data.resolution.present ? data.resolution.value : this.resolution,
@@ -9856,7 +9856,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
     return (StringBuffer('SyncConflict(')
           ..write('id: $id, ')
           ..write('logId: $logId, ')
-          ..write('tableName: $tableName, ')
+          ..write('targetTable: $targetTable, ')
           ..write('uuid: $uuid, ')
           ..write('resolution: $resolution, ')
           ..write('localPayload: $localPayload, ')
@@ -9867,7 +9867,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
   }
 
   @override
-  int get hashCode => Object.hash(id, logId, tableName, uuid, resolution,
+  int get hashCode => Object.hash(id, logId, targetTable, uuid, resolution,
       localPayload, remotePayload, createdAt);
   @override
   bool operator ==(Object other) =>
@@ -9875,7 +9875,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
       (other is SyncConflict &&
           other.id == this.id &&
           other.logId == this.logId &&
-          other.tableName == this.tableName &&
+          other.targetTable == this.targetTable &&
           other.uuid == this.uuid &&
           other.resolution == this.resolution &&
           other.localPayload == this.localPayload &&
@@ -9886,7 +9886,7 @@ class SyncConflict extends DataClass implements Insertable<SyncConflict> {
 class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
   final Value<int> id;
   final Value<int> logId;
-  final Value<String> tableName;
+  final Value<String> targetTable;
   final Value<String> uuid;
   final Value<String> resolution;
   final Value<String> localPayload;
@@ -9895,7 +9895,7 @@ class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
   const SyncConflictsCompanion({
     this.id = const Value.absent(),
     this.logId = const Value.absent(),
-    this.tableName = const Value.absent(),
+    this.targetTable = const Value.absent(),
     this.uuid = const Value.absent(),
     this.resolution = const Value.absent(),
     this.localPayload = const Value.absent(),
@@ -9905,14 +9905,14 @@ class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
   SyncConflictsCompanion.insert({
     this.id = const Value.absent(),
     required int logId,
-    required String tableName,
+    required String targetTable,
     required String uuid,
     required String resolution,
     required String localPayload,
     required String remotePayload,
     required String createdAt,
   })  : logId = Value(logId),
-        tableName = Value(tableName),
+        targetTable = Value(targetTable),
         uuid = Value(uuid),
         resolution = Value(resolution),
         localPayload = Value(localPayload),
@@ -9921,7 +9921,7 @@ class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
   static Insertable<SyncConflict> custom({
     Expression<int>? id,
     Expression<int>? logId,
-    Expression<String>? tableName,
+    Expression<String>? targetTable,
     Expression<String>? uuid,
     Expression<String>? resolution,
     Expression<String>? localPayload,
@@ -9931,7 +9931,7 @@ class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (logId != null) 'log_id': logId,
-      if (tableName != null) 'table_name': tableName,
+      if (targetTable != null) 'table_name': targetTable,
       if (uuid != null) 'uuid': uuid,
       if (resolution != null) 'resolution': resolution,
       if (localPayload != null) 'local_payload': localPayload,
@@ -9943,7 +9943,7 @@ class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
   SyncConflictsCompanion copyWith(
       {Value<int>? id,
       Value<int>? logId,
-      Value<String>? tableName,
+      Value<String>? targetTable,
       Value<String>? uuid,
       Value<String>? resolution,
       Value<String>? localPayload,
@@ -9952,7 +9952,7 @@ class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
     return SyncConflictsCompanion(
       id: id ?? this.id,
       logId: logId ?? this.logId,
-      tableName: tableName ?? this.tableName,
+      targetTable: targetTable ?? this.targetTable,
       uuid: uuid ?? this.uuid,
       resolution: resolution ?? this.resolution,
       localPayload: localPayload ?? this.localPayload,
@@ -9970,8 +9970,8 @@ class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
     if (logId.present) {
       map['log_id'] = Variable<int>(logId.value);
     }
-    if (tableName.present) {
-      map['table_name'] = Variable<String>(tableName.value);
+    if (targetTable.present) {
+      map['table_name'] = Variable<String>(targetTable.value);
     }
     if (uuid.present) {
       map['uuid'] = Variable<String>(uuid.value);
@@ -9996,7 +9996,7 @@ class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
     return (StringBuffer('SyncConflictsCompanion(')
           ..write('id: $id, ')
           ..write('logId: $logId, ')
-          ..write('tableName: $tableName, ')
+          ..write('targetTable: $targetTable, ')
           ..write('uuid: $uuid, ')
           ..write('resolution: $resolution, ')
           ..write('localPayload: $localPayload, ')
@@ -14731,7 +14731,7 @@ typedef $$RestoreFixLogTableProcessedTableManager = ProcessedTableManager<
 typedef $$SyncQueueTableCreateCompanionBuilder = SyncQueueCompanion Function({
   Value<int> id,
   required String uuid,
-  required String tableName,
+  required String targetTable,
   required String operation,
   required String payload,
   required String updatedAt,
@@ -14742,7 +14742,7 @@ typedef $$SyncQueueTableCreateCompanionBuilder = SyncQueueCompanion Function({
 typedef $$SyncQueueTableUpdateCompanionBuilder = SyncQueueCompanion Function({
   Value<int> id,
   Value<String> uuid,
-  Value<String> tableName,
+  Value<String> targetTable,
   Value<String> operation,
   Value<String> payload,
   Value<String> updatedAt,
@@ -14766,8 +14766,8 @@ class $$SyncQueueTableFilterComposer
   ColumnFilters<String> get uuid => $composableBuilder(
       column: $table.uuid, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get tableName => $composableBuilder(
-      column: $table.tableName, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get targetTable => $composableBuilder(
+      column: $table.targetTable, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get operation => $composableBuilder(
       column: $table.operation, builder: (column) => ColumnFilters(column));
@@ -14803,8 +14803,8 @@ class $$SyncQueueTableOrderingComposer
   ColumnOrderings<String> get uuid => $composableBuilder(
       column: $table.uuid, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get tableName => $composableBuilder(
-      column: $table.tableName, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get targetTable => $composableBuilder(
+      column: $table.targetTable, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get operation => $composableBuilder(
       column: $table.operation, builder: (column) => ColumnOrderings(column));
@@ -14840,8 +14840,8 @@ class $$SyncQueueTableAnnotationComposer
   GeneratedColumn<String> get uuid =>
       $composableBuilder(column: $table.uuid, builder: (column) => column);
 
-  GeneratedColumn<String> get tableName =>
-      $composableBuilder(column: $table.tableName, builder: (column) => column);
+  GeneratedColumn<String> get targetTable =>
+      $composableBuilder(column: $table.targetTable, builder: (column) => column);
 
   GeneratedColumn<String> get operation =>
       $composableBuilder(column: $table.operation, builder: (column) => column);
@@ -14890,7 +14890,7 @@ class $$SyncQueueTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<String> uuid = const Value.absent(),
-            Value<String> tableName = const Value.absent(),
+            Value<String> targetTable = const Value.absent(),
             Value<String> operation = const Value.absent(),
             Value<String> payload = const Value.absent(),
             Value<String> updatedAt = const Value.absent(),
@@ -14901,7 +14901,7 @@ class $$SyncQueueTableTableManager extends RootTableManager<
               SyncQueueCompanion(
             id: id,
             uuid: uuid,
-            tableName: tableName,
+            targetTable: targetTable,
             operation: operation,
             payload: payload,
             updatedAt: updatedAt,
@@ -14912,7 +14912,7 @@ class $$SyncQueueTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
             required String uuid,
-            required String tableName,
+            required String targetTable,
             required String operation,
             required String payload,
             required String updatedAt,
@@ -14923,7 +14923,7 @@ class $$SyncQueueTableTableManager extends RootTableManager<
               SyncQueueCompanion.insert(
             id: id,
             uuid: uuid,
-            tableName: tableName,
+            targetTable: targetTable,
             operation: operation,
             payload: payload,
             updatedAt: updatedAt,
@@ -15281,7 +15281,7 @@ typedef $$SyncConflictsTableCreateCompanionBuilder = SyncConflictsCompanion
     Function({
   Value<int> id,
   required int logId,
-  required String tableName,
+  required String targetTable,
   required String uuid,
   required String resolution,
   required String localPayload,
@@ -15292,7 +15292,7 @@ typedef $$SyncConflictsTableUpdateCompanionBuilder = SyncConflictsCompanion
     Function({
   Value<int> id,
   Value<int> logId,
-  Value<String> tableName,
+  Value<String> targetTable,
   Value<String> uuid,
   Value<String> resolution,
   Value<String> localPayload,
@@ -15332,8 +15332,8 @@ class $$SyncConflictsTableFilterComposer
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get tableName => $composableBuilder(
-      column: $table.tableName, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get targetTable => $composableBuilder(
+      column: $table.targetTable, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get uuid => $composableBuilder(
       column: $table.uuid, builder: (column) => ColumnFilters(column));
@@ -15383,8 +15383,8 @@ class $$SyncConflictsTableOrderingComposer
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get tableName => $composableBuilder(
-      column: $table.tableName, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get targetTable => $composableBuilder(
+      column: $table.targetTable, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get uuid => $composableBuilder(
       column: $table.uuid, builder: (column) => ColumnOrderings(column));
@@ -15436,8 +15436,8 @@ class $$SyncConflictsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get tableName =>
-      $composableBuilder(column: $table.tableName, builder: (column) => column);
+  GeneratedColumn<String> get targetTable =>
+      $composableBuilder(column: $table.targetTable, builder: (column) => column);
 
   GeneratedColumn<String> get uuid =>
       $composableBuilder(column: $table.uuid, builder: (column) => column);
@@ -15500,7 +15500,7 @@ class $$SyncConflictsTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<int> logId = const Value.absent(),
-            Value<String> tableName = const Value.absent(),
+            Value<String> targetTable = const Value.absent(),
             Value<String> uuid = const Value.absent(),
             Value<String> resolution = const Value.absent(),
             Value<String> localPayload = const Value.absent(),
@@ -15510,7 +15510,7 @@ class $$SyncConflictsTableTableManager extends RootTableManager<
               SyncConflictsCompanion(
             id: id,
             logId: logId,
-            tableName: tableName,
+            targetTable: targetTable,
             uuid: uuid,
             resolution: resolution,
             localPayload: localPayload,
@@ -15520,7 +15520,7 @@ class $$SyncConflictsTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
             required int logId,
-            required String tableName,
+            required String targetTable,
             required String uuid,
             required String resolution,
             required String localPayload,
@@ -15530,7 +15530,7 @@ class $$SyncConflictsTableTableManager extends RootTableManager<
               SyncConflictsCompanion.insert(
             id: id,
             logId: logId,
-            tableName: tableName,
+            targetTable: targetTable,
             uuid: uuid,
             resolution: resolution,
             localPayload: localPayload,

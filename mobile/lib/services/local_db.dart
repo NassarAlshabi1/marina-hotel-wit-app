@@ -182,7 +182,7 @@ class RestoreFixLog extends Table {
 class SyncQueue extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uuid => text()();
-  TextColumn get tableName => text()();
+  TextColumn get targetTable => text().named('table_name')();
   TextColumn get operation => text()();
   TextColumn get payload => text()();
   TextColumn get updatedAt => text()();
@@ -207,7 +207,7 @@ class SyncLog extends Table {
 class SyncConflicts extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get logId => integer().references(SyncLog, #id)();
-  TextColumn get tableName => text()();
+  TextColumn get targetTable => text().named('table_name')();
   TextColumn get uuid => text()();
   TextColumn get resolution => text()();
   TextColumn get localPayload => text()();
@@ -417,7 +417,7 @@ class SyncAuditDao {
               _db.syncConflicts,
               SyncConflictsCompanion.insert(
                 logId: logId,
-                tableName: conflict.table,
+                targetTable: conflict.table,
                 uuid: conflict.uuid,
                 resolution: conflict.resolution,
                 localPayload: jsonEncode(conflict.localPayload),

@@ -71,7 +71,7 @@ class SyncManager {
     await db.into(db.syncQueue).insertOnConflictUpdate(
       SyncQueueCompanion(
         uuid: drift.Value(uuid),
-        tableName: drift.Value(table),
+        targetTable: drift.Value(table),
         operation: drift.Value(operation),
         payload: drift.Value(payload),
         updatedAt: drift.Value(updatedAt),
