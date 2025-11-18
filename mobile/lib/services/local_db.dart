@@ -440,7 +440,7 @@ class SyncAuditDao {
         .get();
   }
 
-  Future<List<SyncConflictsData>> fetchConflictsForLog(int logId) {
+  Future<List<SyncConflict>> fetchConflictsForLog(int logId) {
     return (_db.select(_db.syncConflicts)..where((tbl) => tbl.logId.equals(logId))).get();
   }
 }

@@ -174,7 +174,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
             Text(note.content),
             const SizedBox(height: 4),
             Text(
-              _formatDate(DateTime.parse(note.createdAt)),
+              _formatDate(note.createdAt),
               style: const TextStyle(fontSize: 12),
             ),
           ],
@@ -269,8 +269,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   void _showNoteDialog({ShiftNote? note}) {
     final titleController = TextEditingController(text: note?.title ?? '');
     final contentController = TextEditingController(text: note?.content ?? '');
-    String priority = note?.priority ?? 'medium';
-    String shiftType = note?.shiftType ?? 'all';
+    String priority = note?.priority.name ?? 'medium';
+    String shiftType = note?.shiftType.name ?? 'all';
 
     showDialog(
       context: context,
