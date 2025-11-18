@@ -204,6 +204,7 @@ class SyncLog extends Table {
   TextColumn get completedAt => text().nullable()();
 }
 
+@DataClassName('SyncConflictRow')
 class SyncConflicts extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get logId => integer().references(SyncLog, #id)();
@@ -440,7 +441,20 @@ class SyncAuditDao {
         .get();
   }
 
-  Future<List<SyncConflict>> fetchConflictsForLog(int logId) {
-    return (_db.select(_db.syncConflicts)..where((tbl) => tbl.logId.equals(logId))).get();
+  Future<List<sync_models.SyncConflict>> fetchConflictsForLog(int logId) async {
+    final rows = await (_db.select(_db.syncConflicts)
+          ..where((tbl) => tbl.logId.equals(logId)))
+        .get();
+    return rows
+        .map((row) => sync_models.SyncConflict(
+              table: row.targetTable,
+              uuid: row.uuid,
+              localPayload:
+                  Map<String, dynamic>.from(jsonDecode(row.localPayload) as Map),
+              remotePayload:
+                  Map<String, dynamic>.from(jsonDecode(row.remotePayload) as Map),
+              resolution: row.resolution,
+            ))
+        .toList();
   }
 }
