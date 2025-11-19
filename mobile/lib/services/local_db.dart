@@ -257,7 +257,7 @@ class AutoFixRuns extends Table {
 class IntegrityViolations extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get runId => integer().references(AutoFixRuns, #id)();
-  TextColumn get tableName => text()();
+  TextColumn get affectedTableName => text()();
   TextColumn get recordUuid => text().nullable()();
   TextColumn get violationType => text()();
   TextColumn get details => text()();
