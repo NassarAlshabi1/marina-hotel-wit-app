@@ -37,8 +37,8 @@ class Rooms extends Table with SyncFields {
 
   @override
   List<Index> get indexes => [
-        Index('idx_rooms_status', [status, cleaningStatus]),
-        Index('idx_rooms_maintenance', [requiresMaintenance]),
+        Index('idx_rooms_status', 'CREATE INDEX idx_rooms_status ON rooms (status, cleaning_status)'),
+        Index('idx_rooms_maintenance', 'CREATE INDEX idx_rooms_maintenance ON rooms (requires_maintenance)'),
       ];
 }
 
@@ -76,9 +76,9 @@ class Bookings extends Table with SyncFields {
 
   @override
   List<Index> get indexes => [
-        Index('idx_bookings_status_day', [status, hotelDayCheckin]),
-        Index('idx_bookings_room', [roomNumber]),
-        Index('idx_bookings_guest', [guestName]),
+        Index('idx_bookings_status_day', 'CREATE INDEX idx_bookings_status_day ON bookings (status, hotel_day_checkin)'),
+        Index('idx_bookings_room', 'CREATE INDEX idx_bookings_room ON bookings (room_number)'),
+        Index('idx_bookings_guest', 'CREATE INDEX idx_bookings_guest ON bookings (guest_name)'),
       ];
 }
 
@@ -116,8 +116,8 @@ class Expenses extends Table with SyncFields {
 
   @override
   List<Index> get indexes => [
-        Index('idx_expenses_hotel_day', [hotelDayKey]),
-        Index('idx_expenses_category', [categoryUuid]),
+        Index('idx_expenses_hotel_day', 'CREATE INDEX idx_expenses_hotel_day ON expenses (hotel_day_key)'),
+        Index('idx_expenses_category', 'CREATE INDEX idx_expenses_category ON expenses (category_uuid)'),
       ];
 }
 
@@ -154,8 +154,8 @@ class Payments extends Table with SyncFields {
 
   @override
   List<Index> get indexes => [
-        Index('idx_payments_booking', [bookingLocalId, hotelDayKey]),
-        Index('idx_payments_room_day', [roomNumber, hotelDayKey]),
+        Index('idx_payments_booking', 'CREATE INDEX idx_payments_booking ON payments (booking_local_id, hotel_day_key)'),
+        Index('idx_payments_room_day', 'CREATE INDEX idx_payments_room_day ON payments (room_number, hotel_day_key)'),
       ];
 }
 
@@ -183,8 +183,8 @@ class Debts extends Table with SyncFields {
 
   @override
   List<Index> get indexes => [
-        Index('idx_debts_status', [isSettled, isFromAutoFix]),
-        Index('idx_debts_guest', [guestName]),
+        Index('idx_debts_status', 'CREATE INDEX idx_debts_status ON debts (is_settled, is_from_auto_fix)'),
+        Index('idx_debts_guest', 'CREATE INDEX idx_debts_guest ON debts (guest_name)'),
       ];
 }
 
@@ -267,7 +267,7 @@ class IntegrityViolations extends Table {
 
   @override
   List<Index> get indexes => [
-        Index('idx_integrity_run', [runId, violationType]),
+        Index('idx_integrity_run', 'CREATE INDEX idx_integrity_run ON integrity_violations (run_id, violation_type)'),
       ];
 }
 
@@ -313,7 +313,7 @@ class SalaryPayments extends Table with SyncFields {
 
   @override
   List<Index> get indexes => [
-        Index('idx_salary_payments_cycle', [cycleId, hotelDayKey]),
+        Index('idx_salary_payments_cycle', 'CREATE INDEX idx_salary_payments_cycle ON salary_payments (cycle_id, hotel_day_key)'),
       ];
 }
 
