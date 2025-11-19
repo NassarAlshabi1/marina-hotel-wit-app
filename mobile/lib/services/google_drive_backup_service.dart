@@ -576,14 +576,16 @@ class GoogleDriveBackupService {
 
     try {
       await Workmanager().registerPeriodicTask(
-        'autoBackup',
-        'autoBackupTask',
+        uniqueName: 'autoBackup',
+        taskName: 'autoBackupTask',
         frequency: frequencyDuration,
         initialDelay: initialDelay,
-        constraints: Constraints(
+        constraints: const Constraints(
           networkType: NetworkType.connected,
           requiresBatteryNotLow: true,
         ),
+        existingWorkPolicy: ExistingWorkPolicy.replace,
+        inputData: const <String, dynamic>{},
       );
 
       debugPrint('✅ تم جدولة النسخ التلقائي: $frequency في $timeString');

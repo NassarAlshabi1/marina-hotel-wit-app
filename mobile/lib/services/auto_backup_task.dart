@@ -30,8 +30,8 @@ class AutoBackupTask {
       final initialDelay = _calculateInitialDelay(time);
       
       await Workmanager().registerPeriodicTask(
-        taskId,
-        taskName,
+        uniqueName: taskId,
+        taskName: taskName,
         frequency: const Duration(days: 1),
         initialDelay: initialDelay,
         constraints: Constraints(
@@ -43,6 +43,7 @@ class AutoBackupTask {
           'frequency': 'daily',
           'time': time,
         },
+        existingWorkPolicy: ExistingWorkPolicy.replace,
       );
       
       debugPrint('✅ تم جدولة النسخ اليومي في $time');
@@ -60,8 +61,8 @@ class AutoBackupTask {
       final initialDelay = _calculateWeeklyInitialDelay(time, weekday);
       
       await Workmanager().registerPeriodicTask(
-        taskId,
-        taskName,
+        uniqueName: taskId,
+        taskName: taskName,
         frequency: const Duration(days: 7),
         initialDelay: initialDelay,
         constraints: Constraints(
@@ -74,6 +75,7 @@ class AutoBackupTask {
           'time': time,
           'weekday': weekday,
         },
+        existingWorkPolicy: ExistingWorkPolicy.replace,
       );
       
       debugPrint('✅ تم جدولة النسخ الأسبوعي في $time يوم $weekday');
@@ -91,8 +93,8 @@ class AutoBackupTask {
       final initialDelay = _calculateMonthlyInitialDelay(time, day);
       
       await Workmanager().registerPeriodicTask(
-        taskId,
-        taskName,
+        uniqueName: taskId,
+        taskName: taskName,
         frequency: const Duration(days: 30), // تقريباً شهرياً
         initialDelay: initialDelay,
         constraints: Constraints(
@@ -105,6 +107,7 @@ class AutoBackupTask {
           'time': time,
           'day': day,
         },
+        existingWorkPolicy: ExistingWorkPolicy.replace,
       );
       
       debugPrint('✅ تم جدولة النسخ الشهري في $time يوم $day');
@@ -212,15 +215,16 @@ class AutoBackupTask {
   static Future<void> runImmediately() async {
     try {
       await Workmanager().registerOneOffTask(
-        'immediateBackup',
-        taskName,
-        constraints: Constraints(
+        uniqueName: 'immediateBackup',
+        taskName: taskName,
+        constraints: const Constraints(
           networkType: NetworkType.connected,
         ),
         inputData: {
           'frequency': 'immediate',
           'time': DateTime.now().toIso8601String(),
         },
+        existingWorkPolicy: ExistingWorkPolicy.replace,
       );
       debugPrint('✅ تم تشغيل مهمة النسخ الفوري');
     } catch (e) {

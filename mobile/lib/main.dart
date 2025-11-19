@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +24,7 @@ import 'services/providers.dart';
 import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
 import 'services/auto_backup_manager.dart';
+import 'services/app_session_manager.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'components/admin_layout.dart';
@@ -74,20 +77,93 @@ Future<void> _initializeSmartAutoBackup() async {
   }
 }
 
-class App extends ConsumerWidget {
+class App extends ConsumerStatefulWidget {
   const App({super.key});
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<App> createState() => _AppState();
+}
+
+class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
+  bool _sessionConfigured = false;
+  bool _isConfiguringSession = false;
+  AppDatabase? _pendingDatabase;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ref.listen<AppDatabase>(
       databaseProvider,
       (previous, database) {
-        Future.microtask(() async {
-          await Seeder(database).seedIfEmpty();
-
-
-        });
+        if (_sessionConfigured && previous != null && identical(previous, database)) {
+          return;
+        }
+        _enqueueDatabase(database);
       },
     );
+  }
+
+  void _enqueueDatabase(AppDatabase database) {
+    _pendingDatabase = database;
+    if (!_isConfiguringSession) {
+      _processPendingDatabase();
+    }
+  }
+
+  void _processPendingDatabase() {
+    final database = _pendingDatabase;
+    if (database == null) {
+      return;
+    }
+    _pendingDatabase = null;
+    _isConfiguringSession = true;
+    Future.microtask(() async {
+      try {
+        if (_sessionConfigured) {
+          await AppSessionManager.onAppCloseOrBackground();
+        }
+        AppSessionManager.configure(
+          database: database,
+          deviceIdResolver: () async => SmartSyncManager.instance.deviceId,
+        );
+        await Seeder(database).seedIfEmpty();
+        await AppSessionManager.onAppOpen();
+        _sessionConfigured = true;
+      } finally {
+        _isConfiguringSession = false;
+        if (_pendingDatabase != null) {
+          _processPendingDatabase();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    if (_sessionConfigured) {
+      unawaited(AppSessionManager.onAppCloseOrBackground());
+    }
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_sessionConfigured) {
+      return;
+    }
+    if (state == AppLifecycleState.resumed) {
+      unawaited(AppSessionManager.onAppOpen());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      unawaited(AppSessionManager.onAppCloseOrBackground());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: MaterialApp(
