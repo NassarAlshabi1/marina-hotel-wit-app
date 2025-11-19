@@ -249,7 +249,7 @@ class SyncManager {
   }) {
     final mergedTables = <String, List<Map<String, dynamic>>>{};
     final operations = <SyncOperation>[];
-    final conflicts = <SyncConflict>[];
+    final conflicts = <SyncConflictModel>[];
     final remotePriority = remoteSnapshot.metadata.devicePriority;
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
@@ -326,7 +326,7 @@ class SyncManager {
               if (_devicePriority >= remotePriority) {
                 winner = localRow;
                 operation = 'conflict-local';
-                conflicts.add(SyncConflict(
+                conflicts.add(SyncConflictModel(
                   table: table,
                   uuid: key,
                   localPayload: localRow,
@@ -336,7 +336,7 @@ class SyncManager {
               } else {
                 winner = remoteRow;
                 operation = 'conflict-remote';
-                conflicts.add(SyncConflict(
+                conflicts.add(SyncConflictModel(
                   table: table,
                   uuid: key,
                   localPayload: localRow,
