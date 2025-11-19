@@ -50,8 +50,8 @@ class AutoSyncTask {
         return;
       }
       await Workmanager().registerOneOffTask(
-        uniqueName: _kImmediateWorkName,
-        taskName: _kImmediateWorkName,
+        _kImmediateWorkName,
+        _kImmediateWorkName,
         existingWorkPolicy: ExistingWorkPolicy.replace,
         initialDelay: delay,
         inputData: const <String, dynamic>{},
@@ -65,8 +65,8 @@ class AutoSyncTask {
       throw StateError('لم يتم تهيئة AutoSyncTask. استدع initialize أولاً.');
     }
     await Workmanager().registerPeriodicTask(
-      uniqueName: _kPeriodicWorkName,
-      taskName: _kPeriodicWorkName,
+      _kPeriodicWorkName,
+      _kPeriodicWorkName,
       frequency: frequency,
       initialDelay: frequency,
       existingWorkPolicy: ExistingWorkPolicy.keep,

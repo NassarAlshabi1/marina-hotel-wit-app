@@ -30,8 +30,8 @@ class AutoBackupTask {
       final initialDelay = _calculateInitialDelay(time);
       
       await Workmanager().registerPeriodicTask(
-        uniqueName: taskId,
-        taskName: taskName,
+        taskId,
+        taskName,
         frequency: const Duration(days: 1),
         initialDelay: initialDelay,
         constraints: Constraints(
@@ -61,8 +61,8 @@ class AutoBackupTask {
       final initialDelay = _calculateWeeklyInitialDelay(time, weekday);
       
       await Workmanager().registerPeriodicTask(
-        uniqueName: taskId,
-        taskName: taskName,
+        taskId,
+        taskName,
         frequency: const Duration(days: 7),
         initialDelay: initialDelay,
         constraints: Constraints(
@@ -93,8 +93,8 @@ class AutoBackupTask {
       final initialDelay = _calculateMonthlyInitialDelay(time, day);
       
       await Workmanager().registerPeriodicTask(
-        uniqueName: taskId,
-        taskName: taskName,
+        taskId,
+        taskName,
         frequency: const Duration(days: 30), // تقريباً شهرياً
         initialDelay: initialDelay,
         constraints: Constraints(
@@ -215,9 +215,9 @@ class AutoBackupTask {
   static Future<void> runImmediately() async {
     try {
       await Workmanager().registerOneOffTask(
-        uniqueName: 'immediateBackup',
-        taskName: taskName,
-        constraints: const Constraints(
+        'immediateBackup',
+        taskName,
+        constraints: Constraints(
           networkType: NetworkType.connected,
         ),
         inputData: {

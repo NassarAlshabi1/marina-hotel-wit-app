@@ -576,11 +576,11 @@ class GoogleDriveBackupService {
 
     try {
       await Workmanager().registerPeriodicTask(
-        uniqueName: 'autoBackup',
-        taskName: 'autoBackupTask',
+        'autoBackup',
+        'autoBackupTask',
         frequency: frequencyDuration,
         initialDelay: initialDelay,
-        constraints: const Constraints(
+        constraints: Constraints(
           networkType: NetworkType.connected,
           requiresBatteryNotLow: true,
         ),

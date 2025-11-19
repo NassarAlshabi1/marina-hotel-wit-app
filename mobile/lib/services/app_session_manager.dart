@@ -85,8 +85,8 @@ class AppSessionManager {
   static Future<void> _scheduleBackupIfNeeded() async {
     if (_accumulatedSeconds >= _backupThresholdSeconds) {
       await Workmanager().registerOneOffTask(
-        uniqueName: 'backupAfterInactivity',
-        taskName: 'backupAfterInactivity',
+        'backupAfterInactivity',
+        'backupAfterInactivity',
         initialDelay: const Duration(minutes: 1),
         existingWorkPolicy: ExistingWorkPolicy.replace,
         inputData: const <String, dynamic>{'trigger': 'session_threshold'},
