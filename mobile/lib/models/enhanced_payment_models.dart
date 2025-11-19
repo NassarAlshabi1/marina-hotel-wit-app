@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -34,6 +36,12 @@ class EnhancedPaymentReceipt {
 
   /// إنشاء PDF احترافي للإيصال
   Future<void> generatePDF() async {
+    final bytes = await generatePdfBytes();
+    await Printing.layoutPdf(onLayout: (format) async => bytes);
+  }
+
+  /// إنشاء PDF وإرجاع البيانات كـ Uint8List
+  Future<Uint8List> generatePdfBytes() async {
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final logo = await EnhancedPdfUtils.loadLogoImage();
     final pdf = pw.Document();
@@ -50,7 +58,7 @@ class EnhancedPaymentReceipt {
       ),
     );
 
-    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+    return pdf.save();
   }
 
   pw.Widget _buildReceiptContent(ArabicPdfFonts fonts, pw.ImageProvider? logo) {
