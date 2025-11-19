@@ -1,0 +1,43 @@
+name: Flutter Tests (A1)
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - A1
+      - "capy/**"
+  pull_request:
+    branches:
+      - A1
+  workflow_dispatch:
+
+concurrency:
+  group: flutter-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: mobile
+
+      - name: Run analyzer
+        run: flutter analyze --no-pub
+        working-directory: mobile
+
+      - name: Run unit tests
+        run: flutter test
+        working-directory: mobile

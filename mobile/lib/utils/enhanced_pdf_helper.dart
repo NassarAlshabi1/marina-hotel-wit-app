@@ -1,5 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart' hide PdfColors;
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../models/enhanced_payment_models.dart';
 import '../../models/enhanced_reports.dart';
@@ -92,6 +98,8 @@ class EnhancedPdfHelper {
           roomNumber: 'غير محدد',
           guestName: 'غير محدد',
           guestPhone: '',
+          guestIdType: 'غير محدد',
+          guestIdNumber: '',
           guestNationality: '',
           checkinDate: '',
           status: '',
@@ -103,6 +111,7 @@ class EnhancedPdfHelper {
           lastModified: DateTime.now().millisecondsSinceEpoch,
           version: 1,
           origin: 'local',
+          expectedNights: 1,
           calculatedNights: 1,
         ),
       );
@@ -441,24 +450,7 @@ class PdfPreviewHelper {
               notes: payment.notes,
             );
 
-            // إنشاء PDF وإرجاع البايتات
-            final fonts = await EnhancedPdfUtils.loadArabicFonts();
-            final logo = await EnhancedPdfUtils.loadLogoImage();
-            final pdf = pw.Document();
-
-            pdf.addPage(
-              pw.Page(
-                pageFormat: PdfPageFormat.a4,
-                textDirection: pw.TextDirection.rtl,
-                theme: pw.ThemeData.withFont(
-                  base: fonts.regular,
-                  bold: fonts.bold,
-                ),
-                build: (context) => receipt._buildReceiptContent(fonts, logo),
-              ),
-            );
-
-            return pdf.save();
+            return receipt.generatePdfBytes();
           },
         ),
       ),

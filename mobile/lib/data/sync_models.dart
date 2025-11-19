@@ -177,7 +177,7 @@ class SyncMergeResult {
 
   final SyncSnapshot mergedSnapshot;
   final List<SyncOperation> appliedOperations;
-  final List<SyncConflict> conflicts;
+  final List<SyncConflictModel> conflicts;
 }
 
 /// عملية تمت أثناء الدمج (إدراج/تحديث/حذف)
@@ -198,8 +198,8 @@ class SyncOperation {
 }
 
 /// سجل تضارب تم اكتشافه أثناء الدمج
-class SyncConflict {
-  SyncConflict({
+class SyncConflictModel {
+  SyncConflictModel({
     required this.table,
     required this.uuid,
     required this.localPayload,

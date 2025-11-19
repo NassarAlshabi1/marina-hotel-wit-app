@@ -5,11 +5,21 @@ import '../../services/sync_service.dart';
 import '../../services/providers.dart';
 import '../../models/shift_note_adapter.dart';
 
-final shiftNotesListProvider = simpleNotesListProvider;
-final unreadNotesCountProvider = simpleNotesUnreadCountProvider;
-final activeShiftNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getAllNotes());
-final unreadShiftNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getUnreadNotes());
-final highPriorityNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getHighPriorityNotes());
+final shiftNotesListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(shiftNotesRepoProvider).watchAll(),
+);
+final unreadNotesCountProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(shiftNotesRepoProvider).getUnreadCount(),
+);
+final activeShiftNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(shiftNotesRepoProvider).listAllActive(),
+);
+final unreadShiftNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(shiftNotesRepoProvider).listUnread(),
+);
+final highPriorityNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(shiftNotesRepoProvider).listHighPriority(),
+);
 
 /// شاشة إدارة الملاحظات والتنبيهات - النسخة المحدثة
 class NotesScreen extends ConsumerStatefulWidget {

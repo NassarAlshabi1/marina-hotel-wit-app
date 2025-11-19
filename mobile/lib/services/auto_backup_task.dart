@@ -43,7 +43,7 @@ class AutoBackupTask {
           'frequency': 'daily',
           'time': time,
         },
-        existingWorkPolicy: ExistingWorkPolicy.replace,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
       
       debugPrint('✅ تم جدولة النسخ اليومي في $time');
@@ -75,7 +75,7 @@ class AutoBackupTask {
           'time': time,
           'weekday': weekday,
         },
-        existingWorkPolicy: ExistingWorkPolicy.replace,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
       
       debugPrint('✅ تم جدولة النسخ الأسبوعي في $time يوم $weekday');
@@ -107,7 +107,7 @@ class AutoBackupTask {
           'time': time,
           'day': day,
         },
-        existingWorkPolicy: ExistingWorkPolicy.replace,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
       
       debugPrint('✅ تم جدولة النسخ الشهري في $time يوم $day');
