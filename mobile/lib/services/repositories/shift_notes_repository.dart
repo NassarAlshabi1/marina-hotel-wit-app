@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart' as d;
-import '../local_db.dart';
+import '../local_db.dart' show AppDatabase, BookingNotesCompanion;
 import '../daos/booking_notes_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../../models/shift_note_adapter.dart';

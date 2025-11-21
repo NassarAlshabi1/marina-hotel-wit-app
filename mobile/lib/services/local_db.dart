@@ -696,7 +696,7 @@ class SyncAuditDao {
     required String deviceId,
     required Map<String, dynamic> metadata,
     required List<sync_models.SyncOperation> appliedOperations,
-    required List<sync_models.SyncConflict> conflicts,
+    required List<sync_models.SyncConflictModel> conflicts,
     required bool checksumMatched,
   }) async {
     final createdAt = DateTime.now().toUtc().toIso8601String();
@@ -750,12 +750,12 @@ class SyncAuditDao {
         .get();
   }
 
-  Future<List<sync_models.SyncConflict>> fetchConflictsForLog(int logId) async {
+  Future<List<sync_models.SyncConflictModel>> fetchConflictsForLog(int logId) async {
     final rows = await (_db.select(_db.syncConflicts)
           ..where((tbl) => tbl.logId.equals(logId)))
         .get();
     return rows
-        .map((row) => sync_models.SyncConflict(
+        .map((row) => sync_models.SyncConflictModel(
               table: row.targetTable,
               uuid: row.uuid,
               localPayload: Map<String, dynamic>.from(jsonDecode(row.localPayload) as Map),
