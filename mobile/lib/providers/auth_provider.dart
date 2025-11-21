@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/auth_local_store.dart';
+import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 
 class AuthUser {
   final int id;
