@@ -383,7 +383,77 @@ void main() {
       expect(logs.first['executed_at_iso'], isNotNull);
     });
 
-    test('الاختبار الثامن: فحص حالات الأخطاء والاستثناءات', () async {
+    test('الاختبار الثامن: حجز نشط بدون checkout - يجب حساب الليالي حتى التاريخ الحالي', () async {
+      // الإعداد: إنشاء حجز نشط (checked_in) بدون actualCheckout
+      final checkin = DateTime(2024, 1, 10, 10, 0); // 10 يناير
+      final plannedCheckout = DateTime(2024, 1, 15, 12, 0); // مخطط للخروج في 15 يناير
+      
+      // إنشاء غرفة
+      await database.into(database.rooms).insert(
+        RoomsCompanion(
+          localUuid: Value(IdGen.uuid()),
+          roomNumber: const Value('301'),
+          type: const Value('single'),
+          price: const Value(15000.0),
+          status: const Value('محجوزة'),
+          createdAt: Value(Time.nowEpoch()),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ),
+      );
+      
+      // إنشاء حجز نشط (بدون actualCheckout)
+      final bookingId = await database.into(database.bookings).insert(
+        BookingsCompanion(
+          localUuid: Value(IdGen.uuid()),
+          roomNumber: const Value('301'),
+          guestName: const Value('محمد أحمد'),
+          guestPhone: const Value('0501234567'),
+          guestNationality: const Value('سعودي'),
+          checkinDate: Value(checkin.toIso8601String()),
+          checkoutDate: Value(plannedCheckout.toIso8601String()),
+          actualCheckout: const Value.absent(), // لا يوجد checkout فعلي
+          status: const Value('checked_in'), // نشط
+          expectedNights: const Value(2), // القيمة القديمة من النسخة الاحتياطية
+          calculatedNights: const Value(2), // القيمة القديمة من النسخة الاحتياطية
+          createdAt: Value(Time.nowEpoch()),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ),
+      );
+
+      // محاكاة تاريخ الاستعادة (13 يناير)
+      final restoreDate = DateTime(2024, 1, 13, 14, 0);
+      
+      // التنفيذ: تشغيل الإصلاح التلقائي
+      final report = await service.runAutoFixAfterRestore();
+
+      // التحقق: يجب أن ينجح الإصلاح
+      expect(report.success, isTrue);
+      expect(report.bookingsFixed, equals(1));
+
+      // التحقق من تحديث الليالي
+      final updatedBooking = await (database.select(database.bookings)
+        ..where((b) => b.id.equals(bookingId)))
+        .getSingle();
+
+      // الليالي من 10 يناير إلى 13 يناير (الآن) = 3 ليالي
+      expect(updatedBooking.calculatedNights, equals(3));
+      expect(updatedBooking.expectedNights, equals(3));
+
+      // التحقق من سجل الإصلاح
+      final logs = await database.select(database.restoreFixLog).get();
+      expect(logs, hasLength(greaterThan(0)));
+      
+      final nightsLog = logs.firstWhere(
+        (log) => log.targetTable == 'bookings' && log.fieldName == 'calculatedNights',
+      );
+      expect(nightsLog.oldValue, equals('2'));
+      expect(nightsLog.newValue, equals('3'));
+      expect(nightsLog.reason, contains('التاريخ الحالي'));
+    });
+
+    test('الاختبار التاسع: فحص حالات الأخطاء والاستثناءات', () async {
       // اختبار مع بيانات فاسدة
       
       // إنشاء حجز بتاريخ فاسد

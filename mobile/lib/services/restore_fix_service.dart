@@ -272,9 +272,12 @@ class RestoreFixService {
     try {
       // تحليل تواريخ الدخول والخروج
       final checkinDate = DateTime.parse(booking.checkinDate);
+      
+      // للحجوزات النشطة (بدون actualCheckout): استخدم التاريخ الحالي
+      // للحجوزات المكتملة (مع actualCheckout): استخدم تاريخ الخروج الفعلي
       final checkoutDate = booking.actualCheckout != null 
           ? DateTime.parse(booking.actualCheckout!)
-          : DateTime.parse(booking.checkoutDate!);
+          : now;
       
       // حساب الليالي باستخدام قاعدة الساعة 14:00
       final calculatedNights = Time.nightsWithCutoff(checkinDate, checkout: checkoutDate);
@@ -290,7 +293,9 @@ class RestoreFixService {
           fieldName: 'calculatedNights',
           oldValue: booking.calculatedNights.toString(),
           newValue: calculatedNights.toString(),
-          reason: 'إعادة حساب الليالي بناءً على تاريخ الدخول والخروج مع قاعدة 14:00',
+          reason: booking.actualCheckout != null 
+              ? 'إعادة حساب الليالي بناءً على تاريخ الخروج الفعلي مع قاعدة 14:00'
+              : 'إعادة حساب الليالي للحجز النشط بناءً على التاريخ الحالي مع قاعدة 14:00',
           fixType: 'nights_recalc',
         );
         
