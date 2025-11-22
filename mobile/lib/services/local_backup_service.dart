@@ -12,6 +12,7 @@ import 'package:sqflite/sqflite.dart';
 import 'local_db.dart';
 import 'providers.dart';
 import 'google_drive_backup_service.dart';
+import 'backup_serializers.dart';
 
 class LocalBackupFile {
   final String fileName;
@@ -420,18 +421,30 @@ class LocalBackupService {
       }
     }
 
-    await insertList('rooms', (json) async => db.into(db.rooms).insert(Room.fromJson(json)));
-    await insertList('bookings', (json) async => db.into(db.bookings).insert(Booking.fromJson(json)));
-    await insertList('booking_notes', (json) async => db.into(db.bookingNotes).insert(BookingNote.fromJson(json)));
-    await insertList('employees', (json) async => db.into(db.employees).insert(Employee.fromJson(json)));
-    await insertList('expenses', (json) async => db.into(db.expenses).insert(Expense.fromJson(json)));
-    await insertList('cash_transactions', (json) async => db.into(db.cashTransactions).insert(CashTransaction.fromJson(json)));
-    await insertList('payments', (json) async => db.into(db.payments).insert(Payment.fromJson(json)));
+    await insertList('rooms', (json) async =>
+        db.into(db.rooms).insertOnConflictUpdate(RoomsCompanion.fromJson(json, serializer: lenientValueSerializer)));
+    await insertList('bookings', (json) async =>
+        db.into(db.bookings).insertOnConflictUpdate(BookingsCompanion.fromJson(json, serializer: lenientValueSerializer)));
+    await insertList('booking_notes', (json) async => db
+        .into(db.bookingNotes)
+        .insertOnConflictUpdate(BookingNotesCompanion.fromJson(json, serializer: lenientValueSerializer)));
+    await insertList('employees', (json) async =>
+        db.into(db.employees).insertOnConflictUpdate(EmployeesCompanion.fromJson(json, serializer: lenientValueSerializer)));
+    await insertList('expenses', (json) async =>
+        db.into(db.expenses).insertOnConflictUpdate(ExpensesCompanion.fromJson(json, serializer: lenientValueSerializer)));
+    await insertList('cash_transactions', (json) async => db
+        .into(db.cashTransactions)
+        .insertOnConflictUpdate(CashTransactionsCompanion.fromJson(json, serializer: lenientValueSerializer)));
+    await insertList('payments', (json) async =>
+        db.into(db.payments).insertOnConflictUpdate(PaymentsCompanion.fromJson(json, serializer: lenientValueSerializer)));
 
     if (backupData.containsKey('sync_state') &&
         backupData['sync_state'] is Map &&
         (backupData['sync_state'] as Map).isNotEmpty) {
-      await db.into(db.syncState).insert(SyncStateData.fromJson(backupData['sync_state']));
+      final syncStateJson = Map<String, dynamic>.from(backupData['sync_state'] as Map);
+      await db
+          .into(db.syncState)
+          .insertOnConflictUpdate(SyncStateCompanion.fromJson(syncStateJson, serializer: lenientValueSerializer));
     }
 
     debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON');
