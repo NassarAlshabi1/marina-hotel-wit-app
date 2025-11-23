@@ -34,8 +34,9 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
-          cache: false
+          flutter-version: '3.38.3'
+          cache: true
+          cache-key: flutter-${{ runner.os }}-3.38.3
 
       - name: Verify Android Signing Files
         # Local keystore and key.properties are committed to repo
