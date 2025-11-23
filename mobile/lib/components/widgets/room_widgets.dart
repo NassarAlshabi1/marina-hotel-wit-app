@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/local_db.dart';
+import '../../utils/currency_formatter.dart';
 
 /// Widget لعرض بطاقة غرفة واحدة
 class RoomCard extends StatelessWidget {
@@ -81,7 +82,7 @@ class RoomCard extends StatelessWidget {
               if (!compact && room.price > 0) ...[
                 const SizedBox(height: 2),
                 Text(
-                  '${room.price.toStringAsFixed(2)}',
+                  CurrencyFormatter.formatAmount(room.price),
                   style: TextStyle(
                     fontSize: 9,
                     color: cardColor.withOpacity(0.8),
@@ -434,7 +435,7 @@ class RoomDetailsDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildDetailRow('النوع', room.type),
-            _buildDetailRow('السعر', '${room.price.toStringAsFixed(2)}'),
+            _buildDetailRow('السعر', CurrencyFormatter.formatAmount(room.price)),
             _buildDetailRow('الحالة', room.status),
             if (room.imageUrl != null && room.imageUrl!.isNotEmpty) ...[
               const SizedBox(height: 12),

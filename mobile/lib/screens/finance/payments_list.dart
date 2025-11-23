@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
+import '../../utils/currency_formatter.dart';
 
 class PaymentsListScreen extends ConsumerWidget {
   const PaymentsListScreen({super.key});
@@ -20,7 +21,7 @@ class PaymentsListScreen extends ConsumerWidget {
             itemBuilder: (c, i) {
               final p = list[i];
               return ListTile(
-                title: Text('${p.amount.toStringAsFixed(2)} • ${p.paymentMethod}'),
+                title: Text('${CurrencyFormatter.formatAmount(p.amount)} • ${p.paymentMethod}'),
                 subtitle: Text('${p.paymentDate} • ${p.revenueType}'),
                 trailing: p.roomNumber != null ? Chip(label: Text(p.roomNumber!)) : null,
               );

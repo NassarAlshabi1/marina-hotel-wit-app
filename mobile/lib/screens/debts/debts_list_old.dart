@@ -5,6 +5,7 @@ import '../../components/admin_layout.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 
 class DebtsListScreen extends ConsumerWidget {
   const DebtsListScreen({super.key});
@@ -90,16 +91,16 @@ class DebtsListScreen extends ConsumerWidget {
   }
 
   static String _formatAmount(double value) {
-    return value.toStringAsFixed(2);
+    return CurrencyFormatter.formatAmount(value);
   }
 
   Future<void> _openDebtForm(BuildContext context, WidgetRef ref, {Debt? existing}) async {
     final guestNameCtrl = TextEditingController(text: existing?.guestName ?? '');
     final checkinCtrl = TextEditingController(text: Time.safeIsoToDateString(existing?.checkinDate));
     final checkoutCtrl = TextEditingController(text: Time.safeIsoToDateString(existing?.checkoutDate));
-    final totalCtrl = TextEditingController(text: existing != null ? existing.totalAmount.toStringAsFixed(2) : '0');
-    final paidCtrl = TextEditingController(text: existing != null ? existing.paidAmount.toStringAsFixed(2) : '0');
-    final remainingCtrl = TextEditingController(text: existing != null ? existing.remainingAmount.toStringAsFixed(2) : '0');
+    final totalCtrl = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.totalAmount) : '0');
+    final paidCtrl = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.paidAmount) : '0');
+    final remainingCtrl = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.remainingAmount) : '0');
     final paymentDateCtrl = TextEditingController(text: Time.safeIsoToDateString(existing?.paymentDate));
     final pledgeCtrl = TextEditingController(text: existing?.pledge ?? '');
     final pledgeTypeCtrl = TextEditingController(text: existing?.pledgeType ?? '');
@@ -109,7 +110,7 @@ class DebtsListScreen extends ConsumerWidget {
       final total = double.tryParse(totalCtrl.text.replaceAll(',', '')) ?? 0;
       final paid = double.tryParse(paidCtrl.text.replaceAll(',', '')) ?? 0;
       final remaining = (total - paid).clamp(0, double.infinity);
-      remainingCtrl.text = remaining.toStringAsFixed(2);
+      remainingCtrl.text = CurrencyFormatter.formatAmount(remaining);
     }
 
     totalCtrl.addListener(recalculate);

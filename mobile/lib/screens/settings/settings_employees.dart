@@ -4,6 +4,7 @@ import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import '../../utils/currency_formatter.dart';
 
 class SettingsEmployeesScreen extends ConsumerWidget {
   const SettingsEmployeesScreen({super.key});
@@ -138,7 +139,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 const Icon(Icons.attach_money, color: Colors.green, size: 20),
                 const SizedBox(width: 4),
                 Text(
-                  'إجمالي الرواتب: ${totalSalaries.toStringAsFixed(2)}',
+                  'إجمالي الرواتب: ${CurrencyFormatter.formatAmount(totalSalaries)}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -255,7 +256,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
             Row(
               children: [
                 Expanded(
-                  child: _buildDetailRow('الراتب', '${employee.salary.toStringAsFixed(2)}', Icons.attach_money),
+                  child: _buildDetailRow('الراتب', CurrencyFormatter.formatAmount(employee.salary), Icons.attach_money),
                 ),
                 Expanded(
                   child: _buildDetailRow('الهاتف', employee.phone, Icons.phone),
@@ -511,7 +512,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('الراتب الأساسي: ${employee.salary.toStringAsFixed(2)}'),
+              Text('الراتب الأساسي: ${CurrencyFormatter.formatAmount(employee.salary)}'),
               const SizedBox(height: 12),
               TextField(
                 controller: amountController,

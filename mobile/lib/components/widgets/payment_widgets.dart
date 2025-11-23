@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/payment_models.dart';
+import '../../utils/currency_formatter.dart';
 
 /// Widget لعرض بطاقة ملخص المدفوعات للحجز
 class PaymentSummaryWidget extends StatelessWidget {
@@ -119,7 +120,7 @@ class PaymentSummaryWidget extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            '${amount.toStringAsFixed(2)}',
+            CurrencyFormatter.formatAmount(amount),
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
@@ -182,7 +183,7 @@ class PaymentCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          payment.amount.toStringAsFixed(0),
+                          CurrencyFormatter.formatAmount(payment.amount),
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -475,7 +476,7 @@ class PaymentStatsWidget extends StatelessWidget {
                   const Icon(Icons.attach_money, color: Colors.green),
                   const SizedBox(width: 8),
                   Text(
-                    'إجمالي المبلغ: ${totalAmount.toStringAsFixed(2)}',
+                    'إجمالي المبلغ: ${CurrencyFormatter.formatAmount(totalAmount)}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -676,13 +677,13 @@ class InvoiceSummaryWidget extends StatelessWidget {
             
             // تفاصيل الحساب
             _buildInvoiceRow('عدد الليالي', '$nights ليلة'),
-            _buildInvoiceRow('سعر الليلة', '${roomRate.toStringAsFixed(2)}'),
+            _buildInvoiceRow('سعر الليلة', CurrencyFormatter.formatAmount(roomRate)),
             const Divider(),
-            _buildInvoiceRow('المبلغ الإجمالي', '${totalAmount.toStringAsFixed(2)}', isBold: true),
-            _buildInvoiceRow('المدفوع', '${paidAmount.toStringAsFixed(2)}', color: Colors.green),
+            _buildInvoiceRow('المبلغ الإجمالي', CurrencyFormatter.formatAmount(totalAmount), isBold: true),
+            _buildInvoiceRow('المدفوع', CurrencyFormatter.formatAmount(paidAmount), color: Colors.green),
             _buildInvoiceRow(
-              'المتبقي', 
-              '${remainingAmount.toStringAsFixed(2)}', 
+              'المتبقي',
+              CurrencyFormatter.formatAmount(remainingAmount),
               color: remainingAmount > 0 ? Colors.red : Colors.green,
               isBold: true,
             ),
@@ -758,7 +759,7 @@ class QuickPaymentButton extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
           ),
           Text(
-            '${amount.toStringAsFixed(2)}',
+            CurrencyFormatter.formatAmount(amount),
             style: const TextStyle(fontSize: 11),
           ),
         ],

@@ -6,6 +6,7 @@ import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
   final String? bookingId;
@@ -193,7 +194,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${totalAmount.toStringAsFixed(2)}',
+                    CurrencyFormatter.formatAmount(totalAmount),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -232,7 +233,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                         ),
                       ),
                       title: Text(
-                        '${payment.amount.toStringAsFixed(2)}',
+                        CurrencyFormatter.formatAmount(payment.amount),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -490,7 +491,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailRow('المبلغ', '${payment.amount.toStringAsFixed(2)}'),
+              _buildDetailRow('المبلغ', CurrencyFormatter.formatAmount(payment.amount)),
               _buildDetailRow('طريقة الدفع', payment.paymentMethod),
               _buildDetailRow('نوع الإيراد', _getRevenueTypeLabel(payment.revenueType)),
               _buildDetailRow('التاريخ', payment.paymentDate),

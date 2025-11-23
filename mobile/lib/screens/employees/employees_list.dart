@@ -4,6 +4,7 @@ import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
+import '../../utils/currency_formatter.dart';
 
 class EmployeesListScreen extends ConsumerWidget {
   const EmployeesListScreen({super.key});
@@ -27,7 +28,7 @@ class EmployeesListScreen extends ConsumerWidget {
               final e = list[i];
               return ListTile(
                 title: Text(e.name),
-                subtitle: Text('الراتب: ${e.basicSalary.toStringAsFixed(2)} • ${e.status}'),
+                subtitle: Text('الراتب: ${CurrencyFormatter.formatAmount(e.basicSalary)} • ${e.status}'),
                 onTap: () => _edit(context, ref, existing: e),
               );
             },
