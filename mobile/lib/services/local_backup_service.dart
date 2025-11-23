@@ -421,30 +421,48 @@ class LocalBackupService {
       }
     }
 
-    await insertList('rooms', (json) async =>
-        db.into(db.rooms).insertOnConflictUpdate(RoomsCompanion.fromJson(json, serializer: lenientValueSerializer)));
-    await insertList('bookings', (json) async =>
-        db.into(db.bookings).insertOnConflictUpdate(BookingsCompanion.fromJson(json, serializer: lenientValueSerializer)));
-    await insertList('booking_notes', (json) async => db
-        .into(db.bookingNotes)
-        .insertOnConflictUpdate(BookingNotesCompanion.fromJson(json, serializer: lenientValueSerializer)));
-    await insertList('employees', (json) async =>
-        db.into(db.employees).insertOnConflictUpdate(EmployeesCompanion.fromJson(json, serializer: lenientValueSerializer)));
-    await insertList('expenses', (json) async =>
-        db.into(db.expenses).insertOnConflictUpdate(ExpensesCompanion.fromJson(json, serializer: lenientValueSerializer)));
-    await insertList('cash_transactions', (json) async => db
-        .into(db.cashTransactions)
-        .insertOnConflictUpdate(CashTransactionsCompanion.fromJson(json, serializer: lenientValueSerializer)));
-    await insertList('payments', (json) async =>
-        db.into(db.payments).insertOnConflictUpdate(PaymentsCompanion.fromJson(json, serializer: lenientValueSerializer)));
+    await insertList('rooms', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = Room.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.rooms).insertOnConflictUpdate(data);
+    });
+    await insertList('bookings', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = Booking.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.bookings).insertOnConflictUpdate(data);
+    });
+    await insertList('booking_notes', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = BookingNote.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.bookingNotes).insertOnConflictUpdate(data);
+    });
+    await insertList('employees', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = Employee.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.employees).insertOnConflictUpdate(data);
+    });
+    await insertList('expenses', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = Expense.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.expenses).insertOnConflictUpdate(data);
+    });
+    await insertList('cash_transactions', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = CashTransaction.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.cashTransactions).insertOnConflictUpdate(data);
+    });
+    await insertList('payments', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = Payment.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.payments).insertOnConflictUpdate(data);
+    });
 
     if (backupData.containsKey('sync_state') &&
         backupData['sync_state'] is Map &&
         (backupData['sync_state'] as Map).isNotEmpty) {
       final syncStateJson = Map<String, dynamic>.from(backupData['sync_state'] as Map);
-      await db
-          .into(db.syncState)
-          .insertOnConflictUpdate(SyncStateCompanion.fromJson(syncStateJson, serializer: lenientValueSerializer));
+      final data = SyncStateData.fromJson(syncStateJson, serializer: lenientValueSerializer);
+      await db.into(db.syncState).insertOnConflictUpdate(data);
     }
 
     debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON');

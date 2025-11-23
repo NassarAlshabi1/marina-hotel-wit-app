@@ -5,19 +5,41 @@ import 'package:drift/drift.dart';
 class LenientValueSerializer extends ValueSerializer {
   const LenientValueSerializer();
 
-  bool _isIntType<T>() => T == int || null is T;
-  bool _isDoubleType<T>() => T == double || null is T;
-  bool _isStringType<T>() => T == String || null is T;
-  bool _isBoolType<T>() => T == bool || null is T;
+  Type _typeOf<X>() => X;
+
+  bool _isNullable<T>() => null is T;
+
+  bool _isIntType<T>() {
+    final type = _typeOf<T>();
+    return type == int || type == _typeOf<int?>();
+  }
+
+  bool _isDoubleType<T>() {
+    final type = _typeOf<T>();
+    return type == double || type == _typeOf<double?>();
+  }
+
+  bool _isStringType<T>() {
+    final type = _typeOf<T>();
+    return type == String || type == _typeOf<String?>();
+  }
+
+  bool _isBoolType<T>() {
+    final type = _typeOf<T>();
+    return type == bool || type == _typeOf<bool?>();
+  }
 
   @override
   T fromJson<T>(dynamic json) {
+    final defaultSerializer = driftRuntimeOptions.defaultSerializer;
+
     if (json == null) {
+      if (_isNullable<T>()) return json as T;
       if (_isIntType<T>()) return 0 as T;
       if (_isDoubleType<T>()) return 0.0 as T;
       if (_isBoolType<T>()) return false as T;
       if (_isStringType<T>()) return '' as T;
-      return super.fromJson<T>(json);
+      return defaultSerializer.fromJson<T>(json);
     }
 
     if (_isIntType<T>()) {
@@ -62,7 +84,7 @@ class LenientValueSerializer extends ValueSerializer {
       return json.toString() as T;
     }
 
-    return super.fromJson<T>(json);
+    return defaultSerializer.fromJson<T>(json);
   }
 
   @override

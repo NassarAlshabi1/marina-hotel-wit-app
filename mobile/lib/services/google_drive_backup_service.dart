@@ -489,71 +489,70 @@ class GoogleDriveBackupService {
       if (backupData.containsKey('rooms')) {
         final roomsData = backupData['rooms'] as List<dynamic>;
         for (final roomJson in roomsData) {
-          await db
-              .into(db.rooms)
-              .insertOnConflictUpdate(RoomsCompanion.fromJson(Map<String, dynamic>.from(roomJson as Map), serializer: lenientValueSerializer));
+          final map = Map<String, dynamic>.from(roomJson as Map);
+          final data = Room.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.rooms).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('bookings')) {
         final bookingsData = backupData['bookings'] as List<dynamic>;
         for (final bookingJson in bookingsData) {
-          await db
-              .into(db.bookings)
-              .insertOnConflictUpdate(BookingsCompanion.fromJson(Map<String, dynamic>.from(bookingJson as Map), serializer: lenientValueSerializer));
+          final map = Map<String, dynamic>.from(bookingJson as Map);
+          final data = Booking.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.bookings).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('booking_notes')) {
         final notesData = backupData['booking_notes'] as List<dynamic>;
         for (final noteJson in notesData) {
-          await db
-              .into(db.bookingNotes)
-              .insertOnConflictUpdate(BookingNotesCompanion.fromJson(Map<String, dynamic>.from(noteJson as Map), serializer: lenientValueSerializer));
+          final map = Map<String, dynamic>.from(noteJson as Map);
+          final data = BookingNote.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.bookingNotes).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('employees')) {
         final employeesData = backupData['employees'] as List<dynamic>;
         for (final employeeJson in employeesData) {
-          await db
-              .into(db.employees)
-              .insertOnConflictUpdate(EmployeesCompanion.fromJson(Map<String, dynamic>.from(employeeJson as Map), serializer: lenientValueSerializer));
+          final map = Map<String, dynamic>.from(employeeJson as Map);
+          final data = Employee.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.employees).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('expenses')) {
         final expensesData = backupData['expenses'] as List<dynamic>;
         for (final expenseJson in expensesData) {
-          await db
-              .into(db.expenses)
-              .insertOnConflictUpdate(ExpensesCompanion.fromJson(Map<String, dynamic>.from(expenseJson as Map), serializer: lenientValueSerializer));
+          final map = Map<String, dynamic>.from(expenseJson as Map);
+          final data = Expense.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.expenses).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('cash_transactions')) {
         final transactionsData = backupData['cash_transactions'] as List<dynamic>;
         for (final transactionJson in transactionsData) {
-          await db
-              .into(db.cashTransactions)
-              .insertOnConflictUpdate(CashTransactionsCompanion.fromJson(Map<String, dynamic>.from(transactionJson as Map), serializer: lenientValueSerializer));
+          final map = Map<String, dynamic>.from(transactionJson as Map);
+          final data = CashTransaction.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.cashTransactions).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('payments')) {
         final paymentsData = backupData['payments'] as List<dynamic>;
         for (final paymentJson in paymentsData) {
-          await db
-              .into(db.payments)
-              .insertOnConflictUpdate(PaymentsCompanion.fromJson(Map<String, dynamic>.from(paymentJson as Map), serializer: lenientValueSerializer));
+          final map = Map<String, dynamic>.from(paymentJson as Map);
+          final data = Payment.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.payments).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('sync_state') && backupData['sync_state'] is Map && (backupData['sync_state'] as Map).isNotEmpty) {
         final syncStateJson = Map<String, dynamic>.from(backupData['sync_state'] as Map);
-        await db
-            .into(db.syncState)
-            .insertOnConflictUpdate(SyncStateCompanion.fromJson(syncStateJson, serializer: lenientValueSerializer));
+        final data = SyncStateData.fromJson(syncStateJson, serializer: lenientValueSerializer);
+        await db.into(db.syncState).insertOnConflictUpdate(data);
       }
 
       debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
