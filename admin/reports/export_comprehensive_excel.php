@@ -185,7 +185,7 @@ td {
     direction: rtl;
 }
 .number {
-    mso-number-format: "#,##0.00";
+    mso-number-format: "#,##0";
 }
 .header {
     background-color: #f0f0f0;

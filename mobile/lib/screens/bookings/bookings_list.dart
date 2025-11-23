@@ -20,7 +20,7 @@ class BookingsListScreen extends ConsumerStatefulWidget {
 }
 
 class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
-  final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
+  final _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   Future<void> _navigateToAddBooking() async {
     await Navigator.push(
