@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'google_drive_backup_service.dart';
@@ -236,6 +237,7 @@ class AutoBackupTask {
 /// نقطة الدخول لمعالجة المهام الخلفية
 @pragma('vm:entry-point')
 void callbackDispatcher() {
+  WidgetsFlutterBinding.ensureInitialized();
   Workmanager().executeTask((task, inputData) async {
     try {
       debugPrint('🔄 بدء تنفيذ مهمة النسخ الخلفية: $task');
@@ -266,12 +268,14 @@ void callbackDispatcher() {
         try {
           debugPrint('☁️ بدء النسخ الاحتياطي السحابي...');
           final driveBackupService = GoogleDriveBackupService();
-          
+          if (!driveBackupService.isSignedIn) {
+            await driveBackupService.attemptSilentSignIn();
+          }
           if (driveBackupService.isSignedIn) {
             await driveBackupService.performAutoBackup();
             debugPrint('✅ تم النسخ الاحتياطي السحابي بنجاح');
           } else {
-            debugPrint('⚠️ المستخدم غير مسجل دخول في Google Drive، تم تخطي النسخ السحابي');
+            debugPrint('⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي');
           }
         } catch (e) {
           debugPrint('❌ خطأ في النسخ الاحتياطي السحابي: $e');
