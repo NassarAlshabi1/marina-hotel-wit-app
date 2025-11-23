@@ -363,4 +363,3 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
     return 'سحب راتب';
   }
 }
-}
