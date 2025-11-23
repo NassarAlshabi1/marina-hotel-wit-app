@@ -59,7 +59,9 @@ class SalaryWithdrawalsRepository {
 
   Future<List<Map<String, Object?>>> listAll() async {
     await _ensureTable();
-    final result = await _db.customSelect('SELECT * FROM salary_withdrawals ORDER BY created_at DESC');
-    return result.map((row) => row.data).toList();
+    final rows = await _db
+        .customSelect('SELECT * FROM salary_withdrawals ORDER BY created_at DESC')
+        .get();
+    return rows.map((row) => row.data).toList();
   }
 }

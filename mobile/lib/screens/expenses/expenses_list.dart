@@ -302,7 +302,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
       if (isSalaryExpense && selectedEmployeeId != null) {
         await salaryRepo.saveFromExpense(
           expenseId: newId,
-          employeeId: selectedEmployeeId,
+          employeeId: selectedEmployeeId!,
           action: savedType,
           amount: parsedAmount,
           date: trimmedDate,
@@ -322,7 +322,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
       if (isSalaryExpense && selectedEmployeeId != null) {
         await salaryRepo.saveFromExpense(
           expenseId: existing.id,
-          employeeId: selectedEmployeeId,
+          employeeId: selectedEmployeeId!,
           action: savedType,
           amount: parsedAmount,
           date: trimmedDate,
