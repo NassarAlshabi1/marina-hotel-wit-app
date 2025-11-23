@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import 'auto_backup_task.dart';
 import 'local_db.dart';
 import 'providers.dart';
 import 'restore_fix_service.dart';
@@ -610,9 +611,13 @@ class GoogleDriveBackupService {
     }
 
     try {
+      await Workmanager().cancelByUniqueName(AutoBackupTask.taskId);
+      await Future.delayed(const Duration(seconds: 1));
+      await AutoBackupTask.initialize();
+
       await Workmanager().registerPeriodicTask(
-        'autoBackup',
-        'autoBackupTask',
+        AutoBackupTask.taskId,
+        AutoBackupTask.taskName,
         frequency: frequencyDuration,
         initialDelay: initialDelay,
         constraints: Constraints(
