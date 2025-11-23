@@ -27,6 +27,7 @@ import 'services/auto_backup_manager.dart';
 import 'services/app_session_manager.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
+import 'services/alarm_backup.dart';
 import 'components/admin_layout.dart';
 import 'services/local_db.dart';
 
@@ -34,7 +35,8 @@ import 'services/local_db.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-
+  // تهيئة نظام Alarm للنسخ الاحتياطي
+  await AlarmBackup.initAlarmSystem();
   
   // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
   await AutoBackupTask.initialize();

@@ -261,6 +261,28 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// محاولة تسجيل الدخول بهدوء للاستخدام في الخلفية (Alarm Callback)
+  Future<bool> signInSilentlyIfNeeded() async {
+    try {
+      if (_googleSignIn == null) _initializeGoogleSignIn();
+      final account = await _googleSignIn!.signInSilently(suppressErrors: true);
+      
+      if (account != null) {
+        final headers = await account.authHeaders;
+        final client = GoogleAuthClient(headers);
+        _driveApi = drive.DriveApi(client);
+        debugPrint('✅ تم تسجيل الدخول بهدوء: ${account.email}');
+        return true;
+      }
+      
+      debugPrint('⚠️ لا توجد جلسة محفوظة للدخول الهادئ');
+      return false;
+    } catch (e) {
+      debugPrint('❌ signInSilently error: $e');
+      return false;
+    }
+  }
+
   Future<void> signOut() async {
     try {
       await _googleSignIn?.signOut();
