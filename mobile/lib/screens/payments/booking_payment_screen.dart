@@ -1408,6 +1408,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         : 'تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        duration: const Duration(seconds: 20),
         content: Text(
           autoExtensionNights > 0
               ? '$snackMessage. المتبقي الجديد: ${_currencyFmt.format(newRemaining)}'
