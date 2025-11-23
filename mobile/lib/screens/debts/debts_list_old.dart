@@ -109,7 +109,7 @@ class DebtsListScreen extends ConsumerWidget {
     void recalculate() {
       final total = double.tryParse(totalCtrl.text.replaceAll(',', '')) ?? 0;
       final paid = double.tryParse(paidCtrl.text.replaceAll(',', '')) ?? 0;
-      final remaining = (total - paid).clamp(0, double.infinity);
+      final remaining = (total - paid).clamp(0, double.infinity).toDouble();
       remainingCtrl.text = CurrencyFormatter.formatAmount(remaining);
     }
 

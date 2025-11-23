@@ -529,4 +529,30 @@ class EnhancedPdfUtils {
       (Match match) => '${match[1]},',
     );
   }
+
+  /// بناء مربع نائب لـ QR Code
+  static pw.Widget buildQRCodePlaceholder({
+    required String data,
+    required ArabicPdfFonts fonts,
+    double size = 60,
+  }) {
+    return pw.Container(
+      width: size,
+      height: size,
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.textLight, width: 1),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+      ),
+      child: pw.Center(
+        child: pw.Text(
+          'QR',
+          style: pw.TextStyle(
+            font: fonts.bold,
+            fontSize: 10,
+            color: PdfColors.textLight,
+          ),
+        ),
+      ),
+    );
+  }
 }
