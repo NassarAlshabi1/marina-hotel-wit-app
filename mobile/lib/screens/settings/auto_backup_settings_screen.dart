@@ -421,7 +421,7 @@ class _AutoBackupSettingsScreenState extends ConsumerState<AutoBackupSettingsScr
               onTap: _selectTime,
             ),
             
-            if (_isScheduledBackupEnabled) ..[
+            if (_isScheduledBackupEnabled) ...[
               const Divider(),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
