@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 
 class AlarmBackup {
   static const int alarmId = 0;
@@ -51,6 +53,8 @@ class AlarmBackup {
   /// الكولباك الذي ينفذ وقت الإنذار — يجب أن يكون top-level أو static annotated
   @pragma('vm:entry-point')
   static Future<void> _alarmCallback() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    DartPluginRegistrant.ensureInitialized();
     debugPrint('🔔 Alarm fired: performing backup');
 
     try {
