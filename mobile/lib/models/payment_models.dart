@@ -176,7 +176,7 @@ class Receipt {
     required this.roomNumber,
     this.hotelName = 'فندق مارينا بلازا',
     this.hotelAddress = 'عدن - اليمن - شارع أحمد قاسم',
-    this.hotelPhone = '+967-1-262686',
+    this.hotelPhone = '+967-2-324457',
     required this.generatedAt,
   });
 
