@@ -28,7 +28,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late TextEditingController _phoneController;
-  final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
+  final _currencyFmt = NumberFormat('#,##0', 'en_US');
   double _remainingAmount = 0;
   late String _currentGuestPhone;
   int? _expectedNightsOverride;
