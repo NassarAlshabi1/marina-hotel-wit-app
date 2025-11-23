@@ -23,19 +23,24 @@ class AdminSidebar extends ConsumerWidget {
       return u.permissions.contains(key);
     }
 
+    final sidebarColor = const Color(0xFF0F172A);
+    final headerColor = const Color(0xFF16213C);
+    final cardOverlay = Colors.white.withOpacity(0.08);
+    final dividerColor = Colors.white.withOpacity(0.12);
+    final inactiveColor = Colors.white.withOpacity(0.72);
+
     return Container(
       width: 280,
-      color: AppColors.primaryColor,
+      color: sidebarColor,
       child: Column(
         children: [
-          // Sidebar Header - matching PHP design
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.primaryColor.withOpacity(0.1),
+              color: headerColor,
               border: Border(
                 bottom: BorderSide(
-                  color: Colors.white.withOpacity(0.2),
+                  color: dividerColor,
                   width: 1,
                 ),
               ),
@@ -48,7 +53,7 @@ class AdminSidebar extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: cardOverlay,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
@@ -76,7 +81,7 @@ class AdminSidebar extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: cardOverlay,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -104,7 +109,7 @@ class AdminSidebar extends ConsumerWidget {
                             Text(
                               auth.currentUser?.userType == 'admin' ? 'مدير النظام' : 'موظف',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
+                                color: inactiveColor,
                                 fontSize: 12,
                               ),
                             ),
@@ -264,18 +269,18 @@ class AdminSidebar extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
-        color: isActive ? Colors.white.withOpacity(0.1) : null,
+        color: isActive ? Colors.white.withOpacity(0.12) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
         leading: Icon(
           icon,
-          color: isActive ? Colors.white : Colors.white70,
+          color: isActive ? Colors.white : inactiveColor,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isActive ? Colors.white : Colors.white70,
+            color: isActive ? Colors.white : inactiveColor,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
