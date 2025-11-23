@@ -5,10 +5,10 @@ import 'package:drift/drift.dart';
 class LenientValueSerializer extends ValueSerializer {
   const LenientValueSerializer();
 
-  bool _isIntType<T>() => T == int || T == int?;
-  bool _isDoubleType<T>() => T == double || T == double?;
-  bool _isStringType<T>() => T == String || T == String?;
-  bool _isBoolType<T>() => T == bool || T == bool?;
+  bool _isIntType<T>() => T == int || null is T;
+  bool _isDoubleType<T>() => T == double || null is T;
+  bool _isStringType<T>() => T == String || null is T;
+  bool _isBoolType<T>() => T == bool || null is T;
 
   @override
   T fromJson<T>(dynamic json) {
