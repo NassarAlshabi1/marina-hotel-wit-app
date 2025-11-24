@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'google_drive_backup_service.dart';
@@ -43,6 +44,7 @@ class AutoBackupTask {
           'frequency': 'daily',
           'time': time,
         },
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
       
       debugPrint('✅ تم جدولة النسخ اليومي في $time');
@@ -74,6 +76,7 @@ class AutoBackupTask {
           'time': time,
           'weekday': weekday,
         },
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
       
       debugPrint('✅ تم جدولة النسخ الأسبوعي في $time يوم $weekday');
@@ -105,6 +108,7 @@ class AutoBackupTask {
           'time': time,
           'day': day,
         },
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
       
       debugPrint('✅ تم جدولة النسخ الشهري في $time يوم $day');
@@ -221,6 +225,7 @@ class AutoBackupTask {
           'frequency': 'immediate',
           'time': DateTime.now().toIso8601String(),
         },
+        existingWorkPolicy: ExistingWorkPolicy.replace,
       );
       debugPrint('✅ تم تشغيل مهمة النسخ الفوري');
     } catch (e) {
@@ -232,6 +237,7 @@ class AutoBackupTask {
 /// نقطة الدخول لمعالجة المهام الخلفية
 @pragma('vm:entry-point')
 void callbackDispatcher() {
+  WidgetsFlutterBinding.ensureInitialized();
   Workmanager().executeTask((task, inputData) async {
     try {
       debugPrint('🔄 بدء تنفيذ مهمة النسخ الخلفية: $task');
@@ -262,12 +268,14 @@ void callbackDispatcher() {
         try {
           debugPrint('☁️ بدء النسخ الاحتياطي السحابي...');
           final driveBackupService = GoogleDriveBackupService();
-          
+          if (!driveBackupService.isSignedIn) {
+            await driveBackupService.attemptSilentSignIn();
+          }
           if (driveBackupService.isSignedIn) {
             await driveBackupService.performAutoBackup();
             debugPrint('✅ تم النسخ الاحتياطي السحابي بنجاح');
           } else {
-            debugPrint('⚠️ المستخدم غير مسجل دخول في Google Drive، تم تخطي النسخ السحابي');
+            debugPrint('⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي');
           }
         } catch (e) {
           debugPrint('❌ خطأ في النسخ الاحتياطي السحابي: $e');

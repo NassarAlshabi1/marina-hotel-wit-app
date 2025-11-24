@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
-import '../../services/local_db.dart';
+import '../../models/shift_note_adapter.dart';
 
 /// شاشة الملاحظات البسيطة
 class NotesScreen extends ConsumerStatefulWidget {
@@ -165,7 +165,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           note.title,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: note.isRead == 1 ? Colors.grey : Colors.black,
+            color: note.isRead ? Colors.grey : Colors.black,
           ),
         ),
         subtitle: Column(
@@ -174,7 +174,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
             Text(note.content),
             const SizedBox(height: 4),
             Text(
-              _formatDate(DateTime.parse(note.createdAt)),
+              _formatDate(note.createdAt),
               style: const TextStyle(fontSize: 12),
             ),
           ],
@@ -182,7 +182,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (note.isRead == 0)
+            if (!note.isRead)
               Container(
                 width: 8,
                 height: 8,
@@ -193,7 +193,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               ),
             PopupMenuButton(
               itemBuilder: (context) => [
-                if (note.isRead == 0)
+                if (!note.isRead)
                   const PopupMenuItem(
                     value: 'read',
                     child: Text('وضع علامة مقروء'),
@@ -269,8 +269,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   void _showNoteDialog({ShiftNote? note}) {
     final titleController = TextEditingController(text: note?.title ?? '');
     final contentController = TextEditingController(text: note?.content ?? '');
-    String priority = note?.priority ?? 'medium';
-    String shiftType = note?.shiftType ?? 'all';
+    String priority = note?.priority.name ?? 'medium';
+    String shiftType = note?.shiftType.name ?? 'all';
 
     showDialog(
       context: context,

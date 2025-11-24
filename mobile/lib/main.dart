@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,28 +17,41 @@ import 'screens/payments/payments_main_screen.dart';
 import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
 import 'services/auto_backup_manager.dart';
+import 'services/app_session_manager.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
+import 'services/alarm_backup.dart';
 import 'components/admin_layout.dart';
 import 'services/local_db.dart';
+import 'services/appwrite_config.dart';
+import 'services/appwrite_logger.dart';
+import 'services/appwrite_cache_manager.dart';
+import 'services/appwrite_service.dart';
+import 'services/appwrite_sync_manager.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-
+  // تهيئة نظام Alarm للنسخ الاحتياطي
+  await AlarmBackup.initAlarmSystem();
   
   // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
   await AutoBackupTask.initialize();
   
   // تهيئة مدير النسخ التلقائي الذكي (على أساس التغييرات)
   await _initializeSmartAutoBackup();
+  
+  // تهيئة نظام Appwrite
+  await _initializeAppwrite();
   
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
@@ -73,20 +88,149 @@ Future<void> _initializeSmartAutoBackup() async {
   }
 }
 
-class App extends ConsumerWidget {
+/// تهيئة نظام Appwrite للمزامنة السحابية
+Future<void> _initializeAppwrite() async {
+  try {
+    // طباعة الإعدادات
+    AppwriteConfig.printConfig();
+    
+    // تهيئة المسجل
+    final logger = AppwriteLogger();
+    await logger.initialize(
+      minLevel: LogLevel.info,
+      enableConsole: true,
+      enableFile: false,
+    );
+    
+    // تهيئة مدير الذاكرة المؤقتة
+    final cacheManager = AppwriteCacheManager();
+    cacheManager.startCleanup();
+    
+    // تهيئة خدمة Appwrite
+    final appwriteService = AppwriteService();
+    
+    // التحقق من صحة الإعدادات قبل التهيئة
+    if (AppwriteConfig.validateConfig()) {
+      try {
+        await appwriteService.initialize();
+        
+        // تهيئة مدير المزامنة
+        final syncManager = AppwriteSyncManager(appwriteService: appwriteService);
+        await syncManager.initialize();
+        
+        // تسجيل الجهاز (إذا كان متاحاً)
+        try {
+          final deviceInfo = await DeviceInfoPlugin().androidInfo;
+          await syncManager.registerDevice(
+            deviceName: deviceInfo.model,
+            deviceModel: deviceInfo.device,
+            osVersion: 'Android ${deviceInfo.version.release}',
+          );
+          debugPrint('✅ تم تسجيل الجهاز في Appwrite');
+        } catch (e) {
+          debugPrint('⚠️ تعذر تسجيل الجهاز: $e');
+        }
+        
+        debugPrint('✅ تم تهيئة Appwrite بنجاح');
+      } catch (e) {
+        debugPrint('⚠️ فشل الاتصال بـ Appwrite (سيعمل التطبيق بدون مزامنة سحابية): $e');
+      }
+    } else {
+      debugPrint('ℹ️ Appwrite غير مُعد - يرجى تعيين Project ID في appwrite_config.dart');
+    }
+  } catch (e, stackTrace) {
+    debugPrint('❌ خطأ في تهيئة Appwrite: $e');
+    debugPrint('Stack Trace: $stackTrace');
+  }
+}
+
+class App extends ConsumerStatefulWidget {
   const App({super.key});
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<App> createState() => _AppState();
+}
+
+class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
+  bool _sessionConfigured = false;
+  bool _isConfiguringSession = false;
+  AppDatabase? _pendingDatabase;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ref.listen<AppDatabase>(
       databaseProvider,
       (previous, database) {
-        Future.microtask(() async {
-          await Seeder(database).seedIfEmpty();
-
-
-        });
+        if (_sessionConfigured && previous != null && identical(previous, database)) {
+          return;
+        }
+        _enqueueDatabase(database);
       },
     );
+  }
+
+  void _enqueueDatabase(AppDatabase database) {
+    _pendingDatabase = database;
+    if (!_isConfiguringSession) {
+      _processPendingDatabase();
+    }
+  }
+
+  void _processPendingDatabase() {
+    final database = _pendingDatabase;
+    if (database == null) {
+      return;
+    }
+    _pendingDatabase = null;
+    _isConfiguringSession = true;
+    Future.microtask(() async {
+      try {
+        if (_sessionConfigured) {
+          await AppSessionManager.onAppCloseOrBackground();
+        }
+        AppSessionManager.configure(
+          database: database,
+          deviceIdResolver: () async => SmartSyncManager.instance.deviceId,
+        );
+        await Seeder(database).seedIfEmpty();
+        await AppSessionManager.onAppOpen();
+        _sessionConfigured = true;
+      } finally {
+        _isConfiguringSession = false;
+        if (_pendingDatabase != null) {
+          _processPendingDatabase();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    if (_sessionConfigured) {
+      unawaited(AppSessionManager.onAppCloseOrBackground());
+    }
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_sessionConfigured) {
+      return;
+    }
+    if (state == AppLifecycleState.resumed) {
+      unawaited(AppSessionManager.onAppOpen());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      unawaited(AppSessionManager.onAppCloseOrBackground());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: MaterialApp(
@@ -117,6 +261,7 @@ class RootRouter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    final backup = ref.watch(backupStatusProvider);
     if (auth.isRestoring) {
       return const Directionality(
         textDirection: TextDirection.rtl,
@@ -124,6 +269,9 @@ class RootRouter extends ConsumerWidget {
           body: Center(child: CircularProgressIndicator()),
         ),
       );
+    }
+    if (!auth.isAuthenticated && backup.requiresDriveLogin) {
+      return const GoogleDriveLoginScreen();
     }
     if (auth.isAuthenticated) {
       return const HomeShell();

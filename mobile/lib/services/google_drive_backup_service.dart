@@ -10,8 +10,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import 'auto_backup_task.dart';
 import 'local_db.dart';
 import 'providers.dart';
+import 'restore_fix_service.dart';
+import 'backup_serializers.dart';
 
 enum BackupFormat { json, sqlite }
 
@@ -156,6 +159,43 @@ class GoogleDriveBackupService {
     );
   }
 
+  Future<void> _ensureDriveClient() async {
+    if (_googleSignIn == null) {
+      _initializeGoogleSignIn();
+    }
+
+    GoogleSignInAccount? account = _googleSignIn?.currentUser;
+    if (account == null) {
+      try {
+        account = await _googleSignIn?.signInSilently();
+      } catch (e) {
+        debugPrint('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
+      }
+    }
+
+    if (account == null) {
+      throw Exception('يجب إعادة تسجيل الدخول في Google Drive لإكمال العملية');
+    }
+
+    final headers = await account.authHeaders;
+    _driveApi = drive.DriveApi(GoogleAuthClient(headers));
+  }
+
+  Future<T> _runWithAuth<T>(Future<T> Function() action) async {
+    await _ensureDriveClient();
+    try {
+      return await action();
+    } on drive.DetailedApiRequestError catch (e) {
+      if (e.status == 401) {
+        debugPrint('⚠️ تم فقد صلاحية رمز Google Drive، إعادة المحاولة بعد التحديث...');
+        _driveApi = null;
+        await _ensureDriveClient();
+        return await action();
+      }
+      rethrow;
+    }
+  }
+
   Future<GoogleSignInAccount?> signInForDrive() async {
     try {
       if (_googleSignIn == null) {
@@ -221,6 +261,28 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// محاولة تسجيل الدخول بهدوء للاستخدام في الخلفية (Alarm Callback)
+  Future<bool> signInSilentlyIfNeeded() async {
+    try {
+      if (_googleSignIn == null) _initializeGoogleSignIn();
+      final account = await _googleSignIn!.signInSilently(suppressErrors: true);
+      
+      if (account != null) {
+        final headers = await account.authHeaders;
+        final client = GoogleAuthClient(headers);
+        _driveApi = drive.DriveApi(client);
+        debugPrint('✅ تم تسجيل الدخول بهدوء: ${account.email}');
+        return true;
+      }
+      
+      debugPrint('⚠️ لا توجد جلسة محفوظة للدخول الهادئ');
+      return false;
+    } catch (e) {
+      debugPrint('❌ signInSilently error: $e');
+      return false;
+    }
+  }
+
   Future<void> signOut() async {
     try {
       await _googleSignIn?.signOut();
@@ -238,36 +300,38 @@ class GoogleDriveBackupService {
   bool get isSignedIn => _googleSignIn?.currentUser != null;
 
   Future<String> getOrCreateBackupFolder() async {
-    if (_driveApi == null) {
-      throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
-    }
-
     if (_backupFolderId != null) {
       return _backupFolderId!;
     }
 
-    try {
-      final query = "name='$_backupFolderName' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-      final searchResult = await _driveApi!.files.list(q: query);
-
-      if (searchResult.files != null && searchResult.files!.isNotEmpty) {
-        _backupFolderId = searchResult.files!.first.id;
-        debugPrint('✅ تم العثور على مجلد النسخ الاحتياطية: $_backupFolderId');
-      } else {
-        final folder = drive.File()
-          ..name = _backupFolderName
-          ..mimeType = 'application/vnd.google-apps.folder';
-
-        final createdFolder = await _driveApi!.files.create(folder);
-        _backupFolderId = createdFolder.id;
-        debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطية: $_backupFolderId');
+    return _runWithAuth<String>(() async {
+      if (_backupFolderId != null) {
+        return _backupFolderId!;
       }
 
-      return _backupFolderId!;
-    } catch (e) {
-      debugPrint('❌ خطأ في إنشاء/العثور على مجلد النسخ الاحتياطية: $e');
-      rethrow;
-    }
+      try {
+        final query = "name='$_backupFolderName' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+        final searchResult = await _driveApi!.files.list(q: query);
+
+        if (searchResult.files != null && searchResult.files!.isNotEmpty) {
+          _backupFolderId = searchResult.files!.first.id;
+          debugPrint('✅ تم العثور على مجلد النسخ الاحتياطية: $_backupFolderId');
+        } else {
+          final folder = drive.File()
+            ..name = _backupFolderName
+            ..mimeType = 'application/vnd.google-apps.folder';
+
+          final createdFolder = await _driveApi!.files.create(folder);
+          _backupFolderId = createdFolder.id;
+          debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطية: $_backupFolderId');
+        }
+
+        return _backupFolderId!;
+      } catch (e) {
+        debugPrint('❌ خطأ في إنشاء/العثور على مجلد النسخ الاحتياطية: $e');
+        rethrow;
+      }
+    });
   }
 
   Future<Map<String, dynamic>> exportDatabaseToJson() async {
@@ -322,11 +386,7 @@ class GoogleDriveBackupService {
   }
 
   Future<String> uploadBackup(Map<String, dynamic> backupData) async {
-    if (_driveApi == null) {
-      throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
-    }
-
-    try {
+    return _runWithAuth<String>(() async {
       final folderId = await getOrCreateBackupFolder();
 
       final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
@@ -353,10 +413,7 @@ class GoogleDriveBackupService {
 
       debugPrint('✅ تم رفع النسخة الاحتياطية: ${uploadedFile.id}');
       return uploadedFile.id!;
-    } catch (e) {
-      debugPrint('❌ خطأ في رفع النسخة الاحتياطية: $e');
-      rethrow;
-    }
+    });
   }
 
   Map<String, String> _buildAppProperties(Map<String, dynamic> metadata, DateTime timestamp) {
@@ -384,11 +441,7 @@ class GoogleDriveBackupService {
   }
 
   Future<List<DriveBackupFile>> listBackupFiles() async {
-    if (_driveApi == null) {
-      throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
-    }
-
-    try {
+    return _runWithAuth<List<DriveBackupFile>>(() async {
       final folderId = await getOrCreateBackupFolder();
 
       final query = "parents in '$folderId' and name contains '$_backupFilePrefix' and trashed=false";
@@ -408,18 +461,11 @@ class GoogleDriveBackupService {
 
       debugPrint('✅ تم جلب ${backupFiles.length} نسخة احتياطية');
       return backupFiles;
-    } catch (e) {
-      debugPrint('❌ خطأ في جلب قائمة النسخ الاحتياطية: $e');
-      rethrow;
-    }
+    });
   }
 
   Future<Map<String, dynamic>> downloadBackup(String fileId) async {
-    if (_driveApi == null) {
-      throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
-    }
-
-    try {
+    return _runWithAuth<Map<String, dynamic>>(() async {
       final media = await _driveApi!.files.get(
         fileId,
         downloadOptions: drive.DownloadOptions.fullMedia,
@@ -435,10 +481,7 @@ class GoogleDriveBackupService {
 
       debugPrint('✅ تم تنزيل النسخة الاحتياطية: $fileId');
       return backupData;
-    } catch (e) {
-      debugPrint('❌ خطأ في تنزيل النسخة الاحتياطية: $e');
-      rethrow;
-    }
+    });
   }
 
   Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
@@ -469,57 +512,75 @@ class GoogleDriveBackupService {
       if (backupData.containsKey('rooms')) {
         final roomsData = backupData['rooms'] as List<dynamic>;
         for (final roomJson in roomsData) {
-          await db.into(db.rooms).insert(Room.fromJson(roomJson));
+          final map = Map<String, dynamic>.from(roomJson as Map);
+          final data = Room.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.rooms).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('bookings')) {
         final bookingsData = backupData['bookings'] as List<dynamic>;
         for (final bookingJson in bookingsData) {
-          await db.into(db.bookings).insert(Booking.fromJson(bookingJson));
+          final map = Map<String, dynamic>.from(bookingJson as Map);
+          final data = Booking.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.bookings).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('booking_notes')) {
         final notesData = backupData['booking_notes'] as List<dynamic>;
         for (final noteJson in notesData) {
-          await db.into(db.bookingNotes).insert(BookingNote.fromJson(noteJson));
+          final map = Map<String, dynamic>.from(noteJson as Map);
+          final data = BookingNote.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.bookingNotes).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('employees')) {
         final employeesData = backupData['employees'] as List<dynamic>;
         for (final employeeJson in employeesData) {
-          await db.into(db.employees).insert(Employee.fromJson(employeeJson));
+          final map = Map<String, dynamic>.from(employeeJson as Map);
+          final data = Employee.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.employees).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('expenses')) {
         final expensesData = backupData['expenses'] as List<dynamic>;
         for (final expenseJson in expensesData) {
-          await db.into(db.expenses).insert(Expense.fromJson(expenseJson));
+          final map = Map<String, dynamic>.from(expenseJson as Map);
+          final data = Expense.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.expenses).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('cash_transactions')) {
         final transactionsData = backupData['cash_transactions'] as List<dynamic>;
         for (final transactionJson in transactionsData) {
-          await db.into(db.cashTransactions).insert(CashTransaction.fromJson(transactionJson));
+          final map = Map<String, dynamic>.from(transactionJson as Map);
+          final data = CashTransaction.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.cashTransactions).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('payments')) {
         final paymentsData = backupData['payments'] as List<dynamic>;
         for (final paymentJson in paymentsData) {
-          await db.into(db.payments).insert(Payment.fromJson(paymentJson));
+          final map = Map<String, dynamic>.from(paymentJson as Map);
+          final data = Payment.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.payments).insertOnConflictUpdate(data);
         }
       }
 
       if (backupData.containsKey('sync_state') && backupData['sync_state'] is Map && (backupData['sync_state'] as Map).isNotEmpty) {
-        await db.into(db.syncState).insert(SyncStateData.fromJson(backupData['sync_state']));
+        final syncStateJson = Map<String, dynamic>.from(backupData['sync_state'] as Map);
+        final data = SyncStateData.fromJson(syncStateJson, serializer: lenientValueSerializer);
+        await db.into(db.syncState).insertOnConflictUpdate(data);
       }
 
       debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
+      final fixService = RestoreFixService(db);
+      await fixService.runAutoFixAfterRestore(backupTimestamp: metadata.backupTimestamp);
     } catch (e) {
       debugPrint('❌ خطأ في استعادة البيانات: $e');
       rethrow;
@@ -572,15 +633,21 @@ class GoogleDriveBackupService {
     }
 
     try {
+      await Workmanager().cancelByUniqueName(AutoBackupTask.taskId);
+      await Future.delayed(const Duration(seconds: 1));
+      await AutoBackupTask.initialize();
+
       await Workmanager().registerPeriodicTask(
-        'autoBackup',
-        'autoBackupTask',
+        AutoBackupTask.taskId,
+        AutoBackupTask.taskName,
         frequency: frequencyDuration,
         initialDelay: initialDelay,
         constraints: Constraints(
           networkType: NetworkType.connected,
           requiresBatteryNotLow: true,
         ),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+        inputData: const <String, dynamic>{},
       );
 
       debugPrint('✅ تم جدولة النسخ التلقائي: $frequency في $timeString');
@@ -680,17 +747,10 @@ class GoogleDriveBackupService {
   }
 
   Future<void> deleteBackupFile(String fileId) async {
-    if (_driveApi == null) {
-      throw Exception('يجب تسجيل الدخول في Google Drive أولاً');
-    }
-
-    try {
+    await _runWithAuth<void>(() async {
       await _driveApi!.files.delete(fileId);
       debugPrint('🗑️ تم حذف النسخة الاحتياطية: $fileId');
-    } catch (e) {
-      debugPrint('❌ خطأ في حذف النسخة الاحتياطية: $e');
-      rethrow;
-    }
+    });
   }
 
   void dispose() {

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_local_store.dart';
 import '../../utils/theme.dart';
-import '../../components/admin_layout.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -134,7 +133,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       rememberMe: _rememberMe,
     );
     setState(() => _submitting = false);
-    final state = ref.read(authProvider);
     // سيقوم RootRouter بإظهار الواجهة الرئيسية تلقائيًا عند نجاح الدخول
   }
 }

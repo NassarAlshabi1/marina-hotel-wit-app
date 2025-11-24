@@ -9,6 +9,8 @@ import 'repositories/payments_repository.dart';
 import 'repositories/debts_repository.dart';
 import 'repositories/notes_repository.dart';
 import 'repositories/simple_notes_repository.dart';
+import 'repositories/shift_notes_repository.dart';
+import 'repositories/salary_withdrawals_repository.dart';
 
 import 'whatsapp_service.dart';
 import '../utils/status_utils.dart';
@@ -30,7 +32,9 @@ final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.re
 final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider)));
 final debtsRepoProvider = Provider<DebtsRepository>((ref) => DebtsRepository(ref.read(databaseProvider)));
 final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider)));
+final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>((ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)));
 final simpleNotesRepoProvider = Provider<SimpleNotesRepository>((ref) => SimpleNotesRepository(ref.read(databaseProvider)));
+final shiftNotesRepoProvider = Provider<ShiftNotesRepository>((ref) => ShiftNotesRepository(ref.read(databaseProvider)));
 final whatsappServiceProvider = Provider<WhatsAppService>(
   (ref) => WhatsAppService(
     baseUrl: 'https://7103.api.greenapi.com',

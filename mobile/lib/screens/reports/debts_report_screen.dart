@@ -23,7 +23,7 @@ class DebtsReportScreen extends ConsumerStatefulWidget {
 }
 
 class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
-  final NumberFormat _currencyFormat = NumberFormat('#,##0.00', 'en_US');
+  final NumberFormat _currencyFormat = NumberFormat('#,##0', 'en_US');
 
   String _formatNumber(num value) => value.toStringAsFixed(0);
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');

@@ -12,6 +12,7 @@ import 'comprehensive_backup_screen.dart';
 import 'auto_backup_settings_screen.dart';
 import 'smart_sync_settings_screen.dart';
 import 'sync_performance_settings_screen.dart';
+import 'appwrite_settings_screen.dart';
 
 
 class SettingsScreen extends ConsumerWidget {
@@ -128,6 +129,16 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
 
+            _SettingsItem(
+              title: 'إعدادات Appwrite',
+              subtitle: 'مزامنة سحابية وإعدادات متقدمة',
+              icon: Icons.cloud_sync,
+              color: Colors.blueAccent,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AppwriteSettingsScreen()),
+              ),
+            ),
             _SettingsItem(
               title: 'إعدادات التطبيق',
               subtitle: 'تخصيص إعدادات التطبيق',

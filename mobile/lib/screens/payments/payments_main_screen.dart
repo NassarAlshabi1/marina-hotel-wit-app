@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/currency_formatter.dart';
 import 'payment_history_screen.dart';
 import 'booking_checkout_screen.dart';
 
@@ -145,7 +146,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         Expanded(
           child: _buildStatCard(
             'الإجمالي',
-            '${totalAmount.toStringAsFixed(2)}',
+            CurrencyFormatter.formatAmount(totalAmount),
             Icons.account_balance_wallet,
             Colors.green,
           ),
@@ -154,7 +155,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         Expanded(
           child: _buildStatCard(
             'هذا الشهر',
-            '${monthlyAmount.toStringAsFixed(2)}',
+            CurrencyFormatter.formatAmount(monthlyAmount),
             Icons.calendar_month,
             Colors.blue,
           ),
@@ -163,7 +164,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         Expanded(
           child: _buildStatCard(
             'هذا الأسبوع',
-            '${weeklyAmount.toStringAsFixed(2)}',
+            CurrencyFormatter.formatAmount(weeklyAmount),
             Icons.date_range,
             Colors.orange,
           ),
@@ -283,7 +284,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                 _getPaymentMethodIcon(payment.paymentMethod),
                 color: _getPaymentMethodColor(payment.paymentMethod),
               ),
-              title: Text('${payment.amount.toStringAsFixed(2)}'),
+              title: Text(CurrencyFormatter.formatAmount(payment.amount)),
               subtitle: Text('${payment.paymentMethod} • ${payment.paymentDate}'),
               trailing: payment.roomNumber != null 
                   ? Chip(

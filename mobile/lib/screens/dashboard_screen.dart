@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../services/local_db.dart';
 import '../services/providers.dart';
@@ -9,6 +10,7 @@ import '../utils/status_utils.dart';
 import '../widgets/smart_sync_widgets.dart';
 import 'bookings/booking_edit.dart';
 import 'bookings/bookings_list.dart';
+import 'reports/expenses_report_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101', '102', '103', '104',
@@ -80,6 +82,7 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildStatisticsCards(WidgetRef ref) {
+    final currencyFmt = NumberFormat('#,##0', 'en_US');
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -137,7 +140,7 @@ class DashboardScreen extends ConsumerWidget {
               ),
               data: (total) => _StatCard(
                 title: 'مدفوعات اليوم',
-                value: '${total.toStringAsFixed(0)}',
+                value: currencyFmt.format(total),
                 icon: Icons.payments,
                 color: Colors.green,
               ),
@@ -163,9 +166,13 @@ class DashboardScreen extends ConsumerWidget {
               ),
               data: (total) => _StatCard(
                 title: 'مصروفات اليوم',
-                value: '${total.toStringAsFixed(0)}',
+                value: currencyFmt.format(total),
                 icon: Icons.money_off,
                 color: Colors.red,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
+                ),
               ),
             );
           },
@@ -442,42 +449,49 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
   
   const _StatCard({
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12), // تقليل padding
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24, color: color), // تصغير الأيقونة
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16, // تصغير الخط
-                fontWeight: FontWeight.bold,
-                color: color,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12), // تقليل padding
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 24, color: color), // تصغير الأيقونة
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16, // تصغير الخط
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12, // تصغير الخط
-                color: Colors.grey,
+              const SizedBox(height: 2),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12, // تصغير الخط
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

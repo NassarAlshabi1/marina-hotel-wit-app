@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/auto_backup_manager.dart';
+import '../services/auto_backup_manager.dart' show AutoBackupManager;
 import 'backup_provider.dart'; // استيراد Provider الموجود
 
 /// Provider لمدير النسخ التلقائي
