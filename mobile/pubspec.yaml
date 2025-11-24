@@ -41,6 +41,7 @@ dependencies:
   share_plus: ^10.1.1
   permission_handler: ^11.3.1
   device_info_plus: ^10.1.2
+  appwrite: ^12.0.3
 
   # Required for file-based SQLite backup/restore helpers
   sqflite: ^2.3.3+1
