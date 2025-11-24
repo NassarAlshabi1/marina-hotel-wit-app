@@ -20,7 +20,7 @@ class BookingsListScreen extends ConsumerStatefulWidget {
 }
 
 class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
-  final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
+  final _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   Future<void> _navigateToAddBooking() async {
     await Navigator.push(
@@ -295,14 +295,6 @@ class _CompactBookingCard extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoChip(ThemeData theme, IconData icon, String label, String value) {
-    return Chip(
-      avatar: Icon(icon, size: 16),
-      label: Text('$label: $value'),
-      labelStyle: theme.textTheme.bodySmall,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-    );
-  }
 }
 
 Widget _buildHeaderRow(BuildContext context) {

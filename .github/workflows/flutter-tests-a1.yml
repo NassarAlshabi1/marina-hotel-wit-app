@@ -1,0 +1,55 @@
+# .github/workflows/flutter_tests_a1.yml
+name: Flutter Tests (A1)
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - A1
+      - "capy/**"
+  pull_request:
+    branches:
+      - A1
+  workflow_dispatch:
+
+concurrency:
+  group: flutter-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. استخراج الكود
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. تثبيت Flutter مع التخزين المؤقت
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # 3. تحميل الـ packages
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: mobile
+
+      # 4. توليد ملفات Drift (companions & DAOs)
+      - name: Generate drift code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+        working-directory: mobile
+
+      # 5. فحص ثابت للكود
+      - name: Run analyzer
+        run: flutter analyze --no-pub
+        working-directory: mobile
+
+      # 6. تشغيل الاختبارات الوحدوية
+      - name: Run unit tests
+        run: flutter test
+        working-directory: mobile

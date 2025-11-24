@@ -1,5 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart' hide PdfColors;
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../models/enhanced_payment_models.dart';
 import '../../models/enhanced_reports.dart';
@@ -8,7 +14,6 @@ import '../../utils/enhanced_pdf_utils.dart';
 
 /// مساعد لإنشاء PDF محسّنة من البيانات الموجودة
 class EnhancedPdfHelper {
-  
   /// إنشاء إيصال دفع محسّن من Payment موجود
   static Future<void> generateEnhancedReceipt({
     required Payment payment,
@@ -64,9 +69,9 @@ class EnhancedPdfHelper {
       hotelName: 'فندق مارينا بلازا',
       hotelAddress: 'القاهرة - شارع احمد قاسم',
       checkIn: DateTime.parse(booking.checkinDate),
-      checkOut: booking.checkoutDate != null 
-        ? DateTime.parse(booking.checkoutDate!)
-        : DateTime.parse(booking.checkinDate).add(Duration(days: nights)),
+      checkOut: booking.checkoutDate != null
+          ? DateTime.parse(booking.checkoutDate!)
+          : DateTime.parse(booking.checkinDate).add(Duration(days: nights)),
       issuedAt: DateTime.now(),
       notes: booking.notes,
     );
@@ -92,6 +97,8 @@ class EnhancedPdfHelper {
           roomNumber: 'غير محدد',
           guestName: 'غير محدد',
           guestPhone: '',
+          guestIdType: 'غير محدد',
+          guestIdNumber: '',
           guestNationality: '',
           checkinDate: '',
           status: '',
@@ -103,7 +110,17 @@ class EnhancedPdfHelper {
           lastModified: DateTime.now().millisecondsSinceEpoch,
           version: 1,
           origin: 'local',
+          expectedNights: 1,
           calculatedNights: 1,
+          // الحقول المطلوبة الجديدة
+          isFullyPaid: false,
+          isOverdue: false,
+          lastModifiedEpoch: DateTime.now().millisecondsSinceEpoch,
+          needsCheckoutReview: false,
+          remainingBalanceCached: 0.0,
+          totalDueCached: 0.0,
+          totalNightsCached: 1,
+          totalPaidCached: 0.0,
         ),
       );
 
@@ -113,7 +130,7 @@ class EnhancedPdfHelper {
         amount: payment.amount,
         method: payment.paymentMethod,
         paymentDate: DateTime.parse(payment.paymentDate),
-        receivedBy: 'النظام', // يمكن إضافة هذا الحقل لاحقاً
+        receivedBy: 'النظام',
         notes: payment.notes,
       );
     }).toList();
@@ -142,7 +159,7 @@ class EnhancedPdfHelper {
       category: expense.expenseType,
       amount: expense.amount,
       date: DateTime.parse(expense.date),
-      notes: null, // يمكن إضافة حقل notes للمصروفات
+      notes: null,
     )).toList();
 
     final report = EnhancedExpensesReport(
@@ -234,7 +251,6 @@ class EnhancedPdfHelper {
                 child: EnhancedPdfUtils.buildStatisticsBox(
                   title: 'إجمالي الإيرادات',
                   value: EnhancedPdfUtils.formatNumber(totalRevenue),
-                  // subtitle: '',
                   fonts: fonts,
                   color: PdfColors.success,
                   icon: '💰',
@@ -245,7 +261,6 @@ class EnhancedPdfHelper {
                 child: EnhancedPdfUtils.buildStatisticsBox(
                   title: 'إجمالي المصروفات',
                   value: EnhancedPdfUtils.formatNumber(totalExpenses),
-                  // subtitle: '',
                   fonts: fonts,
                   color: PdfColors.danger,
                   icon: '💸',
@@ -382,7 +397,7 @@ class EnhancedPdfPreviewScreen extends ConsumerWidget {
               ),
             );
           }
-          
+
           if (snapshot.hasError) {
             return Center(
               child: Column(
@@ -400,7 +415,7 @@ class EnhancedPdfPreviewScreen extends ConsumerWidget {
               ),
             );
           }
-          
+
           return PdfPreview(
             build: (format) => snapshot.data!,
             allowSharing: true,
@@ -441,24 +456,7 @@ class PdfPreviewHelper {
               notes: payment.notes,
             );
 
-            // إنشاء PDF وإرجاع البايتات
-            final fonts = await EnhancedPdfUtils.loadArabicFonts();
-            final logo = await EnhancedPdfUtils.loadLogoImage();
-            final pdf = pw.Document();
-
-            pdf.addPage(
-              pw.Page(
-                pageFormat: PdfPageFormat.a4,
-                textDirection: pw.TextDirection.rtl,
-                theme: pw.ThemeData.withFont(
-                  base: fonts.regular,
-                  bold: fonts.bold,
-                ),
-                build: (context) => receipt._buildReceiptContent(fonts, logo),
-              ),
-            );
-
-            return pdf.save();
+            return receipt.generatePdfBytes();
           },
         ),
       ),

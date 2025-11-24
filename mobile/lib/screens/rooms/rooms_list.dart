@@ -4,6 +4,7 @@ import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
+import '../../utils/currency_formatter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:image_picker/image_picker.dart';
@@ -42,7 +43,7 @@ class RoomsListScreen extends ConsumerWidget {
               final r = rooms[i];
               return ListTile(
                 title: Text('${r.roomNumber} • ${r.type}'),
-                subtitle: Text('السعر: ${r.price.toStringAsFixed(2)} • الحالة: ${r.status}'),
+                subtitle: Text('السعر: ${CurrencyFormatter.formatAmount(r.price)} • الحالة: ${r.status}'),
                 trailing: canRooms
                     ? IconButton(
                         icon: const Icon(Icons.edit),

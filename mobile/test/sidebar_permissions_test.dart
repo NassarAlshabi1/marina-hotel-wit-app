@@ -11,7 +11,7 @@ class FakeAuthNotifier extends AuthNotifier {
   @override
   Future<void> restoreSession() async {}
   @override
-  Future<void> login(String username, String password) async {}
+  Future<void> login(String username, String password, {bool rememberMe = false}) async {}
   @override
   Future<void> logout() async {}
 }

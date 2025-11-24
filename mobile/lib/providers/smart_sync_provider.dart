@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/smart_sync_manager.dart';
+import '../services/smart_sync_manager.dart' show SmartSyncManager;
 import 'backup_provider.dart';
 
 /// Provider لمدير المزامنة الذكية

@@ -5,6 +5,7 @@ import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
   final Booking booking;
@@ -76,8 +77,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                         Text('الليالي المتوقعة: $expectedNights'),
                         if (actualCheckout != null)
                           Text('الليالي الفعلية: $actualNights'),
-                        Text('سعر الليلة: ${roomPrice.toStringAsFixed(2)}'),
-                        Text('المبلغ المستحق: ${totalDue.toStringAsFixed(2)}'),
+                        Text('سعر الليلة: ${CurrencyFormatter.formatAmount(roomPrice)}'),
+                        Text('المبلغ المستحق: ${CurrencyFormatter.formatAmount(totalDue)}'),
                         Text('الحالة: ${widget.booking.status}'),
                       ],
                     ),
@@ -151,7 +152,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                                       color: Colors.green,
                                     ),
                                     title: Text(
-                                      '${payment.amount.toStringAsFixed(2)}',
+                                      CurrencyFormatter.formatAmount(payment.amount),
                                       style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     subtitle: Column(
@@ -234,7 +235,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: color),
         ),
         Text(
-          '${amount.toStringAsFixed(2)}',
+          CurrencyFormatter.formatAmount(amount),
           style: TextStyle(fontWeight: FontWeight.bold, color: color),
         ),
       ],

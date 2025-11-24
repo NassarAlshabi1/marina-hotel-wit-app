@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,14 +17,17 @@ import 'screens/payments/payments_main_screen.dart';
 import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
 import 'services/providers.dart';
 import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
 import 'services/auto_backup_manager.dart';
+import 'services/app_session_manager.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
+import 'services/alarm_backup.dart';
 import 'components/admin_layout.dart';
 import 'services/local_db.dart';
 import 'services/appwrite_config.dart';
@@ -36,7 +41,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-
+  // تهيئة نظام Alarm للنسخ الاحتياطي
+  await AlarmBackup.initAlarmSystem();
   
   // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
   await AutoBackupTask.initialize();
@@ -140,18 +146,91 @@ Future<void> _initializeAppwrite() async {
 
 class App extends ConsumerWidget {
   const App({super.key});
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<App> createState() => _AppState();
+}
+
+class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
+  bool _sessionConfigured = false;
+  bool _isConfiguringSession = false;
+  AppDatabase? _pendingDatabase;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ref.listen<AppDatabase>(
       databaseProvider,
       (previous, database) {
-        Future.microtask(() async {
-          await Seeder(database).seedIfEmpty();
-
-
-        });
+        if (_sessionConfigured && previous != null && identical(previous, database)) {
+          return;
+        }
+        _enqueueDatabase(database);
       },
     );
+  }
+
+  void _enqueueDatabase(AppDatabase database) {
+    _pendingDatabase = database;
+    if (!_isConfiguringSession) {
+      _processPendingDatabase();
+    }
+  }
+
+  void _processPendingDatabase() {
+    final database = _pendingDatabase;
+    if (database == null) {
+      return;
+    }
+    _pendingDatabase = null;
+    _isConfiguringSession = true;
+    Future.microtask(() async {
+      try {
+        if (_sessionConfigured) {
+          await AppSessionManager.onAppCloseOrBackground();
+        }
+        AppSessionManager.configure(
+          database: database,
+          deviceIdResolver: () async => SmartSyncManager.instance.deviceId,
+        );
+        await Seeder(database).seedIfEmpty();
+        await AppSessionManager.onAppOpen();
+        _sessionConfigured = true;
+      } finally {
+        _isConfiguringSession = false;
+        if (_pendingDatabase != null) {
+          _processPendingDatabase();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    if (_sessionConfigured) {
+      unawaited(AppSessionManager.onAppCloseOrBackground());
+    }
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_sessionConfigured) {
+      return;
+    }
+    if (state == AppLifecycleState.resumed) {
+      unawaited(AppSessionManager.onAppOpen());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      unawaited(AppSessionManager.onAppCloseOrBackground());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: MaterialApp(
@@ -182,6 +261,7 @@ class RootRouter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    final backup = ref.watch(backupStatusProvider);
     if (auth.isRestoring) {
       return const Directionality(
         textDirection: TextDirection.rtl,
@@ -189,6 +269,9 @@ class RootRouter extends ConsumerWidget {
           body: Center(child: CircularProgressIndicator()),
         ),
       );
+    }
+    if (!auth.isAuthenticated && backup.requiresDriveLogin) {
+      return const GoogleDriveLoginScreen();
     }
     if (auth.isAuthenticated) {
       return const HomeShell();

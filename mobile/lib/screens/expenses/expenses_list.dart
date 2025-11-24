@@ -6,6 +6,7 @@ import '../../services/providers.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -18,6 +19,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
   int? _selectedEmployeeId;
   String? selectedType;
   static const String _salaryType = 'رواتب';
+  static const String _salaryWithdrawAction = 'سحب من الراتب';
+  static const String _salaryDeductionAction = 'خصم من الراتب';
+  static const List<String> _salaryActions = [_salaryWithdrawAction, _salaryDeductionAction];
   static const List<String> availableTypes = ['رواتب', 'ديزل', 'صيانة', 'فواتير كهرباء ومياه', 'مستلزمات', 'مساعدة محتاج', 'اخرى'];
 
   @override
@@ -68,7 +72,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
                         return ListTile(
                           title: Text(expense.description),
                           subtitle: Text('${expense.expenseType} • ${employeeName ?? 'بدون موظف'} • ${Time.safeIsoToDateString(expense.date)}'),
-                          trailing: Text('${expense.amount.toStringAsFixed(0)}'),
+                          trailing: Text(CurrencyFormatter.formatAmount(expense.amount)),
                           onTap: () => _edit(existing: expense, employees: employees),
                         );
                       },
@@ -132,11 +136,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
     final description = TextEditingController(text: existing?.description ?? '');
     final amount = TextEditingController(text: existing?.amount.toString() ?? '');
-    final expenseType = TextEditingController(text: existing?.expenseType ?? 'اخرى');
     final date = TextEditingController(text: existing?.date ?? Time.nowDateString());
+
+    String dialogSalaryAction = _salaryWithdrawAction;
     selectedType = existing?.expenseType ?? 'اخرى';
 
-    final employeesList = employees ?? await ref.read(employeesRepoProvider).watchAll().first;
+    if (existing != null && _isSalaryAction(existing.expenseType)) {
+      selectedType = _salaryType;
+      dialogSalaryAction = _mapExpenseTypeToSalaryAction(existing.expenseType);
+    }
+
+    final availableEmployees = employees ?? await ref.read(employeesRepoProvider).watchAll().first;
     int? selectedEmployeeId = existing?.relatedId;
 
     final ok = await showDialog<bool>(
@@ -178,30 +188,50 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
                         setState(() {
                           selectedType = value;
                           if (selectedType == _salaryType) {
-                            if (employees?.isNotEmpty == true) {
-                              selectedEmployeeId ??= employees!.first.id;
+                            if (availableEmployees.isNotEmpty) {
+                              selectedEmployeeId ??= availableEmployees.first.id;
                             }
                           } else {
                             selectedEmployeeId = null;
+                            dialogSalaryAction = _salaryWithdrawAction;
                           }
                         });
                       },
                     ),
                     if (selectedType == _salaryType) ...[
                       const SizedBox(height: 12),
-                      if (employees?.isEmpty ?? true)
+                      if (availableEmployees.isEmpty)
                         const Text('لا يوجد موظفين مسجلين حالياً.'),
-                      if (employees?.isNotEmpty == true)
+                      if (availableEmployees.isNotEmpty) ...[
+                        DropdownButtonFormField<String>(
+                          value: dialogSalaryAction,
+                          decoration: const InputDecoration(labelText: 'نوع المعاملة'),
+                          items: _salaryActions
+                              .map(
+                                (action) => DropdownMenuItem<String>(
+                                  value: action,
+                                  child: Text(action, style: dropdownTextStyle),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => dialogSalaryAction = value);
+                          },
+                        ),
+                        const SizedBox(height: 12),
                         DropdownButtonFormField<int>(
                           value: selectedEmployeeId,
                           decoration: const InputDecoration(labelText: 'الموظف'),
-                          items: employees?.map((employee) => DropdownMenuItem<int>(
+                          items: availableEmployees
+                              .map((employee) => DropdownMenuItem<int>(
                                     value: employee.id,
                                     child: Text(employee.name),
                                   ))
-                              .toList() ?? [],
+                              .toList(),
                           onChanged: (value) => setState(() => selectedEmployeeId = value),
                         ),
+                      ],
                     ],
                     const SizedBox(height: 12),
                     TextField(
@@ -239,39 +269,97 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
     if (ok != true) {
       description.dispose();
       amount.dispose();
-      expenseType.dispose();
       date.dispose();
       return;
     }
 
     final repo = ref.read(expensesRepoProvider);
-    final parsedAmount = double.tryParse(amount.text.trim()) ?? 0;
+    final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
+    final parsedAmount = double.tryParse(amount.text.replaceAll(',', '').trim()) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedType = (selectedType ?? 'اخرى').trim();
-    final trimmedDate = date.text.trim();
+    final trimmedDate = date.text.trim().isEmpty ? Time.nowDateString() : date.text.trim();
+    final isSalaryExpense = selectedType == _salaryType;
+    final savedType = isSalaryExpense
+        ? _deriveSalaryExpenseType(dialogSalaryAction)
+        : (selectedType ?? 'اخرى');
+
+    if (parsedAmount <= 0) {
+      description.dispose();
+      amount.dispose();
+      date.dispose();
+      return;
+    }
 
     if (existing == null) {
-      await repo.create(
-        expenseType: trimmedType,
-        relatedId: selectedEmployeeId,
+      final newId = await repo.create(
+        expenseType: savedType,
+        relatedId: isSalaryExpense ? selectedEmployeeId : null,
         description: trimmedDescription,
         amount: parsedAmount,
         date: trimmedDate,
       );
+
+      if (isSalaryExpense && selectedEmployeeId != null) {
+        await salaryRepo.saveFromExpense(
+          expenseId: newId,
+          employeeId: selectedEmployeeId!,
+          action: savedType,
+          amount: parsedAmount,
+          date: trimmedDate,
+          note: trimmedDescription,
+        );
+      }
     } else {
       await repo.update(
         existing.id,
-        expenseType: trimmedType,
-        relatedId: selectedEmployeeId,
+        expenseType: savedType,
+        relatedId: isSalaryExpense ? selectedEmployeeId : null,
         description: trimmedDescription,
         amount: parsedAmount,
         date: trimmedDate,
       );
+
+      if (isSalaryExpense && selectedEmployeeId != null) {
+        await salaryRepo.saveFromExpense(
+          expenseId: existing.id,
+          employeeId: selectedEmployeeId!,
+          action: savedType,
+          amount: parsedAmount,
+          date: trimmedDate,
+          note: trimmedDescription,
+        );
+      } else {
+        await salaryRepo.deleteByExpenseId(existing.id);
+      }
     }
 
     description.dispose();
     amount.dispose();
-    expenseType.dispose();
     date.dispose();
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  bool _isSalaryAction(String? type) {
+    if (type == null) return false;
+    final normalized = type.trim();
+    return normalized == _salaryType || normalized == 'سحب راتب' || normalized == _salaryWithdrawAction || normalized == _salaryDeductionAction || normalized == 'خصم راتب';
+  }
+
+  String _mapExpenseTypeToSalaryAction(String type) {
+    final normalized = type.trim();
+    if (normalized == _salaryDeductionAction || normalized == 'خصم راتب') {
+      return _salaryDeductionAction;
+    }
+    return _salaryWithdrawAction;
+  }
+
+  String _deriveSalaryExpenseType(String action) {
+    if (action == _salaryDeductionAction) {
+      return _salaryDeductionAction;
+    }
+    return 'سحب راتب';
   }
 }

@@ -21,7 +21,7 @@ class PaymentsReportScreen extends ConsumerStatefulWidget {
 
 class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd HH:mm');
-  final NumberFormat _currencyFmt = NumberFormat('#,##0.00', 'en_US');
+  final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   String _formatNumber(num value) => value.toStringAsFixed(0);
 

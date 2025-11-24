@@ -1,10 +1,5 @@
-import 'dart:convert';
-
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/auth_local_store.dart';
-
-import '../utils/env.dart';
+import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 
 class AuthUser {
   final int id;

@@ -12,6 +12,7 @@ import 'package:sqflite/sqflite.dart';
 import 'local_db.dart';
 import 'providers.dart';
 import 'google_drive_backup_service.dart';
+import 'backup_serializers.dart';
 
 class LocalBackupFile {
   final String fileName;
@@ -93,29 +94,44 @@ class LocalBackupService {
     }
 
     try {
-      Directory baseDir;
-      
+      Directory? selectedDir;
+
       if (Platform.isAndroid) {
-        // محاولة استخدام External Storage أولاً
-        final externalDirs = await getExternalStorageDirectories();
-        if (externalDirs != null && externalDirs.isNotEmpty) {
-          baseDir = externalDirs.first;
-        } else {
-          // fallback إلى Application Documents Directory
-          baseDir = await getApplicationDocumentsDirectory();
+        try {
+          final manualDir = Directory('/storage/emulated/0/Documents/$_backupFolderName');
+          if (!await manualDir.exists()) {
+            await manualDir.create(recursive: true);
+            debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${manualDir.path}');
+          }
+          selectedDir = manualDir;
+        } catch (e) {
+          debugPrint('⚠️ تعذر استخدام المسار اليدوي، سيتم استخدام بديل: $e');
         }
+
+        if (selectedDir == null) {
+          final externalDirs = await getExternalStorageDirectories(type: StorageDirectory.documents);
+          if (externalDirs != null && externalDirs.isNotEmpty) {
+            final fallbackDir = Directory(p.join(externalDirs.first.path, _backupFolderName));
+            if (!await fallbackDir.exists()) {
+              await fallbackDir.create(recursive: true);
+              debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${fallbackDir.path}');
+            }
+            selectedDir = fallbackDir;
+          }
+        }
+
+        selectedDir ??= await getApplicationDocumentsDirectory();
       } else {
-        baseDir = await getApplicationDocumentsDirectory();
+        selectedDir = await getApplicationDocumentsDirectory();
       }
 
-      _backupDirectory = Directory('${baseDir.path}/$_backupFolderName');
-      
-      if (!await _backupDirectory!.exists()) {
-        await _backupDirectory!.create(recursive: true);
-        debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${_backupDirectory!.path}');
+      if (!await selectedDir.exists()) {
+        await selectedDir.create(recursive: true);
+        debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${selectedDir.path}');
       }
 
-      // حفظ مسار المجلد في التفضيلات
+      _backupDirectory = selectedDir;
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefsLocalBackupPathKey, _backupDirectory!.path);
 
@@ -420,18 +436,48 @@ class LocalBackupService {
       }
     }
 
-    await insertList('rooms', (json) async => db.into(db.rooms).insert(Room.fromJson(json)));
-    await insertList('bookings', (json) async => db.into(db.bookings).insert(Booking.fromJson(json)));
-    await insertList('booking_notes', (json) async => db.into(db.bookingNotes).insert(BookingNote.fromJson(json)));
-    await insertList('employees', (json) async => db.into(db.employees).insert(Employee.fromJson(json)));
-    await insertList('expenses', (json) async => db.into(db.expenses).insert(Expense.fromJson(json)));
-    await insertList('cash_transactions', (json) async => db.into(db.cashTransactions).insert(CashTransaction.fromJson(json)));
-    await insertList('payments', (json) async => db.into(db.payments).insert(Payment.fromJson(json)));
+    await insertList('rooms', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = Room.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.rooms).insertOnConflictUpdate(data);
+    });
+    await insertList('bookings', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = Booking.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.bookings).insertOnConflictUpdate(data);
+    });
+    await insertList('booking_notes', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = BookingNote.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.bookingNotes).insertOnConflictUpdate(data);
+    });
+    await insertList('employees', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = Employee.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.employees).insertOnConflictUpdate(data);
+    });
+    await insertList('expenses', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = Expense.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.expenses).insertOnConflictUpdate(data);
+    });
+    await insertList('cash_transactions', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = CashTransaction.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.cashTransactions).insertOnConflictUpdate(data);
+    });
+    await insertList('payments', (json) async {
+      final map = Map<String, dynamic>.from(json as Map);
+      final data = Payment.fromJson(map, serializer: lenientValueSerializer);
+      await db.into(db.payments).insertOnConflictUpdate(data);
+    });
 
     if (backupData.containsKey('sync_state') &&
         backupData['sync_state'] is Map &&
         (backupData['sync_state'] as Map).isNotEmpty) {
-      await db.into(db.syncState).insert(SyncStateData.fromJson(backupData['sync_state']));
+      final syncStateJson = Map<String, dynamic>.from(backupData['sync_state'] as Map);
+      final data = SyncStateData.fromJson(syncStateJson, serializer: lenientValueSerializer);
+      await db.into(db.syncState).insertOnConflictUpdate(data);
     }
 
     debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON');

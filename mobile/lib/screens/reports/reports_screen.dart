@@ -26,47 +26,61 @@ class ReportsScreen extends ConsumerWidget {
             children: [
               const Text('التقارير التفصيلية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  _ReportShortcut(
-                    icon: Icons.receipt_long,
-                    label: 'تقرير دفوعات النزلاء',
-                    color: Colors.green,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const PaymentsReportScreen()),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final shortcuts = [
+                    _ReportShortcut(
+                      icon: Icons.receipt_long,
+                      label: 'تقرير دفوعات النزلاء',
+                      color: Colors.green,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const PaymentsReportScreen()),
+                      ),
                     ),
-                  ),
-                  _ReportShortcut(
-                    icon: Icons.pie_chart,
-                    label: 'تقرير الديون',
-                    color: Colors.purple,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DebtsReportScreen()),
+                    _ReportShortcut(
+                      icon: Icons.pie_chart,
+                      label: 'تقرير الديون',
+                      color: Colors.purple,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const DebtsReportScreen()),
+                      ),
                     ),
-                  ),
-                  _ReportShortcut(
-                    icon: Icons.account_balance_wallet,
-                    label: 'تقرير المصروفات',
-                    color: Colors.orange,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
+                    _ReportShortcut(
+                      icon: Icons.account_balance_wallet,
+                      label: 'تقرير المصروفات',
+                      color: Colors.orange,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
+                      ),
                     ),
-                  ),
-                  _ReportShortcut(
-                    icon: Icons.payments_outlined,
-                    label: 'تقرير سحبيات الرواتب',
-                    color: Colors.blue,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SalaryWithdrawalsReportScreen()),
+                    _ReportShortcut(
+                      icon: Icons.payments_outlined,
+                      label: 'تقرير سحبيات الرواتب',
+                      color: Colors.blue,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SalaryWithdrawalsReportScreen()),
+                      ),
                     ),
-                  ),
-                ],
+                  ];
+                  final maxWidth = constraints.maxWidth;
+                  int crossAxisCount = (maxWidth / 220).floor();
+                  if (crossAxisCount < 1) crossAxisCount = 1;
+                  if (crossAxisCount > shortcuts.length) crossAxisCount = shortcuts.length;
+                  final childAspectRatio = maxWidth >= 900 ? 2.5 : maxWidth >= 600 ? 2.1 : 1.6;
+                  return GridView.count(
+                    crossAxisCount: crossAxisCount,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: childAspectRatio,
+                    children: shortcuts,
+                  );
+                },
               ),
               const SizedBox(height: 24),
               const Text('الإشغال اليومي (آخر 7 أيام)', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -139,28 +153,25 @@ class _ReportShortcut extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 220,
-      height: 120,
-      child: Card(
-        elevation: 2,
-        color: color.withOpacity(0.1),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, size: 32, color: color),
-                Text(
-                  label,
-                  style: TextStyle(fontWeight: FontWeight.bold, color: color),
-                ),
-              ],
-            ),
+    return Card(
+      elevation: 2,
+      color: color.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, size: 32, color: color),
+              Text(
+                label,
+                style: TextStyle(fontWeight: FontWeight.bold, color: color),
+              ),
+            ],
           ),
         ),
       ),

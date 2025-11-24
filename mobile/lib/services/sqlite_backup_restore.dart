@@ -47,13 +47,25 @@ class SqliteBackupRestore {
 
     try {
       if (Platform.isAndroid) {
-        final documentsTarget = Directory(kAndroidDocumentsBackupPath);
-        if (!await documentsTarget.exists()) {
-          await documentsTarget.create(recursive: true);
+        try {
+          final documentsTarget = Directory(kAndroidDocumentsBackupPath);
+          if (!await documentsTarget.exists()) {
+            await documentsTarget.create(recursive: true);
+          }
+          return documentsTarget;
+        } catch (e) {
+          debugPrint('⚠️ Failed to access default backup dir, falling back: $e');
         }
-        return documentsTarget;
+        final fallbackDirs = await getExternalStorageDirectories(type: StorageDirectory.documents);
+        if (fallbackDirs != null && fallbackDirs.isNotEmpty) {
+          final fallbackTarget = Directory(p.join(fallbackDirs.first.path, 'MarinaHotelBackups'));
+          if (!await fallbackTarget.exists()) {
+            await fallbackTarget.create(recursive: true);
+          }
+          return fallbackTarget;
+        }
+        dir = await getApplicationDocumentsDirectory();
       } else if (Platform.isIOS) {
-        // iOS exposes the app's Documents folder to Files app
         dir = await getApplicationDocumentsDirectory();
       } else {
         dir = await (getDownloadsDirectory() ?? getApplicationDocumentsDirectory());

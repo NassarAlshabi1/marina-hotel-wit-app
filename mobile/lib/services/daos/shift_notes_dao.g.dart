@@ -2,10 +2,7 @@
 
 part of 'shift_notes_dao.dart';
 
-// **************************************************************************
-// DaoGenerator
-// **************************************************************************
-
+// ignore_for_file: type=lint
 mixin _$ShiftNotesDaoMixin on DatabaseAccessor<AppDatabase> {
   $ShiftNotesTable get shiftNotes => attachedDatabase.shiftNotes;
 }

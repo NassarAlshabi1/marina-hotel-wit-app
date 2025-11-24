@@ -4,6 +4,8 @@ import '../../components/app_scaffold.dart';
 import '../../services/providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import 'guest_edit_screen.dart';
+import 'guest_info.dart';
 
 class SettingsGuestsScreen extends ConsumerStatefulWidget {
   const SettingsGuestsScreen({super.key});
@@ -89,36 +91,67 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  List<_GuestInfo> _groupGuestsFromBookings(List<Booking> bookings) {
-    final Map<String, _GuestInfo> guestMap = {};
+  List<GuestInfo> _groupGuestsFromBookings(List<Booking> bookings) {
+    final Map<String, GuestInfo> guestMap = {};
 
     for (final booking in bookings) {
       final key = '${booking.guestName}_${booking.guestPhone}';
-      
-      if (!guestMap.containsKey(key)) {
-        guestMap[key] = _GuestInfo(
+      final email = booking.guestEmail ?? '';
+      final idType = booking.guestIdType ?? 'بطاقة شخصية';
+      final idNumber = booking.guestIdNumber ?? '';
+      final idIssueDate = booking.guestIdIssueDate;
+      final idIssuePlace = booking.guestIdIssuePlace;
+      final address = booking.guestAddress;
+
+      final existing = guestMap[key];
+      if (existing == null) {
+        guestMap[key] = GuestInfo(
           name: booking.guestName,
           phone: booking.guestPhone,
-          email: booking.guestEmail ?? '',
+          email: email,
           nationality: booking.guestNationality,
-          bookings: [],
+          idType: idType,
+          idNumber: idNumber,
+          idIssueDate: idIssueDate,
+          idIssuePlace: idIssuePlace,
+          address: address,
+          bookings: [booking],
         );
+      } else {
+        existing.bookings.add(booking);
+        if (existing.email.isEmpty && email.isNotEmpty) {
+          existing.email = email;
+        }
+        if (existing.nationality.isEmpty && booking.guestNationality.isNotEmpty) {
+          existing.nationality = booking.guestNationality;
+        }
+        if (existing.idType.isEmpty && idType.isNotEmpty) {
+          existing.idType = idType;
+        }
+        if (existing.idNumber.isEmpty && idNumber.isNotEmpty) {
+          existing.idNumber = idNumber;
+        }
+        if (existing.idIssueDate == null && idIssueDate != null) {
+          existing.idIssueDate = idIssueDate;
+        }
+        if (existing.idIssuePlace == null && idIssuePlace != null) {
+          existing.idIssuePlace = idIssuePlace;
+        }
+        if (existing.address == null && address != null && address.isNotEmpty) {
+          existing.address = address;
+        }
       }
-      
-      guestMap[key]!.bookings.add(booking);
     }
 
-    // ترتيب الحجوزات حسب التاريخ
     for (final guest in guestMap.values) {
       guest.bookings.sort((a, b) => b.checkinDate.compareTo(a.checkinDate));
     }
 
-    // ترتيب الضيوف حسب آخر زيارة
     return guestMap.values.toList()
       ..sort((a, b) => b.bookings.first.checkinDate.compareTo(a.bookings.first.checkinDate));
   }
 
-  List<_GuestInfo> _filterGuests(List<_GuestInfo> guests) {
+  List<GuestInfo> _filterGuests(List<GuestInfo> guests) {
     if (_searchQuery.isEmpty) return guests;
     
     return guests.where((guest) {
@@ -155,7 +188,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Widget _buildGuestStats(List<_GuestInfo> guests) {
+  Widget _buildGuestStats(List<GuestInfo> guests) {
     final totalGuests = guests.length;
     final activeGuests = guests.where((g) => 
       g.bookings.any((b) => b.status == 'محجوزة')).length;
@@ -239,7 +272,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Widget _buildGuestCard(BuildContext context, _GuestInfo guest) {
+  Widget _buildGuestCard(BuildContext context, GuestInfo guest) {
     final activeBookings = guest.bookings.where((b) => b.status == 'محجوزة').length;
     final lastVisit = guest.bookings.first.checkinDate;
     
@@ -310,6 +343,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       ],
                     ),
                   ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => _showGuestDetails(context, guest),
+                  icon: const Icon(Icons.info_outline),
+                  tooltip: 'عرض التفاصيل',
+                ),
               ],
             ),
             
@@ -360,9 +399,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _showGuestDetails(context, guest),
-                    icon: const Icon(Icons.info, size: 16),
-                    label: const Text('التفاصيل'),
+                    onPressed: () => _editGuest(context, guest),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('تعديل البيانات'),
                   ),
                 ),
               ],
@@ -408,7 +447,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
   }
 
-  void _showGuestHistory(BuildContext context, _GuestInfo guest) {
+  void _showGuestHistory(BuildContext context, GuestInfo guest) {
     showDialog(
       context: context,
       builder: (context) => Directionality(
@@ -455,7 +494,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  void _showGuestDetails(BuildContext context, _GuestInfo guest) {
+  void _showGuestDetails(BuildContext context, GuestInfo guest) {
     showDialog(
       context: context,
       builder: (context) => Directionality(
@@ -483,20 +522,23 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               onPressed: () => Navigator.pop(context),
               child: const Text('إغلاق'),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // TODO: إضافة حجز جديد للضيف
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('إضافة حجز جديد (قيد التطوير)')),
-                );
-              },
-              child: const Text('حجز جديد'),
-            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _editGuest(BuildContext context, GuestInfo guest) async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => GuestEditScreen(guest: guest),
+      ),
+    );
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تحديث بيانات الضيف')),
+      );
+    }
   }
 
   Widget _buildInfoRow(String label, String value) {
@@ -516,20 +558,4 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       ),
     );
   }
-}
-
-class _GuestInfo {
-  final String name;
-  final String phone;
-  final String email;
-  final String nationality;
-  final List<Booking> bookings;
-
-  _GuestInfo({
-    required this.name,
-    required this.phone,
-    required this.email,
-    required this.nationality,
-    required this.bookings,
-  });
 }
