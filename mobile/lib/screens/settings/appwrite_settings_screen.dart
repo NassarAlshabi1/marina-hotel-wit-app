@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
-import '../../providers/appwrite_providers.dart';
+import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_logger.dart';
 import '../../services/appwrite_config.dart';
 import 'appwrite_logs_screen.dart';
@@ -120,7 +120,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   }
 
   // ==================== قسم حالة الاتصال ====================
-  Widget _buildConnectionSection(BuildContext context, ConnectionState state, Map<String, String> info) {
+  Widget _buildConnectionSection(BuildContext context, ap.ConnectionState state, Map<String, String> info) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
