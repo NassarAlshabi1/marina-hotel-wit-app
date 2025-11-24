@@ -49,7 +49,16 @@ jobs:
         run: flutter analyze --no-pub
         working-directory: mobile
 
-      # 6. تشغيل الاختبارات الوحدوية
-      - name: Run unit tests
-        run: flutter test
+      # 6. تشغيل الاختبارات الوحدوية (مع تكامل اختياري لـ Appwrite)
+      - name: Run unit tests (optional Appwrite integration)
+        env:
+          APPWRITE_DEV_KEY: ${{ secrets.APPWRITE_DEV_KEY }}
+        run: |
+          if [ -n "$APPWRITE_DEV_KEY" ]; then
+            echo "Running tests with APPWRITE_DEV_KEY..."
+            flutter test --dart-define=APPWRITE_DEV_KEY=$APPWRITE_DEV_KEY
+          else
+            echo "Running tests without integration key..."
+            flutter test
+          fi
         working-directory: mobile

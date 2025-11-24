@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
-import '../utils/theme.dart';
 
 class AdminSidebar extends ConsumerWidget {
   final String currentRoute;
@@ -275,12 +274,12 @@ class AdminSidebar extends ConsumerWidget {
       child: ListTile(
         leading: Icon(
           icon,
-          color: isActive ? Colors.white : inactiveColor,
+          color: isActive ? Colors.white : Colors.white.withOpacity(0.72),
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isActive ? Colors.white : inactiveColor,
+            color: isActive ? Colors.white : Colors.white.withOpacity(0.72),
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
