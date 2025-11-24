@@ -144,7 +144,7 @@ Future<void> _initializeAppwrite() async {
   }
 }
 
-class App extends ConsumerWidget {
+class App extends ConsumerStatefulWidget {
   const App({super.key});
 
   @override
