@@ -25,6 +25,12 @@ import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'components/admin_layout.dart';
 import 'services/local_db.dart';
+import 'services/appwrite_config.dart';
+import 'services/appwrite_logger.dart';
+import 'services/appwrite_cache_manager.dart';
+import 'services/appwrite_service.dart';
+import 'services/appwrite_sync_manager.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 
 void main() async {
@@ -37,6 +43,9 @@ void main() async {
   
   // تهيئة مدير النسخ التلقائي الذكي (على أساس التغييرات)
   await _initializeSmartAutoBackup();
+  
+  // تهيئة نظام Appwrite
+  await _initializeAppwrite();
   
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
@@ -70,6 +79,62 @@ Future<void> _initializeSmartAutoBackup() async {
     debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية بنجاح');
   } catch (e) {
     debugPrint('❌ خطأ في تهيئة النظام الذكي: $e');
+  }
+}
+
+/// تهيئة نظام Appwrite للمزامنة السحابية
+Future<void> _initializeAppwrite() async {
+  try {
+    // طباعة الإعدادات
+    AppwriteConfig.printConfig();
+    
+    // تهيئة المسجل
+    final logger = AppwriteLogger();
+    await logger.initialize(
+      minLevel: LogLevel.info,
+      enableConsole: true,
+      enableFile: false,
+    );
+    
+    // تهيئة مدير الذاكرة المؤقتة
+    final cacheManager = AppwriteCacheManager();
+    cacheManager.startCleanup();
+    
+    // تهيئة خدمة Appwrite
+    final appwriteService = AppwriteService();
+    
+    // التحقق من صحة الإعدادات قبل التهيئة
+    if (AppwriteConfig.validateConfig()) {
+      try {
+        await appwriteService.initialize();
+        
+        // تهيئة مدير المزامنة
+        final syncManager = AppwriteSyncManager(appwriteService: appwriteService);
+        await syncManager.initialize();
+        
+        // تسجيل الجهاز (إذا كان متاحاً)
+        try {
+          final deviceInfo = await DeviceInfoPlugin().androidInfo;
+          await syncManager.registerDevice(
+            deviceName: deviceInfo.model,
+            deviceModel: deviceInfo.device,
+            osVersion: 'Android ${deviceInfo.version.release}',
+          );
+          debugPrint('✅ تم تسجيل الجهاز في Appwrite');
+        } catch (e) {
+          debugPrint('⚠️ تعذر تسجيل الجهاز: $e');
+        }
+        
+        debugPrint('✅ تم تهيئة Appwrite بنجاح');
+      } catch (e) {
+        debugPrint('⚠️ فشل الاتصال بـ Appwrite (سيعمل التطبيق بدون مزامنة سحابية): $e');
+      }
+    } else {
+      debugPrint('ℹ️ Appwrite غير مُعد - يرجى تعيين Project ID في appwrite_config.dart');
+    }
+  } catch (e, stackTrace) {
+    debugPrint('❌ خطأ في تهيئة Appwrite: $e');
+    debugPrint('Stack Trace: $stackTrace');
   }
 }
 
