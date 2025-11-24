@@ -54,7 +54,6 @@ class AlarmBackup {
   @pragma('vm:entry-point')
   static Future<void> _alarmCallback() async {
     WidgetsFlutterBinding.ensureInitialized();
-    DartPluginRegistrant.ensureInitialized();
     debugPrint('🔔 Alarm fired: performing backup');
 
     try {

@@ -64,25 +64,25 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   }
 
   Future<void> _checkConnection() async {
-    await ref.read(connectionStatusProvider.notifier).checkConnection();
+    await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
   }
 
   @override
   Widget build(BuildContext context) {
-    final connectionState = ref.watch(connectionStatusProvider);
-    final syncStatsAsync = ref.watch(syncStatsProvider);
-    final cacheStats = ref.watch(cacheStatsProvider);
-    final logStats = ref.watch(logStatsProvider);
-    final projectInfo = ref.watch(projectInfoProvider);
-    final devicesAsync = ref.watch(devicesListProvider);
+    final connectionState = ref.watch(ap.connectionStatusProvider);
+    final syncStatsAsync = ref.watch(ap.syncStatsProvider);
+    final cacheStats = ref.watch(ap.cacheStatsProvider);
+    final logStats = ref.watch(ap.logStatsProvider);
+    final projectInfo = ref.watch(ap.projectInfoProvider);
+    final devicesAsync = ref.watch(ap.devicesListProvider);
 
     return AppScaffold(
       title: 'إعدادات Appwrite',
       body: RefreshIndicator(
         onRefresh: () async {
           await _checkConnection();
-          ref.invalidate(syncStatsProvider);
-          ref.invalidate(devicesListProvider);
+          ref.invalidate(ap.syncStatsProvider);
+          ref.invalidate(ap.devicesListProvider);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -242,11 +242,11 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                 setState(() => _syncEnabled = value);
                 _saveSettings();
                 if (value) {
-                  ref.read(appwriteSyncManagerProvider).startAutoSync(
+                  ref.read(ap.appwriteSyncManagerProvider).startAutoSync(
                     interval: Duration(minutes: _syncInterval),
                   );
                 } else {
-                  ref.read(appwriteSyncManagerProvider).stopAutoSync();
+                  ref.read(ap.appwriteSyncManagerProvider).stopAutoSync();
                 }
               },
             ),
@@ -268,7 +268,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                     setState(() => _syncInterval = value);
                     _saveSettings();
                     if (_syncEnabled) {
-                      ref.read(appwriteSyncManagerProvider).startAutoSync(
+                      ref.read(ap.appwriteSyncManagerProvider).startAutoSync(
                         interval: Duration(minutes: value),
                       );
                     }
@@ -435,7 +435,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               onChanged: (value) {
                 setState(() => _cacheEnabled = value);
                 _saveSettings();
-                ref.read(appwriteCacheManagerProvider).setEnabled(value);
+                ref.read(ap.appwriteCacheManagerProvider).setEnabled(value);
               },
             ),
 
@@ -455,7 +455,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                   if (value != null) {
                     setState(() => _cacheTTLHours = value);
                     _saveSettings();
-                    ref.read(appwriteCacheManagerProvider).setDefaultTTL(Duration(hours: value));
+                    ref.read(ap.appwriteCacheManagerProvider).setDefaultTTL(Duration(hours: value));
                   }
                 },
               ),
@@ -477,7 +477,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                   if (value != null) {
                     setState(() => _cacheMaxSizeMB = value);
                     _saveSettings();
-                    ref.read(appwriteCacheManagerProvider).setMaxSizeMB(value);
+                    ref.read(ap.appwriteCacheManagerProvider).setMaxSizeMB(value);
                   }
                 },
               ),
@@ -738,7 +738,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () {
-                  ref.invalidate(devicesListProvider);
+                  ref.invalidate(ap.devicesListProvider);
                 },
                 icon: const Icon(Icons.refresh),
                 label: const Text('تحديث قائمة الأجهزة'),
@@ -948,7 +948,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   Future<void> _syncNow() async {
     setState(() => _isLoading = true);
     try {
-      final syncManager = ref.read(appwriteSyncManagerProvider);
+      final syncManager = ref.read(ap.appwriteSyncManagerProvider);
       final result = await syncManager.sync();
       
       if (mounted) {
@@ -962,7 +962,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
             backgroundColor: result.isSuccess ? Colors.green : Colors.red,
           ),
         );
-        ref.invalidate(syncStatsProvider);
+        ref.invalidate(ap.syncStatsProvider);
       }
     } catch (e) {
       if (mounted) {
@@ -996,7 +996,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     );
 
     if (confirmed == true) {
-      ref.read(appwriteCacheManagerProvider).clear();
+      ref.read(ap.appwriteCacheManagerProvider).clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم مسح الذاكرة المؤقتة')),
@@ -1026,7 +1026,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     );
 
     if (confirmed == true) {
-      ref.read(appwriteLoggerProvider).clearLogs();
+      ref.read(ap.appwriteLoggerProvider).clearLogs();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم مسح السجلات')),
@@ -1038,7 +1038,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   Future<void> _exportLogs() async {
     setState(() => _isLoading = true);
     try {
-      final file = await ref.read(appwriteLoggerProvider).exportLogs();
+      final file = await ref.read(ap.appwriteLoggerProvider).exportLogs();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1137,12 +1137,12 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     );
 
     if (confirmed == true) {
-      await ref.read(appwriteSyncManagerProvider).resetSyncState();
+      await ref.read(ap.appwriteSyncManagerProvider).resetSyncState();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم إعادة تعيين المزامنة')),
         );
-        ref.invalidate(syncStatsProvider);
+        ref.invalidate(ap.syncStatsProvider);
       }
     }
   }
@@ -1159,7 +1159,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   }
 
   Future<void> _testCache() async {
-    final stats = ref.read(cacheStatsProvider);
+    final stats = ref.read(ap.cacheStatsProvider);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
