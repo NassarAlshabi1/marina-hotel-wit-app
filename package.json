@@ -10,6 +10,7 @@
     "install:playwright": "npx playwright install --with-deps",
     "appwrite:create": "node scripts/appwrite/create_appwrite_collections.js",
     "appwrite:indexes": "node scripts/appwrite/create_unique_indexes.js",
+    "appwrite:mobile-indexes": "node scripts/appwrite/create_mobile_indexes.js",
     "appwrite:list": "node scripts/appwrite/list_appwrite_collections.js"
   },
   "devDependencies": {
