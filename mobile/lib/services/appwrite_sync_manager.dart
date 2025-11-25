@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:drift/drift.dart' as d;
+import 'package:appwrite/models.dart' as models;
 import '../utils/id.dart';
 import '../utils/time.dart';
 import 'appwrite_service.dart';
@@ -10,6 +12,7 @@ import 'appwrite_logger.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_models.dart';
 import 'appwrite_config.dart';
+import 'local_db.dart';
 
 /// حالة المزامنة
 enum SyncStatus {
@@ -47,8 +50,9 @@ class SyncResult {
 /// مدير المزامنة الثنائية
 class AppwriteSyncManager {
   final AppwriteService appwriteService;
+  final AppDatabase database;
   
-  AppwriteSyncManager({required this.appwriteService});
+  AppwriteSyncManager({required this.appwriteService, required this.database});
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
@@ -273,13 +277,39 @@ class AppwriteSyncManager {
       
       // مزامنة الغرف
       final rooms = await appwriteService.listRooms(useCache: false);
-      recordsPulled += rooms.length;
-      _logger.debug('Synced ${rooms.length} rooms', tag: 'SYNC');
+      final roomsSynced = await _syncRooms(rooms);
+      recordsPulled += roomsSynced;
+      _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
 
       // مزامنة الحجوزات
       final bookings = await appwriteService.listBookings(useCache: false);
-      recordsPulled += bookings.length;
-      _logger.debug('Synced ${bookings.length} bookings', tag: 'SYNC');
+      final bookingsSynced = await _syncBookings(bookings);
+      recordsPulled += bookingsSynced;
+      _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
+
+      // مزامنة الموظفين
+      final employees = await appwriteService.listEmployees(useCache: false);
+      final employeesSynced = await _syncEmployees(employees);
+      recordsPulled += employeesSynced;
+      _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
+
+      // مزامنة المصروفات
+      final expenses = await appwriteService.listExpenses(useCache: false);
+      final expensesSynced = await _syncExpenses(expenses);
+      recordsPulled += expensesSynced;
+      _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
+
+      // مزامنة المدفوعات
+      final payments = await appwriteService.listPayments(useCache: false);
+      final paymentsSynced = await _syncPayments(payments);
+      recordsPulled += paymentsSynced;
+      _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
+
+      // مزامنة الديون
+      final debts = await appwriteService.listDebts(useCache: false);
+      final debtsSynced = await _syncDebts(debts);
+      recordsPulled += debtsSynced;
+      _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
 
       // تحديث سجل المزامنة
       final endTime = DateTime.now();
@@ -429,6 +459,351 @@ class AppwriteSyncManager {
         'lastSyncTime': _lastSyncTime?.toIso8601String(),
       };
     }
+  }
+
+  Future<int> _syncRooms(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    await database.transaction(() async {
+      await database.batch((batch) {
+        for (final doc in documents) {
+          final data = Map<String, dynamic>.from(doc.data);
+          final roomNumber = _asString(data['roomNumber']);
+          if (roomNumber == null || roomNumber.isEmpty) {
+            continue;
+          }
+          final localUuid = _asString(data['localUuid']) ?? doc.$id;
+          final companion = RoomsCompanion(
+            roomNumber: d.Value(roomNumber),
+            type: d.Value(_asString(data['type']) ?? ''),
+            price: d.Value(_asDouble(data['price'])),
+            status: d.Value(_asString(data['status']) ?? 'available'),
+            imageUrl: _nullableValue<String>(_asString(data['imageUrl'])),
+            localUuid: d.Value(localUuid),
+            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
+            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
+            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
+            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
+            version: d.Value(_asInt(data['version'], fallback: 1)),
+            origin: d.Value(_asString(data['origin']) ?? 'server'),
+          );
+          batch.insertOnConflictUpdate(database.rooms, companion);
+          processed++;
+        }
+      });
+    });
+    return processed;
+  }
+
+  Future<int> _syncBookings(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    await database.transaction(() async {
+      await database.batch((batch) {
+        for (final doc in documents) {
+          final data = Map<String, dynamic>.from(doc.data);
+          final localUuid = _asString(data['localUuid']) ?? doc.$id;
+          final roomNumber = _asString(data['roomNumber']) ?? '';
+          if (localUuid.isEmpty || roomNumber.isEmpty) {
+            continue;
+          }
+          final companion = BookingsCompanion(
+            localUuid: d.Value(localUuid),
+            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
+            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
+            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
+            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
+            version: d.Value(_asInt(data['version'], fallback: 1)),
+            origin: d.Value(_asString(data['origin']) ?? 'server'),
+            serverBookingId: _nullableValue<int>(_asIntNullable(data['serverBookingId'])),
+            roomNumber: d.Value(roomNumber),
+            guestName: d.Value(_asString(data['guestName']) ?? ''),
+            guestPhone: d.Value(_asString(data['guestPhone']) ?? ''),
+            guestIdType: d.Value(_asString(data['guestIdType']) ?? ''),
+            guestIdNumber: d.Value(_asString(data['guestIdNumber']) ?? ''),
+            guestIdIssueDate: _nullableValue<String>(_asString(data['guestIdIssueDate'])),
+            guestIdIssuePlace: _nullableValue<String>(_asString(data['guestIdIssuePlace'])),
+            guestNationality: d.Value(_asString(data['guestNationality']) ?? ''),
+            guestEmail: _nullableValue<String>(_asString(data['guestEmail'])),
+            guestAddress: _nullableValue<String>(_asString(data['guestAddress'])),
+            checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
+            checkoutDate: _nullableValue<String>(_asString(data['checkoutDate'])),
+            actualCheckout: _nullableValue<String>(_asString(data['actualCheckout'])),
+            status: d.Value(_asString(data['status']) ?? ''),
+            notes: _nullableValue<String>(_asString(data['notes'])),
+            expectedNights: d.Value(_asInt(data['expectedNights'], fallback: 1)),
+            calculatedNights: d.Value(_asInt(data['calculatedNights'], fallback: 1)),
+          );
+          batch.insertOnConflictUpdate(database.bookings, companion);
+          processed++;
+        }
+      });
+    });
+    return processed;
+  }
+
+  Future<int> _syncEmployees(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    await database.transaction(() async {
+      await database.batch((batch) {
+        for (final doc in documents) {
+          final data = Map<String, dynamic>.from(doc.data);
+          final localUuid = _asString(data['localUuid']) ?? doc.$id;
+          final name = _asString(data['name']);
+          if (localUuid.isEmpty || name == null || name.isEmpty) {
+            continue;
+          }
+          final companion = EmployeesCompanion(
+            localUuid: d.Value(localUuid),
+            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
+            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
+            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
+            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
+            version: d.Value(_asInt(data['version'], fallback: 1)),
+            origin: d.Value(_asString(data['origin']) ?? 'server'),
+            name: d.Value(name),
+            basicSalary: d.Value(_asDouble(data['basicSalary'])),
+            position: d.Value(_asString(data['position']) ?? ''),
+            phone: d.Value(_asString(data['phone']) ?? ''),
+            hireDate: d.Value(_asString(data['hireDate']) ?? ''),
+            status: d.Value(_asString(data['status']) ?? ''),
+          );
+          batch.insertOnConflictUpdate(database.employees, companion);
+          processed++;
+        }
+      });
+    });
+    return processed;
+  }
+
+  Future<int> _syncExpenses(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    await database.transaction(() async {
+      await database.batch((batch) {
+        for (final doc in documents) {
+          final data = Map<String, dynamic>.from(doc.data);
+          final localUuid = _asString(data['localUuid']) ?? doc.$id;
+          final expenseType = _asString(data['expenseType']);
+          if (localUuid.isEmpty || expenseType == null || expenseType.isEmpty) {
+            continue;
+          }
+          final companion = ExpensesCompanion(
+            localUuid: d.Value(localUuid),
+            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
+            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
+            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
+            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
+            version: d.Value(_asInt(data['version'], fallback: 1)),
+            origin: d.Value(_asString(data['origin']) ?? 'server'),
+            expenseType: d.Value(expenseType),
+            relatedId: _nullableValue<int>(_asIntNullable(data['relatedId'])),
+            description: d.Value(_asString(data['description']) ?? ''),
+            amount: d.Value(_asDouble(data['amount'])),
+            date: d.Value(_asString(data['date']) ?? ''),
+            cashTransactionId: _nullableValue<int>(_asIntNullable(data['cashTransactionId'])),
+          );
+          batch.insertOnConflictUpdate(database.expenses, companion);
+          processed++;
+        }
+      });
+    });
+    return processed;
+  }
+
+  Future<int> _syncPayments(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    await database.transaction(() async {
+      await database.batch((batch) {
+        for (final doc in documents) {
+          final data = Map<String, dynamic>.from(doc.data);
+          final localUuid = _asString(data['localUuid']) ?? doc.$id;
+          if (localUuid.isEmpty) {
+            continue;
+          }
+          final companion = PaymentsCompanion(
+            localUuid: d.Value(localUuid),
+            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
+            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
+            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
+            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
+            version: d.Value(_asInt(data['version'], fallback: 1)),
+            origin: d.Value(_asString(data['origin']) ?? 'server'),
+            serverPaymentId: _nullableValue<int>(_asIntNullable(data['serverPaymentId'])),
+            bookingLocalId: _nullableValue<int>(_asIntNullable(data['bookingLocalId'])),
+            serverBookingId: _nullableValue<int>(_asIntNullable(data['serverBookingId'])),
+            roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
+            amount: d.Value(_asDouble(data['amount'])),
+            paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
+            notes: _nullableValue<String>(_asString(data['notes'])),
+            paymentMethod: d.Value(_asString(data['paymentMethod']) ?? ''),
+            revenueType: d.Value(_asString(data['revenueType']) ?? ''),
+            cashTransactionLocalId: _nullableValue<int>(_asIntNullable(data['cashTransactionLocalId'])),
+            cashTransactionServerId: _nullableValue<int>(_asIntNullable(data['cashTransactionServerId'])),
+            referenceNumber: _nullableValue<String>(_asString(data['referenceNumber'])),
+          );
+          batch.insertOnConflictUpdate(database.payments, companion);
+          processed++;
+        }
+      });
+    });
+    return processed;
+  }
+
+  Future<int> _syncDebts(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    await database.transaction(() async {
+      await database.batch((batch) {
+        for (final doc in documents) {
+          final data = Map<String, dynamic>.from(doc.data);
+          final localUuid = _asString(data['localUuid']) ?? doc.$id;
+          final guestName = _asString(data['guestName']);
+          if (localUuid.isEmpty || guestName == null || guestName.isEmpty) {
+            continue;
+          }
+          final companion = DebtsCompanion(
+            localUuid: d.Value(localUuid),
+            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
+            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
+            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
+            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
+            version: d.Value(_asInt(data['version'], fallback: 1)),
+            origin: d.Value(_asString(data['origin']) ?? 'server'),
+            bookingLocalId: _nullableValue<int>(_asIntNullable(data['bookingLocalId'])),
+            guestName: d.Value(guestName),
+            checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
+            checkoutDate: d.Value(_asString(data['checkoutDate']) ?? ''),
+            dateRecorded: d.Value(_asString(data['dateRecorded']) ?? ''),
+            debtReason: d.Value(_asString(data['debtReason']) ?? ''),
+            totalAmount: d.Value(_asDouble(data['totalAmount'])),
+            paidAmount: d.Value(_asDouble(data['paidAmount'])),
+            remainingAmount: d.Value(_asDouble(data['remainingAmount'])),
+            paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
+            isSettled: d.Value(_asInt(data['isSettled'], fallback: 0)),
+            pledge: _nullableValue<String>(_asString(data['pledge'])),
+            pledgeType: _nullableValue<String>(_asString(data['pledgeType'])),
+            note: _nullableValue<String>(_asString(data['note'])),
+          );
+          batch.insertOnConflictUpdate(database.debts, companion);
+          processed++;
+        }
+      });
+    });
+    return processed;
+  }
+
+  d.Value<T?> _nullableValue<T>(T? value) {
+    return value == null ? const d.Value.absent() : d.Value(value);
+  }
+
+  int _normalizeEpoch(dynamic value, {int? fallback}) {
+    if (value == null) {
+      return fallback ?? Time.nowEpoch();
+    }
+    if (value is int) {
+      return value;
+    }
+    if (value is double) {
+      return value.toInt();
+    }
+    if (value is DateTime) {
+      return value.toUtc().millisecondsSinceEpoch ~/ 1000;
+    }
+    if (value is String && value.isNotEmpty) {
+      final parsedInt = int.tryParse(value);
+      if (parsedInt != null) {
+        return parsedInt;
+      }
+      final parsedDouble = double.tryParse(value);
+      if (parsedDouble != null) {
+        return parsedDouble.toInt();
+      }
+      final parsedDate = DateTime.tryParse(value);
+      if (parsedDate != null) {
+        return parsedDate.toUtc().millisecondsSinceEpoch ~/ 1000;
+      }
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return fallback ?? Time.nowEpoch();
+  }
+
+  int? _normalizeEpochNullable(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    return _normalizeEpoch(value);
+  }
+
+  int _asInt(dynamic value, {int fallback = 0}) {
+    final result = _asIntNullable(value);
+    return result ?? fallback;
+  }
+
+  int? _asIntNullable(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String && value.isNotEmpty) {
+      final parsedInt = int.tryParse(value);
+      if (parsedInt != null) {
+        return parsedInt;
+      }
+      final parsedDouble = double.tryParse(value);
+      if (parsedDouble != null) {
+        return parsedDouble.toInt();
+      }
+    }
+    return null;
+  }
+
+  double _asDouble(dynamic value, {double fallback = 0.0}) {
+    if (value == null) {
+      return fallback;
+    }
+    if (value is double) {
+      return value;
+    }
+    if (value is int) {
+      return value.toDouble();
+    }
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String && value.isNotEmpty) {
+      final parsed = double.tryParse(value);
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+    return fallback;
+  }
+
+  String? _asString(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    final result = value.toString();
+    if (result.isEmpty) {
+      return null;
+    }
+    return result;
   }
 
   /// الحصول على قائمة الأجهزة المسجلة

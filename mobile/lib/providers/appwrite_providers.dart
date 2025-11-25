@@ -4,6 +4,7 @@ import '../services/appwrite_sync_manager.dart';
 import '../services/appwrite_cache_manager.dart';
 import '../services/appwrite_logger.dart';
 import '../services/appwrite_error_handler.dart';
+import '../services/providers.dart';
 
 // ============ Service Providers ============
 
@@ -15,7 +16,8 @@ final appwriteServiceProvider = Provider<AppwriteService>((ref) {
 /// مزود مدير المزامنة
 final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
   final service = ref.watch(appwriteServiceProvider);
-  return AppwriteSyncManager(appwriteService: service);
+  final database = ref.watch(databaseProvider);
+  return AppwriteSyncManager(appwriteService: service, database: database);
 });
 
 /// مزود مدير الذاكرة المؤقتة
