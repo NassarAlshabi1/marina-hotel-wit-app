@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/id.dart';
+import '../utils/time.dart';
 import 'appwrite_service.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_error_handler.dart';
@@ -54,6 +57,9 @@ class AppwriteSyncManager {
   SyncStatus _currentStatus = SyncStatus.idle;
   DateTime? _lastSyncTime;
   String? _currentDeviceId;
+  String? _deviceLocalUuid;
+  int? _deviceVersion;
+  int? _deviceCreatedAtEpoch;
   
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
@@ -77,9 +83,15 @@ class AppwriteSyncManager {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     _currentDeviceId = prefs.getString('appwrite_device_id');
-    _lastSyncTime = prefs.getInt('appwrite_last_sync_time') != null
-        ? DateTime.fromMillisecondsSinceEpoch(prefs.getInt('appwrite_last_sync_time')!)
+
+    final lastSyncEpoch = prefs.getInt('appwrite_last_sync_time');
+    _lastSyncTime = lastSyncEpoch != null
+        ? DateTime.fromMillisecondsSinceEpoch(lastSyncEpoch)
         : null;
+
+    _deviceLocalUuid = prefs.getString('appwrite_device_local_uuid');
+    _deviceVersion = prefs.getInt('appwrite_device_version');
+    _deviceCreatedAtEpoch = prefs.getInt('appwrite_device_created_at');
   }
 
   /// حفظ الإعدادات
@@ -91,6 +103,15 @@ class AppwriteSyncManager {
     if (_lastSyncTime != null) {
       await prefs.setInt('appwrite_last_sync_time', _lastSyncTime!.millisecondsSinceEpoch);
     }
+    if (_deviceLocalUuid != null) {
+      await prefs.setString('appwrite_device_local_uuid', _deviceLocalUuid!);
+    }
+    if (_deviceVersion != null) {
+      await prefs.setInt('appwrite_device_version', _deviceVersion!);
+    }
+    if (_deviceCreatedAtEpoch != null) {
+      await prefs.setInt('appwrite_device_created_at', _deviceCreatedAtEpoch!);
+    }
   }
 
   /// تسجيل الجهاز
@@ -101,9 +122,16 @@ class AppwriteSyncManager {
   }) async {
     try {
       _logger.info('Registering device: $deviceName', tag: 'SYNC');
+      final deviceType = _resolveDeviceType();
+      final nowIso = Time.nowIso();
+      final nowEpoch = Time.nowEpoch();
+
+      _deviceLocalUuid ??= IdGen.uuid();
+      _deviceCreatedAtEpoch ??= nowEpoch;
 
       if (_currentDeviceId != null) {
-        // تحديث معلومات الجهاز الحالي
+        _deviceVersion = (_deviceVersion ?? 1) + 1;
+
         await appwriteService.updateDocument(
           collectionId: AppwriteConfig.devicesCollectionId,
           documentId: _currentDeviceId!,
@@ -111,21 +139,40 @@ class AppwriteSyncManager {
             'deviceName': deviceName,
             'deviceModel': deviceModel,
             'osVersion': osVersion,
-            'lastSeen': DateTime.now().toIso8601String(),
+            'deviceType': deviceType,
             'status': 'active',
+            'localUuid': _deviceLocalUuid,
+            'lastSeen': nowIso,
+            'lastActive': nowEpoch,
+            'createdAt': _deviceCreatedAtEpoch,
+            'updatedAt': nowEpoch,
+            'lastModified': nowEpoch,
+            'version': _deviceVersion,
+            'origin': 'mobile',
           },
         );
+
+        await _saveSettings();
         _logger.info('Device updated: $_currentDeviceId', tag: 'SYNC');
         return _currentDeviceId!;
       } else {
-        // إنشاء جهاز جديد
+        _deviceVersion = 1;
+        _deviceCreatedAtEpoch = nowEpoch;
+
         final device = await appwriteService.createDevice({
           'deviceName': deviceName,
           'deviceModel': deviceModel,
           'osVersion': osVersion,
-          'lastSeen': DateTime.now().toIso8601String(),
+          'deviceType': deviceType,
           'status': 'active',
-          'createdAt': DateTime.now().toIso8601String(),
+          'localUuid': _deviceLocalUuid,
+          'lastSeen': nowIso,
+          'lastActive': nowEpoch,
+          'createdAt': _deviceCreatedAtEpoch,
+          'updatedAt': nowEpoch,
+          'lastModified': nowEpoch,
+          'version': _deviceVersion,
+          'origin': 'mobile',
         });
         
         _currentDeviceId = device.$id;
@@ -186,6 +233,10 @@ class AppwriteSyncManager {
     int conflicts = 0;
     String? errorMessage;
     SyncStatus finalStatus = SyncStatus.success;
+    String? syncLogId;
+    String? syncLogLocalUuid;
+    int syncLogVersion = 1;
+    int? syncLogCreatedEpoch;
 
     try {
       _logger.info('Starting sync...', tag: 'SYNC');
@@ -197,15 +248,25 @@ class AppwriteSyncManager {
       }
 
       // إنشاء سجل مزامنة
+      syncLogLocalUuid = IdGen.uuid();
+      syncLogCreatedEpoch = Time.nowEpoch();
+
       final syncLog = await appwriteService.createSyncLog({
         'deviceId': _currentDeviceId ?? 'unknown',
         'syncType': 'full',
         'startTime': startTime.toIso8601String(),
         'status': 'in_progress',
-        'recordsPushed': 0,
-        'recordsPulled': 0,
-        'conflicts': 0,
+        'action': 'sync_start',
+        'details': '{"recordsPushed":0,"recordsPulled":0,"conflicts":0}',
+        'timestamp': syncLogCreatedEpoch,
+        'localUuid': syncLogLocalUuid,
+        'createdAt': syncLogCreatedEpoch,
+        'updatedAt': syncLogCreatedEpoch,
+        'lastModified': syncLogCreatedEpoch,
+        'version': syncLogVersion,
+        'origin': 'mobile',
       });
+      syncLogId = syncLog.$id;
 
       // محاكاة عمليات المزامنة (يمكن تطويرها لاحقاً)
       // TODO: دمج مع قاعدة البيانات المحلية (Drift)
@@ -221,19 +282,28 @@ class AppwriteSyncManager {
       _logger.debug('Synced ${bookings.length} bookings', tag: 'SYNC');
 
       // تحديث سجل المزامنة
+      final endTime = DateTime.now();
+      final endEpoch = Time.nowEpoch();
+      syncLogVersion += 1;
+
       await appwriteService.updateDocument(
         collectionId: AppwriteConfig.syncLogsCollectionId,
-        documentId: syncLog.$id,
+        documentId: syncLogId!,
         data: {
-          'endTime': DateTime.now().toIso8601String(),
+          'endTime': endTime.toIso8601String(),
           'status': 'completed',
-          'recordsPushed': recordsPushed,
-          'recordsPulled': recordsPulled,
-          'conflicts': conflicts,
+          'action': 'sync_complete',
+          'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
+          'updatedAt': endEpoch,
+          'lastModified': endEpoch,
+          'timestamp': endEpoch,
+          'version': syncLogVersion,
+          if (syncLogLocalUuid != null) 'localUuid': syncLogLocalUuid,
+          'origin': 'mobile',
         },
       );
 
-      _lastSyncTime = DateTime.now();
+      _lastSyncTime = endTime;
       await _saveSettings();
 
       _logger.info('Sync completed successfully (pushed: $recordsPushed, pulled: $recordsPulled)', 
@@ -243,6 +313,28 @@ class AppwriteSyncManager {
     } catch (e, stackTrace) {
       errorMessage = e.toString();
       finalStatus = SyncStatus.failed;
+
+      if (syncLogId != null) {
+        final failEpoch = Time.nowEpoch();
+        syncLogVersion += 1;
+        try {
+          await appwriteService.updateDocument(
+            collectionId: AppwriteConfig.syncLogsCollectionId,
+            documentId: syncLogId!,
+            data: {
+              'status': 'failed',
+              'action': 'sync_failed',
+              'errorMessage': errorMessage,
+              'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
+              'updatedAt': failEpoch,
+              'lastModified': failEpoch,
+              'timestamp': failEpoch,
+              if (syncLogLocalUuid != null) 'localUuid': syncLogLocalUuid,
+              'origin': 'mobile',
+            },
+          );
+        } catch (_) {}
+      }
       
       _errorHandler.handleError(e, 
         context: 'sync()', 
@@ -273,6 +365,28 @@ class AppwriteSyncManager {
   Future<Map<String, dynamic>> getSyncStatistics() async {
     try {
       final syncLogs = await appwriteService.listSyncLogs(useCache: false);
+
+      int extractCount(Map<String, dynamic> data, String key) {
+        final value = data[key];
+        if (value is num) {
+          return value.toInt();
+        }
+
+        final details = data['details'];
+        if (details is String && details.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(details);
+            if (decoded is Map<String, dynamic>) {
+              final detailValue = decoded[key];
+              if (detailValue is num) {
+                return detailValue.toInt();
+              }
+            }
+          } catch (_) {}
+        }
+
+        return 0;
+      }
       
       int totalSyncs = syncLogs.length;
       int successfulSyncs = syncLogs.where((log) => 
@@ -283,13 +397,13 @@ class AppwriteSyncManager {
       ).length;
       
       int totalRecordsPushed = syncLogs.fold<int>(0, (sum, log) => 
-        sum + (log.data['recordsPushed'] ?? 0) as int
+        sum + extractCount(Map<String, dynamic>.from(log.data), 'recordsPushed')
       );
       int totalRecordsPulled = syncLogs.fold<int>(0, (sum, log) => 
-        sum + (log.data['recordsPulled'] ?? 0) as int
+        sum + extractCount(Map<String, dynamic>.from(log.data), 'recordsPulled')
       );
       int totalConflicts = syncLogs.fold<int>(0, (sum, log) => 
-        sum + (log.data['conflicts'] ?? 0) as int
+        sum + extractCount(Map<String, dynamic>.from(log.data), 'conflicts')
       );
 
       return {
@@ -355,6 +469,29 @@ class AppwriteSyncManager {
   DateTime? get lastSyncTime => _lastSyncTime;
   String? get currentDeviceId => _currentDeviceId;
   bool get isSyncing => _currentStatus == SyncStatus.syncing;
+
+  String _resolveDeviceType() {
+    if (kIsWeb) {
+      return 'web';
+    }
+
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'android';
+      case TargetPlatform.iOS:
+        return 'ios';
+      case TargetPlatform.macOS:
+        return 'macos';
+      case TargetPlatform.windows:
+        return 'windows';
+      case TargetPlatform.linux:
+        return 'linux';
+      case TargetPlatform.fuchsia:
+        return 'fuchsia';
+      default:
+        return 'unknown';
+    }
+  }
 
   /// التخلص من الموارد
   void dispose() {
