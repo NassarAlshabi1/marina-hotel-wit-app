@@ -29,6 +29,10 @@ class AppColors {
   // Card and component colors
   static const Color cardBackground = Colors.white;
   static const Color dividerColor = Color(0xFFdee2e6);   // Bootstrap border color
+
+  // Admin sidebar colors
+  static const Color sidebarColor = Color(0xFF0F172A);
+  static const Color sidebarAccent = Color(0xFF16213C);
 }
 
 ThemeData buildTheme() {
@@ -57,7 +61,7 @@ ThemeData buildTheme() {
     
     // AppBar theme matching PHP header
     appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.primaryColor,
+      backgroundColor: AppColors.sidebarColor,
       foregroundColor: Colors.white,
       elevation: 1,
       centerTitle: false,
@@ -181,7 +185,7 @@ ThemeData buildDarkTheme() {
       onError: Colors.white,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.primaryDark,
+      backgroundColor: AppColors.sidebarColor,
       foregroundColor: Colors.white,
       elevation: 1,
       centerTitle: false,
