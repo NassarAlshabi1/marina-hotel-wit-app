@@ -12,7 +12,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'auto_backup_task.dart';
 import 'local_db.dart';
-import 'providers.dart';
+import '../providers/repository_providers.dart';
 import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
 
