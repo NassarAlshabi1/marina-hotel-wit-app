@@ -9,7 +9,6 @@ class AuthLocalStore {
   static const _kRememberMe = 'remember_me';
   static const _kAuthType = 'auth_type';
 
-
   static const List<String> permissionKeys = [
     'dashboard',
     'rooms',
@@ -90,18 +89,13 @@ class AuthLocalStore {
   Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
     final rememberMe = await getRememberMe();
-    
     await prefs.remove(_kCurrentUser);
-
-    
-    // إذا كان "تذكرني" غير مفعل، امسح كل شيء
     if (!rememberMe) {
       await prefs.remove(_kRememberMe);
       await prefs.remove(_kAuthType);
     }
   }
 
-  // دوال "تذكرني"
   Future<void> setRememberMe(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kRememberMe, value);
@@ -112,7 +106,6 @@ class AuthLocalStore {
     return prefs.getBool(_kRememberMe) ?? false;
   }
 
-  // دوال نوع المصادقة
   Future<void> setAuthType(AuthType type) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kAuthType, type.name);
@@ -127,8 +120,6 @@ class AuthLocalStore {
       orElse: () => AuthType.local,
     );
   }
-
-
 
   Future<List<String>> getPermissions(String username) async {
     if (username == 'admin') return ['all'];
@@ -163,10 +154,32 @@ class AuthLocalStore {
     }
     map[username] = permissions;
     await prefs.setString(_kPermissionsMap, jsonEncode(map));
-
-    // If updating admin, keep 'all'
     if (username == 'admin') {
       map[username] = ['all'];
     }
+  }
+
+  Future<List<String>> getAllUsernames() async {
+    final names = <String>{..._fixedAccounts.keys};
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kPermissionsMap);
+    if (raw != null) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          for (final k in decoded.keys) {
+            names.add(k.toString());
+          }
+        }
+      } catch (_) {}
+    }
+    final list = names.toList();
+    list.sort();
+    return list;
+  }
+
+  Future<int> getUsersCount() async {
+    final list = await getAllUsernames();
+    return list.length;
   }
 }

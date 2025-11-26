@@ -11,6 +11,7 @@ import 'repositories/notes_repository.dart';
 import 'repositories/simple_notes_repository.dart';
 import 'repositories/shift_notes_repository.dart';
 import 'repositories/salary_withdrawals_repository.dart';
+import '../services/auth_local_store.dart';
 
 import 'whatsapp_service.dart';
 import '../utils/status_utils.dart';
@@ -63,7 +64,11 @@ final expensesListProvider = StreamProvider.autoDispose((ref) => ref.watch(expen
 
 final cashTransactionsListProvider = StreamProvider.autoDispose((ref) => ref.watch(cashRepoProvider).watchAll());
 
-
+// Users count based on AuthLocalStore (fixed accounts + saved users)
+final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  final store = AuthLocalStore();
+  return store.getUsersCount();
+});
 
 // Daily Statistics Providers
 final todayPaymentsProvider = FutureProvider.autoDispose((ref) {
