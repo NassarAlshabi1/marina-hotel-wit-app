@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../services/local_db.dart';
-import '../services/providers.dart';
+import '../providers/repository_providers.dart';
 import '../services/sync_service.dart';
 import '../utils/status_utils.dart';
 

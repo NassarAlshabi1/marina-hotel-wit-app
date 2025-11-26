@@ -4,7 +4,7 @@ import '../services/appwrite_sync_manager.dart';
 import '../services/appwrite_cache_manager.dart';
 import '../services/appwrite_logger.dart';
 import '../services/appwrite_error_handler.dart';
-import '../services/providers.dart';
+import 'repository_providers.dart';
 
 // ============ Service Providers ============
 

@@ -21,7 +21,7 @@ import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
-import 'services/providers.dart';
+import 'providers/repository_providers.dart';
 import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
 import 'services/auto_backup_manager.dart';

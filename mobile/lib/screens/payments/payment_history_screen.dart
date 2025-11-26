@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
@@ -23,7 +23,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   DateTime? _toDate;
 
   final List<String> _revenueTypes = ['room', 'service', 'deposit', 'other'];
-  final List<String> _paymentMethods = ['نقدي', 'بطاقة', 'تحويل', 'شيك'];
+  final List<String> _paymentMethods = ['نقدي', 'تحويل'];
 
   @override
   Widget build(BuildContext context) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
@@ -39,7 +39,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   final _advancePayment = TextEditingController();
   String _paymentMethod = 'نقداً';
   final _paymentNotes = TextEditingController();
-  static const _paymentMethods = ['نقداً', 'بطاقة ائتمان', 'تحويل بنكي', 'محفظة إلكترونية'];
+  static const _paymentMethods = ['نقداً', 'تحويل بنكي'];
 
   static const _idTypes = ['بطاقة شخصية', 'جواز سفر', 'رخصة قيادة', 'بطاقة عسكرية', 'استبيان', 'شهادة ميلاد'];
   static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
