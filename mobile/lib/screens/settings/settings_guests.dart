@@ -406,6 +406,22 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _deleteGuest(context, guest),
+                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                    label: const Text('حذف الضيف وجميع البيانات'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -538,6 +554,69 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تحديث بيانات الضيف')),
       );
+    }
+  }
+
+  Future<void> _deleteGuest(BuildContext context, GuestInfo guest) async {
+    final active = guest.bookings.where((b) => b.status == 'محجوزة').length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تأكيد حذف الضيف وكل البيانات المرتبطة'),
+          content: Text('سيتم حذف جميع الحجوزات (${guest.bookings.length}) وكل ما يتعلق بها من مدفوعات وملاحظات وديون لهذا الضيف. ${active > 0 ? '\n\nتحذير: هناك حجوزات نشطة سيتم حذفها أيضاً.' : ''}\n\nهل تريد المتابعة؟'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف'), style: ElevatedButton.styleFrom(backgroundColor: Colors.red)),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final paymentsRepo = ref.read(paymentsRepoProvider);
+      final notesRepo = ref.read(notesRepoProvider);
+      final debtsRepo = ref.read(debtsRepoProvider);
+      final cashRepo = ref.read(cashRepoProvider);
+
+      for (final b in guest.bookings) {
+        final bookingId = b.id;
+        // حذف الملاحظات المرتبطة بالحجز
+        final notes = await notesRepo.dao.list(bookingId: bookingId);
+        for (final n in notes) {
+          await notesRepo.delete(n.id);
+        }
+        // حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
+        final pays = await paymentsRepo.dao.list(bookingLocalId: bookingId);
+        for (final p in pays) {
+          if (p.cashTransactionLocalId != null) {
+            await cashRepo.delete(p.cashTransactionLocalId!);
+          }
+          await paymentsRepo.delete(p.id);
+        }
+        // حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
+        final relatedCash = await cashRepo.listByReference(referenceType: 'booking', referenceId: bookingId);
+        for (final tx in relatedCash) {
+          await cashRepo.delete(tx.id);
+        }
+        // حذف الديون المرتبطة بالحجز
+        final debts = await debtsRepo.listByBookingLocalId(bookingId);
+        for (final d in debts) {
+          await debtsRepo.delete(d.id);
+        }
+        // حذف الحجز نفسه
+        await bookingsRepo.delete(bookingId);
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحذف: $e'), backgroundColor: Colors.red));
     }
   }
 

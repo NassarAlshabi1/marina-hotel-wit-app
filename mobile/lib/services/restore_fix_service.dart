@@ -103,7 +103,7 @@ class RestoreFixService {
     bookingsDao = BookingsDao(db, OutboxDao(db)),
     roomsDao = RoomsDao(db, OutboxDao(db)),
     paymentsDao = PaymentsDao(db, OutboxDao(db)),
-    debtsDao = DebtsDao(db);
+    debtsDao = DebtsDao(db, OutboxDao(db));
 
   /// إنشاء لقطة احتياطية محلية قبل بدء عملية الإصلاح
   Future<RestoreSnapshot> createLocalSnapshot(String prefix) async {

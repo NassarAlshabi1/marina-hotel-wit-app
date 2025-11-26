@@ -157,6 +157,120 @@ ThemeData buildTheme() {
   );
 }
 
+ThemeData buildDarkTheme() {
+  final base = ThemeData(
+    useMaterial3: false,
+    brightness: Brightness.dark,
+    primarySwatch: _createMaterialColor(AppColors.primaryColor),
+    fontFamily: 'Tajawal',
+    scaffoldBackgroundColor: const Color(0xFF121212),
+  );
+
+  return base.copyWith(
+    primaryColor: AppColors.primaryColor,
+    colorScheme: const ColorScheme.dark(
+      primary: AppColors.primaryColor,
+      secondary: AppColors.infoColor,
+      surface: Color(0xFF1E1E1E),
+      background: Color(0xFF121212),
+      error: AppColors.dangerColor,
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: Colors.white,
+      onBackground: Colors.white,
+      onError: Colors.white,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.primaryDark,
+      foregroundColor: Colors.white,
+      elevation: 1,
+      centerTitle: false,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        fontFamily: 'Tajawal',
+      ),
+    ),
+    cardTheme: const CardThemeData(
+      color: Color(0xFF1E1E1E),
+      elevation: 1,
+      margin: EdgeInsets.all(8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primaryDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+        ),
+        textStyle: const TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
+        ),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primaryLight,
+        side: const BorderSide(color: AppColors.primaryLight),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+        ),
+        textStyle: const TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
+        ),
+      ),
+    ),
+    inputDecorationTheme: const InputDecorationTheme(
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderSide: BorderSide(color: Color(0xFF2C2C2C)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderSide: BorderSide(color: Color(0xFF2C2C2C)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderSide: BorderSide(color: AppColors.primaryLight, width: 2),
+      ),
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      labelStyle: TextStyle(color: Colors.white70),
+      hintStyle: TextStyle(color: Colors.white54),
+    ),
+    dataTableTheme: const DataTableThemeData(
+      headingRowColor: MaterialStatePropertyAll(Color(0xFF2C2C2C)),
+      headingTextStyle: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+        fontSize: 14,
+      ),
+      dataTextStyle: TextStyle(
+        color: Colors.white,
+        fontSize: 14,
+      ),
+      columnSpacing: 24,
+      horizontalMargin: 16,
+      dataRowMinHeight: 44,
+    ),
+    listTileTheme: const ListTileThemeData(
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      dense: true,
+      iconColor: Colors.white,
+      textColor: Colors.white,
+    ),
+    visualDensity: VisualDensity.adaptivePlatformDensity,
+  );
+}
+
 // Helper function to create MaterialColor from Color
 MaterialColor _createMaterialColor(Color color) {
   List strengths = <double>[.05];

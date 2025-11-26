@@ -1,9 +1,10 @@
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/debts_dao.dart';
+import '../daos/outbox_dao.dart';
 
 class DebtsRepository {
-  DebtsRepository(this.db) : dao = DebtsDao(db);
+  DebtsRepository(this.db) : dao = DebtsDao(db, OutboxDao(db));
 
   final AppDatabase db;
   final DebtsDao dao;
@@ -13,6 +14,9 @@ class DebtsRepository {
   Stream<Debt?> watchOne(int id) => dao.watchById(id);
 
   Future<Debt?> getOne(int id) => dao.getById(id);
+
+  Future<List<Debt>> listByBookingLocalId(int bookingLocalId, {bool includeDeleted = false}) =>
+      dao.listByBookingLocalId(bookingLocalId, includeDeleted: includeDeleted);
 
   Future<int> create({
     int? bookingLocalId,
