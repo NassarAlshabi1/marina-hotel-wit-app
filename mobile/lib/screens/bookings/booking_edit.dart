@@ -211,18 +211,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                         onTap: () => _pickDate(_checkout),
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _expectedNights,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'عدد الليالي المتوقع *'),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'مطلوب';
-                          final value = int.tryParse(v.trim());
-                          if (value == null || value < 1) return 'عدد الليالي غير صحيح';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         value: _status,
                         items: _statusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
