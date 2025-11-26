@@ -14,6 +14,9 @@ class CashRepository {
   Stream<List<CashTransaction>> watchAll() => dao.watchList();
   Stream<CashTransaction?> watchOne(int id) => dao.watchById(id);
 
+  Future<List<CashTransaction>> listByReference({required String referenceType, required int referenceId, bool includeDeleted = false}) =>
+      dao.listByReference(referenceType: referenceType, referenceId: referenceId, includeDeleted: includeDeleted);
+
   Future<int> create({int? registerId, required String type, required double amount, String? referenceType, int? referenceId, String? description, required String transactionTime, int? createdBy}) => dao.insertOne(
         CashTransactionsCompanion(
           registerId: d.Value(registerId),

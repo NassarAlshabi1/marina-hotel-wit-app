@@ -20,6 +20,14 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase> with _$CashTrans
     return q.get();
   }
 
+  Future<List<CashTransaction>> listByReference({required String referenceType, required int referenceId, bool includeDeleted = false}) async {
+    final q = select(cashTransactions)
+      ..where((t) => t.referenceType.equals(referenceType) & t.referenceId.equals(referenceId));
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    q.orderBy([(t) => OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc)]);
+    return q.get();
+  }
+
   Stream<List<CashTransaction>> watchList({bool includeDeleted = false}) {
     final q = select(cashTransactions);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());

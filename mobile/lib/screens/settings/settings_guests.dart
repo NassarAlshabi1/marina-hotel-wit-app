@@ -581,6 +581,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final paymentsRepo = ref.read(paymentsRepoProvider);
       final notesRepo = ref.read(notesRepoProvider);
       final debtsRepo = ref.read(debtsRepoProvider);
+      final cashRepo = ref.read(cashRepoProvider);
 
       for (final b in guest.bookings) {
         final bookingId = b.id;
@@ -589,10 +590,18 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         for (final n in notes) {
           await notesRepo.delete(n.id);
         }
-        // حذف المدفوعات المرتبطة بالحجز
+        // حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
         final pays = await paymentsRepo.dao.list(bookingLocalId: bookingId);
         for (final p in pays) {
+          if (p.cashTransactionLocalId != null) {
+            await cashRepo.delete(p.cashTransactionLocalId!);
+          }
           await paymentsRepo.delete(p.id);
+        }
+        // حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
+        final relatedCash = await cashRepo.listByReference(referenceType: 'booking', referenceId: bookingId);
+        for (final tx in relatedCash) {
+          await cashRepo.delete(tx.id);
         }
         // حذف الديون المرتبطة بالحجز
         final debts = await debtsRepo.listByBookingLocalId(bookingId);
