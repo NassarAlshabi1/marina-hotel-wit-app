@@ -32,7 +32,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function waitForAttribute(databaseId, collectionId, attributeKey) {
   for (let attempt = 0; attempt < WAIT_ATTEMPTS; attempt++) {
     try {
-      const { attributes } = await databases.listAttributes(databaseId, collectionId);
+      const { attributes } = await databases.listAttributes(databaseId, collectionId, ["limit(100)"]);
       if (attributes?.some((attr) => attr.key === attributeKey)) {
         return true;
       }
@@ -46,7 +46,7 @@ async function waitForAttribute(databaseId, collectionId, attributeKey) {
 
 async function ensureUniqueIndex(databaseId, collectionId, attributeKey) {
   try {
-    const { indexes } = await databases.listIndexes(databaseId, collectionId);
+    const { indexes } = await databases.listIndexes(databaseId, collectionId, ["limit(100)"]);
     if (indexes?.some((idx) => idx.type === "unique" && idx.attributes?.length === 1 && idx.attributes[0] === attributeKey)) {
       return;
     }
@@ -223,7 +223,6 @@ const collections = [
       { key: "lastModified", type: "integer", required: true },
       { key: "version", type: "integer", required: true },
       { key: "origin", type: "string", size: 50 },
-      { key: "lastSeen", type: "string", size: 50, required: true },
     ],
   },
   {
@@ -231,11 +230,12 @@ const collections = [
     name: "سجل المزامنة",
     description: "جدول سجلات المزامنة والأخطاء",
     attributes: [
-      { key: "action", type: "string", size: 100 },
+      { key: "action", type: "string", size: 100, required: true },
       { key: "status", type: "string", size: 50 },
       { key: "timestamp", type: "integer", required: true },
       { key: "details", type: "string", size: 1000 },
       { key: "deviceId", type: "string", size: 100 },
+      { key: "localUuid", type: "string", size: 100, required: true, unique: true },
       { key: "serverId", type: "integer" },
       { key: "createdAt", type: "integer", required: true },
       { key: "updatedAt", type: "integer", required: true },
@@ -243,11 +243,6 @@ const collections = [
       { key: "lastModified", type: "integer", required: true },
       { key: "version", type: "integer", required: true },
       { key: "origin", type: "string", size: 50 },
-      { key: "localUuid", type: "string", size: 100, required: true, unique: true },
-      { key: "syncType", type: "string", size: 50, required: true },
-      { key: "startTime", type: "string", size: 50, required: true },
-      { key: "endTime", type: "string", size: 50 },
-      { key: "errorMessage", type: "string", size: 500 },
     ],
   },
 ];

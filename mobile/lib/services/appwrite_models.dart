@@ -7,13 +7,8 @@ class AppwriteDevice {
   final String deviceModel;
   final String osVersion;
   final DateTime lastSeen;
-  final DateTime? lastActive;
   final String status; // 'active', 'inactive', 'suspended'
   final DateTime createdAt;
-  final DateTime updatedAt;
-  final int version;
-  final String? origin;
-  final String? localUuid;
 
   AppwriteDevice({
     required this.id,
@@ -21,66 +16,30 @@ class AppwriteDevice {
     required this.deviceModel,
     required this.osVersion,
     required this.lastSeen,
-    this.lastActive,
     required this.status,
     required this.createdAt,
-    required this.updatedAt,
-    required this.version,
-    this.origin,
-    this.localUuid,
   });
 
   factory AppwriteDevice.fromJson(Map<String, dynamic> json) {
-    DateTime _parseDate(dynamic value, {DateTime? fallback}) {
-      if (value == null) {
-        return fallback ?? DateTime.now();
-      }
-      if (value is int) {
-        return DateTime.fromMillisecondsSinceEpoch(value * 1000, isUtc: true).toLocal();
-      }
-      if (value is double) {
-        return DateTime.fromMillisecondsSinceEpoch((value * 1000).round(), isUtc: true).toLocal();
-      }
-      if (value is String && value.isNotEmpty) {
-        final parsed = DateTime.tryParse(value);
-        if (parsed != null) {
-          return parsed.toLocal();
-        }
-      }
-      return fallback ?? DateTime.now();
-    }
-
     return AppwriteDevice(
       id: json['\$id'] ?? json['id'] ?? '',
       deviceName: json['deviceName'] ?? '',
       deviceModel: json['deviceModel'] ?? '',
       osVersion: json['osVersion'] ?? '',
-      lastSeen: _parseDate(json['lastSeen'], fallback: DateTime.now()),
-      lastActive: json.containsKey('lastActive') ? _parseDate(json['lastActive']) : null,
+      lastSeen: DateTime.parse(json['lastSeen'] ?? DateTime.now().toIso8601String()),
       status: json['status'] ?? 'active',
-      createdAt: _parseDate(json['createdAt'], fallback: DateTime.now()),
-      updatedAt: _parseDate(json['updatedAt'], fallback: DateTime.now()),
-      version: (json['version'] is num) ? (json['version'] as num).toInt() : int.tryParse('${json['version'] ?? 1}') ?? 1,
-      origin: json['origin']?.toString(),
-      localUuid: json['localUuid']?.toString(),
+      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
     );
   }
 
   Map<String, dynamic> toJson() {
-    int _toEpoch(DateTime value) => value.toUtc().millisecondsSinceEpoch ~/ 1000;
-
     return {
       'deviceName': deviceName,
       'deviceModel': deviceModel,
       'osVersion': osVersion,
       'lastSeen': lastSeen.toIso8601String(),
-      if (lastActive != null) 'lastActive': _toEpoch(lastActive!),
       'status': status,
-      'createdAt': _toEpoch(createdAt),
-      'updatedAt': _toEpoch(updatedAt),
-      'version': version,
-      if (origin != null) 'origin': origin,
-      if (localUuid != null) 'localUuid': localUuid,
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 }
