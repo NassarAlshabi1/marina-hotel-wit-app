@@ -272,9 +272,9 @@ class AppwriteSyncManager {
       });
       syncLogId = syncLog.$id;
 
-      // محاكاة عمليات المزامنة (يمكن تطويرها لاحقاً)
-      // TODO: دمج مع قاعدة البيانات المحلية (Drift)
-      
+      final pushedCount = await _pushAllEntities();
+      recordsPushed += pushedCount;
+
       // مزامنة الغرف
       final rooms = await appwriteService.listRooms(useCache: false);
       final roomsSynced = await _syncRooms(rooms);
@@ -804,6 +804,228 @@ class AppwriteSyncManager {
       return null;
     }
     return result;
+  }
+
+  Future<int> _pushAllEntities() async {
+    var total = 0;
+    total += await _pushRooms();
+    total += await _pushBookings();
+    total += await _pushExpenses();
+    total += await _pushPayments();
+    total += await _pushDebts();
+    return total;
+  }
+
+  Future<int> _pushRooms() async {
+    final roomsList = await (database.select(database.rooms)).get();
+    var processed = 0;
+    for (final room in roomsList) {
+      final payload = _roomToRemote(room);
+      try {
+        await appwriteService.upsertRoom(room.localUuid, payload);
+        processed++;
+      } catch (error, stackTrace) {
+        _logger.error('Failed to push room ${room.roomNumber}', error: error, stackTrace: stackTrace, tag: 'SYNC');
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _pushBookings() async {
+    final bookingsList = await (database.select(database.bookings)).get();
+    var processed = 0;
+    for (final booking in bookingsList) {
+      final payload = _bookingToRemote(booking);
+      try {
+        await appwriteService.upsertBooking(booking.localUuid, payload);
+        processed++;
+      } catch (error, stackTrace) {
+        _logger.error('Failed to push booking ${booking.localUuid}', error: error, stackTrace: stackTrace, tag: 'SYNC');
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _pushExpenses() async {
+    final expensesList = await (database.select(database.expenses)).get();
+    var processed = 0;
+    for (final expense in expensesList) {
+      final payload = _expenseToRemote(expense);
+      try {
+        await appwriteService.upsertExpense(expense.localUuid, payload);
+        processed++;
+      } catch (error, stackTrace) {
+        _logger.error('Failed to push expense ${expense.localUuid}', error: error, stackTrace: stackTrace, tag: 'SYNC');
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _pushPayments() async {
+    final paymentsList = await (database.select(database.payments)).get();
+    var processed = 0;
+    for (final payment in paymentsList) {
+      final payload = _paymentToRemote(payment);
+      try {
+        await appwriteService.upsertPayment(payment.localUuid, payload);
+        processed++;
+      } catch (error, stackTrace) {
+        _logger.error('Failed to push payment ${payment.localUuid}', error: error, stackTrace: stackTrace, tag: 'SYNC');
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _pushDebts() async {
+    final debtsList = await (database.select(database.debts)).get();
+    var processed = 0;
+    for (final debt in debtsList) {
+      final payload = _debtToRemote(debt);
+      try {
+        await appwriteService.upsertDebt(debt.localUuid, payload);
+        processed++;
+      } catch (error, stackTrace) {
+        _logger.error('Failed to push debt ${debt.localUuid}', error: error, stackTrace: stackTrace, tag: 'SYNC');
+      }
+    }
+    return processed;
+  }
+
+  Map<String, dynamic> _roomToRemote(Room room) {
+    final data = <String, dynamic>{
+      'roomNumber': room.roomNumber,
+      'type': room.type,
+      'price': room.price,
+      'status': room.status,
+      'localUuid': room.localUuid,
+      'createdAt': room.createdAt,
+      'updatedAt': room.updatedAt,
+      'lastModified': room.lastModified,
+      'version': room.version,
+      'origin': room.origin,
+    };
+    _putIfNotNull(data, 'serverId', room.serverId);
+    _putIfNotNull(data, 'deletedAt', room.deletedAt);
+    _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
+    return data;
+  }
+
+  Map<String, dynamic> _bookingToRemote(Booking booking) {
+    final data = <String, dynamic>{
+      'roomNumber': booking.roomNumber,
+      'guestName': booking.guestName,
+      'guestPhone': booking.guestPhone,
+      'guestIdType': booking.guestIdType,
+      'guestIdNumber': booking.guestIdNumber,
+      'guestNationality': booking.guestNationality,
+      'checkinDate': booking.checkinDate,
+      'status': booking.status,
+      'expectedNights': booking.expectedNights,
+      'calculatedNights': booking.calculatedNights,
+      'localUuid': booking.localUuid,
+      'createdAt': booking.createdAt,
+      'updatedAt': booking.updatedAt,
+      'lastModified': booking.lastModified,
+      'version': booking.version,
+      'origin': booking.origin,
+    };
+    _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
+    _putIfNotNull(data, 'serverId', booking.serverId);
+    _putIfNotNull(data, 'deletedAt', booking.deletedAt);
+    _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
+    _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
+    _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
+    _putIfStringNotEmpty(data, 'guestAddress', booking.guestAddress);
+    _putIfStringNotEmpty(data, 'checkoutDate', booking.checkoutDate);
+    _putIfStringNotEmpty(data, 'actualCheckout', booking.actualCheckout);
+    _putIfStringNotEmpty(data, 'notes', booking.notes);
+    return data;
+  }
+
+  Map<String, dynamic> _expenseToRemote(Expense expense) {
+    final data = <String, dynamic>{
+      'expenseType': expense.expenseType,
+      'description': expense.description,
+      'amount': expense.amount,
+      'date': expense.date,
+      'localUuid': expense.localUuid,
+      'createdAt': expense.createdAt,
+      'updatedAt': expense.updatedAt,
+      'lastModified': expense.lastModified,
+      'version': expense.version,
+      'origin': expense.origin,
+    };
+    _putIfNotNull(data, 'relatedId', expense.relatedId);
+    _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
+    _putIfNotNull(data, 'serverId', expense.serverId);
+    _putIfNotNull(data, 'deletedAt', expense.deletedAt);
+    return data;
+  }
+
+  Map<String, dynamic> _paymentToRemote(Payment payment) {
+    final data = <String, dynamic>{
+      'amount': payment.amount,
+      'paymentDate': payment.paymentDate,
+      'paymentMethod': payment.paymentMethod,
+      'revenueType': payment.revenueType,
+      'localUuid': payment.localUuid,
+      'createdAt': payment.createdAt,
+      'updatedAt': payment.updatedAt,
+      'lastModified': payment.lastModified,
+      'version': payment.version,
+      'origin': payment.origin,
+    };
+    _putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
+    _putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
+    _putIfNotNull(data, 'serverBookingId', payment.serverBookingId);
+    _putIfStringNotEmpty(data, 'roomNumber', payment.roomNumber);
+    _putIfStringNotEmpty(data, 'notes', payment.notes);
+    _putIfNotNull(data, 'cashTransactionLocalId', payment.cashTransactionLocalId);
+    _putIfNotNull(data, 'cashTransactionServerId', payment.cashTransactionServerId);
+    _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
+    _putIfNotNull(data, 'serverId', payment.serverId);
+    _putIfNotNull(data, 'deletedAt', payment.deletedAt);
+    return data;
+  }
+
+  Map<String, dynamic> _debtToRemote(Debt debt) {
+    final data = <String, dynamic>{
+      'amount': debt.totalAmount,
+      'debtorName': debt.guestName,
+      'dueDate': _resolveDebtDueDate(debt),
+      'status': debt.isSettled == 1 ? 'settled' : 'pending',
+      'localUuid': debt.localUuid,
+      'createdAt': debt.createdAt,
+      'updatedAt': debt.updatedAt,
+      'lastModified': debt.lastModified,
+      'version': debt.version,
+      'origin': debt.origin,
+    };
+    _putIfNotNull(data, 'serverId', debt.serverId);
+    _putIfNotNull(data, 'deletedAt', debt.deletedAt);
+    return data;
+  }
+
+  String _resolveDebtDueDate(Debt debt) {
+    final candidates = [debt.checkoutDate, debt.paymentDate, debt.dateRecorded];
+    for (final value in candidates) {
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+    return '1970-01-01';
+  }
+
+  void _putIfNotNull<T>(Map<String, dynamic> map, String key, T? value) {
+    if (value != null) {
+      map[key] = value;
+    }
+  }
+
+  void _putIfStringNotEmpty(Map<String, dynamic> map, String key, String? value) {
+    if (value != null && value.isNotEmpty) {
+      map[key] = value;
+    }
   }
 
   /// الحصول على قائمة الأجهزة المسجلة
