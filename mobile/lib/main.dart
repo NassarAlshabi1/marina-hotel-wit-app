@@ -115,7 +115,10 @@ Future<void> _initializeAppwrite() async {
         await appwriteService.initialize();
         
         // تهيئة مدير المزامنة
-        final syncManager = AppwriteSyncManager(appwriteService: appwriteService);
+        final syncManager = AppwriteSyncManager(
+          appwriteService: appwriteService,
+          database: DatabaseManager.instance,
+        );
         await syncManager.initialize();
         
         // تسجيل الجهاز (إذا كان متاحاً)
