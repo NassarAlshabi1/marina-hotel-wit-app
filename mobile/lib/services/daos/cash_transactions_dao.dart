@@ -37,7 +37,11 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase> with _$CashTrans
   Future<CashTransaction?> getById(int id) => (select(cashTransactions)..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<CashTransaction?> watchById(int id) => (select(cashTransactions)..where((t) => t.id.equals(id))).watchSingleOrNull();
   Future<CashTransaction?> getByLocalUuid(String localUuid) => (select(cashTransactions)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-  Future<CashTransaction?> getByServerId(String serverId) => (select(cashTransactions)..where((t) => t.serverId.equals(serverId))).getSingleOrNull();
+  Future<CashTransaction?> getByServerId(String serverId) {
+    final parsedServerId = _parseServerId(serverId);
+    if (parsedServerId == null) return Future.value(null);
+    return (select(cashTransactions)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+  }
 
   Future<int> insertOne(CashTransactionsCompanion data, {bool originIsServer = false}) async {
     final now = Time.nowEpoch();
@@ -103,16 +107,17 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase> with _$CashTrans
   }
 
   Future<int> updateByServerId(String? serverId, CashTransactionsCompanion data, {bool originIsServer = false}) async {
-    if (serverId == null) return 0;
+    final parsedServerId = _parseServerId(serverId);
+    if (parsedServerId == null) return 0;
     final now = Time.nowEpoch();
-    final existing = await getByServerId(serverId);
+    final existing = await (select(cashTransactions)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
     if (existing == null) return 0;
     final comp = data.copyWith(
       updatedAt: Value(now),
       lastModified: Value(now),
       version: Value(existing.version + 1),
     );
-    final rows = await (update(cashTransactions)..where((t) => t.serverId.equals(serverId))).write(comp);
+    final rows = await (update(cashTransactions)..where((t) => t.serverId.equals(parsedServerId))).write(comp);
     if (rows > 0 && !originIsServer) {
       await outboxDao.merge(
         entity: 'cash_transactions',
@@ -203,6 +208,13 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase> with _$CashTrans
     }
     
     return m;
+  }
+
+  int? _parseServerId(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return int.tryParse(trimmed);
   }
 
   // دوال النسخ الاحتياطي

@@ -39,7 +39,11 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
   Future<Expense?> getById(int id) => (select(expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<Expense?> watchById(int id) => (select(expenses)..where((t) => t.id.equals(id))).watchSingleOrNull();
   Future<Expense?> getByLocalUuid(String localUuid) => (select(expenses)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-  Future<Expense?> getByServerId(String serverId) => (select(expenses)..where((t) => t.serverId.equals(serverId))).getSingleOrNull();
+  Future<Expense?> getByServerId(String serverId) {
+    final parsedServerId = _parseServerId(serverId);
+    if (parsedServerId == null) return Future.value(null);
+    return (select(expenses)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+  }
 
   Future<int> insertOne(ExpensesCompanion data, {bool originIsServer = false}) async {
     final now = Time.nowEpoch();
@@ -105,16 +109,17 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
   }
 
   Future<int> updateByServerId(String? serverId, ExpensesCompanion data, {bool originIsServer = false}) async {
-    if (serverId == null) return 0;
+    final parsedServerId = _parseServerId(serverId);
+    if (parsedServerId == null) return 0;
     final now = Time.nowEpoch();
-    final existing = await getByServerId(serverId);
+    final existing = await (select(expenses)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
     if (existing == null) return 0;
     final comp = data.copyWith(
       updatedAt: Value(now),
       lastModified: Value(now),
       version: Value(existing.version + 1),
     );
-    final rows = await (update(expenses)..where((t) => t.serverId.equals(serverId))).write(comp);
+    final rows = await (update(expenses)..where((t) => t.serverId.equals(parsedServerId))).write(comp);
     if (rows > 0 && !originIsServer) {
       await outboxDao.merge(
         entity: 'expenses',
@@ -193,6 +198,13 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
     }
     
     return m;
+  }
+
+  int? _parseServerId(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return int.tryParse(trimmed);
   }
 
   // دوال النسخ الاحتياطي

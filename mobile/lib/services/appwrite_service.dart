@@ -600,7 +600,7 @@ class AppwriteService {
             operation: () => _databases.updateDocument(
               databaseId: AppwriteConfig.databaseId,
               collectionId: testCollection,
-              documentId: testDocumentId,
+              documentId: testDocumentId!,
               data: updatedData,
             ),
             operationName: 'testConnection_update',
@@ -616,7 +616,7 @@ class AppwriteService {
             operation: () => _databases.deleteDocument(
               databaseId: AppwriteConfig.databaseId,
               collectionId: testCollection,
-              documentId: testDocumentId,
+              documentId: testDocumentId!,
             ),
             operationName: 'testConnection_delete',
             timeout: const Duration(seconds: 10),
@@ -643,7 +643,7 @@ class AppwriteService {
               await _databases.deleteDocument(
                 databaseId: AppwriteConfig.databaseId,
                 collectionId: testCollection,
-                documentId: testDocumentId,
+                documentId: testDocumentId!,
               );
               _logger.debug('Cleaned up test document: $testDocumentId', tag: 'CONNECTION_TEST');
             } catch (cleanupError) {

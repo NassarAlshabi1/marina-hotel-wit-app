@@ -438,7 +438,7 @@ class GoogleDriveBackupService {
         if (partialFileId != null) {
           try {
             debugPrint('🧹 حذف النسخة الجزئية: $partialFileId');
-            await deleteBackupFile(partialFileId);
+            await deleteBackupFile(partialFileId!);
           } catch (cleanupError) {
             debugPrint('⚠️ فشل حذف النسخة الجزئية: $cleanupError');
           }
@@ -539,6 +539,14 @@ class GoogleDriveBackupService {
       debugPrint('✅ تم جلب ${backupFiles.length} نسخة احتياطية');
       return backupFiles;
     });
+  }
+
+  Future<List<DriveBackupFile>> listBackupFiles({int? limit}) async {
+    final backups = await listBackups();
+    if (limit == null || limit >= backups.length) {
+      return backups;
+    }
+    return backups.sublist(0, limit);
   }
 
   Future<Map<String, dynamic>> downloadBackup(String fileId) async {

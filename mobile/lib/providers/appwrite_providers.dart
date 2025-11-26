@@ -77,12 +77,16 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
     try {
       final service = ref.read(appwriteServiceProvider);
       await service.initialize();
-      final isConnected = await service.testConnection();
+      final connectionResult = await service.testConnection();
+      final isConnected = connectionResult['overall_success'] == true;
+      final failureMessage = isConnected
+          ? null
+          : (connectionResult['error'] as String?) ?? 'فشل الاتصال بـ Appwrite';
       
       state = ConnectionState(
         isConnected: isConnected,
         isChecking: false,
-        errorMessage: isConnected ? null : 'فشل الاتصال بـ Appwrite',
+        errorMessage: failureMessage,
       );
     } catch (e) {
       state = ConnectionState(
