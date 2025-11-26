@@ -18,6 +18,15 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return query.get();
   }
 
+  Future<List<Debt>> listByBookingLocalId(int bookingLocalId, {bool includeDeleted = false}) {
+    final query = select(debts)..where((t) => t.bookingLocalId.equals(bookingLocalId));
+    if (!includeDeleted) {
+      query.where((t) => t.deletedAt.isNull());
+    }
+    query.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
+    return query.get();
+  }
+
   Stream<List<Debt>> watchList({bool includeDeleted = false}) {
     final query = select(debts);
     if (!includeDeleted) {

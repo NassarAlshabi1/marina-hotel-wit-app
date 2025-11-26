@@ -14,6 +14,9 @@ class DebtsRepository {
 
   Future<Debt?> getOne(int id) => dao.getById(id);
 
+  Future<List<Debt>> listByBookingLocalId(int bookingLocalId, {bool includeDeleted = false}) =>
+      dao.listByBookingLocalId(bookingLocalId, includeDeleted: includeDeleted);
+
   Future<int> create({
     int? bookingLocalId,
     required String guestName,
