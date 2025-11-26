@@ -115,16 +115,17 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixi
   }
 
   Future<int> updateByServerId(String? serverId, EmployeesCompanion data, {bool originIsServer = false}) async {
-    if (serverId == null) return 0;
+    final parsedServerId = _parseServerId(serverId);
+    if (parsedServerId == null) return 0;
     final now = Time.nowEpoch();
-    final existing = await (select(employees)..where((t) => t.serverId.equals(serverId))).getSingleOrNull();
+    final existing = await (select(employees)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
     if (existing == null) return 0;
     final comp = data.copyWith(
       updatedAt: Value(now),
       lastModified: Value(now),
       version: Value(existing.version + 1),
     );
-    final rows = await (update(employees)..where((t) => t.serverId.equals(serverId))).write(comp);
+    final rows = await (update(employees)..where((t) => t.serverId.equals(parsedServerId))).write(comp);
     if (rows > 0 && !originIsServer) {
       await outboxDao.merge(
         entity: 'employees',
@@ -142,8 +143,18 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixi
     return (delete(employees)..where((t) => t.id.equals(id))).go();
   }
 
-  Future<Employee?> getByServerId(String serverId) =>
-      (select(employees)..where((t) => t.serverId.equals(serverId))).getSingleOrNull();
+  Future<Employee?> getByServerId(String serverId) {
+    final parsedServerId = _parseServerId(serverId);
+    if (parsedServerId == null) return Future.value(null);
+    return (select(employees)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+  }
+
+  int? _parseServerId(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return int.tryParse(trimmed);
+  }
 
   Map<String, dynamic> _payloadFrom(EmployeesCompanion comp, {Employee? base}) {
     final m = <String, dynamic>{};
