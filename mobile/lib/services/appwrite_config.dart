@@ -26,9 +26,16 @@ class AppwriteConfig {
   static const Duration cacheExpiry = Duration(hours: 6);
   static const int maxCacheSizeMB = 20;
   static const int maxRetries = 3;
-  static const Duration retryDelay = Duration(seconds: 5);
+  static const Duration initialRetryDelay = Duration(seconds: 2);
+  static const double retryBackoffMultiplier = 2.0; // Exponential backoff multiplier
   
-  // إعدادات الـ Batch
+  // إعدادات Timeout
+  static const Duration defaultTimeout = Duration(seconds: 30);
+  static const Duration longTimeout = Duration(minutes: 2); // للعمليات الكبيرة
+  
+  // إعدادات Pagination
+  static const int defaultPageSize = 25; // عدد السجلات في كل صفحة
+  static const int maxPageSize = 100; // الحد الأقصى للسجلات
   static const int batchSize = 50; // عدد السجلات في كل دفعة
   
   /// طباعة الإعدادات (للتشخيص)
@@ -43,7 +50,12 @@ class AppwriteConfig {
       debugPrint('Sync Interval: ${syncInterval.inMinutes} minutes');
       debugPrint('Cache Expiry: ${cacheExpiry.inHours} hours');
       debugPrint('Max Cache Size: $maxCacheSizeMB MB');
+      debugPrint('Default Page Size: $defaultPageSize');
+      debugPrint('Max Page Size: $maxPageSize');
       debugPrint('Batch Size: $batchSize');
+      debugPrint('Max Retries: $maxRetries');
+      debugPrint('Default Timeout: ${defaultTimeout.inSeconds}s');
+      debugPrint('Long Timeout: ${longTimeout.inSeconds}s');
       debugPrint('═══════════════════════════════════════');
     }
   }

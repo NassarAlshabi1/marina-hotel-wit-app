@@ -36,6 +36,8 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase> with _$CashTrans
 
   Future<CashTransaction?> getById(int id) => (select(cashTransactions)..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<CashTransaction?> watchById(int id) => (select(cashTransactions)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<CashTransaction?> getByLocalUuid(String localUuid) => (select(cashTransactions)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  Future<CashTransaction?> getByServerId(String serverId) => (select(cashTransactions)..where((t) => t.serverId.equals(serverId))).getSingleOrNull();
 
   Future<int> insertOne(CashTransactionsCompanion data, {bool originIsServer = false}) async {
     final now = Time.nowEpoch();
@@ -58,12 +60,74 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase> with _$CashTrans
     final now = Time.nowEpoch();
     final existing = await getById(id);
     if (existing == null) return 0;
-    final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
+    final comp = data.copyWith(
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      version: Value(existing.version + 1),
+    );
     final rows = await (update(cashTransactions)..where((t) => t.id.equals(id))).write(comp);
     if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'cash_transactions', op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, payload: _payloadFrom(comp, base: existing), clientTs: now);
+      await outboxDao.merge(
+        entity: 'cash_transactions',
+        op: 'update',
+        localUuid: existing.localUuid,
+        serverId: existing.serverId,
+        payload: _payloadFrom(comp, base: existing),
+        clientTs: now,
+      );
     }
     return rows;
+  }
+
+  Future<int> updateByLocalUuid(String localUuid, CashTransactionsCompanion data, {bool originIsServer = false}) async {
+    final now = Time.nowEpoch();
+    final existing = await getByLocalUuid(localUuid);
+    if (existing == null) return 0;
+    final comp = data.copyWith(
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      version: Value(existing.version + 1),
+    );
+    final rows = await (update(cashTransactions)..where((t) => t.localUuid.equals(localUuid))).write(comp);
+    if (rows > 0 && !originIsServer) {
+      await outboxDao.merge(
+        entity: 'cash_transactions',
+        op: 'update',
+        localUuid: existing.localUuid,
+        serverId: existing.serverId,
+        payload: _payloadFrom(comp, base: existing),
+        clientTs: now,
+      );
+    }
+    return rows;
+  }
+
+  Future<int> updateByServerId(String? serverId, CashTransactionsCompanion data, {bool originIsServer = false}) async {
+    if (serverId == null) return 0;
+    final now = Time.nowEpoch();
+    final existing = await getByServerId(serverId);
+    if (existing == null) return 0;
+    final comp = data.copyWith(
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      version: Value(existing.version + 1),
+    );
+    final rows = await (update(cashTransactions)..where((t) => t.serverId.equals(serverId))).write(comp);
+    if (rows > 0 && !originIsServer) {
+      await outboxDao.merge(
+        entity: 'cash_transactions',
+        op: 'update',
+        localUuid: existing.localUuid,
+        serverId: existing.serverId,
+        payload: _payloadFrom(comp, base: existing),
+        clientTs: now,
+      );
+    }
+    return rows;
+  }
+
+  Future<int> hardDelete(int id) async {
+    return (delete(cashTransactions)..where((t) => t.id.equals(id))).go();
   }
 
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
@@ -83,14 +147,61 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase> with _$CashTrans
 
   Map<String, dynamic> _payloadFrom(CashTransactionsCompanion comp, {CashTransaction? base}) {
     final m = <String, dynamic>{};
-    if (comp.registerId.present) m['register_id'] = comp.registerId.value;
-    if (comp.transactionType.present) m['transaction_type'] = comp.transactionType.value;
-    if (comp.amount.present) m['amount'] = comp.amount.value;
-    if (comp.referenceType.present) m['reference_type'] = comp.referenceType.value;
-    if (comp.referenceId.present) m['reference_id'] = comp.referenceId.value;
-    if (comp.description.present) m['description'] = comp.description.value;
-    if (comp.transactionTime.present) m['transaction_time'] = comp.transactionTime.value;
-    if (comp.createdBy.present) m['created_by'] = comp.createdBy.value;
+    
+    if (comp.registerId.present) {
+      m['register_id'] = comp.registerId.value;
+    } else if (base != null) {
+      m['register_id'] = base.registerId;
+    }
+    
+    if (comp.transactionType.present) {
+      m['transaction_type'] = comp.transactionType.value;
+    } else if (base != null) {
+      m['transaction_type'] = base.transactionType;
+    }
+    
+    if (comp.amount.present) {
+      m['amount'] = comp.amount.value;
+    } else if (base != null) {
+      m['amount'] = base.amount;
+    }
+    
+    if (comp.referenceType.present) {
+      m['reference_type'] = comp.referenceType.value;
+    } else if (base != null) {
+      m['reference_type'] = base.referenceType;
+    }
+    
+    if (comp.referenceId.present) {
+      m['reference_id'] = comp.referenceId.value;
+    } else if (base != null) {
+      m['reference_id'] = base.referenceId;
+    }
+    
+    if (comp.description.present) {
+      m['description'] = comp.description.value;
+    } else if (base != null) {
+      m['description'] = base.description;
+    }
+    
+    if (comp.transactionTime.present) {
+      m['transaction_time'] = comp.transactionTime.value;
+    } else if (base != null) {
+      m['transaction_time'] = base.transactionTime;
+    }
+    
+    if (comp.createdBy.present) {
+      m['created_by'] = comp.createdBy.value;
+    } else if (base != null) {
+      m['created_by'] = base.createdBy;
+    }
+    
+    if (base != null) {
+      m['local_uuid'] = base.localUuid;
+      m['server_id'] = base.serverId;
+      m['version'] = base.version + 1;
+    }
+    
     return m;
   }
 
