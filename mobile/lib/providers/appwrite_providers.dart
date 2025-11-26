@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/appwrite_service.dart';
 import '../services/appwrite_sync_manager.dart';
 import '../services/appwrite_cache_manager.dart';
+import '../services/unified_sync_orchestrator.dart';
+import '../services/smart_sync_manager.dart';
+import '../services/local_db.dart';
 import '../services/appwrite_logger.dart';
 import '../services/appwrite_error_handler.dart';
 import '../services/providers.dart';
@@ -20,6 +23,20 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
   final service = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
   return AppwriteSyncManager(appwriteService: service, database: database);
+});
+
+final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((ref) {
+  final appwriteSync = ref.watch(appwriteSyncManagerProvider);
+  final db = ref.watch(databaseProvider);
+  final smart = SmartSyncManager.instance;
+  return UnifiedSyncOrchestrator(appwrite: appwriteSync, smart: smart, database: db);
+});
+
+final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
+  final orch = ref.watch(unifiedSyncOrchestratorProvider);
+  // Fire-and-forget initialization (idempotent)
+  orch.initialize();
+  return orch.stateStream;
 });
 
 /// مزود مدير الذاكرة المؤقتة

@@ -35,6 +35,8 @@ import 'services/appwrite_logger.dart';
 import 'services/appwrite_cache_manager.dart';
 import 'services/appwrite_service.dart';
 import 'services/appwrite_sync_manager.dart';
+import 'services/unified_sync_orchestrator.dart';
+import 'services/smart_sync_manager.dart';
 import 'providers/appwrite_providers.dart';
 import 'tasks/appwrite_auto_sync_task.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -126,6 +128,18 @@ Future<void> _initializeAppwrite() async {
         // تفعيل الدفع المؤجل ومهمة الخلفية الدورية
         await AppwriteAutoSyncTask.initialize(debug: false);
         await AppwriteAutoSyncTask.schedulePeriodicSync(const Duration(minutes: 15));
+        
+        // تهيئة المنسق الموحد بين Appwrite (دلتا) وDrive (سنابشوت) بعد الإعدادات
+        // سيتم إعادة تهيئته بأمان لاحقاً داخل ProviderScope أيضاً
+        try {
+          final orch = UnifiedSyncOrchestrator(
+            appwrite: syncManager,
+            smart: SmartSyncManager.instance,
+            database: DatabaseManager.instance,
+          );
+          await orch.initialize();
+        } catch (_) {}
+        
         
         // تسجيل الجهاز (إذا كان متاحاً)
         try {
