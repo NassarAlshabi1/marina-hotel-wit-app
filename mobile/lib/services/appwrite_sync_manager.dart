@@ -13,6 +13,7 @@ import 'appwrite_error_handler.dart';
 import 'appwrite_models.dart';
 import 'appwrite_config.dart';
 import 'local_db.dart';
+import 'daos/outbox_dao.dart';
 
 /// حالة المزامنة
 enum SyncStatus {
@@ -51,8 +52,10 @@ class SyncResult {
 class AppwriteSyncManager {
   final AppwriteService appwriteService;
   final AppDatabase database;
+  final OutboxDao outboxDao;
   
-  AppwriteSyncManager({required this.appwriteService, required this.database});
+  AppwriteSyncManager({required this.appwriteService, required this.database})
+      : outboxDao = OutboxDao(database);
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
@@ -807,88 +810,153 @@ class AppwriteSyncManager {
   }
 
   Future<int> _pushAllEntities() async {
-    var total = 0;
-    total += await _pushRooms();
-    total += await _pushBookings();
-    total += await _pushExpenses();
-    total += await _pushPayments();
-    total += await _pushDebts();
-    return total;
-  }
+    const batchSize = 200;
+    final entries = await outboxDao.takeBatch(batchSize);
+    if (entries.isEmpty) {
+      return 0;
+    }
 
-  Future<int> _pushRooms() async {
-    final roomsList = await (database.select(database.rooms)).get();
-    var processed = 0;
-    for (final room in roomsList) {
-      final payload = _roomToRemote(room);
-      try {
-        await appwriteService.upsertRoom(room.localUuid, payload);
+    int processed = 0;
+    for (final entry in entries) {
+      final success = await _processOutboxEntry(entry);
+      if (success) {
+        await outboxDao.removeById(entry.id);
         processed++;
-      } catch (error, stackTrace) {
-        _logger.error('Failed to push room ${room.roomNumber}', error: error, stackTrace: stackTrace, tag: 'SYNC');
       }
     }
     return processed;
   }
 
-  Future<int> _pushBookings() async {
-    final bookingsList = await (database.select(database.bookings)).get();
-    var processed = 0;
-    for (final booking in bookingsList) {
-      final payload = _bookingToRemote(booking);
-      try {
-        await appwriteService.upsertBooking(booking.localUuid, payload);
-        processed++;
-      } catch (error, stackTrace) {
-        _logger.error('Failed to push booking ${booking.localUuid}', error: error, stackTrace: stackTrace, tag: 'SYNC');
+  Future<bool> _processOutboxEntry(OutboxData entry) async {
+    try {
+      switch (entry.entity) {
+        case 'rooms':
+          return await _processRoomEntry(entry);
+        case 'bookings':
+          return await _processBookingEntry(entry);
+        case 'expenses':
+          return await _processExpenseEntry(entry);
+        case 'payments':
+          return await _processPaymentEntry(entry);
+        case 'debts':
+          return await _processDebtEntry(entry);
+        default:
+          _logger.warning('Unknown outbox entity: ${entry.entity}', tag: 'SYNC');
+          return true;
       }
+    } catch (error, stackTrace) {
+      final parsed = _errorHandler.handleError(error, context: 'push:${entry.entity}:${entry.op}', stackTrace: stackTrace);
+      await outboxDao.setError(entry.id, parsed.message, entry.attempts + 1);
+      return false;
     }
-    return processed;
   }
 
-  Future<int> _pushExpenses() async {
-    final expensesList = await (database.select(database.expenses)).get();
-    var processed = 0;
-    for (final expense in expensesList) {
-      final payload = _expenseToRemote(expense);
-      try {
-        await appwriteService.upsertExpense(expense.localUuid, payload);
-        processed++;
-      } catch (error, stackTrace) {
-        _logger.error('Failed to push expense ${expense.localUuid}', error: error, stackTrace: stackTrace, tag: 'SYNC');
-      }
+  Future<bool> _processRoomEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
+      return true;
     }
-    return processed;
+    final room = await _getRoomByLocalUuid(entry.localUuid);
+    if (room == null) {
+      await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
+      return true;
+    }
+    final payload = _roomToRemote(room);
+    await appwriteService.upsertRoom(room.localUuid, payload);
+    return true;
   }
 
-  Future<int> _pushPayments() async {
-    final paymentsList = await (database.select(database.payments)).get();
-    var processed = 0;
-    for (final payment in paymentsList) {
-      final payload = _paymentToRemote(payment);
-      try {
-        await appwriteService.upsertPayment(payment.localUuid, payload);
-        processed++;
-      } catch (error, stackTrace) {
-        _logger.error('Failed to push payment ${payment.localUuid}', error: error, stackTrace: stackTrace, tag: 'SYNC');
-      }
+  Future<bool> _processBookingEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(() => appwriteService.deleteBooking(entry.localUuid));
+      return true;
     }
-    return processed;
+    final booking = await _getBookingByLocalUuid(entry.localUuid);
+    if (booking == null) {
+      await _deleteSilently(() => appwriteService.deleteBooking(entry.localUuid));
+      return true;
+    }
+    final payload = _bookingToRemote(booking);
+    await appwriteService.upsertBooking(booking.localUuid, payload);
+    return true;
   }
 
-  Future<int> _pushDebts() async {
-    final debtsList = await (database.select(database.debts)).get();
-    var processed = 0;
-    for (final debt in debtsList) {
-      final payload = _debtToRemote(debt);
-      try {
-        await appwriteService.upsertDebt(debt.localUuid, payload);
-        processed++;
-      } catch (error, stackTrace) {
-        _logger.error('Failed to push debt ${debt.localUuid}', error: error, stackTrace: stackTrace, tag: 'SYNC');
-      }
+  Future<bool> _processExpenseEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(() => appwriteService.deleteExpense(entry.localUuid));
+      return true;
     }
-    return processed;
+    final expense = await _getExpenseByLocalUuid(entry.localUuid);
+    if (expense == null) {
+      await _deleteSilently(() => appwriteService.deleteExpense(entry.localUuid));
+      return true;
+    }
+    final payload = _expenseToRemote(expense);
+    await appwriteService.upsertExpense(expense.localUuid, payload);
+    return true;
+  }
+
+  Future<bool> _processPaymentEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(() => appwriteService.deletePayment(entry.localUuid));
+      return true;
+    }
+    final payment = await _getPaymentByLocalUuid(entry.localUuid);
+    if (payment == null) {
+      await _deleteSilently(() => appwriteService.deletePayment(entry.localUuid));
+      return true;
+    }
+    final payload = _paymentToRemote(payment);
+    await appwriteService.upsertPayment(payment.localUuid, payload);
+    return true;
+  }
+
+  Future<bool> _processDebtEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(() => appwriteService.deleteDebt(entry.localUuid));
+      return true;
+    }
+    final debt = await _getDebtByLocalUuid(entry.localUuid);
+    if (debt == null) {
+      await _deleteSilently(() => appwriteService.deleteDebt(entry.localUuid));
+      return true;
+    }
+    final payload = _debtToRemote(debt);
+    await appwriteService.upsertDebt(debt.localUuid, payload);
+    return true;
+  }
+
+  Future<void> _deleteSilently(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (error) {
+      final message = error.toString().toLowerCase();
+      if (message.contains('404') || message.contains('not found')) {
+        _logger.debug('Delete target not found: $message', tag: 'SYNC');
+        return;
+      }
+      rethrow;
+    }
+  }
+
+  Future<Room?> _getRoomByLocalUuid(String localUuid) {
+    return (database.select(database.rooms)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  }
+
+  Future<Booking?> _getBookingByLocalUuid(String localUuid) {
+    return (database.select(database.bookings)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  }
+
+  Future<Expense?> _getExpenseByLocalUuid(String localUuid) {
+    return (database.select(database.expenses)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  }
+
+  Future<Payment?> _getPaymentByLocalUuid(String localUuid) {
+    return (database.select(database.payments)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  }
+
+  Future<Debt?> _getDebtByLocalUuid(String localUuid) {
+    return (database.select(database.debts)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Map<String, dynamic> _roomToRemote(Room room) {
