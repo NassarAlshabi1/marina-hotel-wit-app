@@ -5,6 +5,8 @@ import '../services/appwrite_cache_manager.dart';
 import '../services/appwrite_logger.dart';
 import '../services/appwrite_error_handler.dart';
 import '../services/providers.dart';
+import '../services/daos/outbox_dao.dart';
+import '../services/local_db.dart';
 
 // ============ Service Providers ============
 
@@ -100,6 +102,12 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 final syncStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final syncManager = ref.watch(appwriteSyncManagerProvider);
   return await syncManager.getSyncStatistics();
+});
+
+final outboxCountProvider = StreamProvider<int>((ref) {
+  final db = ref.watch(databaseProvider);
+  final dao = OutboxDao(db);
+  return dao.watchCount();
 });
 
 /// مزود إحصائيات الذاكرة المؤقتة

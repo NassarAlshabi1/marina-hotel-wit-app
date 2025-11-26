@@ -8,6 +8,28 @@ part 'outbox_dao.g.dart';
 class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   OutboxDao(AppDatabase db) : super(db);
 
+  Stream<int> watchCount() {
+    return (select(outbox)).watch().map((rows) => rows.length);
+  }
+
+  Future<int> count() async {
+    final rows = await (select(outbox)).get();
+    return rows.length;
+  }
+
+  Future<void> resetErrors() async {
+    await (update(outbox)).write(
+      OutboxCompanion(
+        attempts: const Value(0),
+        lastError: const Value.absent(),
+      ),
+    );
+  }
+
+  Future<int> clearStale({int attemptsThreshold = 3}) async {
+    return (delete(outbox)..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold))).go();
+  }
+
   Future<int> merge({
     required String entity,
     required String op,

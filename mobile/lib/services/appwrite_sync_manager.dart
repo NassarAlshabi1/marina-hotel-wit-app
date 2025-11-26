@@ -61,6 +61,9 @@ class AppwriteSyncManager {
   final _errorHandler = AppwriteErrorHandler();
   
   Timer? _syncTimer;
+  Timer? _debouncePushTimer;
+  StreamSubscription? _outboxSubscription;
+  Duration _debounceWindow = const Duration(seconds: 10);
   SyncStatus _currentStatus = SyncStatus.idle;
   DateTime? _lastSyncTime;
   String? _currentDeviceId;
@@ -76,6 +79,7 @@ class AppwriteSyncManager {
     try {
       await appwriteService.initialize();
       await _loadSettings();
+      _enableDebouncedPush();
       _logger.info('Sync manager initialized', tag: 'SYNC');
     } catch (e, stackTrace) {
       _logger.error('Failed to initialize sync manager', 
@@ -217,6 +221,31 @@ class AppwriteSyncManager {
     _syncTimer?.cancel();
     _syncTimer = null;
     _logger.info('Auto sync stopped', tag: 'SYNC');
+  }
+
+  /// تمكين الدفع المؤجل بعد تغييرات outbox
+  void _enableDebouncedPush({Duration? window}) {
+    if (window != null) {
+      _debounceWindow = window;
+    }
+    _outboxSubscription?.cancel();
+    _outboxSubscription = (database.select(database.outbox)).watch().listen((_) {
+      _debouncePushTimer?.cancel();
+      _debouncePushTimer = Timer(_debounceWindow, () async {
+        _logger.debug('Debounced push triggered', tag: 'SYNC');
+        try {
+          await sync();
+        } catch (_) {}
+      });
+    });
+    _logger.info('Debounced push enabled (window: ${_debounceWindow.inSeconds}s)', tag: 'SYNC');
+  }
+
+  /// تنظيف الموارد
+  void dispose() {
+    _syncTimer?.cancel();
+    _debouncePushTimer?.cancel();
+    _outboxSubscription?.cancel();
   }
 
   /// تنفيذ المزامنة
@@ -397,6 +426,7 @@ class AppwriteSyncManager {
   /// الحصول على إحصائيات المزامنة
   Future<Map<String, dynamic>> getSyncStatistics() async {
     try {
+      final outboxCount = await outboxDao.count();
       final syncLogs = await appwriteService.listSyncLogs(useCache: false);
 
       int extractCount(Map<String, dynamic> data, String key) {
@@ -439,6 +469,29 @@ class AppwriteSyncManager {
         sum + extractCount(Map<String, dynamic>.from(log.data), 'conflicts')
       );
 
+      Map<String, dynamic>? lastFailed;
+      for (final log in syncLogs) {
+        final data = Map<String, dynamic>.from(log.data);
+        if ((data['status'] ?? '') == 'failed') {
+          lastFailed = data;
+          break;
+        }
+      }
+
+      final timeline = <Map<String, dynamic>>[];
+      for (final log in syncLogs.take(20)) {
+        final data = Map<String, dynamic>.from(log.data);
+        timeline.add({
+          'status': data['status'],
+          'timestamp': data['timestamp'] ?? data['endTime'] ?? data['startTime'],
+          'syncType': data['syncType'] ?? data['action'],
+          'recordsPushed': extractCount(data, 'recordsPushed'),
+          'recordsPulled': extractCount(data, 'recordsPulled'),
+          'conflicts': extractCount(data, 'conflicts'),
+          'durationMs': data['durationMs'] ?? 0,
+        });
+      }
+
       return {
         'totalSyncs': totalSyncs,
         'successfulSyncs': successfulSyncs,
@@ -448,6 +501,10 @@ class AppwriteSyncManager {
         'totalRecordsPulled': totalRecordsPulled,
         'totalConflicts': totalConflicts,
         'lastSyncTime': _lastSyncTime?.toIso8601String(),
+        'outboxCount': outboxCount,
+        'lastErrorMessage': lastFailed != null ? (lastFailed['errorMessage'] ?? '') : null,
+        'lastErrorTime': lastFailed != null ? (lastFailed['timestamp'] ?? lastFailed['endTime'] ?? lastFailed['startTime']) : null,
+        'timeline': timeline,
       };
     } catch (e) {
       _logger.error('Failed to get sync statistics', error: e, tag: 'SYNC');
@@ -460,6 +517,10 @@ class AppwriteSyncManager {
         'totalRecordsPulled': 0,
         'totalConflicts': 0,
         'lastSyncTime': _lastSyncTime?.toIso8601String(),
+        'outboxCount': 0,
+        'lastErrorMessage': null,
+        'lastErrorTime': null,
+        'timeline': <Map<String, dynamic>>[],
       };
     }
   }

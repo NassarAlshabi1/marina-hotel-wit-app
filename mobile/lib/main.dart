@@ -35,6 +35,8 @@ import 'services/appwrite_logger.dart';
 import 'services/appwrite_cache_manager.dart';
 import 'services/appwrite_service.dart';
 import 'services/appwrite_sync_manager.dart';
+import 'providers/appwrite_providers.dart';
+import 'tasks/appwrite_auto_sync_task.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 
@@ -120,6 +122,10 @@ Future<void> _initializeAppwrite() async {
           database: DatabaseManager.instance,
         );
         await syncManager.initialize();
+        
+        // تفعيل الدفع المؤجل ومهمة الخلفية الدورية
+        await AppwriteAutoSyncTask.initialize(debug: false);
+        await AppwriteAutoSyncTask.schedulePeriodicSync(const Duration(minutes: 15));
         
         // تسجيل الجهاز (إذا كان متاحاً)
         try {
@@ -225,6 +231,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.resumed) {
       unawaited(AppSessionManager.onAppOpen());
+      // سحب تفاضلي سريع عند الاستئناف + استهلاك أي مهام WorkManager معلّقة
+      try {
+        final syncManager = ref.read(appwriteSyncManagerProvider);
+        unawaited(AppwriteAutoSyncTask.consumePendingAndSync(syncManager));
+        unawaited(syncManager.sync());
+      } catch (_) {}
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
