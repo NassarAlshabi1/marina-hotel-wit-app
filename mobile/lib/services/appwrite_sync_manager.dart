@@ -488,7 +488,7 @@ class AppwriteSyncManager {
             version: d.Value(_asInt(data['version'], fallback: 1)),
             origin: d.Value(_asString(data['origin']) ?? 'server'),
           );
-          batch.insertOnConflictUpdate(database.rooms, companion);
+          batch.insert(database.rooms, companion, mode: d.InsertMode.insertOrReplace);
           processed++;
         }
       });
@@ -536,7 +536,7 @@ class AppwriteSyncManager {
             expectedNights: d.Value(_asInt(data['expectedNights'], fallback: 1)),
             calculatedNights: d.Value(_asInt(data['calculatedNights'], fallback: 1)),
           );
-          batch.insertOnConflictUpdate(database.bookings, companion);
+          batch.insert(database.bookings, companion, mode: d.InsertMode.insertOrReplace);
           processed++;
         }
       });
@@ -572,7 +572,7 @@ class AppwriteSyncManager {
             hireDate: d.Value(_asString(data['hireDate']) ?? ''),
             status: d.Value(_asString(data['status']) ?? ''),
           );
-          batch.insertOnConflictUpdate(database.employees, companion);
+          batch.insert(database.employees, companion, mode: d.InsertMode.insertOrReplace);
           processed++;
         }
       });
@@ -608,7 +608,7 @@ class AppwriteSyncManager {
             date: d.Value(_asString(data['date']) ?? ''),
             cashTransactionId: _nullableValue<int>(_asIntNullable(data['cashTransactionId'])),
           );
-          batch.insertOnConflictUpdate(database.expenses, companion);
+          batch.insert(database.expenses, companion, mode: d.InsertMode.insertOrReplace);
           processed++;
         }
       });
@@ -649,7 +649,7 @@ class AppwriteSyncManager {
             cashTransactionServerId: _nullableValue<int>(_asIntNullable(data['cashTransactionServerId'])),
             referenceNumber: _nullableValue<String>(_asString(data['referenceNumber'])),
           );
-          batch.insertOnConflictUpdate(database.payments, companion);
+          batch.insert(database.payments, companion, mode: d.InsertMode.insertOrReplace);
           processed++;
         }
       });
@@ -693,7 +693,7 @@ class AppwriteSyncManager {
             pledgeType: _nullableValue<String>(_asString(data['pledgeType'])),
             note: _nullableValue<String>(_asString(data['note'])),
           );
-          batch.insertOnConflictUpdate(database.debts, companion);
+          batch.insert(database.debts, companion, mode: d.InsertMode.insertOrReplace);
           processed++;
         }
       });
