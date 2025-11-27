@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import '../../components/app_scaffold.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
@@ -146,10 +146,12 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                                 return Card(
                                   child: ListTile(
                                     leading: Icon(
-                                      payment.paymentMethod == 'نقدي'
-                                          ? Icons.money
-                                          : Icons.credit_card,
-                                      color: Colors.green,
+                                      payment.paymentMethod == 'تحويل'
+                                          ? Icons.account_balance
+                                          : Icons.money,
+                                      color: payment.paymentMethod == 'تحويل'
+                                          ? Colors.blue
+                                          : Colors.green,
                                     ),
                                     title: Text(
                                       CurrencyFormatter.formatAmount(payment.amount),
@@ -276,9 +278,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                   ),
                   items: const [
                     DropdownMenuItem(value: 'نقدي', child: Text('نقدي')),
-                    DropdownMenuItem(value: 'بطاقة', child: Text('بطاقة ائتمان')),
                     DropdownMenuItem(value: 'تحويل', child: Text('تحويل بنكي')),
-                    DropdownMenuItem(value: 'شيك', child: Text('شيك')),
                   ],
                   onChanged: (value) => selectedMethod = value!,
                 ),

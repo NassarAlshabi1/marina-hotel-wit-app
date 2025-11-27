@@ -5,6 +5,7 @@ import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_cache_manager.dart';
+import 'appwrite_network_helper.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
 class AppwriteService {
@@ -18,6 +19,7 @@ class AppwriteService {
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
   final _cache = AppwriteCacheManager();
+  final _networkHelper = AppwriteNetworkHelper();
   
   bool _initialized = false;
 
@@ -72,18 +74,31 @@ class AppwriteService {
     required String collectionId,
     required Map<String, dynamic> data,
     String? documentId,
+    bool useRetry = true,
   }) async {
     _ensureInitialized();
     
     try {
       _logger.debug('Creating document in $collectionId', tag: 'CRUD');
       
-      final document = await _databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: collectionId,
-        documentId: documentId ?? 'unique()',
-        data: data,
-      );
+      final operation = () async {
+        return await _databases.createDocument(
+          databaseId: AppwriteConfig.databaseId,
+          collectionId: collectionId,
+          documentId: documentId ?? 'unique()',
+          data: data,
+        );
+      };
+
+      final document = useRetry
+          ? await _networkHelper.withRetryAndTimeout(
+              operation: operation,
+              operationName: 'createDocument($collectionId)',
+            )
+          : await _networkHelper.withTimeout(
+              operation: operation,
+              operationName: 'createDocument($collectionId)',
+            );
 
       // مسح الذاكرة المؤقتة للمجموعة
       _cache.clearByPattern('^${collectionId}_');
@@ -149,18 +164,31 @@ class AppwriteService {
     required String collectionId,
     required String documentId,
     required Map<String, dynamic> data,
+    bool useRetry = true,
   }) async {
     _ensureInitialized();
     
     try {
       _logger.debug('Updating document $documentId in $collectionId', tag: 'CRUD');
       
-      final document = await _databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: collectionId,
-        documentId: documentId,
-        data: data,
-      );
+      final operation = () async {
+        return await _databases.updateDocument(
+          databaseId: AppwriteConfig.databaseId,
+          collectionId: collectionId,
+          documentId: documentId,
+          data: data,
+        );
+      };
+
+      final document = useRetry
+          ? await _networkHelper.withRetryAndTimeout(
+              operation: operation,
+              operationName: 'updateDocument($collectionId)',
+            )
+          : await _networkHelper.withTimeout(
+              operation: operation,
+              operationName: 'updateDocument($collectionId)',
+            );
 
       // تحديث الذاكرة المؤقتة
       _cache.set('${collectionId}_$documentId', document);
@@ -207,20 +235,26 @@ class AppwriteService {
     }
   }
 
-  /// قائمة المستندات
+  /// قائمة المستندات مع Pagination
   Future<List<models.Document>> listDocuments({
     required String collectionId,
     List<String>? queries,
-    int limit = 100,
+    int? limit,
     int offset = 0,
     bool useCache = true,
+    bool useRetry = true,
   }) async {
     _ensureInitialized();
     
+    final pageSize = limit ?? AppwriteConfig.defaultPageSize;
+    final effectiveLimit = pageSize > AppwriteConfig.maxPageSize 
+        ? AppwriteConfig.maxPageSize 
+        : pageSize;
+    
     try {
       // التحقق من الذاكرة المؤقتة
-      if (useCache && queries == null) {
-        final cacheKey = '${collectionId}_all';
+      final cacheKey = '${collectionId}_${queries?.join('_') ?? 'all'}_${effectiveLimit}_$offset';
+      if (useCache) {
         final cached = _cache.get<List<models.Document>>(cacheKey);
         if (cached != null) {
           _logger.debug('Cache hit for $cacheKey', tag: 'CACHE');
@@ -228,19 +262,36 @@ class AppwriteService {
         }
       }
 
-      _logger.debug('Listing documents from $collectionId', tag: 'CRUD');
-      
-      final documentList = await _databases.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: collectionId,
-        queries: queries,
+      _logger.debug(
+        'Listing documents from $collectionId (limit: $effectiveLimit, offset: $offset)',
+        tag: 'CRUD',
       );
+      
+      // تنفيذ العملية مع retry و timeout
+      final operation = () async {
+        final documentList = await _databases.listDocuments(
+          databaseId: AppwriteConfig.databaseId,
+          collectionId: collectionId,
+          queries: queries,
+        );
+        return documentList.documents;
+      };
 
-      final documents = documentList.documents;
+      final documents = useRetry
+          ? await _networkHelper.withRetryAndTimeout(
+              operation: operation,
+              operationName: 'listDocuments($collectionId)',
+              timeout: AppwriteConfig.defaultTimeout,
+            )
+          : await _networkHelper.withTimeout(
+              operation: operation,
+              operationName: 'listDocuments($collectionId)',
+              timeout: AppwriteConfig.defaultTimeout,
+            );
 
       // حفظ في الذاكرة المؤقتة
-      if (useCache && queries == null) {
-        _cache.set('${collectionId}_all', documents);
+      if (useCache) {
+        _cache.set(cacheKey, documents, ttl: AppwriteConfig.cacheExpiry);
       }
 
       _logger.info('Fetched ${documents.length} documents from $collectionId', tag: 'CRUD');
@@ -254,11 +305,86 @@ class AppwriteService {
     }
   }
 
+  /// جلب جميع المستندات مع Pagination تلقائي
+  Future<List<models.Document>> listAllDocuments({
+    required String collectionId,
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    _ensureInitialized();
+    
+    final allDocuments = <models.Document>[];
+    int offset = 0;
+    const pageSize = AppwriteConfig.defaultPageSize;
+    
+    while (true) {
+      final documents = await listDocuments(
+        collectionId: collectionId,
+        queries: queries,
+        limit: pageSize,
+        offset: offset,
+        useCache: useCache,
+      );
+      
+      if (documents.isEmpty) break;
+      
+      allDocuments.addAll(documents);
+      
+      // إذا كانت النتائج أقل من pageSize، يعني وصلنا للنهاية
+      if (documents.length < pageSize) break;
+      
+      offset += pageSize;
+    }
+    
+    _logger.info('Fetched total ${allDocuments.length} documents from $collectionId', tag: 'CRUD');
+    return allDocuments;
+  }
+
+  Future<models.Document> upsertDocument({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      return await createDocument(
+        collectionId: collectionId,
+        documentId: documentId,
+        data: data,
+      );
+    } catch (error) {
+      if (error is AppwriteError && error.code == 'CONFLICT_ERROR') {
+        return await updateDocument(
+          collectionId: collectionId,
+          documentId: documentId,
+          data: data,
+        );
+      }
+      throw error;
+    }
+  }
+
   // ============ Collection-Specific Methods ============
 
   // Rooms
   Future<models.Document> createRoom(Map<String, dynamic> data) =>
       createDocument(collectionId: AppwriteConfig.roomsCollectionId, data: data);
+  
+  Future<models.Document> upsertRoom(String documentId, Map<String, dynamic> data) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.roomsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+  
+  Future<models.Document> updateRoom(String documentId, Map<String, dynamic> data) =>
+      updateDocument(
+        collectionId: AppwriteConfig.roomsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+  
+  Future<void> deleteRoom(String documentId) =>
+      deleteDocument(collectionId: AppwriteConfig.roomsCollectionId, documentId: documentId);
   
   Future<List<models.Document>> listRooms({bool useCache = true}) =>
       listDocuments(collectionId: AppwriteConfig.roomsCollectionId, useCache: useCache);
@@ -270,6 +396,23 @@ class AppwriteService {
   Future<models.Document> createBooking(Map<String, dynamic> data) =>
       createDocument(collectionId: AppwriteConfig.bookingsCollectionId, data: data);
   
+  Future<models.Document> upsertBooking(String documentId, Map<String, dynamic> data) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.bookingsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+  
+  Future<models.Document> updateBooking(String documentId, Map<String, dynamic> data) =>
+      updateDocument(
+        collectionId: AppwriteConfig.bookingsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+  
+  Future<void> deleteBooking(String documentId) =>
+      deleteDocument(collectionId: AppwriteConfig.bookingsCollectionId, documentId: documentId);
+  
   Future<List<models.Document>> listBookings({bool useCache = true}) =>
       listDocuments(collectionId: AppwriteConfig.bookingsCollectionId, useCache: useCache);
   
@@ -280,12 +423,46 @@ class AppwriteService {
   Future<models.Document> createPayment(Map<String, dynamic> data) =>
       createDocument(collectionId: AppwriteConfig.paymentsCollectionId, data: data);
   
+  Future<models.Document> upsertPayment(String documentId, Map<String, dynamic> data) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.paymentsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+  
+  Future<models.Document> updatePayment(String documentId, Map<String, dynamic> data) =>
+      updateDocument(
+        collectionId: AppwriteConfig.paymentsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+  
+  Future<void> deletePayment(String documentId) =>
+      deleteDocument(collectionId: AppwriteConfig.paymentsCollectionId, documentId: documentId);
+  
   Future<List<models.Document>> listPayments({bool useCache = true}) =>
       listDocuments(collectionId: AppwriteConfig.paymentsCollectionId, useCache: useCache);
 
   // Expenses
   Future<models.Document> createExpense(Map<String, dynamic> data) =>
       createDocument(collectionId: AppwriteConfig.expensesCollectionId, data: data);
+  
+  Future<models.Document> upsertExpense(String documentId, Map<String, dynamic> data) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.expensesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+  
+  Future<models.Document> updateExpense(String documentId, Map<String, dynamic> data) =>
+      updateDocument(
+        collectionId: AppwriteConfig.expensesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+  
+  Future<void> deleteExpense(String documentId) =>
+      deleteDocument(collectionId: AppwriteConfig.expensesCollectionId, documentId: documentId);
   
   Future<List<models.Document>> listExpenses({bool useCache = true}) =>
       listDocuments(collectionId: AppwriteConfig.expensesCollectionId, useCache: useCache);
@@ -300,6 +477,23 @@ class AppwriteService {
   // Debts
   Future<models.Document> createDebt(Map<String, dynamic> data) =>
       createDocument(collectionId: AppwriteConfig.debtsCollectionId, data: data);
+  
+  Future<models.Document> upsertDebt(String documentId, Map<String, dynamic> data) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.debtsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+  
+  Future<models.Document> updateDebt(String documentId, Map<String, dynamic> data) =>
+      updateDocument(
+        collectionId: AppwriteConfig.debtsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+  
+  Future<void> deleteDebt(String documentId) =>
+      deleteDocument(collectionId: AppwriteConfig.debtsCollectionId, documentId: documentId);
   
   Future<List<models.Document>> listDebts({bool useCache = true}) =>
       listDocuments(collectionId: AppwriteConfig.debtsCollectionId, useCache: useCache);
@@ -320,22 +514,184 @@ class AppwriteService {
 
   // ============ Connection Test ============
 
-  /// اختبار الاتصال
-  Future<bool> testConnection() async {
+  /// اختبار الاتصال الشامل - CRUD كامل
+  /// 
+  /// يختبر جميع عمليات CRUD (Create, Read, Update, Delete) على مجموعة اختبارية
+  /// Returns: Map يحتوي على تفاصيل نتائج الاختبار
+  Future<Map<String, dynamic>> testConnection({
+    bool fullCrudTest = false,
+    String? testCollectionId,
+  }) async {
+    final results = <String, dynamic>{
+      'overall_success': false,
+      'timestamp': DateTime.now().toIso8601String(),
+      'tests': <String, dynamic>{},
+    };
+
     try {
       _ensureInitialized();
       
-      // محاولة الحصول على قائمة فارغة من أي مجموعة
-      await _databases.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.roomsCollectionId,
-        queries: ['limit(1)'],
+      final testCollection = testCollectionId ?? AppwriteConfig.roomsCollectionId;
+      
+      // 1. اختبار القراءة (Read)
+      try {
+        _logger.debug('Testing READ operation...', tag: 'CONNECTION_TEST');
+        final docs = await _networkHelper.withTimeout(
+          operation: () => _databases.listDocuments(
+            databaseId: AppwriteConfig.databaseId,
+            collectionId: testCollection,
+            queries: ['limit(1)'],
+          ),
+          operationName: 'testConnection_read',
+          timeout: const Duration(seconds: 10),
+        );
+        
+        results['tests']['read'] = {
+          'success': true,
+          'documents_found': docs.documents.length,
+          'duration_ms': 'N/A',
+        };
+        _logger.info('READ test successful', tag: 'CONNECTION_TEST');
+      } catch (e) {
+        results['tests']['read'] = {
+          'success': false,
+          'error': e.toString(),
+        };
+        _logger.error('READ test failed', error: e, tag: 'CONNECTION_TEST');
+      }
+
+      // إذا كان اختبار كامل، نختبر Create, Update, Delete
+      if (fullCrudTest) {
+        String? testDocumentId;
+        
+        try {
+          // 2. اختبار الإنشاء (Create)
+          _logger.debug('Testing CREATE operation...', tag: 'CONNECTION_TEST');
+          final testData = {
+            'test_field': 'test_value_${DateTime.now().millisecondsSinceEpoch}',
+            'created_at': DateTime.now().toIso8601String(),
+          };
+          
+          final createdDoc = await _networkHelper.withTimeout(
+            operation: () => _databases.createDocument(
+              databaseId: AppwriteConfig.databaseId,
+              collectionId: testCollection,
+              documentId: 'unique()',
+              data: testData,
+            ),
+            operationName: 'testConnection_create',
+            timeout: const Duration(seconds: 10),
+          );
+          
+          testDocumentId = createdDoc.$id;
+          results['tests']['create'] = {
+            'success': true,
+            'document_id': testDocumentId,
+          };
+          _logger.info('CREATE test successful: $testDocumentId', tag: 'CONNECTION_TEST');
+
+          // 3. اختبار التحديث (Update)
+          _logger.debug('Testing UPDATE operation...', tag: 'CONNECTION_TEST');
+          final updatedData = {
+            'test_field': 'updated_value_${DateTime.now().millisecondsSinceEpoch}',
+          };
+          
+          await _networkHelper.withTimeout(
+            operation: () => _databases.updateDocument(
+              databaseId: AppwriteConfig.databaseId,
+              collectionId: testCollection,
+              documentId: testDocumentId!,
+              data: updatedData,
+            ),
+            operationName: 'testConnection_update',
+            timeout: const Duration(seconds: 10),
+          );
+          
+          results['tests']['update'] = {'success': true};
+          _logger.info('UPDATE test successful', tag: 'CONNECTION_TEST');
+
+          // 4. اختبار الحذف (Delete)
+          _logger.debug('Testing DELETE operation...', tag: 'CONNECTION_TEST');
+          await _networkHelper.withTimeout(
+            operation: () => _databases.deleteDocument(
+              databaseId: AppwriteConfig.databaseId,
+              collectionId: testCollection,
+              documentId: testDocumentId!,
+            ),
+            operationName: 'testConnection_delete',
+            timeout: const Duration(seconds: 10),
+          );
+          
+          results['tests']['delete'] = {'success': true};
+          _logger.info('DELETE test successful', tag: 'CONNECTION_TEST');
+          testDocumentId = null; // تم الحذف بنجاح
+
+        } catch (e) {
+          _logger.error('CRUD test failed', error: e, tag: 'CONNECTION_TEST');
+          
+          if (!results['tests'].containsKey('create')) {
+            results['tests']['create'] = {'success': false, 'error': e.toString()};
+          } else if (!results['tests'].containsKey('update')) {
+            results['tests']['update'] = {'success': false, 'error': e.toString()};
+          } else if (!results['tests'].containsKey('delete')) {
+            results['tests']['delete'] = {'success': false, 'error': e.toString()};
+          }
+
+          // تنظيف: حذف المستند الاختباري إذا كان موجوداً
+          if (testDocumentId != null) {
+            try {
+              await _databases.deleteDocument(
+                databaseId: AppwriteConfig.databaseId,
+                collectionId: testCollection,
+                documentId: testDocumentId!,
+              );
+              _logger.debug('Cleaned up test document: $testDocumentId', tag: 'CONNECTION_TEST');
+            } catch (cleanupError) {
+              _logger.warning('Failed to cleanup test document', error: cleanupError, tag: 'CONNECTION_TEST');
+            }
+          }
+        }
+      }
+
+      // تحديد النجاح الإجمالي
+      final allTests = results['tests'] as Map<String, dynamic>;
+      results['overall_success'] = allTests.values.every((test) => test['success'] == true);
+      results['tests_count'] = allTests.length;
+      results['successful_tests'] = allTests.values.where((test) => test['success'] == true).length;
+      
+      _logger.info(
+        'Connection test completed: ${results['successful_tests']}/${results['tests_count']} tests passed',
+        tag: 'CONNECTION_TEST',
       );
       
-      _logger.info('Connection test successful', tag: 'CONNECTION');
+      return results;
+    } catch (e) {
+      _logger.error('Connection test failed', error: e, tag: 'CONNECTION_TEST');
+      results['overall_success'] = false;
+      results['error'] = e.toString();
+      return results;
+    }
+  }
+
+  /// اختبار اتصال سريع (قراءة فقط)
+  Future<bool> quickConnectionTest() async {
+    try {
+      _ensureInitialized();
+      
+      await _networkHelper.withTimeout(
+        operation: () => _databases.listDocuments(
+          databaseId: AppwriteConfig.databaseId,
+          collectionId: AppwriteConfig.roomsCollectionId,
+          queries: ['limit(1)'],
+        ),
+        operationName: 'quickConnectionTest',
+        timeout: const Duration(seconds: 5),
+      );
+      
+      _logger.info('Quick connection test successful', tag: 'CONNECTION');
       return true;
     } catch (e) {
-      _logger.warning('Connection test failed', error: e, tag: 'CONNECTION');
+      _logger.warning('Quick connection test failed', error: e, tag: 'CONNECTION');
       return false;
     }
   }

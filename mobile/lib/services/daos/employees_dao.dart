@@ -57,10 +57,21 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixi
     final now = Time.nowEpoch();
     final existing = await getById(id);
     if (existing == null) return 0;
-    final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
+    final comp = data.copyWith(
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      version: Value(existing.version + 1),
+    );
     final rows = await (update(employees)..where((t) => t.id.equals(id))).write(comp);
     if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'employees', op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, payload: _payloadFrom(comp, base: existing), clientTs: now);
+      await outboxDao.merge(
+        entity: 'employees',
+        op: 'update',
+        localUuid: existing.localUuid,
+        serverId: existing.serverId,
+        payload: _payloadFrom(comp, base: existing),
+        clientTs: now,
+      );
     }
     return rows;
   }
@@ -69,10 +80,21 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixi
     final now = Time.nowEpoch();
     final existing = await getByLocalUuid(localUuid);
     if (existing == null) return 0;
-    final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
+    final comp = data.copyWith(
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      version: Value(existing.version + 1),
+    );
     final rows = await (update(employees)..where((t) => t.localUuid.equals(localUuid))).write(comp);
     if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'employees', op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, payload: _payloadFrom(comp, base: existing), clientTs: now);
+      await outboxDao.merge(
+        entity: 'employees',
+        op: 'update',
+        localUuid: existing.localUuid,
+        serverId: existing.serverId,
+        payload: _payloadFrom(comp, base: existing),
+        clientTs: now,
+      );
     }
     return rows;
   }
@@ -92,14 +114,93 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixi
     return rows;
   }
 
+  Future<int> updateByServerId(String? serverId, EmployeesCompanion data, {bool originIsServer = false}) async {
+    final parsedServerId = _parseServerId(serverId);
+    if (parsedServerId == null) return 0;
+    final now = Time.nowEpoch();
+    final existing = await (select(employees)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+    if (existing == null) return 0;
+    final comp = data.copyWith(
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      version: Value(existing.version + 1),
+    );
+    final rows = await (update(employees)..where((t) => t.serverId.equals(parsedServerId))).write(comp);
+    if (rows > 0 && !originIsServer) {
+      await outboxDao.merge(
+        entity: 'employees',
+        op: 'update',
+        localUuid: existing.localUuid,
+        serverId: existing.serverId,
+        payload: _payloadFrom(comp, base: existing),
+        clientTs: now,
+      );
+    }
+    return rows;
+  }
+
+  Future<int> hardDelete(int id) async {
+    return (delete(employees)..where((t) => t.id.equals(id))).go();
+  }
+
+  Future<Employee?> getByServerId(String serverId) {
+    final parsedServerId = _parseServerId(serverId);
+    if (parsedServerId == null) return Future.value(null);
+    return (select(employees)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+  }
+
+  int? _parseServerId(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return int.tryParse(trimmed);
+  }
+
   Map<String, dynamic> _payloadFrom(EmployeesCompanion comp, {Employee? base}) {
     final m = <String, dynamic>{};
-    if (comp.name.present) m['name'] = comp.name.value;
-    if (comp.basicSalary.present) m['basic_salary'] = comp.basicSalary.value;
-    if (comp.position.present) m['position'] = comp.position.value;
-    if (comp.phone.present) m['phone'] = comp.phone.value;
-    if (comp.hireDate.present) m['hire_date'] = comp.hireDate.value;
-    if (comp.status.present) m['status'] = comp.status.value;
+    
+    if (comp.name.present) {
+      m['name'] = comp.name.value;
+    } else if (base != null) {
+      m['name'] = base.name;
+    }
+    
+    if (comp.basicSalary.present) {
+      m['basic_salary'] = comp.basicSalary.value;
+    } else if (base != null) {
+      m['basic_salary'] = base.basicSalary;
+    }
+    
+    if (comp.position.present) {
+      m['position'] = comp.position.value;
+    } else if (base != null) {
+      m['position'] = base.position;
+    }
+    
+    if (comp.phone.present) {
+      m['phone'] = comp.phone.value;
+    } else if (base != null) {
+      m['phone'] = base.phone;
+    }
+    
+    if (comp.hireDate.present) {
+      m['hire_date'] = comp.hireDate.value;
+    } else if (base != null) {
+      m['hire_date'] = base.hireDate;
+    }
+    
+    if (comp.status.present) {
+      m['status'] = comp.status.value;
+    } else if (base != null) {
+      m['status'] = base.status;
+    }
+    
+    if (base != null) {
+      m['local_uuid'] = base.localUuid;
+      m['server_id'] = base.serverId;
+      m['version'] = base.version + 1;
+    }
+    
     return m;
   }
 

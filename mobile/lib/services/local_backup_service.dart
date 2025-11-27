@@ -10,7 +10,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'local_db.dart';
-import 'providers.dart';
+import '../providers/repository_providers.dart';
 import 'google_drive_backup_service.dart';
 import 'backup_serializers.dart';
 

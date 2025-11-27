@@ -12,7 +12,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'auto_backup_task.dart';
 import 'local_db.dart';
-import 'providers.dart';
+import '../providers/repository_providers.dart';
 import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
 
@@ -386,34 +386,111 @@ class GoogleDriveBackupService {
   }
 
   Future<String> uploadBackup(Map<String, dynamic> backupData) async {
+    String? partialFileId;
+    
     return _runWithAuth<String>(() async {
-      final folderId = await getOrCreateBackupFolder();
+      try {
+        final folderId = await getOrCreateBackupFolder();
 
-      final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
-      final jsonBytes = utf8.encode(jsonString);
+        final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
+        final jsonBytes = utf8.encode(jsonString);
 
-      final timestamp = DateTime.now();
-      final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
+        final timestamp = DateTime.now();
+        final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
 
-      final metadata = backupData['metadata'] as Map<String, dynamic>? ?? {};
+        final metadata = backupData['metadata'] as Map<String, dynamic>? ?? {};
 
-      final driveFile = drive.File()
-        ..name = fileName
-        ..parents = [folderId]
-        ..appProperties = _buildAppProperties(metadata, timestamp);
+        final driveFile = drive.File()
+          ..name = fileName
+          ..parents = [folderId]
+          ..appProperties = _buildAppProperties(metadata, timestamp);
 
-      final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
-      final uploadedFile = await _driveApi!.files.create(
-        driveFile,
-        uploadMedia: media,
-      );
+        final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
+        
+        debugPrint('📤 بدء رفع النسخة الاحتياطية: $fileName (${(jsonBytes.length / 1024).toStringAsFixed(2)} KB)');
+        
+        final uploadedFile = await _driveApi!.files.create(
+          driveFile,
+          uploadMedia: media,
+        );
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
+        partialFileId = uploadedFile.id;
 
-      debugPrint('✅ تم رفع النسخة الاحتياطية: ${uploadedFile.id}');
-      return uploadedFile.id!;
+        // التحقق من اكتمال الرفع
+        final verifyResult = await _verifyUploadedBackup(uploadedFile.id!, jsonBytes.length);
+        if (!verifyResult['is_complete']) {
+          debugPrint('⚠️ النسخة غير مكتملة: ${verifyResult['message']}');
+          // حذف النسخة الناقصة
+          await deleteBackupFile(uploadedFile.id!);
+          throw Exception('فشل في رفع النسخة بشكل كامل: ${verifyResult['message']}');
+        }
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
+
+        debugPrint('✅ تم رفع النسخة الاحتياطية بنجاح: ${uploadedFile.id}');
+        partialFileId = null; // تم بنجاح، لا حاجة للتنظيف
+        return uploadedFile.id!;
+      } catch (e) {
+        debugPrint('❌ خطأ في رفع النسخة الاحتياطية: $e');
+        
+        // حذف النسخة الجزئية إذا كانت موجودة
+        if (partialFileId != null) {
+          try {
+            debugPrint('🧹 حذف النسخة الجزئية: $partialFileId');
+            await deleteBackupFile(partialFileId!);
+          } catch (cleanupError) {
+            debugPrint('⚠️ فشل حذف النسخة الجزئية: $cleanupError');
+          }
+        }
+        
+        rethrow;
+      }
     });
+  }
+
+  /// التحقق من اكتمال النسخة المرفوعة
+  Future<Map<String, dynamic>> _verifyUploadedBackup(String fileId, int expectedSize) async {
+    try {
+      final file = await _driveApi!.files.get(
+        fileId,
+        $fields: 'id,name,size,appProperties',
+      ) as drive.File;
+
+      final actualSize = file.size != null ? int.tryParse(file.size!) ?? 0 : 0;
+
+      // التحقق من الحجم (يسمح بفارق 1% بسبب الضغط)
+      final sizeDifference = (actualSize - expectedSize).abs();
+      final maxAllowedDifference = expectedSize * 0.01; // 1%
+
+      if (sizeDifference > maxAllowedDifference) {
+        return {
+          'is_complete': false,
+          'message': 'حجم الملف غير متطابق (متوقع: $expectedSize، فعلي: $actualSize)',
+          'actual_size': actualSize,
+          'expected_size': expectedSize,
+        };
+      }
+
+      // التحقق من البيانات الوصفية
+      if (file.appProperties == null || file.appProperties!.isEmpty) {
+        return {
+          'is_complete': false,
+          'message': 'البيانات الوصفية مفقودة',
+        };
+      }
+
+      return {
+        'is_complete': true,
+        'message': 'النسخة مكتملة',
+        'actual_size': actualSize,
+      };
+    } catch (e) {
+      return {
+        'is_complete': false,
+        'message': 'فشل التحقق: $e',
+      };
+    }
   }
 
   Map<String, String> _buildAppProperties(Map<String, dynamic> metadata, DateTime timestamp) {
@@ -440,7 +517,7 @@ class GoogleDriveBackupService {
     return props;
   }
 
-  Future<List<DriveBackupFile>> listBackupFiles() async {
+  Future<List<DriveBackupFile>> listBackups() async {
     return _runWithAuth<List<DriveBackupFile>>(() async {
       final folderId = await getOrCreateBackupFolder();
 
@@ -462,6 +539,14 @@ class GoogleDriveBackupService {
       debugPrint('✅ تم جلب ${backupFiles.length} نسخة احتياطية');
       return backupFiles;
     });
+  }
+
+  Future<List<DriveBackupFile>> listBackupFiles({int? limit}) async {
+    final backups = await listBackups();
+    if (limit == null || limit >= backups.length) {
+      return backups;
+    }
+    return backups.sublist(0, limit);
   }
 
   Future<Map<String, dynamic>> downloadBackup(String fileId) async {
@@ -751,6 +836,223 @@ class GoogleDriveBackupService {
       await _driveApi!.files.delete(fileId);
       debugPrint('🗑️ تم حذف النسخة الاحتياطية: $fileId');
     });
+  }
+
+  /// تنظيف النسخ الاحتياطية القديمة تلقائياً
+  /// 
+  /// [maxBackupsToKeep] - عدد النسخ الاحتياطية المراد الاحتفاظ بها (افتراضي: 10)
+  /// [maxAgeInDays] - عمر النسخة بالأيام قبل الحذف (افتراضي: 30 يوم)
+  /// [dryRun] - إذا true، لا يتم الحذف فعلياً (للمعاينة فقط)
+  /// 
+  /// Returns: عدد النسخ التي تم حذفها
+  Future<int> cleanupOldBackups({
+    int maxBackupsToKeep = 10,
+    int maxAgeInDays = 30,
+    bool dryRun = false,
+  }) async {
+    try {
+      debugPrint('🧹 بدء تنظيف النسخ القديمة...');
+      debugPrint('📊 الإعدادات: maxBackups=$maxBackupsToKeep, maxAge=$maxAgeInDays أيام, dryRun=$dryRun');
+
+      // الحصول على جميع النسخ الاحتياطية
+      final backups = await listBackups();
+      
+      if (backups.isEmpty) {
+        debugPrint('✅ لا توجد نسخ احتياطية للتنظيف');
+        return 0;
+      }
+
+      // ترتيب النسخ حسب التاريخ (الأحدث أولاً)
+      backups.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+      
+      final now = DateTime.now();
+      final cutoffDate = now.subtract(Duration(days: maxAgeInDays));
+      final backupsToDelete = <DriveBackupFile>[];
+
+      // 1. حذف النسخ التي تجاوزت العمر المحدد
+      for (final backup in backups) {
+        if (backup.createdTime.isBefore(cutoffDate)) {
+          backupsToDelete.add(backup);
+        }
+      }
+
+      // 2. حذف النسخ الزائدة (الاحتفاظ بـ maxBackupsToKeep فقط)
+      if (backups.length > maxBackupsToKeep) {
+        final excessBackups = backups.skip(maxBackupsToKeep).toList();
+        for (final backup in excessBackups) {
+          if (!backupsToDelete.contains(backup)) {
+            backupsToDelete.add(backup);
+          }
+        }
+      }
+
+      if (backupsToDelete.isEmpty) {
+        debugPrint('✅ جميع النسخ ضمن الحدود المقبولة');
+        return 0;
+      }
+
+      debugPrint('📋 سيتم حذف ${backupsToDelete.length} نسخة احتياطية:');
+      for (final backup in backupsToDelete) {
+        final age = now.difference(backup.createdTime).inDays;
+        final sizeKB = backup.size != null ? (backup.size! / 1024).toStringAsFixed(2) : 'غير معروف';
+        debugPrint('  - ${backup.fileName} (عمر: $age يوم، حجم: $sizeKB KB)');
+      }
+
+      // حذف النسخ فعلياً (إلا إذا كان dryRun)
+      int deletedCount = 0;
+      if (!dryRun) {
+        for (final backup in backupsToDelete) {
+          try {
+            await deleteBackupFile(backup.fileId);
+            deletedCount++;
+          } catch (e) {
+            debugPrint('⚠️ فشل حذف النسخة ${backup.fileName}: $e');
+          }
+        }
+        debugPrint('✅ تم حذف $deletedCount نسخة احتياطية بنجاح');
+      } else {
+        debugPrint('ℹ️ وضع المعاينة (dryRun) - لم يتم حذف أي شيء فعلياً');
+        deletedCount = backupsToDelete.length;
+      }
+
+      // حساب المساحة المحررة
+      if (deletedCount > 0 && !dryRun) {
+        int totalSizeFreed = 0;
+        for (final backup in backupsToDelete) {
+          totalSizeFreed += backup.size ?? 0;
+        }
+        final sizeMB = (totalSizeFreed / (1024 * 1024)).toStringAsFixed(2);
+        debugPrint('💾 المساحة المحررة: $sizeMB MB');
+      }
+
+      return deletedCount;
+    } catch (e) {
+      debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
+      rethrow;
+    }
+  }
+
+  /// فحص وحذف النسخ الناقصة (التي فشل رفعها)
+  /// 
+  /// Returns: عدد النسخ الناقصة التي تم حذفها
+  Future<int> cleanupIncompleteBackups() async {
+    try {
+      debugPrint('🔍 بدء فحص النسخ الناقصة...');
+      
+      final backups = await listBackups();
+      
+      if (backups.isEmpty) {
+        debugPrint('✅ لا توجد نسخ للفحص');
+        return 0;
+      }
+
+      final incompleteBackups = <DriveBackupFile>[];
+
+      for (final backup in backups) {
+        // التحقق من البيانات الوصفية
+        if (backup.metadata == null || backup.metadata!.isEmpty) {
+          debugPrint('⚠️ نسخة بدون بيانات وصفية: ${backup.fileName}');
+          incompleteBackups.add(backup);
+          continue;
+        }
+
+        // التحقق من الحجم (النسخ الصغيرة جداً قد تكون ناقصة)
+        if (backup.size != null && backup.size! < 1024) { // أقل من 1 KB
+          debugPrint('⚠️ نسخة صغيرة جداً (${backup.size} bytes): ${backup.fileName}');
+          incompleteBackups.add(backup);
+          continue;
+        }
+
+        // محاولة تنزيل وفك تشفير النسخة للتحقق
+        try {
+          final data = await downloadBackup(backup.fileId);
+          
+          // التحقق من البنية الأساسية
+          if (!data.containsKey('metadata') || !data.containsKey('rooms')) {
+            debugPrint('⚠️ نسخة ببنية غير صحيحة: ${backup.fileName}');
+            incompleteBackups.add(backup);
+            continue;
+          }
+        } catch (e) {
+          debugPrint('⚠️ فشل قراءة النسخة (قد تكون تالفة): ${backup.fileName} - $e');
+          incompleteBackups.add(backup);
+          continue;
+        }
+      }
+
+      if (incompleteBackups.isEmpty) {
+        debugPrint('✅ جميع النسخ سليمة');
+        return 0;
+      }
+
+      debugPrint('📋 تم اكتشاف ${incompleteBackups.length} نسخة ناقصة:');
+      for (final backup in incompleteBackups) {
+        debugPrint('  - ${backup.fileName}');
+      }
+
+      // حذف النسخ الناقصة
+      int deletedCount = 0;
+      for (final backup in incompleteBackups) {
+        try {
+          await deleteBackupFile(backup.fileId);
+          deletedCount++;
+        } catch (e) {
+          debugPrint('⚠️ فشل حذف النسخة الناقصة ${backup.fileName}: $e');
+        }
+      }
+
+      debugPrint('✅ تم حذف $deletedCount نسخة ناقصة');
+      return deletedCount;
+    } catch (e) {
+      debugPrint('❌ خطأ في فحص النسخ الناقصة: $e');
+      return 0;
+    }
+  }
+
+  /// تنظيف تلقائي مع إعدادات افتراضية معقولة
+  Future<int> autoCleanup() async {
+    return cleanupOldBackups(
+      maxBackupsToKeep: 15,
+      maxAgeInDays: 30,
+      dryRun: false,
+    );
+  }
+
+  /// الحصول على إحصائيات النسخ الاحتياطية
+  Future<Map<String, dynamic>> getBackupStatistics() async {
+    try {
+      final backups = await listBackups();
+      
+      if (backups.isEmpty) {
+        return {
+          'total_backups': 0,
+          'total_size_bytes': 0,
+          'total_size_mb': '0.00',
+          'oldest_backup': null,
+          'newest_backup': null,
+        };
+      }
+
+      backups.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+      
+      int totalSize = 0;
+      for (final backup in backups) {
+        totalSize += backup.size ?? 0;
+      }
+
+      return {
+        'total_backups': backups.length,
+        'total_size_bytes': totalSize,
+        'total_size_mb': (totalSize / (1024 * 1024)).toStringAsFixed(2),
+        'oldest_backup': backups.last.createdTime.toIso8601String(),
+        'newest_backup': backups.first.createdTime.toIso8601String(),
+        'oldest_backup_name': backups.last.fileName,
+        'newest_backup_name': backups.first.fileName,
+      };
+    } catch (e) {
+      debugPrint('❌ خطأ في الحصول على إحصائيات النسخ: $e');
+      return {};
+    }
   }
 
   void dispose() {

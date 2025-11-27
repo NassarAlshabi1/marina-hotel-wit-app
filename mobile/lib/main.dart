@@ -20,7 +20,8 @@ import 'screens/settings/settings_screen.dart';
 import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
-import 'services/providers.dart';
+import 'providers/theme_provider.dart';
+import 'providers/repository_providers.dart';
 import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
 import 'services/auto_backup_manager.dart';
@@ -35,6 +36,10 @@ import 'services/appwrite_logger.dart';
 import 'services/appwrite_cache_manager.dart';
 import 'services/appwrite_service.dart';
 import 'services/appwrite_sync_manager.dart';
+import 'services/unified_sync_orchestrator.dart';
+import 'services/smart_sync_manager.dart';
+import 'providers/appwrite_providers.dart';
+import 'tasks/appwrite_auto_sync_task.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 
@@ -115,8 +120,27 @@ Future<void> _initializeAppwrite() async {
         await appwriteService.initialize();
         
         // تهيئة مدير المزامنة
-        final syncManager = AppwriteSyncManager(appwriteService: appwriteService);
+        final syncManager = AppwriteSyncManager(
+          appwriteService: appwriteService,
+          database: DatabaseManager.instance,
+        );
         await syncManager.initialize();
+        
+        // تفعيل الدفع المؤجل ومهمة الخلفية الدورية
+        await AppwriteAutoSyncTask.initialize(debug: false);
+        await AppwriteAutoSyncTask.schedulePeriodicSync(const Duration(minutes: 15));
+        
+        // تهيئة المنسق الموحد بين Appwrite (دلتا) وDrive (سنابشوت) بعد الإعدادات
+        // سيتم إعادة تهيئته بأمان لاحقاً داخل ProviderScope أيضاً
+        try {
+          final orch = UnifiedSyncOrchestrator(
+            appwrite: syncManager,
+            smart: SmartSyncManager.instance,
+            database: DatabaseManager.instance,
+          );
+          await orch.initialize();
+        } catch (_) {}
+        
         
         // تسجيل الجهاز (إذا كان متاحاً)
         try {
@@ -222,6 +246,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.resumed) {
       unawaited(AppSessionManager.onAppOpen());
+      // سحب تفاضلي سريع عند الاستئناف + استهلاك أي مهام WorkManager معلّقة
+      try {
+        final syncManager = ref.read(appwriteSyncManagerProvider);
+        unawaited(AppwriteAutoSyncTask.consumePendingAndSync(syncManager));
+        unawaited(syncManager.sync());
+      } catch (_) {}
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
@@ -233,25 +263,30 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: MaterialApp(
-        title: 'مارينا هوتيل',
-        theme: buildTheme(),
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-        ],
-        supportedLocales: const [Locale('ar')],
-        routes: {
-          '/employees': (_) => const EmployeesListScreen(),
-          '/expenses': (_) => const ExpensesListScreen(),
-          '/finance/cash-register': (_) => const FinanceScreen(),
-          '/finance/cash-transactions': (_) => const FinanceScreen(),
-          '/debts': (_) => const DebtsListScreen(),
-          '/reports': (_) => const ReportsScreen(),
-        },
-        home: const RootRouter(),
-      ),
+      child: Consumer(builder: (context, ref, _) {
+        final isDark = ref.watch(themeSettingsProvider);
+        return MaterialApp(
+          title: 'مارينا هوتيل',
+          theme: buildTheme(),
+          darkTheme: buildDarkTheme(),
+          themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('ar')],
+          routes: {
+            '/employees': (_) => const EmployeesListScreen(),
+            '/expenses': (_) => const ExpensesListScreen(),
+            '/finance/cash-register': (_) => const FinanceScreen(),
+            '/finance/cash-transactions': (_) => const FinanceScreen(),
+            '/debts': (_) => const DebtsListScreen(),
+            '/reports': (_) => const ReportsScreen(),
+          },
+          home: const RootRouter(),
+        );
+      }),
     );
   }
 }

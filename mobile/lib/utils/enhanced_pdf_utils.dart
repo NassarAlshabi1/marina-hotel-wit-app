@@ -187,7 +187,7 @@ class EnhancedPdfUtils {
                     title.isNotEmpty ? title : 'وثيقة رسمية',
                     style: pw.TextStyle(
                       font: fonts.bold,
-                      fontSize: 12,
+                      fontSize: 14,
                       color: PdfColors.textWhite,
                     ),
                   ),
