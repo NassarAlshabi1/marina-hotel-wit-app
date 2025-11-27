@@ -138,7 +138,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final booking = bookingMap[payment.bookingLocalId];
       final candidateRoom = payment.roomNumber ?? booking?.roomNumber;
       final paymentDate = _parseDateTime(payment.paymentDate);
-      final bookingCode = booking != null ? _formatBookingCode(booking.id) : null;
       if (_fromDate != null && paymentDate.isBefore(_fromDate!)) {
         continue;
       }

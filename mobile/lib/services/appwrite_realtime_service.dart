@@ -248,7 +248,7 @@ class AppwriteRealtimeService {
 
   /// معالجة استجابة Realtime
   void _handleRealtimeResponse(
-    models.RealtimeMessage response,
+    dynamic response,
     String collectionId,
     RealtimeEventHandler handler,
   ) {

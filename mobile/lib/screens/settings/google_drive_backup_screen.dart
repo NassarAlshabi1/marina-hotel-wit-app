@@ -417,7 +417,7 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
     final sizeInMB = backup.size != null 
         ? (backup.size! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
-    final recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '') ?? 0;
+    final recordsCount = (backup.metadata?['total_records'] as int?) ?? int.tryParse(backup.appProperties['records_count'] ?? '') ?? 0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
     final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
@@ -441,7 +441,7 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
 
   void _showRestoreConfirmation(DriveBackupFile backup) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    final recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '') ?? 0;
+    final recordsCount = (backup.metadata?['total_records'] as int?) ?? int.tryParse(backup.appProperties['records_count'] ?? '') ?? 0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : 'غير معروف';
     final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
     

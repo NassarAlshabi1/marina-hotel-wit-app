@@ -373,10 +373,12 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
 
       double roomRate = room?.price ?? 0;
       if (roomRate <= 0 && booking.expectedNights > 0) {
-        roomRate = booking.totalDueCached / booking.expectedNights;
+        // استخدم المدفوع كأساس لحساب السعر
+        final estimatedTotal = paidAmount > 0 ? paidAmount : (room?.price ?? 0) * booking.expectedNights;
+        roomRate = estimatedTotal / booking.expectedNights;
       }
       if (roomRate <= 0) {
-        roomRate = booking.totalDueCached; // كحل أخير
+        roomRate = paidAmount; // استخدم المدفوع كحل أخير
       }
 
       final total = nights * roomRate;
