@@ -8,9 +8,14 @@ import '../../components/app_scaffold.dart';
 import '../../services/local_db.dart' as db;
 import '../../models/payment_models.dart';
 import '../../components/widgets/payment_widgets.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
+
+const List<PaymentMethod> _allowedPaymentMethods = [
+  PaymentMethod.cash,
+  PaymentMethod.transfer,
+];
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
   final db.Booking booking;
@@ -558,9 +563,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
-          itemCount: PaymentMethod.values.length,
+          itemCount: _allowedPaymentMethods.length,
           itemBuilder: (context, index) {
-            final method = PaymentMethod.values[index];
+            final method = _allowedPaymentMethods[index];
             return _buildPaymentMethodCard(method);
           },
         ),

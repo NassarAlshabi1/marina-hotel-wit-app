@@ -1,19 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'local_db.dart';
-import 'repositories/rooms_repository.dart';
-import 'repositories/bookings_repository.dart';
-import 'repositories/employees_repository.dart';
-import 'repositories/expenses_repository.dart';
-import 'repositories/cash_repository.dart';
-import 'repositories/payments_repository.dart';
-import 'repositories/debts_repository.dart';
-import 'repositories/notes_repository.dart';
-import 'repositories/simple_notes_repository.dart';
-import 'repositories/shift_notes_repository.dart';
-import 'repositories/salary_withdrawals_repository.dart';
+import '../services/local_db.dart';
+import '../services/repositories/rooms_repository.dart';
+import '../services/repositories/bookings_repository.dart';
+import '../services/repositories/employees_repository.dart';
+import '../services/repositories/expenses_repository.dart';
+import '../services/repositories/cash_repository.dart';
+import '../services/repositories/payments_repository.dart';
+import '../services/repositories/debts_repository.dart';
+import '../services/repositories/notes_repository.dart';
+import '../services/repositories/simple_notes_repository.dart';
+import '../services/repositories/shift_notes_repository.dart';
+import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/auth_local_store.dart';
 
-import 'whatsapp_service.dart';
+import '../services/whatsapp_service.dart';
 import '../utils/status_utils.dart';
 
 // إضافة Backup Providers

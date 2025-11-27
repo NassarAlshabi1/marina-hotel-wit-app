@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
@@ -39,7 +39,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   final _advancePayment = TextEditingController();
   String _paymentMethod = 'نقداً';
   final _paymentNotes = TextEditingController();
-  static const _paymentMethods = ['نقداً', 'بطاقة ائتمان', 'تحويل بنكي', 'محفظة إلكترونية'];
+  static const _paymentMethods = ['نقداً', 'تحويل بنكي'];
 
   static const _idTypes = ['بطاقة شخصية', 'جواز سفر', 'رخصة قيادة', 'بطاقة عسكرية', 'استبيان', 'شهادة ميلاد'];
   static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
@@ -209,18 +209,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                         ),
                         onChanged: (_) => _recalculateExpectedNights(),
                         onTap: () => _pickDate(_checkout),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _expectedNights,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'عدد الليالي المتوقع *'),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'مطلوب';
-                          final value = int.tryParse(v.trim());
-                          if (value == null || value < 1) return 'عدد الليالي غير صحيح';
-                          return null;
-                        },
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(

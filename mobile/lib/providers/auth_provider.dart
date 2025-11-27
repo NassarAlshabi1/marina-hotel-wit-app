@@ -181,6 +181,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> addUser({
+    required String username,
+    required String password,
+    required String fullName,
+    required String userType,
+    required List<String> permissions,
+  }) async {
+    await _store.addUser(
+      username: username,
+      password: password,
+      fullName: fullName,
+      userType: userType,
+      permissions: permissions,
+    );
+  }
 
 }
 

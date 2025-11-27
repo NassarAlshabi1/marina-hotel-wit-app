@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../screens/notes/notes_screen.dart';
-import '../services/providers.dart';
+import '../providers/repository_providers.dart';
 import '../services/sync_service.dart';
 
 
