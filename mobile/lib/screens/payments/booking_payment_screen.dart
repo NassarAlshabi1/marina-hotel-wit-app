@@ -679,15 +679,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
           ),
           
-          if (summary.isFullyPaid) ...[
-            _buildActionCard(
-              'تسجيل المغادرة',
-              'تسجيل مغادرة العميل وتحرير الغرفة',
-              Icons.logout,
-              Colors.green,
-              () => _showCheckoutConfirmation(summary),
-            ),
-          ],
+          _buildActionCard(
+            'تسجيل المغادرة',
+            summary.isFullyPaid
+                ? 'تسجيل مغادرة العميل وتحرير الغرفة'
+                : 'يجب إتمام الدفع أولاً - المتبقي: ${_currencyFmt.format(summary.remainingAmount)}',
+            Icons.logout,
+            summary.isFullyPaid ? Colors.green : Colors.grey,
+            summary.isFullyPaid ? () => _showCheckoutConfirmation(summary) : null,
+            enabled: summary.isFullyPaid,
+          ),
           
           _buildActionCard(
             'إرسال كشف حساب',
@@ -732,19 +733,35 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String subtitle,
     IconData icon,
     Color color,
-    VoidCallback onTap,
-  ) {
+    VoidCallback? onTap, {
+    bool enabled = true,
+  }) {
+    final effectiveColor = enabled ? color : Colors.grey;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.2),
-          child: Icon(icon, color: color),
+          backgroundColor: effectiveColor.withOpacity(0.2),
+          child: Icon(icon, color: effectiveColor),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: onTap,
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: enabled ? null : Colors.grey,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: enabled ? null : Colors.grey.shade600),
+        ),
+        trailing: Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: enabled ? null : Colors.grey,
+        ),
+        onTap: enabled ? onTap : null,
+        enabled: enabled,
       ),
     );
   }

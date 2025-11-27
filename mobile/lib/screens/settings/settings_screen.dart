@@ -10,8 +10,7 @@ import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
 import 'comprehensive_backup_screen.dart';
-import 'auto_backup_settings_screen.dart';
-import 'smart_sync_settings_screen.dart';
+import 'data_protection_screen.dart';
 import 'sync_performance_settings_screen.dart';
 import 'appwrite_settings_screen.dart';
 
@@ -101,23 +100,13 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => _showBackupDialog(context),
             ),
             _SettingsItem(
-              title: 'النسخ التلقائي الذكي',
-              subtitle: 'نسخ احتياطي تلقائي عند التغييرات',
-              icon: Icons.auto_awesome,
-              color: Colors.amber,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AutoBackupSettingsScreen()),
-              ),
-            ),
-            _SettingsItem(
-              title: 'المزامنة بين الأجهزة',
-              subtitle: 'مزامنة تلقائية مع الأجهزة الأخرى',
-              icon: Icons.sync_alt,
+              title: 'مركز النسخ والمزامنة',
+              subtitle: 'توحيد النسخ الاحتياطي والمزامنة الذكية',
+              icon: Icons.shield_moon,
               color: Colors.cyan,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SmartSyncSettingsScreen()),
+                MaterialPageRoute(builder: (context) => const DataProtectionScreen()),
               ),
             ),
             _SettingsItem(
