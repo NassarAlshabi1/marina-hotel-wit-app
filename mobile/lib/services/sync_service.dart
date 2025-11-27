@@ -12,7 +12,7 @@ import 'daos/employees_dao.dart';
 import 'daos/expenses_dao.dart';
 import 'daos/cash_transactions_dao.dart';
 import 'daos/payments_dao.dart';
-import 'providers.dart';
+import '../providers/repository_providers.dart';
 import 'sync_performance_optimizer.dart';
 import 'delta_sync_service.dart';
 import 'package:flutter/material.dart';

@@ -38,6 +38,12 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
 
   Future<Expense?> getById(int id) => (select(expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<Expense?> watchById(int id) => (select(expenses)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<Expense?> getByLocalUuid(String localUuid) => (select(expenses)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  Future<Expense?> getByServerId(String serverId) {
+    final parsedServerId = _parseServerId(serverId);
+    if (parsedServerId == null) return Future.value(null);
+    return (select(expenses)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+  }
 
   Future<int> insertOne(ExpensesCompanion data, {bool originIsServer = false}) async {
     final now = Time.nowEpoch();
@@ -60,12 +66,75 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
     final now = Time.nowEpoch();
     final existing = await getById(id);
     if (existing == null) return 0;
-    final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
+    final comp = data.copyWith(
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      version: Value(existing.version + 1),
+    );
     final rows = await (update(expenses)..where((t) => t.id.equals(id))).write(comp);
     if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'expenses', op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, payload: _payloadFrom(comp, base: existing), clientTs: now);
+      await outboxDao.merge(
+        entity: 'expenses',
+        op: 'update',
+        localUuid: existing.localUuid,
+        serverId: existing.serverId,
+        payload: _payloadFrom(comp, base: existing),
+        clientTs: now,
+      );
     }
     return rows;
+  }
+
+  Future<int> updateByLocalUuid(String localUuid, ExpensesCompanion data, {bool originIsServer = false}) async {
+    final now = Time.nowEpoch();
+    final existing = await getByLocalUuid(localUuid);
+    if (existing == null) return 0;
+    final comp = data.copyWith(
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      version: Value(existing.version + 1),
+    );
+    final rows = await (update(expenses)..where((t) => t.localUuid.equals(localUuid))).write(comp);
+    if (rows > 0 && !originIsServer) {
+      await outboxDao.merge(
+        entity: 'expenses',
+        op: 'update',
+        localUuid: existing.localUuid,
+        serverId: existing.serverId,
+        payload: _payloadFrom(comp, base: existing),
+        clientTs: now,
+      );
+    }
+    return rows;
+  }
+
+  Future<int> updateByServerId(String? serverId, ExpensesCompanion data, {bool originIsServer = false}) async {
+    final parsedServerId = _parseServerId(serverId);
+    if (parsedServerId == null) return 0;
+    final now = Time.nowEpoch();
+    final existing = await (select(expenses)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+    if (existing == null) return 0;
+    final comp = data.copyWith(
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      version: Value(existing.version + 1),
+    );
+    final rows = await (update(expenses)..where((t) => t.serverId.equals(parsedServerId))).write(comp);
+    if (rows > 0 && !originIsServer) {
+      await outboxDao.merge(
+        entity: 'expenses',
+        op: 'update',
+        localUuid: existing.localUuid,
+        serverId: existing.serverId,
+        payload: _payloadFrom(comp, base: existing),
+        clientTs: now,
+      );
+    }
+    return rows;
+  }
+
+  Future<int> hardDelete(int id) async {
+    return (delete(expenses)..where((t) => t.id.equals(id))).go();
   }
 
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
@@ -85,13 +154,57 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
 
   Map<String, dynamic> _payloadFrom(ExpensesCompanion comp, {Expense? base}) {
     final m = <String, dynamic>{};
-    if (comp.expenseType.present) m['expense_type'] = comp.expenseType.value;
-    if (comp.relatedId.present) m['related_id'] = comp.relatedId.value;
-    if (comp.description.present) m['description'] = comp.description.value;
-    if (comp.amount.present) m['amount'] = comp.amount.value;
-    if (comp.date.present) m['date'] = comp.date.value;
-    if (comp.cashTransactionId.present) m['cash_transaction_id'] = comp.cashTransactionId.value;
+    
+    if (comp.expenseType.present) {
+      m['expense_type'] = comp.expenseType.value;
+    } else if (base != null) {
+      m['expense_type'] = base.expenseType;
+    }
+    
+    if (comp.relatedId.present) {
+      m['related_id'] = comp.relatedId.value;
+    } else if (base != null) {
+      m['related_id'] = base.relatedId;
+    }
+    
+    if (comp.description.present) {
+      m['description'] = comp.description.value;
+    } else if (base != null) {
+      m['description'] = base.description;
+    }
+    
+    if (comp.amount.present) {
+      m['amount'] = comp.amount.value;
+    } else if (base != null) {
+      m['amount'] = base.amount;
+    }
+    
+    if (comp.date.present) {
+      m['date'] = comp.date.value;
+    } else if (base != null) {
+      m['date'] = base.date;
+    }
+    
+    if (comp.cashTransactionId.present) {
+      m['cash_transaction_id'] = comp.cashTransactionId.value;
+    } else if (base != null) {
+      m['cash_transaction_id'] = base.cashTransactionId;
+    }
+    
+    if (base != null) {
+      m['local_uuid'] = base.localUuid;
+      m['server_id'] = base.serverId;
+      m['version'] = base.version + 1;
+    }
+    
     return m;
+  }
+
+  int? _parseServerId(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return int.tryParse(trimmed);
   }
 
   // دوال النسخ الاحتياطي

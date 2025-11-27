@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -36,6 +37,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   double _totalPaid = 0;
   double _totalRemaining = 0;
+
+  String _formatBookingCode(int bookingId) => bookingId.toString().padLeft(6, '0');
 
   @override
   void didChangeDependencies() {
@@ -136,6 +139,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final booking = bookingMap[payment.bookingLocalId];
       final candidateRoom = payment.roomNumber ?? booking?.roomNumber;
       final paymentDate = _parseDateTime(payment.paymentDate);
+      final bookingCode = booking != null ? _formatBookingCode(booking.id) : null;
       if (_fromDate != null && paymentDate.isBefore(_fromDate!)) {
         continue;
       }
@@ -173,6 +177,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         roomNumber: roomNumber,
         payerName: payerName,
         bookingId: booking?.id,
+        bookingCode: bookingCode ?? 'غير متوفر',
         booking: booking,
         payment: payment,
       ));
@@ -220,42 +225,177 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
     final roomLabel = _selectedRoom?.isNotEmpty == true ? _selectedRoom! : 'كل الغرف';
-    final summaryEntries = [
-      MapEntry('إجمالي المدفوع', _formatNumber(_totalPaid)),
-      MapEntry('الإجمالي المتبقي', _formatNumber(_totalRemaining)),
-      MapEntry('عدد السجلات', _rows.length.toString()),
-    ];
+    final tableHeaderColor = PdfColor.fromInt(0xFFE6EEF9);
+    final borderColor = PdfColor.fromInt(0xFFB4C7E7);
 
-    final headers = ['التاريخ', 'المبلغ', 'الغرفة', 'اسم الدافع', 'طريقة الدفع'];
-    final dataRows = _rows
-        .map((row) => [
-              _dateLabelFormat.format(row.paymentDate),
-              _formatNumber(row.amount),
-              row.roomNumber,
-              row.payerName,
-              row.payment.paymentMethod,
-            ])
-        .toList();
+    List<List<String>> buildDataRows() {
+      return List<List<String>>.generate(_rows.length, (index) {
+        final row = _rows[index];
+        return [
+          (index + 1).toString(),
+          row.bookingCode,
+          row.booking?.guestName ?? row.payerName,
+          row.roomNumber,
+          row.payment.paymentMethod,
+          _dateLabelFormat.format(row.paymentDate),
+          _formatNumber(row.amount),
+        ];
+      });
+    }
 
-    pw.Widget buildSummaryTable() => pw.Table(
-          border: pw.TableBorder.all(width: 0.5),
-          children: summaryEntries
-              .map(
-                (entry) => pw.TableRow(
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(entry.key, style: pw.TextStyle(font: fonts.bold)),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(entry.value, style: pw.TextStyle(font: fonts.base)),
-                    ),
-                  ],
-                ),
-              )
-              .toList(),
-        );
+    pw.Widget buildHeader() {
+      return pw.Container(
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: borderColor, width: 1),
+          borderRadius: pw.BorderRadius.circular(6),
+        ),
+        padding: const pw.EdgeInsets.all(12),
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('فندق مارينا بلازا', style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
+                  pw.Text('القاهرة - شارع احمد قاسم', style: pw.TextStyle(font: fonts.base, fontSize: 10)),
+                  pw.Text('الهاتف: 02324457 - البريد: info@marina.com', style: pw.TextStyle(font: fonts.base, fontSize: 10)),
+                ],
+              ),
+            ),
+            if (logo != null)
+              pw.Container(
+                height: 60,
+                width: 60,
+                decoration: pw.BoxDecoration(border: pw.Border.all(color: borderColor)),
+                child: pw.Center(child: pw.Image(logo, fit: pw.BoxFit.contain)),
+              ),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget buildMetaBox() {
+      pw.Widget metaRow(String label, String value) => pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
+              pw.Text(value, style: pw.TextStyle(font: fonts.base, fontSize: 10)),
+            ],
+          );
+
+      return pw.Container(
+        margin: const pw.EdgeInsets.only(top: 8),
+        padding: const pw.EdgeInsets.all(10),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: borderColor, width: 0.8),
+          borderRadius: pw.BorderRadius.circular(6),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            metaRow('تقرير:', 'دفوعات النزلاء'),
+            metaRow('الفترة:', 'من $fromLabel إلى $toLabel'),
+            metaRow('الغرفة:', roomLabel),
+            metaRow('عدد السجلات:', _rows.length.toString()),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget buildTable() {
+      final headers = ['م', 'رقم الحجز', 'اسم النزيل', 'الغرفة', 'طريقة الدفع', 'التاريخ', 'المبلغ'];
+      final rows = buildDataRows();
+
+      pw.Widget headerCell(String text) => pw.Container(
+            padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            color: tableHeaderColor,
+            alignment: pw.Alignment.center,
+            child: pw.Text(text, style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
+          );
+
+      pw.Widget bodyCell(String text, {pw.Alignment alignment = pw.Alignment.center}) => pw.Container(
+            padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            alignment: alignment,
+            child: pw.Text(text, style: pw.TextStyle(font: fonts.base, fontSize: 10)),
+          );
+
+      return pw.Table(
+        border: pw.TableBorder.all(color: borderColor, width: 0.6),
+        columnWidths: const {
+          0: pw.FlexColumnWidth(0.6),
+          1: pw.FlexColumnWidth(1),
+          2: pw.FlexColumnWidth(1.5),
+          3: pw.FlexColumnWidth(1),
+          4: pw.FlexColumnWidth(1),
+          5: pw.FlexColumnWidth(1.2),
+          6: pw.FlexColumnWidth(0.9),
+        },
+        children: [
+          pw.TableRow(
+            decoration: pw.BoxDecoration(color: tableHeaderColor),
+            children: headers.map((h) => headerCell(h)).toList(),
+          ),
+          ...rows.map(
+            (row) => pw.TableRow(
+              children: [
+                bodyCell(row[0]),
+                bodyCell(row[1]),
+                bodyCell(row[2], alignment: pw.Alignment.centerRight),
+                bodyCell(row[3]),
+                bodyCell(row[4]),
+                bodyCell(row[5]),
+                bodyCell(row[6]),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    pw.Widget buildTotals() {
+      return pw.Container(
+        margin: const pw.EdgeInsets.only(top: 8),
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          borderRadius: pw.BorderRadius.circular(6),
+          border: pw.Border.all(color: borderColor, width: 0.8),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text('إجمالي المدفوع: ${_formatNumber(_totalPaid)}', style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
+            pw.SizedBox(height: 4),
+            pw.Text('المتبقي: ${_formatNumber(_totalRemaining)}', style: pw.TextStyle(font: fonts.base, fontSize: 12)),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget buildFooterSignatures() {
+      pw.Widget signatureBox(String label) => pw.Expanded(
+            child: pw.Column(
+              children: [
+                pw.Container(height: 40, decoration: pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: borderColor)))),
+                pw.SizedBox(height: 4),
+                pw.Text(label, style: pw.TextStyle(font: fonts.base, fontSize: 10)),
+              ],
+            ),
+          );
+
+      return pw.Padding(
+        padding: const pw.EdgeInsets.only(top: 16),
+        child: pw.Row(
+          children: [
+            signatureBox('مدير المبيعات'),
+            pw.SizedBox(width: 12),
+            signatureBox('مدير الحسابات'),
+            pw.SizedBox(width: 12),
+            signatureBox('مندوب المبيعات'),
+          ],
+        ),
+      );
+    }
 
     doc.addPage(
       pw.MultiPage(
@@ -268,41 +408,14 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             style: pw.TextStyle(font: fonts.base, fontSize: 10),
           ),
         ),
-        build: (context) {
-          return [
-            if (logo != null)
-              pw.Align(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Image(logo, width: 80),
-              ),
-            pw.Align(
-              alignment: pw.Alignment.centerRight,
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
-                children: [
-                  pw.Text('فندق مارينا بلازا', style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
-                  pw.Text('القاهرة - شارع احمد قاسم • رقم الهاتف 02324457', style: pw.TextStyle(font: fonts.base, fontSize: 8)),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 6),
-            pw.Text('تقرير دفوعات النزلاء', style: pw.TextStyle(font: fonts.bold, fontSize: 20)),
-            pw.SizedBox(height: 8),
-            pw.Text('الفترة: من $fromLabel إلى $toLabel'),
-            pw.Text('الغرفة: $roomLabel'),
-            pw.SizedBox(height: 12),
-            buildSummaryTable(),
-            pw.SizedBox(height: 12),
-            pw.Table.fromTextArray(
-              headers: headers,
-              headerStyle: pw.TextStyle(font: fonts.bold),
-              cellStyle: pw.TextStyle(font: fonts.base),
-              data: dataRows,
-              cellAlignment: pw.Alignment.centerRight,
-              border: pw.TableBorder.all(width: 0.5),
-            ),
-          ];
-        },
+        build: (context) => [
+          buildHeader(),
+          buildMetaBox(),
+          pw.SizedBox(height: 12),
+          buildTable(),
+          buildTotals(),
+          buildFooterSignatures(),
+        ],
       ),
     );
 
@@ -402,9 +515,11 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                                     Text('اسم الدافع: ${row.payerName}'),
                                     const SizedBox(height: 4),
                                     Text('طريقة الدفع: ${row.payment.paymentMethod}'),
+                                    const SizedBox(height: 4),
+                                    Text('رقم الحجز: ${row.bookingCode}'),
                                     if (row.booking != null) ...[
                                       const SizedBox(height: 4),
-                                      Text('رقم الحجز: ${row.booking!.id}'),
+                                      Text('اسم الضيف: ${row.booking!.guestName}'),
                                     ],
                                   ],
                                 ),
@@ -475,6 +590,7 @@ class _PaymentReportRow {
     required this.roomNumber,
     required this.payerName,
     required this.bookingId,
+    required this.bookingCode,
     required this.booking,
     required this.payment,
   });
@@ -484,6 +600,7 @@ class _PaymentReportRow {
   final String roomNumber;
   final String payerName;
   final int? bookingId;
+  final String bookingCode;
   final Booking? booking;
   final Payment payment;
 }

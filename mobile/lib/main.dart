@@ -20,7 +20,8 @@ import 'screens/settings/settings_screen.dart';
 import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
-import 'services/providers.dart';
+import 'providers/theme_provider.dart';
+import 'providers/repository_providers.dart';
 import 'services/seed.dart';
 import 'services/auto_backup_task.dart';
 import 'services/auto_backup_manager.dart';
@@ -262,25 +263,30 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: MaterialApp(
-        title: 'مارينا هوتيل',
-        theme: buildTheme(),
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-        ],
-        supportedLocales: const [Locale('ar')],
-        routes: {
-          '/employees': (_) => const EmployeesListScreen(),
-          '/expenses': (_) => const ExpensesListScreen(),
-          '/finance/cash-register': (_) => const FinanceScreen(),
-          '/finance/cash-transactions': (_) => const FinanceScreen(),
-          '/debts': (_) => const DebtsListScreen(),
-          '/reports': (_) => const ReportsScreen(),
-        },
-        home: const RootRouter(),
-      ),
+      child: Consumer(builder: (context, ref, _) {
+        final isDark = ref.watch(themeSettingsProvider);
+        return MaterialApp(
+          title: 'مارينا هوتيل',
+          theme: buildTheme(),
+          darkTheme: buildDarkTheme(),
+          themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('ar')],
+          routes: {
+            '/employees': (_) => const EmployeesListScreen(),
+            '/expenses': (_) => const ExpensesListScreen(),
+            '/finance/cash-register': (_) => const FinanceScreen(),
+            '/finance/cash-transactions': (_) => const FinanceScreen(),
+            '/debts': (_) => const DebtsListScreen(),
+            '/reports': (_) => const ReportsScreen(),
+          },
+          home: const RootRouter(),
+        );
+      }),
     );
   }
 }

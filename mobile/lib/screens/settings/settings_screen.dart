@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
 import '../../widgets/smart_sync_widgets.dart';
+import '../../providers/theme_provider.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
 import 'comprehensive_backup_screen.dart';
-import 'auto_backup_settings_screen.dart';
-import 'smart_sync_settings_screen.dart';
+import 'data_protection_screen.dart';
 import 'sync_performance_settings_screen.dart';
 import 'appwrite_settings_screen.dart';
 
@@ -23,6 +23,7 @@ class SettingsScreen extends ConsumerWidget {
     final roomsAsync = ref.watch(roomsListProvider);
     final bookingsAsync = ref.watch(bookingsListProvider);
     final employeesAsync = ref.watch(employeesListProvider);
+    final usersCountAsync = ref.watch(usersCountProvider);
 
     return AppScaffold(
       title: 'الإعدادات الرئيسية',
@@ -37,7 +38,7 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // بطاقة الإحصائيات السريعة
-          _buildQuickStatsCard(context, roomsAsync, bookingsAsync, employeesAsync),
+          _buildQuickStatsCard(context, roomsAsync, bookingsAsync, employeesAsync, usersCountAsync),
           
           const SizedBox(height: 20),
           
@@ -99,23 +100,13 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => _showBackupDialog(context),
             ),
             _SettingsItem(
-              title: 'النسخ التلقائي الذكي',
-              subtitle: 'نسخ احتياطي تلقائي عند التغييرات',
-              icon: Icons.auto_awesome,
-              color: Colors.amber,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AutoBackupSettingsScreen()),
-              ),
-            ),
-            _SettingsItem(
-              title: 'المزامنة بين الأجهزة',
-              subtitle: 'مزامنة تلقائية مع الأجهزة الأخرى',
-              icon: Icons.sync_alt,
+              title: 'مركز النسخ والمزامنة',
+              subtitle: 'توحيد النسخ الاحتياطي والمزامنة الذكية',
+              icon: Icons.shield_moon,
               color: Colors.cyan,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SmartSyncSettingsScreen()),
+                MaterialPageRoute(builder: (context) => const DataProtectionScreen()),
               ),
             ),
             _SettingsItem(
@@ -171,6 +162,7 @@ class SettingsScreen extends ConsumerWidget {
     AsyncValue roomsAsync,
     AsyncValue bookingsAsync,
     AsyncValue employeesAsync,
+    AsyncValue<int> usersCountAsync,
   ) {
     return Card(
       elevation: 4,
@@ -222,7 +214,7 @@ class SettingsScreen extends ConsumerWidget {
                 Expanded(
                   child: _buildStatItem(
                     'المستخدمين',
-                    '1', // سيتم تحديثه لاحقاً
+                    (usersCountAsync.value?.toString()) ?? '---',
                     Icons.admin_panel_settings,
                     Colors.purple,
                   ),
@@ -346,29 +338,35 @@ class SettingsScreen extends ConsumerWidget {
   void _showAppSettingsDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('إعدادات التطبيق'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(Icons.dark_mode),
-              title: Text('المظهر الداكن'),
-              trailing: Switch(value: false, onChanged: null),
+      builder: (context) => Consumer(
+        builder: (context, ref, _) {
+          final isDark = ref.watch(themeSettingsProvider);
+          return AlertDialog(
+            title: const Text('إعدادات التطبيق'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.dark_mode),
+                  title: const Text('المظهر الداكن'),
+                  value: isDark,
+                  onChanged: (v) => ref.read(themeSettingsProvider.notifier).setDarkMode(v),
+                ),
+                const ListTile(
+                  leading: Icon(Icons.language),
+                  title: Text('اللغة'),
+                  subtitle: Text('العربية'),
+                ),
+              ],
             ),
-            ListTile(
-              leading: Icon(Icons.language),
-              title: Text('اللغة'),
-              subtitle: Text('العربية'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -376,15 +374,40 @@ class SettingsScreen extends ConsumerWidget {
   void _showSystemReports(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تقارير النظام'),
-        content: const Text('عرض تقارير حالة النظام والأداء'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-        ],
+      builder: (context) => Consumer(
+        builder: (context, ref, _) {
+          final backupState = ref.watch(backupStatusProvider);
+          final totalBackups = ref.watch(totalBackupsCountProvider);
+          final dbSize = ref.watch(databaseSizeProvider);
+          final lastDrive = ref.watch(lastBackupTimeProvider);
+          final lastLocal = ref.watch(lastLocalBackupTimeProvider);
+          return AlertDialog(
+            title: const Text('تقارير النظام'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _infoRow('تسجيل Google Drive', backupState.isSignedIn ? 'متصل' : 'غير متصل'),
+                const SizedBox(height: 6),
+                _infoRow('عدد النسخ الاحتياطية', '$totalBackups'),
+                const SizedBox(height: 6),
+                _infoRow('آخر نسخة سحابية', lastDrive?.toString() ?? '—'),
+                const SizedBox(height: 6),
+                _infoRow('آخر نسخة محلية', lastLocal?.toString() ?? '—'),
+                const SizedBox(height: 6),
+                _infoRow('حجم قاعدة البيانات', dbSize != null ? '${(dbSize / (1024*1024)).toStringAsFixed(2)} MB' : '—'),
+                const Divider(height: 16),
+                Text(backupState.message ?? '', style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -400,6 +423,16 @@ class SettingsScreen extends ConsumerWidget {
           const Text('تطبيق شامل لإدارة العمليات الفندقية'),
         ],
       ),
+    );
+  }
+  Widget _infoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.grey)),
+        const SizedBox(width: 12),
+        Flexible(child: Text(value, textAlign: TextAlign.end)),
+      ],
     );
   }
 }

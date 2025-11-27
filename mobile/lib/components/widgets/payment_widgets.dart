@@ -574,7 +574,7 @@ class PaymentMethodSelector extends StatelessWidget {
     super.key,
     this.selectedMethod,
     required this.onMethodSelected,
-    this.availableMethods = PaymentMethod.values,
+    this.availableMethods = const [PaymentMethod.cash, PaymentMethod.transfer],
   });
 
   @override
