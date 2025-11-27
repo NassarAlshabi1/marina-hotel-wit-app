@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -11,7 +10,7 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/local_db.dart';
-import '../../utils/pdf_utils.dart';
+import '../../utils/enhanced_pdf_utils.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
@@ -219,202 +218,105 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
-    final fonts = await PdfUtils.loadArabicFonts();
-    final logo = await PdfUtils.loadLogoImage();
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
+    final logo = await EnhancedPdfUtils.loadLogoImage();
     final doc = pw.Document();
     final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
     final roomLabel = _selectedRoom?.isNotEmpty == true ? _selectedRoom! : 'كل الغرف';
-    final tableHeaderColor = PdfColor.fromInt(0xFFE6EEF9);
-    final borderColor = PdfColor.fromInt(0xFFB4C7E7);
 
-    List<List<String>> buildDataRows() {
-      return List<List<String>>.generate(_rows.length, (index) {
-        final row = _rows[index];
-        return [
-          (index + 1).toString(),
-          row.bookingCode,
-          row.booking?.guestName ?? row.payerName,
-          row.roomNumber,
-          row.payment.paymentMethod,
-          _dateLabelFormat.format(row.paymentDate),
-          _formatNumber(row.amount),
-        ];
-      });
-    }
+    final dataRows = List<List<String>>.generate(_rows.length, (index) {
+      final row = _rows[index];
+      return [
+        (index + 1).toString(),
+        row.bookingCode,
+        row.booking?.guestName ?? row.payerName,
+        row.roomNumber,
+        row.payment.paymentMethod,
+        _dateLabelFormat.format(row.paymentDate),
+        EnhancedPdfUtils.formatNumber(row.amount),
+      ];
+    });
 
-    pw.Widget buildHeader() {
-      return pw.Container(
-        decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: borderColor, width: 1),
-          borderRadius: pw.BorderRadius.circular(6),
-        ),
-        padding: const pw.EdgeInsets.all(12),
-        child: pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Expanded(
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('فندق مارينا بلازا', style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
-                  pw.Text('القاهرة - شارع احمد قاسم', style: pw.TextStyle(font: fonts.base, fontSize: 10)),
-                  pw.Text('الهاتف: 02324457 - البريد: info@marina.com', style: pw.TextStyle(font: fonts.base, fontSize: 10)),
-                ],
-              ),
-            ),
-            if (logo != null)
-              pw.Container(
-                height: 60,
-                width: 60,
-                decoration: pw.BoxDecoration(border: pw.Border.all(color: borderColor)),
-                child: pw.Center(child: pw.Image(logo, fit: pw.BoxFit.contain)),
-              ),
-          ],
-        ),
-      );
-    }
-
-    pw.Widget buildMetaBox() {
-      pw.Widget metaRow(String label, String value) => pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
-              pw.Text(value, style: pw.TextStyle(font: fonts.base, fontSize: 10)),
-            ],
-          );
-
-      return pw.Container(
-        margin: const pw.EdgeInsets.only(top: 8),
-        padding: const pw.EdgeInsets.all(10),
-        decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: borderColor, width: 0.8),
-          borderRadius: pw.BorderRadius.circular(6),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            metaRow('تقرير:', 'دفوعات النزلاء'),
-            metaRow('الفترة:', 'من $fromLabel إلى $toLabel'),
-            metaRow('الغرفة:', roomLabel),
-            metaRow('عدد السجلات:', _rows.length.toString()),
-          ],
-        ),
-      );
-    }
-
-    pw.Widget buildTable() {
-      final headers = ['م', 'رقم الحجز', 'اسم النزيل', 'الغرفة', 'طريقة الدفع', 'التاريخ', 'المبلغ'];
-      final rows = buildDataRows();
-
-      pw.Widget headerCell(String text) => pw.Container(
-            padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            color: tableHeaderColor,
-            alignment: pw.Alignment.center,
-            child: pw.Text(text, style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
-          );
-
-      pw.Widget bodyCell(String text, {pw.Alignment alignment = pw.Alignment.center}) => pw.Container(
-            padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            alignment: alignment,
-            child: pw.Text(text, style: pw.TextStyle(font: fonts.base, fontSize: 10)),
-          );
-
-      return pw.Table(
-        border: pw.TableBorder.all(color: borderColor, width: 0.6),
-        columnWidths: const {
-          0: pw.FlexColumnWidth(0.6),
-          1: pw.FlexColumnWidth(1),
-          2: pw.FlexColumnWidth(1.5),
-          3: pw.FlexColumnWidth(1),
-          4: pw.FlexColumnWidth(1),
-          5: pw.FlexColumnWidth(1.2),
-          6: pw.FlexColumnWidth(0.9),
-        },
-        children: [
-          pw.TableRow(
-            decoration: pw.BoxDecoration(color: tableHeaderColor),
-            children: headers.map((h) => headerCell(h)).toList(),
-          ),
-          ...rows.map(
-            (row) => pw.TableRow(
-              children: [
-                bodyCell(row[0]),
-                bodyCell(row[1]),
-                bodyCell(row[2], alignment: pw.Alignment.centerRight),
-                bodyCell(row[3]),
-                bodyCell(row[4]),
-                bodyCell(row[5]),
-                bodyCell(row[6]),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    pw.Widget buildTotals() {
-      return pw.Container(
-        margin: const pw.EdgeInsets.only(top: 8),
-        padding: const pw.EdgeInsets.all(12),
-        decoration: pw.BoxDecoration(
-          borderRadius: pw.BorderRadius.circular(6),
-          border: pw.Border.all(color: borderColor, width: 0.8),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text('إجمالي المدفوع: ${_formatNumber(_totalPaid)}', style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
-            pw.SizedBox(height: 4),
-            pw.Text('المتبقي: ${_formatNumber(_totalRemaining)}', style: pw.TextStyle(font: fonts.base, fontSize: 12)),
-          ],
-        ),
-      );
-    }
-
-    pw.Widget buildFooterSignatures() {
-      pw.Widget signatureBox(String label) => pw.Expanded(
-            child: pw.Column(
-              children: [
-                pw.Container(height: 40, decoration: pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: borderColor)))),
-                pw.SizedBox(height: 4),
-                pw.Text(label, style: pw.TextStyle(font: fonts.base, fontSize: 10)),
-              ],
-            ),
-          );
-
+    pw.Widget metaRow(String label, String value) {
       return pw.Padding(
-        padding: const pw.EdgeInsets.only(top: 16),
+        padding: const pw.EdgeInsets.only(bottom: 6),
         child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            signatureBox('مدير المبيعات'),
-            pw.SizedBox(width: 12),
-            signatureBox('مدير الحسابات'),
-            pw.SizedBox(width: 12),
-            signatureBox('مندوب المبيعات'),
+            pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+            pw.Text(value, style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
           ],
         ),
       );
     }
+
+    final metaInfoCard = EnhancedPdfUtils.buildInfoCard(
+      title: 'تفاصيل التقرير',
+      fonts: fonts,
+      content: [
+        metaRow('تقرير', 'دفوعات النزلاء'),
+        metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
+        metaRow('الغرفة', roomLabel),
+        metaRow('عدد السجلات', _rows.length.toString()),
+      ],
+    );
+
+    final statisticsRow = pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+      children: [
+        pw.Expanded(
+          child: EnhancedPdfUtils.buildStatisticsBox(
+            title: 'إجمالي المدفوع',
+            value: EnhancedPdfUtils.formatNumber(_totalPaid),
+            fonts: fonts,
+            color: PdfColors.success,
+          ),
+        ),
+        pw.SizedBox(width: 8),
+        pw.Expanded(
+          child: EnhancedPdfUtils.buildStatisticsBox(
+            title: 'المتبقي',
+            value: EnhancedPdfUtils.formatNumber(_totalRemaining),
+            fonts: fonts,
+            color: PdfColors.warning,
+          ),
+        ),
+      ],
+    );
 
     doc.addPage(
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         footer: (context) => pw.Align(
           alignment: pw.Alignment.center,
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.base, fontSize: 10),
+            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
           ),
         ),
         build: (context) => [
-          buildHeader(),
-          buildMetaBox(),
+          EnhancedPdfUtils.buildProfessionalHeader(
+            fonts: fonts,
+            logo: logo,
+            title: 'تقرير الدفوعات',
+            subtitle: 'الفترة: من $fromLabel إلى $toLabel',
+          ),
+          pw.SizedBox(height: 16),
+          metaInfoCard,
           pw.SizedBox(height: 12),
-          buildTable(),
-          buildTotals(),
-          buildFooterSignatures(),
+          statisticsRow,
+          pw.SizedBox(height: 12),
+          EnhancedPdfUtils.buildProfessionalTable(
+            headers: ['م', 'رقم الحجز', 'اسم النزيل', 'الغرفة', 'طريقة الدفع', 'التاريخ', 'المبلغ'],
+            data: dataRows,
+            fonts: fonts,
+            headerColor: PdfColors.primary,
+            alternateRowColor: PdfColors.backgroundLight,
+          ),
+          pw.SizedBox(height: 16),
+          EnhancedPdfUtils.buildContactFooter(fonts: fonts),
         ],
       ),
     );
