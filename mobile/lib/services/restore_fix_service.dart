@@ -631,7 +631,7 @@ class RestoreFixService {
       final String stayDurationIso =
           '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
       final int? lastNightEpoch =
-          lastNightEnd != null ? lastNightEnd!.millisecondsSinceEpoch ~/ 1000 : null;
+          lastNightEnd != null ? lastNightEnd.millisecondsSinceEpoch ~/ 1000 : null;
       final String hotelDayCheckin = _hotelDayKey(checkin);
       final String hotelDayCheckout = _hotelDayKey(checkout);
       final bool isOverdue =

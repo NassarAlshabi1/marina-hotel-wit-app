@@ -5,7 +5,7 @@ part 'shift_notes_dao.g.dart';
 
 @DriftAccessor(tables: [ShiftNotes])
 class ShiftNotesDao extends DatabaseAccessor<AppDatabase> with _$ShiftNotesDaoMixin {
-  ShiftNotesDao(AppDatabase db) : super(db);
+  ShiftNotesDao(super.db);
 
   // جلب جميع الملاحظات
   Future<List<ShiftNote>> getAllNotes() => select(shiftNotes).get();

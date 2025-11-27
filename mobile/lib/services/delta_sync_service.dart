@@ -43,7 +43,7 @@ class DeltaSyncComputation {
   });
 
   final List<DeltaSyncChange> changes;
-  final Map<String, Map<String, _MirrorRow>> mirrorSnapshot;
+  final Map<String, Map<String, MirrorRow>> mirrorSnapshot;
   final Set<String> fallbackTables;
 
   List<Map<String, dynamic>> toPayload() {
@@ -65,7 +65,7 @@ class DeltaSyncService {
     final configs = _entityConfigs();
     final nowTs = _normalizeTimestamp(Time.nowEpoch());
     final changes = <DeltaSyncChange>[];
-    final snapshot = <String, Map<String, _MirrorRow>>{};
+    final snapshot = <String, Map<String, MirrorRow>>{};
     final fallbackTables = <String>{};
 
     for (final config in configs) {
@@ -76,7 +76,7 @@ class DeltaSyncService {
         fallbackTables.add(config.entity);
         debugPrint('⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط');
       }
-      final tableSnapshot = <String, _MirrorRow>{};
+      final tableSnapshot = <String, MirrorRow>{};
       final seen = <String>{};
 
       for (final row in rows) {
@@ -94,7 +94,6 @@ class DeltaSyncService {
         final deletedAt = _asInt(sanitized['deleted_at']);
         final previous = existingMirror[localUuid];
         final clientTs = nowTs;
-        bool emitted = false;
 
         if (deletedAt != null && deletedAt > normalizedSince) {
           payload['deleted_at'] = deletedAt;
@@ -107,7 +106,6 @@ class DeltaSyncService {
             clientTimestamp: clientTs,
           ));
           debugPrint('إرسال كـ DELETE: ${config.entity}/$localUuid');
-          emitted = true;
         } else {
           final isFirstSyncForTable = !hasMirror;
           final isNewRecordInMirror = previous == null;
@@ -125,7 +123,6 @@ class DeltaSyncService {
               clientTimestamp: clientTs,
             ));
             debugPrint('إرسال كـ INSERT: ${config.entity}/$localUuid');
-            emitted = true;
           } else if (previous != null && lastModified != null && lastModified > normalizedSince) {
             changes.add(DeltaSyncChange(
               entity: config.entity,
@@ -136,11 +133,10 @@ class DeltaSyncService {
               clientTimestamp: clientTs,
             ));
             debugPrint('إرسال كـ UPDATE: ${config.entity}/$localUuid');
-            emitted = true;
           }
         }
 
-        tableSnapshot[localUuid] = _MirrorRow(
+        tableSnapshot[localUuid] = MirrorRow(
           localUuid: localUuid,
           rowHash: rowHash,
           payload: Map<String, dynamic>.from(sanitized),
@@ -157,7 +153,7 @@ class DeltaSyncService {
         }
         final payload = Map<String, dynamic>.from(previous.payload);
         final previousDeletedAt = _asInt(payload['deleted_at']);
-        final deleteStamp = previousDeletedAt != null ? previousDeletedAt : nowTs;
+        final deleteStamp = previousDeletedAt ?? nowTs;
         payload['deleted_at'] = deleteStamp;
         payload['row_hash'] = previous.rowHash;
         changes.add(DeltaSyncChange(
@@ -218,17 +214,17 @@ class DeltaSyncService {
     _mirrorTableReady = true;
   }
 
-  Future<Map<String, Map<String, _MirrorRow>>> _loadMirror() async {
+  Future<Map<String, Map<String, MirrorRow>>> _loadMirror() async {
     await _ensureMirrorTable();
     final rows = await db.customSelect('SELECT table_name, local_uuid, row_hash, payload, last_seen_at FROM sync_mirror').get();
-    final result = <String, Map<String, _MirrorRow>>{};
+    final result = <String, Map<String, MirrorRow>>{};
     for (final row in rows) {
       final table = row.read<String>('table_name');
       final uuid = row.read<String>('local_uuid');
       final payload = jsonDecode(row.read<String>('payload')) as Map<String, dynamic>;
       result
           .putIfAbsent(table, () => {})
-          [uuid] = _MirrorRow(localUuid: uuid, rowHash: row.read<String>('row_hash'), payload: payload, lastSeenAt: row.read<int>('last_seen_at'));
+          [uuid] = MirrorRow(localUuid: uuid, rowHash: row.read<String>('row_hash'), payload: payload, lastSeenAt: row.read<int>('last_seen_at'));
     }
     return result;
   }
@@ -329,8 +325,8 @@ class DeltaSyncService {
   }
 }
 
-class _MirrorRow {
-  _MirrorRow({
+class MirrorRow {
+  MirrorRow({
     required this.localUuid,
     required this.rowHash,
     required this.payload,

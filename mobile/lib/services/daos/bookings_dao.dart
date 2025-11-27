@@ -8,7 +8,7 @@ part 'bookings_dao.g.dart';
 
 @DriftAccessor(tables: [Bookings])
 class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin {
-  BookingsDao(AppDatabase db, this.outboxDao) : super(db);
+  BookingsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
   Future<List<Booking>> list({String? search, String? roomNumber, String? status, String? from, String? to, bool includeDeleted = false, int? limit, int? offset}) async {
@@ -80,6 +80,32 @@ class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin 
       await outboxDao.merge(entity: 'bookings', op: 'delete', localUuid: existing.localUuid, serverId: existing.serverId, payload: {'booking_id': existing.serverBookingId}, clientTs: now);
     }
     return rows;
+  }
+
+  Future<int> deleteById(int id, {bool originIsServer = false}) => softDelete(id, originIsServer: originIsServer);
+
+  Future<List<Booking>> getAll({bool includeDeleted = false}) {
+    final query = select(bookings);
+    if (!includeDeleted) {
+      query.where((t) => t.deletedAt.isNull());
+    }
+    return query.get();
+  }
+
+  Future<List<Booking>> getByRoomNumber(String roomNumber, {bool includeDeleted = false}) {
+    final query = select(bookings)..where((t) => t.roomNumber.equals(roomNumber));
+    if (!includeDeleted) {
+      query.where((t) => t.deletedAt.isNull());
+    }
+    return query.get();
+  }
+
+  Future<List<Booking>> getByStatus(String status, {bool includeDeleted = false}) {
+    final query = select(bookings)..where((t) => t.status.equals(status));
+    if (!includeDeleted) {
+      query.where((t) => t.deletedAt.isNull());
+    }
+    return query.get();
   }
 
   Map<String, dynamic> _payloadFrom(BookingsCompanion comp, {Booking? base}) {

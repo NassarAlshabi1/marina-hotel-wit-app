@@ -1,6 +1,5 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
-import 'package:flutter/foundation.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_error_handler.dart';
@@ -81,22 +80,22 @@ class AppwriteService {
     try {
       _logger.debug('Creating document in $collectionId', tag: 'CRUD');
       
-      final operation = () async {
-        return await _databases.createDocument(
+      Future<models.Document> performOperation() {
+        return _databases.createDocument(
           databaseId: AppwriteConfig.databaseId,
           collectionId: collectionId,
           documentId: documentId ?? 'unique()',
           data: data,
         );
-      };
+      }
 
       final document = useRetry
           ? await _networkHelper.withRetryAndTimeout(
-              operation: operation,
+              operation: performOperation,
               operationName: 'createDocument($collectionId)',
             )
           : await _networkHelper.withTimeout(
-              operation: operation,
+              operation: performOperation,
               operationName: 'createDocument($collectionId)',
             );
 
@@ -171,22 +170,22 @@ class AppwriteService {
     try {
       _logger.debug('Updating document $documentId in $collectionId', tag: 'CRUD');
       
-      final operation = () async {
-        return await _databases.updateDocument(
+      Future<models.Document> performOperation() {
+        return _databases.updateDocument(
           databaseId: AppwriteConfig.databaseId,
           collectionId: collectionId,
           documentId: documentId,
           data: data,
         );
-      };
+      }
 
       final document = useRetry
           ? await _networkHelper.withRetryAndTimeout(
-              operation: operation,
+              operation: performOperation,
               operationName: 'updateDocument($collectionId)',
             )
           : await _networkHelper.withTimeout(
-              operation: operation,
+              operation: performOperation,
               operationName: 'updateDocument($collectionId)',
             );
 
@@ -267,24 +266,23 @@ class AppwriteService {
         tag: 'CRUD',
       );
       
-      // تنفيذ العملية مع retry و timeout
-      final operation = () async {
+      Future<List<models.Document>> performOperation() async {
         final documentList = await _databases.listDocuments(
           databaseId: AppwriteConfig.databaseId,
           collectionId: collectionId,
           queries: queries,
         );
         return documentList.documents;
-      };
+      }
 
       final documents = useRetry
           ? await _networkHelper.withRetryAndTimeout(
-              operation: operation,
+              operation: performOperation,
               operationName: 'listDocuments($collectionId)',
               timeout: AppwriteConfig.defaultTimeout,
             )
           : await _networkHelper.withTimeout(
-              operation: operation,
+              operation: performOperation,
               operationName: 'listDocuments($collectionId)',
               timeout: AppwriteConfig.defaultTimeout,
             );
@@ -359,7 +357,7 @@ class AppwriteService {
           data: data,
         );
       }
-      throw error;
+      rethrow;
     }
   }
 
@@ -643,7 +641,7 @@ class AppwriteService {
               await _databases.deleteDocument(
                 databaseId: AppwriteConfig.databaseId,
                 collectionId: testCollection,
-                documentId: testDocumentId!,
+                documentId: testDocumentId,
               );
               _logger.debug('Cleaned up test document: $testDocumentId', tag: 'CONNECTION_TEST');
             } catch (cleanupError) {

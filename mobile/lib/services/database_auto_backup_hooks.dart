@@ -1,8 +1,11 @@
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'auto_backup_manager.dart';
 import 'local_db.dart';
 
 /// مدد لتتبع التغييرات في قاعدة البيانات للنسخ التلقائي
+typedef TablePredicate<TTable extends Table> = Expression<bool> Function(TTable table);
+
 extension DatabaseAutoBackupExtension on AppDatabase {
   
   /// تهيئة تتبع التغييرات للنسخ التلقائي
@@ -14,11 +17,11 @@ extension DatabaseAutoBackupExtension on AppDatabase {
   }
 
   /// تتبع إدراج سجل جديد
-  Future<T> insertWithBackupTrigger<T extends DataClass>(
-    TableInfo<Table, T> table,
-    Insertable<T> entity, {
+  Future<int> insertWithBackupTrigger<TTable extends Table, TData extends DataClass>(
+    TableInfo<TTable, TData> table,
+    Insertable<TData> entity, {
     InsertMode? mode,
-    UpsertClause<Table, T>? onConflict,
+    UpsertClause<TTable, TData>? onConflict,
   }) async {
     final result = await into(table).insert(entity, mode: mode, onConflict: onConflict);
     
@@ -33,13 +36,17 @@ extension DatabaseAutoBackupExtension on AppDatabase {
   }
 
   /// تتبع تحديث سجل
-  Future<bool> updateWithBackupTrigger<T extends DataClass>(
-    TableInfo<Table, T> table,
-    Insertable<T> entity, {
-    Where<Table>? where,
+  Future<bool> updateWithBackupTrigger<TTable extends Table, TData extends DataClass>(
+    TableInfo<TTable, TData> table,
+    Insertable<TData> entity, {
+    TablePredicate<TTable>? where,
   }) async {
-    final result = await (update(table)..where((t) => where?.call(t) ?? const CustomExpression('1=1')))
-        .write(entity);
+    final statement = update(table);
+    if (where != null) {
+      statement.where(where);
+    }
+
+    final result = await statement.write(entity);
     
     if (result > 0) {
       // تسجيل التغيير للنسخ التلقائي
@@ -54,12 +61,17 @@ extension DatabaseAutoBackupExtension on AppDatabase {
   }
 
   /// تتبع حذف سجل
-  Future<int> deleteWithBackupTrigger<T extends DataClass>(
-    TableInfo<Table, T> table, {
-    Where<Table>? where,
+  Future<int> deleteWithBackupTrigger<TTable extends Table, TData extends DataClass>(
+    TableInfo<TTable, TData> table, {
+    TablePredicate<TTable>? where,
     Map<String, dynamic>? recordData,
   }) async {
-    final result = await (delete(table)..where((t) => where?.call(t) ?? const CustomExpression('1=1'))).go();
+    final statement = delete(table);
+    if (where != null) {
+      statement.where(where);
+    }
+
+    final result = await statement.go();
     
     if (result > 0) {
       // تسجيل التغيير للنسخ التلقائي
@@ -76,7 +88,7 @@ extension DatabaseAutoBackupExtension on AppDatabase {
 
 /// مساعد للتفاعل مع قاعدة البيانات مع النسخ التلقائي
 class AutoBackupDatabaseHelper {
-  static final AppDatabase _db = getDatabase();
+  static final AppDatabase _db = DatabaseManager.instance;
 
   // طرق مساعدة للحجوزات
   static Future<int> insertBooking(BookingsCompanion booking) async {

@@ -6,8 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'google_drive_backup_service.dart';
-import 'local_db.dart';
-import '../providers/repository_providers.dart';
 
 /// مدير النسخ الاحتياطي التلقائي الذكي
 /// يراقب التغييرات في قاعدة البيانات ويقوم بعمل نسخ احتياطية تلقائية

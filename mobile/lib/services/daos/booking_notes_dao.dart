@@ -8,7 +8,7 @@ part 'booking_notes_dao.g.dart';
 
 @DriftAccessor(tables: [BookingNotes])
 class BookingNotesDao extends DatabaseAccessor<AppDatabase> with _$BookingNotesDaoMixin {
-  BookingNotesDao(AppDatabase db, this.outboxDao) : super(db);
+  BookingNotesDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
   Future<List<BookingNote>> list({int? bookingId, bool includeDeleted = false}) async {
