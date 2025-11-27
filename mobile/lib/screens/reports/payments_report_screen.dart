@@ -37,6 +37,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   double _totalPaid = 0;
   double _totalRemaining = 0;
 
+  String _formatBookingCode(int bookingId) => bookingId.toString().padLeft(6, '0');
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -136,6 +138,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final booking = bookingMap[payment.bookingLocalId];
       final candidateRoom = payment.roomNumber ?? booking?.roomNumber;
       final paymentDate = _parseDateTime(payment.paymentDate);
+      final bookingCode = booking != null ? _formatBookingCode(booking.id) : null;
       if (_fromDate != null && paymentDate.isBefore(_fromDate!)) {
         continue;
       }
@@ -173,6 +176,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         roomNumber: roomNumber,
         payerName: payerName,
         bookingId: booking?.id,
+        bookingCode: bookingCode ?? 'غير متوفر',
         booking: booking,
         payment: payment,
       ));
@@ -402,9 +406,11 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                                     Text('اسم الدافع: ${row.payerName}'),
                                     const SizedBox(height: 4),
                                     Text('طريقة الدفع: ${row.payment.paymentMethod}'),
+                                    const SizedBox(height: 4),
+                                    Text('رقم الحجز: ${row.bookingCode}'),
                                     if (row.booking != null) ...[
                                       const SizedBox(height: 4),
-                                      Text('رقم الحجز: ${row.booking!.id}'),
+                                      Text('اسم الضيف: ${row.booking!.guestName}'),
                                     ],
                                   ],
                                 ),
@@ -475,6 +481,7 @@ class _PaymentReportRow {
     required this.roomNumber,
     required this.payerName,
     required this.bookingId,
+    required this.bookingCode,
     required this.booking,
     required this.payment,
   });
@@ -484,6 +491,7 @@ class _PaymentReportRow {
   final String roomNumber;
   final String payerName;
   final int? bookingId;
+  final String bookingCode;
   final Booking? booking;
   final Payment payment;
 }
