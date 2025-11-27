@@ -10,7 +10,7 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/local_db.dart';
-import '../../utils/pdf_utils.dart';
+import '../../utils/enhanced_pdf_utils.dart';
 
 class ExpensesReportScreen extends ConsumerStatefulWidget {
   const ExpensesReportScreen({
@@ -182,50 +182,70 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
-    final fonts = await PdfUtils.loadArabicFonts();
-    final logo = await PdfUtils.loadLogoImage();
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
+    final logo = await EnhancedPdfUtils.loadLogoImage();
     final doc = pw.Document();
     final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
-    final typeLabel = _selectedType?.isNotEmpty == true ? _selectedType! : 'الكل';
-    final summaryEntries = [
-      MapEntry('إجمالي المصروفات', _formatNumber(_totalAmount)),
-      MapEntry('عدد السجلات', _rows.length.toString()),
-    ];
+    final selectedTypeLabel = _selectedType?.isNotEmpty == true ? _selectedType! : 'الكل';
+
+    pw.Widget metaRow(String label, String value) {
+      return pw.Padding(
+        padding: const pw.EdgeInsets.only(bottom: 6),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+            pw.Text(value, style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+          ],
+        ),
+      );
+    }
+
+    final metaInfoCard = EnhancedPdfUtils.buildInfoCard(
+      title: widget.title,
+      fonts: fonts,
+      content: [
+        metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
+        metaRow(widget.typeLabel, selectedTypeLabel),
+        metaRow('عدد السجلات', _rows.length.toString()),
+      ],
+    );
+
+    final statisticsRow = pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+      children: [
+        pw.Expanded(
+          child: EnhancedPdfUtils.buildStatisticsBox(
+            title: 'إجمالي المصروفات',
+            value: EnhancedPdfUtils.formatNumber(_totalAmount),
+            fonts: fonts,
+            color: PdfColors.secondary,
+          ),
+        ),
+        pw.SizedBox(width: 8),
+        pw.Expanded(
+          child: EnhancedPdfUtils.buildStatisticsBox(
+            title: 'عدد السجلات',
+            value: _rows.length.toString(),
+            fonts: fonts,
+            color: PdfColors.info,
+          ),
+        ),
+      ],
+    );
 
     final headers = <String>['التاريخ', 'المبلغ', 'النوع', 'الوصف'];
     if (widget.includeEmployeeDetails) {
       headers.add('الموظف');
     }
 
-    pw.Widget buildSummaryTable() {
-      return pw.Table(
-        border: pw.TableBorder.all(width: 0.5),
-        children: summaryEntries
-            .map(
-              (entry) => pw.TableRow(
-                children: [
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(entry.key, style: pw.TextStyle(font: fonts.bold)),
-                  ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(entry.value, style: pw.TextStyle(font: fonts.base)),
-                  ),
-                ],
-              ),
-            )
-            .toList(),
-      );
-    }
-
     final dataRows = _rows.map((row) {
       final cells = [
         _dateLabelFormat.format(row.date),
-        _formatNumber(row.amount),
+        EnhancedPdfUtils.formatNumber(row.amount),
         row.type,
-        row.description,
+        row.description.isNotEmpty ? row.description : '-',
       ];
       if (widget.includeEmployeeDetails) {
         cells.add(row.employee?.name ?? 'غير محدد');
@@ -236,49 +256,36 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     doc.addPage(
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         footer: (context) => pw.Align(
           alignment: pw.Alignment.center,
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.base, fontSize: 10),
+            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
           ),
         ),
-        build: (context) {
-          return [
-            if (logo != null)
-              pw.Align(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Image(logo, width: 80),
-              ),
-            pw.Align(
-              alignment: pw.Alignment.centerRight,
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
-                children: [
-                  pw.Text('فندق مارينا بلازا', style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
-                  pw.Text('القاهرة - شارع احمد قاسم • رقم الهاتف 02324457', style: pw.TextStyle(font: fonts.base, fontSize: 8)),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 6),
-            pw.Text(widget.title, style: pw.TextStyle(font: fonts.bold, fontSize: 20)),
-            pw.SizedBox(height: 8),
-            pw.Text('الفترة: من $fromLabel إلى $toLabel'),
-            pw.Text('${widget.typeLabel}: $typeLabel'),
-            pw.SizedBox(height: 12),
-            buildSummaryTable(),
-            pw.SizedBox(height: 12),
-            pw.Table.fromTextArray(
-              headers: headers,
-              headerStyle: pw.TextStyle(font: fonts.bold),
-              cellStyle: pw.TextStyle(font: fonts.base),
-              data: dataRows,
-              cellAlignment: pw.Alignment.centerRight,
-              border: pw.TableBorder.all(width: 0.5),
-            ),
-          ];
-        },
+        build: (context) => [
+          EnhancedPdfUtils.buildProfessionalHeader(
+            fonts: fonts,
+            logo: logo,
+            title: widget.title,
+            subtitle: 'الفترة: من $fromLabel إلى $toLabel',
+          ),
+          pw.SizedBox(height: 16),
+          metaInfoCard,
+          pw.SizedBox(height: 12),
+          statisticsRow,
+          pw.SizedBox(height: 12),
+          EnhancedPdfUtils.buildProfessionalTable(
+            headers: headers,
+            data: dataRows,
+            fonts: fonts,
+            headerColor: PdfColors.primary,
+            alternateRowColor: PdfColors.backgroundLight,
+          ),
+          pw.SizedBox(height: 16),
+          EnhancedPdfUtils.buildContactFooter(fonts: fonts),
+        ],
       ),
     );
 
