@@ -80,13 +80,12 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(child: Text('خطأ: $e')),
                 data: (bookings) {
-                  // تصفية الحجوزات المكتملة فقط
-                  final completedBookings = bookings.where((b) => 
-                    b.status == 'completed' || b.status == 'checked_out').toList();
+                  // تصفية الحجوزات المؤهلة (محجوزة أو مكتملة)
+                  final eligibleBookings = bookings.where(_isDebtEligibleBooking).toList();
                   
-                  if (completedBookings.isEmpty) {
+                  if (eligibleBookings.isEmpty) {
                     return const Center(
-                      child: Text('لا توجد حجوزات مكتملة لإنشاء ديون منها'),
+                      child: Text('لا توجد حجوزات محجوزة أو مكتملة لإنشاء ديون منها'),
                     );
                   }
                   
@@ -96,9 +95,9 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
                       Expanded(
                         flex: 2,
                         child: ListView.builder(
-                          itemCount: completedBookings.length,
+                          itemCount: eligibleBookings.length,
                           itemBuilder: (context, index) {
-                            final booking = completedBookings[index];
+                            final booking = eligibleBookings[index];
                             final isSelected = _selectedBooking?.id == booking.id;
                             
                             return Card(
@@ -303,6 +302,26 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
 
   void _calculateCost() {
     _totalCost = _actualNights * _roomRate;
+  }
+
+  static bool _isDebtEligibleBooking(Booking booking) {
+    final normalized = booking.status.trim().toLowerCase();
+    const allowedStatuses = {
+      'محجوزة',
+      'محجوز',
+      'booked',
+      'reserved',
+      'confirmed',
+      'checked_out',
+      'checked-out',
+      'completed',
+      'مكتمل',
+    };
+    if (allowedStatuses.contains(normalized)) {
+      return true;
+    }
+    // بعض الأنظمة تخزن الحالة باللغة العربية دون تشكيل/مسافات
+    return normalized.contains('محجوز') || normalized.contains('مكتمل') || normalized.contains('checked') || normalized.contains('completed');
   }
 
   String _formatDate(String value) {
