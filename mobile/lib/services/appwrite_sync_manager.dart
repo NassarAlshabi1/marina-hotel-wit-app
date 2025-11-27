@@ -511,6 +511,32 @@ class AppwriteSyncManager {
           if (localUuid.isEmpty || roomNumber.isEmpty) {
             continue;
           }
+          
+          final checkinDateStr = _asString(data['checkinDate']) ?? '';
+          final checkoutDateStr = _asString(data['checkoutDate']);
+          final actualCheckoutStr = _asString(data['actualCheckout']);
+          
+          int calculatedNights = _asInt(data['calculatedNights'], fallback: 1);
+          int expectedNights = _asInt(data['expectedNights'], fallback: 1);
+          
+          if (checkinDateStr.isNotEmpty) {
+            try {
+              final checkinDate = DateTime.parse(checkinDateStr);
+              final checkoutDate = actualCheckoutStr != null && actualCheckoutStr.isNotEmpty
+                  ? DateTime.parse(actualCheckoutStr)
+                  : (checkoutDateStr != null && checkoutDateStr.isNotEmpty 
+                      ? DateTime.parse(checkoutDateStr) 
+                      : null);
+              
+              if (checkoutDate != null) {
+                calculatedNights = Time.nightsWithCutoff(checkinDate, checkout: checkoutDate);
+                expectedNights = calculatedNights;
+              }
+            } catch (e) {
+              _logger.warning('Failed to parse booking dates: $e', tag: 'SYNC');
+            }
+          }
+          
           final companion = BookingsCompanion(
             localUuid: d.Value(localUuid),
             serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
@@ -531,13 +557,13 @@ class AppwriteSyncManager {
             guestNationality: d.Value(_asString(data['guestNationality']) ?? ''),
             guestEmail: _nullableValue<String>(_asString(data['guestEmail'])),
             guestAddress: _nullableValue<String>(_asString(data['guestAddress'])),
-            checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
-            checkoutDate: _nullableValue<String>(_asString(data['checkoutDate'])),
-            actualCheckout: _nullableValue<String>(_asString(data['actualCheckout'])),
+            checkinDate: d.Value(checkinDateStr),
+            checkoutDate: _nullableValue<String>(checkoutDateStr),
+            actualCheckout: _nullableValue<String>(actualCheckoutStr),
             status: d.Value(_asString(data['status']) ?? ''),
             notes: _nullableValue<String>(_asString(data['notes'])),
-            expectedNights: d.Value(_asInt(data['expectedNights'], fallback: 1)),
-            calculatedNights: d.Value(_asInt(data['calculatedNights'], fallback: 1)),
+            expectedNights: d.Value(expectedNights),
+            calculatedNights: d.Value(calculatedNights),
           );
           batch.insert(database.bookings, companion, mode: d.InsertMode.insertOrReplace);
           processed++;
