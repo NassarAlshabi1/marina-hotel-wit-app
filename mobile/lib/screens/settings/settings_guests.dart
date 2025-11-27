@@ -582,6 +582,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final notesRepo = ref.read(notesRepoProvider);
       final debtsRepo = ref.read(debtsRepoProvider);
       final cashRepo = ref.read(cashRepoProvider);
+      final roomsRepo = ref.read(roomsRepoProvider);
 
       for (final b in guest.bookings) {
         final bookingId = b.id;
@@ -607,6 +608,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         final debts = await debtsRepo.listByBookingLocalId(bookingId);
         for (final d in debts) {
           await debtsRepo.delete(d.id);
+        }
+        // تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
+        if (b.roomNumber.isNotEmpty) {
+          final room = await roomsRepo.watchByNumber(b.roomNumber).first;
+          if (room != null && room.status != 'شاغرة') {
+            await roomsRepo.update(room.id, status: 'شاغرة');
+          }
         }
         // حذف الحجز نفسه
         await bookingsRepo.delete(bookingId);
