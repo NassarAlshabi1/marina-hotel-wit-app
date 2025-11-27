@@ -445,13 +445,16 @@ class EnhancedPdfUtils {
     PdfColor? color,
     String? icon,
   }) {
+    final baseColor = color ?? PdfColors.primary;
+    final secondaryColor = color != null ? PdfColors.backgroundLight : PdfColors.accent;
+
     return pw.Container(
       padding: const pw.EdgeInsets.all(16),
       decoration: pw.BoxDecoration(
         gradient: pw.LinearGradient(
           colors: [
-            color ?? PdfColors.primary,
-            (color ?? PdfColors.primary).flatten(PdfColors.textWhite, 0.2),
+            baseColor,
+            secondaryColor,
           ],
           begin: pw.Alignment.topLeft,
           end: pw.Alignment.bottomRight,
