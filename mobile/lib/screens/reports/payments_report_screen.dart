@@ -166,6 +166,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final roomNumber = payment.roomNumber ?? booking?.roomNumber ?? 'غير محدد';
       final payerName = booking?.guestName ?? payment.revenueType ?? 'غير محدد';
       final paymentDate = _parseDateTime(payment.paymentDate);
+      final bookingCode = booking != null ? _formatBookingCode(booking.id) : null;
       totalPaid += payment.amount;
       if (booking != null) {
         relevantBookingIds.add(booking.id);
