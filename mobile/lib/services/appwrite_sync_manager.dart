@@ -930,8 +930,16 @@ class AppwriteSyncManager {
     try {
       await action();
     } catch (error) {
+      if (error is AppwriteError && error.code == 'NOT_FOUND') {
+        _logger.debug('Delete target not found (AppwriteError): ${error.message}', tag: 'SYNC');
+        return;
+      }
+      
       final message = error.toString().toLowerCase();
-      if (message.contains('404') || message.contains('not found')) {
+      if (message.contains('404') || 
+          message.contains('not found') || 
+          message.contains('not_found') ||
+          message.contains('document_not_found')) {
         _logger.debug('Delete target not found: $message', tag: 'SYNC');
         return;
       }
