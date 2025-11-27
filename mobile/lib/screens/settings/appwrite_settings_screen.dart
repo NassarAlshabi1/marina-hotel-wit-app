@@ -6,6 +6,8 @@ import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_logger.dart';
 import '../../services/appwrite_config.dart';
+import '../../services/restore_fix_service.dart';
+import '../../services/local_db.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 
@@ -950,6 +952,12 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     try {
       final syncManager = ref.read(ap.appwriteSyncManagerProvider);
       final result = await syncManager.sync();
+      
+      if (result.isSuccess && result.recordsPulled > 0) {
+        final fixService = RestoreFixService(DatabaseManager.instance);
+        final fixReport = await fixService.runAutoFixAfterRestore();
+        debugPrint('Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed');
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
