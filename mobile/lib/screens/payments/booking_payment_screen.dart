@@ -683,11 +683,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             'تسجيل المغادرة',
             summary.isFullyPaid
                 ? 'تسجيل مغادرة العميل وتحرير الغرفة'
-                : 'يجب إتمام الدفع أولاً - المتبقي: ${_currencyFmt.format(summary.remainingAmount)}',
+                : 'سيتم نقل المتبقي (${_currencyFmt.format(summary.remainingAmount)}) إلى الديون تلقائياً وتحرير الغرفة',
             Icons.logout,
-            summary.isFullyPaid ? Colors.green : Colors.grey,
-            summary.isFullyPaid ? () => _showCheckoutConfirmation(summary) : null,
-            enabled: summary.isFullyPaid,
+            summary.isFullyPaid ? Colors.green : Colors.orange,
+            () => _handleCheckout(summary),
           ),
           
           _buildActionCard(
@@ -1510,6 +1509,49 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     await invoice.generatePDF();
   }
 
+  void _handleCheckout(BookingPaymentSummary summary) {
+    if (summary.remainingAmount <= 0) {
+      _showCheckoutConfirmation(summary);
+    } else {
+      _showCheckoutWithDebtDialog(summary);
+    }
+  }
+
+  void _showCheckoutWithDebtDialog(BookingPaymentSummary summary) {
+    final remainingText = _currencyFmt.format(summary.remainingAmount);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تحويل المتبقي إلى دين'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('المبلغ المتبقي: $remainingText'),
+            const SizedBox(height: 8),
+            Text('سيتم إنشاء سجل دين باسم ${widget.booking.guestName} وربطه بالحجز الحالي.'),
+            const SizedBox(height: 8),
+            const Text('بعد التحويل سيتم تحرير الغرفة وتحديث حالة الحجز إلى مكتمل.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _processCheckoutWithDebt(summary);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700),
+            child: const Text('إنشاء دين وتحرير الغرفة'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showCheckoutConfirmation(BookingPaymentSummary summary) {
     showDialog(
       context: context,
@@ -1556,6 +1598,83 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'), backgroundColor: Colors.green));
     Navigator.pop(context);
+  }
+
+  Future<void> _processCheckoutWithDebt(BookingPaymentSummary summary) async {
+    final bookingsRepo = ref.read(bookingsRepoProvider);
+    final roomsRepo = ref.read(roomsRepoProvider);
+    final debtsRepo = ref.read(debtsRepoProvider);
+    final nowIso = Time.nowIso();
+    final dateOnly = Time.nowDateString();
+    final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+    final nowDate = DateTime.parse(nowIso);
+    final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
+
+    try {
+      final existingDebts = await debtsRepo.listByBookingLocalId(widget.booking.id);
+      db.Debt? openDebt;
+      for (final debt in existingDebts) {
+        if (debt.isSettled == 0 && debt.remainingAmount > 0) {
+          openDebt = debt;
+          break;
+        }
+      }
+
+      if (openDebt != null) {
+        await debtsRepo.update(
+          id: openDebt.id,
+          totalAmount: summary.totalAmount,
+          paidAmount: summary.paidAmount,
+          checkoutDate: nowIso,
+          dateRecorded: dateOnly,
+          debtReason: 'مغادرة مع مبلغ متبقي',
+          note: 'تحديث تلقائي من شاشة المدفوعات - غرفة ${widget.booking.roomNumber}',
+        );
+      } else {
+        await debtsRepo.create(
+          bookingLocalId: widget.booking.id,
+          guestName: widget.booking.guestName,
+          checkinDate: widget.booking.checkinDate,
+          checkoutDate: nowIso,
+          dateRecorded: dateOnly,
+          debtReason: 'مغادرة مع مبلغ متبقي',
+          totalAmount: summary.totalAmount,
+          paidAmount: summary.paidAmount,
+          paymentDate: dateOnly,
+          isSettled: false,
+          note: 'تم الإنشاء تلقائياً من شاشة المدفوعات (غرفة ${widget.booking.roomNumber})',
+        );
+      }
+
+      await bookingsRepo.update(
+        widget.booking.id,
+        status: 'مكتمل',
+        actualCheckout: nowIso,
+        calculatedNights: actualNights,
+      );
+
+      final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
+      if (room != null) {
+        await roomsRepo.update(room.id, status: 'شاغرة');
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم تحويل المبلغ المتبقي (${_currencyFmt.format(summary.remainingAmount)}) إلى سجل ديون وتحرير الغرفة'),
+          backgroundColor: Colors.orange.shade700,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل تحويل الحجز إلى دين: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _sendAccountStatement(BookingPaymentSummary summary) {
