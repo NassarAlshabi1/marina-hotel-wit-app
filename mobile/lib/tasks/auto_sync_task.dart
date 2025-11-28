@@ -89,7 +89,7 @@ class AutoSyncTask {
   static Future<void> consumePendingAndSync(SyncManager manager, {bool force = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final pending = prefs.getBool(_kPendingFlagKey) ?? false;
-    if (!pending) {
+    if (!pending && !force) {
       return;
     }
     await manager.syncAllTables(force: force);

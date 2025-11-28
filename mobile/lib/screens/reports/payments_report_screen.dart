@@ -219,11 +219,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final logo = await EnhancedPdfUtils.loadLogoImage();
     final doc = pw.Document();
     final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
-    final roomLabel = _selectedRoom?.isNotEmpty == true ? _selectedRoom! : 'كل الغرف';
+    final selectedRoomLabel = _selectedRoom?.isNotEmpty == true ? _selectedRoom! : '';
 
     final dataRows = List<List<String>>.generate(_rows.length, (index) {
       final row = _rows[index];
@@ -232,58 +231,74 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         row.bookingCode,
         row.booking?.guestName ?? row.payerName,
         row.roomNumber,
-        row.payment.paymentMethod,
+        _translatePaymentMethod(row.payment.paymentMethod),
         _dateLabelFormat.format(row.paymentDate),
         EnhancedPdfUtils.formatNumber(row.amount),
       ];
     });
 
-    pw.Widget metaRow(String label, String value) {
-      return pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 6),
-        child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+    pw.Widget _buildReportHeader() {
+      final periodLabel = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
+      return pw.Container(
+        width: double.infinity,
+        decoration: const pw.BoxDecoration(color: PdfColors.primary),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-            pw.Text(value, style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+            pw.Text(
+              'فندق مارينا بلازا',
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 20,
+                color: PdfColors.textWhite,
+              ),
+            ),
+            pw.SizedBox(height: 12),
+            pw.Center(
+              child: pw.Text(
+                'مدفوعات النزلاء',
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 18,
+                  color: PdfColors.textWhite,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              periodLabel,
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 12,
+                color: PdfColors.textWhite,
+              ),
+            ),
+            if (selectedRoomLabel.isNotEmpty) ...[
+              pw.SizedBox(height: 4),
+              pw.Text(
+                'الغرفة: $selectedRoomLabel',
+                style: pw.TextStyle(
+                  font: fonts.regular,
+                  fontSize: 12,
+                  color: PdfColors.textWhite,
+                ),
+              ),
+            ],
           ],
         ),
       );
     }
 
-    final metaInfoCard = EnhancedPdfUtils.buildInfoCard(
-      title: 'تفاصيل التقرير',
-      fonts: fonts,
-      content: [
-        metaRow('تقرير', 'دفوعات النزلاء'),
-        metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
-        metaRow('الغرفة', roomLabel),
-        metaRow('عدد السجلات', _rows.length.toString()),
-      ],
-    );
-
-    final statisticsRow = pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
-      children: [
-        pw.Expanded(
-          child: EnhancedPdfUtils.buildStatisticsBox(
-            title: 'إجمالي المدفوع',
-            value: EnhancedPdfUtils.formatNumber(_totalPaid),
-            fonts: fonts,
-            color: PdfColors.success,
-          ),
-        ),
-        pw.SizedBox(width: 8),
-        pw.Expanded(
-          child: EnhancedPdfUtils.buildStatisticsBox(
-            title: 'المتبقي',
-            value: EnhancedPdfUtils.formatNumber(_totalRemaining),
-            fonts: fonts,
-            color: PdfColors.warning,
-          ),
-        ),
-      ],
-    );
+    pw.Widget _buildPaymentsTable() {
+      return EnhancedPdfUtils.buildProfessionalTable(
+        headers: ['م', 'رقم الحجز', 'اسم النزيل', 'الغرفة', 'طريقة الدفع', 'التاريخ', 'المبلغ'],
+        data: dataRows,
+        fonts: fonts,
+        headerColor: PdfColors.primary,
+        alternateRowColor: PdfColors.backgroundLight,
+      );
+    }
 
     doc.addPage(
       pw.MultiPage(
@@ -297,26 +312,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           ),
         ),
         build: (context) => [
-          EnhancedPdfUtils.buildProfessionalHeader(
-            fonts: fonts,
-            logo: logo,
-            title: 'تقرير الدفوعات',
-            subtitle: 'الفترة: من $fromLabel إلى $toLabel',
-          ),
-          pw.SizedBox(height: 16),
-          metaInfoCard,
-          pw.SizedBox(height: 12),
-          statisticsRow,
-          pw.SizedBox(height: 12),
-          EnhancedPdfUtils.buildProfessionalTable(
-            headers: ['م', 'رقم الحجز', 'اسم النزيل', 'الغرفة', 'طريقة الدفع', 'التاريخ', 'المبلغ'],
-            data: dataRows,
-            fonts: fonts,
-            headerColor: PdfColors.primary,
-            alternateRowColor: PdfColors.backgroundLight,
-          ),
-          pw.SizedBox(height: 16),
-          EnhancedPdfUtils.buildContactFooter(fonts: fonts),
+          _buildReportHeader(),
+          pw.SizedBox(height: 20),
+          _buildPaymentsTable(),
         ],
       ),
     );
@@ -450,6 +448,23 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         ),
       ),
     );
+  }
+
+  String _translatePaymentMethod(String value) {
+    final normalized = value.toLowerCase();
+    if (normalized.contains('cash') || normalized.contains('نقد')) {
+      return 'نقداً';
+    }
+    if (normalized.contains('card') || normalized.contains('بطاق')) {
+      return 'بطاقة';
+    }
+    if (normalized.contains('transfer') || normalized.contains('تحويل')) {
+      return 'تحويل';
+    }
+    if (normalized.contains('check') || normalized.contains('شيك')) {
+      return 'شيك';
+    }
+    return value;
   }
 
   Widget _buildSummaryTile(String label, String value) {

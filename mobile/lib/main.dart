@@ -28,6 +28,8 @@ import 'services/auto_backup_manager.dart';
 import 'services/app_session_manager.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
+import 'services/google_drive_sync_service.dart';
+import 'services/sync_guardian.dart';
 import 'services/alarm_backup.dart';
 import 'components/admin_layout.dart';
 import 'services/local_db.dart';
@@ -82,6 +84,13 @@ Future<void> _initializeSmartAutoBackup() async {
     // تهيئة مدير المزامنة الذكية بين الأجهزة
     final smartSyncManager = SmartSyncManager.instance;
     await smartSyncManager.initialize(backupService);
+
+    final syncGuardian = SyncGuardian.instance;
+    final driveSyncService = GoogleDriveSyncService(googleSignIn: backupService.googleSignIn);
+    await syncGuardian.initialize(
+      database: DatabaseManager.instance,
+      driveService: driveSyncService,
+    );
     
     debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية بنجاح');
   } catch (e) {
@@ -226,6 +235,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.resumed) {
       unawaited(AppSessionManager.onAppOpen());
+      unawaited(SyncGuardian.instance.onAppForeground());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {

@@ -142,11 +142,6 @@ class EnhancedPdfHelper {
             hotelDayCheckout: null,
           );
         },
-          remainingBalanceCached: 0.0,
-          totalDueCached: 0.0,
-          totalNightsCached: 1,
-          totalPaidCached: 0.0,
-        ),
       );
 
       return PaymentReportItem(
