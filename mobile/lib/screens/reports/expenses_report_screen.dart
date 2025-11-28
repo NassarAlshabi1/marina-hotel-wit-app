@@ -22,6 +22,7 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
     this.showTypeFilter = true,
     this.includeEmployeeDetails = false,
     this.totalSummaryLabel = 'إجمالي المصروفات',
+    this.totalRowLabel = 'الإجمالي',
   });
 
   final Set<String>? allowedTypes;
@@ -31,6 +32,7 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
   final bool showTypeFilter;
   final bool includeEmployeeDetails;
   final String totalSummaryLabel;
+  final String totalRowLabel;
 
   @override
   ConsumerState<ExpensesReportScreen> createState() => _ExpensesReportScreenState();
@@ -314,7 +316,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     }
 
     final totalRow = [
-      'الإجمالي',
+      widget.totalRowLabel,
       EnhancedPdfUtils.formatNumber(_totalAmount),
       '',
       '',
