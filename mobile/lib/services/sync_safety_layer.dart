@@ -131,8 +131,16 @@ class SyncSafetyLayer {
         final decoded = jsonDecode(content) as Map<String, dynamic>;
         final tables = Map<String, dynamic>.from(decoded['tables'] as Map);
         await db.applyMergedData(tables);
-      } catch (_) {
-        // في حالة فشل الاستعادة، نُبقي السجل مع الخطأ للمراجعة.
+      } catch (rollbackError, stack) {
+        debugPrint('❌ CRITICAL: Failed to rollback snapshot ${snapshot.filePath}. Error: $rollbackError');
+        await _appendLog({
+          'event': 'rollback-error',
+          'syncId': snapshot.syncId,
+          'phase': snapshot.phase,
+          'timestamp': rollbackAt.toIso8601String(),
+          'error': rollbackError.toString(),
+          'stack': stack.toString(),
+        });
       }
     }
 
