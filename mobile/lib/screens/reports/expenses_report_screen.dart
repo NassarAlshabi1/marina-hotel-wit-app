@@ -21,6 +21,7 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
     this.typeLabel = 'نوع المصروف',
     this.showTypeFilter = true,
     this.includeEmployeeDetails = false,
+    this.totalSummaryLabel = 'إجمالي المصروفات',
   });
 
   final Set<String>? allowedTypes;
@@ -29,6 +30,7 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
   final String typeLabel;
   final bool showTypeFilter;
   final bool includeEmployeeDetails;
+  final String totalSummaryLabel;
 
   @override
   ConsumerState<ExpensesReportScreen> createState() => _ExpensesReportScreenState();
@@ -256,7 +258,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         ),
         child: pw.Row(
           children: [
-            pw.Expanded(child: buildSummaryItem('إجمالي المصروفات', EnhancedPdfUtils.formatNumber(_totalAmount), PdfColors.secondary)),
+            pw.Expanded(child: buildSummaryItem(widget.totalSummaryLabel, EnhancedPdfUtils.formatNumber(_totalAmount), PdfColors.secondary)),
             pw.SizedBox(width: 8),
             pw.Expanded(child: buildSummaryItem('عدد السجلات', _rows.length.toString(), PdfColors.info)),
           ],
@@ -437,7 +439,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Expanded(child: _buildSummaryTile('إجمالي المصروفات', _currencyFmt.format(_totalAmount))),
+            Expanded(child: _buildSummaryTile(widget.totalSummaryLabel, _currencyFmt.format(_totalAmount))),
             Expanded(child: _buildSummaryTile('عدد السجلات', _rows.length.toString())),
           ],
         ),
