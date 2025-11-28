@@ -212,28 +212,57 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       ],
     );
 
-    final statisticsRow = pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
-      children: [
-        pw.Expanded(
-          child: EnhancedPdfUtils.buildStatisticsBox(
-            title: 'إجمالي المصروفات',
-            value: EnhancedPdfUtils.formatNumber(_totalAmount),
-            fonts: fonts,
-            color: PdfColors.secondary,
+    pw.Widget _buildTotalsSummary() {
+      pw.Widget buildSummaryItem(String title, String value, PdfColor accent) {
+        return pw.Container(
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.backgroundCard,
+            border: pw.Border.all(color: accent, width: 0.7),
+            borderRadius: pw.BorderRadius.circular(4),
           ),
-        ),
-        pw.SizedBox(width: 8),
-        pw.Expanded(
-          child: EnhancedPdfUtils.buildStatisticsBox(
-            title: 'عدد السجلات',
-            value: _rows.length.toString(),
-            fonts: fonts,
-            color: PdfColors.info,
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Text(
+                title,
+                style: pw.TextStyle(
+                  font: fonts.regular,
+                  fontSize: 11,
+                  color: PdfColors.textDark,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                value,
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 16,
+                  color: accent,
+                ),
+              ),
+            ],
           ),
+        );
+      }
+
+      return pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.backgroundLight,
+          borderRadius: pw.BorderRadius.circular(6),
+          border: pw.Border.all(color: PdfColors.primary, width: 0.4),
         ),
-      ],
-    );
+        child: pw.Row(
+          children: [
+            pw.Expanded(child: buildSummaryItem('إجمالي المصروفات', EnhancedPdfUtils.formatNumber(_totalAmount), PdfColors.secondary)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(child: buildSummaryItem('عدد السجلات', _rows.length.toString(), PdfColors.info)),
+          ],
+        ),
+      );
+    }
 
     final headers = <String>['التاريخ', 'المبلغ', 'النوع', 'الوصف'];
     if (widget.includeEmployeeDetails) {
@@ -274,7 +303,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           pw.SizedBox(height: 16),
           metaInfoCard,
           pw.SizedBox(height: 12),
-          statisticsRow,
+          _buildTotalsSummary(),
           pw.SizedBox(height: 12),
           EnhancedPdfUtils.buildProfessionalTable(
             headers: headers,

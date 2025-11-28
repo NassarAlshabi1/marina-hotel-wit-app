@@ -181,48 +181,62 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       ],
     );
 
-    final statisticsSection = pw.Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        pw.SizedBox(
-          width: 180,
-          child: EnhancedPdfUtils.buildStatisticsBox(
-            title: 'إجمالي الديون',
-            value: EnhancedPdfUtils.formatNumber(_totalDebt),
-            fonts: fonts,
-            color: PdfColors.danger,
+    pw.Widget _buildTotalsSummary() {
+      pw.Widget buildSummaryItem(String title, String value, PdfColor accent) {
+        return pw.Container(
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.backgroundCard,
+            border: pw.Border.all(color: accent, width: 0.7),
+            borderRadius: pw.BorderRadius.circular(4),
           ),
-        ),
-        pw.SizedBox(
-          width: 180,
-          child: EnhancedPdfUtils.buildStatisticsBox(
-            title: 'المبالغ المدفوعة',
-            value: EnhancedPdfUtils.formatNumber(_totalPaid),
-            fonts: fonts,
-            color: PdfColors.success,
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Text(
+                title,
+                style: pw.TextStyle(
+                  font: fonts.regular,
+                  fontSize: 11,
+                  color: PdfColors.textDark,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                value,
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 16,
+                  color: accent,
+                ),
+              ),
+            ],
           ),
+        );
+      }
+
+      return pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.backgroundLight,
+          borderRadius: pw.BorderRadius.circular(6),
+          border: pw.Border.all(color: PdfColors.primary, width: 0.4),
         ),
-        pw.SizedBox(
-          width: 180,
-          child: EnhancedPdfUtils.buildStatisticsBox(
-            title: 'المبالغ المتبقية',
-            value: EnhancedPdfUtils.formatNumber(_totalRemaining),
-            fonts: fonts,
-            color: PdfColors.warning,
-          ),
+        child: pw.Row(
+          children: [
+            pw.Expanded(child: buildSummaryItem('إجمالي الديون', EnhancedPdfUtils.formatNumber(_totalDebt), PdfColors.danger)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(child: buildSummaryItem('المبالغ المدفوعة', EnhancedPdfUtils.formatNumber(_totalPaid), PdfColors.success)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(child: buildSummaryItem('المبالغ المتبقية', EnhancedPdfUtils.formatNumber(_totalRemaining), PdfColors.warning)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(child: buildSummaryItem('عدد السجلات', _rows.length.toString(), PdfColors.info)),
+          ],
         ),
-        pw.SizedBox(
-          width: 180,
-          child: EnhancedPdfUtils.buildStatisticsBox(
-            title: 'عدد السجلات',
-            value: _rows.length.toString(),
-            fonts: fonts,
-            color: PdfColors.info,
-          ),
-        ),
-      ],
-    );
+      );
+    }
 
     final guestHeaders = ['النزيل', 'إجمالي الدين', 'المدفوع', 'المتبقي'];
     final guestData = _guestSummaries
@@ -297,7 +311,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           pw.SizedBox(height: 16),
           metaInfoCard,
           pw.SizedBox(height: 12),
-          statisticsSection,
+          _buildTotalsSummary(),
           pw.SizedBox(height: 12),
           guestSummaryCard,
           pw.SizedBox(height: 12),

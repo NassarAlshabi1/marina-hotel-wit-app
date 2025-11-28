@@ -300,6 +300,52 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       );
     }
 
+    pw.Widget _buildTotalsSummary() {
+      pw.Widget buildSummaryItem(String title, String value) {
+        return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text(
+              title,
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 12,
+                color: PdfColors.textDark,
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              value,
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 16,
+                color: PdfColors.secondary,
+              ),
+            ),
+          ],
+        );
+      }
+
+      return pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.all(16),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.backgroundCard,
+          border: pw.Border.all(color: PdfColors.primary, width: 0.5),
+        ),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+          children: [
+            pw.Expanded(child: buildSummaryItem('إجمالي المدفوع', EnhancedPdfUtils.formatNumber(_totalPaid))),
+            pw.SizedBox(width: 12),
+            pw.Expanded(child: buildSummaryItem('الإجمالي المتبقي', EnhancedPdfUtils.formatNumber(_totalRemaining))),
+            pw.SizedBox(width: 12),
+            pw.Expanded(child: buildSummaryItem('عدد السجلات', _rows.length.toString())),
+          ],
+        ),
+      );
+    }
+
     doc.addPage(
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
@@ -315,6 +361,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           _buildReportHeader(),
           pw.SizedBox(height: 20),
           _buildPaymentsTable(),
+          pw.SizedBox(height: 16),
+          _buildTotalsSummary(),
         ],
       ),
     );
