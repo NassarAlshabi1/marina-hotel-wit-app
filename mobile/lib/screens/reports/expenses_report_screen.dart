@@ -358,7 +358,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       ),
     );
 
-    await Printing.sharePdf(bytes: await doc.save(), filename: 'expenses-report.pdf');
+    String _generateFileName(String title) {
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final sanitizedTitle = title.replaceAll(RegExp(r'\s+'), '-');
+      return '$sanitizedTitle-$timestamp.pdf';
+    }
+
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename: _generateFileName(widget.title),
+    );
   }
 
   @override

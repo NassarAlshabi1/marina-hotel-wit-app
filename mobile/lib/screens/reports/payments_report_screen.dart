@@ -353,7 +353,16 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       ),
     );
 
-    await Printing.sharePdf(bytes: await doc.save(), filename: 'payments-report.pdf');
+    String _generateFileName(String title) {
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final sanitizedTitle = title.replaceAll(RegExp(r'\s+'), '-');
+      return '$sanitizedTitle-$timestamp.pdf';
+    }
+
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename: _generateFileName('مدفوعات النزلاء'),
+    );
   }
 
   @override
