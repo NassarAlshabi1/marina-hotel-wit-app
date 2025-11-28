@@ -151,7 +151,6 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final logo = await EnhancedPdfUtils.loadLogoImage();
     final doc = pw.Document();
     final fromLabel = _fromDate != null ? _dateFormat.format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
@@ -181,35 +180,46 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       ],
     );
 
-    pw.Widget _buildTotalsSummary() {
-      pw.Widget buildSummaryItem(String title, String value, PdfColor accent) {
-        return pw.Container(
-          padding: const pw.EdgeInsets.all(12),
-          decoration: pw.BoxDecoration(
-            color: PdfColors.backgroundCard,
-            border: pw.Border.all(color: accent, width: 0.7),
-            borderRadius: pw.BorderRadius.circular(4),
-          ),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
+    pw.Widget _buildReportHeader() {
+      final periodText = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
+      return pw.Container(
+        width: double.infinity,
+        decoration: const pw.BoxDecoration(color: PdfColors.primary),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text(
+              'فندق مارينا بلازا',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              'تقرير الديون',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: PdfColors.textWhite),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              periodText,
+              style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
+              textAlign: pw.TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget _buildTotalsFooter() {
+      pw.Widget buildLine(String title, String value, PdfColor color) {
+        return pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 4),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.end,
             children: [
-              pw.Text(
-                title,
-                style: pw.TextStyle(
-                  font: fonts.regular,
-                  fontSize: 11,
-                  color: PdfColors.textDark,
-                ),
-                textAlign: pw.TextAlign.center,
-              ),
-              pw.SizedBox(height: 4),
+              pw.Text('$title: ', style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: PdfColors.textDark)),
               pw.Text(
                 value,
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 16,
-                  color: accent,
-                ),
+                style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: color),
               ),
             ],
           ),
@@ -221,18 +231,14 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         padding: const pw.EdgeInsets.all(12),
         decoration: pw.BoxDecoration(
           color: PdfColors.backgroundLight,
-          borderRadius: pw.BorderRadius.circular(6),
           border: pw.Border.all(color: PdfColors.primary, width: 0.4),
         ),
-        child: pw.Row(
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
-            pw.Expanded(child: buildSummaryItem('إجمالي الديون', EnhancedPdfUtils.formatNumber(_totalDebt), PdfColors.danger)),
-            pw.SizedBox(width: 8),
-            pw.Expanded(child: buildSummaryItem('المبالغ المدفوعة', EnhancedPdfUtils.formatNumber(_totalPaid), PdfColors.success)),
-            pw.SizedBox(width: 8),
-            pw.Expanded(child: buildSummaryItem('المبالغ المتبقية', EnhancedPdfUtils.formatNumber(_totalRemaining), PdfColors.warning)),
-            pw.SizedBox(width: 8),
-            pw.Expanded(child: buildSummaryItem('عدد السجلات', _rows.length.toString(), PdfColors.info)),
+            buildLine('الإجمالي الكلي للديون', EnhancedPdfUtils.formatNumber(_totalDebt), PdfColors.danger),
+            buildLine('المبالغ المدفوعة', EnhancedPdfUtils.formatNumber(_totalPaid), PdfColors.success),
+            buildLine('المبالغ المتبقية', EnhancedPdfUtils.formatNumber(_totalRemaining), PdfColors.warning),
           ],
         ),
       );
@@ -302,16 +308,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           ),
         ),
         build: (context) => [
-          EnhancedPdfUtils.buildProfessionalHeader(
-            fonts: fonts,
-            logo: logo,
-            title: 'تقرير الديون',
-            subtitle: 'الفترة: من $fromLabel إلى $toLabel',
-          ),
+          _buildReportHeader(),
           pw.SizedBox(height: 16),
           metaInfoCard,
           pw.SizedBox(height: 12),
-          _buildTotalsSummary(),
           pw.SizedBox(height: 12),
           guestSummaryCard,
           pw.SizedBox(height: 12),
@@ -321,7 +321,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           ),
           pw.SizedBox(height: 8),
           detailsTable,
-          pw.SizedBox(height: 16),
+          pw.SizedBox(height: 12),
+          _buildTotalsFooter(),
+          pw.SizedBox(height: 12),
           EnhancedPdfUtils.buildContactFooter(fonts: fonts),
         ],
       ),

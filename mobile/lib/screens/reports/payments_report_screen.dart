@@ -244,25 +244,23 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         decoration: const pw.BoxDecoration(color: PdfColors.primary),
         padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
             pw.Text(
               'فندق مارينا بلازا',
               style: pw.TextStyle(
                 font: fonts.bold,
-                fontSize: 20,
+                fontSize: 22,
                 color: PdfColors.textWhite,
               ),
             ),
-            pw.SizedBox(height: 12),
-            pw.Center(
-              child: pw.Text(
-                'مدفوعات النزلاء',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 18,
-                  color: PdfColors.textWhite,
-                ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              'مدفوعات النزلاء',
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 20,
+                color: PdfColors.textWhite,
               ),
             ),
             pw.SizedBox(height: 8),
@@ -273,6 +271,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                 fontSize: 12,
                 color: PdfColors.textWhite,
               ),
+              textAlign: pw.TextAlign.center,
             ),
             if (selectedRoomLabel.isNotEmpty) ...[
               pw.SizedBox(height: 4),
@@ -300,47 +299,25 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       );
     }
 
-    pw.Widget _buildTotalsSummary() {
-      pw.Widget buildSummaryItem(String title, String value) {
-        return pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
-          children: [
-            pw.Text(
-              title,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 12,
-                color: PdfColors.textDark,
-              ),
-            ),
-            pw.SizedBox(height: 4),
-            pw.Text(
-              value,
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 16,
-                color: PdfColors.secondary,
-              ),
-            ),
-          ],
-        );
-      }
-
+    pw.Widget _buildTotalsFooter() {
       return pw.Container(
         width: double.infinity,
         padding: const pw.EdgeInsets.all(16),
         decoration: pw.BoxDecoration(
-          color: PdfColors.backgroundCard,
+          color: PdfColors.backgroundLight,
           border: pw.Border.all(color: PdfColors.primary, width: 0.5),
         ),
         child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+          mainAxisAlignment: pw.MainAxisAlignment.end,
           children: [
-            pw.Expanded(child: buildSummaryItem('إجمالي المدفوع', EnhancedPdfUtils.formatNumber(_totalPaid))),
-            pw.SizedBox(width: 12),
-            pw.Expanded(child: buildSummaryItem('الإجمالي المتبقي', EnhancedPdfUtils.formatNumber(_totalRemaining))),
-            pw.SizedBox(width: 12),
-            pw.Expanded(child: buildSummaryItem('عدد السجلات', _rows.length.toString())),
+            pw.Text(
+              'الإجمالي الكلي: ',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textDark),
+            ),
+            pw.Text(
+              EnhancedPdfUtils.formatNumber(_totalPaid),
+              style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.secondary),
+            ),
           ],
         ),
       );
@@ -361,8 +338,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           _buildReportHeader(),
           pw.SizedBox(height: 20),
           _buildPaymentsTable(),
-          pw.SizedBox(height: 16),
-          _buildTotalsSummary(),
+          pw.SizedBox(height: 12),
+          _buildTotalsFooter(),
         ],
       ),
     );

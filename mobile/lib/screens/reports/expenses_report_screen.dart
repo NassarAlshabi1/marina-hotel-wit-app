@@ -185,7 +185,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final logo = await EnhancedPdfUtils.loadLogoImage();
     final doc = pw.Document();
     final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
@@ -213,6 +212,35 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         metaRow('عدد السجلات', _rows.length.toString()),
       ],
     );
+
+    pw.Widget _buildReportHeader() {
+      final periodText = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
+      return pw.Container(
+        width: double.infinity,
+        decoration: const pw.BoxDecoration(color: PdfColors.primary),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text(
+              'فندق مارينا بلازا',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              widget.title,
+              style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: PdfColors.textWhite),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              periodText,
+              style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
+              textAlign: pw.TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
 
     pw.Widget _buildTotalsSummary() {
       pw.Widget buildSummaryItem(String title, String value, PdfColor accent) {
@@ -296,16 +324,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           ),
         ),
         build: (context) => [
-          EnhancedPdfUtils.buildProfessionalHeader(
-            fonts: fonts,
-            logo: logo,
-            title: widget.title,
-            subtitle: 'الفترة: من $fromLabel إلى $toLabel',
-          ),
+          _buildReportHeader(),
           pw.SizedBox(height: 16),
           metaInfoCard,
-          pw.SizedBox(height: 12),
-          _buildTotalsSummary(),
           pw.SizedBox(height: 12),
           EnhancedPdfUtils.buildProfessionalTable(
             headers: headers,
@@ -314,6 +335,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             headerColor: PdfColors.primary,
             alternateRowColor: PdfColors.backgroundLight,
           ),
+          pw.SizedBox(height: 12),
+          _buildTotalsSummary(),
           pw.SizedBox(height: 16),
           EnhancedPdfUtils.buildContactFooter(fonts: fonts),
         ],
