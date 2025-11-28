@@ -6,13 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'auto_backup_task.dart';
 import 'local_db.dart';
-import '../providers/repository_providers.dart';
 import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
 
@@ -336,7 +334,7 @@ class GoogleDriveBackupService {
 
   Future<Map<String, dynamic>> exportDatabaseToJson() async {
     try {
-      final db = getDatabase();
+      final db = DatabaseManager.instance;
 
       final roomsData = await db.select(db.rooms).get();
       final bookingsData = await db.select(db.bookings).get();
@@ -571,7 +569,7 @@ class GoogleDriveBackupService {
 
   Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
     try {
-      final db = getDatabase();
+      final db = DatabaseManager.instance;
 
       if (!backupData.containsKey('metadata')) {
         throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');

@@ -110,9 +110,7 @@ class AuthLocalStore {
   Future<Map<String, dynamic>?> validateCredentials(String username, String password) async {
     final normalized = username.trim();
     Map<String, dynamic>? account = _fixedAccounts[normalized];
-    if (account == null) {
-      account = await _getCustomAccount(normalized);
-    }
+    account ??= await _getCustomAccount(normalized);
     if (account == null) {
       return null;
     }

@@ -449,9 +449,9 @@ class EnhancedPdfUtils {
     // Replicate the old `flatten(PdfColors.textWhite, 0.2)` logic to maintain visual consistency.
     // This creates a lighter shade by mixing with 20% white.
     final secondaryColor = PdfColor(
-      baseColor.r * 0.8 + 0.2,
-      baseColor.g * 0.8 + 0.2,
-      baseColor.b * 0.8 + 0.2,
+      baseColor.red * 0.8 + 0.2,
+      baseColor.green * 0.8 + 0.2,
+      baseColor.blue * 0.8 + 0.2,
     );
 
     return pw.Container(

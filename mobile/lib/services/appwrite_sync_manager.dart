@@ -240,9 +240,10 @@ class AppwriteSyncManager {
     int conflicts = 0;
     String? errorMessage;
     SyncStatus finalStatus = SyncStatus.success;
-    String? syncLogId;
-    String? syncLogLocalUuid;
+    late String syncLogId;
+    late String syncLogLocalUuid;
     int syncLogVersion = 1;
+    bool hasSyncLog = false;
     int? syncLogCreatedEpoch;
 
     try {
@@ -274,6 +275,7 @@ class AppwriteSyncManager {
         'origin': 'mobile',
       });
       syncLogId = syncLog.$id;
+      hasSyncLog = true;
 
       final pushedCount = await _pushAllEntities();
       recordsPushed += pushedCount;
@@ -319,22 +321,24 @@ class AppwriteSyncManager {
       final endEpoch = Time.nowEpoch();
       syncLogVersion += 1;
 
-      await appwriteService.updateDocument(
-        collectionId: AppwriteConfig.syncLogsCollectionId,
-        documentId: syncLogId!,
-        data: {
-          'endTime': endTime.toIso8601String(),
-          'status': 'completed',
-          'action': 'sync_complete',
-          'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
-          'updatedAt': endEpoch,
-          'lastModified': endEpoch,
-          'timestamp': endEpoch,
-          'version': syncLogVersion,
-          if (syncLogLocalUuid != null) 'localUuid': syncLogLocalUuid,
-          'origin': 'mobile',
-        },
-      );
+      if (hasSyncLog) {
+        await appwriteService.updateDocument(
+          collectionId: AppwriteConfig.syncLogsCollectionId,
+          documentId: syncLogId,
+          data: {
+            'endTime': endTime.toIso8601String(),
+            'status': 'completed',
+            'action': 'sync_complete',
+            'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
+            'updatedAt': endEpoch,
+            'lastModified': endEpoch,
+            'timestamp': endEpoch,
+            'version': syncLogVersion,
+            'localUuid': syncLogLocalUuid,
+            'origin': 'mobile',
+          },
+        );
+      }
 
       _lastSyncTime = endTime;
       await _saveSettings();
@@ -347,13 +351,13 @@ class AppwriteSyncManager {
       errorMessage = e.toString();
       finalStatus = SyncStatus.failed;
 
-      if (syncLogId != null) {
+      if (hasSyncLog) {
         final failEpoch = Time.nowEpoch();
         syncLogVersion += 1;
         try {
           await appwriteService.updateDocument(
             collectionId: AppwriteConfig.syncLogsCollectionId,
-            documentId: syncLogId!,
+            documentId: syncLogId,
             data: {
               'status': 'failed',
               'action': 'sync_failed',
@@ -362,7 +366,7 @@ class AppwriteSyncManager {
               'updatedAt': failEpoch,
               'lastModified': failEpoch,
               'timestamp': failEpoch,
-              if (syncLogLocalUuid != null) 'localUuid': syncLogLocalUuid,
+              'localUuid': syncLogLocalUuid,
               'origin': 'mobile',
             },
           );
@@ -1111,7 +1115,7 @@ class AppwriteSyncManager {
   String _resolveDebtDueDate(Debt debt) {
     final candidates = [debt.checkoutDate, debt.paymentDate, debt.dateRecorded];
     for (final value in candidates) {
-      if (value != null && value.isNotEmpty) {
+      if (value.isNotEmpty) {
         return value;
       }
     }
@@ -1187,8 +1191,6 @@ class AppwriteSyncManager {
         return 'linux';
       case TargetPlatform.fuchsia:
         return 'fuchsia';
-      default:
-        return 'unknown';
     }
   }
 

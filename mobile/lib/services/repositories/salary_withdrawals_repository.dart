@@ -1,5 +1,3 @@
-import 'package:drift/drift.dart' as d;
-
 import '../local_db.dart';
 
 class SalaryWithdrawalsRepository {

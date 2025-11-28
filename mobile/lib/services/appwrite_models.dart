@@ -1,4 +1,4 @@
-/// نماذج البيانات لـ Appwrite
+// نماذج البيانات لـ Appwrite
 
 /// نموذج الجهاز المسجل
 class AppwriteDevice {
@@ -31,7 +31,7 @@ class AppwriteDevice {
   });
 
   factory AppwriteDevice.fromJson(Map<String, dynamic> json) {
-    DateTime _parseDate(dynamic value, {DateTime? fallback}) {
+    DateTime parseDate(dynamic value, {DateTime? fallback}) {
       if (value == null) {
         return fallback ?? DateTime.now();
       }
@@ -55,11 +55,11 @@ class AppwriteDevice {
       deviceName: json['deviceName'] ?? '',
       deviceModel: json['deviceModel'] ?? '',
       osVersion: json['osVersion'] ?? '',
-      lastSeen: _parseDate(json['lastSeen'], fallback: DateTime.now()),
-      lastActive: json.containsKey('lastActive') ? _parseDate(json['lastActive']) : null,
+      lastSeen: parseDate(json['lastSeen'], fallback: DateTime.now()),
+      lastActive: json.containsKey('lastActive') ? parseDate(json['lastActive']) : null,
       status: json['status'] ?? 'active',
-      createdAt: _parseDate(json['createdAt'], fallback: DateTime.now()),
-      updatedAt: _parseDate(json['updatedAt'], fallback: DateTime.now()),
+      createdAt: parseDate(json['createdAt'], fallback: DateTime.now()),
+      updatedAt: parseDate(json['updatedAt'], fallback: DateTime.now()),
       version: (json['version'] is num) ? (json['version'] as num).toInt() : int.tryParse('${json['version'] ?? 1}') ?? 1,
       origin: json['origin']?.toString(),
       localUuid: json['localUuid']?.toString(),
@@ -67,17 +67,17 @@ class AppwriteDevice {
   }
 
   Map<String, dynamic> toJson() {
-    int _toEpoch(DateTime value) => value.toUtc().millisecondsSinceEpoch ~/ 1000;
+    int toEpoch(DateTime value) => value.toUtc().millisecondsSinceEpoch ~/ 1000;
 
     return {
       'deviceName': deviceName,
       'deviceModel': deviceModel,
       'osVersion': osVersion,
       'lastSeen': lastSeen.toIso8601String(),
-      if (lastActive != null) 'lastActive': _toEpoch(lastActive!),
+      if (lastActive != null) 'lastActive': toEpoch(lastActive!),
       'status': status,
-      'createdAt': _toEpoch(createdAt),
-      'updatedAt': _toEpoch(updatedAt),
+      'createdAt': toEpoch(createdAt),
+      'updatedAt': toEpoch(updatedAt),
       'version': version,
       if (origin != null) 'origin': origin,
       if (localUuid != null) 'localUuid': localUuid,
@@ -144,7 +144,7 @@ class AppwriteSyncLog {
     };
   }
 
-  Duration? get duration => endTime != null ? endTime!.difference(startTime) : null;
+  Duration? get duration => endTime?.difference(startTime);
 }
 
 /// نموذج الغرفة (مبسط)

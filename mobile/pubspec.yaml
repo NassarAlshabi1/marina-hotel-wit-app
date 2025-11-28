@@ -44,6 +44,7 @@ dependencies:
   permission_handler: ^11.3.1
   device_info_plus: ^10.1.2
   appwrite: ^17.1.0
+  collection: ^1.18.0
 
   # Required for file-based SQLite backup/restore helpers
   sqflite: ^2.3.3+1

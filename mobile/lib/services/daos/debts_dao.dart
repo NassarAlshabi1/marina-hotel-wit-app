@@ -8,7 +8,7 @@ part 'debts_dao.g.dart';
 
 @DriftAccessor(tables: [Debts])
 class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
-  DebtsDao(AppDatabase db, this.outboxDao) : super(db);
+  DebtsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
   Future<List<Debt>> list({bool includeDeleted = false}) {

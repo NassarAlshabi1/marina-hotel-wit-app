@@ -6,7 +6,7 @@ part 'outbox_dao.g.dart';
 
 @DriftAccessor(tables: [Outbox])
 class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
-  OutboxDao(AppDatabase db) : super(db);
+  OutboxDao(super.db);
 
   Future<int> merge({
     required String entity,

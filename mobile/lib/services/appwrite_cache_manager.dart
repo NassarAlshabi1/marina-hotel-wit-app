@@ -218,7 +218,6 @@ class AppwriteCacheManager {
 
   /// الحصول على الإحصائيات
   CacheStatistics getStatistics() {
-    final now = DateTime.now();
     int validEntries = 0;
     int expiredEntries = 0;
 

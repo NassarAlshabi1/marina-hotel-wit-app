@@ -570,8 +570,9 @@ class GoogleDriveSyncService {
     return buffer;
   }
 
-  List<int> _generateIv() {
+  Uint8List _generateIv() {
     final random = Random.secure();
-    return List<int>.generate(16, (_) => random.nextInt(256));
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    return Uint8List.fromList(bytes);
   }
 }

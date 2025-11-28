@@ -9,7 +9,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart';
-import '../utils/time.dart';
 import 'google_drive_sync_service.dart';
 import 'local_db.dart';
 
@@ -262,8 +261,22 @@ class SyncManager {
           .map((row) => Map<String, dynamic>.from(row as Map))
           .toList();
 
-      final remoteMap = {for (final row in remoteList) _extractUuid(row): row};
-      final localMap = {for (final row in localList) _extractUuid(row): row};
+      final remoteMap = <String, Map<String, dynamic>>{};
+      for (final row in remoteList) {
+        final uuid = _extractUuid(row);
+        if (uuid != null) {
+          remoteMap[uuid] = row;
+        }
+      }
+
+      final localMap = <String, Map<String, dynamic>>{};
+      for (final row in localList) {
+        final uuid = _extractUuid(row);
+        if (uuid != null) {
+          localMap[uuid] = row;
+        }
+      }
+
       final mergedList = <Map<String, dynamic>>[];
 
       final allKeys = <String>{...remoteMap.keys, ...localMap.keys};
@@ -301,8 +314,8 @@ class SyncManager {
         String operation;
 
         if (remoteDeleted != null || localDeleted != null) {
-          final remoteTs = remoteDeleted ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final localTs = localDeleted ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final remoteTs = remoteDeleted ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+          final localTs = localDeleted ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
           if (localTs.isAfter(remoteTs)) {
             winner = localRow;
             operation = 'delete';
@@ -311,10 +324,12 @@ class SyncManager {
             operation = 'delete';
           }
         } else {
-          if (localUpdated.isAfter(remoteUpdated)) {
+          final remoteUpdatedTs = remoteUpdated ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+          final localUpdatedTs = localUpdated ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+          if (localUpdatedTs.isAfter(remoteUpdatedTs)) {
             winner = localRow;
             operation = 'update';
-          } else if (remoteUpdated.isAfter(localUpdated)) {
+          } else if (remoteUpdatedTs.isAfter(localUpdatedTs)) {
             winner = remoteRow;
             operation = 'remote';
           } else {
@@ -479,10 +494,10 @@ class SyncManager {
     return (row['deletedAt'] ?? row['deleted_at']) as String?;
   }
 
-  DateTime _parseDateTime(String? value) {
+  DateTime? _parseDateTime(String? value) {
     if (value == null || value.isEmpty) {
-      return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+      return null;
     }
-    return DateTime.tryParse(value)?.toUtc() ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+    return DateTime.tryParse(value)?.toUtc();
   }
 }

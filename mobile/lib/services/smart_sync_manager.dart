@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -7,8 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'google_drive_backup_service.dart';
-import 'local_db.dart';
-import '../providers/repository_providers.dart';
 import 'sync_performance_optimizer.dart';
 import 'data_usage_manager.dart';
 
@@ -278,8 +275,6 @@ class SmartSyncManager {
     DriveBackupFile sourceBackup,
     ConflictResolution conflictResolution,
   ) async {
-    final db = getDatabase();
-    
     // إنشاء نسخة احتياطية محلية قبل المزامنة
     final localBackupData = await _backupService!.exportDatabaseToJson();
     

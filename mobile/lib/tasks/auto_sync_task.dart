@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
@@ -70,7 +69,7 @@ class AutoSyncTask {
       _kPeriodicWorkName,
       frequency: frequency,
       initialDelay: frequency,
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       inputData: const <String, dynamic>{},
     );
   }
