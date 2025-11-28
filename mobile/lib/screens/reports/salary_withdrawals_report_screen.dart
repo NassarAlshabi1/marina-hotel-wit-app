@@ -22,6 +22,8 @@ class SalaryWithdrawalsReportScreen extends StatelessWidget {
       allowedTypes: _salaryTypes,
       showTypeFilter: false,
       includeEmployeeDetails: true,
+      totalSummaryLabel: 'إجمالي سحبيات الرواتب',
+      totalRowLabel: 'إجمالي سحبيات الرواتب',
     );
   }
 }

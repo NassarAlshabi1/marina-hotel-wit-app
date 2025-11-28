@@ -349,8 +349,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
   
   List<Widget> _buildGlobalActions(BuildContext context) {
-    final notesAsync = ref.watch(activeNotesProvider);
-    final hasUnread = notesAsync.maybeWhen(data: (notes) => notes.isNotEmpty, orElse: () => false);
+    final unreadCountAsync = ref.watch(simpleNotesUnreadCountProvider);
+    final unreadCount = unreadCountAsync.maybeWhen(data: (count) => count, orElse: () => 0);
+    final hasUnread = unreadCount > 0;
 
     return [
       IconButton(
@@ -363,10 +364,29 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           children: [
             Icon(hasUnread ? Icons.notifications_active : Icons.notifications_none),
             if (hasUnread)
-              const Positioned(
+              Positioned(
                 right: -2,
                 top: -2,
-                child: CircleAvatar(radius: 4, backgroundColor: Colors.red),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  child: Text(
+                    unreadCount > 9 ? '9+' : '$unreadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
           ],
         ),

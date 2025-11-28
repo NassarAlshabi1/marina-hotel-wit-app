@@ -224,18 +224,27 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
     final selectedRoomLabel = _selectedRoom?.isNotEmpty == true ? _selectedRoom! : '';
 
-    final dataRows = List<List<String>>.generate(_rows.length, (index) {
-      final row = _rows[index];
-      return [
-        (index + 1).toString(),
-        row.bookingCode,
-        row.booking?.guestName ?? row.payerName,
-        row.roomNumber,
-        _translatePaymentMethod(row.payment.paymentMethod),
-        _dateLabelFormat.format(row.paymentDate),
-        EnhancedPdfUtils.formatNumber(row.amount),
-      ];
-    });
+    final dataRows = [
+      for (final entry in _rows.asMap().entries)
+        [
+          (entry.key + 1).toString(),
+          entry.value.bookingCode,
+          entry.value.booking?.guestName ?? entry.value.payerName,
+          entry.value.roomNumber,
+          _translatePaymentMethod(entry.value.payment.paymentMethod),
+          _dateLabelFormat.format(entry.value.paymentDate),
+          EnhancedPdfUtils.formatNumber(entry.value.amount),
+        ],
+      [
+        '',
+        '',
+        '',
+        '',
+        '',
+        'الإجمالي',
+        EnhancedPdfUtils.formatNumber(_totalPaid),
+      ],
+    ];
 
     pw.Widget _buildReportHeader() {
       final periodLabel = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
@@ -244,25 +253,23 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         decoration: const pw.BoxDecoration(color: PdfColors.primary),
         padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
             pw.Text(
               'فندق مارينا بلازا',
               style: pw.TextStyle(
                 font: fonts.bold,
-                fontSize: 20,
+                fontSize: 22,
                 color: PdfColors.textWhite,
               ),
             ),
-            pw.SizedBox(height: 12),
-            pw.Center(
-              child: pw.Text(
-                'مدفوعات النزلاء',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 18,
-                  color: PdfColors.textWhite,
-                ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              'مدفوعات النزلاء',
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 20,
+                color: PdfColors.textWhite,
               ),
             ),
             pw.SizedBox(height: 8),
@@ -273,6 +280,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                 fontSize: 12,
                 color: PdfColors.textWhite,
               ),
+              textAlign: pw.TextAlign.center,
             ),
             if (selectedRoomLabel.isNotEmpty) ...[
               pw.SizedBox(height: 4),
@@ -300,6 +308,30 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       );
     }
 
+    pw.Widget _buildTotalsFooter() {
+      return pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.all(16),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.backgroundLight,
+          border: pw.Border.all(color: PdfColors.primary, width: 0.5),
+        ),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.end,
+          children: [
+            pw.Text(
+              'الإجمالي الكلي: ',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textDark),
+            ),
+            pw.Text(
+              EnhancedPdfUtils.formatNumber(_totalPaid),
+              style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.secondary),
+            ),
+          ],
+        ),
+      );
+    }
+
     doc.addPage(
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
@@ -315,6 +347,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           _buildReportHeader(),
           pw.SizedBox(height: 20),
           _buildPaymentsTable(),
+          pw.SizedBox(height: 12),
+          _buildTotalsFooter(),
         ],
       ),
     );

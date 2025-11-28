@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -21,6 +22,8 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
     this.typeLabel = 'نوع المصروف',
     this.showTypeFilter = true,
     this.includeEmployeeDetails = false,
+    this.totalSummaryLabel = 'إجمالي المصروفات',
+    this.totalRowLabel = 'الإجمالي',
   });
 
   final Set<String>? allowedTypes;
@@ -29,6 +32,8 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
   final String typeLabel;
   final bool showTypeFilter;
   final bool includeEmployeeDetails;
+  final String totalSummaryLabel;
+  final String totalRowLabel;
 
   @override
   ConsumerState<ExpensesReportScreen> createState() => _ExpensesReportScreenState();
@@ -183,7 +188,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final logo = await EnhancedPdfUtils.loadLogoImage();
     final doc = pw.Document();
     final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
@@ -212,35 +216,94 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       ],
     );
 
-    final statisticsRow = pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
-      children: [
-        pw.Expanded(
-          child: EnhancedPdfUtils.buildStatisticsBox(
-            title: 'إجمالي المصروفات',
-            value: EnhancedPdfUtils.formatNumber(_totalAmount),
-            fonts: fonts,
-            color: PdfColors.secondary,
-          ),
+    pw.Widget _buildReportHeader() {
+      final periodText = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
+      return pw.Container(
+        width: double.infinity,
+        decoration: const pw.BoxDecoration(color: PdfColors.primary),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text(
+              'فندق مارينا بلازا',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              widget.title,
+              style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: PdfColors.textWhite),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              periodText,
+              style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
+              textAlign: pw.TextAlign.center,
+            ),
+          ],
         ),
-        pw.SizedBox(width: 8),
-        pw.Expanded(
-          child: EnhancedPdfUtils.buildStatisticsBox(
-            title: 'عدد السجلات',
-            value: _rows.length.toString(),
-            fonts: fonts,
-            color: PdfColors.info,
+      );
+    }
+
+    pw.Widget _buildTotalsSummary() {
+      pw.Widget buildSummaryItem(String title, String value, PdfColor accent) {
+        return pw.Container(
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.backgroundCard,
+            border: pw.Border.all(color: accent, width: 0.7),
+            borderRadius: pw.BorderRadius.circular(4),
           ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Text(
+                title,
+                style: pw.TextStyle(
+                  font: fonts.regular,
+                  fontSize: 11,
+                  color: PdfColors.textDark,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                value,
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 16,
+                  color: accent,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.backgroundLight,
+          borderRadius: pw.BorderRadius.circular(6),
+          border: pw.Border.all(color: PdfColors.primary, width: 0.4),
         ),
-      ],
-    );
+        child: pw.Row(
+          children: [
+            pw.Expanded(child: buildSummaryItem(widget.totalSummaryLabel, EnhancedPdfUtils.formatNumber(_totalAmount), PdfColors.secondary)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(child: buildSummaryItem('عدد السجلات', _rows.length.toString(), PdfColors.info)),
+          ],
+        ),
+      );
+    }
 
     final headers = <String>['التاريخ', 'المبلغ', 'النوع', 'الوصف'];
     if (widget.includeEmployeeDetails) {
       headers.add('الموظف');
     }
 
-    final dataRows = _rows.map((row) {
+    final dataRows = <List<String>>[];
+    for (final row in _rows) {
       final cells = [
         _dateLabelFormat.format(row.date),
         EnhancedPdfUtils.formatNumber(row.amount),
@@ -250,8 +313,19 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       if (widget.includeEmployeeDetails) {
         cells.add(row.employee?.name ?? 'غير محدد');
       }
-      return cells;
-    }).toList();
+      dataRows.add(cells);
+    }
+
+    final totalRow = [
+      widget.totalRowLabel,
+      EnhancedPdfUtils.formatNumber(_totalAmount),
+      '',
+      '',
+    ];
+    if (widget.includeEmployeeDetails) {
+      totalRow.add('');
+    }
+    dataRows.add(totalRow);
 
     doc.addPage(
       pw.MultiPage(
@@ -265,16 +339,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           ),
         ),
         build: (context) => [
-          EnhancedPdfUtils.buildProfessionalHeader(
-            fonts: fonts,
-            logo: logo,
-            title: widget.title,
-            subtitle: 'الفترة: من $fromLabel إلى $toLabel',
-          ),
+          _buildReportHeader(),
           pw.SizedBox(height: 16),
           metaInfoCard,
-          pw.SizedBox(height: 12),
-          statisticsRow,
           pw.SizedBox(height: 12),
           EnhancedPdfUtils.buildProfessionalTable(
             headers: headers,
@@ -283,6 +350,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             headerColor: PdfColors.primary,
             alternateRowColor: PdfColors.backgroundLight,
           ),
+          pw.SizedBox(height: 12),
+          _buildTotalsSummary(),
           pw.SizedBox(height: 16),
           EnhancedPdfUtils.buildContactFooter(fonts: fonts),
         ],
@@ -408,7 +477,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Expanded(child: _buildSummaryTile('إجمالي المصروفات', _currencyFmt.format(_totalAmount))),
+            Expanded(child: _buildSummaryTile(widget.totalSummaryLabel, _currencyFmt.format(_totalAmount))),
             Expanded(child: _buildSummaryTile('عدد السجلات', _rows.length.toString())),
           ],
         ),
