@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/sync_models.dart';
 import '../tasks/auto_sync_task.dart';
 import 'google_drive_sync_service.dart';
 import 'local_db.dart';
