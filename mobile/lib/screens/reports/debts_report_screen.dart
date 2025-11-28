@@ -336,8 +336,6 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           detailsTable,
           pw.SizedBox(height: 12),
           _buildTotalsFooter(),
-          pw.SizedBox(height: 12),
-          EnhancedPdfUtils.buildContactFooter(fonts: fonts),
         ],
       ),
     );

@@ -352,8 +352,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           ),
           pw.SizedBox(height: 12),
           _buildTotalsSummary(),
-          pw.SizedBox(height: 16),
-          EnhancedPdfUtils.buildContactFooter(fonts: fonts),
         ],
       ),
     );
