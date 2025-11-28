@@ -299,7 +299,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       headers.add('الموظف');
     }
 
-    final dataRows = _rows.map((row) {
+    final dataRows = <List<String>>[];
+    for (final row in _rows) {
       final cells = [
         _dateLabelFormat.format(row.date),
         EnhancedPdfUtils.formatNumber(row.amount),
@@ -309,8 +310,19 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       if (widget.includeEmployeeDetails) {
         cells.add(row.employee?.name ?? 'غير محدد');
       }
-      return cells;
-    }).toList();
+      dataRows.add(cells);
+    }
+
+    final totalRow = [
+      'الإجمالي',
+      EnhancedPdfUtils.formatNumber(_totalAmount),
+      '',
+      '',
+    ];
+    if (widget.includeEmployeeDetails) {
+      totalRow.add('');
+    }
+    dataRows.add(totalRow);
 
     doc.addPage(
       pw.MultiPage(

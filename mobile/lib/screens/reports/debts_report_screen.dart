@@ -255,19 +255,32 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         .toList();
 
     final detailHeaders = ['النزيل', 'تاريخ التسجيل', 'تاريخ الخروج', 'إجمالي', 'المدفوع', 'المتبقي', 'سبب الدين', 'مسدد؟', 'رهون غير مُعادة'];
-    final detailData = _rows
-        .map((debt) => [
-              debt.guestName,
-              Time.safeIsoToDateString(debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate),
-              Time.safeIsoToDateString(debt.checkoutDate),
-              EnhancedPdfUtils.formatNumber(debt.totalAmount),
-              EnhancedPdfUtils.formatNumber(debt.paidAmount),
-              EnhancedPdfUtils.formatNumber(debt.remainingAmount),
-              debt.debtReason.isNotEmpty ? debt.debtReason : '-',
-              debt.isSettled == 1 ? 'نعم' : 'لا',
-              (_unreturnedCounts[debt.id] ?? 0).toString(),
-            ])
-        .toList();
+    final detailData = <List<String>>[];
+    for (final debt in _rows) {
+      detailData.add([
+        debt.guestName,
+        Time.safeIsoToDateString(debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate),
+        Time.safeIsoToDateString(debt.checkoutDate),
+        EnhancedPdfUtils.formatNumber(debt.totalAmount),
+        EnhancedPdfUtils.formatNumber(debt.paidAmount),
+        EnhancedPdfUtils.formatNumber(debt.remainingAmount),
+        debt.debtReason.isNotEmpty ? debt.debtReason : '-',
+        debt.isSettled == 1 ? 'نعم' : 'لا',
+        (_unreturnedCounts[debt.id] ?? 0).toString(),
+      ]);
+    }
+
+    detailData.add([
+      'الإجمالي',
+      '',
+      '',
+      EnhancedPdfUtils.formatNumber(_totalDebt),
+      EnhancedPdfUtils.formatNumber(_totalPaid),
+      EnhancedPdfUtils.formatNumber(_totalRemaining),
+      '',
+      '',
+      '',
+    ]);
 
     final guestSummaryCard = EnhancedPdfUtils.buildInfoCard(
       title: 'ملخص حسب النزلاء',
