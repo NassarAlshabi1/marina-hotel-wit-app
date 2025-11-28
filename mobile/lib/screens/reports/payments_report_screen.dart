@@ -224,29 +224,27 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
     final selectedRoomLabel = _selectedRoom?.isNotEmpty == true ? _selectedRoom! : '';
 
-    final dataRows = <List<String>>[];
-    for (var i = 0; i < _rows.length; i++) {
-      final row = _rows[i];
-      dataRows.add([
-        (i + 1).toString(),
-        row.bookingCode,
-        row.booking?.guestName ?? row.payerName,
-        row.roomNumber,
-        _translatePaymentMethod(row.payment.paymentMethod),
-        _dateLabelFormat.format(row.paymentDate),
-        EnhancedPdfUtils.formatNumber(row.amount),
-      ]);
-    }
-
-    dataRows.add([
-      '',
-      '',
-      '',
-      '',
-      '',
-      'الإجمالي',
-      EnhancedPdfUtils.formatNumber(_totalPaid),
-    ]);
+    final dataRows = [
+      for (final entry in _rows.asMap().entries)
+        [
+          (entry.key + 1).toString(),
+          entry.value.bookingCode,
+          entry.value.booking?.guestName ?? entry.value.payerName,
+          entry.value.roomNumber,
+          _translatePaymentMethod(entry.value.payment.paymentMethod),
+          _dateLabelFormat.format(entry.value.paymentDate),
+          EnhancedPdfUtils.formatNumber(entry.value.amount),
+        ],
+      [
+        '',
+        '',
+        '',
+        '',
+        '',
+        'الإجمالي',
+        EnhancedPdfUtils.formatNumber(_totalPaid),
+      ],
+    ];
 
     pw.Widget _buildReportHeader() {
       final periodLabel = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
