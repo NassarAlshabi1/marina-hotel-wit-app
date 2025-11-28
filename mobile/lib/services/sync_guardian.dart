@@ -137,7 +137,7 @@ class SyncGuardian {
 
   void _startPendingMonitor() {
     _pendingMonitor?.cancel();
-    _pendingMonitor = Timer.periodic(const Duration(minutes: 1), (_) async {
+    _pendingMonitor = Timer.periodic(const Duration(minutes: 5), (_) async {
       final prefs = await SharedPreferences.getInstance();
       final pending = prefs.getBool('auto_sync_pending') ?? false;
       _pendingEvents = pending;
