@@ -114,7 +114,10 @@ class GoogleAuthClient extends http.BaseClient {
 class GoogleDriveBackupService {
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
-  static const List<String> _scopes = [drive.DriveApi.driveFileScope];
+  static const List<String> _scopes = [
+    drive.DriveApi.driveFileScope,
+    drive.DriveApi.driveAppdataScope,
+  ];
 
   /// تحويل رموز خطأ Google Sign-In إلى رسائل عربية واضحة
   static String _getArabicErrorMessage(Object error) {
@@ -294,6 +297,7 @@ class GoogleDriveBackupService {
   }
 
   GoogleSignInAccount? get currentUser => _googleSignIn?.currentUser;
+  GoogleSignIn? get googleSignIn => _googleSignIn;
 
   bool get isSignedIn => _googleSignIn?.currentUser != null;
 

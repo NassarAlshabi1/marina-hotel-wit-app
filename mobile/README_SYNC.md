@@ -50,6 +50,13 @@
 
 > **تنبيه:** Google Drive وحده غير كافٍ للتزامن اللحظي. يجب استخدام FCM لتوليد إشعار السحب فور تعديل البيانات من جهاز آخر. في حالة فشل الإشعار، سيتكفل `AutoSyncTask` بمراقبة التغييرات عبر WorkManager مع تراجع أسي.
 
+## 5.1 SyncGuardian + WorkManager
+- **SyncGuardian** هو خدمة جديدة تراقب `_kPendingFlagKey` وتشغل `SyncManager.syncAllTables` فور استيقاظ التطبيق أو عند اكتشاف مهام WorkManager منتهية. يمكن مراقبة صحته عبر `syncHealthProvider` في واجهة الإعدادات.
+- تم ربط `AutoSyncTask.scheduleImmediateSync` بكل عملية كتابة في قاعدة البيانات (Outbox) لضمان تشغيل مزامنة فورية مع ضبط Debounce.
+- قبل كل Push/Pull يتم إنشاء Snapshot JSON محلي وسجل Rollback (`sync_rollback.log`) باستخدام `SyncSafetyLayer`. في حالة أي فشل تتم استعادة snapshot تلقائياً وتسجيل الحدث في جدول `sync_audit` مع checksum ونسخة المخطط ومعرّف الجهاز.
+- يتم حفظ `lastSyncId` و `lastSyncEpoch` لكل جهاز داخل SharedPreferences (`sync_history_<deviceId>`) لاكتشاف التكرارات وتجنّب التضاربات عند المقارنة مع `remoteSyncId`.
+- واجهة **إعدادات المزامنة الذكية** تعرض الآن حالة الحارس، عدد المحاولات الفاشلة، وأزرار للمزامنة الفورية أو منح هذا الجهاز أولوية (ConflictResolution.devicePriority).
+
 ## 5. تحديث AndroidManifest
 أضف الأذونات التالية (إن لم تكن موجودة):
 ```xml

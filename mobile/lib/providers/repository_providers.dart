@@ -12,6 +12,7 @@ import '../services/repositories/simple_notes_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/auth_local_store.dart';
+import '../services/sync_guardian.dart';
 
 import '../services/whatsapp_service.dart';
 import '../utils/status_utils.dart';
@@ -22,6 +23,9 @@ export '../providers/backup_provider.dart';
 export '../providers/auto_backup_provider.dart';
 // إضافة Smart Sync Providers
 export '../providers/smart_sync_provider.dart';
+
+final syncGuardianProvider = Provider<SyncGuardian>((ref) => SyncGuardian.instance);
+final syncHealthProvider = StreamProvider<SyncHealthSnapshot>((ref) => ref.watch(syncGuardianProvider).watchHealth());
 
 final databaseProvider = Provider<AppDatabase>((ref) => DatabaseManager.instance);
 

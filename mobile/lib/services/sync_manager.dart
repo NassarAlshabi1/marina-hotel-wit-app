@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/sync_models.dart';
 import 'google_drive_sync_service.dart';
 import 'local_db.dart';
+import 'sync_safety_layer.dart';
 
 /// واجهة اختيارية لإرسال إشعارات FCM عند اكتمال الرفع
 abstract class SyncTriggerDispatcher {
@@ -31,6 +32,7 @@ class SyncManager {
   final SyncTriggerDispatcher? triggerDispatcher;
   final SyncAuditDao _auditDao;
   final StreamController<SyncStatus> _statusController;
+  final SyncSafetyLayer _safetyLayer = SyncSafetyLayer.instance;
 
   bool _isInitialized = false;
   bool _isDrainingQueue = false;
@@ -39,6 +41,7 @@ class SyncManager {
   int _devicePriority = 100;
   String? _lastUploadedChecksum;
   String? _lastSyncId;
+  String? _lastRemoteSyncId;
 
   Stream<SyncStatus> onSyncStatus() => _statusController.stream;
 
@@ -49,6 +52,7 @@ class SyncManager {
     }
     await driveService.init(enableEncryption: enableEncryption, encryptionKey: encryptionKey);
     _deviceId = await _resolveDeviceId();
+    await _loadSyncHistory();
     _isInitialized = true;
     _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'المزامنة جاهزة'));
   }
@@ -87,18 +91,19 @@ class SyncManager {
   Future<void> syncAllTables({bool force = false}) async {
     await _ensureReady();
     await _drainQueue(force: force);
-    await pullAndMerge();
+    await pullAndMerge(force: force);
   }
 
   /// سحب آخر نسخة من Google Drive ودمجها مع قاعدة البيانات المحلية
-  Future<void> pullAndMerge() async {
+  Future<void> pullAndMerge({bool force = false}) async {
     await _ensureReady();
     if (_pullInProgress) {
       return;
     }
     _pullInProgress = true;
-    _statusController.add(SyncStatus(phase: SyncPhase.pulling, message: 'جلب أحدث النسخ من Google Drive'));    
+    _statusController.add(SyncStatus(phase: SyncPhase.pulling, message: 'جلب أحدث النسخ من Google Drive'));
 
+    SyncSafetySnapshot? safetySnapshot;
     try {
       final remoteResult = await driveService.downloadLatestSnapshot();
       if (remoteResult == null) {
@@ -107,18 +112,27 @@ class SyncManager {
       }
 
       final deviceId = await _ensureDeviceId();
-      if (remoteResult.metadata.lastDeviceId == deviceId && remoteResult.metadata.checksum == _lastUploadedChecksum) {
+      final remoteSyncId = remoteResult.metadata.lastSyncId;
+
+      if (!force && remoteSyncId.isNotEmpty && remoteSyncId == _lastRemoteSyncId) {
+        _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا تغييرات جديدة منذ آخر سحب'));
+        return;
+      }
+
+      if (!force && remoteResult.metadata.lastDeviceId == deviceId && remoteResult.metadata.checksum == _lastUploadedChecksum) {
         _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'البيانات على الجهاز محدثة بالفعل'));
         return;
       }
 
       final localTables = await db.getAllTablesAsJson();
-      if (compareChecksum(remoteResult.snapshot, localTables)) {
+      if (!force && compareChecksum(remoteResult.snapshot, localTables)) {
         _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا تغييرات بعد التحقق من checksum'));
         return;
       }
 
       final syncId = _generateSyncId();
+      safetySnapshot = await _safetyLayer.captureSnapshot(db: db, syncId: syncId, phase: 'pull');
+
       final mergeResult = _mergeSnapshots(
         remoteSnapshot: remoteResult.snapshot,
         localTables: localTables,
@@ -138,8 +152,31 @@ class SyncManager {
         checksumMatched: false,
       );
 
+      await _safetyLayer.commitSnapshot(
+        db: db,
+        snapshot: safetySnapshot,
+        direction: 'pull',
+        checksum: remoteResult.metadata.checksum,
+        deviceId: deviceId,
+        metadata: {
+          'remoteDevice': remoteResult.metadata.lastDeviceId,
+          'version': remoteResult.metadata.version,
+          'appliedOperations': mergeResult.appliedOperations.length,
+          'conflicts': mergeResult.conflicts.length,
+        },
+      );
+      safetySnapshot = null;
+
+      if (remoteSyncId.isNotEmpty) {
+        await _persistRemoteSignature(remoteSyncId);
+      }
+      await _persistSyncHistory(syncId);
+
       _statusController.add(SyncStatus(phase: SyncPhase.completing, message: 'تم تطبيق التغييرات الواردة'));
     } catch (error, stack) {
+      if (safetySnapshot != null) {
+        await _safetyLayer.rollbackSnapshot(db: db, snapshot: safetySnapshot, error: error);
+      }
       debugPrint('❌ فشل سحب البيانات: $error');
       debugPrint('$stack');
       _statusController.add(SyncStatus(phase: SyncPhase.error, message: 'خطأ أثناء سحب البيانات', error: error));
@@ -154,6 +191,38 @@ class SyncManager {
   bool compareChecksum(SyncSnapshot remote, Map<String, dynamic> localTables) {
     final localChecksum = SyncChecksum.compute({'tables': localTables});
     return localChecksum == remote.metadata.checksum;
+  }
+
+  Future<void> _persistSyncHistory(String syncId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final prefix = await _historyPrefix();
+    await prefs.setString('${prefix}_id', syncId);
+    await prefs.setInt('${prefix}_epoch', DateTime.now().millisecondsSinceEpoch);
+    _lastSyncId = syncId;
+  }
+
+  Future<void> _persistRemoteSignature(String? remoteSyncId) async {
+    if (remoteSyncId == null || remoteSyncId.isEmpty) {
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final prefix = await _historyPrefix();
+    await prefs.setString('${prefix}_remote', remoteSyncId);
+    _lastRemoteSyncId = remoteSyncId;
+  }
+
+  Future<void> _loadSyncHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final prefix = await _historyPrefix();
+    _lastSyncId = prefs.getString('${prefix}_id');
+    _lastRemoteSyncId = prefs.getString('${prefix}_remote');
+  }
+
+  Future<String> _historyPrefix() async {
+    if (_deviceId == null) {
+      _deviceId = await _resolveDeviceId();
+    }
+    return 'sync_history_${_deviceId!}';
   }
 
   Future<void> _drainQueue({bool force = false}) async {
@@ -174,6 +243,7 @@ class SyncManager {
     _isDrainingQueue = true;
     _statusController.add(SyncStatus(phase: SyncPhase.pushing, message: 'رفع التغييرات المعلقة', progress: 0));
 
+    SyncSafetySnapshot? safetySnapshot;
     try {
       final deviceId = await _ensureDeviceId();
       final syncId = _generateSyncId();
@@ -182,11 +252,13 @@ class SyncManager {
       final expectedVersion = remoteResult?.driveVersion ?? 0;
       final remoteSnapshot = remoteResult?.snapshot ?? _emptySnapshot();
 
-      if (remoteResult != null && remoteResult.metadata.lastDeviceId == deviceId && compareChecksum(remoteResult.snapshot, localTables)) {
+      if (!force && remoteResult != null && remoteResult.metadata.lastDeviceId == deviceId && compareChecksum(remoteResult.snapshot, localTables)) {
         await _markQueueStatus(pending.map((e) => e.id).toList(), 'synced');
         _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا توجد تغييرات جديدة للرفع'));
         return;
       }
+
+      safetySnapshot = await _safetyLayer.captureSnapshot(db: db, syncId: syncId, phase: 'push');
 
       final mergeResult = _mergeSnapshots(
         remoteSnapshot: remoteSnapshot,
@@ -221,15 +293,35 @@ class SyncManager {
         checksumMatched: false,
       );
 
+      await _safetyLayer.commitSnapshot(
+        db: db,
+        snapshot: safetySnapshot,
+        direction: 'push',
+        checksum: uploadIndex.checksum,
+        deviceId: deviceId,
+        metadata: {
+          'remoteVersion': uploadIndex.version,
+          'snapshotSize': uploadIndex.snapshotSize,
+          'appliedOperations': mergeResult.appliedOperations.length,
+          'conflicts': mergeResult.conflicts.length,
+        },
+      );
+      safetySnapshot = null;
+
       _lastUploadedChecksum = uploadIndex.checksum;
       _lastSyncId = mergeResult.mergedSnapshot.metadata.lastSyncId;
+      await _persistSyncHistory(_lastSyncId!);
+      await _persistRemoteSignature(uploadIndex.lastSyncId);
 
-      if (triggerDispatcher != null) {
+      if (triggerDispatcher != null && _lastSyncId != null) {
         await triggerDispatcher!.sendTrigger(syncId: _lastSyncId!, sourceDeviceId: deviceId);
       }
 
       _statusController.add(SyncStatus(phase: SyncPhase.completing, message: 'تم رفع التغييرات بنجاح', progress: 1));
     } catch (error, stack) {
+      if (safetySnapshot != null) {
+        await _safetyLayer.rollbackSnapshot(db: db, snapshot: safetySnapshot, error: error);
+      }
       debugPrint('❌ فشل رفع التغييرات: $error');
       debugPrint('$stack');
       _statusController.add(SyncStatus(phase: SyncPhase.error, message: 'تعذر رفع التغييرات', error: error));

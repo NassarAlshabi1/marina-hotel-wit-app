@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/smart_sync_manager.dart';
 import '../../providers/smart_sync_provider.dart';
+import '../../providers/repository_providers.dart';
 
 class SmartSyncSettingsScreen extends ConsumerStatefulWidget {
   const SmartSyncSettingsScreen({super.key});
@@ -128,9 +129,47 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
     setState(() => _isLoading = false);
   }
 
+  Future<void> _forceGuardianSync() async {
+    setState(() => _isLoading = true);
+    try {
+      final guardian = ref.read(syncGuardianProvider);
+      await guardian.forceSync();
+      ref.invalidate(syncHealthProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚡ تم تشغيل مزامنة WorkManager فوراً'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ تعذر تشغيل مزامنة WorkManager: $e'), backgroundColor: Colors.red),
+      );
+    }
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _togglePriorityOverride(bool enabled) async {
+    setState(() => _isLoading = true);
+    try {
+      final guardian = ref.read(syncGuardianProvider);
+      await guardian.setDevicePriority(enabled ? 200 : 100);
+      ref.invalidate(syncHealthProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(enabled ? '🏅 هذا الجهاز أصبح صاحب الأولوية' : '↩︎ تم العودة للأولوية الافتراضية'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ تعذر تغيير أولوية الجهاز: $e'), backgroundColor: Colors.red),
+      );
+    }
+    setState(() => _isLoading = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(smartSyncStatusProvider);
+    final healthAsync = ref.watch(syncHealthProvider);
     
     return Scaffold(
       appBar: AppBar(
@@ -166,12 +205,16 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
             ],
           ),
         ),
-        data: (status) => _buildSettingsUI(status),
+        data: (status) => healthAsync.when(
+          data: (health) => _buildSettingsUI(status, health),
+          loading: () => _buildSettingsUI(status, null),
+          error: (_, __) => _buildSettingsUI(status, null),
+        ),
       ),
     );
   }
 
-  Widget _buildSettingsUI(Map<String, dynamic> status) {
+  Widget _buildSettingsUI(Map<String, dynamic> status, SyncHealthSnapshot? health) {
     final isEnabled = status['enabled'] as bool;
     final isSyncing = status['is_syncing'] as bool;
     final syncInterval = status['sync_interval_minutes'] as int;
@@ -187,7 +230,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // معلومات الحالة
-          _buildStatusCard(isEnabled, isSyncing, lastSync, deviceId, isSignedIn, monitoringActive),
+          _buildStatusCard(isEnabled, isSyncing, lastSync, deviceId, isSignedIn, monitoringActive, health),
           
           const SizedBox(height: 20),
           
@@ -204,7 +247,10 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
           // إعدادات حل التضارب
           if (isEnabled) _buildConflictResolutionCard(conflictResolution),
           
-          if (isEnabled) const SizedBox(height: 20),
+          const SizedBox(height: 20),
+          _buildGuardianCard(health),
+          
+          const SizedBox(height: 20),
           
           // أزرار الإجراءات
           _buildActionButtons(isEnabled, isSignedIn),
@@ -218,8 +264,28 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
     );
   }
 
-  Widget _buildStatusCard(bool isEnabled, bool isSyncing, String? lastSync, 
-                         String? deviceId, bool isSignedIn, bool monitoringActive) {
+  Widget _buildStatusCard(
+    bool isEnabled,
+    bool isSyncing,
+    String? lastSync,
+    String? deviceId,
+    bool isSignedIn,
+    bool monitoringActive,
+    SyncHealthSnapshot? health,
+  ) {
+    final guardianStatus = health?.status;
+    final pendingEvents = health?.pendingEvents ?? false;
+    final failedAttempts = health?.failedAttempts ?? 0;
+    final guardianLastSync = health?.lastSyncAt;
+    final combinedLastSync = guardianLastSync != null
+        ? _formatDateTime(guardianLastSync.toLocal())
+        : (lastSync != null ? _formatDateTime(DateTime.parse(lastSync)) : null);
+    final shortenedDeviceId = deviceId == null
+        ? null
+        : deviceId.length > 20
+            ? '${deviceId.substring(0, 20)}...'
+            : deviceId;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -240,15 +306,22 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
               ],
             ),
             const SizedBox(height: 12),
-            
             _buildStatusRow('الحالة', isEnabled ? (monitoringActive ? 'مُفعلة ونشطة ✅' : 'مُفعلة ولكن غير نشطة ⚠️') : 'معطلة ❌'),
             _buildStatusRow('تسجيل الدخول', isSignedIn ? 'متصل بـ Google Drive ✅' : 'غير متصل ❌'),
-            if (isSyncing) 
+            if (isSyncing)
               _buildStatusRow('النشاط الحالي', 'جارِ المزامنة... 🔄'),
-            if (lastSync != null)
-              _buildStatusRow('آخر فحص', _formatDateTime(DateTime.parse(lastSync))),
-            if (deviceId != null)
-              _buildStatusRow('معرف الجهاز', deviceId.substring(0, 20) + '...'),
+            if (combinedLastSync != null)
+              _buildStatusRow('آخر تزامن فعلي', combinedLastSync),
+            if (shortenedDeviceId != null)
+              _buildStatusRow('معرف الجهاز', shortenedDeviceId),
+            if (guardianStatus != null)
+              _buildStatusRow('وضع الحارس', guardianStatus.phase.name),
+            if (pendingEvents)
+              _buildStatusRow('أحداث في الانتظار', 'نعم - سيتم استهلاكها عند توفر التطبيق'),
+            if (failedAttempts > 0)
+              _buildStatusRow('محاولات فاشلة', failedAttempts.toString()),
+            if (health != null)
+              _buildStatusRow('أولوية هذا الجهاز', health.priorityOverridden ? 'أولوية قصوى' : 'أولوية افتراضية'),
           ],
         ),
       ),
@@ -264,6 +337,71 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
           Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
           Flexible(child: Text(value, textAlign: TextAlign.end)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGuardianCard(SyncHealthSnapshot? health) {
+    final pending = health?.pendingEvents ?? false;
+    final failed = health?.failedAttempts ?? 0;
+    final lastSync = health?.lastSyncAt;
+    final isPriority = health?.priorityOverridden ?? false;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'حارس المزامنة الخلفي',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'يتكفل WorkManager باستهلاك جميع الأحداث المؤجلة وتوليد نسخ احتياطية محلية وسحابية بدون تدخل يدوي.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            _buildStatusRow(
+              'آخر استهلاك',
+              lastSync != null ? _formatDateTime(lastSync.toLocal()) : 'لم يبدأ بعد',
+            ),
+            if (pending)
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text('🔄 توجد أحداث قيد الانتظار وسيتم معالجتها تلقائياً'),
+              ),
+            if (failed > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text('⚠️ فشلت $failed محاولات أخيرة، سيتم إعادة المحاولة تلقائياً',
+                    style: const TextStyle(color: Colors.orange, fontSize: 12)),
+              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _forceGuardianSync,
+                    icon: const Icon(Icons.autorenew, size: 16),
+                    label: const Text('مزامنة فورية الآن'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading
+                        ? null
+                        : () => _togglePriorityOverride(!isPriority),
+                    icon: Icon(isPriority ? Icons.shield : Icons.shield_outlined, size: 16),
+                    label: Text(isPriority ? 'إلغاء أولوية هذا الجهاز' : 'اجعل هذا الجهاز أولوية'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
