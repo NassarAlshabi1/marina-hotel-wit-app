@@ -7,6 +7,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/backup_provider.dart';
 import '../../services/google_drive_backup_service.dart';
 import '../../utils/theme.dart';
+import 'google_drive_logs_screen.dart';
 
 class GoogleDriveBackupScreen extends ConsumerStatefulWidget {
   const GoogleDriveBackupScreen({super.key});
@@ -32,6 +33,13 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
     return AppScaffold(
       title: 'النسخ الاحتياطي - Google Drive',
       actions: [
+        IconButton(
+          onPressed: () {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GoogleDriveLogsScreen()));
+          },
+          icon: const Icon(Icons.article_outlined),
+          tooltip: 'سجلات Google Drive',
+        ),
         if (backupState.isSignedIn)
           IconButton(
             onPressed: () => ref.read(backupStatusProvider.notifier).refreshBackupsList(),

@@ -13,6 +13,7 @@ import 'auto_backup_task.dart';
 import 'local_db.dart';
 import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
+import 'google_drive_logger.dart';
 
 enum BackupFormat { json, sqlite }
 
@@ -149,6 +150,7 @@ class GoogleDriveBackupService {
   GoogleSignIn? _googleSignIn;
   drive.DriveApi? _driveApi;
   String? _backupFolderId;
+  final GoogleDriveLogger _logger = GoogleDriveLogger();
 
   GoogleDriveBackupService() {
     _initializeGoogleSignIn();
@@ -290,6 +292,7 @@ class GoogleDriveBackupService {
       _driveApi = null;
       _backupFolderId = null;
       debugPrint('✅ تم تسجيل الخروج من Google Drive');
+      _logger.info('تم تسجيل الخروج من Google Drive', tag: 'AUTH');
     } catch (e) {
       debugPrint('❌ خطأ في تسجيل الخروج: $e');
       rethrow;
@@ -580,6 +583,7 @@ class GoogleDriveBackupService {
       }
 
       final metadata = BackupMetadata.fromJson(backupData['metadata']);
+      _logger.info('بدء استعادة نسخة بتاريخ \${metadata.backupTimestamp.toIso8601String()} تحتوي \${metadata.totalRecords} سجل', tag: 'RESTORE');
 
       if (metadata.databaseVersion > 3) {
         throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
@@ -861,6 +865,7 @@ class GoogleDriveBackupService {
       
       if (backups.isEmpty) {
         debugPrint('✅ لا توجد نسخ احتياطية للتنظيف');
+        _logger.info('لا توجد نسخ احتياطية لتنظيفها', tag: 'CLEANUP');
         return 0;
       }
 
@@ -940,11 +945,13 @@ class GoogleDriveBackupService {
   Future<int> cleanupIncompleteBackups() async {
     try {
       debugPrint('🔍 بدء فحص النسخ الناقصة...');
+      _logger.info('بدء فحص النسخ الناقصة', tag: 'VALIDATE');
       
       final backups = await listBackups();
       
       if (backups.isEmpty) {
         debugPrint('✅ لا توجد نسخ للفحص');
+        _logger.info('لا توجد نسخ لفحصها', tag: 'VALIDATE');
         return 0;
       }
 
@@ -984,6 +991,7 @@ class GoogleDriveBackupService {
 
       if (incompleteBackups.isEmpty) {
         debugPrint('✅ جميع النسخ سليمة');
+        _logger.info('جميع النسخ سليمة بعد الفحص', tag: 'VALIDATE');
         return 0;
       }
 
@@ -1026,6 +1034,7 @@ class GoogleDriveBackupService {
       final backups = await listBackups();
       
       if (backups.isEmpty) {
+        _logger.info('لا توجد نسخ احتياطية لعرض الإحصائيات', tag: 'METRICS');
         return {
           'total_backups': 0,
           'total_size_bytes': 0,
