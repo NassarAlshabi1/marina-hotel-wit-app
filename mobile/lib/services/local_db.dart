@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart';
-import 'package:drift_sqflite/drift_sqflite.dart';
+import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
+import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../data/sync_models.dart' as sync_models;
 
@@ -649,8 +652,9 @@ class AppDatabase extends _$AppDatabase {
 
 LazyDatabase _open() {
   return LazyDatabase(() async {
-    final executor = SqfliteQueryExecutor.inDatabaseFolder(path: 'marina_hotel.db', logStatements: false);
-    return executor;
+    final dbDir = await sqflite.getDatabasesPath();
+    final file = File(p.join(dbDir, 'marina_hotel.db'));
+    return NativeDatabase.createInBackground(file, logStatements: false);
   });
 }
 
