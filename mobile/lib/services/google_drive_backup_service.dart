@@ -963,7 +963,12 @@ class GoogleDriveBackupService {
 
   Future<bool> isAutoBackupEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_prefsAutoBackupKey) ?? false;
+    if (!prefs.containsKey(_prefsAutoBackupKey)) {
+      await prefs.setBool(_prefsAutoBackupKey, true);
+      await scheduleAutoBackup();
+      return true;
+    }
+    return prefs.getBool(_prefsAutoBackupKey) ?? true;
   }
 
   Future<void> setAutoBackupFrequency(String frequency) async {

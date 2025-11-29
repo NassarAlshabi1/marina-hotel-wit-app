@@ -35,14 +35,14 @@ class AutoBackupSettings {
   final BackupFormat backupFormat; // تنسيق النسخ الاحتياطي المستخدم
 
   const AutoBackupSettings({
-    this.isEnabled = false,
+    this.isEnabled = true,
     this.frequency = 'daily',
     this.time = '02:00',
     this.weekday,
     this.day,
     this.backupType = BackupType.both,
     this.enableLocalBackup = true,
-    this.enableGoogleDriveBackup = false,
+    this.enableGoogleDriveBackup = true,
     this.backupFormat = BackupFormat.json,
   });
 

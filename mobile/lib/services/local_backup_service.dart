@@ -721,7 +721,11 @@ class LocalBackupService {
 
   Future<bool> isAutoLocalBackupEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_prefsAutoLocalBackupKey) ?? false;
+    if (!prefs.containsKey(_prefsAutoLocalBackupKey)) {
+      await prefs.setBool(_prefsAutoLocalBackupKey, true);
+      return true;
+    }
+    return prefs.getBool(_prefsAutoLocalBackupKey) ?? true;
   }
 
   Future<void> setPreferredBackupFormat(BackupFormat format) async {
