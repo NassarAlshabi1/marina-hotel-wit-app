@@ -7,6 +7,7 @@ import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
 import 'debts_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
+import 'income_expense_report_screen.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -63,6 +64,15 @@ class ReportsScreen extends ConsumerWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const SalaryWithdrawalsReportScreen()),
+                      ),
+                    ),
+                    _ReportShortcut(
+                      icon: Icons.stacked_line_chart,
+                      label: 'تقرير الدخل والخرج',
+                      color: Colors.teal,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const IncomeExpenseReportScreen()),
                       ),
                     ),
                   ];

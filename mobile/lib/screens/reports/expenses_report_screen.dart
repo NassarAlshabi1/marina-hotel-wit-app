@@ -352,13 +352,20 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           ),
           pw.SizedBox(height: 12),
           _buildTotalsSummary(),
-          pw.SizedBox(height: 16),
-          EnhancedPdfUtils.buildContactFooter(fonts: fonts),
         ],
       ),
     );
 
-    await Printing.sharePdf(bytes: await doc.save(), filename: 'expenses-report.pdf');
+    String _generateFileName(String title) {
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final sanitizedTitle = title.replaceAll(RegExp(r'\s+'), '-');
+      return '$sanitizedTitle-$timestamp.pdf';
+    }
+
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename: _generateFileName(widget.title),
+    );
   }
 
   @override

@@ -336,13 +336,20 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           detailsTable,
           pw.SizedBox(height: 12),
           _buildTotalsFooter(),
-          pw.SizedBox(height: 12),
-          EnhancedPdfUtils.buildContactFooter(fonts: fonts),
         ],
       ),
     );
 
-    await Printing.sharePdf(bytes: await doc.save(), filename: 'debts-report.pdf');
+    String _generateFileName(String title) {
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final sanitizedTitle = title.replaceAll(RegExp(r'\s+'), '-');
+      return '$sanitizedTitle-$timestamp.pdf';
+    }
+
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename: _generateFileName('تقرير الديون'),
+    );
   }
 
   @override
