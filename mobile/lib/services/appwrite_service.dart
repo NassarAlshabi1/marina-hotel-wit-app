@@ -538,7 +538,6 @@ class AppwriteService {
           operation: () => _databases.listDocuments(
             databaseId: AppwriteConfig.databaseId,
             collectionId: testCollection,
-            queries: ['limit(1)'],
           ),
           operationName: 'testConnection_read',
           timeout: const Duration(seconds: 10),
@@ -680,7 +679,6 @@ class AppwriteService {
         operation: () => _databases.listDocuments(
           databaseId: AppwriteConfig.databaseId,
           collectionId: AppwriteConfig.roomsCollectionId,
-          queries: ['limit(1)'],
         ),
         operationName: 'quickConnectionTest',
         timeout: const Duration(seconds: 5),
