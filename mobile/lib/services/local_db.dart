@@ -10,6 +10,8 @@ import '../data/sync_models.dart' as sync_models;
 
 part 'local_db.g.dart';
 
+const String _dbFileName = 'marina_hotel.db';
+
 mixin SyncFields on Table {
   TextColumn get localUuid => text().unique()();
   IntColumn get serverId => integer().nullable()();
@@ -653,7 +655,7 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _open() {
   return LazyDatabase(() async {
     final dbDir = await sqflite.getDatabasesPath();
-    final file = File(p.join(dbDir, 'marina_hotel.db'));
+    final file = File(p.join(dbDir, _dbFileName));
     return NativeDatabase.createInBackground(file, logStatements: false);
   });
 }
