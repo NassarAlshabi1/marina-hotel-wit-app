@@ -346,6 +346,8 @@ class GoogleDriveBackupService {
       final roomsData = await db.select(db.rooms).get();
       final bookingsData = await db.select(db.bookings).get();
       final bookingNotesData = await db.select(db.bookingNotes).get();
+      final bookingNightsData = await db.select(db.bookingNights).get();
+      final ledgerData = await db.select(db.hotelDayLedger).get();
       final employeesData = await db.select(db.employees).get();
       final expensesData = await db.select(db.expenses).get();
       final cashTransactionsData = await db.select(db.cashTransactions).get();
@@ -356,6 +358,8 @@ class GoogleDriveBackupService {
           roomsData.length +
           bookingsData.length +
           bookingNotesData.length +
+          bookingNightsData.length +
+          ledgerData.length +
           employeesData.length +
           expensesData.length +
           cashTransactionsData.length +
@@ -375,6 +379,8 @@ class GoogleDriveBackupService {
         'rooms': roomsData.map((room) => room.toJson()).toList(),
         'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
         'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
+        'booking_nights': bookingNightsData.map((night) => night.toJson()).toList(),
+        'hotel_day_ledger': ledgerData.map((entry) => entry.toJson()).toList(),
         'employees': employeesData.map((employee) => employee.toJson()).toList(),
         'expenses': expensesData.map((expense) => expense.toJson()).toList(),
         'cash_transactions': cashTransactionsData.map((transaction) => transaction.toJson()).toList(),
@@ -594,6 +600,8 @@ class GoogleDriveBackupService {
       await db.delete(db.rooms).go();
       await db.delete(db.bookings).go();
       await db.delete(db.bookingNotes).go();
+      await db.delete(db.bookingNights).go();
+      await db.delete(db.hotelDayLedger).go();
       await db.delete(db.employees).go();
       await db.delete(db.expenses).go();
       await db.delete(db.cashTransactions).go();
@@ -624,6 +632,24 @@ class GoogleDriveBackupService {
           final map = Map<String, dynamic>.from(noteJson as Map);
           final data = BookingNote.fromJson(map, serializer: lenientValueSerializer);
           await db.into(db.bookingNotes).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('booking_nights')) {
+        final nightsData = backupData['booking_nights'] as List<dynamic>;
+        for (final nightJson in nightsData) {
+          final map = Map<String, dynamic>.from(nightJson as Map);
+          final data = BookingNight.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.bookingNights).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('hotel_day_ledger')) {
+        final ledgerList = backupData['hotel_day_ledger'] as List<dynamic>;
+        for (final ledgerJson in ledgerList) {
+          final map = Map<String, dynamic>.from(ledgerJson as Map);
+          final data = HotelDayLedgerEntry.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.hotelDayLedger).insertOnConflictUpdate(data);
         }
       }
 
