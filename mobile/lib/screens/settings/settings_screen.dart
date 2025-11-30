@@ -13,6 +13,7 @@ import 'comprehensive_backup_screen.dart';
 import 'data_protection_screen.dart';
 import 'sync_performance_settings_screen.dart';
 import 'appwrite_settings_screen.dart';
+import 'api_integrations_screen.dart';
 
 
 class SettingsScreen extends ConsumerWidget {
@@ -128,6 +129,16 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const AppwriteSettingsScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'واجهات API',
+              subtitle: 'إدارة WhatsApp و Appwrite و Supabase',
+              icon: Icons.integration_instructions,
+              color: Colors.teal,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ApiIntegrationsScreen()),
               ),
             ),
             _SettingsItem(

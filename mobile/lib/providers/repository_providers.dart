@@ -14,6 +14,7 @@ import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/auth_local_store.dart';
 import '../services/sync_guardian.dart';
 
+import '../providers/api_integration_provider.dart';
 import '../services/whatsapp_service.dart';
 import '../utils/status_utils.dart';
 
@@ -40,13 +41,14 @@ final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref
 final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>((ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)));
 final simpleNotesRepoProvider = Provider<SimpleNotesRepository>((ref) => SimpleNotesRepository(ref.read(databaseProvider)));
 final shiftNotesRepoProvider = Provider<ShiftNotesRepository>((ref) => ShiftNotesRepository(ref.read(databaseProvider)));
-final whatsappServiceProvider = Provider<WhatsAppService>(
-  (ref) => WhatsAppService(
-    baseUrl: 'https://7103.api.greenapi.com',
-    instanceId: 'waInstance7103894450',
-    token: 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
-  ),
-);
+final whatsappServiceProvider = Provider<WhatsAppService>((ref) {
+  final settings = ref.watch(apiIntegrationSettingsProvider).whatsapp;
+  return WhatsAppService(
+    baseUrl: settings.baseUrl,
+    instanceId: settings.instanceId,
+    token: settings.token,
+  );
+});
 
 final roomsListProvider = StreamProvider.autoDispose((ref) => ref.watch(roomsRepoProvider).watchAll());
 final availableRoomsProvider = StreamProvider.autoDispose((ref) =>
