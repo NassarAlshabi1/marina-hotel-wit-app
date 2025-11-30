@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../services/local_db.dart';
 import '../providers/repository_providers.dart';
-import '../services/sync_service.dart';
+import '../providers/smart_sync_provider.dart';
 import '../utils/status_utils.dart';
 
 import '../widgets/smart_sync_widgets.dart';
@@ -20,11 +20,45 @@ const List<String> _dashboardRoomNumbers = [
   '501', '502', '503', '504',
 ];
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
   
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  bool _isImmediateSyncing = false;
+
+  Future<void> _triggerImmediateSync(BuildContext context) async {
+    if (_isImmediateSyncing) {
+      return;
+    }
+    setState(() => _isImmediateSyncing = true);
+    try {
+      final manager = ref.read(smartSyncManagerProvider);
+      await manager.forceSyncNow();
+      ref.invalidate(smartSyncStatusProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚡ تم تشغيل المزامنة الفورية')), 
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ فشلت المزامنة الفورية: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isImmediateSyncing = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -43,11 +77,15 @@ class DashboardScreen extends ConsumerWidget {
               ),
               const Spacer(),
               ElevatedButton.icon(
-                onPressed: () async {
-                  await ref.read(syncServiceProvider).runSync();
-                },
-                icon: const Icon(Icons.sync, size: 16),
-                label: const Text('مزامنة احتياطية'),
+                onPressed: _isImmediateSyncing ? null : () => _triggerImmediateSync(context),
+                icon: _isImmediateSyncing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.flash_on, size: 16),
+                label: Text(_isImmediateSyncing ? '...جاري المزامنة' : 'مزامنة فورية'),
               ),
             ],
           ),
@@ -60,7 +98,7 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           
           // Statistics Cards - بطاقات أصغر مع إحصائيات مفيدة أكثر
-          _buildStatisticsCards(ref),
+          _buildStatisticsCards(),
           
           const SizedBox(height: 24),
           
@@ -81,7 +119,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatisticsCards(WidgetRef ref) {
+  Widget _buildStatisticsCards() {
     final currencyFmt = NumberFormat('#,##0', 'en_US');
     return GridView.count(
       crossAxisCount: 2,
