@@ -4,16 +4,24 @@ import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'logging/log_models.dart';
 
-class GoogleDriveLogger {
+class GoogleDriveLogger extends ChangeNotifier {
   static final GoogleDriveLogger _instance = GoogleDriveLogger._internal();
   factory GoogleDriveLogger() => _instance;
   GoogleDriveLogger._internal();
 
   final List<LogEntry> _logs = [];
+  final Map<LogLevel, int> _logCounts = {};
   LogLevel _minLevel = LogLevel.info;
   bool _enableConsole = true;
   bool _enableFile = false;
   File? _logFile;
+
+  @override
+  void dispose() {
+    _logs.clear();
+    _logCounts.clear();
+    super.dispose();
+  }
 
   Future<void> initialize({
     LogLevel minLevel = LogLevel.info,
@@ -59,12 +67,14 @@ class GoogleDriveLogger {
       stackTrace: stackTrace,
     );
     _logs.add(entry);
+    _logCounts[level] = (_logCounts[level] ?? 0) + 1;
     if (_enableConsole && kDebugMode) {
       _printToConsole(entry);
     }
     if (_enableFile && _logFile != null) {
       _writeToFile(entry);
     }
+    notifyListeners();
   }
 
   void _printToConsole(LogEntry entry) {
@@ -75,8 +85,7 @@ class GoogleDriveLogger {
   Future<void> _writeToFile(LogEntry entry) async {
     try {
       await _logFile?.writeAsString(
-        '${entry.toFormattedString()}
-',
+        '${entry.toFormattedString()}\n',
         mode: FileMode.append,
       );
     } catch (e) {
@@ -127,18 +136,21 @@ class GoogleDriveLogger {
   }
 
   Map<String, int> getStatistics() {
+    final total = _logCounts.values.fold<int>(0, (sum, count) => sum + count);
     return {
-      'total': _logs.length,
-      'debug': _logs.where((l) => l.level == LogLevel.debug).length,
-      'info': _logs.where((l) => l.level == LogLevel.info).length,
-      'warning': _logs.where((l) => l.level == LogLevel.warning).length,
-      'error': _logs.where((l) => l.level == LogLevel.error).length,
-      'critical': _logs.where((l) => l.level == LogLevel.critical).length,
+      'total': total,
+      'debug': _logCounts[LogLevel.debug] ?? 0,
+      'info': _logCounts[LogLevel.info] ?? 0,
+      'warning': _logCounts[LogLevel.warning] ?? 0,
+      'error': _logCounts[LogLevel.error] ?? 0,
+      'critical': _logCounts[LogLevel.critical] ?? 0,
     };
   }
 
   void clearLogs() {
     _logs.clear();
+    _logCounts.clear();
+    notifyListeners();
   }
 
   Future<File?> exportLogs() async {

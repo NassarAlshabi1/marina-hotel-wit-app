@@ -623,7 +623,7 @@ class GoogleDriveBackupService {
       }
 
       final metadata = BackupMetadata.fromJson(backupData['metadata']);
-      _logger.info('بدء استعادة نسخة بتاريخ \${metadata.backupTimestamp.toIso8601String()} تحتوي \${metadata.totalRecords} سجل', tag: 'RESTORE');
+      _logger.info('بدء استعادة نسخة بتاريخ ${metadata.backupTimestamp.toIso8601String()} تحتوي ${metadata.totalRecords} سجل', tag: 'RESTORE');
 
       if (metadata.databaseVersion > 3) {
         throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
