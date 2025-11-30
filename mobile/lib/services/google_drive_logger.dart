@@ -85,8 +85,7 @@ class GoogleDriveLogger extends ChangeNotifier {
   Future<void> _writeToFile(LogEntry entry) async {
     try {
       await _logFile?.writeAsString(
-        '${entry.toFormattedString()}
-',
+        '${entry.toFormattedString()}\n',
         mode: FileMode.append,
       );
     } catch (e) {
