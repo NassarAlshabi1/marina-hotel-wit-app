@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/backup_provider.dart';
-import '../../services/google_drive_logger.dart';
 import '../../services/logging/log_models.dart';
 
 class GoogleDriveLogsScreen extends ConsumerStatefulWidget {
@@ -22,6 +21,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
   @override
   Widget build(BuildContext context) {
     final logs = ref.watch(googleDriveLogsProvider);
+    final logStats = ref.watch(googleDriveLogStatsProvider);
     final filteredLogs = _filterLogs(logs);
 
     return AppScaffold(
@@ -103,22 +103,17 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _buildFilterChip('الكل', null, filteredLogs.length),
+                      _buildFilterChip('الكل', null, logStats['total'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Debug', LogLevel.debug,
-                          logs.where((l) => l.level == LogLevel.debug).length),
+                      _buildFilterChip('Debug', LogLevel.debug, logStats['debug'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Info', LogLevel.info,
-                          logs.where((l) => l.level == LogLevel.info).length),
+                      _buildFilterChip('Info', LogLevel.info, logStats['info'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Warning', LogLevel.warning,
-                          logs.where((l) => l.level == LogLevel.warning).length),
+                      _buildFilterChip('Warning', LogLevel.warning, logStats['warning'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Error', LogLevel.error,
-                          logs.where((l) => l.level == LogLevel.error).length),
+                      _buildFilterChip('Error', LogLevel.error, logStats['error'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Critical', LogLevel.critical,
-                          logs.where((l) => l.level == LogLevel.critical).length),
+                      _buildFilterChip('Critical', LogLevel.critical, logStats['critical'] ?? 0),
                     ],
                   ),
                 ),
@@ -381,6 +376,5 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
 
   void _clearLogs() {
     ref.read(googleDriveLoggerProvider).clearLogs();
-    setState(() {});
   }
 }

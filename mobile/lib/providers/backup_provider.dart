@@ -1183,8 +1183,10 @@ final backupStatusSummaryProvider = Provider<String>((ref) {
   }
 });
 
-final googleDriveLoggerProvider = Provider<GoogleDriveLogger>((ref) {
-  return GoogleDriveLogger();
+final googleDriveLoggerProvider = ChangeNotifierProvider<GoogleDriveLogger>((ref) {
+  final logger = GoogleDriveLogger();
+  ref.onDispose(() => logger.dispose());
+  return logger;
 });
 
 final googleDriveLogStatsProvider = Provider<Map<String, int>>((ref) {

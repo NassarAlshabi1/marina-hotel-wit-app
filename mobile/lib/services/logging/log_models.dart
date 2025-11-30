@@ -33,13 +33,10 @@ class LogEntry {
     final levelStr = level.name.toUpperCase().padRight(8);
     var log = '[$timeStr] [$levelStr] [$tag] $message';
     if (error != null) {
-      log += '
-Error: $error';
+      log += '\nError: $error';
     }
     if (stackTrace != null) {
-      log += '
-Stack Trace:
-$stackTrace';
+      log += '\nStack Trace:\n$stackTrace';
     }
     return log;
   }
