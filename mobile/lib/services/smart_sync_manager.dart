@@ -92,7 +92,13 @@ class SmartSyncManager {
   /// تحميل إعدادات المزامنة
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    _isEnabled = prefs.getBool(_prefsEnabledKey) ?? false;
+    final stored = prefs.getBool(_prefsEnabledKey);
+    if (stored == null) {
+      _isEnabled = true;
+      await prefs.setBool(_prefsEnabledKey, true);
+    } else {
+      _isEnabled = stored;
+    }
   }
 
   /// بدء مراقبة المزامنة التلقائية مع تحسين الأداء
@@ -453,7 +459,11 @@ class SmartSyncManager {
 
   Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_prefsEnabledKey) ?? false;
+    if (!prefs.containsKey(_prefsEnabledKey)) {
+      await prefs.setBool(_prefsEnabledKey, true);
+      return true;
+    }
+    return prefs.getBool(_prefsEnabledKey) ?? true;
   }
 
   Future<void> setSyncInterval(int minutes) async {

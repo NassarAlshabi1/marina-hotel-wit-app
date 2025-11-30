@@ -32,6 +32,7 @@ import 'services/google_drive_sync_service.dart';
 import 'services/sync_guardian.dart';
 import 'services/alarm_backup.dart';
 import 'components/admin_layout.dart';
+import 'services/google_drive_logger.dart';
 import 'services/local_db.dart';
 import 'services/appwrite_config.dart';
 import 'services/appwrite_logger.dart';
@@ -63,6 +64,9 @@ void main() async {
 /// تهيئة نظام النسخ التلقائي الذكي والمزامنة بين الأجهزة
 Future<void> _initializeSmartAutoBackup() async {
   try {
+    final driveLogger = GoogleDriveLogger();
+    await driveLogger.initialize(minLevel: LogLevel.debug, enableConsole: true, enableFile: false);
+
     final backupService = GoogleDriveBackupService();
     
     // محاولة استعادة جلسة Google Drive أولاً
