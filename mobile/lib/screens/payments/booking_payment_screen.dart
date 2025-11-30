@@ -175,7 +175,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           final plannedCheckout = _resolvePlannedCheckout();
           final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : null;
           final expectedNights = _resolveExpectedNights(checkin, plannedCheckout);
-          final actualNights = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
+          final actualNights = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? DateTime.now());
           
           // التكلفة الإجمالية = الليالي الفعلية × سعر الليلة (وليس المتوقعة)
           final totalAmount = actualNights * roomRate;
