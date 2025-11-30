@@ -1,0 +1,196 @@
+name: AI PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+env:
+  REVIEW_EVENT: COMMENT
+  REVIEW_CLI_BIN: amp
+  REVIEW_CLI_ARGS: -x
+  SYSTEM_PROMPT: |
+    راجع هذا التغيير بعين مهندس برمجيات خبير.
+    ركّز على صحة الكود، الأمان، الأداء، سهولة القراءة، والاختبارات.
+    كن دقيقاً ومختصراً، واذكر الإشادة المناسبة عند وجود تحسينات واضحة.
+    إذا وُجدت ملفات سياسات مثل AGENT.md أو CLAUDE.md فتأكد من الالتزام بها.
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: ai-pr-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify tools
+        run: |
+          node -v
+          npm -v
+          jq --version
+          curl --version
+
+      - name: Install review CLI if missing
+        run: |
+          set -euo pipefail
+          if ! command -v "$REVIEW_CLI_BIN" >/dev/null 2>&1; then
+            if [ "$REVIEW_CLI_BIN" = "amp" ]; then
+              echo "Installing amp via npm..."
+              npm install -g @sourcegraph/amp@latest || {
+                echo "npm install failed; trying curl installer..." >&2
+                curl -fsSL https://ampcode.com/install.sh | bash
+              }
+              command -v amp >/dev/null 2>&1 || { echo "amp not found" >&2; exit 1; }
+              amp --version
+            elif [ "$REVIEW_CLI_BIN" = "claude" ]; then
+              echo "Installing claude via npm..."
+              npm install -g @anthropic-ai/claude-code
+              command -v claude >/dev/null 2>&1 || { echo "claude not found" >&2; exit 1; }
+              claude --version || true
+            else
+              echo "Configured REVIEW_CLI_BIN=$REVIEW_CLI_BIN not found on PATH" >&2
+              exit 1
+            fi
+          else
+            "$REVIEW_CLI_BIN" --version || true
+          fi
+
+      - name: Gather PR context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          PR="${{ github.event.pull_request.number }}"
+          SHA="${{ github.event.pull_request.head.sha }}"
+          echo "PR=$PR" >> "$GITHUB_ENV"
+          echo "SHA=$SHA" >> "$GITHUB_ENV"
+          gh pr view "$PR" --repo "${{ github.repository }}" --json number,title,body,author,baseRefName,headRefName,url > pr.json
+          gh pr diff "$PR" --repo "${{ github.repository }}" --patch > diff.patch
+
+      - name: Run AI review
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AMP_API_KEY: ${{ secrets.AMP_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          export AMP_API_KEY="${AMP_API_KEY:-${AI_API_KEY:-}}"
+          export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-${AI_API_KEY:-}}"
+          if [ -n "${AI_API_KEY:-}" ]; then echo "::add-mask::${AI_API_KEY}"; fi
+          if [ -n "${AMP_API_KEY:-}" ]; then echo "::add-mask::${AMP_API_KEY}"; fi
+          if [ -n "${ANTHROPIC_API_KEY:-}" ]; then echo "::add-mask::${ANTHROPIC_API_KEY}"; fi
+
+          INSTRUCTION=$(cat <<'EOF'
+          You are performing a single-pass human-style PR review.
+
+          Inputs:
+          - You will receive a unified diff (the PR patch) via stdin.
+          - Comment only on added lines; avoid spam.
+
+          Output format - XML with this exact structure:
+
+          <review>
+            <summary>Overall assessment in 2-3 sentences. Focus on correctness, security, and readability.</summary>
+            <comments>
+              <comment>
+                <file>path/to/file.ext</file>
+                <line>123</line>
+                <body>Your comment about this specific line</body>
+              </comment>
+            </comments>
+            <status>
+              <state>success</state>
+              <description>Brief reason (under 120 chars)</description>
+            </status>
+          </review>
+          EOF
+          )
+
+          echo "Running AI review..."
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES..."
+            if cat diff.patch | timeout 300 "$REVIEW_CLI_BIN" $REVIEW_CLI_ARGS "${SYSTEM_PROMPT}
+
+          ${INSTRUCTION}" > ai_output.xml; then
+              if grep -q "<review>" ai_output.xml && grep -q "</review>" ai_output.xml; then
+                echo "Valid XML review received"
+                break
+              else
+                echo "Invalid XML output, retrying..."
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+              fi
+            else
+              echo "AI call failed, retrying..."
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+            fi
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              sleep 5
+            fi
+          done
+
+          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+            cat > ai_output.xml <<'FALLBACK'
+          <review>
+            <summary>AI review failed after multiple attempts.</summary>
+            <comments></comments>
+            <status>
+              <state>success</state>
+              <description>AI review fallback</description>
+            </status>
+          </review>
+          FALLBACK
+          fi
+
+          echo "## Summary" > review.md
+          node -e "const fs=require('fs');const xml=fs.readFileSync('ai_output.xml','utf8');const s=(xml.match(/<summary>([\s\S]*?)<\\\/summary>/)||['','No summary'])[1].trim();fs.writeFileSync('summary.txt',s);const st=(xml.match(/<state>([\s\S]*?)<\\\/state>/)||['','success'])[1].trim();fs.writeFileSync('state.txt',st);const d=(xml.match(/<description>([\s\S]*?)<\\\/description>/)||['','AI review completed'])[1].trim();fs.writeFileSync('description.txt',d);const blocks=xml.match(/<comment>[\s\S]*?<\\\/comment>/g)||[];const comments=[];for(const block of blocks){const file=(block.match(/<file>(.*?)<\\\/file>/)||[])[1];const line=(block.match(/<line>(.*?)<\\\/line>/)||[])[1];const body=(block.match(/<body>([\s\S]*?)<\\\/body>/)||[])[1];if(file&&line&&body){comments.push({path:file.trim(),line:Number(line.trim()),side:'RIGHT',body:body.trim()});}}fs.writeFileSync('comments.json',JSON.stringify(comments));" 
+          cat summary.txt >> review.md
+          echo "{\"state\":\"$(cat state.txt)\",\"description\":\"$(cat description.txt)\"}" > status.json
+
+      - name: Post PR review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg event "${REVIEW_EVENT}" \
+            --arg body "$(cat review.md)" \
+            --argjson comments "$(cat comments.json)" \
+            '{ event: $event, body: $body, comments: $comments }' > review_payload.json
+          gh api \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${{ github.repository }}/pulls/${PR}/reviews" \
+            --input review_payload.json
+
+      - name: Set commit status from AI result
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -f status.json ] || echo '{"state":"success","description":"AI review completed"}' > status.json
+          STATE=$(jq -r '.state // "success"' status.json)
+          DESC=$(jq -r '.description // "AI review completed"' status.json)
+          gh api \
+            -X POST \
+            "repos/${{ github.repository }}/statuses/${{ github.event.pull_request.head.sha }}" \
+            -f state="$STATE" \
+            -f context="AI PR Review" \
+            -f description="${DESC:0:140}"
