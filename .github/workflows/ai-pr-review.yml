@@ -159,7 +159,43 @@ jobs:
           fi
 
           echo "## Summary" > review.md
-          node -e "const fs=require('fs');const xml=fs.readFileSync('ai_output.xml','utf8');const s=(xml.match(/<summary>([\s\S]*?)<\\\/summary>/)||['','No summary'])[1].trim();fs.writeFileSync('summary.txt',s);const st=(xml.match(/<state>([\s\S]*?)<\\\/state>/)||['','success'])[1].trim();fs.writeFileSync('state.txt',st);const d=(xml.match(/<description>([\s\S]*?)<\\\/description>/)||['','AI review completed'])[1].trim();fs.writeFileSync('description.txt',d);const blocks=xml.match(/<comment>[\s\S]*?<\\\/comment>/g)||[];const comments=[];for(const block of blocks){const file=(block.match(/<file>(.*?)<\\\/file>/)||[])[1];const line=(block.match(/<line>(.*?)<\\\/line>/)||[])[1];const body=(block.match(/<body>([\s\S]*?)<\\\/body>/)||[])[1];if(file&&line&&body){comments.push({path:file.trim(),line:Number(line.trim()),side:'RIGHT',body:body.trim()});}}fs.writeFileSync('comments.json',JSON.stringify(comments));" 
+          node <<'NODE'
+const fs = require('fs');
+const xml = fs.readFileSync('ai_output.xml', 'utf8');
+
+const extract = (tag, fallback = '') => {
+  const regex = new RegExp(`<${tag}>([\s\S]*?)<\/${tag}>`);
+  const match = xml.match(regex);
+  return match ? match[1].trim() : fallback;
+};
+
+fs.writeFileSync('summary.txt', extract('summary', 'No summary'));
+fs.writeFileSync('state.txt', extract('state', 'success'));
+fs.writeFileSync('description.txt', extract('description', 'AI review completed'));
+
+const commentRegex = /<comment>([\s\S]*?)<\/comment>/g;
+const comments = [];
+let blockMatch;
+while ((blockMatch = commentRegex.exec(xml)) !== null) {
+  const block = blockMatch[1];
+  const fileMatch = block.match(/<file>([\s\S]*?)<\/file>/);
+  const lineMatch = block.match(/<line>([\s\S]*?)<\/line>/);
+  const bodyMatch = block.match(/<body>([\s\S]*?)<\/body>/);
+  if (fileMatch && lineMatch && bodyMatch) {
+    const lineNumber = Number(lineMatch[1].trim());
+    if (!Number.isNaN(lineNumber)) {
+      comments.push({
+        path: fileMatch[1].trim(),
+        line: lineNumber,
+        side: 'RIGHT',
+        body: bodyMatch[1].trim(),
+      });
+    }
+  }
+}
+
+fs.writeFileSync('comments.json', JSON.stringify(comments));
+NODE
           cat summary.txt >> review.md
           echo "{\"state\":\"$(cat state.txt)\",\"description\":\"$(cat description.txt)\"}" > status.json
 
