@@ -190,10 +190,16 @@ class RestoreFixService {
             changes.addAll(bookingChanges);
           }
           
-          final paymentChanges = await _recalculateBookingFinancials(booking, fixId);
-          if (paymentChanges.isNotEmpty) {
-            paymentsChecked++;
-            changes.addAll(paymentChanges);
+          final updatedBooking = await (db.select(db.bookings)
+                ..where((b) => b.id.equals(booking.id)))
+              .getSingleOrNull();
+          
+          if (updatedBooking != null) {
+            final paymentChanges = await _recalculateBookingFinancials(updatedBooking, fixId);
+            if (paymentChanges.isNotEmpty) {
+              paymentsChecked++;
+              changes.addAll(paymentChanges);
+            }
           }
         }
         
@@ -270,21 +276,17 @@ class RestoreFixService {
     // استثناء الحجوزات المحذوفة
     query.where((b) => b.deletedAt.isNull());
     
-    // البحث عن الحجوزات النشطة أو المكتملة حديثاً
+    // البحث عن الحجوزات النشطة (لم تسجل مغادرة فعلية)
     query.where((b) => 
-      b.status.equals('محجوزة') |
-      b.status.equals('active') |
-      b.status.equals('confirmed') |
-      b.status.equals('checked_in')
+      (b.status.equals('محجوزة') |
+       b.status.equals('active') |
+       b.status.equals('confirmed') |
+       b.status.equals('checked_in')) &
+      b.actualCheckout.isNull()
     );
     
-    // التأكد من وجود تواريخ الدخول والخروج
-    query.where((b) => b.checkinDate.isNotNull() & b.checkoutDate.isNotNull());
-    
-    if (backupDate != null) {
-      final cutoff = backupDate.millisecondsSinceEpoch ~/ 1000;
-      query.where((b) => b.updatedAt.isBiggerOrEqualValue(cutoff));
-    }
+    // التأكد من وجود تاريخ الدخول
+    query.where((b) => b.checkinDate.isNotNull());
     
     return await query.get();
   }
@@ -298,7 +300,7 @@ class RestoreFixService {
       final checkinDate = DateTime.parse(booking.checkinDate);
       final checkoutDate = booking.actualCheckout != null 
           ? DateTime.parse(booking.actualCheckout!)
-          : DateTime.parse(booking.checkoutDate!);
+          : now;
       
       // حساب الليالي باستخدام قاعدة الساعة 14:00
       final calculatedNights = Time.nightsWithCutoff(checkinDate, checkout: checkoutDate);
@@ -371,6 +373,30 @@ class RestoreFixService {
       double? expectedTotal;
       if (room != null) {
         expectedTotal = booking.calculatedNights * room.price;
+        final remainingBalance = expectedTotal - totalPaid;
+        final isFullyPaid = remainingBalance <= 0;
+        
+        if (booking.totalDueCached != expectedTotal ||
+            booking.totalPaidCached != totalPaid ||
+            booking.remainingBalanceCached != remainingBalance ||
+            booking.isFullyPaid != isFullyPaid) {
+          await bookingsDao.updateById(
+            booking.id,
+            BookingsCompanion(
+              totalDueCached: Value(expectedTotal),
+              totalPaidCached: Value(totalPaid),
+              remainingBalanceCached: Value(remainingBalance),
+              isFullyPaid: Value(isFullyPaid),
+              updatedAt: Value(Time.nowEpoch()),
+              lastModified: Value(Time.nowEpoch()),
+            ),
+            originIsServer: false,
+          );
+          
+          changes.add('تحديث المبالغ المخزنة للحجز #${booking.id}: الإجمالي=${expectedTotal.toStringAsFixed(2)}, المدفوع=${totalPaid.toStringAsFixed(2)}, المتبقي=${remainingBalance.toStringAsFixed(2)}');
+          debugPrint('💰 ${changes.last}');
+        }
+        
         if ((totalPaid - expectedTotal).abs() > 0.01) {
           await _logChange(
             fixId: fixId,
