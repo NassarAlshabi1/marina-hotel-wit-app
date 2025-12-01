@@ -36,7 +36,7 @@ class AutoBackupManager {
   static const int _instantSyncDebounceSeconds = 5;
   
   /// عدد النسخ الاحتياطية الافتراضي المراد الاحتفاظ به
-  static const int _defaultMaxBackups = 6;
+  static const int _defaultMaxBackups = 10;
   
   /// عدد أيام الاحتفاظ بالنسخ الاحتياطية
   static const int _defaultRetentionDays = 14;
