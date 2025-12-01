@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
+import 'package:appwrite/appwrite.dart';
 import 'delta_sync_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
@@ -98,17 +99,21 @@ class AppwriteDeltaSync {
       }
 
       int pushedCount = 0;
+      bool hasFailures = false;
       for (final change in computation.changes) {
         try {
           await _pushSingleChange(change);
           pushedCount++;
         } catch (e) {
+          hasFailures = true;
           _logger.warning('فشل رفع تغيير: ${change.entity}/${change.localUuid} - $e', tag: 'DELTA_SYNC');
         }
       }
 
-      await _deltaSyncService!.persistMirror(computation);
-      await _updateLastDeltaSyncTimestamp();
+      if (!hasFailures) {
+        await _deltaSyncService!.persistMirror(computation);
+        await _updateLastDeltaSyncTimestamp();
+      }
 
       _logger.info('✅ تم رفع $pushedCount تغيير إلى Appwrite', tag: 'DELTA_SYNC');
 
@@ -138,12 +143,6 @@ class AppwriteDeltaSync {
 
     switch (change.operation) {
       case 'insert':
-        await _appwriteService!.upsertDocument(
-          collectionId: collectionId,
-          documentId: change.localUuid,
-          data: _sanitizePayload(payload),
-        );
-        break;
       case 'update':
         await _appwriteService!.upsertDocument(
           collectionId: collectionId,
@@ -181,12 +180,18 @@ class AppwriteDeltaSync {
       final lastPullTs = await _getLastDeltaSyncTimestamp();
       int pulledCount = 0;
 
-      pulledCount += await _pullEntityChanges('rooms', AppwriteConfig.roomsCollectionId, lastPullTs);
-      pulledCount += await _pullEntityChanges('bookings', AppwriteConfig.bookingsCollectionId, lastPullTs);
-      pulledCount += await _pullEntityChanges('payments', AppwriteConfig.paymentsCollectionId, lastPullTs);
-      pulledCount += await _pullEntityChanges('expenses', AppwriteConfig.expensesCollectionId, lastPullTs);
-      pulledCount += await _pullEntityChanges('debts', AppwriteConfig.debtsCollectionId, lastPullTs);
-      pulledCount += await _pullEntityChanges('employees', AppwriteConfig.employeesCollectionId, lastPullTs);
+      final entitiesToPull = {
+        'rooms': AppwriteConfig.roomsCollectionId,
+        'bookings': AppwriteConfig.bookingsCollectionId,
+        'payments': AppwriteConfig.paymentsCollectionId,
+        'expenses': AppwriteConfig.expensesCollectionId,
+        'debts': AppwriteConfig.debtsCollectionId,
+        'employees': AppwriteConfig.employeesCollectionId,
+      };
+
+      for (final entry in entitiesToPull.entries) {
+        pulledCount += await _pullEntityChanges(entry.key, entry.value, lastPullTs);
+      }
 
       if (pulledCount > 0) {
         await _updateLastDeltaSyncTimestamp();
@@ -211,6 +216,9 @@ class AppwriteDeltaSync {
     try {
       final documents = await _appwriteService!.listDocuments(
         collectionId: collectionId,
+        queries: lastPullTs > 0
+            ? [Query.greaterThan('syncTimestamp', lastPullTs)]
+            : null,
         useCache: false,
       );
 
@@ -218,10 +226,8 @@ class AppwriteDeltaSync {
       for (final doc in documents) {
         final data = Map<String, dynamic>.from(doc.data);
         final sourceDeviceId = data['deviceId'] as String?;
-        final syncTimestamp = _asInt(data['syncTimestamp']) ?? _asInt(data['lastModified']) ?? 0;
 
         if (sourceDeviceId == _deviceId) continue;
-        if (syncTimestamp <= lastPullTs) continue;
 
         try {
           await _applyRemoteChange(entity, doc.$id, data);

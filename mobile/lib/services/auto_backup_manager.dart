@@ -42,6 +42,7 @@ class AutoBackupManager {
   AppwriteService? _appwriteService;
   AppDatabase? _database;
   Timer? _debounceTimer;
+  Timer? _deltaSyncDebounceTimer;
   Timer? _deltaSyncTimer;
   Timer? _cleanupTimer;
   bool _isBackingUp = false;
@@ -140,16 +141,18 @@ class AutoBackupManager {
     _pendingChanges++;
     debugPrint('🔄 تغيير في $tableName ($operation) - تغييرات معلقة: $_pendingChanges');
     
-    _debounceTimer?.cancel();
-    
     if (_currentMode == BackupMode.deltaSync || _currentMode == BackupMode.both) {
-      _debounceTimer = Timer(const Duration(seconds: _instantSyncDebounceSeconds), () async {
+      _deltaSyncDebounceTimer?.cancel();
+      _deltaSyncDebounceTimer = Timer(const Duration(seconds: _instantSyncDebounceSeconds), () async {
         await performDeltaSync();
-        _pendingChanges = 0;
+        if (_currentMode == BackupMode.deltaSync) {
+          _pendingChanges = 0;
+        }
       });
     }
     
     if (_currentMode == BackupMode.fullBackup || _currentMode == BackupMode.both) {
+      _debounceTimer?.cancel();
       _debounceTimer = Timer(Duration(seconds: _debounceSeconds), () {
         _performAutoBackup(
           reason: 'تغييرات تلقائية ($tableName: $operation)',
@@ -365,6 +368,7 @@ class AutoBackupManager {
   /// إيقاف المدير وتنظيف الموارد
   void dispose() {
     _debounceTimer?.cancel();
+    _deltaSyncDebounceTimer?.cancel();
     _deltaSyncTimer?.cancel();
     _cleanupTimer?.cancel();
     debugPrint('🛑 مدير النسخ التلقائي: تم التنظيف');
@@ -448,9 +452,13 @@ class AutoBackupManager {
             'push': {'success': pushResult.success, 'count': pushResult.changesCount},
             'pull': {'success': pullResult.success, 'count': pullResult.changesCount},
           };
+          if (!pushResult.success || !pullResult.success) {
+            results['success'] = false;
+          }
           debugPrint('✅ Google Drive Delta: رفع ${pushResult.changesCount}، سحب ${pullResult.changesCount}');
         } catch (e) {
           results['google_drive'] = {'error': e.toString()};
+          results['success'] = false;
           debugPrint('❌ خطأ في مزامنة Google Drive التفاضلية: $e');
         }
       }
@@ -463,9 +471,13 @@ class AutoBackupManager {
             'push': {'success': pushResult.success, 'count': pushResult.pushedCount},
             'pull': {'success': pullResult.success, 'count': pullResult.pulledCount},
           };
+          if (!pushResult.success || !pullResult.success) {
+            results['success'] = false;
+          }
           debugPrint('✅ Appwrite Delta: رفع ${pushResult.pushedCount}، سحب ${pullResult.pulledCount}');
         } catch (e) {
           results['appwrite'] = {'error': e.toString()};
+          results['success'] = false;
           debugPrint('❌ خطأ في مزامنة Appwrite التفاضلية: $e');
         }
       }

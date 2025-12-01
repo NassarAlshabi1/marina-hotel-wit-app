@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:drift/drift.dart' as d;
 import 'delta_sync_service.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
@@ -18,6 +19,7 @@ class GoogleDriveDeltaSync {
 
   GoogleDriveBackupService? _driveService;
   DeltaSyncService? _deltaSyncService;
+  AppDatabase? _database;
   String? _deviceId;
   bool _isSyncing = false;
 
@@ -29,6 +31,7 @@ class GoogleDriveDeltaSync {
 
   Future<void> initialize(GoogleDriveBackupService driveService, AppDatabase db) async {
     _driveService = driveService;
+    _database = db;
     _deltaSyncService = DeltaSyncService(db);
     await _initializeDeviceId();
     debugPrint('✅ تم تهيئة خدمة المزامنة التفاضلية لـ Google Drive');
@@ -108,7 +111,7 @@ class GoogleDriveDeltaSync {
         return DeltaSyncResult(success: true, message: 'لا توجد ملفات مزامنة', changesCount: 0);
       }
 
-      deltaFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+      deltaFiles.sort((a, b) => a.createdTime.compareTo(b.createdTime));
       
       int appliedChanges = 0;
       final lastPullTs = await _getLastDeltaSyncTimestamp();
@@ -212,7 +215,320 @@ class GoogleDriveDeltaSync {
   }
 
   Future<void> _applyChange(String entity, String operation, Map<String, dynamic> data) async {
-    debugPrint('🔄 تطبيق $operation على $entity');
+    if (_database == null) return;
+    final db = _database!;
+    final localUuid = _asString(data['local_uuid']) ?? _asString(data['localUuid']) ?? '';
+    if (localUuid.isEmpty) return;
+
+    debugPrint('🔄 تطبيق $operation على $entity/$localUuid');
+
+    switch (entity) {
+      case 'rooms':
+        await _applyRoomChange(db, localUuid, operation, data);
+        break;
+      case 'bookings':
+        await _applyBookingChange(db, localUuid, operation, data);
+        break;
+      case 'payments':
+        await _applyPaymentChange(db, localUuid, operation, data);
+        break;
+      case 'expenses':
+        await _applyExpenseChange(db, localUuid, operation, data);
+        break;
+      case 'debts':
+        await _applyDebtChange(db, localUuid, operation, data);
+        break;
+      case 'employees':
+        await _applyEmployeeChange(db, localUuid, operation, data);
+        break;
+      case 'booking_notes':
+        await _applyBookingNoteChange(db, localUuid, operation, data);
+        break;
+      case 'cash_transactions':
+        await _applyCashTransactionChange(db, localUuid, operation, data);
+        break;
+    }
+  }
+
+  Future<void> _applyRoomChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
+    if (operation == 'delete') {
+      await (db.delete(db.rooms)..where((t) => t.localUuid.equals(localUuid))).go();
+      return;
+    }
+    final roomNumber = _asString(data['room_number']);
+    if (roomNumber == null || roomNumber.isEmpty) return;
+
+    final companion = RoomsCompanion(
+      roomNumber: d.Value(roomNumber),
+      type: d.Value(_asString(data['type']) ?? ''),
+      price: d.Value(_asDouble(data['price'])),
+      status: d.Value(_asString(data['status']) ?? 'available'),
+      imageUrl: _nullableValue<String>(_asString(data['image_url']) ?? _asString(data['imageUrl'])),
+      localUuid: d.Value(localUuid),
+      serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['created_at']) ?? _asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updated_at']) ?? _asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deleted_at']) ?? _asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['last_modified']) ?? _asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('google_drive_delta'),
+    );
+    await db.into(db.rooms).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyBookingChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
+    if (operation == 'delete') {
+      await (db.delete(db.bookings)..where((t) => t.localUuid.equals(localUuid))).go();
+      return;
+    }
+    final roomNumber = _asString(data['room_number']) ?? _asString(data['roomNumber']);
+    if (roomNumber == null || roomNumber.isEmpty) return;
+
+    final companion = BookingsCompanion(
+      localUuid: d.Value(localUuid),
+      serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['created_at']) ?? _asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updated_at']) ?? _asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deleted_at']) ?? _asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['last_modified']) ?? _asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('google_drive_delta'),
+      serverBookingId: _nullableValue<int>(_asInt(data['server_booking_id']) ?? _asInt(data['serverBookingId'])),
+      roomNumber: d.Value(roomNumber),
+      guestName: d.Value(_asString(data['guest_name']) ?? _asString(data['guestName']) ?? ''),
+      guestPhone: d.Value(_asString(data['guest_phone']) ?? _asString(data['guestPhone']) ?? ''),
+      guestIdType: d.Value(_asString(data['guest_id_type']) ?? _asString(data['guestIdType']) ?? ''),
+      guestIdNumber: d.Value(_asString(data['guest_id_number']) ?? _asString(data['guestIdNumber']) ?? ''),
+      guestIdIssueDate: _nullableValue<String>(_asString(data['guest_id_issue_date']) ?? _asString(data['guestIdIssueDate'])),
+      guestIdIssuePlace: _nullableValue<String>(_asString(data['guest_id_issue_place']) ?? _asString(data['guestIdIssuePlace'])),
+      guestNationality: d.Value(_asString(data['guest_nationality']) ?? _asString(data['guestNationality']) ?? ''),
+      guestEmail: _nullableValue<String>(_asString(data['guest_email']) ?? _asString(data['guestEmail'])),
+      guestAddress: _nullableValue<String>(_asString(data['guest_address']) ?? _asString(data['guestAddress'])),
+      checkinDate: d.Value(_asString(data['checkin_date']) ?? _asString(data['checkinDate']) ?? ''),
+      checkoutDate: _nullableValue<String>(_asString(data['checkout_date']) ?? _asString(data['checkoutDate'])),
+      actualCheckout: _nullableValue<String>(_asString(data['actual_checkout']) ?? _asString(data['actualCheckout'])),
+      status: d.Value(_asString(data['status']) ?? ''),
+      notes: _nullableValue<String>(_asString(data['notes'])),
+      expectedNights: d.Value(_asInt(data['expected_nights']) ?? _asInt(data['expectedNights']) ?? 1),
+      calculatedNights: d.Value(_asInt(data['calculated_nights']) ?? _asInt(data['calculatedNights']) ?? 1),
+    );
+    await db.into(db.bookings).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyPaymentChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
+    if (operation == 'delete') {
+      await (db.delete(db.payments)..where((t) => t.localUuid.equals(localUuid))).go();
+      return;
+    }
+    final companion = PaymentsCompanion(
+      localUuid: d.Value(localUuid),
+      serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['created_at']) ?? _asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updated_at']) ?? _asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deleted_at']) ?? _asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['last_modified']) ?? _asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('google_drive_delta'),
+      serverPaymentId: _nullableValue<int>(_asInt(data['server_payment_id']) ?? _asInt(data['serverPaymentId'])),
+      bookingLocalId: _nullableValue<int>(_asInt(data['booking_local_id']) ?? _asInt(data['bookingLocalId'])),
+      serverBookingId: _nullableValue<int>(_asInt(data['server_booking_id']) ?? _asInt(data['serverBookingId'])),
+      roomNumber: _nullableValue<String>(_asString(data['room_number']) ?? _asString(data['roomNumber'])),
+      amount: d.Value(_asDouble(data['amount'])),
+      paymentDate: d.Value(_asString(data['payment_date']) ?? _asString(data['paymentDate']) ?? ''),
+      notes: _nullableValue<String>(_asString(data['notes'])),
+      paymentMethod: d.Value(_asString(data['payment_method']) ?? _asString(data['paymentMethod']) ?? ''),
+      revenueType: d.Value(_asString(data['revenue_type']) ?? _asString(data['revenueType']) ?? ''),
+      cashTransactionLocalId: _nullableValue<int>(_asInt(data['cash_transaction_local_id']) ?? _asInt(data['cashTransactionLocalId'])),
+      cashTransactionServerId: _nullableValue<int>(_asInt(data['cash_transaction_server_id']) ?? _asInt(data['cashTransactionServerId'])),
+      referenceNumber: _nullableValue<String>(_asString(data['reference_number']) ?? _asString(data['referenceNumber'])),
+    );
+    await db.into(db.payments).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyExpenseChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
+    if (operation == 'delete') {
+      await (db.delete(db.expenses)..where((t) => t.localUuid.equals(localUuid))).go();
+      return;
+    }
+    final expenseType = _asString(data['expense_type']) ?? _asString(data['expenseType']);
+    if (expenseType == null || expenseType.isEmpty) return;
+
+    final companion = ExpensesCompanion(
+      localUuid: d.Value(localUuid),
+      serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['created_at']) ?? _asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updated_at']) ?? _asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deleted_at']) ?? _asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['last_modified']) ?? _asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('google_drive_delta'),
+      expenseType: d.Value(expenseType),
+      relatedId: _nullableValue<int>(_asInt(data['related_id']) ?? _asInt(data['relatedId'])),
+      description: d.Value(_asString(data['description']) ?? ''),
+      amount: d.Value(_asDouble(data['amount'])),
+      date: d.Value(_asString(data['date']) ?? ''),
+      cashTransactionId: _nullableValue<int>(_asInt(data['cash_transaction_id']) ?? _asInt(data['cashTransactionId'])),
+    );
+    await db.into(db.expenses).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyDebtChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
+    if (operation == 'delete') {
+      await (db.delete(db.debts)..where((t) => t.localUuid.equals(localUuid))).go();
+      return;
+    }
+    final guestName = _asString(data['guest_name']) ?? _asString(data['guestName']) ?? _asString(data['debtor_name']) ?? _asString(data['debtorName']);
+    if (guestName == null || guestName.isEmpty) return;
+
+    final companion = DebtsCompanion(
+      localUuid: d.Value(localUuid),
+      serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['created_at']) ?? _asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updated_at']) ?? _asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deleted_at']) ?? _asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['last_modified']) ?? _asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('google_drive_delta'),
+      bookingLocalId: _nullableValue<int>(_asInt(data['booking_local_id']) ?? _asInt(data['bookingLocalId'])),
+      guestName: d.Value(guestName),
+      checkinDate: d.Value(_asString(data['checkin_date']) ?? _asString(data['checkinDate']) ?? ''),
+      checkoutDate: d.Value(_asString(data['checkout_date']) ?? _asString(data['checkoutDate']) ?? ''),
+      dateRecorded: d.Value(_asString(data['date_recorded']) ?? _asString(data['dateRecorded']) ?? ''),
+      debtReason: d.Value(_asString(data['debt_reason']) ?? _asString(data['debtReason']) ?? ''),
+      totalAmount: d.Value(_asDouble(data['total_amount']) ?? _asDouble(data['totalAmount']) ?? _asDouble(data['amount'])),
+      paidAmount: d.Value(_asDouble(data['paid_amount']) ?? _asDouble(data['paidAmount'])),
+      remainingAmount: d.Value(_asDouble(data['remaining_amount']) ?? _asDouble(data['remainingAmount'])),
+      paymentDate: d.Value(_asString(data['payment_date']) ?? _asString(data['paymentDate']) ?? ''),
+      isSettled: d.Value(_asInt(data['is_settled']) ?? _asInt(data['isSettled']) ?? (data['status'] == 'settled' ? 1 : 0)),
+      pledge: _nullableValue<String>(_asString(data['pledge'])),
+      pledgeType: _nullableValue<String>(_asString(data['pledge_type']) ?? _asString(data['pledgeType'])),
+      note: _nullableValue<String>(_asString(data['note'])),
+    );
+    await db.into(db.debts).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyEmployeeChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
+    if (operation == 'delete') {
+      await (db.delete(db.employees)..where((t) => t.localUuid.equals(localUuid))).go();
+      return;
+    }
+    final name = _asString(data['name']);
+    if (name == null || name.isEmpty) return;
+
+    final companion = EmployeesCompanion(
+      localUuid: d.Value(localUuid),
+      serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['created_at']) ?? _asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updated_at']) ?? _asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deleted_at']) ?? _asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['last_modified']) ?? _asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('google_drive_delta'),
+      name: d.Value(name),
+      basicSalary: d.Value(_asDouble(data['basic_salary']) ?? _asDouble(data['basicSalary'])),
+      position: d.Value(_asString(data['position']) ?? ''),
+      phone: d.Value(_asString(data['phone']) ?? ''),
+      hireDate: d.Value(_asString(data['hire_date']) ?? _asString(data['hireDate']) ?? ''),
+      status: d.Value(_asString(data['status']) ?? ''),
+    );
+    await db.into(db.employees).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyBookingNoteChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
+    if (operation == 'delete') {
+      await (db.delete(db.bookingNotes)..where((t) => t.localUuid.equals(localUuid))).go();
+      return;
+    }
+
+    final bookingId = _asInt(data['booking_id']) ?? _asInt(data['bookingId']);
+    final noteText = _asString(data['note_text']) ?? _asString(data['noteText']);
+    if (bookingId == null || noteText == null) return;
+
+    final alertType = _asString(data['alert_type']) ?? _asString(data['alertType']) ?? 'general';
+    final alertUntil = _asString(data['alert_until']) ?? _asString(data['alertUntil']);
+    final isActive = _asInt(data['is_active']) ?? _asInt(data['isActive']) ?? 1;
+
+    final companion = BookingNotesCompanion(
+      localUuid: d.Value(localUuid),
+      serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['created_at']) ?? _asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updated_at']) ?? _asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deleted_at']) ?? _asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['last_modified']) ?? _asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('google_drive_delta'),
+      bookingId: d.Value(bookingId),
+      noteText: d.Value(noteText),
+      alertType: d.Value(alertType),
+      alertUntil: _nullableValue<String>(alertUntil),
+      isActive: d.Value(isActive),
+    );
+    await db.into(db.bookingNotes).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyCashTransactionChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
+    if (operation == 'delete') {
+      await (db.delete(db.cashTransactions)..where((t) => t.localUuid.equals(localUuid))).go();
+      return;
+    }
+
+    final transactionType =
+        _asString(data['transaction_type']) ?? _asString(data['transactionType']);
+    if (transactionType == null || transactionType.isEmpty) return;
+
+    final transactionTime =
+        _asString(data['transaction_time']) ?? _asString(data['transactionTime']) ?? Time.nowIso();
+
+    final companion = CashTransactionsCompanion(
+      localUuid: d.Value(localUuid),
+      serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['created_at']) ?? _asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updated_at']) ?? _asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deleted_at']) ?? _asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['last_modified']) ?? _asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('google_drive_delta'),
+      registerId: _nullableValue<int>(_asInt(data['register_id']) ?? _asInt(data['registerId'])),
+      transactionType: d.Value(transactionType),
+      amount: d.Value(_asDouble(data['amount'])),
+      referenceType: _nullableValue<String>(_asString(data['reference_type']) ?? _asString(data['referenceType'])),
+      referenceId: _nullableValue<int>(_asInt(data['reference_id']) ?? _asInt(data['referenceId'])),
+      description: _nullableValue<String>(_asString(data['description'])),
+      transactionTime: d.Value(transactionTime),
+      createdBy: _nullableValue<int>(_asInt(data['created_by']) ?? _asInt(data['createdBy'])),
+    );
+    await db.into(db.cashTransactions).insertOnConflictUpdate(companion);
+  }
+
+  d.Value<T?> _nullableValue<T>(T? value) {
+    return value == null ? const d.Value.absent() : d.Value(value);
+  }
+
+  int? _asInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String && value.isNotEmpty) {
+      return int.tryParse(value) ?? double.tryParse(value)?.toInt();
+    }
+    return null;
+  }
+
+  double _asDouble(dynamic value, {double fallback = 0.0}) {
+    if (value == null) return fallback;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is num) return value.toDouble();
+    if (value is String && value.isNotEmpty) {
+      return double.tryParse(value) ?? fallback;
+    }
+    return fallback;
+  }
+
+  String? _asString(dynamic value) {
+    if (value == null) return null;
+    final result = value.toString();
+    return result.isEmpty ? null : result;
   }
 
   Future<int> _getLastDeltaSyncTimestamp() async {
