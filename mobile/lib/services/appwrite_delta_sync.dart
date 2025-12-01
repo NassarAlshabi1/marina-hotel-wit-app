@@ -180,12 +180,18 @@ class AppwriteDeltaSync {
       final lastPullTs = await _getLastDeltaSyncTimestamp();
       int pulledCount = 0;
 
-      pulledCount += await _pullEntityChanges('rooms', AppwriteConfig.roomsCollectionId, lastPullTs);
-      pulledCount += await _pullEntityChanges('bookings', AppwriteConfig.bookingsCollectionId, lastPullTs);
-      pulledCount += await _pullEntityChanges('payments', AppwriteConfig.paymentsCollectionId, lastPullTs);
-      pulledCount += await _pullEntityChanges('expenses', AppwriteConfig.expensesCollectionId, lastPullTs);
-      pulledCount += await _pullEntityChanges('debts', AppwriteConfig.debtsCollectionId, lastPullTs);
-      pulledCount += await _pullEntityChanges('employees', AppwriteConfig.employeesCollectionId, lastPullTs);
+      final entitiesToPull = {
+        'rooms': AppwriteConfig.roomsCollectionId,
+        'bookings': AppwriteConfig.bookingsCollectionId,
+        'payments': AppwriteConfig.paymentsCollectionId,
+        'expenses': AppwriteConfig.expensesCollectionId,
+        'debts': AppwriteConfig.debtsCollectionId,
+        'employees': AppwriteConfig.employeesCollectionId,
+      };
+
+      for (final entry in entitiesToPull.entries) {
+        pulledCount += await _pullEntityChanges(entry.key, entry.value, lastPullTs);
+      }
 
       if (pulledCount > 0) {
         await _updateLastDeltaSyncTimestamp();

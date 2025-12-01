@@ -452,9 +452,13 @@ class AutoBackupManager {
             'push': {'success': pushResult.success, 'count': pushResult.changesCount},
             'pull': {'success': pullResult.success, 'count': pullResult.changesCount},
           };
+          if (!pushResult.success || !pullResult.success) {
+            results['success'] = false;
+          }
           debugPrint('✅ Google Drive Delta: رفع ${pushResult.changesCount}، سحب ${pullResult.changesCount}');
         } catch (e) {
           results['google_drive'] = {'error': e.toString()};
+          results['success'] = false;
           debugPrint('❌ خطأ في مزامنة Google Drive التفاضلية: $e');
         }
       }
@@ -467,9 +471,13 @@ class AutoBackupManager {
             'push': {'success': pushResult.success, 'count': pushResult.pushedCount},
             'pull': {'success': pullResult.success, 'count': pullResult.pulledCount},
           };
+          if (!pushResult.success || !pullResult.success) {
+            results['success'] = false;
+          }
           debugPrint('✅ Appwrite Delta: رفع ${pushResult.pushedCount}، سحب ${pullResult.pulledCount}');
         } catch (e) {
           results['appwrite'] = {'error': e.toString()};
+          results['success'] = false;
           debugPrint('❌ خطأ في مزامنة Appwrite التفاضلية: $e');
         }
       }
