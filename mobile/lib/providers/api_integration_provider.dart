@@ -239,7 +239,10 @@ class ApiIntegrationSettingsNotifier extends StateNotifier<ApiIntegrationSetting
     try {
       final data = jsonDecode(raw);
       state = ApiIntegrationSettings.fromJson(Map<String, dynamic>.from(data as Map));
-    } catch (_) {}
+    } catch (e) {
+      // It's better to use a proper logger here.
+      debugPrint('Failed to load API integration settings: $e');
+    }
   }
 
   Future<void> _persist(ApiIntegrationSettings value) async {
