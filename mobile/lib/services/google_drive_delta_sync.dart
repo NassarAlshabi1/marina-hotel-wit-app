@@ -255,7 +255,7 @@ class GoogleDriveDeltaSync {
       await (db.delete(db.rooms)..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
-    final roomNumber = _asString(data['room_number']) ?? _asString(data['roomNumber']);
+    final roomNumber = _asString(data['room_number']);
     if (roomNumber == null || roomNumber.isEmpty) return;
 
     final companion = RoomsCompanion(
