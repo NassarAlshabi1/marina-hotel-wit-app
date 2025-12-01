@@ -36,10 +36,10 @@ class AutoBackupManager {
   static const int _instantSyncDebounceSeconds = 5;
   
   /// عدد النسخ الاحتياطية الافتراضي المراد الاحتفاظ به
-  static const int _defaultMaxBackups = 20;
+  static const int _defaultMaxBackups = 6;
   
   /// عدد أيام الاحتفاظ بالنسخ الاحتياطية
-  static const int _defaultRetentionDays = 30;
+  static const int _defaultRetentionDays = 14;
 
   /// تهيئة المدير مع خدمة النسخ الاحتياطي
   Future<void> initialize(GoogleDriveBackupService backupService) async {

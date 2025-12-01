@@ -82,8 +82,8 @@ Future<void> _initializeSmartAutoBackup() async {
     
     // تفعيل النسخ التلقائي بشكل افتراضي
     await autoBackupManager.setEnabled(true);
-    await autoBackupManager.setMaxBackupCount(25); // الاحتفاظ بـ 25 نسخة
-    await autoBackupManager.setRetentionDays(45); // لمدة 45 يوماً
+    await autoBackupManager.setMaxBackupCount(6); // الاحتفاظ بـ 6 نسخ فقط
+    await autoBackupManager.setRetentionDays(14); // لمدة 14 يوماً
     
     // تهيئة مدير المزامنة الذكية بين الأجهزة
     final smartSyncManager = SmartSyncManager.instance;
