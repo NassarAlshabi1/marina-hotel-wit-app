@@ -111,7 +111,7 @@ class GoogleDriveDeltaSync {
         return DeltaSyncResult(success: true, message: 'لا توجد ملفات مزامنة', changesCount: 0);
       }
 
-      deltaFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+      deltaFiles.sort((a, b) => a.createdTime.compareTo(b.createdTime));
       
       int appliedChanges = 0;
       final lastPullTs = await _getLastDeltaSyncTimestamp();
