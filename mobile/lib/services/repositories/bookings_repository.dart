@@ -34,7 +34,7 @@ class BookingsRepository {
     String? notes,
     int expectedNights = 1,
     int? calculatedNights,
-  }) {
+  }) async {
     final result = await dao.insertOne(
       BookingsCompanion(
         roomNumber: d.Value(roomNumber),
@@ -78,7 +78,7 @@ class BookingsRepository {
     String? notes,
     int? expectedNights,
     int? calculatedNights,
-  }) {
+  }) async {
     final result = await dao.updateById(
       id,
       BookingsCompanion(

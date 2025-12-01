@@ -33,7 +33,7 @@ class DebtsRepository {
     String? pledge,
     String? pledgeType,
     String? note,
-  }) {
+  }) async {
     final remaining = (totalAmount - paidAmount).clamp(0, double.infinity).toDouble();
     final settled = isSettled ?? (remaining <= 0 ? true : false);
     final result = await dao.insertOne(

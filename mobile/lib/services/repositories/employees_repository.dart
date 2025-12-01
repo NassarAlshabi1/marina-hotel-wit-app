@@ -23,7 +23,7 @@ class EmployeesRepository {
     String? phone,
     String? hireDate,
     required String status,
-  }) {
+  }) async {
     final s = salary ?? basicSalary ?? 0.0;
     final result = await dao.insertOne(
       EmployeesCompanion(
