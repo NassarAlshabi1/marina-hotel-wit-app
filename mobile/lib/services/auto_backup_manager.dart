@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'google_drive_backup_service.dart';
+import 'smart_sync_manager.dart';
 
 /// مدير النسخ الاحتياطي التلقائي الذكي
 /// يراقب التغييرات في قاعدة البيانات ويقوم بعمل نسخ احتياطية تلقائية
@@ -14,6 +15,7 @@ class AutoBackupManager {
   static const String _autoBackupEnabledKey = 'auto_backup_enabled';
   static const String _maxBackupCountKey = 'max_backup_count';
   static const String _backupRetentionDaysKey = 'backup_retention_days';
+  static const String _instantSyncEnabledKey = 'instant_sync_enabled';
   
   static AutoBackupManager? _instance;
   static AutoBackupManager get instance => _instance ??= AutoBackupManager._();
@@ -28,7 +30,10 @@ class AutoBackupManager {
   String? _deviceId;
   
   /// مدة انتظار قبل النسخ التلقائي (بالثواني) لتجميع التغييرات
-  static const int _debounceSeconds = 30;
+  static const int _debounceSeconds = 15;
+  
+  /// مدة انتظار قبل المزامنة الفورية (بالثواني)
+  static const int _instantSyncDebounceSeconds = 5;
   
   /// عدد النسخ الاحتياطية الافتراضي المراد الاحتفاظ به
   static const int _defaultMaxBackups = 20;
@@ -134,6 +139,9 @@ class AutoBackupManager {
       
       // تنظيف النسخ القديمة في الخلفية
       _cleanupOldBackups();
+      
+      // إشعار مدير المزامنة الذكية لمزامنة الأجهزة الأخرى
+      await _notifySmartSync();
       
     } catch (e) {
       debugPrint('❌ فشل النسخ التلقائي: $e');
@@ -298,4 +306,53 @@ class AutoBackupManager {
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
+
+  /// إشعار مدير المزامنة الذكية بوجود نسخة جديدة
+  Future<void> _notifySmartSync() async {
+    try {
+      final smartSync = SmartSyncManager.instance;
+      if (await smartSync.isEnabled()) {
+        debugPrint('🔔 إشعار مدير المزامنة الذكية بالنسخة الجديدة...');
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
+    }
+  }
+
+  /// تفعيل/تعطيل المزامنة الفورية
+  Future<void> setInstantSyncEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_instantSyncEnabledKey, enabled);
+    debugPrint('🔧 المزامنة الفورية: ${enabled ? 'مفعلة' : 'معطلة'}');
+  }
+
+  /// التحقق من تفعيل المزامنة الفورية
+  Future<bool> isInstantSyncEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_instantSyncEnabledKey) ?? true;
+  }
+
+  /// مزامنة فورية عند الطلب
+  Future<void> syncNow() async {
+    if (_backupService == null || !_backupService!.isSignedIn) {
+      debugPrint('⚠️ لا يمكن المزامنة: غير مسجل الدخول في Google Drive');
+      return;
+    }
+    
+    debugPrint('🚀 بدء المزامنة الفورية...');
+    await _performAutoBackup(
+      reason: 'مزامنة فورية يدوية',
+      changesCount: _pendingChanges > 0 ? _pendingChanges : 1,
+    );
+    _pendingChanges = 0;
+  }
+
+  /// الحصول على عدد التغييرات المعلقة
+  int get pendingChangesCount => _pendingChanges;
+
+  /// التحقق من حالة النسخ الجارية
+  bool get isBackingUp => _isBackingUp;
+
+  /// الحصول على معرف الجهاز
+  String? get deviceId => _deviceId;
 }
