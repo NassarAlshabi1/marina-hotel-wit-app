@@ -430,6 +430,9 @@ class GoogleDriveBackupService {
     }
   }
 
+  static const fullBackupPrefix = 'marina_backup_full_';
+  static const deltaSyncPrefix = 'marina_sync_delta_';
+
   Future<String> uploadBackup(Map<String, dynamic> backupData) async {
     String? partialFileId;
     
@@ -441,7 +444,7 @@ class GoogleDriveBackupService {
         final jsonBytes = utf8.encode(jsonString);
 
         final timestamp = DateTime.now();
-        final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
+        final fileName = '${fullBackupPrefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
 
         final metadata = backupData['metadata'] as Map<String, dynamic>? ?? {};
 
@@ -493,6 +496,23 @@ class GoogleDriveBackupService {
       }
     });
   }
+
+  Future<String> uploadBackupWithName(String fileName, List<int> bytes, {Map<String, String>? appProperties}) async {
+    return _runWithAuth<String>(() async {
+      final folderId = await getOrCreateBackupFolder();
+      final driveFile = drive.File()
+        ..name = fileName
+        ..parents = [folderId]
+        ..appProperties = appProperties ?? {};
+      final media = drive.Media(Stream.value(bytes), bytes.length);
+      debugPrint('📤 رفع ملف مزامنة: $fileName (${(bytes.length / 1024).toStringAsFixed(2)} KB)');
+      final uploadedFile = await _driveApi!.files.create(driveFile, uploadMedia: media);
+      debugPrint('✅ تم رفع الملف: ${uploadedFile.id}');
+      return uploadedFile.id!;
+    });
+  }
+
+  Future<void> deleteBackup(String fileId) => deleteBackupFile(fileId);
 
   /// التحقق من اكتمال النسخة المرفوعة
   Future<Map<String, dynamic>> _verifyUploadedBackup(String fileId, int expectedSize) async {
