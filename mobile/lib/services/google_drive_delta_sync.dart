@@ -439,6 +439,15 @@ class GoogleDriveDeltaSync {
       await (db.delete(db.bookingNotes)..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
+
+    final bookingId = _asInt(data['booking_id']) ?? _asInt(data['bookingId']);
+    final noteText = _asString(data['note_text']) ?? _asString(data['noteText']);
+    if (bookingId == null || noteText == null) return;
+
+    final alertType = _asString(data['alert_type']) ?? _asString(data['alertType']) ?? 'general';
+    final alertUntil = _asString(data['alert_until']) ?? _asString(data['alertUntil']);
+    final isActive = _asInt(data['is_active']) ?? _asInt(data['isActive']) ?? 1;
+
     final companion = BookingNotesCompanion(
       localUuid: d.Value(localUuid),
       serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
@@ -448,9 +457,11 @@ class GoogleDriveDeltaSync {
       lastModified: d.Value(_asInt(data['last_modified']) ?? _asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('google_drive_delta'),
-      bookingLocalId: _nullableValue<int>(_asInt(data['booking_local_id']) ?? _asInt(data['bookingLocalId'])),
-      note: d.Value(_asString(data['note']) ?? ''),
-      noteType: d.Value(_asString(data['note_type']) ?? _asString(data['noteType']) ?? ''),
+      bookingId: d.Value(bookingId),
+      noteText: d.Value(noteText),
+      alertType: d.Value(alertType),
+      alertUntil: _nullableValue<String>(alertUntil),
+      isActive: d.Value(isActive),
     );
     await db.into(db.bookingNotes).insertOnConflictUpdate(companion);
   }
@@ -460,6 +471,14 @@ class GoogleDriveDeltaSync {
       await (db.delete(db.cashTransactions)..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
+
+    final transactionType =
+        _asString(data['transaction_type']) ?? _asString(data['transactionType']);
+    if (transactionType == null || transactionType.isEmpty) return;
+
+    final transactionTime =
+        _asString(data['transaction_time']) ?? _asString(data['transactionTime']) ?? Time.nowIso();
+
     final companion = CashTransactionsCompanion(
       localUuid: d.Value(localUuid),
       serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
@@ -469,12 +488,14 @@ class GoogleDriveDeltaSync {
       lastModified: d.Value(_asInt(data['last_modified']) ?? _asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('google_drive_delta'),
+      registerId: _nullableValue<int>(_asInt(data['register_id']) ?? _asInt(data['registerId'])),
+      transactionType: d.Value(transactionType),
       amount: d.Value(_asDouble(data['amount'])),
-      transactionType: d.Value(_asString(data['transaction_type']) ?? _asString(data['transactionType']) ?? ''),
-      description: d.Value(_asString(data['description']) ?? ''),
-      date: d.Value(_asString(data['date']) ?? ''),
-      relatedEntityType: _nullableValue<String>(_asString(data['related_entity_type']) ?? _asString(data['relatedEntityType'])),
-      relatedEntityId: _nullableValue<int>(_asInt(data['related_entity_id']) ?? _asInt(data['relatedEntityId'])),
+      referenceType: _nullableValue<String>(_asString(data['reference_type']) ?? _asString(data['referenceType'])),
+      referenceId: _nullableValue<int>(_asInt(data['reference_id']) ?? _asInt(data['referenceId'])),
+      description: _nullableValue<String>(_asString(data['description'])),
+      transactionTime: d.Value(transactionTime),
+      createdBy: _nullableValue<int>(_asInt(data['created_by']) ?? _asInt(data['createdBy'])),
     );
     await db.into(db.cashTransactions).insertOnConflictUpdate(companion);
   }
