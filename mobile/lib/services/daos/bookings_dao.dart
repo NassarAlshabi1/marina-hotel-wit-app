@@ -148,6 +148,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin 
     for (final bookingJson in data) {
       final booking = Booking.fromJson(bookingJson);
       await into(bookings).insertOnConflictUpdate(BookingsCompanion(
+        id: Value(booking.id),
         serverBookingId: Value(booking.serverBookingId),
         roomNumber: Value(booking.roomNumber),
         guestName: Value(booking.guestName),
