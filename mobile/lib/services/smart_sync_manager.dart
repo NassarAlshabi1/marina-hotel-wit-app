@@ -543,6 +543,12 @@ class SmartSyncManager {
     };
   }
 
+  /// إشعار بأن هذا الجهاز قام برفع نسخة احتياطية جديدة
+  Future<void> onLocalBackupUploaded() async {
+    await _updateLastSyncTime();
+    debugPrint('📤 تم تسجيل رفع نسخة احتياطية من هذا الجهاز');
+  }
+
   /// مزامنة يدوية فورية
   Future<void> forceSyncNow() async {
     if (_isSyncing) {
@@ -580,34 +586,17 @@ class SmartSyncManager {
   }
 
   /// سحب التغييرات من الأجهزة الأخرى
+  /// يستخدم نفس منطق _performSyncCheck لتجنب تكرار الكود
   Future<bool> pullRemoteChanges() async {
     if (_backupService == null || !_backupService!.isSignedIn) {
       return false;
     }
 
+    final wasAlreadySyncing = _isSyncing;
     try {
-      debugPrint('📥 فحص التغييرات من الأجهزة الأخرى...');
-      
-      final backupFiles = await _backupService!.listBackupFiles();
-      if (backupFiles.isEmpty) return false;
-
-      backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
-      final latestBackup = backupFiles.first;
-      
-      final backupDeviceId = latestBackup.appProperties['device_id'];
-      if (backupDeviceId == _deviceId) {
-        debugPrint('📱 النسخة الأحدث من هذا الجهاز');
-        return false;
-      }
-
-      final lastRemoteTimestamp = await _getLastRemoteTimestamp();
-      if (lastRemoteTimestamp != null && !latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
-        return false;
-      }
-
-      debugPrint('🆕 تم العثور على تغييرات جديدة من جهاز آخر');
-      await _handleNewBackupFound(latestBackup);
-      return true;
+      debugPrint('📥 سحب التغييرات من الأجهزة الأخرى...');
+      await _performSyncCheck();
+      return !wasAlreadySyncing && !_isSyncing;
     } catch (e) {
       debugPrint('❌ خطأ في سحب التغييرات: $e');
       return false;
