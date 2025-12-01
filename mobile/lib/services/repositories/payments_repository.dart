@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
+import '../auto_backup_manager.dart';
 
 class PaymentsRepository {
   PaymentsRepository(this.db)
@@ -15,34 +16,46 @@ class PaymentsRepository {
   Stream<List<Payment>> watchAll({bool includeDeleted = false}) => dao.watchList(includeDeleted: includeDeleted);
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
-  Future<int> create({int? bookingLocalId, int? serverBookingId, String? roomNumber, required double amount, required String paymentDate, String? notes, required String paymentMethod, required String revenueType}) => dao.insertOne(
-        PaymentsCompanion(
-          bookingLocalId: d.Value(bookingLocalId),
-          serverBookingId: d.Value(serverBookingId),
-          roomNumber: d.Value(roomNumber),
-          amount: d.Value(amount),
-          paymentDate: d.Value(paymentDate),
-          notes: d.Value(notes),
-          paymentMethod: d.Value(paymentMethod),
-          revenueType: d.Value(revenueType),
-        ),
-      );
+  Future<int> create({int? bookingLocalId, int? serverBookingId, String? roomNumber, required double amount, required String paymentDate, String? notes, required String paymentMethod, required String revenueType}) async {
+    final result = await dao.insertOne(
+      PaymentsCompanion(
+        bookingLocalId: d.Value(bookingLocalId),
+        serverBookingId: d.Value(serverBookingId),
+        roomNumber: d.Value(roomNumber),
+        amount: d.Value(amount),
+        paymentDate: d.Value(paymentDate),
+        notes: d.Value(notes),
+        paymentMethod: d.Value(paymentMethod),
+        revenueType: d.Value(revenueType),
+      ),
+    );
+    AutoBackupManager.instance.onDataChange('payments', 'INSERT', recordData: {'amount': amount});
+    return result;
+  }
 
-  Future<int> update(int id, {int? bookingLocalId, int? serverBookingId, String? roomNumber, double? amount, String? paymentDate, String? notes, String? paymentMethod, String? revenueType}) => dao.updateById(
-        id,
-        PaymentsCompanion(
-          bookingLocalId: d.Value(bookingLocalId),
-          serverBookingId: d.Value(serverBookingId),
-          roomNumber: d.Value(roomNumber),
-          amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-          paymentDate: paymentDate != null ? d.Value(paymentDate) : const d.Value.absent(),
-          notes: notes != null ? d.Value(notes) : const d.Value.absent(),
-          paymentMethod: paymentMethod != null ? d.Value(paymentMethod) : const d.Value.absent(),
-          revenueType: revenueType != null ? d.Value(revenueType) : const d.Value.absent(),
-        ),
-      );
+  Future<int> update(int id, {int? bookingLocalId, int? serverBookingId, String? roomNumber, double? amount, String? paymentDate, String? notes, String? paymentMethod, String? revenueType}) async {
+    final result = await dao.updateById(
+      id,
+      PaymentsCompanion(
+        bookingLocalId: d.Value(bookingLocalId),
+        serverBookingId: d.Value(serverBookingId),
+        roomNumber: d.Value(roomNumber),
+        amount: amount != null ? d.Value(amount) : const d.Value.absent(),
+        paymentDate: paymentDate != null ? d.Value(paymentDate) : const d.Value.absent(),
+        notes: notes != null ? d.Value(notes) : const d.Value.absent(),
+        paymentMethod: paymentMethod != null ? d.Value(paymentMethod) : const d.Value.absent(),
+        revenueType: revenueType != null ? d.Value(revenueType) : const d.Value.absent(),
+      ),
+    );
+    if (result > 0) AutoBackupManager.instance.onDataChange('payments', 'UPDATE', recordData: {'id': id});
+    return result;
+  }
 
-  Future<int> delete(int id) => dao.softDelete(id);
+  Future<int> delete(int id) async {
+    final result = await dao.softDelete(id);
+    if (result > 0) AutoBackupManager.instance.onDataChange('payments', 'DELETE', recordData: {'id': id});
+    return result;
+  }
 
   // دوال النسخ الاحتياطي
 

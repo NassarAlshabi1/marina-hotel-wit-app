@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/debts_dao.dart';
 import '../daos/outbox_dao.dart';
+import '../auto_backup_manager.dart';
 
 class DebtsRepository {
   DebtsRepository(this.db) : dao = DebtsDao(db, OutboxDao(db));
@@ -32,10 +33,10 @@ class DebtsRepository {
     String? pledge,
     String? pledgeType,
     String? note,
-  }) {
+  }) async {
     final remaining = (totalAmount - paidAmount).clamp(0, double.infinity).toDouble();
     final settled = isSettled ?? (remaining <= 0 ? true : false);
-    return dao.insertOne(
+    final result = await dao.insertOne(
       DebtsCompanion(
         bookingLocalId: d.Value(bookingLocalId),
         guestName: d.Value(guestName),
@@ -53,6 +54,8 @@ class DebtsRepository {
         note: d.Value(note),
       ),
     );
+    AutoBackupManager.instance.onDataChange('debts', 'INSERT', recordData: {'guest_name': guestName});
+    return result;
   }
 
   Future<int> update({
@@ -79,7 +82,7 @@ class DebtsRepository {
     final newTotal = totalAmount ?? existing.totalAmount;
     final newPaid = paidAmount ?? existing.paidAmount;
     final remaining = remainingAmount ?? (newTotal - newPaid).clamp(0, double.infinity).toDouble();
-    return dao.updateById(
+    final result = await dao.updateById(
       id,
       DebtsCompanion(
         bookingLocalId: bookingLocalId != null ? d.Value(bookingLocalId) : const d.Value.absent(),
@@ -98,9 +101,15 @@ class DebtsRepository {
         note: note != null ? d.Value(note) : const d.Value.absent(),
       ),
     );
+    if (result > 0) AutoBackupManager.instance.onDataChange('debts', 'UPDATE', recordData: {'id': id});
+    return result;
   }
 
-  Future<int> delete(int id) => dao.softDelete(id);
+  Future<int> delete(int id) async {
+    final result = await dao.softDelete(id);
+    if (result > 0) AutoBackupManager.instance.onDataChange('debts', 'DELETE', recordData: {'id': id});
+    return result;
+  }
 
   Future<void> clearAll() => dao.clearAllData();
 

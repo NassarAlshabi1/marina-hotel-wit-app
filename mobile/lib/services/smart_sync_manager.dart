@@ -39,7 +39,7 @@ class SmartSyncManager {
   static const String _prefsLastRemoteTimestampKey = 'smart_sync_last_remote_timestamp';
   static const String _prefsConflictResolutionKey = 'smart_sync_conflict_resolution';
   
-  static const int _defaultSyncIntervalMinutes = 5;
+  static const int _defaultSyncIntervalMinutes = 2;
   static const int _periodicFullSyncHours = 24;
   
   /// تهيئة مدير المزامنة
@@ -543,6 +543,12 @@ class SmartSyncManager {
     };
   }
 
+  /// إشعار بأن هذا الجهاز قام برفع نسخة احتياطية جديدة
+  Future<void> onLocalBackupUploaded() async {
+    await _updateLastSyncTime();
+    debugPrint('📤 تم تسجيل رفع نسخة احتياطية من هذا الجهاز');
+  }
+
   /// مزامنة يدوية فورية
   Future<void> forceSyncNow() async {
     if (_isSyncing) {
@@ -552,6 +558,49 @@ class SmartSyncManager {
     
     debugPrint('🚀 بدء المزامنة اليدوية الفورية...');
     await _performSyncCheck();
+  }
+
+  /// التحقق من وجود تغييرات جديدة ورفعها
+  Future<void> pushLocalChanges() async {
+    if (_backupService == null || !_backupService!.isSignedIn) {
+      debugPrint('⚠️ لا يمكن رفع التغييرات: غير مسجل الدخول');
+      return;
+    }
+
+    try {
+      debugPrint('📤 رفع التغييرات المحلية إلى Google Drive...');
+      
+      final backupData = await _backupService!.exportDatabaseToJson();
+      final metadata = backupData['metadata'] as Map<String, dynamic>;
+      metadata['device_id'] = _deviceId;
+      metadata['sync_type'] = 'push';
+      metadata['sync_timestamp'] = DateTime.now().toIso8601String();
+      
+      await _backupService!.uploadBackup(backupData);
+      await _updateLastSyncTime();
+      
+      debugPrint('✅ تم رفع التغييرات بنجاح');
+    } catch (e) {
+      debugPrint('❌ خطأ في رفع التغييرات: $e');
+    }
+  }
+
+  /// سحب التغييرات من الأجهزة الأخرى
+  /// يستخدم نفس منطق _performSyncCheck لتجنب تكرار الكود
+  Future<bool> pullRemoteChanges() async {
+    if (_backupService == null || !_backupService!.isSignedIn) {
+      return false;
+    }
+
+    final wasAlreadySyncing = _isSyncing;
+    try {
+      debugPrint('📥 سحب التغييرات من الأجهزة الأخرى...');
+      await _performSyncCheck();
+      return !wasAlreadySyncing && !_isSyncing;
+    } catch (e) {
+      debugPrint('❌ خطأ في سحب التغييرات: $e');
+      return false;
+    }
   }
 
   /// تنظيف الموارد

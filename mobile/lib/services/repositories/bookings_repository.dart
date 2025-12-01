@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
+import '../auto_backup_manager.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
@@ -33,8 +34,8 @@ class BookingsRepository {
     String? notes,
     int expectedNights = 1,
     int? calculatedNights,
-  }) {
-    return dao.insertOne(
+  }) async {
+    final result = await dao.insertOne(
       BookingsCompanion(
         roomNumber: d.Value(roomNumber),
         guestName: d.Value(guestName),
@@ -55,6 +56,8 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
       ),
     );
+    AutoBackupManager.instance.onDataChange('bookings', 'INSERT', recordData: {'guest_name': guestName});
+    return result;
   }
 
   Future<int> update(int id, {
@@ -75,8 +78,8 @@ class BookingsRepository {
     String? notes,
     int? expectedNights,
     int? calculatedNights,
-  }) {
-    return dao.updateById(
+  }) async {
+    final result = await dao.updateById(
       id,
       BookingsCompanion(
         roomNumber: roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
@@ -98,9 +101,15 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
       ),
     );
+    if (result > 0) AutoBackupManager.instance.onDataChange('bookings', 'UPDATE', recordData: {'id': id});
+    return result;
   }
 
-  Future<int> delete(int id) => dao.softDelete(id);
+  Future<int> delete(int id) async {
+    final result = await dao.softDelete(id);
+    if (result > 0) AutoBackupManager.instance.onDataChange('bookings', 'DELETE', recordData: {'id': id});
+    return result;
+  }
 
   // دوال النسخ الاحتياطي
 

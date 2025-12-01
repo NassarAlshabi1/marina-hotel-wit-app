@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/expenses_dao.dart';
+import '../auto_backup_manager.dart';
 
 class ExpensesRepository {
   ExpensesRepository(this.db)
@@ -14,28 +15,40 @@ class ExpensesRepository {
   Stream<List<Expense>> watchAll() => dao.watchList();
   Stream<Expense?> watchOne(int id) => dao.watchById(id);
 
-  Future<int> create({required String expenseType, int? relatedId, required String description, required double amount, required String date}) => dao.insertOne(
-        ExpensesCompanion(
-          expenseType: d.Value(expenseType),
-          relatedId: d.Value(relatedId),
-          description: d.Value(description),
-          amount: d.Value(amount),
-          date: d.Value(date),
-        ),
-      );
+  Future<int> create({required String expenseType, int? relatedId, required String description, required double amount, required String date}) async {
+    final result = await dao.insertOne(
+      ExpensesCompanion(
+        expenseType: d.Value(expenseType),
+        relatedId: d.Value(relatedId),
+        description: d.Value(description),
+        amount: d.Value(amount),
+        date: d.Value(date),
+      ),
+    );
+    AutoBackupManager.instance.onDataChange('expenses', 'INSERT', recordData: {'amount': amount});
+    return result;
+  }
 
-  Future<int> update(int id, {String? expenseType, int? relatedId, String? description, double? amount, String? date}) => dao.updateById(
-        id,
-        ExpensesCompanion(
-          expenseType: expenseType != null ? d.Value(expenseType) : const d.Value.absent(),
-          relatedId: d.Value(relatedId),
-          description: description != null ? d.Value(description) : const d.Value.absent(),
-          amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-          date: date != null ? d.Value(date) : const d.Value.absent(),
-        ),
-      );
+  Future<int> update(int id, {String? expenseType, int? relatedId, String? description, double? amount, String? date}) async {
+    final result = await dao.updateById(
+      id,
+      ExpensesCompanion(
+        expenseType: expenseType != null ? d.Value(expenseType) : const d.Value.absent(),
+        relatedId: d.Value(relatedId),
+        description: description != null ? d.Value(description) : const d.Value.absent(),
+        amount: amount != null ? d.Value(amount) : const d.Value.absent(),
+        date: date != null ? d.Value(date) : const d.Value.absent(),
+      ),
+    );
+    if (result > 0) AutoBackupManager.instance.onDataChange('expenses', 'UPDATE', recordData: {'id': id});
+    return result;
+  }
 
-  Future<int> delete(int id) => dao.softDelete(id);
+  Future<int> delete(int id) async {
+    final result = await dao.softDelete(id);
+    if (result > 0) AutoBackupManager.instance.onDataChange('expenses', 'DELETE', recordData: {'id': id});
+    return result;
+  }
 
   // دوال النسخ الاحتياطي
 
