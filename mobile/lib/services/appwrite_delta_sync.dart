@@ -99,17 +99,21 @@ class AppwriteDeltaSync {
       }
 
       int pushedCount = 0;
+      bool hasFailures = false;
       for (final change in computation.changes) {
         try {
           await _pushSingleChange(change);
           pushedCount++;
         } catch (e) {
+          hasFailures = true;
           _logger.warning('فشل رفع تغيير: ${change.entity}/${change.localUuid} - $e', tag: 'DELTA_SYNC');
         }
       }
 
-      await _deltaSyncService!.persistMirror(computation);
-      await _updateLastDeltaSyncTimestamp();
+      if (!hasFailures) {
+        await _deltaSyncService!.persistMirror(computation);
+        await _updateLastDeltaSyncTimestamp();
+      }
 
       _logger.info('✅ تم رفع $pushedCount تغيير إلى Appwrite', tag: 'DELTA_SYNC');
 
@@ -139,12 +143,6 @@ class AppwriteDeltaSync {
 
     switch (change.operation) {
       case 'insert':
-        await _appwriteService!.upsertDocument(
-          collectionId: collectionId,
-          documentId: change.localUuid,
-          data: _sanitizePayload(payload),
-        );
-        break;
       case 'update':
         await _appwriteService!.upsertDocument(
           collectionId: collectionId,
