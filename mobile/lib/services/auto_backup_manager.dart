@@ -42,6 +42,7 @@ class AutoBackupManager {
   AppwriteService? _appwriteService;
   AppDatabase? _database;
   Timer? _debounceTimer;
+  Timer? _deltaSyncDebounceTimer;
   Timer? _deltaSyncTimer;
   Timer? _cleanupTimer;
   bool _isBackingUp = false;
@@ -140,16 +141,18 @@ class AutoBackupManager {
     _pendingChanges++;
     debugPrint('🔄 تغيير في $tableName ($operation) - تغييرات معلقة: $_pendingChanges');
     
-    _debounceTimer?.cancel();
-    
     if (_currentMode == BackupMode.deltaSync || _currentMode == BackupMode.both) {
-      _debounceTimer = Timer(const Duration(seconds: _instantSyncDebounceSeconds), () async {
+      _deltaSyncDebounceTimer?.cancel();
+      _deltaSyncDebounceTimer = Timer(const Duration(seconds: _instantSyncDebounceSeconds), () async {
         await performDeltaSync();
-        _pendingChanges = 0;
+        if (_currentMode == BackupMode.deltaSync) {
+          _pendingChanges = 0;
+        }
       });
     }
     
     if (_currentMode == BackupMode.fullBackup || _currentMode == BackupMode.both) {
+      _debounceTimer?.cancel();
       _debounceTimer = Timer(Duration(seconds: _debounceSeconds), () {
         _performAutoBackup(
           reason: 'تغييرات تلقائية ($tableName: $operation)',
@@ -365,6 +368,7 @@ class AutoBackupManager {
   /// إيقاف المدير وتنظيف الموارد
   void dispose() {
     _debounceTimer?.cancel();
+    _deltaSyncDebounceTimer?.cancel();
     _deltaSyncTimer?.cancel();
     _cleanupTimer?.cancel();
     debugPrint('🛑 مدير النسخ التلقائي: تم التنظيف');

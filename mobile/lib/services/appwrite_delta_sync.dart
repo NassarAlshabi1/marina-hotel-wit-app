@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
+import 'package:appwrite/appwrite.dart';
 import 'delta_sync_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
@@ -211,6 +212,9 @@ class AppwriteDeltaSync {
     try {
       final documents = await _appwriteService!.listDocuments(
         collectionId: collectionId,
+        queries: lastPullTs > 0
+            ? [Query.greaterThan('syncTimestamp', lastPullTs)]
+            : null,
         useCache: false,
       );
 
@@ -218,10 +222,8 @@ class AppwriteDeltaSync {
       for (final doc in documents) {
         final data = Map<String, dynamic>.from(doc.data);
         final sourceDeviceId = data['deviceId'] as String?;
-        final syncTimestamp = _asInt(data['syncTimestamp']) ?? _asInt(data['lastModified']) ?? 0;
 
         if (sourceDeviceId == _deviceId) continue;
-        if (syncTimestamp <= lastPullTs) continue;
 
         try {
           await _applyRemoteChange(entity, doc.$id, data);
