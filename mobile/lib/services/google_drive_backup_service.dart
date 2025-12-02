@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../utils/debug_logs.dart';
 import '../utils/system_settings_keys.dart';
 import 'auto_backup_task.dart';
 import 'local_db.dart';
@@ -174,7 +175,7 @@ class GoogleDriveBackupService {
       try {
         account = await _googleSignIn?.signInSilently();
       } catch (e) {
-        debugPrint('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
+        _log('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
       }
     }
 
@@ -192,7 +193,7 @@ class GoogleDriveBackupService {
       return await action();
     } on drive.DetailedApiRequestError catch (e) {
       if (e.status == 401) {
-        debugPrint('⚠️ تم فقد صلاحية رمز Google Drive، إعادة المحاولة بعد التحديث...');
+        _log('⚠️ تم فقد صلاحية رمز Google Drive، إعادة المحاولة بعد التحديث...');
         _driveApi = null;
         await _ensureDriveClient();
         return await action();
@@ -207,31 +208,31 @@ class GoogleDriveBackupService {
         throw Exception('Google Sign-In لم يتم تهيئته بشكل صحيح');
       }
 
-      debugPrint('🔄 محاولة تسجيل الدخول الصامت...');
+      _log('🔄 محاولة تسجيل الدخول الصامت...');
       GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
 
       if (account == null) {
-        debugPrint('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
+        _log('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
         account = await _googleSignIn!.signIn();
       }
 
       if (account != null) {
-        debugPrint('🔑 الحصول على رؤوس المصادقة...');
+        _log('🔑 الحصول على رؤوس المصادقة...');
         final headers = await account.authHeaders;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
 
-        debugPrint('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
-        debugPrint('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
+        _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
+        _log('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
       } else {
-        debugPrint('⚠️ تم إلغاء تسجيل الدخول أو فشل');
+        _log('⚠️ تم إلغاء تسجيل الدخول أو فشل');
       }
 
       return account;
     } catch (e) {
       final arabicError = _getArabicErrorMessage(e);
-      debugPrint('❌ خطأ في تسجيل الدخول في Google Drive: $arabicError');
-      debugPrint('❌ تفاصيل الخطأ التقنية: $e');
+      _log('❌ خطأ في تسجيل الدخول في Google Drive: $arabicError');
+      _log('❌ تفاصيل الخطأ التقنية: $e');
       
       // رمي الخطأ مع الرسالة العربية
       throw Exception(arabicError);
@@ -245,23 +246,23 @@ class GoogleDriveBackupService {
         _initializeGoogleSignIn();
       }
       
-      debugPrint('🔄 محاولة استعادة جلسة Google Drive...');
+      _log('🔄 محاولة استعادة جلسة Google Drive...');
       GoogleSignInAccount? account = await _googleSignIn!.signInSilently(suppressErrors: true);
       
       if (account != null) {
-        debugPrint('🔑 الحصول على رؤوس المصادقة...');
+        _log('🔑 الحصول على رؤوس المصادقة...');
         final headers = await account.authHeaders;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
         
-        debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
+        _log('✅ تم استعادة جلسة Google Drive: ${account.email}');
         return account;
       } else {
-        debugPrint('ℹ️ لا توجد جلسة محفوظة');
+        _log('ℹ️ لا توجد جلسة محفوظة');
         return null;
       }
     } catch (e) {
-      debugPrint('⚠️ فشلت استعادة الجلسة: $e');
+      _log('⚠️ فشلت استعادة الجلسة: $e');
       return null;
     }
   }
@@ -276,14 +277,14 @@ class GoogleDriveBackupService {
         final headers = await account.authHeaders;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
-        debugPrint('✅ تم تسجيل الدخول بهدوء: ${account.email}');
+        _log('✅ تم تسجيل الدخول بهدوء: ${account.email}');
         return true;
       }
       
-      debugPrint('⚠️ لا توجد جلسة محفوظة للدخول الهادئ');
+      _log('⚠️ لا توجد جلسة محفوظة للدخول الهادئ');
       return false;
     } catch (e) {
-      debugPrint('❌ signInSilently error: $e');
+      _log('❌ signInSilently error: $e');
       return false;
     }
   }
@@ -293,10 +294,10 @@ class GoogleDriveBackupService {
       await _googleSignIn?.signOut();
       _driveApi = null;
       _backupFolderId = null;
-      debugPrint('✅ تم تسجيل الخروج من Google Drive');
+      _log('✅ تم تسجيل الخروج من Google Drive');
       _logger.info('تم تسجيل الخروج من Google Drive', tag: 'AUTH');
     } catch (e) {
-      debugPrint('❌ خطأ في تسجيل الخروج: $e');
+      _log('❌ خطأ في تسجيل الخروج: $e');
       rethrow;
     }
   }
@@ -322,7 +323,7 @@ class GoogleDriveBackupService {
 
         if (searchResult.files != null && searchResult.files!.isNotEmpty) {
           _backupFolderId = searchResult.files!.first.id;
-          debugPrint('✅ تم العثور على مجلد النسخ الاحتياطية: $_backupFolderId');
+          _log('✅ تم العثور على مجلد النسخ الاحتياطية: $_backupFolderId');
         } else {
           final folder = drive.File()
             ..name = _backupFolderName
@@ -330,12 +331,12 @@ class GoogleDriveBackupService {
 
           final createdFolder = await _driveApi!.files.create(folder);
           _backupFolderId = createdFolder.id;
-          debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطية: $_backupFolderId');
+          _log('✅ تم إنشاء مجلد النسخ الاحتياطية: $_backupFolderId');
         }
 
         return _backupFolderId!;
       } catch (e) {
-        debugPrint('❌ خطأ في إنشاء/العثور على مجلد النسخ الاحتياطية: $e');
+        _log('❌ خطأ في إنشاء/العثور على مجلد النسخ الاحتياطية: $e');
         rethrow;
       }
     });
@@ -437,16 +438,21 @@ class GoogleDriveBackupService {
         'system_settings': systemSettings, // تصدير الإعدادات
       };
 
-      debugPrint('✅ تم تصدير البيانات: $totalRecords سجل');
+      _log('✅ تم تصدير البيانات: $totalRecords سجل');
       return backupData;
     } catch (e) {
-      debugPrint('❌ خطأ في تصدير البيانات: $e');
+      _log('❌ خطأ في تصدير البيانات: $e');
       rethrow;
     }
   }
 
   static const fullBackupPrefix = 'marina_backup_full_';
   static const deltaSyncPrefix = 'marina_sync_delta_';
+
+  void _log(String message) {
+    DebugLogs.add('DriveBackup', message);
+    debugPrint(message);
+  }
 
   Future<String> uploadBackup(Map<String, dynamic> backupData) async {
     String? partialFileId;
@@ -470,7 +476,7 @@ class GoogleDriveBackupService {
 
         final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
         
-        debugPrint('📤 بدء رفع النسخة الاحتياطية: $fileName (${(jsonBytes.length / 1024).toStringAsFixed(2)} KB)');
+        _log('📤 بدء رفع النسخة الاحتياطية: $fileName (${(jsonBytes.length / 1024).toStringAsFixed(2)} KB)');
         
         final uploadedFile = await _driveApi!.files.create(
           driveFile,
@@ -482,7 +488,7 @@ class GoogleDriveBackupService {
         // التحقق من اكتمال الرفع
         final verifyResult = await _verifyUploadedBackup(uploadedFile.id!, jsonBytes.length);
         if (!verifyResult['is_complete']) {
-          debugPrint('⚠️ النسخة غير مكتملة: ${verifyResult['message']}');
+          _log('⚠️ النسخة غير مكتملة: ${verifyResult['message']}');
           // حذف النسخة الناقصة
           await deleteBackupFile(uploadedFile.id!);
           throw Exception('فشل في رفع النسخة بشكل كامل: ${verifyResult['message']}');
@@ -491,19 +497,19 @@ class GoogleDriveBackupService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
 
-        debugPrint('✅ تم رفع النسخة الاحتياطية بنجاح: ${uploadedFile.id}');
+        _log('✅ تم رفع النسخة الاحتياطية بنجاح: ${uploadedFile.id}');
         partialFileId = null; // تم بنجاح، لا حاجة للتنظيف
         return uploadedFile.id!;
       } catch (e) {
-        debugPrint('❌ خطأ في رفع النسخة الاحتياطية: $e');
+        _log('❌ خطأ في رفع النسخة الاحتياطية: $e');
         
         // حذف النسخة الجزئية إذا كانت موجودة
         if (partialFileId != null) {
           try {
-            debugPrint('🧹 حذف النسخة الجزئية: $partialFileId');
+            _log('🧹 حذف النسخة الجزئية: $partialFileId');
             await deleteBackupFile(partialFileId!);
           } catch (cleanupError) {
-            debugPrint('⚠️ فشل حذف النسخة الجزئية: $cleanupError');
+            _log('⚠️ فشل حذف النسخة الجزئية: $cleanupError');
           }
         }
         
@@ -520,9 +526,9 @@ class GoogleDriveBackupService {
         ..parents = [folderId]
         ..appProperties = appProperties ?? {};
       final media = drive.Media(Stream.value(bytes), bytes.length);
-      debugPrint('📤 رفع ملف مزامنة: $fileName (${(bytes.length / 1024).toStringAsFixed(2)} KB)');
+      _log('📤 رفع ملف مزامنة: $fileName (${(bytes.length / 1024).toStringAsFixed(2)} KB)');
       final uploadedFile = await _driveApi!.files.create(driveFile, uploadMedia: media);
-      debugPrint('✅ تم رفع الملف: ${uploadedFile.id}');
+      _log('✅ تم رفع الملف: ${uploadedFile.id}');
       return uploadedFile.id!;
     });
   }
@@ -616,7 +622,7 @@ class GoogleDriveBackupService {
         }
       }
 
-      debugPrint('✅ تم جلب ${backupFiles.length} نسخة احتياطية');
+      _log('✅ تم جلب ${backupFiles.length} نسخة احتياطية');
       return backupFiles;
     });
   }
@@ -644,7 +650,7 @@ class GoogleDriveBackupService {
       final jsonString = utf8.decode(dataStore);
       final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
 
-      debugPrint('✅ تم تنزيل النسخة الاحتياطية: $fileId');
+      _log('✅ تم تنزيل النسخة الاحتياطية: $fileId');
       return backupData;
     });
   }
@@ -664,7 +670,7 @@ class GoogleDriveBackupService {
         throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
       }
 
-      debugPrint('🔄 بدء استعادة البيانات...');
+      _log('🔄 بدء استعادة البيانات...');
 
       await db.delete(db.rooms).go();
       await db.delete(db.bookings).go();
@@ -876,7 +882,7 @@ class GoogleDriveBackupService {
 
       // استعادة وتطبيق الإعدادات العامة إذا وجدت
       if (backupData.containsKey('system_settings')) {
-        debugPrint('⚙️ تطبيق إعدادات النظام من النسخة الاحتياطية...');
+        _log('⚙️ تطبيق إعدادات النظام من النسخة الاحتياطية...');
         try {
           final settings = backupData['system_settings'] as Map<String, dynamic>;
           final prefs = await SharedPreferences.getInstance();
@@ -895,14 +901,14 @@ class GoogleDriveBackupService {
                 if (val is int) await prefs.setInt(key, val);
                 if (val is double) await prefs.setDouble(key, val);
                 settingsChanged = true;
-                debugPrint('   UPDATED: $key = $val');
+                _log('   UPDATED: $key = $val');
               }
             }
           }
 
           // إعادة جدولة المهام إذا تغيرت الإعدادات
           if (settingsChanged) {
-             debugPrint('🔄 إعادة جدولة مهام النسخ الاحتياطي وفق الإعدادات الجديدة...');
+             _log('🔄 إعادة جدولة مهام النسخ الاحتياطي وفق الإعدادات الجديدة...');
              
              final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
              final parts = timeStr.split(':');
@@ -919,15 +925,15 @@ class GoogleDriveBackupService {
              }
           }
         } catch (e) {
-          debugPrint('⚠️ خطأ في تطبيق الإعدادات المستعادة: $e');
+          _log('⚠️ خطأ في تطبيق الإعدادات المستعادة: $e');
         }
       }
 
-      debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
+      _log('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
       final fixService = RestoreFixService(db);
       await fixService.runAutoFixAfterRestore(backupTimestamp: metadata.backupTimestamp);
     } catch (e) {
-      debugPrint('❌ خطأ في استعادة البيانات: $e');
+      _log('❌ خطأ في استعادة البيانات: $e');
       rethrow;
     }
   }
@@ -995,36 +1001,36 @@ class GoogleDriveBackupService {
         inputData: const <String, dynamic>{},
       );
 
-      debugPrint('✅ تم جدولة النسخ التلقائي: $frequency في $timeString');
+      _log('✅ تم جدولة النسخ التلقائي: $frequency في $timeString');
     } catch (e) {
-      debugPrint('❌ خطأ في جدولة النسخ التلقائي: $e');
+      _log('❌ خطأ في جدولة النسخ التلقائي: $e');
     }
   }
 
   Future<void> cancelAutoBackup() async {
     try {
       await Workmanager().cancelByUniqueName('autoBackup');
-      debugPrint('✅ تم إلغاء النسخ التلقائي');
+      _log('✅ تم إلغاء النسخ التلقائي');
     } catch (e) {
-      debugPrint('❌ خطأ في إلغاء النسخ التلقائي: $e');
+      _log('❌ خطأ في إلغاء النسخ التلقائي: $e');
     }
   }
 
   Future<void> performAutoBackup() async {
     try {
       if (!isSignedIn) {
-        debugPrint('⚠️ المستخدم غير مسجل دخول، تم تخطي النسخ التلقائي');
+        _log('⚠️ المستخدم غير مسجل دخول، تم تخطي النسخ التلقائي');
         return;
       }
 
-      debugPrint('🔄 بدء النسخ التلقائي...');
+      _log('🔄 بدء النسخ التلقائي...');
 
       final backupData = await exportDatabaseToJson();
       final fileId = await uploadBackup(backupData);
 
-      debugPrint('✅ تم النسخ التلقائي بنجاح: $fileId');
+      _log('✅ تم النسخ التلقائي بنجاح: $fileId');
     } catch (e) {
-      debugPrint('❌ خطأ في النسخ التلقائي: $e');
+      _log('❌ خطأ في النسخ التلقائي: $e');
     }
   }
 
@@ -1091,7 +1097,7 @@ class GoogleDriveBackupService {
       final jsonString = const JsonEncoder().convert(backupData);
       return utf8.encode(jsonString).length;
     } catch (e) {
-      debugPrint('❌ خطأ في تقدير حجم قاعدة البيانات: $e');
+      _log('❌ خطأ في تقدير حجم قاعدة البيانات: $e');
       return 0;
     }
   }
@@ -1099,7 +1105,7 @@ class GoogleDriveBackupService {
   Future<void> deleteBackupFile(String fileId) async {
     await _runWithAuth<void>(() async {
       await _driveApi!.files.delete(fileId);
-      debugPrint('🗑️ تم حذف النسخة الاحتياطية: $fileId');
+      _log('🗑️ تم حذف النسخة الاحتياطية: $fileId');
     });
   }
 
@@ -1116,14 +1122,14 @@ class GoogleDriveBackupService {
     bool dryRun = false,
   }) async {
     try {
-      debugPrint('🧹 بدء تنظيف النسخ القديمة...');
-      debugPrint('📊 الإعدادات: maxBackups=$maxBackupsToKeep, maxAge=$maxAgeInDays أيام, dryRun=$dryRun');
+      _log('🧹 بدء تنظيف النسخ القديمة...');
+      _log('📊 الإعدادات: maxBackups=$maxBackupsToKeep, maxAge=$maxAgeInDays أيام, dryRun=$dryRun');
 
       // الحصول على جميع النسخ الاحتياطية
       final backups = await listBackups();
       
       if (backups.isEmpty) {
-        debugPrint('✅ لا توجد نسخ احتياطية للتنظيف');
+        _log('✅ لا توجد نسخ احتياطية للتنظيف');
         _logger.info('لا توجد نسخ احتياطية لتنظيفها', tag: 'CLEANUP');
         return 0;
       }
@@ -1153,15 +1159,15 @@ class GoogleDriveBackupService {
       }
 
       if (backupsToDelete.isEmpty) {
-        debugPrint('✅ جميع النسخ ضمن الحدود المقبولة');
+        _log('✅ جميع النسخ ضمن الحدود المقبولة');
         return 0;
       }
 
-      debugPrint('📋 سيتم حذف ${backupsToDelete.length} نسخة احتياطية:');
+      _log('📋 سيتم حذف ${backupsToDelete.length} نسخة احتياطية:');
       for (final backup in backupsToDelete) {
         final age = now.difference(backup.createdTime).inDays;
         final sizeKB = backup.size != null ? (backup.size! / 1024).toStringAsFixed(2) : 'غير معروف';
-        debugPrint('  - ${backup.fileName} (عمر: $age يوم، حجم: $sizeKB KB)');
+        _log('  - ${backup.fileName} (عمر: $age يوم، حجم: $sizeKB KB)');
       }
 
       // حذف النسخ فعلياً (إلا إذا كان dryRun)
@@ -1172,12 +1178,12 @@ class GoogleDriveBackupService {
             await deleteBackupFile(backup.fileId);
             deletedCount++;
           } catch (e) {
-            debugPrint('⚠️ فشل حذف النسخة ${backup.fileName}: $e');
+            _log('⚠️ فشل حذف النسخة ${backup.fileName}: $e');
           }
         }
-        debugPrint('✅ تم حذف $deletedCount نسخة احتياطية بنجاح');
+        _log('✅ تم حذف $deletedCount نسخة احتياطية بنجاح');
       } else {
-        debugPrint('ℹ️ وضع المعاينة (dryRun) - لم يتم حذف أي شيء فعلياً');
+        _log('ℹ️ وضع المعاينة (dryRun) - لم يتم حذف أي شيء فعلياً');
         deletedCount = backupsToDelete.length;
       }
 
@@ -1188,12 +1194,12 @@ class GoogleDriveBackupService {
           totalSizeFreed += backup.size ?? 0;
         }
         final sizeMB = (totalSizeFreed / (1024 * 1024)).toStringAsFixed(2);
-        debugPrint('💾 المساحة المحررة: $sizeMB MB');
+        _log('💾 المساحة المحررة: $sizeMB MB');
       }
 
       return deletedCount;
     } catch (e) {
-      debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
+      _log('❌ خطأ في تنظيف النسخ القديمة: $e');
       rethrow;
     }
   }
@@ -1203,13 +1209,13 @@ class GoogleDriveBackupService {
   /// Returns: عدد النسخ الناقصة التي تم حذفها
   Future<int> cleanupIncompleteBackups() async {
     try {
-      debugPrint('🔍 بدء فحص النسخ الناقصة...');
+      _log('🔍 بدء فحص النسخ الناقصة...');
       _logger.info('بدء فحص النسخ الناقصة', tag: 'VALIDATE');
       
       final backups = await listBackups();
       
       if (backups.isEmpty) {
-        debugPrint('✅ لا توجد نسخ للفحص');
+        _log('✅ لا توجد نسخ للفحص');
         _logger.info('لا توجد نسخ لفحصها', tag: 'VALIDATE');
         return 0;
       }
@@ -1219,14 +1225,14 @@ class GoogleDriveBackupService {
       for (final backup in backups) {
         // التحقق من البيانات الوصفية
         if (backup.metadata == null || backup.metadata!.isEmpty) {
-          debugPrint('⚠️ نسخة بدون بيانات وصفية: ${backup.fileName}');
+          _log('⚠️ نسخة بدون بيانات وصفية: ${backup.fileName}');
           incompleteBackups.add(backup);
           continue;
         }
 
         // التحقق من الحجم (النسخ الصغيرة جداً قد تكون ناقصة)
         if (backup.size != null && backup.size! < 1024) { // أقل من 1 KB
-          debugPrint('⚠️ نسخة صغيرة جداً (${backup.size} bytes): ${backup.fileName}');
+          _log('⚠️ نسخة صغيرة جداً (${backup.size} bytes): ${backup.fileName}');
           incompleteBackups.add(backup);
           continue;
         }
@@ -1237,26 +1243,26 @@ class GoogleDriveBackupService {
           
           // التحقق من البنية الأساسية
           if (!data.containsKey('metadata') || !data.containsKey('rooms')) {
-            debugPrint('⚠️ نسخة ببنية غير صحيحة: ${backup.fileName}');
+            _log('⚠️ نسخة ببنية غير صحيحة: ${backup.fileName}');
             incompleteBackups.add(backup);
             continue;
           }
         } catch (e) {
-          debugPrint('⚠️ فشل قراءة النسخة (قد تكون تالفة): ${backup.fileName} - $e');
+          _log('⚠️ فشل قراءة النسخة (قد تكون تالفة): ${backup.fileName} - $e');
           incompleteBackups.add(backup);
           continue;
         }
       }
 
       if (incompleteBackups.isEmpty) {
-        debugPrint('✅ جميع النسخ سليمة');
+        _log('✅ جميع النسخ سليمة');
         _logger.info('جميع النسخ سليمة بعد الفحص', tag: 'VALIDATE');
         return 0;
       }
 
-      debugPrint('📋 تم اكتشاف ${incompleteBackups.length} نسخة ناقصة:');
+      _log('📋 تم اكتشاف ${incompleteBackups.length} نسخة ناقصة:');
       for (final backup in incompleteBackups) {
-        debugPrint('  - ${backup.fileName}');
+        _log('  - ${backup.fileName}');
       }
 
       // حذف النسخ الناقصة
@@ -1266,14 +1272,14 @@ class GoogleDriveBackupService {
           await deleteBackupFile(backup.fileId);
           deletedCount++;
         } catch (e) {
-          debugPrint('⚠️ فشل حذف النسخة الناقصة ${backup.fileName}: $e');
+          _log('⚠️ فشل حذف النسخة الناقصة ${backup.fileName}: $e');
         }
       }
 
-      debugPrint('✅ تم حذف $deletedCount نسخة ناقصة');
+      _log('✅ تم حذف $deletedCount نسخة ناقصة');
       return deletedCount;
     } catch (e) {
-      debugPrint('❌ خطأ في فحص النسخ الناقصة: $e');
+      _log('❌ خطأ في فحص النسخ الناقصة: $e');
       return 0;
     }
   }
@@ -1320,7 +1326,7 @@ class GoogleDriveBackupService {
         'newest_backup_name': backups.first.fileName,
       };
     } catch (e) {
-      debugPrint('❌ خطأ في الحصول على إحصائيات النسخ: $e');
+      _log('❌ خطأ في الحصول على إحصائيات النسخ: $e');
       return {};
     }
   }
