@@ -14,6 +14,7 @@ import 'screens/expenses/expenses_list.dart';
 import 'screens/finance/finance_screen.dart';
 import 'screens/reports/reports_screen.dart';
 import 'screens/payments/payments_main_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
@@ -122,6 +123,14 @@ Future<void> _initializeAppwrite() async {
     
     // تهيئة خدمة Appwrite
     final appwriteService = AppwriteService();
+    final prefs = await SharedPreferences.getInstance();
+
+    if (!prefs.containsKey('appwrite_sync_enabled')) {
+      await prefs.setBool('appwrite_sync_enabled', true);
+    }
+    if (!prefs.containsKey('appwrite_sync_interval')) {
+      await prefs.setInt('appwrite_sync_interval', 15);
+    }
     
     // التحقق من صحة الإعدادات قبل التهيئة
     if (AppwriteConfig.validateConfig()) {
@@ -134,6 +143,12 @@ Future<void> _initializeAppwrite() async {
           database: DatabaseManager.instance,
         );
         await syncManager.initialize();
+        
+        final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+        final syncIntervalMinutes = prefs.getInt('appwrite_sync_interval') ?? 15;
+        if (syncEnabled) {
+          syncManager.startAutoSync(interval: Duration(minutes: syncIntervalMinutes));
+        }
         
         // تسجيل الجهاز (إذا كان متاحاً)
         try {
