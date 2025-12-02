@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/smart_sync_manager.dart';
-import '../../services/sync_guardian.dart';
 import '../../providers/smart_sync_provider.dart';
 import '../../providers/repository_providers.dart';
 
@@ -311,6 +310,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
             _buildStatusRow('تسجيل الدخول', isSignedIn ? 'متصل بـ Google Drive ✅' : 'غير متصل ❌'),
             if (isSyncing)
               _buildStatusRow('النشاط الحالي', 'جارِ المزامنة... 🔄'),
+            _buildSyncStatusRow(),
             if (combinedLastSync != null)
               _buildStatusRow('آخر تزامن فعلي', combinedLastSync),
             if (shortenedDeviceId != null)
@@ -326,6 +326,17 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSyncStatusRow() {
+    final syncStatus = ref.watch(syncStatusProvider);
+    return syncStatus.when(
+      data: (status) {
+        return _buildStatusRow('حالة المزامنة', status.message);
+      },
+      loading: () => _buildStatusRow('حالة المزامنة', 'جاري التحميل...'),
+      error: (error, stack) => _buildStatusRow('حالة المزامنة', 'خطأ'),
     );
   }
 

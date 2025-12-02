@@ -48,13 +48,16 @@ class SyncManager {
   /// تهيئة الخدمة مع خيار التشفير قبل أي مزامنة
   Future<void> initSyncService({bool enableEncryption = false, String? encryptionKey}) async {
     if (_isInitialized) {
+      debugPrint('SyncManager already initialized.');
       return;
     }
+    debugPrint('Initializing SyncManager...');
     await driveService.init(enableEncryption: enableEncryption, encryptionKey: encryptionKey);
     _deviceId = await _resolveDeviceId();
     await _loadSyncHistory();
     _isInitialized = true;
     _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'المزامنة جاهزة'));
+    debugPrint('SyncManager initialized successfully for deviceId: $_deviceId');
   }
 
   /// تغيير أولوية الجهاز في حالة التضارب (قيمة افتراضية 100)
@@ -65,6 +68,7 @@ class SyncManager {
   /// إضافة تغيير محلي إلى طابور المزامنة
   Future<void> pushLocalChange(String table, Map<String, dynamic> row, String operation) async {
     await _ensureReady();
+    debugPrint('Pushing local change to queue: $table, operation: $operation');
     final nowIso = DateTime.now().toUtc().toIso8601String();
     final uuid = _extractUuid(row) ?? _generateUuid();
     final updatedAt = _extractUpdatedAt(row) ?? nowIso;
@@ -98,8 +102,10 @@ class SyncManager {
   Future<void> pullAndMerge({bool force = false}) async {
     await _ensureReady();
     if (_pullInProgress) {
+      debugPrint('Pull already in progress. Skipping.');
       return;
     }
+    debugPrint('Starting pull and merge process (force: $force)...');
     _pullInProgress = true;
     _statusController.add(SyncStatus(phase: SyncPhase.pulling, message: 'جلب أحدث النسخ من Google Drive'));
 
@@ -108,6 +114,7 @@ class SyncManager {
       final remoteResult = await driveService.downloadLatestSnapshot();
       if (remoteResult == null) {
         _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا توجد نسخة مزامنة على Drive'));
+        debugPrint('No remote snapshot found on Google Drive.');
         return;
       }
 
@@ -116,21 +123,25 @@ class SyncManager {
 
       if (!force && remoteSyncId.isNotEmpty && remoteSyncId == _lastRemoteSyncId) {
         _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا تغييرات جديدة منذ آخر سحب'));
+        debugPrint('Remote sync ID matches last known remote ID. Skipping pull.');
         return;
       }
 
       if (!force && remoteResult.metadata.lastDeviceId == deviceId && remoteResult.metadata.checksum == _lastUploadedChecksum) {
         _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'البيانات على الجهاز محدثة بالفعل'));
+        debugPrint('Remote snapshot was created by this device and checksums match. Skipping pull.');
         return;
       }
 
       final localTables = await db.getAllTablesAsJson();
       if (!force && compareChecksum(remoteResult.snapshot, localTables)) {
         _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا تغييرات بعد التحقق من checksum'));
+        debugPrint('Local and remote checksums match. Skipping pull.');
         return;
       }
 
       final syncId = _generateSyncId();
+      debugPrint('Proceeding with pull. Sync ID: $syncId');
       safetySnapshot = await _safetyLayer.captureSnapshot(db: db, syncId: syncId, phase: 'pull');
 
       final mergeResult = _mergeSnapshots(
@@ -173,6 +184,7 @@ class SyncManager {
       await _persistSyncHistory(syncId);
 
       _statusController.add(SyncStatus(phase: SyncPhase.completing, message: 'تم تطبيق التغييرات الواردة'));
+      debugPrint('Pull and merge completed successfully.');
     } catch (error, stack) {
       if (safetySnapshot != null) {
         await _safetyLayer.rollbackSnapshot(db: db, snapshot: safetySnapshot, error: error);
@@ -228,6 +240,7 @@ class SyncManager {
   Future<void> _drainQueue({bool force = false}) async {
     await _ensureReady();
     if (_isDrainingQueue) {
+      debugPrint('Queue drain already in progress. Skipping.');
       return;
     }
 
@@ -239,7 +252,7 @@ class SyncManager {
     if (pending.isEmpty && !force) {
       return;
     }
-
+    debugPrint('Starting queue drain (force: $force). Pending items: ${pending.length}');
     _isDrainingQueue = true;
     _statusController.add(SyncStatus(phase: SyncPhase.pushing, message: 'رفع التغييرات المعلقة', progress: 0));
 
@@ -247,6 +260,7 @@ class SyncManager {
     try {
       final deviceId = await _ensureDeviceId();
       final syncId = _generateSyncId();
+      debugPrint('Draining queue with sync ID: $syncId');
       final localTables = await db.getAllTablesAsJson();
       final remoteResult = await driveService.downloadLatestSnapshot();
       final expectedVersion = remoteResult?.driveVersion ?? 0;
@@ -314,10 +328,12 @@ class SyncManager {
       await _persistRemoteSignature(uploadIndex.lastSyncId);
 
       if (triggerDispatcher != null && _lastSyncId != null) {
+        debugPrint('Sending sync trigger for syncId: $_lastSyncId');
         await triggerDispatcher!.sendTrigger(syncId: _lastSyncId!, sourceDeviceId: deviceId);
       }
 
       _statusController.add(SyncStatus(phase: SyncPhase.completing, message: 'تم رفع التغييرات بنجاح', progress: 1));
+      debugPrint('Queue drain completed successfully.');
     } catch (error, stack) {
       if (safetySnapshot != null) {
         await _safetyLayer.rollbackSnapshot(db: db, snapshot: safetySnapshot, error: error);
@@ -343,6 +359,8 @@ class SyncManager {
     final conflicts = <SyncConflictModel>[];
     final remotePriority = remoteSnapshot.metadata.devicePriority;
     final nowIso = DateTime.now().toUtc().toIso8601String();
+
+    debugPrint('Merging snapshots. Local device priority: $_devicePriority, Remote device priority: $remotePriority');
 
     final remoteTables = remoteSnapshot.tables;
     final allTableNames = <String>{...remoteTables.keys, ...localTables.keys};
@@ -469,7 +487,7 @@ class SyncManager {
 
       mergedTables[table] = mergedList;
     }
-
+    debugPrint('Merge complete. Found ${conflicts.length} conflicts. Applied ${operations.length} operations.');
     final metadata = SyncMetadata(
       version: remoteSnapshot.metadata.version,
       lastUpdatedAt: nowIso,

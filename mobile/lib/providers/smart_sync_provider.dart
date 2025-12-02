@@ -1,6 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/smart_sync_manager.dart' show SmartSyncManager;
+import '../services/sync_manager.dart';
+import '../data/sync_models.dart';
 import 'backup_provider.dart';
+import 'repository_providers.dart';
+
+/// Provider لـ SyncManager
+final syncManagerProvider = Provider<SyncManager>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final driveService = ref.watch(googleDriveSyncServiceProvider);
+  return SyncManager(db: db, driveService: driveService);
+});
+
+/// Provider لحالة SyncManager
+final syncStatusProvider = StreamProvider.autoDispose<SyncStatus>((ref) {
+  final syncManager = ref.watch(syncManagerProvider);
+  return syncManager.onSyncStatus();
+});
 
 /// Provider لمدير المزامنة الذكية
 final smartSyncManagerProvider = Provider<SmartSyncManager>((ref) {

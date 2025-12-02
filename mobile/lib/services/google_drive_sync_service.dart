@@ -177,6 +177,7 @@ class GoogleDriveSyncService {
   /// تهيئة الخدمة وخيار التشفير AES-256
   Future<void> init({bool enableEncryption = false, String? encryptionKey}) async {
     _encryptionEnabled = enableEncryption;
+    debugPrint('Initializing GoogleDriveSyncService. Encryption enabled: $_encryptionEnabled');
     if (_encryptionEnabled) {
       if (encryptionKey == null || encryptionKey.isEmpty) {
         throw ArgumentError('مطلوب مفتاح تشفير عند تفعيل التشفير.');
@@ -186,15 +187,19 @@ class GoogleDriveSyncService {
       _encryptionKey = null;
     }
     await _ensureDriveApi();
+    debugPrint('GoogleDriveSyncService initialized.');
   }
 
   /// تسجيل الدخول إلى Google Drive باستخدام Google Sign-In
   Future<GoogleSignInAccount?> signIn() async {
     try {
+      debugPrint('Attempting to sign in to Google...');
       final account = await _googleSignIn.signInSilently(suppressErrors: true) ?? await _googleSignIn.signIn();
       if (account == null) {
+        debugPrint('Google sign-in failed or was cancelled by the user.');
         return null;
       }
+      debugPrint('Google sign-in successful for user: ${account.email}');
       final headers = await account.authHeaders;
       _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
       return account;
@@ -216,18 +221,23 @@ class GoogleDriveSyncService {
 
   /// تحميل آخر لقطة جاهزة من Google Drive وإرجاعها كموديل
   Future<DriveSyncDownloadResult?> downloadLatestSnapshot() async {
+    debugPrint('Downloading latest snapshot from Google Drive...');
     final api = await _ensureDriveApi();
     final index = await _loadIndex(api);
 
     if (index == null || index.shards.isEmpty) {
+      debugPrint('No index file found. Attempting to locate a single snapshot file.');
       final singleShard = await _locateSingleSnapshot(api);
       if (singleShard == null) {
+        debugPrint('No snapshot file found.');
         return null;
       }
+      debugPrint('Found single snapshot file. Downloading...');
       final fileBytes = await _downloadFileBytes(api, singleShard.fileId);
       final payload = await _decodePayload(fileBytes);
       final json = jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
       final snapshot = SyncSnapshot.fromJson(json);
+      debugPrint('Successfully downloaded and decoded single snapshot.');
       return DriveSyncDownloadResult(
         snapshot: snapshot,
         metadata: snapshot.metadata,
@@ -236,6 +246,7 @@ class GoogleDriveSyncService {
       );
     }
 
+    debugPrint('Found index file with ${index.shards.length} shards. Downloading all shards...');
     index.shards.sort((a, b) => a.index.compareTo(b.index));
     final accumulator = BytesBuilder(copy: false);
     for (final shard in index.shards) {
@@ -245,6 +256,7 @@ class GoogleDriveSyncService {
     final payload = await _decodePayload(accumulator.toBytes());
     final json = jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
     final snapshot = SyncSnapshot.fromJson(json);
+    debugPrint('Successfully downloaded and decoded all shards.');
     return DriveSyncDownloadResult(
       snapshot: snapshot,
       metadata: snapshot.metadata,
@@ -259,15 +271,18 @@ class GoogleDriveSyncService {
     required String deviceId,
     required int expectedVersion,
   }) async {
+    debugPrint('Uploading snapshot to Google Drive. Expected version: $expectedVersion');
     final api = await _ensureDriveApi();
 
     final existingIndex = await _loadIndex(api);
     if (existingIndex != null && existingIndex.version != expectedVersion) {
+      debugPrint('Upload failed: Version mismatch. Expected $expectedVersion, but found ${existingIndex.version}');
       throw StateError('تغير إصدار البيانات في Google Drive. يجب تنفيذ عملية سحب قبل الرفع.');
     }
     if (existingIndex == null) {
       final single = await _locateSingleSnapshot(api);
       if (single != null && expectedVersion != single.version) {
+        debugPrint('Upload failed: Version mismatch. Expected $expectedVersion, but found legacy version ${single.version}');
         throw StateError('تم العثور على نسخة مختلفة من الملف. الرجاء المزامنة قبل الرفع.');
       }
     }
@@ -293,6 +308,7 @@ class GoogleDriveSyncService {
     final processed = await _encodePayload(compressed);
 
     final shards = _splitIntoShards(processed);
+    debugPrint('Snapshot split into ${shards.length} shards. Uploading...');
     final uploadedShards = await _uploadShards(api, shards, normalizedMetadata, deviceId);
 
     final index = DriveSyncIndex(
@@ -308,6 +324,7 @@ class GoogleDriveSyncService {
 
     await _uploadIndex(api, index);
     await _cleanupLegacySnapshot(api, keepShardIds: uploadedShards.map((s) => s.fileId).toList());
+    debugPrint('Snapshot uploaded successfully. New version: ${index.version}');
     return index;
   }
 
