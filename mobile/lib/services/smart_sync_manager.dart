@@ -16,6 +16,8 @@ enum ConflictResolution {
   devicePriority, // أولوية لجهاز معين
 }
 
+import 'sync_notification_manager.dart';
+
 /// مدير المزامنة التلقائية الذكي بين الأجهزة المتعددة
 class SmartSyncManager {
   static SmartSyncManager? _instance;
@@ -306,6 +308,9 @@ class SmartSyncManager {
         }
       }
       
+      // التحقق من وجود ملاحظات جديدة وإرسال إشعار
+      await _checkForNewNotesAndNotify(backupData);
+
       // استيراد البيانات الجديدة
       await _mergeBackupData(backupData);
       
@@ -398,6 +403,61 @@ class SmartSyncManager {
         // إزالة السجل من بيانات النسخ الاحتياطي ليتم تجاهله
         await _removeRecordFromBackupData(backupData, conflict.tableName, conflict.recordId);
       }
+    }
+  }
+
+  /// التحقق من وجود ملاحظات إدارية جديدة وإرسال إشعارات
+  Future<void> _checkForNewNotesAndNotify(Map<String, dynamic> backupData) async {
+    try {
+      // التحقق من وجود ملاحظات جديدة في ShiftNotes
+      if (backupData.containsKey('shift_notes')) {
+        final notes = backupData['shift_notes'] as List<dynamic>;
+        if (notes.isEmpty) return;
+
+        // جلب آخر وقت مزامنة لمعرفة ما هو الجديد
+        final lastSync = await getLastSyncTime();
+        if (lastSync == null) return; // أول مزامنة، لا داعي للإزعاج
+
+        int newNotesCount = 0;
+        String lastNoteTitle = '';
+        String noteCreator = 'الإدارة';
+
+        for (final noteData in notes) {
+          if (noteData is Map<String, dynamic>) {
+            // التحقق من تاريخ الملاحظة
+            String? createdAtStr = noteData['created_at'];
+            // في بعض الأحيان يكون التاريخ بتنسيق مختلف، نحاول التحليل
+            if (createdAtStr != null) {
+               try {
+                 final createdAt = DateTime.parse(createdAtStr);
+                 // إذا كانت الملاحظة أحدث من آخر مزامنة وليست من هذا الجهاز
+                 // ملاحظة: نحن نفترض أن createdBy يحمل اسم المستخدم أو معرفه
+                 // لكن هنا سنعتمد على الوقت بشكل أساسي
+                 if (createdAt.isAfter(lastSync)) {
+                   newNotesCount++;
+                   lastNoteTitle = noteData['title'] ?? 'بدون عنوان';
+                   noteCreator = noteData['created_by'] ?? 'مسؤول';
+                 }
+               } catch (_) {}
+            }
+          }
+        }
+
+        if (newNotesCount > 0) {
+          final message = newNotesCount == 1 
+              ? 'ملاحظة جديدة: $lastNoteTitle' 
+              : '$newNotesCount ملاحظات إدارية جديدة';
+          
+          debugPrint('🔔 🔔 تنبيه: $message');
+          
+          await SyncNotificationManager.instance.showSystemNotification(
+            title: 'تنبيه إداري جديد 📝',
+            body: message,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في فحص الملاحظات الجديدة: $e');
     }
   }
 
@@ -562,12 +622,18 @@ class SmartSyncManager {
 
   /// التحقق من وجود تغييرات جديدة ورفعها
   Future<void> pushLocalChanges() async {
+    if (_isSyncing) {
+       debugPrint('⚠️ تخطي الرفع - المزامنة جارية حالياً');
+       return;
+    }
+
     if (_backupService == null || !_backupService!.isSignedIn) {
       debugPrint('⚠️ لا يمكن رفع التغييرات: غير مسجل الدخول');
       return;
     }
 
     try {
+      _isSyncing = true;
       debugPrint('📤 رفع التغييرات المحلية إلى Google Drive...');
       
       final backupData = await _backupService!.exportDatabaseToJson();
@@ -582,6 +648,8 @@ class SmartSyncManager {
       debugPrint('✅ تم رفع التغييرات بنجاح');
     } catch (e) {
       debugPrint('❌ خطأ في رفع التغييرات: $e');
+    } finally {
+      _isSyncing = false;
     }
   }
 

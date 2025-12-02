@@ -9,7 +9,7 @@ import '../services/sync_manager.dart';
 const _kImmediateWorkName = 'marina_auto_sync_now';
 const _kPeriodicWorkName = 'marina_auto_sync_periodic';
 const _kPendingFlagKey = 'auto_sync_pending';
-const _kDebounceWindow = Duration(seconds: 10);
+const _kDebounceWindow = Duration(seconds: 1);
 
 @pragma('vm:entry-point')
 void autoSyncCallbackDispatcher() {

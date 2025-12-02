@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/local_db.dart' as db;
 import '../../models/payment_models.dart';
@@ -897,6 +898,51 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
+  Future<String> _buildMessage({
+    required double amount,
+    required double remaining,
+    int addedNights = 0,
+    DateTime? newCheckout,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final template = prefs.getString('whatsapp_template') ?? 
+'''عزيزي {name}
+تم استلام دفعتك بقيمة {amount} ريال
+رقم الغرفة: {room}
+{extra_nights}
+المبلغ المتبقي: {remaining} ريال
+شكراً لاختيارك فندق مارينا
+للاستفسار: 9677734587456''';
+
+    String formatAmount(double value) {
+      if (value == value.toInt()) return '${value.toInt()}';
+      return _currencyFmt.format(value);
+    }
+
+    String message = template
+        .replaceAll('{name}', widget.booking.guestName)
+        .replaceAll('{amount}', formatAmount(amount))
+        .replaceAll('{room}', widget.booking.roomNumber)
+        .replaceAll('{remaining}', formatAmount(remaining));
+
+    if (addedNights > 0) {
+      final extraNightsText = 'تم تمديد الإقامة تلقائياً بـ $addedNights ${addedNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}';
+      message = message.replaceAll('{extra_nights}', extraNightsText);
+    } else {
+      message = message.replaceAll('{extra_nights}', '');
+    }
+
+    if (newCheckout != null) {
+      final checkoutText = 'تاريخ المغادرة الجديد: ${newCheckout.day}/${newCheckout.month}/${newCheckout.year}';
+      message = message.replaceAll('{new_checkout}', checkoutText);
+    } else {
+      message = message.replaceAll('{new_checkout}', '');
+    }
+
+    // Clean up empty lines potentially left by removed placeholders
+    return message.replaceAll(RegExp(r'\n\s*\n'), '\n').trim();
+  }
+
   Future<void> _sendPaymentConfirmation(
     double amountPaidNow,
     double remaining,
@@ -910,34 +956,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final whatsappService = ref.read(whatsappServiceProvider);
 
-    String formatAmount(double amount) {
-      if (amount == amount.toInt()) {
-        return '${amount.toInt()}';
-      }
-      return _currencyFmt.format(amount);
-    }
-
-    final message = StringBuffer()
-      ..writeln('عزيزي ${widget.booking.guestName}')
-      ..writeln('تم استلام دفعتك بقيمة ${formatAmount(amountPaidNow)} ريال')
-      ..writeln('رقم الغرفة: ${widget.booking.roomNumber}');
-
-    if (addedNights > 0) {
-      message.writeln('تم تمديد الإقامة تلقائياً بـ $addedNights ${addedNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}');
-      if (newCheckout != null) {
-        message.writeln('تاريخ المغادرة الجديد: ${newCheckout.day}/${newCheckout.month}/${newCheckout.year}');
-      }
-    }
-
-    message
-      ..writeln('المبلغ المتبقي: ${formatAmount(remaining)} ريال')
-      ..writeln('شكراً لاختيارك فندق مارينا')
-      ..write('للاستفسار: 9677734587456');
+    final message = await _buildMessage(
+      amount: amountPaidNow,
+      remaining: remaining,
+      addedNights: addedNights,
+      newCheckout: newCheckout,
+    );
 
     try {
       await whatsappService.sendMessage(
         phoneE164: cleanedPhone,
-        message: message.toString(),
+        message: message,
       );
     } catch (_) {
       if (mounted) {
@@ -1210,20 +1239,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     
     final whatsappService = ref.read(whatsappServiceProvider);
     
-    String formatAmount(double amount) {
-      if (amount == amount.toInt()) {
-        return '${amount.toInt()}';
-      } else {
-        return _currencyFmt.format(amount);
-      }
-    }
+    // Reuse the same builder but we can treat nightsPaid as addedNights
+    // Note: The standard template handles extra nights generic text.
+    // If we want specific text for manual extension, we might need to adjust template variables or logic.
+    // For now, let's use the standard builder which is consistent.
     
-    String message = 'عزيزي ${widget.booking.guestName}، تم استلام دفعة بقيمة: ${formatAmount(amountPaidNow)} ريال\n';
-    message += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
-    message += 'دفع $nightsPaid ${nightsPaid == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}\n';
-    message += 'المبلغ المتبقي: ${formatAmount(remaining)} ريال\n';
-    message += 'شكراً لاختيارك فندق مارينا\n';
-    message += 'للاستفسار: 9677734587456';
+    final message = await _buildMessage(
+      amount: amountPaidNow,
+      remaining: remaining,
+      addedNights: nightsPaid,
+      // Note: newCheckout is not passed here in original code but we can calculate/pass if needed.
+      // For now we stick to existing behavior: just notify payment and extra nights.
+    );
     
     try {
       await whatsappService.sendMessage(phoneE164: cleanedPhone, message: message);

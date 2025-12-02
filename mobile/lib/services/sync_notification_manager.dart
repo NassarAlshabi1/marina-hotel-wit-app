@@ -1,12 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// مدير الإشعارات للمزامنة التلقائية
 class SyncNotificationManager {
   static SyncNotificationManager? _instance;
   static SyncNotificationManager get instance => _instance ??= SyncNotificationManager._();
   
-  SyncNotificationManager._();
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  bool _isInitialized = false;
+
+  SyncNotificationManager._() {
+    _initLocalNotifications();
+  }
+
+  Future<void> _initLocalNotifications() async {
+    if (_isInitialized) return;
+    
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initSettings = InitializationSettings(android: androidSettings);
+    
+    await _localNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (details) {
+        // يمكن إضافة توجيه عند الضغط على الإشعار هنا
+      },
+    );
+    _isInitialized = true;
+  }
+
+  /// إظهار إشعار النظام (يظهر حتى والتطبيق مغلق/في الخلفية)
+  Future<void> showSystemNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    if (!_isInitialized) await _initLocalNotifications();
+
+    const androidDetails = AndroidNotificationDetails(
+      'marina_notes_channel',
+      'الملاحظات والتنبيهات',
+      channelDescription: 'تنبيهات عند وصول ملاحظات إدارية جديدة',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    );
+    
+    const details = NotificationDetails(android: androidDetails);
+    
+    // نستخدم رقم عشوائي أو ثابت للـ ID
+    final id = DateTime.now().millisecondsSinceEpoch % 100000;
+    
+    await _localNotifications.show(
+      id,
+      title,
+      body,
+      details,
+      payload: payload,
+    );
+  }
 
   /// إشعار نجاح المزامنة
   static void showSyncSuccess(BuildContext context, {
