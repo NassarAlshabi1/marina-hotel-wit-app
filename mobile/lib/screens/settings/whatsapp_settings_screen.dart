@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
+import '../../utils/message_templates.dart';
 
 class WhatsAppSettingsScreen extends ConsumerStatefulWidget {
   const WhatsAppSettingsScreen({super.key});
@@ -14,15 +15,6 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   final _templateController = TextEditingController();
   bool _isLoading = true;
 
-  static const String _defaultTemplate = 
-'''عزيزي {name}
-تم استلام دفعتك بقيمة {amount} ريال
-رقم الغرفة: {room}
-{extra_nights}
-المبلغ المتبقي: {remaining} ريال
-شكراً لاختيارك فندق مارينا
-للاستفسار: 9677734587456''';
-
   @override
   void initState() {
     super.initState();
@@ -32,7 +24,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _templateController.text = prefs.getString('whatsapp_template') ?? _defaultTemplate;
+      _templateController.text = prefs.getString('whatsapp_template') ?? whatsappPaymentTemplate;
       _isLoading = false;
     });
   }
@@ -51,7 +43,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
 
   Future<void> _resetToDefault() async {
     setState(() {
-      _templateController.text = _defaultTemplate;
+      _templateController.text = whatsappPaymentTemplate;
     });
   }
 

@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../utils/system_settings_keys.dart';
 import 'auto_backup_task.dart';
 import 'local_db.dart';
 import 'restore_fix_service.dart';
@@ -369,14 +370,13 @@ class GoogleDriveBackupService {
       // جلب الإعدادات العامة لدمجها في النسخة الاحتياطية
       final prefs = await SharedPreferences.getInstance();
       final systemSettings = {
-        'auto_backup_enabled': prefs.getBool('auto_backup_enabled'),
-        'auto_backup_time': prefs.getString('auto_backup_time'),
-        'auto_backup_frequency': prefs.getString('auto_backup_frequency'),
-        'scheduled_backup_enabled': prefs.getBool('scheduled_backup_enabled'),
-        'auto_local_backup_enabled': prefs.getBool('auto_local_backup_enabled'),
-        'smart_sync_interval': prefs.getInt('smart_sync_interval'),
-        'wifi_only_sync': prefs.getBool('wifi_only_sync'),
-        // يمكن إضافة المزيد من الإعدادات هنا
+        SystemSettingKeys.autoBackupEnabled: prefs.getBool(SystemSettingKeys.autoBackupEnabled),
+        SystemSettingKeys.autoBackupTime: prefs.getString(SystemSettingKeys.autoBackupTime),
+        SystemSettingKeys.autoBackupFrequency: prefs.getString(SystemSettingKeys.autoBackupFrequency),
+        SystemSettingKeys.scheduledBackupEnabled: prefs.getBool(SystemSettingKeys.scheduledBackupEnabled),
+        SystemSettingKeys.autoLocalBackupEnabled: prefs.getBool(SystemSettingKeys.autoLocalBackupEnabled),
+        SystemSettingKeys.smartSyncInterval: prefs.getInt(SystemSettingKeys.smartSyncInterval),
+        SystemSettingKeys.wifiOnlySync: prefs.getBool(SystemSettingKeys.wifiOnlySync),
       };
 
       final totalRecords =
@@ -881,16 +881,7 @@ class GoogleDriveBackupService {
           final settings = backupData['system_settings'] as Map<String, dynamic>;
           final prefs = await SharedPreferences.getInstance();
           
-          // قائمة المفاتيح التي سيتم مزامنتها
-          final keys = [
-            'auto_backup_enabled',
-            'auto_backup_time',
-            'auto_backup_frequency',
-            'scheduled_backup_enabled',
-            'auto_local_backup_enabled',
-            'smart_sync_interval',
-            'wifi_only_sync',
-          ];
+          final keys = SystemSettingKeys.all;
 
           bool settingsChanged = false;
           for (final key in keys) {

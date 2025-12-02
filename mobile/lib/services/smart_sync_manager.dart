@@ -438,7 +438,9 @@ class SmartSyncManager {
                    lastNoteTitle = noteData['title'] ?? 'بدون عنوان';
                    noteCreator = noteData['created_by'] ?? 'مسؤول';
                  }
-               } catch (_) {}
+               } catch (e) {
+                 debugPrint('⚠️ تعذر تحليل تاريخ الملاحظة: $createdAtStr - $e');
+               }
             }
           }
         }

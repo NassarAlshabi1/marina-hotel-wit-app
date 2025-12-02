@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/local_db.dart' as db;
+import '../../utils/message_templates.dart';
 import '../../models/payment_models.dart';
 import '../../components/widgets/payment_widgets.dart';
 import '../../providers/repository_providers.dart';
@@ -905,14 +906,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     DateTime? newCheckout,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final template = prefs.getString('whatsapp_template') ?? 
-'''عزيزي {name}
-تم استلام دفعتك بقيمة {amount} ريال
-رقم الغرفة: {room}
-{extra_nights}
-المبلغ المتبقي: {remaining} ريال
-شكراً لاختيارك فندق مارينا
-للاستفسار: 9677734587456''';
+    final template = prefs.getString('whatsapp_template') ?? whatsappPaymentTemplate;
 
     String formatAmount(double value) {
       if (value == value.toInt()) return '${value.toInt()}';
