@@ -5,9 +5,10 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'google_drive_backup_service.dart';
-import 'sync_performance_optimizer.dart';
 import 'data_usage_manager.dart';
+import 'google_drive_backup_service.dart';
+import 'sync_notification_manager.dart';
+import 'sync_performance_optimizer.dart';
 
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
@@ -16,7 +17,6 @@ enum ConflictResolution {
   devicePriority, // أولوية لجهاز معين
 }
 
-import 'sync_notification_manager.dart';
 
 /// مدير المزامنة التلقائية الذكي بين الأجهزة المتعددة
 class SmartSyncManager {
