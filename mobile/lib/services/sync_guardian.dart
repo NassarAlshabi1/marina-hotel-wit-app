@@ -7,6 +7,7 @@ import '../data/sync_models.dart';
 import '../tasks/auto_sync_task.dart';
 import 'google_drive_sync_service.dart';
 import 'local_db.dart';
+import 'smart_sync_manager.dart';
 import 'sync_manager.dart';
 
 class SyncHealthSnapshot {
@@ -99,6 +100,11 @@ class SyncGuardian {
 
     try {
       await AutoSyncTask.scheduleImmediateSync();
+      
+      // محاولة مزامنة فورية عبر SmartManager لتخطي الـ Debounce
+      // نستخدم execute دون await لعدم تعطيل الواجهة
+      SmartSyncManager.instance.pushLocalChanges();
+      
       _pendingEvents = true;
     } catch (_) {
       // تجاهل أخطاء الجدولة حتى لا نعيق المستخدم

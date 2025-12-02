@@ -9,11 +9,13 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../utils/system_settings_keys.dart';
 import 'auto_backup_task.dart';
 import 'local_db.dart';
 import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
 import 'google_drive_logger.dart';
+import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
 
 enum BackupFormat { json, sqlite }
 
@@ -365,6 +367,18 @@ class GoogleDriveBackupService {
       final syncConflictsData = await db.select(db.syncConflicts).get();
       final syncStateData = await db.select(db.syncState).get();
 
+      // جلب الإعدادات العامة لدمجها في النسخة الاحتياطية
+      final prefs = await SharedPreferences.getInstance();
+      final systemSettings = {
+        SystemSettingKeys.autoBackupEnabled: prefs.getBool(SystemSettingKeys.autoBackupEnabled),
+        SystemSettingKeys.autoBackupTime: prefs.getString(SystemSettingKeys.autoBackupTime),
+        SystemSettingKeys.autoBackupFrequency: prefs.getString(SystemSettingKeys.autoBackupFrequency),
+        SystemSettingKeys.scheduledBackupEnabled: prefs.getBool(SystemSettingKeys.scheduledBackupEnabled),
+        SystemSettingKeys.autoLocalBackupEnabled: prefs.getBool(SystemSettingKeys.autoLocalBackupEnabled),
+        SystemSettingKeys.smartSyncInterval: prefs.getInt(SystemSettingKeys.smartSyncInterval),
+        SystemSettingKeys.wifiOnlySync: prefs.getBool(SystemSettingKeys.wifiOnlySync),
+      };
+
       final totalRecords =
           roomsData.length +
           bookingsData.length +
@@ -420,6 +434,7 @@ class GoogleDriveBackupService {
         'sync_log': syncLogData.map((row) => row.toJson()).toList(),
         'sync_conflicts': syncConflictsData.map((row) => row.toJson()).toList(),
         'sync_state': syncStateData.isNotEmpty ? syncStateData.first.toJson() : {},
+        'system_settings': systemSettings, // تصدير الإعدادات
       };
 
       debugPrint('✅ تم تصدير البيانات: $totalRecords سجل');
@@ -857,6 +872,55 @@ class GoogleDriveBackupService {
         final syncStateJson = Map<String, dynamic>.from(backupData['sync_state'] as Map);
         final data = SyncStateData.fromJson(syncStateJson, serializer: lenientValueSerializer);
         await db.into(db.syncState).insertOnConflictUpdate(data);
+      }
+
+      // استعادة وتطبيق الإعدادات العامة إذا وجدت
+      if (backupData.containsKey('system_settings')) {
+        debugPrint('⚙️ تطبيق إعدادات النظام من النسخة الاحتياطية...');
+        try {
+          final settings = backupData['system_settings'] as Map<String, dynamic>;
+          final prefs = await SharedPreferences.getInstance();
+          
+          final keys = SystemSettingKeys.all;
+
+          bool settingsChanged = false;
+          for (final key in keys) {
+            if (settings.containsKey(key) && settings[key] != null) {
+              final val = settings[key];
+              final currentVal = prefs.get(key);
+              
+              if (val != currentVal) {
+                if (val is bool) await prefs.setBool(key, val);
+                if (val is String) await prefs.setString(key, val);
+                if (val is int) await prefs.setInt(key, val);
+                if (val is double) await prefs.setDouble(key, val);
+                settingsChanged = true;
+                debugPrint('   UPDATED: $key = $val');
+              }
+            }
+          }
+
+          // إعادة جدولة المهام إذا تغيرت الإعدادات
+          if (settingsChanged) {
+             debugPrint('🔄 إعادة جدولة مهام النسخ الاحتياطي وفق الإعدادات الجديدة...');
+             
+             final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
+             final parts = timeStr.split(':');
+             final hour = int.parse(parts[0]);
+             final minute = int.parse(parts[1]);
+             final scheduledEnabled = prefs.getBool('scheduled_backup_enabled') ?? true;
+
+             if (scheduledEnabled) {
+               await AlarmBackup.rescheduleDaily(hour, minute);
+               await AutoBackupTask.scheduleDaily(time: timeStr);
+             } else {
+               await AlarmBackup.cancelAlarm();
+               await AutoBackupTask.cancelScheduled();
+             }
+          }
+        } catch (e) {
+          debugPrint('⚠️ خطأ في تطبيق الإعدادات المستعادة: $e');
+        }
       }
 
       debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');

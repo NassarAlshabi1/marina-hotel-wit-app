@@ -50,11 +50,18 @@ class SyncResult {
 
 /// مدير المزامنة الثنائية
 class AppwriteSyncManager {
+  static AppwriteSyncManager? _instance;
+
   final AppwriteService appwriteService;
   final AppDatabase database;
   final OutboxDao outboxDao;
   
-  AppwriteSyncManager({required this.appwriteService, required this.database})
+  factory AppwriteSyncManager({required AppwriteService appwriteService, required AppDatabase database}) {
+    _instance ??= AppwriteSyncManager._internal(appwriteService: appwriteService, database: database);
+    return _instance!;
+  }
+
+  AppwriteSyncManager._internal({required this.appwriteService, required this.database})
       : outboxDao = OutboxDao(database);
 
   final _logger = AppwriteLogger();
@@ -203,7 +210,7 @@ class AppwriteSyncManager {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
       final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+      final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
       
       if (enabled) {
         await sync();

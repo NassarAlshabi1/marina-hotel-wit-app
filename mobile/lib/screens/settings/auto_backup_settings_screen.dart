@@ -45,7 +45,7 @@ class _AutoBackupSettingsScreenState extends ConsumerState<AutoBackupSettingsScr
     final prefs = await SharedPreferences.getInstance();
     final timeString = prefs.getString('auto_backup_time') ?? '21:00';
     final timeParts = timeString.split(':');
-    final scheduledEnabled = prefs.getBool('scheduled_backup_enabled') ?? false;
+    final scheduledEnabled = prefs.getBool('scheduled_backup_enabled') ?? true;
     
     setState(() {
       _maxBackupsController.text = maxBackups.toString();
