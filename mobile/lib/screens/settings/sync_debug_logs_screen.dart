@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
@@ -66,11 +67,32 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
     DebugLogs.clear();
   }
 
+  void _copyAllLogs() {
+    final text = DebugLogs.entries.join('\n');
+    if (text.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم نسخ جميع السجلات.')),
+    );
+  }
+
+  void _copyEntry(String entry) {
+    Clipboard.setData(ClipboardData(text: entry));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم نسخ السطر.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
       title: 'سجلات المزامنة',
       actions: [
+        IconButton(
+          icon: const Icon(Icons.copy_all),
+          tooltip: 'نسخ جميع السجلات',
+          onPressed: _isBusy ? null : _copyAllLogs,
+        ),
         IconButton(
           icon: const Icon(Icons.delete_sweep),
           tooltip: 'مسح السجلات',
@@ -96,9 +118,13 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
                     final entry = logs[logs.length - 1 - index];
                     return ListTile(
                       dense: true,
-                      title: Text(
+                      title: SelectableText(
                         entry,
                         style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.copy, size: 18),
+                        onPressed: () => _copyEntry(entry),
                       ),
                     );
                   },
