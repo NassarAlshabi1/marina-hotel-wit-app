@@ -9,6 +9,7 @@ import 'google_drive_sync_service.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
 import 'sync_manager.dart';
+import 'appwrite_sync_manager.dart';
 
 class SyncHealthSnapshot {
   const SyncHealthSnapshot({
@@ -43,6 +44,7 @@ class SyncGuardian {
 
   SyncManager? _manager;
   GoogleDriveSyncService? _driveService;
+  AppwriteSyncManager? _appwriteSyncManager;
   StreamSubscription<SyncStatus>? _statusSubscription;
   Timer? _pendingMonitor;
 
@@ -62,6 +64,7 @@ class SyncGuardian {
   Future<void> initialize({
     required AppDatabase database,
     GoogleDriveSyncService? driveService,
+    AppwriteSyncManager? appwriteSyncManager,
   }) async {
     if (_initialized || _initializing) {
       return;
@@ -74,6 +77,8 @@ class SyncGuardian {
       _manager = SyncManager(db: database, driveService: _driveService!);
       await _manager!.initSyncService();
       await _restoreDevicePriority();
+      
+      _appwriteSyncManager = appwriteSyncManager;
 
       _statusSubscription = _manager!.onSyncStatus().listen((status) {
         _latestStatus = status;
@@ -105,7 +110,17 @@ class SyncGuardian {
       // رفع التغييرات فوراً إلى Google Drive مع انتظار النتيجة
       debugPrint('📤 رفع التغييرات فوراً بعد: $table/$operation');
       await SmartSyncManager.instance.pushLocalChanges();
-      debugPrint('✅ تم رفع التغييرات بنجاح');
+      debugPrint('✅ تم رفع التغييرات إلى Google Drive بنجاح');
+      
+      // رفع التغييرات أيضاً إلى Appwrite
+      if (_appwriteSyncManager != null) {
+        final appwriteResult = await _appwriteSyncManager!.pushLocalChanges();
+        if (appwriteResult) {
+          debugPrint('✅ تم رفع التغييرات إلى Appwrite بنجاح');
+        } else {
+          debugPrint('⚠️ فشل رفع التغييرات إلى Appwrite');
+        }
+      }
     } catch (e) {
       debugPrint('⚠️ فشل رفع التغييرات: $e');
       // جدولة محاولة لاحقة
@@ -130,10 +145,24 @@ class SyncGuardian {
       if (hasNewChanges) {
         _log('✅ تم سحب تغييرات جديدة من Google Drive');
       } else {
-        _log('ℹ️ لا توجد تغييرات جديدة');
+        _log('ℹ️ لا توجد تغييرات جديدة من Google Drive');
       }
     } catch (e) {
-      _log('⚠️ فشل سحب التغييرات عند فتح التطبيق: $e');
+      _log('⚠️ فشل سحب التغييرات من Google Drive: $e');
+    }
+    
+    // سحب التغييرات من Appwrite فوراً
+    if (_appwriteSyncManager != null) {
+      try {
+        final hasAppwriteChanges = await _appwriteSyncManager!.pullRemoteChanges();
+        if (hasAppwriteChanges) {
+          _log('✅ تم سحب تغييرات جديدة من Appwrite');
+        } else {
+          _log('ℹ️ لا توجد تغييرات جديدة من Appwrite');
+        }
+      } catch (e) {
+        _log('⚠️ فشل سحب التغييرات من Appwrite: $e');
+      }
     }
     
     // استهلاك أي أحداث معلقة

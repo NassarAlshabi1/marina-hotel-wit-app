@@ -1152,18 +1152,114 @@ class AppwriteSyncManager {
     }
   }
 
+  /// رفع التغييرات المحلية إلى Appwrite فوراً
+  Future<bool> pushLocalChanges() async {
+    // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
+    int retries = 0;
+    while (_currentStatus == SyncStatus.syncing && retries < 10) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      retries++;
+    }
+    
+    if (_currentStatus == SyncStatus.syncing) {
+      _logger.warning('تخطي الرفع - المزامنة جارية لفترة طويلة', tag: 'SYNC');
+      return false;
+    }
+
+    try {
+      _logger.info('📤 رفع التغييرات المحلية إلى Appwrite...', tag: 'SYNC');
+      
+      final pushedCount = await _pushAllEntities();
+      
+      _lastSyncTime = DateTime.now();
+      await _saveSettings();
+      
+      _logger.info('✅ تم رفع $pushedCount تغيير إلى Appwrite', tag: 'SYNC');
+      return true;
+    } catch (e, stackTrace) {
+      _logger.error('❌ خطأ في رفع التغييرات إلى Appwrite', 
+        error: e, 
+        stackTrace: stackTrace, 
+        tag: 'SYNC'
+      );
+      return false;
+    }
+  }
+
+  /// سحب التغييرات من Appwrite
+  /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
+  Future<bool> pullRemoteChanges() async {
+    if (_currentStatus == SyncStatus.syncing) {
+      _logger.warning('⏸️ تخطي السحب - المزامنة جارية', tag: 'SYNC');
+      return false;
+    }
+
+    try {
+      _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
+      
+      int recordsPulled = 0;
+      
+      // مزامنة الغرف
+      final rooms = await appwriteService.listRooms(useCache: false);
+      final roomsSynced = await _syncRooms(rooms);
+      recordsPulled += roomsSynced;
+
+      // مزامنة الحجوزات
+      final bookings = await appwriteService.listBookings(useCache: false);
+      final bookingsSynced = await _syncBookings(bookings);
+      recordsPulled += bookingsSynced;
+
+      // مزامنة الموظفين
+      final employees = await appwriteService.listEmployees(useCache: false);
+      final employeesSynced = await _syncEmployees(employees);
+      recordsPulled += employeesSynced;
+
+      // مزامنة المصروفات
+      final expenses = await appwriteService.listExpenses(useCache: false);
+      final expensesSynced = await _syncExpenses(expenses);
+      recordsPulled += expensesSynced;
+
+      // مزامنة المدفوعات
+      final payments = await appwriteService.listPayments(useCache: false);
+      final paymentsSynced = await _syncPayments(payments);
+      recordsPulled += paymentsSynced;
+
+      // مزامنة الديون
+      final debts = await appwriteService.listDebts(useCache: false);
+      final debtsSynced = await _syncDebts(debts);
+      recordsPulled += debtsSynced;
+      
+      _lastSyncTime = DateTime.now();
+      await _saveSettings();
+      
+      if (recordsPulled > 0) {
+        _logger.info('✅ تم سحب $recordsPulled سجل من Appwrite', tag: 'SYNC');
+        return true;
+      } else {
+        _logger.info('ℹ️ لا توجد تغييرات جديدة من Appwrite', tag: 'SYNC');
+        return false;
+      }
+      
+    } catch (e, stackTrace) {
+      _logger.error('❌ خطأ في سحب التغييرات من Appwrite', 
+        error: e, 
+        stackTrace: stackTrace, 
+        tag: 'SYNC'
+      );
+      return false;
+    }
+  }
+
   /// رفع جميع البيانات المحلية
   Future<void> pushAllLocalData() async {
     _logger.info('Pushing all local data...', tag: 'SYNC');
-    // TODO: تنفيذ رفع البيانات من قاعدة البيانات المحلية
-    throw UnimplementedError('Push all local data not implemented yet');
+    await pushLocalChanges();
   }
 
   /// تحميل جميع البيانات من الخادم
   Future<void> pullAllRemoteData() async {
     _logger.info('Pulling all remote data...', tag: 'SYNC');
-    // TODO: تنفيذ تحميل البيانات وحفظها في قاعدة البيانات المحلية
-    throw UnimplementedError('Pull all remote data not implemented yet');
+    await pullRemoteChanges();
   }
 
   /// إعادة تعيين حالة المزامنة
