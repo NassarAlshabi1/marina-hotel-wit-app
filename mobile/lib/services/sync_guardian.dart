@@ -9,7 +9,7 @@ import 'google_drive_sync_service.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
 import 'sync_manager.dart';
-import 'appwrite_sync_manager.dart';
+import 'appwrite_sync_manager.dart' hide SyncStatus;
 
 class SyncHealthSnapshot {
   const SyncHealthSnapshot({
