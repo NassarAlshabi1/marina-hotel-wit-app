@@ -624,16 +624,23 @@ class SmartSyncManager {
     await _performSyncCheck();
   }
 
-  /// التحقق من وجود تغييرات جديدة ورفعها
-  Future<void> pushLocalChanges() async {
+  /// رفع التغييرات المحلية إلى Google Drive فوراً
+  Future<bool> pushLocalChanges() async {
+    // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
+    int retries = 0;
+    while (_isSyncing && retries < 10) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      retries++;
+    }
+    
     if (_isSyncing) {
-       _log('⚠️ تخطي الرفع - المزامنة جارية حالياً');
-       return;
+      _log('⚠️ تخطي الرفع - المزامنة جارية لفترة طويلة');
+      return false;
     }
 
     if (_backupService == null || !_backupService!.isSignedIn) {
-      _log('⚠️ لا يمكن رفع التغييرات: غير مسجل الدخول');
-      return;
+      _log('⚠️ لا يمكن رفع التغييرات: غير مسجل الدخول في Google Drive');
+      return false;
     }
 
     try {
@@ -650,28 +657,79 @@ class SmartSyncManager {
       await _updateLastSyncTime();
       
       _log('✅ تم رفع التغييرات بنجاح');
+      return true;
     } catch (e) {
       _log('❌ خطأ في رفع التغييرات: $e');
+      return false;
     } finally {
       _isSyncing = false;
     }
   }
 
-  /// سحب التغييرات من الأجهزة الأخرى
-  /// يستخدم نفس منطق _performSyncCheck لتجنب تكرار الكود
+  /// سحب التغييرات من Google Drive
+  /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {
     if (_backupService == null || !_backupService!.isSignedIn) {
+      _log('⚠️ لا يمكن سحب التغييرات: غير مسجل الدخول');
       return false;
     }
 
-    final wasAlreadySyncing = _isSyncing;
+    if (_isSyncing) {
+      _log('⏸️ تخطي السحب - المزامنة جارية');
+      return false;
+    }
+
     try {
-      _log('📥 سحب التغييرات من الأجهزة الأخرى...');
-      await _performSyncCheck();
-      return !wasAlreadySyncing && !_isSyncing;
+      _isSyncing = true;
+      _log('📥 سحب التغييرات من Google Drive...');
+      
+      // جلب قائمة النسخ الاحتياطية
+      final backupFiles = await _backupService!.listBackupFiles();
+      if (backupFiles.isEmpty) {
+        _log('📭 لا توجد نسخ احتياطية في Google Drive');
+        return false;
+      }
+
+      // ترتيب حسب التاريخ (الأحدث أولاً)
+      backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+      final latestBackup = backupFiles.first;
+
+      // التحقق من آخر timestamp محفوظ محلياً
+      final lastRemoteTimestamp = await _getLastRemoteTimestamp();
+      
+      // إذا كانت النسخة أحدث من آخر سحب
+      if (lastRemoteTimestamp == null || 
+          latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
+        
+        // التحقق من أن النسخة ليست من نفس الجهاز
+        final backupDeviceId = latestBackup.appProperties['device_id'];
+        if (backupDeviceId == _deviceId) {
+          _log('📱 النسخة الأحدث من نفس هذا الجهاز');
+          return false;
+        }
+        
+        _log('🆕 تم العثور على نسخة جديدة من جهاز: $backupDeviceId');
+        
+        // تحميل وتطبيق النسخة الاحتياطية
+        final backupData = await _backupService!.downloadBackup(latestBackup.fileId);
+        await _backupService!.restoreFromBackup(backupData);
+        
+        // تحديث timestamp
+        await _setLastRemoteTimestamp(latestBackup.createdTime);
+        await _updateLastSyncTime();
+        
+        _log('✅ تم تطبيق التغييرات الجديدة بنجاح');
+        return true;
+      }
+      
+      _log('ℹ️ لا توجد تغييرات جديدة');
+      return false;
+      
     } catch (e) {
       _log('❌ خطأ في سحب التغييرات: $e');
       return false;
+    } finally {
+      _isSyncing = false;
     }
   }
 

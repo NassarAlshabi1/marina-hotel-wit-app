@@ -98,23 +98,50 @@ class SyncGuardian {
       return;
     }
 
+    _pendingEvents = true;
+    _emitHealth();
+
     try {
-      await AutoSyncTask.scheduleImmediateSync();
-      
-      // محاولة مزامنة فورية عبر SmartManager لتخطي الـ Debounce
-      // نستخدم execute دون await لعدم تعطيل الواجهة
-      SmartSyncManager.instance.pushLocalChanges();
-      
-      _pendingEvents = true;
-    } catch (_) {
-      // تجاهل أخطاء الجدولة حتى لا نعيق المستخدم
+      // رفع التغييرات فوراً إلى Google Drive مع انتظار النتيجة
+      debugPrint('📤 رفع التغييرات فوراً بعد: $table/$operation');
+      await SmartSyncManager.instance.pushLocalChanges();
+      debugPrint('✅ تم رفع التغييرات بنجاح');
+    } catch (e) {
+      debugPrint('⚠️ فشل رفع التغييرات: $e');
+      // جدولة محاولة لاحقة
+      try {
+        await AutoSyncTask.scheduleImmediateSync();
+      } catch (_) {}
     }
 
     _emitHealth();
   }
 
   Future<void> onAppForeground() async {
+    if (!_initialized) {
+      return;
+    }
+    
+    _log('📱 التطبيق في المقدمة - سحب التغييرات...');
+    
+    // سحب التغييرات من Google Drive فوراً
+    try {
+      final hasNewChanges = await SmartSyncManager.instance.pullRemoteChanges();
+      if (hasNewChanges) {
+        _log('✅ تم سحب تغييرات جديدة من Google Drive');
+      } else {
+        _log('ℹ️ لا توجد تغييرات جديدة');
+      }
+    } catch (e) {
+      _log('⚠️ فشل سحب التغييرات عند فتح التطبيق: $e');
+    }
+    
+    // استهلاك أي أحداث معلقة
     await _consumePending(force: false);
+  }
+
+  void _log(String message) {
+    debugPrint('[SyncGuardian] $message');
   }
 
   Future<void> forceSync() async {
