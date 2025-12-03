@@ -40,6 +40,7 @@ import 'services/appwrite_logger.dart';
 import 'services/appwrite_cache_manager.dart';
 import 'services/appwrite_service.dart';
 import 'services/appwrite_sync_manager.dart';
+import 'services/appwrite_realtime_service.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 
@@ -89,13 +90,6 @@ Future<void> _initializeSmartAutoBackup() async {
     // تهيئة مدير المزامنة الذكية بين الأجهزة
     final smartSyncManager = SmartSyncManager.instance;
     await smartSyncManager.initialize(backupService);
-
-    final syncGuardian = SyncGuardian.instance;
-    final driveSyncService = GoogleDriveSyncService(googleSignIn: backupService.googleSignIn);
-    await syncGuardian.initialize(
-      database: DatabaseManager.instance,
-      driveService: driveSyncService,
-    );
     
     debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية بنجاح');
   } catch (e) {
@@ -129,7 +123,7 @@ Future<void> _initializeAppwrite() async {
       await prefs.setBool('appwrite_sync_enabled', true);
     }
     if (!prefs.containsKey('appwrite_sync_interval')) {
-      await prefs.setInt('appwrite_sync_interval', 15);
+      await prefs.setInt('appwrite_sync_interval', 2); // تقليل من 15 إلى 2 دقيقة
     }
     
     // التحقق من صحة الإعدادات قبل التهيئة
@@ -145,7 +139,7 @@ Future<void> _initializeAppwrite() async {
         await syncManager.initialize();
         
         final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-        final syncIntervalMinutes = prefs.getInt('appwrite_sync_interval') ?? 15;
+        final syncIntervalMinutes = prefs.getInt('appwrite_sync_interval') ?? 2;
         if (syncEnabled) {
           syncManager.startAutoSync(interval: Duration(minutes: syncIntervalMinutes));
         }
@@ -163,6 +157,19 @@ Future<void> _initializeAppwrite() async {
           debugPrint('⚠️ تعذر تسجيل الجهاز: $e');
         }
         
+        // تهيئة Appwrite Realtime للتحديثات الفورية
+        await _initializeAppwriteRealtime(appwriteService, syncManager);
+        
+        // تهيئة SyncGuardian مع دعم Appwrite
+        final syncGuardian = SyncGuardian.instance;
+        final backupService = GoogleDriveBackupService();
+        final driveSyncService = GoogleDriveSyncService(googleSignIn: backupService.googleSignIn);
+        await syncGuardian.initialize(
+          database: DatabaseManager.instance,
+          driveService: driveSyncService,
+          appwriteSyncManager: syncManager,
+        );
+        
         debugPrint('✅ تم تهيئة Appwrite بنجاح');
       } catch (e) {
         debugPrint('⚠️ فشل الاتصال بـ Appwrite (سيعمل التطبيق بدون مزامنة سحابية): $e');
@@ -173,6 +180,38 @@ Future<void> _initializeAppwrite() async {
   } catch (e, stackTrace) {
     debugPrint('❌ خطأ في تهيئة Appwrite: $e');
     debugPrint('Stack Trace: $stackTrace');
+  }
+}
+
+/// تهيئة Appwrite Realtime للتحديثات الفورية
+Future<void> _initializeAppwriteRealtime(
+  AppwriteService appwriteService, 
+  AppwriteSyncManager syncManager,
+) async {
+  try {
+    final realtimeService = AppwriteRealtimeService();
+    await realtimeService.initialize(appwriteService.client);
+    
+    // معالج الأحداث الفورية - يسحب التغييرات فوراً
+    void handleRealtimeEvent(RealtimeEvent event) {
+      debugPrint('🔔 حدث Appwrite Realtime: ${event.type} على ${event.collection}');
+      
+      // سحب التغييرات فوراً عند استقبال حدث
+      syncManager.pullRemoteChanges().then((hasChanges) {
+        if (hasChanges) {
+          debugPrint('✅ تم سحب تغييرات جديدة من Appwrite بعد حدث Realtime');
+        }
+      }).catchError((error) {
+        debugPrint('⚠️ فشل سحب التغييرات بعد حدث Realtime: $error');
+      });
+    }
+    
+    // الاشتراك في جميع المجموعات
+    await realtimeService.subscribeToAllCollections(handleRealtimeEvent);
+    
+    debugPrint('✅ تم تفعيل Appwrite Realtime - التحديثات الفورية نشطة');
+  } catch (e) {
+    debugPrint('⚠️ فشل تفعيل Appwrite Realtime: $e');
   }
 }
 
