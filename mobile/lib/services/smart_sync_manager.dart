@@ -78,16 +78,12 @@ class SmartSyncManager {
       
       if (Platform.isAndroid) {
         final androidInfo = await deviceInfo.androidInfo;
-        deviceName = androidInfo.device;
         deviceModel = androidInfo.model;
-        final androidId = androidInfo.id; // Android ID ثابت
-        _deviceId = 'marina_${deviceName}_${deviceModel}_${androidId}';
+        _deviceId = deviceModel;
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
-        deviceName = iosInfo.name;
         deviceModel = iosInfo.model;
-        final iosId = iosInfo.identifierForVendor ?? 'unknown';
-        _deviceId = 'marina_${deviceName}_${deviceModel}_${iosId}';
+        _deviceId = deviceModel;
       }
       
       await prefs.setString(_prefsDeviceIdKey, _deviceId!);
