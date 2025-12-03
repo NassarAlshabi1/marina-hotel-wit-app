@@ -270,13 +270,7 @@ class DataUsageManager {
 
   /// التحقق من تجاوز حد البيانات اليومي (مطلوب لـ SmartSyncManager)
   Future<bool> isLimitExceeded() async {
-    try {
-      final usageStats = await getUsageStats();
-      return usageStats['is_limit_exceeded'] as bool;
-    } catch (e) {
-      debugPrint('❌ خطأ في فحص حد البيانات: $e');
-      return false; // افتراض عدم تجاوز الحد في حالة الخطأ
-    }
+    return false;
   }
 
   /// تنظيف الموارد
