@@ -66,28 +66,30 @@ class SmartSyncManager {
     _log('🔄 مدير المزامنة الذكي: تم التهيئة بنجاح');
   }
 
-  /// توليد معرف فريد للجهاز
+  /// توليد معرف فريد للجهاز تلقائياً
   Future<void> _initializeDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
     _deviceId = prefs.getString(_prefsDeviceIdKey);
     
     if (_deviceId == null) {
       final deviceInfo = DeviceInfoPlugin();
-      String deviceName = 'Unknown';
-      String deviceModel = 'Unknown';
+      String deviceIdentifier = 'unknown';
       
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        deviceModel = androidInfo.model;
-        _deviceId = deviceModel;
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        deviceModel = iosInfo.model;
-        _deviceId = deviceModel;
+      try {
+        if (Platform.isAndroid) {
+          final androidInfo = await deviceInfo.androidInfo;
+          deviceIdentifier = androidInfo.id;
+        } else if (Platform.isIOS) {
+          final iosInfo = await deviceInfo.iosInfo;
+          deviceIdentifier = iosInfo.identifierForVendor ?? 'ios-${DateTime.now().millisecondsSinceEpoch}';
+        }
+      } catch (e) {
+        deviceIdentifier = 'device-${DateTime.now().millisecondsSinceEpoch}';
       }
       
+      _deviceId = deviceIdentifier;
       await prefs.setString(_prefsDeviceIdKey, _deviceId!);
-      _log('🆔 تم إنشاء معرف الجهاز الثابت: $_deviceId');
+      _log('🆔 تم إنشاء معرف الجهاز الفريد تلقائياً: $_deviceId');
     } else {
       _log('🆔 معرف الجهاز: $_deviceId');
     }

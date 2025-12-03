@@ -157,15 +157,10 @@ Future<void> _initializeAppwrite() async {
         syncManager.startAutoSync(interval: Duration(minutes: syncIntervalMinutes));
       }
       
-      // تسجيل الجهاز (إذا كان متاحاً)
+      // تسجيل الجهاز تلقائياً
       try {
-        final deviceInfo = await DeviceInfoPlugin().androidInfo;
-        await syncManager.registerDevice(
-          deviceName: deviceInfo.model,
-          deviceModel: deviceInfo.device,
-          osVersion: 'Android ${deviceInfo.version.release}',
-        );
-        debugPrint('✅ تم تسجيل الجهاز في Appwrite');
+        await syncManager.registerDevice();
+        debugPrint('✅ تم تسجيل الجهاز في Appwrite تلقائياً');
       } catch (e) {
         debugPrint('⚠️ تعذر تسجيل الجهاز: $e');
       }

@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:appwrite/models.dart' as models;
+import 'package:device_info_plus/device_info_plus.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
 import 'appwrite_service.dart';
@@ -128,14 +130,34 @@ class AppwriteSyncManager {
     }
   }
 
-  /// تسجيل الجهاز
+  /// تسجيل الجهاز تلقائياً
   Future<String> registerDevice({
-    required String deviceName,
-    required String deviceModel,
-    required String osVersion,
+    String? deviceName,
+    String? deviceModel,
+    String? osVersion,
   }) async {
     try {
-      _logger.info('Registering device: $deviceName', tag: 'SYNC');
+      String finalDeviceName = deviceName ?? 'Unknown Device';
+      String finalDeviceModel = deviceModel ?? 'Unknown Model';
+      String finalOsVersion = osVersion ?? 'Unknown OS';
+
+      if (deviceName == null || deviceModel == null || osVersion == null) {
+        final deviceInfo = DeviceInfoPlugin();
+        
+        if (Platform.isAndroid) {
+          final androidInfo = await deviceInfo.androidInfo;
+          finalDeviceName = androidInfo.model;
+          finalDeviceModel = androidInfo.device;
+          finalOsVersion = 'Android ${androidInfo.version.release}';
+        } else if (Platform.isIOS) {
+          final iosInfo = await deviceInfo.iosInfo;
+          finalDeviceName = iosInfo.name;
+          finalDeviceModel = iosInfo.model;
+          finalOsVersion = '${iosInfo.systemName} ${iosInfo.systemVersion}';
+        }
+      }
+
+      _logger.info('Registering device: $finalDeviceName', tag: 'SYNC');
       final deviceType = _resolveDeviceType();
       final nowIso = Time.nowIso();
       final nowEpoch = Time.nowEpoch();
@@ -150,9 +172,9 @@ class AppwriteSyncManager {
           collectionId: AppwriteConfig.devicesCollectionId,
           documentId: _currentDeviceId!,
           data: {
-            'deviceName': deviceName,
-            'deviceModel': deviceModel,
-            'osVersion': osVersion,
+            'deviceName': finalDeviceName,
+            'deviceModel': finalDeviceModel,
+            'osVersion': finalOsVersion,
             'deviceType': deviceType,
             'status': 'active',
             'localUuid': _deviceLocalUuid,
@@ -174,9 +196,9 @@ class AppwriteSyncManager {
         _deviceCreatedAtEpoch = nowEpoch;
 
         final device = await appwriteService.createDevice({
-          'deviceName': deviceName,
-          'deviceModel': deviceModel,
-          'osVersion': osVersion,
+          'deviceName': finalDeviceName,
+          'deviceModel': finalDeviceModel,
+          'osVersion': finalOsVersion,
           'deviceType': deviceType,
           'status': 'active',
           'localUuid': _deviceLocalUuid,
