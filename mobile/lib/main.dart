@@ -30,6 +30,7 @@ import 'services/app_session_manager.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_sync_service.dart';
+import 'services/google_drive_delta_sync.dart';
 import 'services/sync_guardian.dart';
 import 'services/alarm_backup.dart';
 import 'components/admin_layout.dart';
@@ -40,6 +41,7 @@ import 'services/appwrite_logger.dart';
 import 'services/appwrite_cache_manager.dart';
 import 'services/appwrite_service.dart';
 import 'services/appwrite_sync_manager.dart';
+import 'services/appwrite_realtime_service.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 
@@ -89,25 +91,37 @@ Future<void> _initializeSmartAutoBackup() async {
     // تهيئة مدير المزامنة الذكية بين الأجهزة
     final smartSyncManager = SmartSyncManager.instance;
     await smartSyncManager.initialize(backupService);
-
+    
+    // تهيئة Delta Sync للمزامنة السريعة (التحديثات الصغيرة فقط)
+    await GoogleDriveDeltaSync.instance.initialize(backupService, DatabaseManager.instance);
+    debugPrint('✅ تم تهيئة Delta Sync للمزامنة السريعة');
+    
+    // تهيئة SyncGuardian مع Google Drive (بشكل مستقل عن Appwrite)
     final syncGuardian = SyncGuardian.instance;
     final driveSyncService = GoogleDriveSyncService(googleSignIn: backupService.googleSignIn);
     await syncGuardian.initialize(
       database: DatabaseManager.instance,
       driveService: driveSyncService,
+      appwriteSyncManager: null, // سيتم ربطه لاحقاً إذا كان Appwrite متوفر
     );
     
-    debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية بنجاح');
+    debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية عبر Google Drive بنجاح');
   } catch (e) {
     debugPrint('❌ خطأ في تهيئة النظام الذكي: $e');
   }
 }
 
-/// تهيئة نظام Appwrite للمزامنة السحابية
+/// تهيئة نظام Appwrite للمزامنة السحابية (اختياري)
 Future<void> _initializeAppwrite() async {
   try {
     // طباعة الإعدادات
     AppwriteConfig.printConfig();
+    
+    // التحقق من صحة الإعدادات قبل التهيئة
+    if (!AppwriteConfig.validateConfig()) {
+      debugPrint('ℹ️ Appwrite غير مُعد - سيعمل التطبيق بالمزامنة عبر Google Drive فقط');
+      return; // الخروج بشكل نظيف
+    }
     
     // تهيئة المسجل
     final logger = AppwriteLogger();
@@ -126,53 +140,82 @@ Future<void> _initializeAppwrite() async {
     final prefs = await SharedPreferences.getInstance();
 
     if (!prefs.containsKey('appwrite_sync_enabled')) {
-      await prefs.setBool('appwrite_sync_enabled', true);
+      await prefs.setBool('appwrite_sync_enabled', false); // معطّل افتراضياً حتى يُفعّل المستخدم
     }
     if (!prefs.containsKey('appwrite_sync_interval')) {
-      await prefs.setInt('appwrite_sync_interval', 15);
+      await prefs.setInt('appwrite_sync_interval', 2);
     }
     
-    // التحقق من صحة الإعدادات قبل التهيئة
-    if (AppwriteConfig.validateConfig()) {
-      try {
-        await appwriteService.initialize();
-        
-        // تهيئة مدير المزامنة
-        final syncManager = AppwriteSyncManager(
-          appwriteService: appwriteService,
-          database: DatabaseManager.instance,
-        );
-        await syncManager.initialize();
-        
-        final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-        final syncIntervalMinutes = prefs.getInt('appwrite_sync_interval') ?? 15;
-        if (syncEnabled) {
-          syncManager.startAutoSync(interval: Duration(minutes: syncIntervalMinutes));
-        }
-        
-        // تسجيل الجهاز (إذا كان متاحاً)
-        try {
-          final deviceInfo = await DeviceInfoPlugin().androidInfo;
-          await syncManager.registerDevice(
-            deviceName: deviceInfo.model,
-            deviceModel: deviceInfo.device,
-            osVersion: 'Android ${deviceInfo.version.release}',
-          );
-          debugPrint('✅ تم تسجيل الجهاز في Appwrite');
-        } catch (e) {
-          debugPrint('⚠️ تعذر تسجيل الجهاز: $e');
-        }
-        
-        debugPrint('✅ تم تهيئة Appwrite بنجاح');
-      } catch (e) {
-        debugPrint('⚠️ فشل الاتصال بـ Appwrite (سيعمل التطبيق بدون مزامنة سحابية): $e');
+    try {
+      await appwriteService.initialize();
+      
+      // تهيئة مدير المزامنة
+      final syncManager = AppwriteSyncManager(
+        appwriteService: appwriteService,
+        database: DatabaseManager.instance,
+      );
+      await syncManager.initialize();
+      
+      final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+      final syncIntervalMinutes = prefs.getInt('appwrite_sync_interval') ?? 2;
+      if (syncEnabled) {
+        syncManager.startAutoSync(interval: Duration(minutes: syncIntervalMinutes));
       }
-    } else {
-      debugPrint('ℹ️ Appwrite غير مُعد - يرجى تعيين Project ID في appwrite_config.dart');
+      
+      // تسجيل الجهاز تلقائياً
+      try {
+        await syncManager.registerDevice();
+        debugPrint('✅ تم تسجيل الجهاز في Appwrite تلقائياً');
+      } catch (e) {
+        debugPrint('⚠️ تعذر تسجيل الجهاز: $e');
+      }
+      
+      // تهيئة Appwrite Realtime للتحديثات الفورية (فقط إذا مُفعّل)
+      if (syncEnabled) {
+        await _initializeAppwriteRealtime(appwriteService, syncManager);
+      }
+      
+      // ربط AppwriteSyncManager مع SyncGuardian
+      SyncGuardian.instance.setAppwriteSyncManager(syncManager);
+      
+      debugPrint('✅ تم تهيئة Appwrite بنجاح');
+    } catch (e) {
+      debugPrint('⚠️ فشل الاتصال بـ Appwrite (سيعمل التطبيق بمزامنة Google Drive فقط): $e');
     }
   } catch (e, stackTrace) {
-    debugPrint('❌ خطأ في تهيئة Appwrite: $e');
-    debugPrint('Stack Trace: $stackTrace');
+    debugPrint('ℹ️ Appwrite غير متوفر - المزامنة عبر Google Drive فقط');
+  }
+}
+
+/// تهيئة Appwrite Realtime للتحديثات الفورية
+Future<void> _initializeAppwriteRealtime(
+  AppwriteService appwriteService, 
+  AppwriteSyncManager syncManager,
+) async {
+  try {
+    final realtimeService = AppwriteRealtimeService();
+    await realtimeService.initialize(appwriteService.client);
+    
+    // معالج الأحداث الفورية - يسحب التغييرات فوراً
+    void handleRealtimeEvent(RealtimeEvent event) {
+      debugPrint('🔔 حدث Appwrite Realtime: ${event.type} على ${event.collection}');
+      
+      // سحب التغييرات فوراً عند استقبال حدث
+      syncManager.pullRemoteChanges().then((hasChanges) {
+        if (hasChanges) {
+          debugPrint('✅ تم سحب تغييرات جديدة من Appwrite بعد حدث Realtime');
+        }
+      }).catchError((error) {
+        debugPrint('⚠️ فشل سحب التغييرات بعد حدث Realtime: $error');
+      });
+    }
+    
+    // الاشتراك في جميع المجموعات
+    await realtimeService.subscribeToAllCollections(handleRealtimeEvent);
+    
+    debugPrint('✅ تم تفعيل Appwrite Realtime - التحديثات الفورية نشطة');
+  } catch (e) {
+    debugPrint('⚠️ فشل تفعيل Appwrite Realtime: $e');
   }
 }
 

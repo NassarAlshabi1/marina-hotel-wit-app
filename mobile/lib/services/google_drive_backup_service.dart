@@ -447,6 +447,7 @@ class GoogleDriveBackupService {
   }
 
   static const fullBackupPrefix = 'marina_backup_full_';
+  static const autoSyncPrefix = 'marina_sync_auto_';
   static const deltaSyncPrefix = 'marina_sync_delta_';
 
   void _log(String message) {
@@ -454,7 +455,7 @@ class GoogleDriveBackupService {
     debugPrint(message);
   }
 
-  Future<String> uploadBackup(Map<String, dynamic> backupData) async {
+  Future<String> uploadBackup(Map<String, dynamic> backupData, {bool isSync = false}) async {
     String? partialFileId;
     
     return _runWithAuth<String>(() async {
@@ -465,9 +466,27 @@ class GoogleDriveBackupService {
         final jsonBytes = utf8.encode(jsonString);
 
         final timestamp = DateTime.now();
-        final fileName = '${fullBackupPrefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
-
+        
+        // تحديد البادئة والنوع حسب نوع النسخة
         final metadata = backupData['metadata'] as Map<String, dynamic>? ?? {};
+        final backupType = metadata['backup_type'] as String?;
+        final syncType = metadata['sync_type'] as String?;
+        
+        String prefix;
+        String typeLabel;
+        
+        if (isSync || syncType == 'push') {
+          prefix = autoSyncPrefix;
+          typeLabel = 'مزامنة تلقائية';
+        } else if (backupType == 'auto') {
+          prefix = autoSyncPrefix;
+          typeLabel = 'نسخ تلقائي';
+        } else {
+          prefix = fullBackupPrefix;
+          typeLabel = 'نسخة شاملة';
+        }
+        
+        final fileName = '${prefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
 
         final driveFile = drive.File()
           ..name = fileName
@@ -476,7 +495,7 @@ class GoogleDriveBackupService {
 
         final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
         
-        _log('📤 بدء رفع النسخة الاحتياطية: $fileName (${(jsonBytes.length / 1024).toStringAsFixed(2)} KB)');
+        _log('📤 بدء رفع $typeLabel: $fileName (${(jsonBytes.length / 1024).toStringAsFixed(2)} KB)');
         
         final uploadedFile = await _driveApi!.files.create(
           driveFile,
@@ -497,7 +516,7 @@ class GoogleDriveBackupService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
 
-        _log('✅ تم رفع النسخة الاحتياطية بنجاح: ${uploadedFile.id}');
+        _log('✅ تم رفع $typeLabel بنجاح: ${uploadedFile.id}');
         partialFileId = null; // تم بنجاح، لا حاجة للتنظيف
         return uploadedFile.id!;
       } catch (e) {
@@ -607,7 +626,8 @@ class GoogleDriveBackupService {
     return _runWithAuth<List<DriveBackupFile>>(() async {
       final folderId = await getOrCreateBackupFolder();
 
-      final query = "parents in '$folderId' and name contains '$_backupFilePrefix' and trashed=false";
+      // البحث عن جميع أنواع النسخ الاحتياطية (الشاملة والتلقائية والتفاضلية)
+      final query = "parents in '$folderId' and (name contains '$fullBackupPrefix' or name contains '$autoSyncPrefix' or name contains '$deltaSyncPrefix' or name contains '$_backupFilePrefix') and trashed=false";
       final listResult = await _driveApi!.files.list(
         q: query,
         orderBy: 'createdTime desc',

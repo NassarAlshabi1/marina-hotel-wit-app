@@ -351,6 +351,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       );
 
       final backupData = await _backupService.exportDatabaseToJson();
+      // رفع كنسخة شاملة يدوية (isSync = false بشكل افتراضي)
       await _backupService.uploadBackup(backupData);
       
       state = state.copyWith(
@@ -905,6 +906,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           progress: 0.6,
         );
         final backupData = await _backupService.exportDatabaseToJson();
+        // رفع كنسخة شاملة يدوية (isSync = false بشكل افتراضي)
         await _backupService.uploadBackup(backupData);
       }
 

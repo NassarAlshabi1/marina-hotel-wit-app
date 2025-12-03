@@ -9,6 +9,7 @@ import 'google_drive_sync_service.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
 import 'sync_manager.dart';
+import 'appwrite_sync_manager.dart' hide SyncStatus;
 
 class SyncHealthSnapshot {
   const SyncHealthSnapshot({
@@ -43,8 +44,12 @@ class SyncGuardian {
 
   SyncManager? _manager;
   GoogleDriveSyncService? _driveService;
+  AppwriteSyncManager? _appwriteSyncManager;
   StreamSubscription<SyncStatus>? _statusSubscription;
   Timer? _pendingMonitor;
+  Timer? _debounceTimer;
+  int _pendingChangesCount = 0;
+  DateTime? _lastPullTime;
 
   bool _initialized = false;
   bool _initializing = false;
@@ -62,6 +67,7 @@ class SyncGuardian {
   Future<void> initialize({
     required AppDatabase database,
     GoogleDriveSyncService? driveService,
+    AppwriteSyncManager? appwriteSyncManager,
   }) async {
     if (_initialized || _initializing) {
       return;
@@ -74,6 +80,8 @@ class SyncGuardian {
       _manager = SyncManager(db: database, driveService: _driveService!);
       await _manager!.initSyncService();
       await _restoreDevicePriority();
+      
+      _appwriteSyncManager = appwriteSyncManager;
 
       _statusSubscription = _manager!.onSyncStatus().listen((status) {
         _latestStatus = status;
@@ -98,23 +106,93 @@ class SyncGuardian {
       return;
     }
 
-    try {
-      await AutoSyncTask.scheduleImmediateSync();
-      
-      // محاولة مزامنة فورية عبر SmartManager لتخطي الـ Debounce
-      // نستخدم execute دون await لعدم تعطيل الواجهة
-      SmartSyncManager.instance.pushLocalChanges();
-      
-      _pendingEvents = true;
-    } catch (_) {
-      // تجاهل أخطاء الجدولة حتى لا نعيق المستخدم
-    }
-
+    _pendingEvents = true;
+    _pendingChangesCount++;
     _emitHealth();
+
+    // Debouncing: تجميع التغييرات لمدة 5 ثواني قبل الرفع
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(seconds: 5), () async {
+      try {
+        debugPrint('📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
+        
+        // استخدام Delta Sync للتحديثات الصغيرة (أسرع)
+        await SmartSyncManager.instance.pushLocalChanges();
+        debugPrint('✅ تم رفع التغييرات إلى Google Drive بنجاح');
+        _pendingChangesCount = 0;
+      
+        // رفع التغييرات أيضاً إلى Appwrite
+        if (_appwriteSyncManager != null) {
+          final appwriteResult = await _appwriteSyncManager!.pushLocalChanges();
+          if (appwriteResult) {
+            debugPrint('✅ تم رفع التغييرات إلى Appwrite بنجاح');
+          } else {
+            debugPrint('⚠️ فشل رفع التغييرات إلى Appwrite');
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ فشل رفع التغييرات: $e');
+        // جدولة محاولة لاحقة
+        try {
+          await AutoSyncTask.scheduleImmediateSync();
+        } catch (_) {}
+      } finally {
+        _emitHealth();
+      }
+    });
   }
 
   Future<void> onAppForeground() async {
+    if (!_initialized) {
+      return;
+    }
+    
+    _log('📱 التطبيق في المقدمة');
+    
+    // Pull ذكي: فقط إذا مضى أكثر من 5 دقائق
+    final now = DateTime.now();
+    if (_lastPullTime != null) {
+      final minutesSinceLastPull = now.difference(_lastPullTime!).inMinutes;
+      if (minutesSinceLastPull < 5) {
+        _log('✓ تخطي Pull - آخر سحب كان قبل $minutesSinceLastPull دقيقة');
+        return;
+      }
+    }
+    
+    _lastPullTime = now;
+    
+    // سحب التغييرات من Google Drive في الخلفية (لا يوقف UI)
+    unawaited(() async {
+      try {
+        final hasNewChanges = await SmartSyncManager.instance.pullRemoteChanges();
+        if (hasNewChanges) {
+          _log('✅ تم سحب تغييرات جديدة من Google Drive');
+        }
+      } catch (e) {
+        _log('⚠️ فشل سحب التغييرات من Google Drive: $e');
+      }
+    }());
+    
+    // سحب التغييرات من Appwrite في الخلفية
+    if (_appwriteSyncManager != null) {
+      unawaited(() async {
+        try {
+          final hasAppwriteChanges = await _appwriteSyncManager!.pullRemoteChanges();
+          if (hasAppwriteChanges) {
+            _log('✅ تم سحب تغييرات جديدة من Appwrite');
+          }
+        } catch (e) {
+          _log('⚠️ فشل سحب التغييرات من Appwrite: $e');
+        }
+      }());
+    }
+    
+    // استهلاك أي أحداث معلقة
     await _consumePending(force: false);
+  }
+
+  void _log(String message) {
+    debugPrint('[SyncGuardian] $message');
   }
 
   Future<void> forceSync() async {
@@ -130,6 +208,11 @@ class SyncGuardian {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('sync_guardian_device_priority', priority);
     _emitHealth();
+  }
+  
+  void setAppwriteSyncManager(AppwriteSyncManager? manager) {
+    _appwriteSyncManager = manager;
+    debugPrint('[SyncGuardian] تم ربط AppwriteSyncManager: ${manager != null ? 'نعم' : 'لا'}');
   }
 
   Future<void> _restoreDevicePriority() async {

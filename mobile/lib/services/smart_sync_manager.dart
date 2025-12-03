@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/debug_logs.dart';
 import 'data_usage_manager.dart';
 import 'google_drive_backup_service.dart';
+import 'google_drive_delta_sync.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
 
@@ -47,7 +48,7 @@ class SmartSyncManager {
   static const String _prefsLastRemoteTimestampKey = 'smart_sync_last_remote_timestamp';
   static const String _prefsConflictResolutionKey = 'smart_sync_conflict_resolution';
   
-  static const int _defaultSyncIntervalMinutes = 2;
+  static const int _defaultSyncIntervalMinutes = 1; // تقليل من 2 إلى 1 دقيقة لسيناريو Google Drive فقط
   static const int _periodicFullSyncHours = 24;
   
   /// تهيئة مدير المزامنة
@@ -66,28 +67,30 @@ class SmartSyncManager {
     _log('🔄 مدير المزامنة الذكي: تم التهيئة بنجاح');
   }
 
-  /// توليد معرف فريد للجهاز
+  /// توليد معرف فريد للجهاز تلقائياً
   Future<void> _initializeDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
     _deviceId = prefs.getString(_prefsDeviceIdKey);
     
     if (_deviceId == null) {
       final deviceInfo = DeviceInfoPlugin();
-      String deviceName = 'Unknown';
-      String deviceModel = 'Unknown';
+      String deviceIdentifier = 'unknown';
       
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        deviceModel = androidInfo.model;
-        _deviceId = deviceModel;
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        deviceModel = iosInfo.model;
-        _deviceId = deviceModel;
+      try {
+        if (Platform.isAndroid) {
+          final androidInfo = await deviceInfo.androidInfo;
+          deviceIdentifier = androidInfo.id;
+        } else if (Platform.isIOS) {
+          final iosInfo = await deviceInfo.iosInfo;
+          deviceIdentifier = iosInfo.identifierForVendor ?? 'ios-${DateTime.now().millisecondsSinceEpoch}';
+        }
+      } catch (e) {
+        deviceIdentifier = 'device-${DateTime.now().millisecondsSinceEpoch}';
       }
       
+      _deviceId = deviceIdentifier;
       await prefs.setString(_prefsDeviceIdKey, _deviceId!);
-      _log('🆔 تم إنشاء معرف الجهاز الثابت: $_deviceId');
+      _log('🆔 تم إنشاء معرف الجهاز الفريد تلقائياً: $_deviceId');
     } else {
       _log('🆔 معرف الجهاز: $_deviceId');
     }
@@ -492,12 +495,22 @@ class SmartSyncManager {
 
   /// إشعار نجاح المزامنة
   Future<void> _notifySuccessfulSync(DriveBackupFile backup) async {
-    // يمكن إضافة إشعار للمستخدم هنا
-    _log('🎉 تمت مزامنة البيانات من ${backup.appProperties['device_id'] ?? 'جهاز آخر'}');
+    final deviceId = backup.appProperties['device_id'] ?? 'جهاز آخر';
+    _log('🎉 تمت مزامنة البيانات من $deviceId');
     _log('📅 تاريخ النسخة: ${backup.createdTime}');
     
     final recordsCount = backup.appProperties['records_count'] ?? 'غير محدد';
     _log('📊 عدد السجلات: $recordsCount');
+    
+    // إرسال إشعار للمستخدم بوصول تغييرات جديدة
+    try {
+      await SyncNotificationManager.instance.showSystemNotification(
+        title: '🔄 تحديث جديد من $deviceId',
+        body: 'تم استلام تغييرات جديدة وتحديث البيانات',
+      );
+    } catch (e) {
+      _log('⚠️ فشل إرسال الإشعار: $e');
+    }
   }
 
   /// إشعار خطأ في المزامنة
@@ -624,54 +637,131 @@ class SmartSyncManager {
     await _performSyncCheck();
   }
 
-  /// التحقق من وجود تغييرات جديدة ورفعها
-  Future<void> pushLocalChanges() async {
+  /// رفع التغييرات المحلية إلى Google Drive فوراً
+  Future<bool> pushLocalChanges() async {
+    // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
+    int retries = 0;
+    while (_isSyncing && retries < 10) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      retries++;
+    }
+    
     if (_isSyncing) {
-       _log('⚠️ تخطي الرفع - المزامنة جارية حالياً');
-       return;
+      _log('⚠️ تخطي الرفع - المزامنة جارية لفترة طويلة');
+      return false;
     }
 
     if (_backupService == null || !_backupService!.isSignedIn) {
-      _log('⚠️ لا يمكن رفع التغييرات: غير مسجل الدخول');
-      return;
+      _log('⚠️ لا يمكن رفع التغييرات: غير مسجل الدخول في Google Drive');
+      return false;
     }
 
     try {
       _isSyncing = true;
       _log('📤 رفع التغييرات المحلية إلى Google Drive...');
       
+      // محاولة استخدام Delta Sync أولاً (أسرع وأخف)
+      if (GoogleDriveDeltaSync.instance.isInitialized) {
+        _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
+        final deltaResult = await GoogleDriveDeltaSync.instance.pushDeltaChanges();
+        
+        if (deltaResult.success) {
+          await _updateLastSyncTime();
+          _log('✅ تم رفع ${deltaResult.changesCount} تغيير عبر Delta Sync');
+          return true;
+        } else if (deltaResult.changesCount == 0) {
+          _log('✓ لا توجد تغييرات للرفع');
+          return true;
+        } else {
+          _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
+        }
+      }
+      
+      // Fallback: رفع النسخة الكاملة (للأمان)
+      _log('📦 رفع النسخة الكاملة...');
       final backupData = await _backupService!.exportDatabaseToJson();
       final metadata = backupData['metadata'] as Map<String, dynamic>;
       metadata['device_id'] = _deviceId;
       metadata['sync_type'] = 'push';
       metadata['sync_timestamp'] = DateTime.now().toIso8601String();
       
-      await _backupService!.uploadBackup(backupData);
+      await _backupService!.uploadBackup(backupData, isSync: true);
       await _updateLastSyncTime();
       
-      _log('✅ تم رفع التغييرات بنجاح');
+      _log('✅ تم رفع النسخة الكاملة بنجاح');
+      return true;
     } catch (e) {
       _log('❌ خطأ في رفع التغييرات: $e');
+      return false;
     } finally {
       _isSyncing = false;
     }
   }
 
-  /// سحب التغييرات من الأجهزة الأخرى
-  /// يستخدم نفس منطق _performSyncCheck لتجنب تكرار الكود
+  /// سحب التغييرات من Google Drive
+  /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {
     if (_backupService == null || !_backupService!.isSignedIn) {
+      _log('⚠️ لا يمكن سحب التغييرات: غير مسجل الدخول');
       return false;
     }
 
-    final wasAlreadySyncing = _isSyncing;
+    if (_isSyncing) {
+      _log('⏸️ تخطي السحب - المزامنة جارية');
+      return false;
+    }
+
     try {
-      _log('📥 سحب التغييرات من الأجهزة الأخرى...');
-      await _performSyncCheck();
-      return !wasAlreadySyncing && !_isSyncing;
+      _isSyncing = true;
+      _log('📥 سحب التغييرات من Google Drive...');
+      
+      // جلب قائمة النسخ الاحتياطية
+      final backupFiles = await _backupService!.listBackupFiles();
+      if (backupFiles.isEmpty) {
+        _log('📭 لا توجد نسخ احتياطية في Google Drive');
+        return false;
+      }
+
+      // ترتيب حسب التاريخ (الأحدث أولاً)
+      backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+      final latestBackup = backupFiles.first;
+
+      // التحقق من آخر timestamp محفوظ محلياً
+      final lastRemoteTimestamp = await _getLastRemoteTimestamp();
+      
+      // إذا كانت النسخة أحدث من آخر سحب
+      if (lastRemoteTimestamp == null || 
+          latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
+        
+        // التحقق من أن النسخة ليست من نفس الجهاز
+        final backupDeviceId = latestBackup.appProperties['device_id'];
+        if (backupDeviceId == _deviceId) {
+          _log('📱 النسخة الأحدث من نفس هذا الجهاز');
+          return false;
+        }
+        
+        _log('🆕 تم العثور على نسخة جديدة من جهاز: $backupDeviceId');
+        
+        // تحميل وتطبيق النسخة الاحتياطية
+        final backupData = await _backupService!.downloadBackup(latestBackup.fileId);
+        await _backupService!.restoreFromBackup(backupData);
+        
+        // تحديث timestamp
+        await _setLastRemoteTimestamp(latestBackup.createdTime);
+        await _updateLastSyncTime();
+        
+        _log('✅ تم تطبيق التغييرات الجديدة بنجاح');
+        return true;
+      }
+      
+      _log('ℹ️ لا توجد تغييرات جديدة');
+      return false;
+      
     } catch (e) {
       _log('❌ خطأ في سحب التغييرات: $e');
       return false;
+    } finally {
+      _isSyncing = false;
     }
   }
 

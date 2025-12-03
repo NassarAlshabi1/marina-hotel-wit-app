@@ -51,11 +51,11 @@ class AutoBackupManager {
   String? _deviceId;
   BackupMode _currentMode = BackupMode.both;
   
-  /// مدة انتظار قبل النسخ التلقائي (بالثواني) لتجميع التغييرات
-  static const int _debounceSeconds = 15;
+  /// مدة انتظار قبل النسخ التلقائي (بالثواني) - قللناها للاستجابة السريعة
+  static const int _debounceSeconds = 5;
   
   /// مدة انتظار قبل المزامنة الفورية (بالثواني)
-  static const int _instantSyncDebounceSeconds = 5;
+  static const int _instantSyncDebounceSeconds = 2;
   
   /// عدد النسخ الاحتياطية الافتراضي المراد الاحتفاظ به
   static const int _defaultMaxBackups = 10;
@@ -199,8 +199,8 @@ class AutoBackupManager {
       metadata['device_id'] = _deviceId; // معرف الجهاز للمزامنة الذكية
       metadata['created_by_device'] = _deviceId;
       
-      // رفع النسخة الاحتياطية
-      final fileId = await _backupService!.uploadBackup(backupData);
+      // رفع النسخة الاحتياطية كملف تلقائي
+      final fileId = await _backupService!.uploadBackup(backupData, isSync: true);
       
       // حفظ وقت آخر نسخة تلقائية
       await _setLastAutoBackupTime(now);

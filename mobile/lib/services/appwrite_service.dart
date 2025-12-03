@@ -22,6 +22,9 @@ class AppwriteService {
   
   bool _initialized = false;
 
+  /// Getter للوصول إلى Client من الخارج
+  Client get client => _client;
+
   /// تهيئة الخدمة
   Future<void> initialize() async {
     if (_initialized) return;
