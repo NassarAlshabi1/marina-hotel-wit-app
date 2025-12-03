@@ -626,7 +626,8 @@ class GoogleDriveBackupService {
     return _runWithAuth<List<DriveBackupFile>>(() async {
       final folderId = await getOrCreateBackupFolder();
 
-      final query = "parents in '$folderId' and name contains '$_backupFilePrefix' and trashed=false";
+      // البحث عن جميع أنواع النسخ الاحتياطية (الشاملة والتلقائية والتفاضلية)
+      final query = "parents in '$folderId' and (name contains '$fullBackupPrefix' or name contains '$autoSyncPrefix' or name contains '$deltaSyncPrefix' or name contains '$_backupFilePrefix') and trashed=false";
       final listResult = await _driveApi!.files.list(
         q: query,
         orderBy: 'createdTime desc',
