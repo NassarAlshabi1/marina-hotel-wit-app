@@ -37,7 +37,7 @@ class SmartSyncManager {
   
   void _log(String message) {
     DebugLogs.add('SmartSync', message);
-    _log(message);
+    debugPrint(message);
   }
   
   static const String _prefsEnabledKey = 'smart_sync_enabled';
