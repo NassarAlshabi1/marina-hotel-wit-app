@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/debug_logs.dart';
 import 'data_usage_manager.dart';
 import 'google_drive_backup_service.dart';
+import 'google_drive_delta_sync.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
 
@@ -659,17 +660,35 @@ class SmartSyncManager {
       _isSyncing = true;
       _log('📤 رفع التغييرات المحلية إلى Google Drive...');
       
+      // محاولة استخدام Delta Sync أولاً (أسرع وأخف)
+      if (GoogleDriveDeltaSync.instance.isInitialized) {
+        _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
+        final deltaResult = await GoogleDriveDeltaSync.instance.pushDeltaChanges();
+        
+        if (deltaResult.success) {
+          await _updateLastSyncTime();
+          _log('✅ تم رفع ${deltaResult.changesCount} تغيير عبر Delta Sync');
+          return true;
+        } else if (deltaResult.changesCount == 0) {
+          _log('✓ لا توجد تغييرات للرفع');
+          return true;
+        } else {
+          _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
+        }
+      }
+      
+      // Fallback: رفع النسخة الكاملة (للأمان)
+      _log('📦 رفع النسخة الكاملة...');
       final backupData = await _backupService!.exportDatabaseToJson();
       final metadata = backupData['metadata'] as Map<String, dynamic>;
       metadata['device_id'] = _deviceId;
       metadata['sync_type'] = 'push';
       metadata['sync_timestamp'] = DateTime.now().toIso8601String();
       
-      // رفع كملف مزامنة تلقائي
       await _backupService!.uploadBackup(backupData, isSync: true);
       await _updateLastSyncTime();
       
-      _log('✅ تم رفع التغييرات بنجاح');
+      _log('✅ تم رفع النسخة الكاملة بنجاح');
       return true;
     } catch (e) {
       _log('❌ خطأ في رفع التغييرات: $e');

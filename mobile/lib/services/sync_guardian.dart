@@ -47,6 +47,9 @@ class SyncGuardian {
   AppwriteSyncManager? _appwriteSyncManager;
   StreamSubscription<SyncStatus>? _statusSubscription;
   Timer? _pendingMonitor;
+  Timer? _debounceTimer;
+  int _pendingChangesCount = 0;
+  DateTime? _lastPullTime;
 
   bool _initialized = false;
   bool _initializing = false;
@@ -104,32 +107,39 @@ class SyncGuardian {
     }
 
     _pendingEvents = true;
+    _pendingChangesCount++;
     _emitHealth();
 
-    try {
-      // رفع التغييرات فوراً إلى Google Drive مع انتظار النتيجة
-      debugPrint('📤 رفع التغييرات فوراً بعد: $table/$operation');
-      await SmartSyncManager.instance.pushLocalChanges();
-      debugPrint('✅ تم رفع التغييرات إلى Google Drive بنجاح');
-      
-      // رفع التغييرات أيضاً إلى Appwrite
-      if (_appwriteSyncManager != null) {
-        final appwriteResult = await _appwriteSyncManager!.pushLocalChanges();
-        if (appwriteResult) {
-          debugPrint('✅ تم رفع التغييرات إلى Appwrite بنجاح');
-        } else {
-          debugPrint('⚠️ فشل رفع التغييرات إلى Appwrite');
-        }
-      }
-    } catch (e) {
-      debugPrint('⚠️ فشل رفع التغييرات: $e');
-      // جدولة محاولة لاحقة
+    // Debouncing: تجميع التغييرات لمدة 5 ثواني قبل الرفع
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(seconds: 5), () async {
       try {
-        await AutoSyncTask.scheduleImmediateSync();
-      } catch (_) {}
-    }
-
-    _emitHealth();
+        debugPrint('📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
+        
+        // استخدام Delta Sync للتحديثات الصغيرة (أسرع)
+        await SmartSyncManager.instance.pushLocalChanges();
+        debugPrint('✅ تم رفع التغييرات إلى Google Drive بنجاح');
+        _pendingChangesCount = 0;
+      
+        // رفع التغييرات أيضاً إلى Appwrite
+        if (_appwriteSyncManager != null) {
+          final appwriteResult = await _appwriteSyncManager!.pushLocalChanges();
+          if (appwriteResult) {
+            debugPrint('✅ تم رفع التغييرات إلى Appwrite بنجاح');
+          } else {
+            debugPrint('⚠️ فشل رفع التغييرات إلى Appwrite');
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ فشل رفع التغييرات: $e');
+        // جدولة محاولة لاحقة
+        try {
+          await AutoSyncTask.scheduleImmediateSync();
+        } catch (_) {}
+      } finally {
+        _emitHealth();
+      }
+    });
   }
 
   Future<void> onAppForeground() async {
@@ -137,32 +147,44 @@ class SyncGuardian {
       return;
     }
     
-    _log('📱 التطبيق في المقدمة - سحب التغييرات...');
+    _log('📱 التطبيق في المقدمة');
     
-    // سحب التغييرات من Google Drive فوراً
-    try {
-      final hasNewChanges = await SmartSyncManager.instance.pullRemoteChanges();
-      if (hasNewChanges) {
-        _log('✅ تم سحب تغييرات جديدة من Google Drive');
-      } else {
-        _log('ℹ️ لا توجد تغييرات جديدة من Google Drive');
+    // Pull ذكي: فقط إذا مضى أكثر من 5 دقائق
+    final now = DateTime.now();
+    if (_lastPullTime != null) {
+      final minutesSinceLastPull = now.difference(_lastPullTime!).inMinutes;
+      if (minutesSinceLastPull < 5) {
+        _log('✓ تخطي Pull - آخر سحب كان قبل $minutesSinceLastPull دقيقة');
+        return;
       }
-    } catch (e) {
-      _log('⚠️ فشل سحب التغييرات من Google Drive: $e');
     }
     
-    // سحب التغييرات من Appwrite فوراً
-    if (_appwriteSyncManager != null) {
+    _lastPullTime = now;
+    
+    // سحب التغييرات من Google Drive في الخلفية (لا يوقف UI)
+    unawaited(() async {
       try {
-        final hasAppwriteChanges = await _appwriteSyncManager!.pullRemoteChanges();
-        if (hasAppwriteChanges) {
-          _log('✅ تم سحب تغييرات جديدة من Appwrite');
-        } else {
-          _log('ℹ️ لا توجد تغييرات جديدة من Appwrite');
+        final hasNewChanges = await SmartSyncManager.instance.pullRemoteChanges();
+        if (hasNewChanges) {
+          _log('✅ تم سحب تغييرات جديدة من Google Drive');
         }
       } catch (e) {
-        _log('⚠️ فشل سحب التغييرات من Appwrite: $e');
+        _log('⚠️ فشل سحب التغييرات من Google Drive: $e');
       }
+    }());
+    
+    // سحب التغييرات من Appwrite في الخلفية
+    if (_appwriteSyncManager != null) {
+      unawaited(() async {
+        try {
+          final hasAppwriteChanges = await _appwriteSyncManager!.pullRemoteChanges();
+          if (hasAppwriteChanges) {
+            _log('✅ تم سحب تغييرات جديدة من Appwrite');
+          }
+        } catch (e) {
+          _log('⚠️ فشل سحب التغييرات من Appwrite: $e');
+        }
+      }());
     }
     
     // استهلاك أي أحداث معلقة

@@ -30,6 +30,7 @@ import 'services/app_session_manager.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_sync_service.dart';
+import 'services/google_drive_delta_sync.dart';
 import 'services/sync_guardian.dart';
 import 'services/alarm_backup.dart';
 import 'components/admin_layout.dart';
@@ -90,6 +91,10 @@ Future<void> _initializeSmartAutoBackup() async {
     // تهيئة مدير المزامنة الذكية بين الأجهزة
     final smartSyncManager = SmartSyncManager.instance;
     await smartSyncManager.initialize(backupService);
+    
+    // تهيئة Delta Sync للمزامنة السريعة (التحديثات الصغيرة فقط)
+    await GoogleDriveDeltaSync.instance.initialize(backupService, DatabaseManager.instance);
+    debugPrint('✅ تم تهيئة Delta Sync للمزامنة السريعة');
     
     // تهيئة SyncGuardian مع Google Drive (بشكل مستقل عن Appwrite)
     final syncGuardian = SyncGuardian.instance;
