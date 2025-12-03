@@ -653,7 +653,8 @@ class SmartSyncManager {
       metadata['sync_type'] = 'push';
       metadata['sync_timestamp'] = DateTime.now().toIso8601String();
       
-      await _backupService!.uploadBackup(backupData);
+      // رفع كملف مزامنة تلقائي
+      await _backupService!.uploadBackup(backupData, isSync: true);
       await _updateLastSyncTime();
       
       _log('✅ تم رفع التغييرات بنجاح');

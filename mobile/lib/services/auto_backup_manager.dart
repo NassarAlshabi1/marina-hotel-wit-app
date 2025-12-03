@@ -199,8 +199,8 @@ class AutoBackupManager {
       metadata['device_id'] = _deviceId; // معرف الجهاز للمزامنة الذكية
       metadata['created_by_device'] = _deviceId;
       
-      // رفع النسخة الاحتياطية
-      final fileId = await _backupService!.uploadBackup(backupData);
+      // رفع النسخة الاحتياطية كملف تلقائي
+      final fileId = await _backupService!.uploadBackup(backupData, isSync: true);
       
       // حفظ وقت آخر نسخة تلقائية
       await _setLastAutoBackupTime(now);
