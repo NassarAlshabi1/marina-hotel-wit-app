@@ -47,7 +47,7 @@ class SmartSyncManager {
   static const String _prefsLastRemoteTimestampKey = 'smart_sync_last_remote_timestamp';
   static const String _prefsConflictResolutionKey = 'smart_sync_conflict_resolution';
   
-  static const int _defaultSyncIntervalMinutes = 2;
+  static const int _defaultSyncIntervalMinutes = 1; // تقليل من 2 إلى 1 دقيقة لسيناريو Google Drive فقط
   static const int _periodicFullSyncHours = 24;
   
   /// تهيئة مدير المزامنة
@@ -492,12 +492,22 @@ class SmartSyncManager {
 
   /// إشعار نجاح المزامنة
   Future<void> _notifySuccessfulSync(DriveBackupFile backup) async {
-    // يمكن إضافة إشعار للمستخدم هنا
-    _log('🎉 تمت مزامنة البيانات من ${backup.appProperties['device_id'] ?? 'جهاز آخر'}');
+    final deviceId = backup.appProperties['device_id'] ?? 'جهاز آخر';
+    _log('🎉 تمت مزامنة البيانات من $deviceId');
     _log('📅 تاريخ النسخة: ${backup.createdTime}');
     
     final recordsCount = backup.appProperties['records_count'] ?? 'غير محدد';
     _log('📊 عدد السجلات: $recordsCount');
+    
+    // إرسال إشعار للمستخدم بوصول تغييرات جديدة
+    try {
+      await SyncNotificationManager.instance.showSystemNotification(
+        title: '🔄 تحديث جديد من $deviceId',
+        body: 'تم استلام تغييرات جديدة وتحديث البيانات',
+      );
+    } catch (e) {
+      _log('⚠️ فشل إرسال الإشعار: $e');
+    }
   }
 
   /// إشعار خطأ في المزامنة

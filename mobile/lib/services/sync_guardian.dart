@@ -187,6 +187,11 @@ class SyncGuardian {
     await prefs.setInt('sync_guardian_device_priority', priority);
     _emitHealth();
   }
+  
+  void setAppwriteSyncManager(AppwriteSyncManager? manager) {
+    _appwriteSyncManager = manager;
+    debugPrint('[SyncGuardian] تم ربط AppwriteSyncManager: ${manager != null ? 'نعم' : 'لا'}');
+  }
 
   Future<void> _restoreDevicePriority() async {
     final prefs = await SharedPreferences.getInstance();
