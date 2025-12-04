@@ -5,6 +5,8 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -14,7 +16,14 @@ class BookingEditScreen extends ConsumerStatefulWidget {
   ConsumerState<BookingEditScreen> createState() => _BookingEditScreenState();
 }
 
-class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
+class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
+    with SyncOnExitMixin {
+  @override
+  String get screenId => 'booking_edit';
+  
+  @override
+  Duration get debounceDelay => const Duration(seconds: 15);
+  
   final _formKey = GlobalKey<FormState>();
   final _guestName = TextEditingController();
   final _guestPhone = TextEditingController();
@@ -47,6 +56,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   @override
   void initState() {
     super.initState();
+    
+    _guestName.addListener(markDataChanged);
+    _guestPhone.addListener(markDataChanged);
+    _guestNationality.addListener(markDataChanged);
+    _guestAddress.addListener(markDataChanged);
+    _guestIdNumber.addListener(markDataChanged);
+    _guestIdIssueDate.addListener(markDataChanged);
+    _guestIdIssuePlace.addListener(markDataChanged);
+    _roomNumber.addListener(markDataChanged);
+    _checkin.addListener(markDataChanged);
+    _checkout.addListener(markDataChanged);
+    _expectedNights.addListener(markDataChanged);
+    _notes.addListener(markDataChanged);
+    _advancePayment.addListener(markDataChanged);
+    _paymentNotes.addListener(markDataChanged);
+    
     final b = widget.existing;
     if (b != null) {
       _guestName.text = b.guestName;
@@ -76,6 +101,21 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
 
   @override
   void dispose() {
+    _guestName.removeListener(markDataChanged);
+    _guestPhone.removeListener(markDataChanged);
+    _guestNationality.removeListener(markDataChanged);
+    _guestAddress.removeListener(markDataChanged);
+    _guestIdNumber.removeListener(markDataChanged);
+    _guestIdIssueDate.removeListener(markDataChanged);
+    _guestIdIssuePlace.removeListener(markDataChanged);
+    _roomNumber.removeListener(markDataChanged);
+    _checkin.removeListener(markDataChanged);
+    _checkout.removeListener(markDataChanged);
+    _expectedNights.removeListener(markDataChanged);
+    _notes.removeListener(markDataChanged);
+    _advancePayment.removeListener(markDataChanged);
+    _paymentNotes.removeListener(markDataChanged);
+    
     _guestName.dispose();
     _guestPhone.dispose();
     _guestNationality.dispose();
@@ -88,7 +128,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     _checkout.dispose();
     _expectedNights.dispose();
     _notes.dispose();
-    // تنظيف متغيرات الدفع المتقدم
     _advancePayment.dispose();
     _paymentNotes.dispose();
     super.dispose();
@@ -98,10 +137,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   Widget build(BuildContext context) {
     final repo = ref.watch(bookingsRepoProvider);
     final roomsAsync = ref.watch(roomsListProvider);
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(title: Text(widget.existing == null ? 'إضافة حجز' : 'تعديل حجز')),
+    return wrapWithSyncOnExit(
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(widget.existing == null ? 'إضافة حجز' : 'تعديل حجز'),
+            actions: [
+              StreamBuilder<SyncStatus>(
+                stream: syncStatusStream,
+                builder: (context, snapshot) {
+                  final status = snapshot.data ?? SyncStatus.idle;
+                  return _buildSyncIndicator(status);
+                },
+              ),
+            ],
+          ),
         body: Form(
           key: _formKey,
           child: ListView(
@@ -366,6 +417,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
 
                   await _refreshRoomOccupancy(ref);
 
+                  await syncNow();
                   if (mounted) Navigator.pop(context);
                 },
                 icon: const Icon(Icons.save),
@@ -373,9 +425,41 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
               ),
             ],
           ),
+          ),
         ),
       ),
     );
+  }
+  
+  Widget _buildSyncIndicator(SyncStatus status) {
+    switch (status) {
+      case SyncStatus.pending:
+        return const Padding(
+          padding: EdgeInsets.all(8),
+          child: Icon(Icons.cloud_upload_outlined, color: Colors.orange, size: 20),
+        );
+      case SyncStatus.syncing:
+        return const Padding(
+          padding: EdgeInsets.all(8),
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue),
+          ),
+        );
+      case SyncStatus.synced:
+        return const Padding(
+          padding: EdgeInsets.all(8),
+          child: Icon(Icons.cloud_done, color: Colors.green, size: 20),
+        );
+      case SyncStatus.queued:
+        return const Padding(
+          padding: EdgeInsets.all(8),
+          child: Icon(Icons.cloud_off, color: Colors.grey, size: 20),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Widget _buildSectionTitle(String text) {

@@ -43,6 +43,7 @@ import 'services/appwrite_service.dart';
 import 'services/appwrite_sync_manager.dart';
 import 'services/appwrite_realtime_service.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'services/sync_queue_service.dart';
 
 
 void main() async {
@@ -104,6 +105,9 @@ Future<void> _initializeSmartAutoBackup() async {
       driveService: driveSyncService,
       appwriteSyncManager: null, // سيتم ربطه لاحقاً إذا كان Appwrite متوفر
     );
+    
+    await SyncQueueService.instance.initialize();
+    debugPrint('✅ تم تهيئة SyncQueueService');
     
     debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية عبر Google Drive بنجاح');
   } catch (e) {

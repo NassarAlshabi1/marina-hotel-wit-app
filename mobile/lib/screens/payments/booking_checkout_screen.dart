@@ -6,6 +6,8 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
   final Booking booking;
@@ -19,7 +21,11 @@ class BookingCheckoutScreen extends ConsumerStatefulWidget {
   ConsumerState<BookingCheckoutScreen> createState() => _BookingCheckoutScreenState();
 }
 
-class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
+class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
+    with SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'booking_checkout';
   bool _isProcessing = false;
   
   @override
@@ -27,8 +33,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
     final paymentsRepo = ref.watch(paymentsRepoProvider);
     final roomsRepo = ref.watch(roomsRepoProvider);
     
-    return AppScaffold(
-      title: 'دفع الحجز',
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
+        title: 'دفع الحجز',
       body: StreamBuilder<Room?>(
         stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
         builder: (context, roomSnap) {

@@ -5,35 +5,50 @@ import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
-class EmployeesListScreen extends ConsumerWidget {
+class EmployeesListScreen extends ConsumerStatefulWidget {
   const EmployeesListScreen({super.key});
+  
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EmployeesListScreen> createState() => _EmployeesListScreenState();
+}
+
+class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
+    with SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'employees_list';
+  
+  @override
+  Widget build(BuildContext context) {
     final repo = ref.watch(employeesRepoProvider);
-    return AppScaffold(
-      title: 'الموظفون',
-      actions: [
-        IconButton(onPressed: () => ref.read(syncServiceProvider).runSync(), icon: const Icon(Icons.sync)),
-        IconButton(onPressed: () => _edit(context, ref), icon: const Icon(Icons.add)),
-      ],
-      body: StreamBuilder(
-        stream: repo.watchAll(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          final list = snapshot.data!;
-          return ListView.builder(
-            itemCount: list.length,
-            itemBuilder: (c, i) {
-              final e = list[i];
-              return ListTile(
-                title: Text(e.name),
-                subtitle: Text('الراتب: ${CurrencyFormatter.formatAmount(e.basicSalary)} • ${e.status}'),
-                onTap: () => _edit(context, ref, existing: e),
-              );
-            },
-          );
-        },
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
+        title: 'الموظفون',
+        actions: [
+          IconButton(onPressed: () => ref.read(syncServiceProvider).runSync(), icon: const Icon(Icons.sync)),
+          IconButton(onPressed: () => _edit(context, ref), icon: const Icon(Icons.add)),
+        ],
+        body: StreamBuilder(
+          stream: repo.watchAll(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            final list = snapshot.data!;
+            return ListView.builder(
+              itemCount: list.length,
+              itemBuilder: (c, i) {
+                final e = list[i];
+                return ListTile(
+                  title: Text(e.name),
+                  subtitle: Text('الراتب: ${CurrencyFormatter.formatAmount(e.basicSalary)} • ${e.status}'),
+                  onTap: () => _edit(context, ref, existing: e),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -71,5 +86,7 @@ class EmployeesListScreen extends ConsumerWidget {
     } else {
       await repo.update(existing.id, name: name.text.trim(), basicSalary: double.tryParse(salary.text) ?? 0, status: status);
     }
+    
+    markDataChanged();
   }
 }
