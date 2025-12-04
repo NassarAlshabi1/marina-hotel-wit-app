@@ -231,6 +231,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             ),
           );
         },
+        ),
       ),
     );
   }

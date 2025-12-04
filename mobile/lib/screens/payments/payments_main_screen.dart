@@ -64,6 +64,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             ),
           ),
         ],
+        ),
       ),
     );
   }

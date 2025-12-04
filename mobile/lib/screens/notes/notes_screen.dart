@@ -62,6 +62,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
             ),
           ),
         ],
+        ),
       ),
     );
   }

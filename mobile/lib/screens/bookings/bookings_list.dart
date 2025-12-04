@@ -33,7 +33,6 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
       context,
       MaterialPageRoute(builder: (_) => const BookingEditScreen(existing: null)),
     );
-    markDataChanged();
   }
 
   @override

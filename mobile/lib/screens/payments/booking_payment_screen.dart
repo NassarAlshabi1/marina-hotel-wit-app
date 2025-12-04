@@ -254,6 +254,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             },
           );
         },
+        ),
       ),
     );
   }
