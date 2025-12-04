@@ -172,6 +172,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
           );
         },
       ),
+      ),
     );
   }
 }
