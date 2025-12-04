@@ -149,11 +149,11 @@ class SyncGuardian {
     
     _log('📱 التطبيق في المقدمة');
     
-    // Pull ذكي: فقط إذا مضى أكثر من 5 دقائق
+    // Pull ذكي: فقط إذا مضى أكثر من 2 دقيقة (بدلاً من 5)
     final now = DateTime.now();
     if (_lastPullTime != null) {
       final minutesSinceLastPull = now.difference(_lastPullTime!).inMinutes;
-      if (minutesSinceLastPull < 5) {
+      if (minutesSinceLastPull < 2) {
         _log('✓ تخطي Pull - آخر سحب كان قبل $minutesSinceLastPull دقيقة');
         return;
       }
@@ -161,8 +161,9 @@ class SyncGuardian {
     
     _lastPullTime = now;
     
-    // سحب التغييرات من Google Drive في الخلفية (لا يوقف UI)
-    unawaited(() async {
+    // تأجيل السحب 500ms لإعطاء UI وقت للتحميل أولاً
+    Future.delayed(const Duration(milliseconds: 500), () async {
+      // سحب التغييرات من Google Drive في الخلفية
       try {
         final hasNewChanges = await SmartSyncManager.instance.pullRemoteChanges();
         if (hasNewChanges) {
@@ -171,11 +172,11 @@ class SyncGuardian {
       } catch (e) {
         _log('⚠️ فشل سحب التغييرات من Google Drive: $e');
       }
-    }());
+    });
     
-    // سحب التغييرات من Appwrite في الخلفية
+    // سحب التغييرات من Appwrite في الخلفية (إذا موجود)
     if (_appwriteSyncManager != null) {
-      unawaited(() async {
+      Future.delayed(const Duration(milliseconds: 1000), () async {
         try {
           final hasAppwriteChanges = await _appwriteSyncManager!.pullRemoteChanges();
           if (hasAppwriteChanges) {
@@ -184,10 +185,10 @@ class SyncGuardian {
         } catch (e) {
           _log('⚠️ فشل سحب التغييرات من Appwrite: $e');
         }
-      }());
+      });
     }
     
-    // استهلاك أي أحداث معلقة
+    // استهلاك الأحداث المعلقة بدون force
     await _consumePending(force: false);
   }
 
