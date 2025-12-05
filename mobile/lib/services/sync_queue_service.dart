@@ -145,29 +145,47 @@ class SyncQueueService {
       
       debugPrint('🔄 [SyncQueue] معالجة ${items.length} عنصر...');
       
+      final itemsToRemove = <String>[];
+      final itemsToUpdate = <SyncQueueItem>[];
+      
       for (final item in items) {
         if (item.attempts >= _maxAttempts) {
           debugPrint('⚠️ [SyncQueue] تجاوز الحد الأقصى للمحاولات: ${item.id}');
-          await removeFromQueue(item.id);
-          continue;
+          itemsToRemove.add(item.id);
         }
+      }
+      
+      for (final id in itemsToRemove) {
+        await removeFromQueue(id);
+      }
+      
+      final remainingItems = items.where((item) => !itemsToRemove.contains(item.id)).toList();
+      if (remainingItems.isEmpty) {
+        debugPrint('✓ [SyncQueue] لا توجد عناصر متبقية للمعالجة');
+        return;
+      }
+      
+      try {
+        final success = await SmartSyncManager.instance.pushLocalChanges();
         
-        try {
-          final success = await SmartSyncManager.instance.pushLocalChanges();
-          
-          if (success) {
+        if (success) {
+          for (final item in remainingItems) {
             await removeFromQueue(item.id);
-            debugPrint('✅ [SyncQueue] تم رفع ${item.screenId} بنجاح');
-          } else {
+          }
+          debugPrint('✅ [SyncQueue] تم رفع جميع العناصر بنجاح (${remainingItems.length} عنصر)');
+        } else {
+          for (final item in remainingItems) {
             item.attempts++;
             await updateQueueItem(item);
-            debugPrint('⚠️ [SyncQueue] فشل رفع ${item.screenId} - المحاولة ${item.attempts}');
           }
-        } catch (e) {
+          debugPrint('⚠️ [SyncQueue] فشل الرفع - تحديث محاولات ${remainingItems.length} عنصر');
+        }
+      } catch (e) {
+        for (final item in remainingItems) {
           item.attempts++;
           await updateQueueItem(item);
-          debugPrint('❌ [SyncQueue] خطأ في رفع ${item.screenId}: $e');
         }
+        debugPrint('❌ [SyncQueue] خطأ في المزامنة: $e');
       }
     } finally {
       _isProcessing = false;
