@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:collection/collection.dart';
 
 /// استراتيجية حل التضارب
 enum ConflictStrategy {
@@ -96,22 +97,17 @@ class ConflictResolver {
   }
 
   /// التحقق من وجود تضارب
+  /// 
+  /// يستخدم مقارنة عميقة (deep comparison) لضمان دقة اكتشاف التضاربات.
+  /// أي اختلاف في المحتوى يُعتبر تضارباً محتملاً.
+  /// الاستراتيجية المحددة (مثل newerWins) ستحدد الفائز بناءً على التوقيت.
   bool _hasConflict(
     Map<String, dynamic> local,
     Map<String, dynamic> remote,
     DateTime localTs,
     DateTime remoteTs,
   ) {
-    if (localTs == remoteTs && local.toString() != remote.toString()) {
-      return true;
-    }
-    
-    final diff = localTs.difference(remoteTs).abs();
-    if (diff < const Duration(seconds: 5)) {
-      return local.toString() != remote.toString();
-    }
-    
-    return false;
+    return !const DeepCollectionEquality().equals(local, remote);
   }
 
   /// حل التضارب حسب الاستراتيجية المختارة

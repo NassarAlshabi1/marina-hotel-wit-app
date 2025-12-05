@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 /// نوع الحدث
 enum SyncEventType {
@@ -23,16 +24,33 @@ class SyncEvent {
   final Map<String, dynamic>? metadata;
   final String? errorStack;
 
-  SyncEvent({
+  // Private constructor for controlled instantiation
+  SyncEvent._({
+    required this.id,
+    required this.timestamp,
     required this.type,
     this.message,
     this.metadata,
     this.errorStack,
-  }) : id = _generateId(),
-       timestamp = DateTime.now();
+  });
+
+  // Public factory for creating new events
+  factory SyncEvent({
+    required SyncEventType type,
+    String? message,
+    Map<String, dynamic>? metadata,
+    String? errorStack,
+  }) => SyncEvent._(
+    id: _generateId(),
+    timestamp: DateTime.now(),
+    type: type,
+    message: message,
+    metadata: metadata,
+    errorStack: errorStack,
+  );
 
   static String _generateId() {
-    return '${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecondsSinceEpoch % 1000}';
+    return const Uuid().v4();
   }
 
   Map<String, dynamic> toJson() => {
@@ -44,11 +62,18 @@ class SyncEvent {
     'errorStack': errorStack,
   };
 
-  factory SyncEvent.fromJson(Map<String, dynamic> json) => SyncEvent(
-    type: SyncEventType.values.firstWhere((e) => e.name == json['type']),
-    message: json['message'],
-    metadata: json['metadata'],
-    errorStack: json['errorStack'],
+  factory SyncEvent.fromJson(Map<String, dynamic> json) => SyncEvent._(
+    id: json['id'] as String,
+    timestamp: DateTime.parse(json['timestamp'] as String),
+    type: SyncEventType.values.firstWhere(
+      (e) => e.name == json['type'],
+      orElse: () => SyncEventType.failed,
+    ),
+    message: json['message'] as String?,
+    metadata: json['metadata'] != null 
+        ? Map<String, dynamic>.from(json['metadata']) 
+        : null,
+    errorStack: json['errorStack'] as String?,
   );
 }
 

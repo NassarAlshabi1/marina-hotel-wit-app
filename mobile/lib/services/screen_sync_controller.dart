@@ -201,12 +201,13 @@ class ScreenSyncController {
 
   void dispose() {
     cancelTimer();
-    syncOnExit().whenComplete(() {
-      if (!_syncStatusController.isClosed) {
-        _syncStatusController.close();
-      }
-      _circuitBreaker.dispose();
-    });
+    
+    // إغلاق الموارد فوراً
+    // المزامنة عند الخروج تتم عبر WillPopScope في SyncOnExitMixin
+    if (!_syncStatusController.isClosed) {
+      _syncStatusController.close();
+    }
+    _circuitBreaker.dispose();
   }
 }
 
