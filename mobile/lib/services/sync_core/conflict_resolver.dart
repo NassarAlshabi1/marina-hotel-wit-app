@@ -96,22 +96,18 @@ class ConflictResolver {
   }
 
   /// التحقق من وجود تضارب
+  /// 
+  /// يعتبر أي اختلاف في المحتوى تضارباً محتملاً.
+  /// الاستراتيجية المحددة (مثل newerWins) ستحدد الفائز بناءً على التوقيت.
+  /// هذا يضمن عدم تجاهل التضاربات الحقيقية التي تحدث في أوقات متباعدة.
   bool _hasConflict(
     Map<String, dynamic> local,
     Map<String, dynamic> remote,
     DateTime localTs,
     DateTime remoteTs,
   ) {
-    if (localTs == remoteTs && local.toString() != remote.toString()) {
-      return true;
-    }
-    
-    final diff = localTs.difference(remoteTs).abs();
-    if (diff < const Duration(seconds: 5)) {
-      return local.toString() != remote.toString();
-    }
-    
-    return false;
+    // أي اختلاف في المحتوى يُعتبر تضارباً
+    return local.toString() != remote.toString();
   }
 
   /// حل التضارب حسب الاستراتيجية المختارة

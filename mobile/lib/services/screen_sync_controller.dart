@@ -201,12 +201,20 @@ class ScreenSyncController {
 
   void dispose() {
     cancelTimer();
-    syncOnExit().whenComplete(() {
-      if (!_syncStatusController.isClosed) {
-        _syncStatusController.close();
-      }
-      _circuitBreaker.dispose();
-    });
+    
+    // محاولة مزامنة نهائية بشكل fire-and-forget
+    // لن ننتظرها لتجنب state leak، لكن نعطيها فرصة للعمل
+    if (_hasChanges && !_isSyncing) {
+      syncNow().catchError((error) {
+        debugPrint('⚠️ [$screenId] خطأ في المزامنة النهائية عند dispose: $error');
+      });
+    }
+    
+    // إغلاق الموارد فوراً
+    if (!_syncStatusController.isClosed) {
+      _syncStatusController.close();
+    }
+    _circuitBreaker.dispose();
   }
 }
 
