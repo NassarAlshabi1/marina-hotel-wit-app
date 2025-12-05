@@ -30,7 +30,7 @@ export 'conflict_resolver.dart' show ConflictStrategy;
 /// await manager.initialize(googleDriveService);
 /// await manager.enable();
 /// ```
-class BaseSyncManager {
+abstract class BaseSyncManager {
   static BaseSyncManager? _instance;
   static BaseSyncManager get instance => _instance ??= BaseSyncManager._();
   
