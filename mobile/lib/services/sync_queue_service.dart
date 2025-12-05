@@ -133,9 +133,15 @@ class SyncQueueService {
       debugPrint('📴 [SyncQueue] لا يوجد اتصال - تأجيل المعالجة');
       return;
     }
-    
+
+    final items = await getQueueItems();
+    if (items.isEmpty) {
+      debugPrint('✓ [SyncQueue] الطابور فارغ');
+      return;
+    }
+
     _isProcessing = true;
-    
+
     try {
       final items = await getQueueItems();
       if (items.isEmpty) {
