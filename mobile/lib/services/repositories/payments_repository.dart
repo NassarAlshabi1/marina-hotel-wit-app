@@ -3,6 +3,7 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
 import '../auto_backup_manager.dart';
+import '../sync_guardian.dart';
 
 class PaymentsRepository {
   PaymentsRepository(this.db)
@@ -30,6 +31,7 @@ class PaymentsRepository {
       ),
     );
     AutoBackupManager.instance.onDataChange('payments', 'INSERT', recordData: {'amount': amount});
+    SyncGuardian.instance.notifyLocalChange(table: 'payments', operation: 'INSERT');
     return result;
   }
 
@@ -47,13 +49,19 @@ class PaymentsRepository {
         revenueType: revenueType != null ? d.Value(revenueType) : const d.Value.absent(),
       ),
     );
-    if (result > 0) AutoBackupManager.instance.onDataChange('payments', 'UPDATE', recordData: {'id': id});
+    if (result > 0) {
+      AutoBackupManager.instance.onDataChange('payments', 'UPDATE', recordData: {'id': id});
+      SyncGuardian.instance.notifyLocalChange(table: 'payments', operation: 'UPDATE');
+    }
     return result;
   }
 
   Future<int> delete(int id) async {
     final result = await dao.softDelete(id);
-    if (result > 0) AutoBackupManager.instance.onDataChange('payments', 'DELETE', recordData: {'id': id});
+    if (result > 0) {
+      AutoBackupManager.instance.onDataChange('payments', 'DELETE', recordData: {'id': id});
+      SyncGuardian.instance.notifyLocalChange(table: 'payments', operation: 'DELETE');
+    }
     return result;
   }
 

@@ -7,6 +7,8 @@ import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import 'payment_history_screen.dart';
 import 'booking_checkout_screen.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 class PaymentsMainScreen extends ConsumerStatefulWidget {
   const PaymentsMainScreen({super.key});
@@ -16,7 +18,10 @@ class PaymentsMainScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'payments_main';
   late TabController _tabController;
 
   @override
@@ -33,7 +38,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
       title: 'إدارة المدفوعات',
       body: Column(
         children: [
@@ -58,6 +64,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             ),
           ),
         ],
+        ),
       ),
     );
   }

@@ -13,6 +13,8 @@ import '../../components/widgets/payment_widgets.dart';
 import '../../providers/repository_providers.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 const List<PaymentMethod> _allowedPaymentMethods = [
   PaymentMethod.cash,
@@ -32,7 +34,10 @@ class BookingPaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'booking_payment';
   late TabController _tabController;
   late TextEditingController _phoneController;
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
@@ -139,11 +144,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _phoneController = TextEditingController(text: widget.booking.guestPhone);
+    _phoneController.addListener(markDataChanged);
     _currentGuestPhone = widget.booking.guestPhone;
   }
 
   @override
   void dispose() {
+    _phoneController.removeListener(markDataChanged);
     _tabController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -155,8 +162,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final roomsRepo = ref.watch(roomsRepoProvider);
     final paymentsRepo = ref.watch(paymentsRepoProvider);
 
-    return AppScaffold(
-      title: 'معالجة المدفوعات',
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
+        title: 'معالجة المدفوعات',
       actions: [
         IconButton(
           onPressed: () => Navigator.push(
@@ -246,6 +254,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             },
           );
         },
+        ),
       ),
     );
   }
@@ -1186,6 +1195,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       paymentMethod: 'نقدي', // افتراضي، يمكن تحسينه لاحقاً
       revenueType: 'room', // رسوم غرفة للليالي الإضافية
     );
+    markDataChanged();
 
     Navigator.pop(context);
     
@@ -1400,6 +1410,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       paymentMethod: _mapUiMethodToDb(method),
       revenueType: 'room',
     );
+    markDataChanged();
 
     final newRemaining = ((updatedRemainingBeforePayment - amount).clamp(0.0, updatedTotal)).toDouble();
 
@@ -1616,6 +1627,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (room != null) {
       await roomsRepo.update(room.id, status: 'شاغرة');
     }
+    markDataChanged();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'), backgroundColor: Colors.green));
     Navigator.pop(context);
@@ -1678,6 +1690,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       if (room != null) {
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
+      markDataChanged();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

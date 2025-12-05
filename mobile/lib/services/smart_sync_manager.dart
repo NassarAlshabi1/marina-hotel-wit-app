@@ -48,7 +48,7 @@ class SmartSyncManager {
   static const String _prefsLastRemoteTimestampKey = 'smart_sync_last_remote_timestamp';
   static const String _prefsConflictResolutionKey = 'smart_sync_conflict_resolution';
   
-  static const int _defaultSyncIntervalMinutes = 1; // تقليل من 2 إلى 1 دقيقة لسيناريو Google Drive فقط
+  static const int _defaultSyncIntervalMinutes = 2; // تغيير من 1 إلى 2 لتقليل الحمل
   static const int _periodicFullSyncHours = 24;
   
   /// تهيئة مدير المزامنة

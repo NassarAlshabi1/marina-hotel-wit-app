@@ -7,6 +7,8 @@ import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -15,7 +17,11 @@ class ExpensesListScreen extends ConsumerStatefulWidget {
   ConsumerState<ExpensesListScreen> createState() => _ExpensesListScreenState();
 }
 
-class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
+class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
+    with SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'expenses_list';
   int? _selectedEmployeeId;
   String? selectedType;
   static const String _salaryType = 'رواتب';
@@ -29,7 +35,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
     final repo = ref.watch(expensesRepoProvider);
     final employeesAsync = ref.watch(employeesListProvider);
 
-    return AppScaffold(
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
       title: 'المصروفات',
       actions: [
         IconButton(
@@ -85,6 +92,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('تعذر تحميل الموظفين: $error')),
+        ),
       ),
     );
   }
@@ -337,6 +345,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
     amount.dispose();
     date.dispose();
 
+    markDataChanged();
     if (mounted) {
       setState(() {});
     }
