@@ -581,6 +581,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         remainingAmount: 0,
         paymentDate: Time.nowDateString(),
       );
+      markDataChanged();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -808,6 +809,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         note: note,
       );
     }
+    markDataChanged();
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -844,6 +846,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
     final repo = ref.read(debtsRepoProvider);
     await repo.delete(debt.id);
+    markDataChanged();
     
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

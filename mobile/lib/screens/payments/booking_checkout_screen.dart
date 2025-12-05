@@ -356,6 +356,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           paymentMethod: selectedMethod,
           revenueType: selectedType,
         );
+        markDataChanged();
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -431,6 +432,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             status: 'شاغرة',
           );
         }
+        markDataChanged();
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
