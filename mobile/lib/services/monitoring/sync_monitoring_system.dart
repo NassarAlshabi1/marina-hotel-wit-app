@@ -373,8 +373,29 @@ class SyncMonitoringSystem {
     }
   }
 
-  /// فحص التنبيهات
+  /// فحص التنبيهات بناءً على الإحصائيات الحالية
   void _checkForAlerts() {
+    final stats = _calculateStats();
+    
+    if (stats.successRate < 0.5 && stats.totalAttempts >= 3) {
+      _alertController.add(
+        SyncAlert(
+          level: SyncAlertLevel.critical,
+          message: 'معدل نجاح المزامنة منخفض جداً: ${(stats.successRate * 100).toStringAsFixed(1)}%',
+          stats: stats,
+        ),
+      );
+    }
+    
+    if (stats.recentErrors.length >= 3) {
+      _alertController.add(
+        SyncAlert(
+          level: SyncAlertLevel.warning,
+          message: 'تم تسجيل ${stats.recentErrors.length} أخطاء حديثة',
+          stats: stats,
+        ),
+      );
+    }
   }
 
   /// حفظ حدث في التخزين الدائم

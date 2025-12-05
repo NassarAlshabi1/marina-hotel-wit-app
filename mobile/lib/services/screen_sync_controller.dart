@@ -111,7 +111,11 @@ class ScreenSyncController {
   
   void dispose() {
     cancelTimer();
-    _syncStatusController.close();
+    syncOnExit().whenComplete(() {
+      if (!_syncStatusController.isClosed) {
+        _syncStatusController.close();
+      }
+    });
   }
 }
 

@@ -19,7 +19,6 @@ mixin SyncOnExitMixin<T extends StatefulWidget> on State<T> {
   
   @override
   void dispose() {
-    _syncController.syncOnExit();
     _syncController.dispose();
     super.dispose();
   }
