@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 /// نوع الحدث
 enum SyncEventType {
@@ -49,7 +50,7 @@ class SyncEvent {
   );
 
   static String _generateId() {
-    return '${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecondsSinceEpoch % 1000}';
+    return const Uuid().v4();
   }
 
   Map<String, dynamic> toJson() => {

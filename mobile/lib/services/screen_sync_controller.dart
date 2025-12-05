@@ -202,15 +202,8 @@ class ScreenSyncController {
   void dispose() {
     cancelTimer();
     
-    // محاولة مزامنة نهائية بشكل fire-and-forget
-    // لن ننتظرها لتجنب state leak، لكن نعطيها فرصة للعمل
-    if (_hasChanges && !_isSyncing) {
-      syncNow().catchError((error) {
-        debugPrint('⚠️ [$screenId] خطأ في المزامنة النهائية عند dispose: $error');
-      });
-    }
-    
     // إغلاق الموارد فوراً
+    // المزامنة عند الخروج تتم عبر WillPopScope في SyncOnExitMixin
     if (!_syncStatusController.isClosed) {
       _syncStatusController.close();
     }

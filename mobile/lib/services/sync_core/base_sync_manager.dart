@@ -234,15 +234,17 @@ class BaseSyncManager {
 
   /// جلب البيانات المحلية
   Future<Map<String, dynamic>> _getLocalData() async {
-    return {};
+    throw UnimplementedError('_getLocalData must be implemented');
   }
 
   /// دمج البيانات
   Future<void> _mergeData(Map<String, dynamic> data) async {
+    throw UnimplementedError('_mergeData must be implemented');
   }
 
   /// دمج البيانات المحلولة من التضارب
   Future<void> _mergeResolvedData(Map<String, Map<String, dynamic>> resolvedData) async {
+    throw UnimplementedError('_mergeResolvedData must be implemented');
   }
 
   /// حساب عدد السجلات
