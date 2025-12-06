@@ -12,6 +12,7 @@ import '../widgets/smart_sync_widgets.dart';
 import 'bookings/booking_edit.dart';
 import 'bookings/bookings_list.dart';
 import 'reports/expenses_report_screen.dart';
+import 'payments/booking_payment_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101', '102', '103', '104',
@@ -578,27 +579,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
   
   /// التعامل مع الضغط على أزرار الغرف
-  void _handleRoomTap(BuildContext context, String roomNumber, Room? room) {
+  void _handleRoomTap(BuildContext context, String roomNumber, Room? room) async {
     if (roomNumber == '503' || roomNumber == '504') {
-      // منطق خاص للغرف الجديدة
       _showNewRoomDialog(context, roomNumber);
     } else if (room != null) {
-      // فحص حالة الغرفة
       final isAvailable = StatusUtils.isRoomAvailable(room.status);
       final isOccupied = StatusUtils.isRoomOccupied(room.status);
       
       if (isAvailable) {
-        // الغرفة شاغرة - انتقال لشاشة حجز جديد
         _navigateToNewBooking(context, roomNumber);
       } else if (isOccupied) {
-        // الغرفة محجوزة - عرض تفاصيل الغرفة
-        _showRoomDetailsDialog(context, room);
+        await _navigateToPaymentForRoom(context, roomNumber);
       } else {
-        // حالة غير معروفة - عرض تفاصيل
         _showRoomDetailsDialog(context, room);
       }
     } else {
-      // غرف غير مسجلة
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
@@ -617,6 +612,53 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
     );
+  }
+  
+  /// الانتقال إلى شاشة إضافة دفعة للغرفة المحجوزة
+  Future<void> _navigateToPaymentForRoom(BuildContext context, String roomNumber) async {
+    try {
+      final db = ref.read(databaseProvider);
+      
+      // البحث عن الحجز النشط للغرفة
+      final activeBooking = await (db.select(db.bookings)
+            ..where((b) => b.roomNumber.equals(roomNumber))
+            ..where((b) => b.status.equals('نشط'))
+            ..orderBy([(b) => OrderingTerm.desc(b.checkinDate)])
+            ..limit(1))
+          .getSingleOrNull();
+      
+      if (activeBooking == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('لا يوجد حجز نشط للغرفة $roomNumber'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      
+      // الانتقال لشاشة إضافة دفعة
+      if (context.mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => BookingPaymentScreen(
+              booking: activeBooking,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تحميل الحجز: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
   
   /// الانتقال إلى قائمة الحجوزات لغرفة محددة
