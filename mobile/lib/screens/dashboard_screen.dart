@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -29,6 +30,23 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _isImmediateSyncing = false;
+  Timer? _lastSyncUpdateTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastSyncUpdateTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _lastSyncUpdateTimer?.cancel();
+    super.dispose();
+  }
 
   Future<bool> _checkLocalChanges() async {
     try {
@@ -245,8 +263,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
+  String _formatLastSyncTime(DateTime? lastSync) {
+    if (lastSync == null) return 'لم تتم مزامنة بعد';
+    
+    final now = DateTime.now();
+    final difference = now.difference(lastSync);
+    
+    if (difference.inSeconds < 60) {
+      return 'منذ ${difference.inSeconds} ثانية';
+    } else if (difference.inMinutes < 60) {
+      return 'منذ ${difference.inMinutes} دقيقة';
+    } else if (difference.inHours < 24) {
+      return 'منذ ${difference.inHours} ساعة';
+    } else {
+      final days = difference.inDays;
+      return 'منذ $days ${days == 1 ? "يوم" : "أيام"}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final statusAsync = ref.watch(smartSyncStatusProvider);
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -264,16 +302,51 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               const Spacer(),
-              ElevatedButton.icon(
-                onPressed: _isImmediateSyncing ? null : () => _triggerImmediateSync(context),
-                icon: _isImmediateSyncing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.flash_on, size: 16),
-                label: Text(_isImmediateSyncing ? '...جاري المزامنة' : 'مزامنة فورية'),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _isImmediateSyncing ? null : () => _triggerImmediateSync(context),
+                    icon: _isImmediateSyncing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.flash_on, size: 16),
+                    label: Text(_isImmediateSyncing ? 'جاري المزامنة...' : 'مزامنة فورية'),
+                  ),
+                  const SizedBox(height: 4),
+                  statusAsync.when(
+                    data: (status) {
+                      final lastSyncStr = status['last_sync_check'] as String?;
+                      final lastSync = lastSyncStr != null ? DateTime.tryParse(lastSyncStr) : null;
+                      final isEnabled = status['enabled'] as bool? ?? false;
+                      final isSyncing = status['is_syncing'] as bool? ?? false;
+                      
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isEnabled ? Icons.cloud_done : Icons.cloud_off,
+                            size: 14,
+                            color: isEnabled ? Colors.green : Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isSyncing ? 'جاري المزامنة...' : _formatLastSyncTime(lastSync),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+                ],
               ),
             ],
           ),
