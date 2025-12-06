@@ -594,6 +594,11 @@ class SmartSyncManager {
     await prefs.setString(_prefsLastSyncKey, DateTime.now().toIso8601String());
   }
 
+  Future<void> _updateLastPushTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('smart_sync_last_push_ts', DateTime.now().millisecondsSinceEpoch);
+  }
+
   Future<DateTime?> getLastSyncTime() async {
     final prefs = await SharedPreferences.getInstance();
     final timestamp = prefs.getString(_prefsLastSyncKey);
@@ -624,6 +629,48 @@ class SmartSyncManager {
   Future<void> onLocalBackupUploaded() async {
     await _updateLastSyncTime();
     _log('📤 تم تسجيل رفع نسخة احتياطية من هذا الجهاز');
+  }
+
+  /// التحقق من وجود تغييرات محلية لم ترفع
+  Future<bool> hasLocalChanges() async {
+    try {
+      // التحقق من آخر رفع مقارنة بآخر مزامنة
+      final prefs = await SharedPreferences.getInstance();
+      final lastPushTime = prefs.getInt('smart_sync_last_push_ts') ?? 0;
+      final lastSyncTime = prefs.getString(_prefsLastSyncKey);
+      
+      // إذا لم يتم الرفع من قبل
+      if (lastPushTime == 0) {
+        _log('📝 لم يتم رفع بيانات من قبل - قد تكون هناك تغييرات');
+        return true;
+      }
+      
+      // إذا كان آخر رفع أقدم من آخر فحص (يعني تم سحب بيانات بدون رفع)
+      if (lastSyncTime != null) {
+        final syncDateTime = DateTime.parse(lastSyncTime);
+        final pushDateTime = DateTime.fromMillisecondsSinceEpoch(lastPushTime);
+        
+        if (pushDateTime.isBefore(syncDateTime)) {
+          _log('📝 آخر رفع أقدم من آخر مزامنة - قد تكون هناك تغييرات');
+          return true;
+        }
+      }
+      
+      // إذا كان آخر رفع قديم جداً (أكثر من 30 دقيقة)
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final timeSinceLastPush = now - lastPushTime;
+      
+      if (timeSinceLastPush > Duration(minutes: 30).inMilliseconds) {
+        _log('⏰ آخر رفع كان منذ ${Duration(milliseconds: timeSinceLastPush).inMinutes} دقيقة');
+        return true;
+      }
+      
+      _log('✅ لا توجد تغييرات محلية معلقة');
+      return false;
+    } catch (e) {
+      _log('❌ خطأ في فحص التغييرات المحلية: $e');
+      return false;
+    }
   }
 
   /// مزامنة يدوية فورية
@@ -667,10 +714,12 @@ class SmartSyncManager {
         
         if (deltaResult.success) {
           await _updateLastSyncTime();
+          await _updateLastPushTime();
           _log('✅ تم رفع ${deltaResult.changesCount} تغيير عبر Delta Sync');
           return true;
         } else if (deltaResult.changesCount == 0) {
           _log('✓ لا توجد تغييرات للرفع');
+          await _updateLastPushTime();
           return true;
         } else {
           _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
@@ -687,6 +736,7 @@ class SmartSyncManager {
       
       await _backupService!.uploadBackup(backupData, isSync: true);
       await _updateLastSyncTime();
+      await _updateLastPushTime();
       
       _log('✅ تم رفع النسخة الكاملة بنجاح');
       return true;

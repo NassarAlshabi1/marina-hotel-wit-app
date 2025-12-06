@@ -30,30 +30,218 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _isImmediateSyncing = false;
 
+  Future<bool> _checkLocalChanges() async {
+    try {
+      final manager = ref.read(smartSyncManagerProvider);
+      final hasChanges = await manager.hasLocalChanges();
+      return hasChanges;
+    } catch (e) {
+      debugPrint('❌ خطأ في فحص التغييرات المحلية: $e');
+      return false;
+    }
+  }
+
   Future<void> _triggerImmediateSync(BuildContext context) async {
     if (_isImmediateSyncing) {
       return;
     }
-    setState(() => _isImmediateSyncing = true);
+
     try {
-      final manager = ref.read(smartSyncManagerProvider);
-      await manager.forceSyncNow();
-      ref.invalidate(smartSyncStatusProvider);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('⚡ تم تشغيل المزامنة الفورية')), 
-        );
+      final hasLocalChanges = await _checkLocalChanges();
+      
+      if (hasLocalChanges) {
+        final action = await _showLocalChangesDialog(context);
+        
+        if (action == null) {
+          return;
+        }
+        
+        setState(() => _isImmediateSyncing = true);
+        
+        if (action == 'push_first') {
+          await _pushThenPull(context);
+        } else if (action == 'pull_only') {
+          await _pullOnly(context);
+        }
+      } else {
+        setState(() => _isImmediateSyncing = true);
+        await _performSync(context);
       }
+      
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ فشلت المزامنة الفورية: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('❌ فشلت المزامنة: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
       if (mounted) {
         setState(() => _isImmediateSyncing = false);
       }
+    }
+  }
+
+  Future<String?> _showLocalChangesDialog(BuildContext context) async {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 8),
+            Expanded(child: Text('⚠️ تنبيه: تغييرات محلية')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'لديك تغييرات محلية لم يتم رفعها إلى السحابة بعد.',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            ),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '💡 ماذا تريد أن تفعل؟',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '• رفع أولاً: يرفع تغييراتك ثم يسحب من السحابة',
+                    style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '• سحب فقط: يسحب من السحابة دون رفع تغييراتك',
+                    style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: Text('إلغاء'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(context, 'pull_only'),
+            icon: Icon(Icons.download, size: 18),
+            label: Text('سحب فقط'),
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, 'push_first'),
+            icon: Icon(Icons.upload, size: 18),
+            label: Text('رفع أولاً'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          ),
+        ],
+        actionsAlignment: MainAxisAlignment.spaceBetween,
+      ),
+    );
+  }
+
+  Future<void> _pushThenPull(BuildContext context) async {
+    try {
+      final manager = ref.read(smartSyncManagerProvider);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📤 جاري رفع التغييرات المحلية...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      
+      final pushSuccess = await manager.pushLocalChanges();
+      
+      if (!pushSuccess) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ فشل رفع التغييرات المحلية'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ تم رفع التغييرات بنجاح'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+      
+      await Future.delayed(Duration(milliseconds: 500));
+      
+      await _performSync(context);
+      
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ خطأ في رفع التغييرات: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _pullOnly(BuildContext context) async {
+    try {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ تحذير: سيتم تجاهل التغييرات المحلية'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      
+      await Future.delayed(Duration(milliseconds: 500));
+      await _performSync(context);
+      
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ خطأ في السحب: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _performSync(BuildContext context) async {
+    final manager = ref.read(smartSyncManagerProvider);
+    await manager.forceSyncNow();
+    ref.invalidate(smartSyncStatusProvider);
+    
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚡ تمت المزامنة الفورية بنجاح')),
+      );
     }
   }
 

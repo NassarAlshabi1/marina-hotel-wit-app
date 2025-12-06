@@ -24,17 +24,9 @@ export 'conflict_resolver.dart' show ConflictStrategy;
 /// - ConflictResolver: لحل التضارب
 /// - SyncMetrics: للقياسات والإحصائيات
 /// 
-/// الاستخدام:
-/// ```dart
-/// final manager = BaseSyncManager.instance;
-/// await manager.initialize(googleDriveService);
-/// await manager.enable();
-/// ```
-class BaseSyncManager {
-  static BaseSyncManager? _instance;
-  static BaseSyncManager get instance => _instance ??= BaseSyncManager._();
-  
-  BaseSyncManager._();
+/// ملاحظة: هذا كلاس abstract - يجب إنشاء كلاس موروث منه لاستخدامه.
+abstract class BaseSyncManager {
+  BaseSyncManager();
 
   GoogleDriveBackupService? _backupService;
   late SyncScheduler _scheduler;
@@ -232,20 +224,14 @@ class BaseSyncManager {
     _log('✅ اكتملت المزامنة بنجاح');
   }
 
-  /// جلب البيانات المحلية
-  Future<Map<String, dynamic>> _getLocalData() async {
-    throw UnimplementedError('_getLocalData must be implemented');
-  }
+  /// جلب البيانات المحلية - يجب تنفيذها في الكلاس الموروث
+  Future<Map<String, dynamic>> _getLocalData();
 
-  /// دمج البيانات
-  Future<void> _mergeData(Map<String, dynamic> data) async {
-    throw UnimplementedError('_mergeData must be implemented');
-  }
+  /// دمج البيانات - يجب تنفيذها في الكلاس الموروث
+  Future<void> _mergeData(Map<String, dynamic> data);
 
-  /// دمج البيانات المحلولة من التضارب
-  Future<void> _mergeResolvedData(Map<String, Map<String, dynamic>> resolvedData) async {
-    throw UnimplementedError('_mergeResolvedData must be implemented');
-  }
+  /// دمج البيانات المحلولة من التضارب - يجب تنفيذها في الكلاس الموروث
+  Future<void> _mergeResolvedData(Map<String, Map<String, dynamic>> resolvedData);
 
   /// حساب عدد السجلات
   int _countRecords(Map<String, dynamic> data) {

@@ -22,7 +22,6 @@ class SmartGoogleDriveSync {
 
   GoogleDriveBackupService? _driveService;
   GoogleDriveDeltaSync? _deltaSync;
-  AppDatabase? _database;
   
   Timer? _debounceTimer;
   Timer? _periodicSyncTimer;
@@ -53,7 +52,6 @@ class SmartGoogleDriveSync {
     required AppDatabase database,
   }) async {
     _driveService = driveService;
-    _database = database;
     _deltaSync = GoogleDriveDeltaSync.instance;
     await _deltaSync!.initialize(driveService, database);
     
@@ -155,7 +153,7 @@ class SmartGoogleDriveSync {
         // تحديث استهلاك البيانات
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * 500) / 1024 / 1024, // تحويل bytes إلى MB
+            result.changesCount * 500,
           );
         }
         
@@ -190,7 +188,7 @@ class SmartGoogleDriveSync {
         
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * 500) / 1024 / 1024, // تحويل bytes إلى MB
+            result.changesCount * 500,
           );
         }
         
