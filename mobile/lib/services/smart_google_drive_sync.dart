@@ -155,8 +155,7 @@ class SmartGoogleDriveSync {
         // تحديث استهلاك البيانات
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            result.changesCount * 500, // تقدير: 500 بايت لكل تغيير
-            'push_delta',
+            (result.changesCount * 500) / 1024 / 1024, // تحويل bytes إلى MB
           );
         }
         
@@ -191,8 +190,7 @@ class SmartGoogleDriveSync {
         
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            result.changesCount * 500,
-            'pull_delta',
+            (result.changesCount * 500) / 1024 / 1024, // تحويل bytes إلى MB
           );
         }
         
@@ -219,7 +217,7 @@ class SmartGoogleDriveSync {
       _isSyncing = true;
       _log('💾 بدء النسخ الاحتياطي الكامل...');
       
-      final backupData = await _driveService!.exportDatabaseToJson(_database!);
+      final backupData = await _driveService!.exportDatabaseToJson();
       
       // إضافة metadata للتمييز
       backupData['metadata'] = {

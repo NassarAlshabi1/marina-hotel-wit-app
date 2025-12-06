@@ -30,7 +30,7 @@ export 'conflict_resolver.dart' show ConflictStrategy;
 /// await manager.initialize(googleDriveService);
 /// await manager.enable();
 /// ```
-abstract class BaseSyncManager {
+class BaseSyncManager {
   static BaseSyncManager? _instance;
   static BaseSyncManager get instance => _instance ??= BaseSyncManager._();
   
@@ -154,7 +154,7 @@ abstract class BaseSyncManager {
     }
     
     final dataManager = DataUsageManager.instance;
-    if (!await dataManager.canPerformSync()) {
+    if (await dataManager.isLimitExceeded()) {
       _log('⏸️ تم تخطي المزامنة بسبب قيود البيانات');
       return;
     }
@@ -164,10 +164,10 @@ abstract class BaseSyncManager {
     
     try {
       await _performSyncInternal();
-      await optimizer.recordSyncSuccess();
-      await dataManager.recordSyncDataUsage(estimatedMB: 0.5);
+      optimizer.recordSyncSuccess();
+      await dataManager.recordDataUsage(0.5);
     } catch (e, stack) {
-      await optimizer.recordSyncFailure();
+      optimizer.recordSyncFailure();
       _log('❌ خطأ في المزامنة: $e');
       debugPrintStack(stackTrace: stack);
       rethrow;
@@ -193,14 +193,14 @@ abstract class BaseSyncManager {
     final latestBackup = backupsList.first;
     final remoteTimestamp = latestBackup.appProperties['timestamp'] ?? '';
     
-    if (lastRemoteTimestamp == remoteTimestamp && lastRemoteTimestamp.isNotEmpty) {
+    if (lastRemoteTimestamp == remoteTimestamp && (lastRemoteTimestamp?.isNotEmpty ?? false)) {
       _log('✅ لا توجد تحديثات جديدة');
       _metrics.recordSuccess();
       return;
     }
     
     _log('📥 تحميل النسخة الاحتياطية الجديدة...');
-    final backupData = await _backupService!.downloadBackup(latestBackup.id);
+    final backupData = await _backupService!.downloadBackup(latestBackup.fileId);
     
     final localData = await _getLocalData();
     
@@ -219,9 +219,9 @@ abstract class BaseSyncManager {
     await prefs.setString(_prefsLastRemoteTimestampKey, remoteTimestamp);
     await prefs.setString(_prefsLastSyncKey, DateTime.now().toIso8601String());
     
-    await SyncNotificationManager.instance.showSyncSuccessNotification(
-      deviceId: latestBackup.appProperties['device_id'] ?? 'جهاز آخر',
-      timestamp: remoteTimestamp,
+    await SyncNotificationManager.instance.showSystemNotification(
+      title: '✅ تمت المزامنة بنجاح',
+      body: 'تم مزامنة البيانات من ${latestBackup.appProperties['device_id'] ?? 'جهاز آخر'}',
     );
     
     _metrics.recordSuccess(
