@@ -423,7 +423,7 @@ Timer.periodic(Duration(minutes: 5), (_) {
 
 ```dart
 // عرض صحة النظام
-void printSystemHealth() {
+Future<void> printSystemHealth() async {
   print('=== System Health Dashboard ===');
   
   // 1. Circuit Breaker Status
