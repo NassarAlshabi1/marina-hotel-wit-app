@@ -3,15 +3,35 @@ import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'smart_sync_manager.dart';
 import 'sync_queue_service.dart';
+import 'sync_core/sync_error_handler.dart';
+import 'sync_core/retry_strategy.dart';
+import 'sync_core/circuit_breaker.dart';
+import 'sync_core/sync_validator.dart';
 
 class ScreenSyncController {
   final String screenId;
   final Duration debounceDelay;
   
+  late final CircuitBreaker _circuitBreaker;
+  late final RetryStrategy _retryStrategy;
+  
   ScreenSyncController({
     required this.screenId,
     this.debounceDelay = const Duration(seconds: 15),
-  });
+  }) {
+    _circuitBreaker = CircuitBreaker(
+      name: 'sync_$screenId',
+      config: const CircuitBreakerConfig(
+        failureThreshold: 3,
+        timeout: Duration(seconds: 30),
+        resetTimeout: Duration(minutes: 2),
+      ),
+    );
+    
+    _retryStrategy = RetryStrategy(
+      config: RetryConfig.balanced,
+    );
+  }
   
   bool _hasChanges = false;
   Timer? _debounceTimer;
@@ -62,27 +82,68 @@ class ScreenSyncController {
       final connectivityResults = await Connectivity().checkConnectivity();
       final hasConnection = connectivityResults.any((r) => r != ConnectivityResult.none);
       
-      if (hasConnection) {
-        debugPrint('🌐 [$screenId] الإنترنت متصل - رفع مباشر...');
-        final success = await SmartSyncManager.instance.pushLocalChanges();
-        
-        if (success) {
-          _hasChanges = false;
-          _emitStatus(SyncStatus.synced);
-          debugPrint('✅ [$screenId] تمت المزامنة بنجاح');
-          return true;
-        } else {
-          debugPrint('⚠️ [$screenId] فشل الرفع - إضافة للطابور');
-          await _addToQueue();
-          return false;
-        }
-      } else {
-        debugPrint('📴 [$screenId] لا يوجد اتصال - إضافة للطابور');
+      final networkValidation = SyncValidator.instance.validateNetworkConditions(
+        hasConnection: hasConnection,
+      );
+      
+      if (!networkValidation.isValid) {
+        debugPrint('📴 [$screenId] ${networkValidation.error}');
         await _addToQueue();
         return false;
       }
-    } catch (e) {
+      
+      if (networkValidation.warnings.isNotEmpty) {
+        for (final warning in networkValidation.warnings) {
+          debugPrint('⚠️ [$screenId] $warning');
+        }
+      }
+      
+      final success = await _retryStrategy.executeWithFallback(
+        operation: () async {
+          return await _circuitBreaker.execute(() async {
+            debugPrint('🌐 [$screenId] بدء المزامنة مع الحماية...');
+            return await SmartSyncManager.instance.pushLocalChanges();
+          });
+        },
+        shouldRetry: (error) {
+          final syncError = SyncErrorHandler.instance.handleError(
+            error,
+            context: {'screenId': screenId, 'operation': 'syncNow'},
+          );
+          return syncError.isRetryable;
+        },
+        fallback: () {
+          debugPrint('⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات');
+          return false;
+        },
+        onRetry: (attempt, error) {
+          debugPrint('🔄 [$screenId] إعادة المحاولة $attempt');
+        },
+      );
+      
+      if (success == true) {
+        _hasChanges = false;
+        _emitStatus(SyncStatus.synced);
+        debugPrint('✅ [$screenId] تمت المزامنة بنجاح');
+        return true;
+      } else {
+        debugPrint('⚠️ [$screenId] فشل الرفع - إضافة للطابور');
+        await _addToQueue();
+        return false;
+      }
+    } on CircuitBreakerOpenException catch (e) {
+      debugPrint('🔌 [$screenId] Circuit breaker مفتوح: $e');
+      _emitStatus(SyncStatus.error);
+      await _addToQueue();
+      return false;
+    } catch (e, stackTrace) {
+      SyncErrorHandler.instance.handleError(
+        e,
+        stackTrace: stackTrace,
+        context: {'screenId': screenId, 'operation': 'syncNow'},
+      );
       debugPrint('❌ [$screenId] خطأ في المزامنة: $e');
+      _emitStatus(SyncStatus.error);
       await _addToQueue();
       return false;
     } finally {
@@ -91,12 +152,32 @@ class ScreenSyncController {
   }
   
   Future<void> _addToQueue() async {
-    await SyncQueueService.instance.addToQueue(
-      screenId: screenId,
-      data: {'timestamp': DateTime.now().toIso8601String()},
-    );
-    _hasChanges = false;
-    _emitStatus(SyncStatus.queued);
+    try {
+      final data = {'timestamp': DateTime.now().toIso8601String(), 'screenId': screenId};
+      
+      final validation = SyncValidator.instance.validateSyncData(data);
+      SyncValidator.instance.logValidationResult('Queue data', validation);
+      
+      if (!validation.isValid) {
+        debugPrint('❌ [$screenId] بيانات غير صالحة: ${validation.error}');
+        _emitStatus(SyncStatus.error);
+        return;
+      }
+      
+      await SyncQueueService.instance.addToQueue(
+        screenId: screenId,
+        data: data,
+      );
+      _hasChanges = false;
+      _emitStatus(SyncStatus.queued);
+    } catch (e, stackTrace) {
+      SyncErrorHandler.instance.handleError(
+        e,
+        stackTrace: stackTrace,
+        context: {'screenId': screenId, 'operation': 'addToQueue'},
+      );
+      _emitStatus(SyncStatus.error);
+    }
   }
   
   void _emitStatus(SyncStatus status) {
@@ -109,9 +190,24 @@ class ScreenSyncController {
     return await syncNow();
   }
   
+  Map<String, dynamic> getHealthStatus() {
+    return {
+      'screenId': screenId,
+      'hasChanges': _hasChanges,
+      'isSyncing': _isSyncing,
+      'circuitBreaker': _circuitBreaker.getStatus(),
+    };
+  }
+
   void dispose() {
     cancelTimer();
-    _syncStatusController.close();
+    
+    // إغلاق الموارد فوراً
+    // المزامنة عند الخروج تتم عبر WillPopScope في SyncOnExitMixin
+    if (!_syncStatusController.isClosed) {
+      _syncStatusController.close();
+    }
+    _circuitBreaker.dispose();
   }
 }
 
