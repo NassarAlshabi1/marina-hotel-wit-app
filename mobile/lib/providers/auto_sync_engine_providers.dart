@@ -105,12 +105,8 @@ final autoSyncEngineControllerProvider =
 });
 
 final isSyncingProvider = Provider<bool>((ref) {
-  final engineState = ref.watch(autoSyncEngineStateProvider);
-  return engineState.when(
-    data: (state) => state.pendingChangesCount > 0,
-    loading: () => false,
-    error: (_, __) => false,
-  );
+  final coordinatorState = ref.watch(unifiedSyncCoordinatorProvider);
+  return coordinatorState.isSyncing;
 });
 
 final hasPendingChangesProvider = Provider<bool>((ref) {
