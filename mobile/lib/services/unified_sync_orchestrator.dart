@@ -165,7 +165,7 @@ class UnifiedSyncOrchestrator {
       'expenses': expenses.map((e) => e.toJson()).toList(),
       'debts': debts.map((e) => e.toJson()).toList(),
     };
-    return SyncChecksum.compute({'tables': snapshot});
+    return models.SyncChecksum.compute({'tables': snapshot});
   }
 
   void _emit(UnifiedSyncState s) {

@@ -636,7 +636,7 @@ class SmartSyncManager {
   Future<bool> hasLocalChanges() async {
     try {
       // الطريقة الأكثر دقة: التحقق من وجود عناصر في outbox
-      final db = await DatabaseManager.instance.ready;
+      final db = DatabaseManager.instance;
       final outboxCount = await db.outboxDao.count();
       
       if (outboxCount > 0) {
