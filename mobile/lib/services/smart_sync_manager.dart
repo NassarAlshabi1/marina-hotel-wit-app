@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_logs.dart';
+import 'daos/outbox_dao.dart';
 import 'data_usage_manager.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
@@ -637,7 +638,8 @@ class SmartSyncManager {
     try {
       // الطريقة الأكثر دقة: التحقق من وجود عناصر في outbox
       final db = DatabaseManager.instance;
-      final outboxCount = await db.outboxDao.count();
+      final outboxDao = OutboxDao(db);
+      final outboxCount = await outboxDao.count();
       
       if (outboxCount > 0) {
         _log('📝 توجد تغييرات محلية في Outbox ($outboxCount)');
