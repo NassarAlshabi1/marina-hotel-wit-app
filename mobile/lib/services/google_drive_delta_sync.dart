@@ -29,6 +29,17 @@ class GoogleDriveDeltaSync {
   static const fullBackupPrefix = 'marina_backup_full_';
   static const deltaSyncPrefix = 'marina_sync_delta_';
 
+  static const _tableOrder = [
+    'rooms',
+    'employees',
+    'bookings',
+    'payments',
+    'expenses',
+    'debts',
+    'booking_notes',
+    'cash_transactions',
+  ];
+
   Future<void> initialize(GoogleDriveBackupService driveService, AppDatabase db) async {
     _driveService = driveService;
     _database = db;
@@ -198,20 +209,58 @@ class GoogleDriveDeltaSync {
     final changes = deltaData['changes'] as List<dynamic>?;
     if (changes == null || changes.isEmpty) return 0;
 
-    int applied = 0;
-    for (final change in changes) {
-      try {
+    return await _database!.transaction(() async {
+      final sortedChanges = _sortChangesByDependency(changes);
+      int applied = 0;
+      
+      for (final change in sortedChanges) {
         final entity = change['entity'] as String;
         final op = change['op'] as String;
         final data = change['data'] as Map<String, dynamic>;
         
         await _applyChange(entity, op, data);
         applied++;
-      } catch (e) {
-        debugPrint('⚠️ خطأ في تطبيق تغيير: $e');
+      }
+      
+      debugPrint('✅ تم تطبيق $applied تغيير بنجاح داخل transaction واحدة');
+      return applied;
+    });
+  }
+
+  List<Map<String, dynamic>> _sortChangesByDependency(List<dynamic> changes) {
+    final changesList = List<Map<String, dynamic>>.from(
+      changes.map((c) => Map<String, dynamic>.from(c as Map))
+    );
+
+    final deletes = <Map<String, dynamic>>[];
+    final nonDeletes = <Map<String, dynamic>>[];
+
+    for (final change in changesList) {
+      final op = change['op'] as String;
+      if (op == 'delete') {
+        deletes.add(change);
+      } else {
+        nonDeletes.add(change);
       }
     }
-    return applied;
+
+    nonDeletes.sort((a, b) {
+      final aIndex = _tableOrder.indexOf(a['entity'] as String);
+      final bIndex = _tableOrder.indexOf(b['entity'] as String);
+      final aOrder = aIndex == -1 ? 999 : aIndex;
+      final bOrder = bIndex == -1 ? 999 : bIndex;
+      return aOrder.compareTo(bOrder);
+    });
+
+    deletes.sort((a, b) {
+      final aIndex = _tableOrder.indexOf(a['entity'] as String);
+      final bIndex = _tableOrder.indexOf(b['entity'] as String);
+      final aOrder = aIndex == -1 ? 999 : aIndex;
+      final bOrder = bIndex == -1 ? 999 : bIndex;
+      return bOrder.compareTo(aOrder);
+    });
+
+    return [...nonDeletes, ...deletes];
   }
 
   Future<void> _applyChange(String entity, String operation, Map<String, dynamic> data) async {
