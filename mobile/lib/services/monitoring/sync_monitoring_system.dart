@@ -185,6 +185,7 @@ class SyncMonitoringSystem {
   /// تهيئة النظام
   Future<void> initialize() async {
     await _loadHistoricalData();
+    await _cleanupOldStoredEvents();
     _startHealthChecks();
     debugPrint('📊 SyncMonitoringSystem: تم التهيئة');
   }
@@ -457,6 +458,33 @@ class SyncMonitoringSystem {
       debugPrint('📊 SyncMonitoringSystem: تم تحميل ${_events.length} حدث');
     } catch (e) {
       debugPrint('⚠️ SyncMonitoringSystem: فشل تحميل البيانات: $e');
+    }
+  }
+
+  /// تنظيف السجلات القديمة من التخزين الدائم
+  Future<void> _cleanupOldStoredEvents({int keepDays = 7}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final allKeys = prefs.getKeys();
+      final eventKeys = allKeys.where((k) => k.startsWith('sync_events_'));
+      final now = DateTime.now();
+      int removedCount = 0;
+      
+      for (final key in eventKeys) {
+        final dateStr = key.replaceFirst('sync_events_', '');
+        final date = DateTime.tryParse(dateStr);
+        
+        if (date != null && now.difference(date).inDays > keepDays) {
+          await prefs.remove(key);
+          removedCount++;
+        }
+      }
+      
+      if (removedCount > 0) {
+        debugPrint('🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)');
+      }
+    } catch (e) {
+      debugPrint('⚠️ SyncMonitoringSystem: فشل تنظيف السجلات القديمة: $e');
     }
   }
 

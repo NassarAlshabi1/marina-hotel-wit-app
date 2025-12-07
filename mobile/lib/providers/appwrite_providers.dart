@@ -2,9 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/appwrite_service.dart';
 import '../services/appwrite_sync_manager.dart';
 import '../services/appwrite_cache_manager.dart';
+import '../services/unified_sync_orchestrator.dart';
+import '../services/smart_sync_manager.dart';
+import '../services/local_db.dart';
 import '../services/appwrite_logger.dart';
 import '../services/appwrite_error_handler.dart';
-import 'repository_providers.dart';
+import '../services/providers.dart';
+import '../services/daos/outbox_dao.dart';
+import '../services/local_db.dart';
 
 // ============ Service Providers ============
 
@@ -17,7 +22,28 @@ final appwriteServiceProvider = Provider<AppwriteService>((ref) {
 final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
   final service = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
-  return AppwriteSyncManager(appwriteService: service, database: database);
+  final manager = AppwriteSyncManager(appwriteService: service, database: database);
+  
+  ref.onDispose(() {
+    manager.dispose();
+  });
+  
+  return manager;
+});
+
+final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((ref) {
+  final appwriteSync = ref.watch(appwriteSyncManagerProvider);
+  final db = ref.watch(databaseProvider);
+  final smart = SmartSyncManager.instance;
+  return UnifiedSyncOrchestrator(appwrite: appwriteSync, smart: smart, database: db);
+});
+
+final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
+  final orch = ref.watch(unifiedSyncOrchestratorProvider);
+  // Fire-and-forget initialization (idempotent)
+  orch.initialize();
+  ref.onDispose(() => orch.dispose());
+  return orch.stateStream;
 });
 
 /// مزود مدير الذاكرة المؤقتة
@@ -104,6 +130,12 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 final syncStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final syncManager = ref.watch(appwriteSyncManagerProvider);
   return await syncManager.getSyncStatistics();
+});
+
+final outboxCountProvider = StreamProvider<int>((ref) {
+  final db = ref.watch(databaseProvider);
+  final dao = OutboxDao(db);
+  return dao.watchCount();
 });
 
 /// مزود إحصائيات الذاكرة المؤقتة

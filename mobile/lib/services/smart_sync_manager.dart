@@ -9,6 +9,7 @@ import '../utils/debug_logs.dart';
 import 'data_usage_manager.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
+import 'local_db.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
 
@@ -594,6 +595,11 @@ class SmartSyncManager {
     await prefs.setString(_prefsLastSyncKey, DateTime.now().toIso8601String());
   }
 
+  Future<void> _updateLastPushTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('smart_sync_last_push_ts', DateTime.now().millisecondsSinceEpoch);
+  }
+
   Future<DateTime?> getLastSyncTime() async {
     final prefs = await SharedPreferences.getInstance();
     final timestamp = prefs.getString(_prefsLastSyncKey);
@@ -624,6 +630,26 @@ class SmartSyncManager {
   Future<void> onLocalBackupUploaded() async {
     await _updateLastSyncTime();
     _log('📤 تم تسجيل رفع نسخة احتياطية من هذا الجهاز');
+  }
+
+  /// التحقق من وجود تغييرات محلية لم ترفع
+  Future<bool> hasLocalChanges() async {
+    try {
+      // الطريقة الأكثر دقة: التحقق من وجود عناصر في outbox
+      final db = await DatabaseManager.instance.ready;
+      final outboxCount = await db.outboxDao.count();
+      
+      if (outboxCount > 0) {
+        _log('📝 توجد تغييرات محلية في Outbox ($outboxCount)');
+        return true;
+      }
+      
+      _log('✅ لا توجد تغييرات محلية معلقة');
+      return false;
+    } catch (e) {
+      _log('❌ خطأ في فحص التغييرات المحلية: $e');
+      return false;
+    }
   }
 
   /// مزامنة يدوية فورية
@@ -667,10 +693,12 @@ class SmartSyncManager {
         
         if (deltaResult.success) {
           await _updateLastSyncTime();
+          await _updateLastPushTime();
           _log('✅ تم رفع ${deltaResult.changesCount} تغيير عبر Delta Sync');
           return true;
         } else if (deltaResult.changesCount == 0) {
           _log('✓ لا توجد تغييرات للرفع');
+          await _updateLastPushTime();
           return true;
         } else {
           _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
@@ -687,6 +715,7 @@ class SmartSyncManager {
       
       await _backupService!.uploadBackup(backupData, isSync: true);
       await _updateLastSyncTime();
+      await _updateLastPushTime();
       
       _log('✅ تم رفع النسخة الكاملة بنجاح');
       return true;
