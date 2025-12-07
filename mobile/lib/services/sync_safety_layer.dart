@@ -255,8 +255,12 @@ class SyncSafetyLayer {
       for (final table in SyncConstants.allTablesInReverseOrder) {
         try {
           await db.customStatement('DELETE FROM $table');
-        } catch (e) {
-          debugPrint('⚠️ خطأ في مسح جدول $table: $e');
+        } on Exception catch (e) {
+          if (e.toString().contains('no such table')) {
+            debugPrint('ℹ️ الجدول غير موجود، تخطي الحذف: $table');
+          } else {
+            rethrow;
+          }
         }
       }
     } finally {
@@ -277,24 +281,20 @@ class SyncSafetyLayer {
 
     if (rows.isEmpty) return;
 
-    try {
-      await db.batch((batch) {
-        for (final row in rows) {
-          final columns = row.keys.toList();
-          final values = row.values.toList();
-          final placeholders = List.filled(values.length, '?').join(', ');
-          final columnNames = columns.join(', ');
+    await db.batch((batch) {
+      for (final row in rows) {
+        final columns = row.keys.toList();
+        final values = row.values.toList();
+        final placeholders = List.filled(values.length, '?').join(', ');
+        final columnNames = columns.join(', ');
 
-          batch.customStatement(
-            'INSERT OR REPLACE INTO $tableName ($columnNames) VALUES ($placeholders)',
-            values,
-          );
-        }
-      });
-      debugPrint('✅ تم استعادة ${rows.length} سجل من $tableName');
-    } catch (e) {
-      debugPrint('⚠️ خطأ في استعادة جدول $tableName: $e');
-    }
+        batch.customStatement(
+          'INSERT OR REPLACE INTO $tableName ($columnNames) VALUES ($placeholders)',
+          values,
+        );
+      }
+    });
+    debugPrint('✅ تم استعادة ${rows.length} سجل من $tableName');
   }
 
   Future<bool> _attemptFileRestore(AppDatabase db, String snapshotPath) async {
