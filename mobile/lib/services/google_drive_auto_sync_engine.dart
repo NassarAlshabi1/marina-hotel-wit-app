@@ -447,7 +447,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
     }
     
     Future.delayed(const Duration(milliseconds: 500), () async {
-      await _coordinator!.onAppForeground();
+      try {
+        await _coordinator!.onAppForeground();
+      } catch (e) {
+        _log('❌ Error on app foreground sync: $e', level: LogLevel.error);
+      }
     });
   }
 
