@@ -88,7 +88,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
       
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ فشلت المزامنة: $e'), backgroundColor: Colors.red),
         );
@@ -174,48 +174,47 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _pushThenPull(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    
     try {
       final manager = ref.read(smartSyncManagerProvider);
       
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('📤 جاري رفع التغييرات المحلية...'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('📤 جاري رفع التغييرات المحلية...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
       
       final pushSuccess = await manager.pushLocalChanges();
       
+      if (!mounted) return;
+      
       if (!pushSuccess) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⚠️ فشل رفع التغييرات المحلية'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ فشل رفع التغييرات المحلية'),
+            backgroundColor: Colors.orange,
+          ),
+        );
         return;
       }
       
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ تم رفع التغييرات بنجاح'),
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('✅ تم رفع التغييرات بنجاح'),
+          duration: Duration(seconds: 1),
+        ),
+      );
       
-      await Future.delayed(Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 500));
       
+      if (!mounted) return;
       await _performSync(context);
       
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        messenger.showSnackBar(
           SnackBar(
             content: Text('❌ خطأ في رفع التغييرات: $e'),
             backgroundColor: Colors.red,
@@ -226,23 +225,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _pullOnly(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    
     try {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⚠️ تحذير: سيتم تجاهل التغييرات المحلية'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ تحذير: سيتم تجاهل التغييرات المحلية'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
       
-      await Future.delayed(Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (!mounted) return;
       await _performSync(context);
       
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        messenger.showSnackBar(
           SnackBar(
             content: Text('❌ خطأ في السحب: $e'),
             backgroundColor: Colors.red,
@@ -253,12 +254,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _performSync(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    
     final manager = ref.read(smartSyncManagerProvider);
     await manager.forceSyncNow();
     ref.invalidate(smartSyncStatusProvider);
     
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (mounted) {
+      messenger.showSnackBar(
         const SnackBar(content: Text('⚡ تمت المزامنة الفورية بنجاح')),
       );
     }

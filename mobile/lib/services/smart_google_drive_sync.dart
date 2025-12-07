@@ -153,7 +153,7 @@ class SmartGoogleDriveSync {
         // تحديث استهلاك البيانات
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            result.changesCount * 500,
+            (result.changesCount * 500) / 1024 / 1024,
           );
         }
         
@@ -188,7 +188,7 @@ class SmartGoogleDriveSync {
         
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            result.changesCount * 500,
+            (result.changesCount * 500) / 1024 / 1024,
           );
         }
         
