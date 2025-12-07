@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import 'local_db.dart';
+import 'sync_constants.dart';
 
 class SyncSafetySnapshot {
   SyncSafetySnapshot({
@@ -156,22 +157,7 @@ class SyncSafetyLayer {
       await db.transaction(() async {
         await _clearAllTables(db);
 
-        for (final tableName in _tableOrder) {
-          if (tables.containsKey(tableName)) {
-            await _restoreTable(db, tableName, tables[tableName]);
-          }
-        }
-
-        final extraTables = [
-          'booking_nights',
-          'hotel_day_ledger',
-          'auto_fix_runs',
-          'integrity_violations',
-          'app_sessions',
-          'salary_cycles',
-          'salary_payments',
-        ];
-        for (final tableName in extraTables) {
+        for (final tableName in SyncConstants.allTablesInOrder) {
           if (tables.containsKey(tableName)) {
             await _restoreTable(db, tableName, tables[tableName]);
           }
@@ -262,42 +248,19 @@ class SyncSafetyLayer {
     _auditTableEnsured = true;
   }
 
-  static const _tableOrder = [
-    'rooms',
-    'employees',
-    'bookings',
-    'payments',
-    'expenses',
-    'debts',
-    'booking_notes',
-    'cash_transactions',
-  ];
-
   Future<void> _clearAllTables(AppDatabase db) async {
-    final tablesToClear = [
-      'cash_transactions',
-      'booking_notes',
-      'payments',
-      'debts',
-      'bookings',
-      'employees',
-      'expenses',
-      'rooms',
-      'booking_nights',
-      'hotel_day_ledger',
-      'auto_fix_runs',
-      'integrity_violations',
-      'app_sessions',
-      'salary_cycles',
-      'salary_payments',
-    ];
-
-    for (final table in tablesToClear) {
-      try {
-        await db.customStatement('DELETE FROM $table');
-      } catch (e) {
-        debugPrint('⚠️ خطأ في مسح جدول $table: $e');
+    await db.customStatement('PRAGMA foreign_keys = OFF');
+    
+    try {
+      for (final table in SyncConstants.allTablesInReverseOrder) {
+        try {
+          await db.customStatement('DELETE FROM $table');
+        } catch (e) {
+          debugPrint('⚠️ خطأ في مسح جدول $table: $e');
+        }
       }
+    } finally {
+      await db.customStatement('PRAGMA foreign_keys = ON');
     }
   }
 
@@ -314,23 +277,24 @@ class SyncSafetyLayer {
 
     if (rows.isEmpty) return;
 
-    for (final row in rows) {
-      final columns = row.keys.toList();
-      final values = row.values.toList();
-      final placeholders = List.filled(values.length, '?').join(', ');
-      final columnNames = columns.join(', ');
+    try {
+      await db.batch((batch) {
+        for (final row in rows) {
+          final columns = row.keys.toList();
+          final values = row.values.toList();
+          final placeholders = List.filled(values.length, '?').join(', ');
+          final columnNames = columns.join(', ');
 
-      try {
-        await db.customStatement(
-          'INSERT OR REPLACE INTO $tableName ($columnNames) VALUES ($placeholders)',
-          values,
-        );
-      } catch (e) {
-        debugPrint('⚠️ خطأ في استعادة سجل من $tableName: $e');
-      }
+          batch.customStatement(
+            'INSERT OR REPLACE INTO $tableName ($columnNames) VALUES ($placeholders)',
+            values,
+          );
+        }
+      });
+      debugPrint('✅ تم استعادة ${rows.length} سجل من $tableName');
+    } catch (e) {
+      debugPrint('⚠️ خطأ في استعادة جدول $tableName: $e');
     }
-
-    debugPrint('✅ تم استعادة ${rows.length} سجل من $tableName');
   }
 
   Future<bool> _attemptFileRestore(AppDatabase db, String snapshotPath) async {
@@ -351,9 +315,10 @@ class SyncSafetyLayer {
         return false;
       }
 
-      await db.close();
+      await DatabaseManager.close();
       await File(sqliteBackupPath).copy(dbPath);
-      debugPrint('✅ تم استعادة ملف SQLite بنجاح');
+      await DatabaseManager.reopen();
+      debugPrint('✅ تم استعادة ملف SQLite بنجاح وإعادة فتح قاعدة البيانات');
 
       await _appendLog({
         'event': 'file-restore-success',

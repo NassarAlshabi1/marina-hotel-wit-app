@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' as d;
 import 'delta_sync_service.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
+import 'sync_constants.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
 
@@ -28,17 +29,6 @@ class GoogleDriveDeltaSync {
   
   static const fullBackupPrefix = 'marina_backup_full_';
   static const deltaSyncPrefix = 'marina_sync_delta_';
-
-  static const _tableOrder = [
-    'rooms',
-    'employees',
-    'bookings',
-    'payments',
-    'expenses',
-    'debts',
-    'booking_notes',
-    'cash_transactions',
-  ];
 
   Future<void> initialize(GoogleDriveBackupService driveService, AppDatabase db) async {
     _driveService = driveService;
@@ -245,22 +235,23 @@ class GoogleDriveDeltaSync {
     }
 
     nonDeletes.sort((a, b) {
-      final aIndex = _tableOrder.indexOf(a['entity'] as String);
-      final bIndex = _tableOrder.indexOf(b['entity'] as String);
-      final aOrder = aIndex == -1 ? 999 : aIndex;
-      final bOrder = bIndex == -1 ? 999 : bIndex;
+      final aOrder = _getTableOrderIndex(a['entity'] as String);
+      final bOrder = _getTableOrderIndex(b['entity'] as String);
       return aOrder.compareTo(bOrder);
     });
 
     deletes.sort((a, b) {
-      final aIndex = _tableOrder.indexOf(a['entity'] as String);
-      final bIndex = _tableOrder.indexOf(b['entity'] as String);
-      final aOrder = aIndex == -1 ? 999 : aIndex;
-      final bOrder = bIndex == -1 ? 999 : bIndex;
+      final aOrder = _getTableOrderIndex(a['entity'] as String);
+      final bOrder = _getTableOrderIndex(b['entity'] as String);
       return bOrder.compareTo(aOrder);
     });
 
     return [...nonDeletes, ...deletes];
+  }
+
+  int _getTableOrderIndex(String entity) {
+    final index = SyncConstants.tableOrder.indexOf(entity);
+    return index == -1 ? 999 : index;
   }
 
   Future<void> _applyChange(String entity, String operation, Map<String, dynamic> data) async {
