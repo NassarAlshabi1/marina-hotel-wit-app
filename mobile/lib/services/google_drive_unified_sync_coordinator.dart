@@ -257,21 +257,11 @@ class GoogleDriveUnifiedSyncCoordinator {
     
     _periodicSyncTimer?.cancel();
     _periodicSyncTimer = Timer(delay, () async {
-      try {
-        await performSync(trigger: SyncTrigger.scheduled, mode: SyncMode.fullBackup);
-      } catch (e) {
-        _log('❌ Scheduled backup failed: $e');
-      }
+      await performSync(trigger: SyncTrigger.scheduled, mode: SyncMode.fullBackup);
       
       _periodicSyncTimer = Timer.periodic(
         Duration(hours: _fullBackupIntervalHours),
-        (_) async {
-          try {
-            await performSync(trigger: SyncTrigger.scheduled, mode: SyncMode.fullBackup);
-          } catch (e) {
-            _log('❌ Periodic backup failed: $e');
-          }
-        },
+        (_) => performSync(trigger: SyncTrigger.scheduled, mode: SyncMode.fullBackup),
       );
     });
   }
@@ -292,11 +282,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     _debounceTimer = Timer(Duration(seconds: _debounceSeconds), () async {
       if (_hasPendingChanges) {
         _log('📤 Debounce complete - pushing $_pendingChangesCount changes');
-        try {
-          await performSync(trigger: SyncTrigger.localChange, mode: SyncMode.smart);
-        } catch (e) {
-          _log('❌ Failed to sync local changes: $e');
-        }
+        await performSync(trigger: SyncTrigger.localChange, mode: SyncMode.smart);
       }
     });
   }
@@ -323,11 +309,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     
     Future.delayed(const Duration(milliseconds: 500), () async {
-      try {
-        await performSync(trigger: SyncTrigger.appForeground, mode: SyncMode.smart);
-      } catch (e) {
-        _log('❌ Foreground sync failed: $e');
-      }
+      await performSync(trigger: SyncTrigger.appForeground, mode: SyncMode.smart);
     });
   }
 
@@ -335,11 +317,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     if (!_isSyncing && (_backupService?.isSignedIn ?? false)) {
       if (_pullEnabled) {
         _log('🔄 Periodic pull check triggered');
-        try {
-          await performSync(trigger: SyncTrigger.periodic, mode: SyncMode.deltaOnly);
-        } catch (e) {
-          _log('❌ Periodic pull failed: $e');
-        }
+        await performSync(trigger: SyncTrigger.periodic, mode: SyncMode.deltaOnly);
       }
     }
   }
