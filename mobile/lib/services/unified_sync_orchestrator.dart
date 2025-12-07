@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../data/sync_models.dart';
+import '../data/sync_models.dart' as models;
 import 'appwrite_sync_manager.dart';
 import 'smart_sync_manager.dart';
 import 'local_db.dart';
@@ -138,7 +138,7 @@ class UnifiedSyncOrchestrator {
   Future<void> _takeSnapshot() async {
     _emit(_state.copyWith(phase: 'snapshotting', message: 'إنشاء Snapshot على Google Drive', timestamp: DateTime.now()));
     // SmartSyncManager سيهتم بإنشاء اللقطة ورفعها
-    await smart.syncAllTables(force: true);
+    await smart.forceSyncNow();
     // بعد الرفع، احسب checksum موحد من الجداول المحلية لتظهر في الحالة
     final checksum = await _computeUnifiedChecksum();
     _emit(_state.copyWith(

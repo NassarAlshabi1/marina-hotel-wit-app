@@ -275,6 +275,8 @@ class AppwriteSyncManager {
     _syncTimer?.cancel();
     _debouncePushTimer?.cancel();
     _outboxSubscription?.cancel();
+    stopAutoSync();
+    _syncController.close();
   }
 
   /// تنفيذ المزامنة
@@ -1380,9 +1382,5 @@ class AppwriteSyncManager {
     }
   }
 
-  /// التخلص من الموارد
-  void dispose() {
-    stopAutoSync();
-    _syncController.close();
-  }
+
 }
