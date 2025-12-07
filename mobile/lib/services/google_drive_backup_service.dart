@@ -6,15 +6,17 @@ import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../utils/debug_logs.dart';
+import '../utils/system_settings_keys.dart';
 import 'auto_backup_task.dart';
 import 'local_db.dart';
-import '../providers/repository_providers.dart';
 import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
+import 'google_drive_logger.dart';
+import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
 
 enum BackupFormat { json, sqlite }
 
@@ -116,7 +118,10 @@ class GoogleAuthClient extends http.BaseClient {
 class GoogleDriveBackupService {
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
-  static const List<String> _scopes = [drive.DriveApi.driveFileScope];
+  static const List<String> _scopes = [
+    drive.DriveApi.driveFileScope,
+    drive.DriveApi.driveAppdataScope,
+  ];
 
   /// تحويل رموز خطأ Google Sign-In إلى رسائل عربية واضحة
   static String _getArabicErrorMessage(Object error) {
@@ -148,6 +153,7 @@ class GoogleDriveBackupService {
   GoogleSignIn? _googleSignIn;
   drive.DriveApi? _driveApi;
   String? _backupFolderId;
+  final GoogleDriveLogger _logger = GoogleDriveLogger();
 
   GoogleDriveBackupService() {
     _initializeGoogleSignIn();
@@ -169,7 +175,7 @@ class GoogleDriveBackupService {
       try {
         account = await _googleSignIn?.signInSilently();
       } catch (e) {
-        debugPrint('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
+        _log('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
       }
     }
 
@@ -187,7 +193,7 @@ class GoogleDriveBackupService {
       return await action();
     } on drive.DetailedApiRequestError catch (e) {
       if (e.status == 401) {
-        debugPrint('⚠️ تم فقد صلاحية رمز Google Drive، إعادة المحاولة بعد التحديث...');
+        _log('⚠️ تم فقد صلاحية رمز Google Drive، إعادة المحاولة بعد التحديث...');
         _driveApi = null;
         await _ensureDriveClient();
         return await action();
@@ -202,31 +208,31 @@ class GoogleDriveBackupService {
         throw Exception('Google Sign-In لم يتم تهيئته بشكل صحيح');
       }
 
-      debugPrint('🔄 محاولة تسجيل الدخول الصامت...');
+      _log('🔄 محاولة تسجيل الدخول الصامت...');
       GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
 
       if (account == null) {
-        debugPrint('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
+        _log('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
         account = await _googleSignIn!.signIn();
       }
 
       if (account != null) {
-        debugPrint('🔑 الحصول على رؤوس المصادقة...');
+        _log('🔑 الحصول على رؤوس المصادقة...');
         final headers = await account.authHeaders;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
 
-        debugPrint('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
-        debugPrint('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
+        _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
+        _log('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
       } else {
-        debugPrint('⚠️ تم إلغاء تسجيل الدخول أو فشل');
+        _log('⚠️ تم إلغاء تسجيل الدخول أو فشل');
       }
 
       return account;
     } catch (e) {
       final arabicError = _getArabicErrorMessage(e);
-      debugPrint('❌ خطأ في تسجيل الدخول في Google Drive: $arabicError');
-      debugPrint('❌ تفاصيل الخطأ التقنية: $e');
+      _log('❌ خطأ في تسجيل الدخول في Google Drive: $arabicError');
+      _log('❌ تفاصيل الخطأ التقنية: $e');
       
       // رمي الخطأ مع الرسالة العربية
       throw Exception(arabicError);
@@ -240,23 +246,23 @@ class GoogleDriveBackupService {
         _initializeGoogleSignIn();
       }
       
-      debugPrint('🔄 محاولة استعادة جلسة Google Drive...');
+      _log('🔄 محاولة استعادة جلسة Google Drive...');
       GoogleSignInAccount? account = await _googleSignIn!.signInSilently(suppressErrors: true);
       
       if (account != null) {
-        debugPrint('🔑 الحصول على رؤوس المصادقة...');
+        _log('🔑 الحصول على رؤوس المصادقة...');
         final headers = await account.authHeaders;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
         
-        debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
+        _log('✅ تم استعادة جلسة Google Drive: ${account.email}');
         return account;
       } else {
-        debugPrint('ℹ️ لا توجد جلسة محفوظة');
+        _log('ℹ️ لا توجد جلسة محفوظة');
         return null;
       }
     } catch (e) {
-      debugPrint('⚠️ فشلت استعادة الجلسة: $e');
+      _log('⚠️ فشلت استعادة الجلسة: $e');
       return null;
     }
   }
@@ -271,14 +277,14 @@ class GoogleDriveBackupService {
         final headers = await account.authHeaders;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
-        debugPrint('✅ تم تسجيل الدخول بهدوء: ${account.email}');
+        _log('✅ تم تسجيل الدخول بهدوء: ${account.email}');
         return true;
       }
       
-      debugPrint('⚠️ لا توجد جلسة محفوظة للدخول الهادئ');
+      _log('⚠️ لا توجد جلسة محفوظة للدخول الهادئ');
       return false;
     } catch (e) {
-      debugPrint('❌ signInSilently error: $e');
+      _log('❌ signInSilently error: $e');
       return false;
     }
   }
@@ -288,14 +294,16 @@ class GoogleDriveBackupService {
       await _googleSignIn?.signOut();
       _driveApi = null;
       _backupFolderId = null;
-      debugPrint('✅ تم تسجيل الخروج من Google Drive');
+      _log('✅ تم تسجيل الخروج من Google Drive');
+      _logger.info('تم تسجيل الخروج من Google Drive', tag: 'AUTH');
     } catch (e) {
-      debugPrint('❌ خطأ في تسجيل الخروج: $e');
+      _log('❌ خطأ في تسجيل الخروج: $e');
       rethrow;
     }
   }
 
   GoogleSignInAccount? get currentUser => _googleSignIn?.currentUser;
+  GoogleSignIn? get googleSignIn => _googleSignIn;
 
   bool get isSignedIn => _googleSignIn?.currentUser != null;
 
@@ -315,7 +323,7 @@ class GoogleDriveBackupService {
 
         if (searchResult.files != null && searchResult.files!.isNotEmpty) {
           _backupFolderId = searchResult.files!.first.id;
-          debugPrint('✅ تم العثور على مجلد النسخ الاحتياطية: $_backupFolderId');
+          _log('✅ تم العثور على مجلد النسخ الاحتياطية: $_backupFolderId');
         } else {
           final folder = drive.File()
             ..name = _backupFolderName
@@ -323,12 +331,12 @@ class GoogleDriveBackupService {
 
           final createdFolder = await _driveApi!.files.create(folder);
           _backupFolderId = createdFolder.id;
-          debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطية: $_backupFolderId');
+          _log('✅ تم إنشاء مجلد النسخ الاحتياطية: $_backupFolderId');
         }
 
         return _backupFolderId!;
       } catch (e) {
-        debugPrint('❌ خطأ في إنشاء/العثور على مجلد النسخ الاحتياطية: $e');
+        _log('❌ خطأ في إنشاء/العثور على مجلد النسخ الاحتياطية: $e');
         rethrow;
       }
     });
@@ -336,25 +344,64 @@ class GoogleDriveBackupService {
 
   Future<Map<String, dynamic>> exportDatabaseToJson() async {
     try {
-      final db = getDatabase();
+      final db = DatabaseManager.instance;
 
       final roomsData = await db.select(db.rooms).get();
       final bookingsData = await db.select(db.bookings).get();
       final bookingNotesData = await db.select(db.bookingNotes).get();
+      final bookingNightsData = await db.select(db.bookingNights).get();
+      final ledgerData = await db.select(db.hotelDayLedger).get();
+      final shiftNotesData = await db.select(db.shiftNotes).get();
       final employeesData = await db.select(db.employees).get();
       final expensesData = await db.select(db.expenses).get();
       final cashTransactionsData = await db.select(db.cashTransactions).get();
       final paymentsData = await db.select(db.payments).get();
+      final debtsData = await db.select(db.debts).get();
+      final autoFixRunsData = await db.select(db.autoFixRuns).get();
+      final violationsData = await db.select(db.integrityViolations).get();
+      final sessionsData = await db.select(db.appSessions).get();
+      final salaryCyclesData = await db.select(db.salaryCycles).get();
+      final salaryPaymentsData = await db.select(db.salaryPayments).get();
+      final restoreFixLogsData = await db.select(db.restoreFixLog).get();
+      final syncQueueData = await db.select(db.syncQueue).get();
+      final syncLogData = await db.select(db.syncLog).get();
+      final syncConflictsData = await db.select(db.syncConflicts).get();
       final syncStateData = await db.select(db.syncState).get();
+
+      // جلب الإعدادات العامة لدمجها في النسخة الاحتياطية
+      final prefs = await SharedPreferences.getInstance();
+      final systemSettings = {
+        SystemSettingKeys.autoBackupEnabled: prefs.getBool(SystemSettingKeys.autoBackupEnabled),
+        SystemSettingKeys.autoBackupTime: prefs.getString(SystemSettingKeys.autoBackupTime),
+        SystemSettingKeys.autoBackupFrequency: prefs.getString(SystemSettingKeys.autoBackupFrequency),
+        SystemSettingKeys.scheduledBackupEnabled: prefs.getBool(SystemSettingKeys.scheduledBackupEnabled),
+        SystemSettingKeys.autoLocalBackupEnabled: prefs.getBool(SystemSettingKeys.autoLocalBackupEnabled),
+        SystemSettingKeys.smartSyncInterval: prefs.getInt(SystemSettingKeys.smartSyncInterval),
+        SystemSettingKeys.wifiOnlySync: prefs.getBool(SystemSettingKeys.wifiOnlySync),
+      };
 
       final totalRecords =
           roomsData.length +
           bookingsData.length +
           bookingNotesData.length +
+          bookingNightsData.length +
+          ledgerData.length +
+          shiftNotesData.length +
           employeesData.length +
           expensesData.length +
           cashTransactionsData.length +
-          paymentsData.length;
+          paymentsData.length +
+          debtsData.length +
+          autoFixRunsData.length +
+          violationsData.length +
+          sessionsData.length +
+          salaryCyclesData.length +
+          salaryPaymentsData.length +
+          restoreFixLogsData.length +
+          syncQueueData.length +
+          syncLogData.length +
+          syncConflictsData.length +
+          syncStateData.length;
 
       final metadata = BackupMetadata(
         appVersion: '1.2.0+3',
@@ -370,22 +417,45 @@ class GoogleDriveBackupService {
         'rooms': roomsData.map((room) => room.toJson()).toList(),
         'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
         'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
+        'booking_nights': bookingNightsData.map((night) => night.toJson()).toList(),
+        'hotel_day_ledger': ledgerData.map((entry) => entry.toJson()).toList(),
+        'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
         'employees': employeesData.map((employee) => employee.toJson()).toList(),
         'expenses': expensesData.map((expense) => expense.toJson()).toList(),
         'cash_transactions': cashTransactionsData.map((transaction) => transaction.toJson()).toList(),
         'payments': paymentsData.map((payment) => payment.toJson()).toList(),
+        'debts': debtsData.map((debt) => debt.toJson()).toList(),
+        'auto_fix_runs': autoFixRunsData.map((run) => run.toJson()).toList(),
+        'integrity_violations': violationsData.map((violation) => violation.toJson()).toList(),
+        'app_sessions': sessionsData.map((session) => session.toJson()).toList(),
+        'salary_cycles': salaryCyclesData.map((cycle) => cycle.toJson()).toList(),
+        'salary_payments': salaryPaymentsData.map((payment) => payment.toJson()).toList(),
+        'restore_fix_log': restoreFixLogsData.map((log) => log.toJson()).toList(),
+        'sync_queue': syncQueueData.map((row) => row.toJson()).toList(),
+        'sync_log': syncLogData.map((row) => row.toJson()).toList(),
+        'sync_conflicts': syncConflictsData.map((row) => row.toJson()).toList(),
         'sync_state': syncStateData.isNotEmpty ? syncStateData.first.toJson() : {},
+        'system_settings': systemSettings, // تصدير الإعدادات
       };
 
-      debugPrint('✅ تم تصدير البيانات: $totalRecords سجل');
+      _log('✅ تم تصدير البيانات: $totalRecords سجل');
       return backupData;
     } catch (e) {
-      debugPrint('❌ خطأ في تصدير البيانات: $e');
+      _log('❌ خطأ في تصدير البيانات: $e');
       rethrow;
     }
   }
 
-  Future<String> uploadBackup(Map<String, dynamic> backupData) async {
+  static const fullBackupPrefix = 'marina_backup_full_';
+  static const autoSyncPrefix = 'marina_sync_auto_';
+  static const deltaSyncPrefix = 'marina_sync_delta_';
+
+  void _log(String message) {
+    DebugLogs.add('DriveBackup', message);
+    debugPrint(message);
+  }
+
+  Future<String> uploadBackup(Map<String, dynamic> backupData, {bool isSync = false}) async {
     String? partialFileId;
     
     return _runWithAuth<String>(() async {
@@ -396,9 +466,27 @@ class GoogleDriveBackupService {
         final jsonBytes = utf8.encode(jsonString);
 
         final timestamp = DateTime.now();
-        final fileName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
-
+        
+        // تحديد البادئة والنوع حسب نوع النسخة
         final metadata = backupData['metadata'] as Map<String, dynamic>? ?? {};
+        final backupType = metadata['backup_type'] as String?;
+        final syncType = metadata['sync_type'] as String?;
+        
+        String prefix;
+        String typeLabel;
+        
+        if (isSync || syncType == 'push') {
+          prefix = autoSyncPrefix;
+          typeLabel = 'مزامنة تلقائية';
+        } else if (backupType == 'auto') {
+          prefix = autoSyncPrefix;
+          typeLabel = 'نسخ تلقائي';
+        } else {
+          prefix = fullBackupPrefix;
+          typeLabel = 'نسخة شاملة';
+        }
+        
+        final fileName = '${prefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
 
         final driveFile = drive.File()
           ..name = fileName
@@ -407,7 +495,7 @@ class GoogleDriveBackupService {
 
         final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
         
-        debugPrint('📤 بدء رفع النسخة الاحتياطية: $fileName (${(jsonBytes.length / 1024).toStringAsFixed(2)} KB)');
+        _log('📤 بدء رفع $typeLabel: $fileName (${(jsonBytes.length / 1024).toStringAsFixed(2)} KB)');
         
         final uploadedFile = await _driveApi!.files.create(
           driveFile,
@@ -419,7 +507,7 @@ class GoogleDriveBackupService {
         // التحقق من اكتمال الرفع
         final verifyResult = await _verifyUploadedBackup(uploadedFile.id!, jsonBytes.length);
         if (!verifyResult['is_complete']) {
-          debugPrint('⚠️ النسخة غير مكتملة: ${verifyResult['message']}');
+          _log('⚠️ النسخة غير مكتملة: ${verifyResult['message']}');
           // حذف النسخة الناقصة
           await deleteBackupFile(uploadedFile.id!);
           throw Exception('فشل في رفع النسخة بشكل كامل: ${verifyResult['message']}');
@@ -428,19 +516,19 @@ class GoogleDriveBackupService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
 
-        debugPrint('✅ تم رفع النسخة الاحتياطية بنجاح: ${uploadedFile.id}');
+        _log('✅ تم رفع $typeLabel بنجاح: ${uploadedFile.id}');
         partialFileId = null; // تم بنجاح، لا حاجة للتنظيف
         return uploadedFile.id!;
       } catch (e) {
-        debugPrint('❌ خطأ في رفع النسخة الاحتياطية: $e');
+        _log('❌ خطأ في رفع النسخة الاحتياطية: $e');
         
         // حذف النسخة الجزئية إذا كانت موجودة
         if (partialFileId != null) {
           try {
-            debugPrint('🧹 حذف النسخة الجزئية: $partialFileId');
+            _log('🧹 حذف النسخة الجزئية: $partialFileId');
             await deleteBackupFile(partialFileId!);
           } catch (cleanupError) {
-            debugPrint('⚠️ فشل حذف النسخة الجزئية: $cleanupError');
+            _log('⚠️ فشل حذف النسخة الجزئية: $cleanupError');
           }
         }
         
@@ -448,6 +536,23 @@ class GoogleDriveBackupService {
       }
     });
   }
+
+  Future<String> uploadBackupWithName(String fileName, List<int> bytes, {Map<String, String>? appProperties}) async {
+    return _runWithAuth<String>(() async {
+      final folderId = await getOrCreateBackupFolder();
+      final driveFile = drive.File()
+        ..name = fileName
+        ..parents = [folderId]
+        ..appProperties = appProperties ?? {};
+      final media = drive.Media(Stream.value(bytes), bytes.length);
+      _log('📤 رفع ملف مزامنة: $fileName (${(bytes.length / 1024).toStringAsFixed(2)} KB)');
+      final uploadedFile = await _driveApi!.files.create(driveFile, uploadMedia: media);
+      _log('✅ تم رفع الملف: ${uploadedFile.id}');
+      return uploadedFile.id!;
+    });
+  }
+
+  Future<void> deleteBackup(String fileId) => deleteBackupFile(fileId);
 
   /// التحقق من اكتمال النسخة المرفوعة
   Future<Map<String, dynamic>> _verifyUploadedBackup(String fileId, int expectedSize) async {
@@ -521,7 +626,8 @@ class GoogleDriveBackupService {
     return _runWithAuth<List<DriveBackupFile>>(() async {
       final folderId = await getOrCreateBackupFolder();
 
-      final query = "parents in '$folderId' and name contains '$_backupFilePrefix' and trashed=false";
+      // البحث عن جميع أنواع النسخ الاحتياطية (الشاملة والتلقائية والتفاضلية)
+      final query = "parents in '$folderId' and (name contains '$fullBackupPrefix' or name contains '$autoSyncPrefix' or name contains '$deltaSyncPrefix' or name contains '$_backupFilePrefix') and trashed=false";
       final listResult = await _driveApi!.files.list(
         q: query,
         orderBy: 'createdTime desc',
@@ -536,7 +642,7 @@ class GoogleDriveBackupService {
         }
       }
 
-      debugPrint('✅ تم جلب ${backupFiles.length} نسخة احتياطية');
+      _log('✅ تم جلب ${backupFiles.length} نسخة احتياطية');
       return backupFiles;
     });
   }
@@ -564,34 +670,48 @@ class GoogleDriveBackupService {
       final jsonString = utf8.decode(dataStore);
       final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
 
-      debugPrint('✅ تم تنزيل النسخة الاحتياطية: $fileId');
+      _log('✅ تم تنزيل النسخة الاحتياطية: $fileId');
       return backupData;
     });
   }
 
   Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
     try {
-      final db = getDatabase();
+      final db = DatabaseManager.instance;
 
       if (!backupData.containsKey('metadata')) {
         throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
       }
 
       final metadata = BackupMetadata.fromJson(backupData['metadata']);
+      _logger.info('بدء استعادة نسخة بتاريخ ${metadata.backupTimestamp.toIso8601String()} تحتوي ${metadata.totalRecords} سجل', tag: 'RESTORE');
 
       if (metadata.databaseVersion > 3) {
         throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
       }
 
-      debugPrint('🔄 بدء استعادة البيانات...');
+      _log('🔄 بدء استعادة البيانات...');
 
       await db.delete(db.rooms).go();
       await db.delete(db.bookings).go();
       await db.delete(db.bookingNotes).go();
+      await db.delete(db.bookingNights).go();
+      await db.delete(db.hotelDayLedger).go();
+      await db.delete(db.shiftNotes).go();
       await db.delete(db.employees).go();
       await db.delete(db.expenses).go();
       await db.delete(db.cashTransactions).go();
       await db.delete(db.payments).go();
+      await db.delete(db.debts).go();
+      await db.delete(db.autoFixRuns).go();
+      await db.delete(db.integrityViolations).go();
+      await db.delete(db.appSessions).go();
+      await db.delete(db.salaryCycles).go();
+      await db.delete(db.salaryPayments).go();
+      await db.delete(db.restoreFixLog).go();
+      await db.delete(db.syncQueue).go();
+      await db.delete(db.syncLog).go();
+      await db.delete(db.syncConflicts).go();
       await db.delete(db.syncState).go();
 
       if (backupData.containsKey('rooms')) {
@@ -618,6 +738,33 @@ class GoogleDriveBackupService {
           final map = Map<String, dynamic>.from(noteJson as Map);
           final data = BookingNote.fromJson(map, serializer: lenientValueSerializer);
           await db.into(db.bookingNotes).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('booking_nights')) {
+        final nightsData = backupData['booking_nights'] as List<dynamic>;
+        for (final nightJson in nightsData) {
+          final map = Map<String, dynamic>.from(nightJson as Map);
+          final data = BookingNight.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.bookingNights).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('hotel_day_ledger')) {
+        final ledgerList = backupData['hotel_day_ledger'] as List<dynamic>;
+        for (final ledgerJson in ledgerList) {
+          final map = Map<String, dynamic>.from(ledgerJson as Map);
+          final data = HotelDayLedgerEntry.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.hotelDayLedger).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('shift_notes')) {
+        final shiftsData = backupData['shift_notes'] as List<dynamic>;
+        for (final shiftJson in shiftsData) {
+          final map = Map<String, dynamic>.from(shiftJson as Map);
+          final data = ShiftNote.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.shiftNotes).insertOnConflictUpdate(data);
         }
       }
 
@@ -657,17 +804,156 @@ class GoogleDriveBackupService {
         }
       }
 
+      if (backupData.containsKey('debts')) {
+        final debtsList = backupData['debts'] as List<dynamic>;
+        for (final debtJson in debtsList) {
+          final map = Map<String, dynamic>.from(debtJson as Map);
+          final data = Debt.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.debts).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('auto_fix_runs')) {
+        final runsList = backupData['auto_fix_runs'] as List<dynamic>;
+        for (final runJson in runsList) {
+          final map = Map<String, dynamic>.from(runJson as Map);
+          final data = AutoFixRun.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.autoFixRuns).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('integrity_violations')) {
+        final violationsList = backupData['integrity_violations'] as List<dynamic>;
+        for (final violationJson in violationsList) {
+          final map = Map<String, dynamic>.from(violationJson as Map);
+          final data = IntegrityViolation.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.integrityViolations).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('app_sessions')) {
+        final sessionsList = backupData['app_sessions'] as List<dynamic>;
+        for (final sessionJson in sessionsList) {
+          final map = Map<String, dynamic>.from(sessionJson as Map);
+          final data = AppSession.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.appSessions).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('salary_cycles')) {
+        final cyclesList = backupData['salary_cycles'] as List<dynamic>;
+        for (final cycleJson in cyclesList) {
+          final map = Map<String, dynamic>.from(cycleJson as Map);
+          final data = SalaryCycle.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.salaryCycles).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('salary_payments')) {
+        final salaryList = backupData['salary_payments'] as List<dynamic>;
+        for (final salaryJson in salaryList) {
+          final map = Map<String, dynamic>.from(salaryJson as Map);
+          final data = SalaryPayment.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.salaryPayments).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('restore_fix_log')) {
+        final restoreList = backupData['restore_fix_log'] as List<dynamic>;
+        for (final logJson in restoreList) {
+          final map = Map<String, dynamic>.from(logJson as Map);
+          final data = RestoreFixLogData.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.restoreFixLog).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('sync_queue')) {
+        final queueList = backupData['sync_queue'] as List<dynamic>;
+        for (final rowJson in queueList) {
+          final map = Map<String, dynamic>.from(rowJson as Map);
+          final data = SyncQueueData.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.syncQueue).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('sync_log')) {
+        final logList = backupData['sync_log'] as List<dynamic>;
+        for (final logJson in logList) {
+          final map = Map<String, dynamic>.from(logJson as Map);
+          final data = SyncLogData.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.syncLog).insertOnConflictUpdate(data);
+        }
+      }
+
+      if (backupData.containsKey('sync_conflicts')) {
+        final conflictsList = backupData['sync_conflicts'] as List<dynamic>;
+        for (final conflictJson in conflictsList) {
+          final map = Map<String, dynamic>.from(conflictJson as Map);
+          final data = SyncConflictRow.fromJson(map, serializer: lenientValueSerializer);
+          await db.into(db.syncConflicts).insertOnConflictUpdate(data);
+        }
+      }
+
       if (backupData.containsKey('sync_state') && backupData['sync_state'] is Map && (backupData['sync_state'] as Map).isNotEmpty) {
         final syncStateJson = Map<String, dynamic>.from(backupData['sync_state'] as Map);
         final data = SyncStateData.fromJson(syncStateJson, serializer: lenientValueSerializer);
         await db.into(db.syncState).insertOnConflictUpdate(data);
       }
 
-      debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
+      // استعادة وتطبيق الإعدادات العامة إذا وجدت
+      if (backupData.containsKey('system_settings')) {
+        _log('⚙️ تطبيق إعدادات النظام من النسخة الاحتياطية...');
+        try {
+          final settings = backupData['system_settings'] as Map<String, dynamic>;
+          final prefs = await SharedPreferences.getInstance();
+          
+          final keys = SystemSettingKeys.all;
+
+          bool settingsChanged = false;
+          for (final key in keys) {
+            if (settings.containsKey(key) && settings[key] != null) {
+              final val = settings[key];
+              final currentVal = prefs.get(key);
+              
+              if (val != currentVal) {
+                if (val is bool) await prefs.setBool(key, val);
+                if (val is String) await prefs.setString(key, val);
+                if (val is int) await prefs.setInt(key, val);
+                if (val is double) await prefs.setDouble(key, val);
+                settingsChanged = true;
+                _log('   UPDATED: $key = $val');
+              }
+            }
+          }
+
+          // إعادة جدولة المهام إذا تغيرت الإعدادات
+          if (settingsChanged) {
+             _log('🔄 إعادة جدولة مهام النسخ الاحتياطي وفق الإعدادات الجديدة...');
+             
+             final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
+             final parts = timeStr.split(':');
+             final hour = int.parse(parts[0]);
+             final minute = int.parse(parts[1]);
+             final scheduledEnabled = prefs.getBool('scheduled_backup_enabled') ?? true;
+
+             if (scheduledEnabled) {
+               await AlarmBackup.rescheduleDaily(hour, minute);
+               await AutoBackupTask.scheduleDaily(time: timeStr);
+             } else {
+               await AlarmBackup.cancelAlarm();
+               await AutoBackupTask.cancelScheduled();
+             }
+          }
+        } catch (e) {
+          _log('⚠️ خطأ في تطبيق الإعدادات المستعادة: $e');
+        }
+      }
+
+      _log('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
       final fixService = RestoreFixService(db);
       await fixService.runAutoFixAfterRestore(backupTimestamp: metadata.backupTimestamp);
     } catch (e) {
-      debugPrint('❌ خطأ في استعادة البيانات: $e');
+      _log('❌ خطأ في استعادة البيانات: $e');
       rethrow;
     }
   }
@@ -735,36 +1021,36 @@ class GoogleDriveBackupService {
         inputData: const <String, dynamic>{},
       );
 
-      debugPrint('✅ تم جدولة النسخ التلقائي: $frequency في $timeString');
+      _log('✅ تم جدولة النسخ التلقائي: $frequency في $timeString');
     } catch (e) {
-      debugPrint('❌ خطأ في جدولة النسخ التلقائي: $e');
+      _log('❌ خطأ في جدولة النسخ التلقائي: $e');
     }
   }
 
   Future<void> cancelAutoBackup() async {
     try {
       await Workmanager().cancelByUniqueName('autoBackup');
-      debugPrint('✅ تم إلغاء النسخ التلقائي');
+      _log('✅ تم إلغاء النسخ التلقائي');
     } catch (e) {
-      debugPrint('❌ خطأ في إلغاء النسخ التلقائي: $e');
+      _log('❌ خطأ في إلغاء النسخ التلقائي: $e');
     }
   }
 
   Future<void> performAutoBackup() async {
     try {
       if (!isSignedIn) {
-        debugPrint('⚠️ المستخدم غير مسجل دخول، تم تخطي النسخ التلقائي');
+        _log('⚠️ المستخدم غير مسجل دخول، تم تخطي النسخ التلقائي');
         return;
       }
 
-      debugPrint('🔄 بدء النسخ التلقائي...');
+      _log('🔄 بدء النسخ التلقائي...');
 
       final backupData = await exportDatabaseToJson();
       final fileId = await uploadBackup(backupData);
 
-      debugPrint('✅ تم النسخ التلقائي بنجاح: $fileId');
+      _log('✅ تم النسخ التلقائي بنجاح: $fileId');
     } catch (e) {
-      debugPrint('❌ خطأ في النسخ التلقائي: $e');
+      _log('❌ خطأ في النسخ التلقائي: $e');
     }
   }
 
@@ -787,7 +1073,12 @@ class GoogleDriveBackupService {
 
   Future<bool> isAutoBackupEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_prefsAutoBackupKey) ?? false;
+    if (!prefs.containsKey(_prefsAutoBackupKey)) {
+      await prefs.setBool(_prefsAutoBackupKey, true);
+      await scheduleAutoBackup();
+      return true;
+    }
+    return prefs.getBool(_prefsAutoBackupKey) ?? true;
   }
 
   Future<void> setAutoBackupFrequency(String frequency) async {
@@ -826,7 +1117,7 @@ class GoogleDriveBackupService {
       final jsonString = const JsonEncoder().convert(backupData);
       return utf8.encode(jsonString).length;
     } catch (e) {
-      debugPrint('❌ خطأ في تقدير حجم قاعدة البيانات: $e');
+      _log('❌ خطأ في تقدير حجم قاعدة البيانات: $e');
       return 0;
     }
   }
@@ -834,7 +1125,7 @@ class GoogleDriveBackupService {
   Future<void> deleteBackupFile(String fileId) async {
     await _runWithAuth<void>(() async {
       await _driveApi!.files.delete(fileId);
-      debugPrint('🗑️ تم حذف النسخة الاحتياطية: $fileId');
+      _log('🗑️ تم حذف النسخة الاحتياطية: $fileId');
     });
   }
 
@@ -851,14 +1142,15 @@ class GoogleDriveBackupService {
     bool dryRun = false,
   }) async {
     try {
-      debugPrint('🧹 بدء تنظيف النسخ القديمة...');
-      debugPrint('📊 الإعدادات: maxBackups=$maxBackupsToKeep, maxAge=$maxAgeInDays أيام, dryRun=$dryRun');
+      _log('🧹 بدء تنظيف النسخ القديمة...');
+      _log('📊 الإعدادات: maxBackups=$maxBackupsToKeep, maxAge=$maxAgeInDays أيام, dryRun=$dryRun');
 
       // الحصول على جميع النسخ الاحتياطية
       final backups = await listBackups();
       
       if (backups.isEmpty) {
-        debugPrint('✅ لا توجد نسخ احتياطية للتنظيف');
+        _log('✅ لا توجد نسخ احتياطية للتنظيف');
+        _logger.info('لا توجد نسخ احتياطية لتنظيفها', tag: 'CLEANUP');
         return 0;
       }
 
@@ -887,15 +1179,15 @@ class GoogleDriveBackupService {
       }
 
       if (backupsToDelete.isEmpty) {
-        debugPrint('✅ جميع النسخ ضمن الحدود المقبولة');
+        _log('✅ جميع النسخ ضمن الحدود المقبولة');
         return 0;
       }
 
-      debugPrint('📋 سيتم حذف ${backupsToDelete.length} نسخة احتياطية:');
+      _log('📋 سيتم حذف ${backupsToDelete.length} نسخة احتياطية:');
       for (final backup in backupsToDelete) {
         final age = now.difference(backup.createdTime).inDays;
         final sizeKB = backup.size != null ? (backup.size! / 1024).toStringAsFixed(2) : 'غير معروف';
-        debugPrint('  - ${backup.fileName} (عمر: $age يوم، حجم: $sizeKB KB)');
+        _log('  - ${backup.fileName} (عمر: $age يوم، حجم: $sizeKB KB)');
       }
 
       // حذف النسخ فعلياً (إلا إذا كان dryRun)
@@ -906,12 +1198,12 @@ class GoogleDriveBackupService {
             await deleteBackupFile(backup.fileId);
             deletedCount++;
           } catch (e) {
-            debugPrint('⚠️ فشل حذف النسخة ${backup.fileName}: $e');
+            _log('⚠️ فشل حذف النسخة ${backup.fileName}: $e');
           }
         }
-        debugPrint('✅ تم حذف $deletedCount نسخة احتياطية بنجاح');
+        _log('✅ تم حذف $deletedCount نسخة احتياطية بنجاح');
       } else {
-        debugPrint('ℹ️ وضع المعاينة (dryRun) - لم يتم حذف أي شيء فعلياً');
+        _log('ℹ️ وضع المعاينة (dryRun) - لم يتم حذف أي شيء فعلياً');
         deletedCount = backupsToDelete.length;
       }
 
@@ -922,12 +1214,12 @@ class GoogleDriveBackupService {
           totalSizeFreed += backup.size ?? 0;
         }
         final sizeMB = (totalSizeFreed / (1024 * 1024)).toStringAsFixed(2);
-        debugPrint('💾 المساحة المحررة: $sizeMB MB');
+        _log('💾 المساحة المحررة: $sizeMB MB');
       }
 
       return deletedCount;
     } catch (e) {
-      debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
+      _log('❌ خطأ في تنظيف النسخ القديمة: $e');
       rethrow;
     }
   }
@@ -937,12 +1229,14 @@ class GoogleDriveBackupService {
   /// Returns: عدد النسخ الناقصة التي تم حذفها
   Future<int> cleanupIncompleteBackups() async {
     try {
-      debugPrint('🔍 بدء فحص النسخ الناقصة...');
+      _log('🔍 بدء فحص النسخ الناقصة...');
+      _logger.info('بدء فحص النسخ الناقصة', tag: 'VALIDATE');
       
       final backups = await listBackups();
       
       if (backups.isEmpty) {
-        debugPrint('✅ لا توجد نسخ للفحص');
+        _log('✅ لا توجد نسخ للفحص');
+        _logger.info('لا توجد نسخ لفحصها', tag: 'VALIDATE');
         return 0;
       }
 
@@ -951,14 +1245,14 @@ class GoogleDriveBackupService {
       for (final backup in backups) {
         // التحقق من البيانات الوصفية
         if (backup.metadata == null || backup.metadata!.isEmpty) {
-          debugPrint('⚠️ نسخة بدون بيانات وصفية: ${backup.fileName}');
+          _log('⚠️ نسخة بدون بيانات وصفية: ${backup.fileName}');
           incompleteBackups.add(backup);
           continue;
         }
 
         // التحقق من الحجم (النسخ الصغيرة جداً قد تكون ناقصة)
         if (backup.size != null && backup.size! < 1024) { // أقل من 1 KB
-          debugPrint('⚠️ نسخة صغيرة جداً (${backup.size} bytes): ${backup.fileName}');
+          _log('⚠️ نسخة صغيرة جداً (${backup.size} bytes): ${backup.fileName}');
           incompleteBackups.add(backup);
           continue;
         }
@@ -969,25 +1263,26 @@ class GoogleDriveBackupService {
           
           // التحقق من البنية الأساسية
           if (!data.containsKey('metadata') || !data.containsKey('rooms')) {
-            debugPrint('⚠️ نسخة ببنية غير صحيحة: ${backup.fileName}');
+            _log('⚠️ نسخة ببنية غير صحيحة: ${backup.fileName}');
             incompleteBackups.add(backup);
             continue;
           }
         } catch (e) {
-          debugPrint('⚠️ فشل قراءة النسخة (قد تكون تالفة): ${backup.fileName} - $e');
+          _log('⚠️ فشل قراءة النسخة (قد تكون تالفة): ${backup.fileName} - $e');
           incompleteBackups.add(backup);
           continue;
         }
       }
 
       if (incompleteBackups.isEmpty) {
-        debugPrint('✅ جميع النسخ سليمة');
+        _log('✅ جميع النسخ سليمة');
+        _logger.info('جميع النسخ سليمة بعد الفحص', tag: 'VALIDATE');
         return 0;
       }
 
-      debugPrint('📋 تم اكتشاف ${incompleteBackups.length} نسخة ناقصة:');
+      _log('📋 تم اكتشاف ${incompleteBackups.length} نسخة ناقصة:');
       for (final backup in incompleteBackups) {
-        debugPrint('  - ${backup.fileName}');
+        _log('  - ${backup.fileName}');
       }
 
       // حذف النسخ الناقصة
@@ -997,14 +1292,14 @@ class GoogleDriveBackupService {
           await deleteBackupFile(backup.fileId);
           deletedCount++;
         } catch (e) {
-          debugPrint('⚠️ فشل حذف النسخة الناقصة ${backup.fileName}: $e');
+          _log('⚠️ فشل حذف النسخة الناقصة ${backup.fileName}: $e');
         }
       }
 
-      debugPrint('✅ تم حذف $deletedCount نسخة ناقصة');
+      _log('✅ تم حذف $deletedCount نسخة ناقصة');
       return deletedCount;
     } catch (e) {
-      debugPrint('❌ خطأ في فحص النسخ الناقصة: $e');
+      _log('❌ خطأ في فحص النسخ الناقصة: $e');
       return 0;
     }
   }
@@ -1024,6 +1319,7 @@ class GoogleDriveBackupService {
       final backups = await listBackups();
       
       if (backups.isEmpty) {
+        _logger.info('لا توجد نسخ احتياطية لعرض الإحصائيات', tag: 'METRICS');
         return {
           'total_backups': 0,
           'total_size_bytes': 0,
@@ -1050,7 +1346,7 @@ class GoogleDriveBackupService {
         'newest_backup_name': backups.first.fileName,
       };
     } catch (e) {
-      debugPrint('❌ خطأ في الحصول على إحصائيات النسخ: $e');
+      _log('❌ خطأ في الحصول على إحصائيات النسخ: $e');
       return {};
     }
   }

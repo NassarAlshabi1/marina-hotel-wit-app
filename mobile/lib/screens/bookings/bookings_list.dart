@@ -11,6 +11,8 @@ import '../../utils/time.dart';
 import '../payments/booking_payment_screen.dart';
 import 'booking_edit.dart';
 import '../payments/payments_main_screen.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 class BookingsListScreen extends ConsumerStatefulWidget {
   const BookingsListScreen({super.key});
@@ -19,7 +21,11 @@ class BookingsListScreen extends ConsumerStatefulWidget {
   ConsumerState<BookingsListScreen> createState() => _BookingsListScreenState();
 }
 
-class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
+class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
+    with SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'bookings_list';
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   Future<void> _navigateToAddBooking() async {
@@ -34,9 +40,10 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
     final bookingsAsync = ref.watch(bookingsListProvider);
     final roomsAsync = ref.watch(roomsListProvider);
 
-    return AppScaffold(
-      title: 'الحجوزات',
-      actions: [
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
+        title: 'الحجوزات',
+        actions: [
         IconButton(
           onPressed: () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentsMainScreen()));
@@ -164,6 +171,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
             ),
           );
         },
+      ),
       ),
     );
   }

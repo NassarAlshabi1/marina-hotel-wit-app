@@ -14,6 +14,7 @@ import 'screens/expenses/expenses_list.dart';
 import 'screens/finance/finance_screen.dart';
 import 'screens/reports/reports_screen.dart';
 import 'screens/payments/payments_main_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
@@ -28,19 +29,21 @@ import 'services/auto_backup_manager.dart';
 import 'services/app_session_manager.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
+import 'services/google_drive_sync_service.dart';
+import 'services/google_drive_delta_sync.dart';
+import 'services/sync_guardian.dart';
 import 'services/alarm_backup.dart';
 import 'components/admin_layout.dart';
+import 'services/google_drive_logger.dart';
 import 'services/local_db.dart';
 import 'services/appwrite_config.dart';
 import 'services/appwrite_logger.dart';
 import 'services/appwrite_cache_manager.dart';
 import 'services/appwrite_service.dart';
 import 'services/appwrite_sync_manager.dart';
-import 'services/unified_sync_orchestrator.dart';
-import 'services/smart_sync_manager.dart';
-import 'providers/appwrite_providers.dart';
-import 'tasks/appwrite_auto_sync_task.dart';
+import 'services/appwrite_realtime_service.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'services/sync_queue_service.dart';
 
 
 void main() async {
@@ -65,6 +68,9 @@ void main() async {
 /// تهيئة نظام النسخ التلقائي الذكي والمزامنة بين الأجهزة
 Future<void> _initializeSmartAutoBackup() async {
   try {
+    final driveLogger = GoogleDriveLogger();
+    await driveLogger.initialize(minLevel: LogLevel.debug, enableConsole: true, enableFile: false);
+
     final backupService = GoogleDriveBackupService();
     
     // محاولة استعادة جلسة Google Drive أولاً
@@ -80,24 +86,46 @@ Future<void> _initializeSmartAutoBackup() async {
     
     // تفعيل النسخ التلقائي بشكل افتراضي
     await autoBackupManager.setEnabled(true);
-    await autoBackupManager.setMaxBackupCount(25); // الاحتفاظ بـ 25 نسخة
-    await autoBackupManager.setRetentionDays(45); // لمدة 45 يوماً
+    await autoBackupManager.setMaxBackupCount(10); // الاحتفاظ بـ 10 نسخ فقط
+    await autoBackupManager.setRetentionDays(14); // لمدة 14 يوماً
     
     // تهيئة مدير المزامنة الذكية بين الأجهزة
     final smartSyncManager = SmartSyncManager.instance;
     await smartSyncManager.initialize(backupService);
     
-    debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية بنجاح');
+    // تهيئة Delta Sync للمزامنة السريعة (التحديثات الصغيرة فقط)
+    await GoogleDriveDeltaSync.instance.initialize(backupService, DatabaseManager.instance);
+    debugPrint('✅ تم تهيئة Delta Sync للمزامنة السريعة');
+    
+    // تهيئة SyncGuardian مع Google Drive (بشكل مستقل عن Appwrite)
+    final syncGuardian = SyncGuardian.instance;
+    final driveSyncService = GoogleDriveSyncService(googleSignIn: backupService.googleSignIn);
+    await syncGuardian.initialize(
+      database: DatabaseManager.instance,
+      driveService: driveSyncService,
+      appwriteSyncManager: null, // سيتم ربطه لاحقاً إذا كان Appwrite متوفر
+    );
+    
+    await SyncQueueService.instance.initialize();
+    debugPrint('✅ تم تهيئة SyncQueueService');
+    
+    debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية عبر Google Drive بنجاح');
   } catch (e) {
     debugPrint('❌ خطأ في تهيئة النظام الذكي: $e');
   }
 }
 
-/// تهيئة نظام Appwrite للمزامنة السحابية
+/// تهيئة نظام Appwrite للمزامنة السحابية (اختياري)
 Future<void> _initializeAppwrite() async {
   try {
     // طباعة الإعدادات
     AppwriteConfig.printConfig();
+    
+    // التحقق من صحة الإعدادات قبل التهيئة
+    if (!AppwriteConfig.validateConfig()) {
+      debugPrint('ℹ️ Appwrite غير مُعد - سيعمل التطبيق بالمزامنة عبر Google Drive فقط');
+      return; // الخروج بشكل نظيف
+    }
     
     // تهيئة المسجل
     final logger = AppwriteLogger();
@@ -113,58 +141,85 @@ Future<void> _initializeAppwrite() async {
     
     // تهيئة خدمة Appwrite
     final appwriteService = AppwriteService();
+    final prefs = await SharedPreferences.getInstance();
+
+    if (!prefs.containsKey('appwrite_sync_enabled')) {
+      await prefs.setBool('appwrite_sync_enabled', false); // معطّل افتراضياً حتى يُفعّل المستخدم
+    }
+    if (!prefs.containsKey('appwrite_sync_interval')) {
+      await prefs.setInt('appwrite_sync_interval', 2);
+    }
     
-    // التحقق من صحة الإعدادات قبل التهيئة
-    if (AppwriteConfig.validateConfig()) {
-      try {
-        await appwriteService.initialize();
-        
-        // تهيئة مدير المزامنة
-        final syncManager = AppwriteSyncManager(
-          appwriteService: appwriteService,
-          database: DatabaseManager.instance,
-        );
-        await syncManager.initialize();
-        
-        // تفعيل الدفع المؤجل ومهمة الخلفية الدورية
-        await AppwriteAutoSyncTask.initialize(debug: false);
-        await AppwriteAutoSyncTask.schedulePeriodicSync(const Duration(minutes: 15));
-        
-        // تهيئة المنسق الموحد بين Appwrite (دلتا) وDrive (سنابشوت) بعد الإعدادات
-        // سيتم إعادة تهيئته بأمان لاحقاً داخل ProviderScope أيضاً
-        try {
-          final orch = UnifiedSyncOrchestrator(
-            appwrite: syncManager,
-            smart: SmartSyncManager.instance,
-            database: DatabaseManager.instance,
-          );
-          await orch.initialize();
-        } catch (_) {}
-        
-        
-        // تسجيل الجهاز (إذا كان متاحاً)
-        try {
-          final deviceInfo = await DeviceInfoPlugin().androidInfo;
-          await syncManager.registerDevice(
-            deviceName: deviceInfo.model,
-            deviceModel: deviceInfo.device,
-            osVersion: 'Android ${deviceInfo.version.release}',
-          );
-          debugPrint('✅ تم تسجيل الجهاز في Appwrite');
-        } catch (e) {
-          debugPrint('⚠️ تعذر تسجيل الجهاز: $e');
-        }
-        
-        debugPrint('✅ تم تهيئة Appwrite بنجاح');
-      } catch (e) {
-        debugPrint('⚠️ فشل الاتصال بـ Appwrite (سيعمل التطبيق بدون مزامنة سحابية): $e');
+    try {
+      await appwriteService.initialize();
+      
+      // تهيئة مدير المزامنة
+      final syncManager = AppwriteSyncManager(
+        appwriteService: appwriteService,
+        database: DatabaseManager.instance,
+      );
+      await syncManager.initialize();
+      
+      final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+      final syncIntervalMinutes = prefs.getInt('appwrite_sync_interval') ?? 2;
+      if (syncEnabled) {
+        syncManager.startAutoSync(interval: Duration(minutes: syncIntervalMinutes));
       }
-    } else {
-      debugPrint('ℹ️ Appwrite غير مُعد - يرجى تعيين Project ID في appwrite_config.dart');
+      
+      // تسجيل الجهاز تلقائياً
+      try {
+        await syncManager.registerDevice();
+        debugPrint('✅ تم تسجيل الجهاز في Appwrite تلقائياً');
+      } catch (e) {
+        debugPrint('⚠️ تعذر تسجيل الجهاز: $e');
+      }
+      
+      // تهيئة Appwrite Realtime للتحديثات الفورية (فقط إذا مُفعّل)
+      if (syncEnabled) {
+        await _initializeAppwriteRealtime(appwriteService, syncManager);
+      }
+      
+      // ربط AppwriteSyncManager مع SyncGuardian
+      SyncGuardian.instance.setAppwriteSyncManager(syncManager);
+      
+      debugPrint('✅ تم تهيئة Appwrite بنجاح');
+    } catch (e) {
+      debugPrint('⚠️ فشل الاتصال بـ Appwrite (سيعمل التطبيق بمزامنة Google Drive فقط): $e');
     }
   } catch (e, stackTrace) {
-    debugPrint('❌ خطأ في تهيئة Appwrite: $e');
-    debugPrint('Stack Trace: $stackTrace');
+    debugPrint('ℹ️ Appwrite غير متوفر - المزامنة عبر Google Drive فقط');
+  }
+}
+
+/// تهيئة Appwrite Realtime للتحديثات الفورية
+Future<void> _initializeAppwriteRealtime(
+  AppwriteService appwriteService, 
+  AppwriteSyncManager syncManager,
+) async {
+  try {
+    final realtimeService = AppwriteRealtimeService();
+    await realtimeService.initialize(appwriteService.client);
+    
+    // معالج الأحداث الفورية - يسحب التغييرات فوراً
+    void handleRealtimeEvent(RealtimeEvent event) {
+      debugPrint('🔔 حدث Appwrite Realtime: ${event.type} على ${event.collection}');
+      
+      // سحب التغييرات فوراً عند استقبال حدث
+      syncManager.pullRemoteChanges().then((hasChanges) {
+        if (hasChanges) {
+          debugPrint('✅ تم سحب تغييرات جديدة من Appwrite بعد حدث Realtime');
+        }
+      }).catchError((error) {
+        debugPrint('⚠️ فشل سحب التغييرات بعد حدث Realtime: $error');
+      });
+    }
+    
+    // الاشتراك في جميع المجموعات
+    await realtimeService.subscribeToAllCollections(handleRealtimeEvent);
+    
+    debugPrint('✅ تم تفعيل Appwrite Realtime - التحديثات الفورية نشطة');
+  } catch (e) {
+    debugPrint('⚠️ فشل تفعيل Appwrite Realtime: $e');
   }
 }
 
@@ -246,12 +301,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.resumed) {
       unawaited(AppSessionManager.onAppOpen());
-      // سحب تفاضلي سريع عند الاستئناف + استهلاك أي مهام WorkManager معلّقة
-      try {
-        final syncManager = ref.read(appwriteSyncManagerProvider);
-        unawaited(AppwriteAutoSyncTask.consumePendingAndSync(syncManager));
-        unawaited(syncManager.sync());
-      } catch (_) {}
+      unawaited(SyncGuardian.instance.onAppForeground());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
@@ -365,8 +415,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
   
   List<Widget> _buildGlobalActions(BuildContext context) {
-    final notesAsync = ref.watch(activeNotesProvider);
-    final hasUnread = notesAsync.maybeWhen(data: (notes) => notes.isNotEmpty, orElse: () => false);
+    final unreadCountAsync = ref.watch(simpleNotesUnreadCountProvider);
+    final unreadCount = unreadCountAsync.maybeWhen(data: (count) => count, orElse: () => 0);
+    final hasUnread = unreadCount > 0;
 
     return [
       IconButton(
@@ -379,10 +430,29 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           children: [
             Icon(hasUnread ? Icons.notifications_active : Icons.notifications_none),
             if (hasUnread)
-              const Positioned(
+              Positioned(
                 right: -2,
                 top: -2,
-                child: CircleAvatar(radius: 4, backgroundColor: Colors.red),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  child: Text(
+                    unreadCount > 9 ? '9+' : '$unreadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
           ],
         ),

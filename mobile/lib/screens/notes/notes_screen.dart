@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../models/shift_note_adapter.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 /// شاشة الملاحظات البسيطة
 class NotesScreen extends ConsumerStatefulWidget {
@@ -13,7 +15,10 @@ class NotesScreen extends ConsumerStatefulWidget {
 }
 
 class _NotesScreenState extends ConsumerState<NotesScreen> 
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'notes_screen';
   late TabController _tabController;
 
   @override
@@ -30,7 +35,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
       title: 'الملاحظات والتنبيهات',
       actions: [
         IconButton(
@@ -56,6 +62,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -363,6 +370,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       );
     }
     
+    markDataChanged();
     _refreshData();
   }
 

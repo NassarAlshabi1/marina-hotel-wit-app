@@ -68,7 +68,8 @@ class SqliteBackupRestore {
       } else if (Platform.isIOS) {
         dir = await getApplicationDocumentsDirectory();
       } else {
-        dir = await (getDownloadsDirectory() ?? getApplicationDocumentsDirectory());
+        final downloadsDir = await getDownloadsDirectory();
+        dir = downloadsDir ?? await getApplicationDocumentsDirectory();
       }
     } catch (e) {
       debugPrint('⚠️ Failed to resolve user dir, falling back to app docs: $e');

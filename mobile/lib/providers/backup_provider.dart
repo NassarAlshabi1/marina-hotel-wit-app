@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/google_drive_backup_service.dart' show GoogleDriveBackupService, BackupFormat, DriveBackupFile;
+import '../services/google_drive_logger.dart';
+import '../services/logging/log_models.dart';
 import '../services/local_backup_service.dart' show LocalBackupService, LocalBackupFile;
 import '../services/file_management_service.dart';
 import '../services/auto_backup_task.dart';
@@ -33,14 +35,14 @@ class AutoBackupSettings {
   final BackupFormat backupFormat; // تنسيق النسخ الاحتياطي المستخدم
 
   const AutoBackupSettings({
-    this.isEnabled = false,
+    this.isEnabled = true,
     this.frequency = 'daily',
     this.time = '02:00',
     this.weekday,
     this.day,
     this.backupType = BackupType.both,
     this.enableLocalBackup = true,
-    this.enableGoogleDriveBackup = false,
+    this.enableGoogleDriveBackup = true,
     this.backupFormat = BackupFormat.json,
   });
 
@@ -349,6 +351,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       );
 
       final backupData = await _backupService.exportDatabaseToJson();
+      // رفع كنسخة شاملة يدوية (isSync = false بشكل افتراضي)
       await _backupService.uploadBackup(backupData);
       
       state = state.copyWith(
@@ -903,6 +906,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           progress: 0.6,
         );
         final backupData = await _backupService.exportDatabaseToJson();
+        // رفع كنسخة شاملة يدوية (isSync = false بشكل افتراضي)
         await _backupService.uploadBackup(backupData);
       }
 
@@ -1179,4 +1183,20 @@ final backupStatusSummaryProvider = Provider<String>((ref) {
   } else {
     return '$localCount نسخة محلية';
   }
+});
+
+final googleDriveLoggerProvider = ChangeNotifierProvider<GoogleDriveLogger>((ref) {
+  final logger = GoogleDriveLogger();
+  ref.onDispose(() => logger.dispose());
+  return logger;
+});
+
+final googleDriveLogStatsProvider = Provider<Map<String, int>>((ref) {
+  final logger = ref.watch(googleDriveLoggerProvider);
+  return logger.getStatistics();
+});
+
+final googleDriveLogsProvider = Provider<List<LogEntry>>((ref) {
+  final logger = ref.watch(googleDriveLoggerProvider);
+  return logger.getLogs();
 });

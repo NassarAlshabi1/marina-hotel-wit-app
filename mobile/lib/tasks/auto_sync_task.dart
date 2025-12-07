@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
@@ -10,7 +9,7 @@ import '../services/sync_manager.dart';
 const _kImmediateWorkName = 'marina_auto_sync_now';
 const _kPeriodicWorkName = 'marina_auto_sync_periodic';
 const _kPendingFlagKey = 'auto_sync_pending';
-const _kDebounceWindow = Duration(seconds: 10);
+const _kDebounceWindow = Duration(seconds: 1);
 
 @pragma('vm:entry-point')
 void autoSyncCallbackDispatcher() {
@@ -70,7 +69,7 @@ class AutoSyncTask {
       _kPeriodicWorkName,
       frequency: frequency,
       initialDelay: frequency,
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       inputData: const <String, dynamic>{},
     );
   }
@@ -90,7 +89,7 @@ class AutoSyncTask {
   static Future<void> consumePendingAndSync(SyncManager manager, {bool force = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final pending = prefs.getBool(_kPendingFlagKey) ?? false;
-    if (!pending) {
+    if (!pending && !force) {
       return;
     }
     await manager.syncAllTables(force: force);

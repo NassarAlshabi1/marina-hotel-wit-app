@@ -8,7 +8,7 @@ part 'payments_dao.g.dart';
 
 @DriftAccessor(tables: [Payments])
 class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin {
-  PaymentsDao(AppDatabase db, this.outboxDao) : super(db);
+  PaymentsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
   Future<List<Payment>> list({int? bookingLocalId, String? from, String? to, String? revenueType, bool includeDeleted = false}) async {

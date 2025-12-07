@@ -632,7 +632,9 @@ class LocalBackupService {
           debugPrint('✅ تم استيراد النسخة الاحتياطية (SQLite): $newFilePath');
           return newFilePath;
         } catch (e) {
-          await File(newFilePath).delete().catchError((_) {});
+          try {
+            await File(newFilePath).delete();
+          } catch (_) {}
           rethrow;
         } finally {
           await tempDb?.close();
@@ -693,10 +695,7 @@ class LocalBackupService {
         }
       }
       
-      if (downloadsDir == null) {
-        // استخدام مجلد التطبيق كـ fallback
-        downloadsDir = await getBackupDirectory();
-      }
+      downloadsDir ??= await getBackupDirectory();
 
       // نسخ الملف
       final sourceFile = File(latestBackup.filePath);
@@ -722,7 +721,11 @@ class LocalBackupService {
 
   Future<bool> isAutoLocalBackupEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_prefsAutoLocalBackupKey) ?? false;
+    if (!prefs.containsKey(_prefsAutoLocalBackupKey)) {
+      await prefs.setBool(_prefsAutoLocalBackupKey, true);
+      return true;
+    }
+    return prefs.getBool(_prefsAutoLocalBackupKey) ?? true;
   }
 
   Future<void> setPreferredBackupFormat(BackupFormat format) async {

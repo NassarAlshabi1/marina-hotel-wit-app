@@ -7,6 +7,7 @@ import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
 import 'debts_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
+import 'income_expense_report_screen.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -65,20 +66,42 @@ class ReportsScreen extends ConsumerWidget {
                         MaterialPageRoute(builder: (_) => const SalaryWithdrawalsReportScreen()),
                       ),
                     ),
+                    _ReportShortcut(
+                      icon: Icons.stacked_line_chart,
+                      label: 'تقرير الدخل والخرج',
+                      color: Colors.teal,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const IncomeExpenseReportScreen()),
+                      ),
+                    ),
                   ];
-                  final maxWidth = constraints.maxWidth;
-                  int crossAxisCount = (maxWidth / 220).floor();
-                  if (crossAxisCount < 1) crossAxisCount = 1;
-                  if (crossAxisCount > shortcuts.length) crossAxisCount = shortcuts.length;
-                  final childAspectRatio = maxWidth >= 900 ? 2.5 : maxWidth >= 600 ? 2.1 : 1.6;
-                  return GridView.count(
-                    crossAxisCount: crossAxisCount,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: childAspectRatio,
-                    children: shortcuts,
+
+                  if (shortcuts.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final rows = <Widget>[];
+                  for (int i = 0; i < shortcuts.length; i += 2) {
+                    final first = shortcuts[i];
+                    final second = i + 1 < shortcuts.length ? shortcuts[i + 1] : null;
+                    rows.add(
+                      Row(
+                        children: [
+                          Expanded(child: first),
+                          const SizedBox(width: 12),
+                          Expanded(child: second ?? const SizedBox()),
+                        ],
+                      ),
+                    );
+                    if (i + 2 < shortcuts.length) {
+                      rows.add(const SizedBox(height: 12));
+                    }
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: rows,
                   );
                 },
               ),

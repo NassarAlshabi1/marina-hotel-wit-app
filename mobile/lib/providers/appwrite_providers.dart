@@ -149,10 +149,12 @@ final projectInfoProvider = Provider<Map<String, String>>((ref) {
   return service.getProjectInfo();
 });
 
-/// مزود قائمة الأجهزة المسجلة
+/// مزود قائمة الأجهزة المسجلة (أحدث ثلاثة أجهزة فقط)
 final devicesListProvider = FutureProvider((ref) async {
   final syncManager = ref.watch(appwriteSyncManagerProvider);
-  return await syncManager.getRegisteredDevices();
+  final devices = await syncManager.getRegisteredDevices();
+  devices.sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
+  return devices.take(3).toList(growable: false);
 });
 
 /// مزود السجلات

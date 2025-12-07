@@ -445,13 +445,22 @@ class EnhancedPdfUtils {
     PdfColor? color,
     String? icon,
   }) {
+    final baseColor = color ?? PdfColors.primary;
+    // Replicate the old `flatten(PdfColors.textWhite, 0.2)` logic to maintain visual consistency.
+    // This creates a lighter shade by mixing with 20% white.
+    final secondaryColor = PdfColor(
+      baseColor.red * 0.8 + 0.2,
+      baseColor.green * 0.8 + 0.2,
+      baseColor.blue * 0.8 + 0.2,
+    );
+
     return pw.Container(
       padding: const pw.EdgeInsets.all(16),
       decoration: pw.BoxDecoration(
         gradient: pw.LinearGradient(
           colors: [
-            color ?? PdfColors.primary,
-            (color ?? PdfColors.primary).flatten(PdfColors.textWhite, 0.2),
+            baseColor,
+            secondaryColor,
           ],
           begin: pw.Alignment.topLeft,
           end: pw.Alignment.bottomRight,

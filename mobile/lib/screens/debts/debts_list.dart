@@ -5,6 +5,8 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import 'create_debt_from_booking.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 class DebtsListScreen extends ConsumerStatefulWidget {
   const DebtsListScreen({super.key});
@@ -13,7 +15,11 @@ class DebtsListScreen extends ConsumerStatefulWidget {
   ConsumerState<DebtsListScreen> createState() => _DebtsListScreenState();
 }
 
-class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
+class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
+    with SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'debts_list';
   String _searchQuery = '';
   String _filterStatus = 'all'; // all, pending, settled, overdue
 
@@ -21,7 +27,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
   Widget build(BuildContext context) {
     final debtsAsync = ref.watch(debtsListProvider);
     
-    return AppScaffold(
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
       title: 'إدارة الديون',
       actions: [
         IconButton(
@@ -59,6 +66,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -573,6 +581,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
         remainingAmount: 0,
         paymentDate: Time.nowDateString(),
       );
+      markDataChanged();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -800,6 +809,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
         note: note,
       );
     }
+    markDataChanged();
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -836,6 +846,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> {
 
     final repo = ref.read(debtsRepoProvider);
     await repo.delete(debt.id);
+    markDataChanged();
     
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

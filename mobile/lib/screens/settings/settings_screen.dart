@@ -13,6 +13,8 @@ import 'comprehensive_backup_screen.dart';
 import 'data_protection_screen.dart';
 import 'sync_performance_settings_screen.dart';
 import 'appwrite_settings_screen.dart';
+import 'sync_debug_logs_screen.dart';
+import 'whatsapp_settings_screen.dart';
 
 
 class SettingsScreen extends ConsumerWidget {
@@ -128,6 +130,26 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const AppwriteSettingsScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'سجلات المزامنة',
+              subtitle: 'مراقبة مزامنة Google Drive',
+              icon: Icons.monitor_heart,
+              color: Colors.deepOrange,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SyncDebugLogsScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'رسالة الواتساب',
+              subtitle: 'تخصيص نص رسالة الدفع',
+              icon: Icons.message,
+              color: Colors.green,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const WhatsAppSettingsScreen()),
               ),
             ),
             _SettingsItem(

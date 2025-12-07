@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auto_backup_manager.dart';
-import '../../services/google_drive_backup_service.dart';
+import '../../services/auto_backup_task.dart';
 import '../../services/alarm_backup.dart';
 import '../../providers/auto_backup_provider.dart';
+import '../../providers/backup_provider.dart';
 
 class AutoBackupSettingsScreen extends ConsumerStatefulWidget {
   const AutoBackupSettingsScreen({super.key});
@@ -44,7 +45,7 @@ class _AutoBackupSettingsScreenState extends ConsumerState<AutoBackupSettingsScr
     final prefs = await SharedPreferences.getInstance();
     final timeString = prefs.getString('auto_backup_time') ?? '21:00';
     final timeParts = timeString.split(':');
-    final scheduledEnabled = prefs.getBool('scheduled_backup_enabled') ?? false;
+    final scheduledEnabled = prefs.getBool('scheduled_backup_enabled') ?? true;
     
     setState(() {
       _maxBackupsController.text = maxBackups.toString();
@@ -445,6 +446,8 @@ class _AutoBackupSettingsScreenState extends ConsumerState<AutoBackupSettingsScr
     );
   }
 
+  String _formatTimeOfDay(TimeOfDay time) => '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
   Future<void> _selectTime() async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
@@ -462,13 +465,17 @@ class _AutoBackupSettingsScreenState extends ConsumerState<AutoBackupSettingsScr
         _scheduledTime = picked;
       });
       
+      final formatted = _formatTimeOfDay(picked);
+      final driveService = ref.read(googleDriveBackupServiceProvider);
       // حفظ الوقت الجديد
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auto_backup_time', '${picked.hour}:${picked.minute}');
+      await prefs.setString('auto_backup_time', formatted);
       
       // إعادة جدولة إذا كان مفعلاً
       if (_isScheduledBackupEnabled) {
         await AlarmBackup.rescheduleDaily(picked.hour, picked.minute);
+        await AutoBackupTask.scheduleDaily(time: formatted);
+        await driveService.setAutoBackupTime(formatted);
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -487,18 +494,25 @@ class _AutoBackupSettingsScreenState extends ConsumerState<AutoBackupSettingsScr
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('scheduled_backup_enabled', enabled);
       
+      final formatted = _formatTimeOfDay(_scheduledTime);
+      final driveService = ref.read(googleDriveBackupServiceProvider);
       if (enabled) {
         // تفعيل الجدولة
         await AlarmBackup.scheduleDailyAlarm(_scheduledTime.hour, _scheduledTime.minute);
+        await AutoBackupTask.scheduleDaily(time: formatted);
+        await driveService.setAutoBackupEnabled(true);
+        await driveService.setAutoBackupTime(formatted);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ تم جدولة النسخ الاحتياطي يومياً في ${_scheduledTime.format(context)}'),
+            content: Text('✅ تم جدولة النسخ الاحتياطي يومياً في ${_scheduledTime.format(context)} (محلي + WorkManager)'),
             backgroundColor: Colors.green,
           ),
         );
       } else {
         // إلغاء الجدولة
         await AlarmBackup.cancelAlarm();
+        await AutoBackupTask.cancelScheduled();
+        await driveService.setAutoBackupEnabled(false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('⏸️ تم إلغاء جدولة النسخ الاحتياطي'),

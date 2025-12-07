@@ -8,7 +8,7 @@ part 'employees_dao.g.dart';
 
 @DriftAccessor(tables: [Employees])
 class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixin {
-  EmployeesDao(AppDatabase db, this.outboxDao) : super(db);
+  EmployeesDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
   Future<List<Employee>> list({String? search, bool includeDeleted = false}) async {

@@ -3,9 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter/services.dart';
 
 class AlarmBackup {
   static const int alarmId = 0;
@@ -20,6 +18,16 @@ class AlarmBackup {
     final initSettings = InitializationSettings(android: androidSettings);
     await _notif.initialize(initSettings);
     debugPrint('✅ Alarm system initialized');
+
+    // تفعيل النسخ المجدول تلقائياً عند التثبيت لأول مرة
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('scheduled_backup_enabled') == null) {
+       debugPrint('🚀 First run: Enable scheduled backup by default');
+       await prefs.setBool('scheduled_backup_enabled', true);
+       // وقت افتراضي 9:00 مساءً
+       await prefs.setString('auto_backup_time', '21:00');
+       await scheduleDailyAlarm(21, 0);
+    }
   }
 
   /// جدولة إنذار يومي وقت محدد (hour, minute)

@@ -322,15 +322,3 @@ void main() {
   });
 }
 
-extension on AppDatabase {
-  static AppDatabase forTesting(QueryExecutor executor) {
-    return _TestAppDatabase(executor);
-  }
-}
-
-class _TestAppDatabase extends AppDatabase {
-  _TestAppDatabase(super.executor);
-
-  @override
-  int get schemaVersion => 10;
-}

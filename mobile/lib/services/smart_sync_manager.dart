@@ -1,16 +1,16 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'google_drive_backup_service.dart';
-import 'local_db.dart';
-import '../providers/repository_providers.dart';
-import 'sync_performance_optimizer.dart';
+import '../utils/debug_logs.dart';
 import 'data_usage_manager.dart';
+import 'google_drive_backup_service.dart';
+import 'google_drive_delta_sync.dart';
+import 'sync_notification_manager.dart';
+import 'sync_performance_optimizer.dart';
 
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
@@ -18,6 +18,7 @@ enum ConflictResolution {
   manualResolve, // طلب تدخل المستخدم
   devicePriority, // أولوية لجهاز معين
 }
+
 
 /// مدير المزامنة التلقائية الذكي بين الأجهزة المتعددة
 class SmartSyncManager {
@@ -35,6 +36,11 @@ class SmartSyncManager {
   
   String? get deviceId => _deviceId;
   
+  void _log(String message) {
+    DebugLogs.add('SmartSync', message);
+    debugPrint(message);
+  }
+  
   static const String _prefsEnabledKey = 'smart_sync_enabled';
   static const String _prefsIntervalKey = 'smart_sync_interval';
   static const String _prefsLastSyncKey = 'smart_sync_last_check';
@@ -42,7 +48,7 @@ class SmartSyncManager {
   static const String _prefsLastRemoteTimestampKey = 'smart_sync_last_remote_timestamp';
   static const String _prefsConflictResolutionKey = 'smart_sync_conflict_resolution';
   
-  static const int _defaultSyncIntervalMinutes = 5;
+  static const int _defaultSyncIntervalMinutes = 2; // تغيير من 1 إلى 2 لتقليل الحمل
   static const int _periodicFullSyncHours = 24;
   
   /// تهيئة مدير المزامنة
@@ -58,44 +64,48 @@ class SmartSyncManager {
       await _startSyncMonitoring();
     }
     
-    debugPrint('🔄 مدير المزامنة الذكي: تم التهيئة بنجاح');
+    _log('🔄 مدير المزامنة الذكي: تم التهيئة بنجاح');
   }
 
-  /// توليد معرف فريد للجهاز
+  /// توليد معرف فريد للجهاز تلقائياً
   Future<void> _initializeDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
     _deviceId = prefs.getString(_prefsDeviceIdKey);
     
     if (_deviceId == null) {
       final deviceInfo = DeviceInfoPlugin();
-      String deviceName = 'Unknown';
-      String deviceModel = 'Unknown';
+      String deviceIdentifier = 'unknown';
       
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        deviceName = androidInfo.device;
-        deviceModel = androidInfo.model;
-        final androidId = androidInfo.id; // Android ID ثابت
-        _deviceId = 'marina_${deviceName}_${deviceModel}_${androidId}';
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        deviceName = iosInfo.name;
-        deviceModel = iosInfo.model;
-        final iosId = iosInfo.identifierForVendor ?? 'unknown';
-        _deviceId = 'marina_${deviceName}_${deviceModel}_${iosId}';
+      try {
+        if (Platform.isAndroid) {
+          final androidInfo = await deviceInfo.androidInfo;
+          deviceIdentifier = androidInfo.id;
+        } else if (Platform.isIOS) {
+          final iosInfo = await deviceInfo.iosInfo;
+          deviceIdentifier = iosInfo.identifierForVendor ?? 'ios-${DateTime.now().millisecondsSinceEpoch}';
+        }
+      } catch (e) {
+        deviceIdentifier = 'device-${DateTime.now().millisecondsSinceEpoch}';
       }
       
+      _deviceId = deviceIdentifier;
       await prefs.setString(_prefsDeviceIdKey, _deviceId!);
-      debugPrint('🆔 تم إنشاء معرف الجهاز الثابت: $_deviceId');
+      _log('🆔 تم إنشاء معرف الجهاز الفريد تلقائياً: $_deviceId');
     } else {
-      debugPrint('🆔 معرف الجهاز: $_deviceId');
+      _log('🆔 معرف الجهاز: $_deviceId');
     }
   }
 
   /// تحميل إعدادات المزامنة
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    _isEnabled = prefs.getBool(_prefsEnabledKey) ?? false;
+    final stored = prefs.getBool(_prefsEnabledKey);
+    if (stored == null) {
+      _isEnabled = true;
+      await prefs.setBool(_prefsEnabledKey, true);
+    } else {
+      _isEnabled = stored;
+    }
   }
 
   /// بدء مراقبة المزامنة التلقائية مع تحسين الأداء
@@ -127,7 +137,7 @@ class SmartSyncManager {
       _performOptimizedSyncCheck();
     }
     
-    debugPrint('⏰ بدء مراقبة المزامنة المُحسَّنة كل $optimizedInterval دقائق');
+    _log('⏰ بدء مراقبة المزامنة المُحسَّنة كل $optimizedInterval دقائق');
   }
 
   /// فحص مزامنة محسن للأداء
@@ -137,13 +147,13 @@ class SmartSyncManager {
     
     // تحقق من قيود الأداء
     if (await optimizer.shouldSkipSync()) {
-      debugPrint('⏸️ تم تخطي المزامنة لتوفير الطاقة');
+      _log('⏸️ تم تخطي المزامنة لتوفير الطاقة');
       return;
     }
     
     // تحقق من حد البيانات
     if (await dataManager.isLimitExceeded()) {
-      debugPrint('📊 تم تجاوز حد البيانات اليومي - تخطي المزامنة');
+      _log('📊 تم تجاوز حد البيانات اليومي - تخطي المزامنة');
       return;
     }
     
@@ -166,18 +176,18 @@ class SmartSyncManager {
     _periodicSyncTimer?.cancel();
     _syncCheckTimer = null;
     _periodicSyncTimer = null;
-    debugPrint('⏸️ تم إيقاف مراقبة المزامنة');
+    _log('⏸️ تم إيقاف مراقبة المزامنة');
   }
 
   /// استدعاء هذه الدالة عند تغير حالة تسجيل الدخول في Google Drive
   Future<void> onGoogleDriveSignInChanged(bool isSignedIn) async {
-    debugPrint('🔔 تغيرت حالة تسجيل الدخول Google Drive: $isSignedIn');
+    _log('🔔 تغيرت حالة تسجيل الدخول Google Drive: $isSignedIn');
     
     if (isSignedIn && _isEnabled) {
-      debugPrint('✅ بدء المراقبة بعد تسجيل الدخول...');
+      _log('✅ بدء المراقبة بعد تسجيل الدخول...');
       await _startSyncMonitoring();
     } else {
-      debugPrint('⏹️ إيقاف المراقبة بعد تسجيل الخروج...');
+      _log('⏹️ إيقاف المراقبة بعد تسجيل الخروج...');
       _stopSyncMonitoring();
     }
   }
@@ -190,12 +200,12 @@ class SmartSyncManager {
 
     try {
       _isSyncing = true;
-      debugPrint('🔍 فحص وجود نسخ احتياطية جديدة...');
+      _log('🔍 فحص وجود نسخ احتياطية جديدة...');
 
       // جلب قائمة النسخ الاحتياطية من Google Drive
       final backupFiles = await _backupService!.listBackupFiles();
       if (backupFiles.isEmpty) {
-        debugPrint('📭 لا توجد نسخ احتياطية في Google Drive');
+        _log('📭 لا توجد نسخ احتياطية في Google Drive');
         return;
       }
 
@@ -212,20 +222,20 @@ class SmartSyncManager {
         // التحقق من أن النسخة ليست من نفس الجهاز
         final backupDeviceId = latestBackup.appProperties['device_id'];
         if (backupDeviceId != _deviceId) {
-          debugPrint('🆕 تم العثور على نسخة احتياطية جديدة من جهاز آخر');
+          _log('🆕 تم العثور على نسخة احتياطية جديدة من جهاز آخر');
           await _handleNewBackupFound(latestBackup);
         } else {
-          debugPrint('📱 النسخة الأحدث من نفس هذا الجهاز، لا حاجة للمزامنة');
+          _log('📱 النسخة الأحدث من نفس هذا الجهاز، لا حاجة للمزامنة');
         }
       } else {
-        debugPrint('✅ لا توجد نسخ احتياطية جديدة');
+        _log('✅ لا توجد نسخ احتياطية جديدة');
       }
 
       // تحديث timestamp آخر فحص
       await _updateLastSyncTime();
       
     } catch (e) {
-      debugPrint('❌ خطأ في فحص المزامنة: $e');
+      _log('❌ خطأ في فحص المزامنة: $e');
     } finally {
       _isSyncing = false;
     }
@@ -234,7 +244,7 @@ class SmartSyncManager {
   /// معالجة اكتشاف نسخة احتياطية جديدة مع تحسين الأداء
   Future<void> _handleNewBackupFound(DriveBackupFile newBackup) async {
     try {
-      debugPrint('🔄 بدء مزامنة النسخة الجديدة...');
+      _log('🔄 بدء مزامنة النسخة الجديدة...');
 
       // تحميل بيانات النسخة الاحتياطية
       final backupData = await _backupService!.downloadBackup(newBackup.fileId);
@@ -260,10 +270,10 @@ class SmartSyncManager {
       // تسجيل نجاح المزامنة لتحسين الأداء
       SyncPerformanceOptimizer.instance.recordSyncSuccess();
       
-      debugPrint('✅ تمت المزامنة بنجاح');
+      _log('✅ تمت المزامنة بنجاح');
       
     } catch (e) {
-      debugPrint('❌ خطأ في مزامنة البيانات: $e');
+      _log('❌ خطأ في مزامنة البيانات: $e');
       
       // تسجيل فشل المزامنة
       SyncPerformanceOptimizer.instance.recordSyncFailure();
@@ -278,19 +288,17 @@ class SmartSyncManager {
     DriveBackupFile sourceBackup,
     ConflictResolution conflictResolution,
   ) async {
-    final db = getDatabase();
-    
     // إنشاء نسخة احتياطية محلية قبل المزامنة
     final localBackupData = await _backupService!.exportDatabaseToJson();
     
     try {
-      debugPrint('📥 بدء استيراد البيانات الجديدة...');
+      _log('📥 بدء استيراد البيانات الجديدة...');
       
       // مقارنة البيانات وتحديد التضارب
       final conflicts = await _detectDataConflicts(localBackupData, backupData);
       
       if (conflicts.isNotEmpty) {
-        debugPrint('⚠️ تم العثور على ${conflicts.length} تضارب في البيانات');
+        _log('⚠️ تم العثور على ${conflicts.length} تضارب في البيانات');
         
         switch (conflictResolution) {
           case ConflictResolution.newerWins:
@@ -305,13 +313,16 @@ class SmartSyncManager {
         }
       }
       
+      // التحقق من وجود ملاحظات جديدة وإرسال إشعار
+      await _checkForNewNotesAndNotify(backupData);
+
       // استيراد البيانات الجديدة
       await _mergeBackupData(backupData);
       
-      debugPrint('✅ تم دمج البيانات بنجاح');
+      _log('✅ تم دمج البيانات بنجاح');
       
     } catch (e) {
-      debugPrint('❌ خطأ في دمج البيانات، استعادة النسخة المحلية...');
+      _log('❌ خطأ في دمج البيانات، استعادة النسخة المحلية...');
       // استعادة البيانات المحلية في حالة الخطأ
       await _restoreLocalBackup(localBackupData);
       rethrow;
@@ -386,17 +397,74 @@ class SmartSyncManager {
     List<DataConflict> conflicts,
     Map<String, dynamic> backupData,
   ) async {
-    debugPrint('🏆 حل التضارب: الأحدث يفوز');
+    _log('🏆 حل التضارب: الأحدث يفوز');
     
     for (final conflict in conflicts) {
       if (conflict.remoteTimestamp.isAfter(conflict.localTimestamp)) {
-        debugPrint('📥 استبدال ${conflict.tableName}/${conflict.recordId} بالنسخة الأحدث');
+        _log('📥 استبدال ${conflict.tableName}/${conflict.recordId} بالنسخة الأحدث');
         // النسخة البعيدة أحدث، سيتم استيرادها
       } else {
-        debugPrint('📱 الاحتفاظ بالنسخة المحلية لـ ${conflict.tableName}/${conflict.recordId}');
+        _log('📱 الاحتفاظ بالنسخة المحلية لـ ${conflict.tableName}/${conflict.recordId}');
         // إزالة السجل من بيانات النسخ الاحتياطي ليتم تجاهله
         await _removeRecordFromBackupData(backupData, conflict.tableName, conflict.recordId);
       }
+    }
+  }
+
+  /// التحقق من وجود ملاحظات إدارية جديدة وإرسال إشعارات
+  Future<void> _checkForNewNotesAndNotify(Map<String, dynamic> backupData) async {
+    try {
+      // التحقق من وجود ملاحظات جديدة في ShiftNotes
+      if (backupData.containsKey('shift_notes')) {
+        final notes = backupData['shift_notes'] as List<dynamic>;
+        if (notes.isEmpty) return;
+
+        // جلب آخر وقت مزامنة لمعرفة ما هو الجديد
+        final lastSync = await getLastSyncTime();
+        if (lastSync == null) return; // أول مزامنة، لا داعي للإزعاج
+
+        int newNotesCount = 0;
+        String lastNoteTitle = '';
+        String noteCreator = 'الإدارة';
+
+        for (final noteData in notes) {
+          if (noteData is Map<String, dynamic>) {
+            // التحقق من تاريخ الملاحظة
+            String? createdAtStr = noteData['created_at'];
+            // في بعض الأحيان يكون التاريخ بتنسيق مختلف، نحاول التحليل
+            if (createdAtStr != null) {
+               try {
+                 final createdAt = DateTime.parse(createdAtStr);
+                 // إذا كانت الملاحظة أحدث من آخر مزامنة وليست من هذا الجهاز
+                 // ملاحظة: نحن نفترض أن createdBy يحمل اسم المستخدم أو معرفه
+                 // لكن هنا سنعتمد على الوقت بشكل أساسي
+                 if (createdAt.isAfter(lastSync)) {
+                   newNotesCount++;
+                   lastNoteTitle = noteData['title'] ?? 'بدون عنوان';
+                   noteCreator = noteData['created_by'] ?? 'مسؤول';
+                 }
+               } catch (e) {
+                 _log('⚠️ تعذر تحليل تاريخ الملاحظة: $createdAtStr - $e');
+               }
+            }
+          }
+        }
+
+        if (newNotesCount > 0) {
+          final message = newNotesCount == 1 
+              ? 'ملاحظة جديدة: $lastNoteTitle' 
+              : '$newNotesCount ملاحظات إدارية جديدة';
+          
+          _log('🔔 🔔 تنبيه: $message');
+          
+          await SyncNotificationManager.instance.showSystemNotification(
+            title: 'تنبيه إداري جديد 📝',
+            body: message,
+          );
+        }
+      }
+    } catch (e) {
+      _log('⚠️ خطأ في فحص الملاحظات الجديدة: $e');
     }
   }
 
@@ -421,23 +489,33 @@ class SmartSyncManager {
 
   /// تنفيذ مزامنة كاملة
   Future<void> _performFullSync() async {
-    debugPrint('🔄 بدء المزامنة الكاملة الدورية...');
+    _log('🔄 بدء المزامنة الكاملة الدورية...');
     await _performSyncCheck();
   }
 
   /// إشعار نجاح المزامنة
   Future<void> _notifySuccessfulSync(DriveBackupFile backup) async {
-    // يمكن إضافة إشعار للمستخدم هنا
-    debugPrint('🎉 تمت مزامنة البيانات من ${backup.appProperties['device_id'] ?? 'جهاز آخر'}');
-    debugPrint('📅 تاريخ النسخة: ${backup.createdTime}');
+    final deviceId = backup.appProperties['device_id'] ?? 'جهاز آخر';
+    _log('🎉 تمت مزامنة البيانات من $deviceId');
+    _log('📅 تاريخ النسخة: ${backup.createdTime}');
     
     final recordsCount = backup.appProperties['records_count'] ?? 'غير محدد';
-    debugPrint('📊 عدد السجلات: $recordsCount');
+    _log('📊 عدد السجلات: $recordsCount');
+    
+    // إرسال إشعار للمستخدم بوصول تغييرات جديدة
+    try {
+      await SyncNotificationManager.instance.showSystemNotification(
+        title: '🔄 تحديث جديد من $deviceId',
+        body: 'تم استلام تغييرات جديدة وتحديث البيانات',
+      );
+    } catch (e) {
+      _log('⚠️ فشل إرسال الإشعار: $e');
+    }
   }
 
   /// إشعار خطأ في المزامنة
   Future<void> _notifySyncError() async {
-    debugPrint('❌ فشلت المزامنة التلقائية');
+    _log('❌ فشلت المزامنة التلقائية');
   }
 
   /// الإعدادات والتحكم
@@ -453,12 +531,16 @@ class SmartSyncManager {
       _stopSyncMonitoring();
     }
     
-    debugPrint('🔧 المزامنة التلقائية: ${enabled ? "مُفعلة" : "معطلة"}');
+    _log('🔧 المزامنة التلقائية: ${enabled ? "مُفعلة" : "معطلة"}');
   }
 
   Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_prefsEnabledKey) ?? false;
+    if (!prefs.containsKey(_prefsEnabledKey)) {
+      await prefs.setBool(_prefsEnabledKey, true);
+      return true;
+    }
+    return prefs.getBool(_prefsEnabledKey) ?? true;
   }
 
   Future<void> setSyncInterval(int minutes) async {
@@ -471,7 +553,7 @@ class SmartSyncManager {
       await _startSyncMonitoring();
     }
     
-    debugPrint('⏰ فترة المزامنة: $minutes دقائق');
+    _log('⏰ فترة المزامنة: $minutes دقائق');
   }
 
   Future<int> getSyncInterval() async {
@@ -482,7 +564,7 @@ class SmartSyncManager {
   Future<void> setConflictResolution(ConflictResolution resolution) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsConflictResolutionKey, resolution.name);
-    debugPrint('🤝 استراتيجية حل التضارب: ${resolution.name}');
+    _log('🤝 استراتيجية حل التضارب: ${resolution.name}');
   }
 
   Future<ConflictResolution> getConflictResolution() async {
@@ -512,6 +594,11 @@ class SmartSyncManager {
     await prefs.setString(_prefsLastSyncKey, DateTime.now().toIso8601String());
   }
 
+  Future<void> _updateLastPushTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('smart_sync_last_push_ts', DateTime.now().millisecondsSinceEpoch);
+  }
+
   Future<DateTime?> getLastSyncTime() async {
     final prefs = await SharedPreferences.getInstance();
     final timestamp = prefs.getString(_prefsLastSyncKey);
@@ -538,26 +625,205 @@ class SmartSyncManager {
     };
   }
 
+  /// إشعار بأن هذا الجهاز قام برفع نسخة احتياطية جديدة
+  Future<void> onLocalBackupUploaded() async {
+    await _updateLastSyncTime();
+    _log('📤 تم تسجيل رفع نسخة احتياطية من هذا الجهاز');
+  }
+
+  /// التحقق من وجود تغييرات محلية لم ترفع
+  Future<bool> hasLocalChanges() async {
+    try {
+      // التحقق من آخر رفع مقارنة بآخر مزامنة
+      final prefs = await SharedPreferences.getInstance();
+      final lastPushTime = prefs.getInt('smart_sync_last_push_ts') ?? 0;
+      final lastSyncTime = prefs.getString(_prefsLastSyncKey);
+      
+      // إذا لم يتم الرفع من قبل
+      if (lastPushTime == 0) {
+        _log('📝 لم يتم رفع بيانات من قبل - قد تكون هناك تغييرات');
+        return true;
+      }
+      
+      // إذا كان آخر رفع أقدم من آخر فحص (يعني تم سحب بيانات بدون رفع)
+      if (lastSyncTime != null) {
+        final syncDateTime = DateTime.parse(lastSyncTime);
+        final pushDateTime = DateTime.fromMillisecondsSinceEpoch(lastPushTime);
+        
+        if (pushDateTime.isBefore(syncDateTime)) {
+          _log('📝 آخر رفع أقدم من آخر مزامنة - قد تكون هناك تغييرات');
+          return true;
+        }
+      }
+      
+      // إذا كان آخر رفع قديم جداً (أكثر من 30 دقيقة)
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final timeSinceLastPush = now - lastPushTime;
+      
+      if (timeSinceLastPush > Duration(minutes: 30).inMilliseconds) {
+        _log('⏰ آخر رفع كان منذ ${Duration(milliseconds: timeSinceLastPush).inMinutes} دقيقة');
+        return true;
+      }
+      
+      _log('✅ لا توجد تغييرات محلية معلقة');
+      return false;
+    } catch (e) {
+      _log('❌ خطأ في فحص التغييرات المحلية: $e');
+      return false;
+    }
+  }
+
   /// مزامنة يدوية فورية
   Future<void> forceSyncNow() async {
     if (_isSyncing) {
-      debugPrint('⏸️ المزامنة جارية بالفعل...');
+      _log('⏸️ المزامنة جارية بالفعل...');
       return;
     }
     
-    debugPrint('🚀 بدء المزامنة اليدوية الفورية...');
+    _log('🚀 بدء المزامنة اليدوية الفورية...');
     await _performSyncCheck();
+  }
+
+  /// رفع التغييرات المحلية إلى Google Drive فوراً
+  Future<bool> pushLocalChanges() async {
+    // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
+    int retries = 0;
+    while (_isSyncing && retries < 10) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      retries++;
+    }
+    
+    if (_isSyncing) {
+      _log('⚠️ تخطي الرفع - المزامنة جارية لفترة طويلة');
+      return false;
+    }
+
+    if (_backupService == null || !_backupService!.isSignedIn) {
+      _log('⚠️ لا يمكن رفع التغييرات: غير مسجل الدخول في Google Drive');
+      return false;
+    }
+
+    try {
+      _isSyncing = true;
+      _log('📤 رفع التغييرات المحلية إلى Google Drive...');
+      
+      // محاولة استخدام Delta Sync أولاً (أسرع وأخف)
+      if (GoogleDriveDeltaSync.instance.isInitialized) {
+        _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
+        final deltaResult = await GoogleDriveDeltaSync.instance.pushDeltaChanges();
+        
+        if (deltaResult.success) {
+          await _updateLastSyncTime();
+          await _updateLastPushTime();
+          _log('✅ تم رفع ${deltaResult.changesCount} تغيير عبر Delta Sync');
+          return true;
+        } else if (deltaResult.changesCount == 0) {
+          _log('✓ لا توجد تغييرات للرفع');
+          await _updateLastPushTime();
+          return true;
+        } else {
+          _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
+        }
+      }
+      
+      // Fallback: رفع النسخة الكاملة (للأمان)
+      _log('📦 رفع النسخة الكاملة...');
+      final backupData = await _backupService!.exportDatabaseToJson();
+      final metadata = backupData['metadata'] as Map<String, dynamic>;
+      metadata['device_id'] = _deviceId;
+      metadata['sync_type'] = 'push';
+      metadata['sync_timestamp'] = DateTime.now().toIso8601String();
+      
+      await _backupService!.uploadBackup(backupData, isSync: true);
+      await _updateLastSyncTime();
+      await _updateLastPushTime();
+      
+      _log('✅ تم رفع النسخة الكاملة بنجاح');
+      return true;
+    } catch (e) {
+      _log('❌ خطأ في رفع التغييرات: $e');
+      return false;
+    } finally {
+      _isSyncing = false;
+    }
+  }
+
+  /// سحب التغييرات من Google Drive
+  /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
+  Future<bool> pullRemoteChanges() async {
+    if (_backupService == null || !_backupService!.isSignedIn) {
+      _log('⚠️ لا يمكن سحب التغييرات: غير مسجل الدخول');
+      return false;
+    }
+
+    if (_isSyncing) {
+      _log('⏸️ تخطي السحب - المزامنة جارية');
+      return false;
+    }
+
+    try {
+      _isSyncing = true;
+      _log('📥 سحب التغييرات من Google Drive...');
+      
+      // جلب قائمة النسخ الاحتياطية
+      final backupFiles = await _backupService!.listBackupFiles();
+      if (backupFiles.isEmpty) {
+        _log('📭 لا توجد نسخ احتياطية في Google Drive');
+        return false;
+      }
+
+      // ترتيب حسب التاريخ (الأحدث أولاً)
+      backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+      final latestBackup = backupFiles.first;
+
+      // التحقق من آخر timestamp محفوظ محلياً
+      final lastRemoteTimestamp = await _getLastRemoteTimestamp();
+      
+      // إذا كانت النسخة أحدث من آخر سحب
+      if (lastRemoteTimestamp == null || 
+          latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
+        
+        // التحقق من أن النسخة ليست من نفس الجهاز
+        final backupDeviceId = latestBackup.appProperties['device_id'];
+        if (backupDeviceId == _deviceId) {
+          _log('📱 النسخة الأحدث من نفس هذا الجهاز');
+          return false;
+        }
+        
+        _log('🆕 تم العثور على نسخة جديدة من جهاز: $backupDeviceId');
+        
+        // تحميل وتطبيق النسخة الاحتياطية
+        final backupData = await _backupService!.downloadBackup(latestBackup.fileId);
+        await _backupService!.restoreFromBackup(backupData);
+        
+        // تحديث timestamp
+        await _setLastRemoteTimestamp(latestBackup.createdTime);
+        await _updateLastSyncTime();
+        
+        _log('✅ تم تطبيق التغييرات الجديدة بنجاح');
+        return true;
+      }
+      
+      _log('ℹ️ لا توجد تغييرات جديدة');
+      return false;
+      
+    } catch (e) {
+      _log('❌ خطأ في سحب التغييرات: $e');
+      return false;
+    } finally {
+      _isSyncing = false;
+    }
   }
 
   /// تنظيف الموارد
   void dispose() {
     _stopSyncMonitoring();
-    debugPrint('🛑 مدير المزامنة الذكي: تم التنظيف');
+    _log('🛑 مدير المزامنة الذكي: تم التنظيف');
   }
 
   /// معالجة طلب حل التضارب اليدوي (placeholder)
   Future<void> _requestManualConflictResolution(List<DataConflict> conflicts) async {
-    debugPrint('🤔 يتطلب تدخل المستخدم لحل ${conflicts.length} تضارب');
+    _log('🤔 يتطلب تدخل المستخدم لحل ${conflicts.length} تضارب');
     // يمكن إضافة واجهة لحل التضارب يدوياً
   }
 
@@ -566,13 +832,13 @@ class SmartSyncManager {
     List<DataConflict> conflicts,
     Map<String, dynamic> backupData,
   ) async {
-    debugPrint('📱 حل التضارب حسب أولوية الجهاز');
+    _log('📱 حل التضارب حسب أولوية الجهاز');
     // يمكن تطبيق منطق أولوية الأجهزة هنا
   }
 
   /// استعادة النسخة المحلية (في حالة فشل المزامنة)
   Future<void> _restoreLocalBackup(Map<String, dynamic> localData) async {
-    debugPrint('🔄 استعادة النسخة المحلية...');
+    _log('🔄 استعادة النسخة المحلية...');
     await _backupService!.restoreFromBackup(localData);
   }
 }
