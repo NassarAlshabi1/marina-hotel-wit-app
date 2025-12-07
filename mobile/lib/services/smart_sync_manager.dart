@@ -9,6 +9,7 @@ import '../utils/debug_logs.dart';
 import 'data_usage_manager.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
+import 'local_db.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
 
@@ -634,34 +635,12 @@ class SmartSyncManager {
   /// التحقق من وجود تغييرات محلية لم ترفع
   Future<bool> hasLocalChanges() async {
     try {
-      // التحقق من آخر رفع مقارنة بآخر مزامنة
-      final prefs = await SharedPreferences.getInstance();
-      final lastPushTime = prefs.getInt('smart_sync_last_push_ts') ?? 0;
-      final lastSyncTime = prefs.getString(_prefsLastSyncKey);
+      // الطريقة الأكثر دقة: التحقق من وجود عناصر في outbox
+      final db = await DatabaseManager.instance.ready;
+      final outboxCount = await db.outboxDao.count();
       
-      // إذا لم يتم الرفع من قبل
-      if (lastPushTime == 0) {
-        _log('📝 لم يتم رفع بيانات من قبل - قد تكون هناك تغييرات');
-        return true;
-      }
-      
-      // إذا كان آخر رفع أقدم من آخر فحص (يعني تم سحب بيانات بدون رفع)
-      if (lastSyncTime != null) {
-        final syncDateTime = DateTime.parse(lastSyncTime);
-        final pushDateTime = DateTime.fromMillisecondsSinceEpoch(lastPushTime);
-        
-        if (pushDateTime.isBefore(syncDateTime)) {
-          _log('📝 آخر رفع أقدم من آخر مزامنة - قد تكون هناك تغييرات');
-          return true;
-        }
-      }
-      
-      // إذا كان آخر رفع قديم جداً (أكثر من 30 دقيقة)
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final timeSinceLastPush = now - lastPushTime;
-      
-      if (timeSinceLastPush > Duration(minutes: 30).inMilliseconds) {
-        _log('⏰ آخر رفع كان منذ ${Duration(milliseconds: timeSinceLastPush).inMinutes} دقيقة');
+      if (outboxCount > 0) {
+        _log('📝 توجد تغييرات محلية في Outbox ($outboxCount)');
         return true;
       }
       

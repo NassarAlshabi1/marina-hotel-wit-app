@@ -621,15 +621,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// الانتقال إلى شاشة إضافة دفعة للغرفة المحجوزة
   Future<void> _navigateToPaymentForRoom(BuildContext context, String roomNumber) async {
     try {
-      final db = ref.read(databaseProvider);
+      final bookingsRepo = ref.read(bookingsRepoProvider);
       
       // البحث عن الحجز النشط للغرفة
-      final activeBooking = await (db.select(db.bookings)
-            ..where((b) => b.roomNumber.equals(roomNumber))
-            ..where((b) => b.status.equals('نشط'))
-            ..orderBy([(b) => drift.OrderingTerm.desc(b.checkinDate)])
-            ..limit(1))
-          .getSingleOrNull();
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
       
       if (activeBooking == null) {
         if (context.mounted) {

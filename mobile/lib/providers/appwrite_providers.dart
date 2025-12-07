@@ -22,7 +22,13 @@ final appwriteServiceProvider = Provider<AppwriteService>((ref) {
 final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
   final service = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
-  return AppwriteSyncManager(appwriteService: service, database: database);
+  final manager = AppwriteSyncManager(appwriteService: service, database: database);
+  
+  ref.onDispose(() {
+    manager.dispose();
+  });
+  
+  return manager;
 });
 
 final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((ref) {
@@ -36,6 +42,7 @@ final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
   final orch = ref.watch(unifiedSyncOrchestratorProvider);
   // Fire-and-forget initialization (idempotent)
   orch.initialize();
+  ref.onDispose(() => orch.dispose());
   return orch.stateStream;
 });
 
