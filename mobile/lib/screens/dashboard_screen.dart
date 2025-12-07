@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:drift/drift.dart' as drift;
 
 import '../services/local_db.dart';
 import '../providers/repository_providers.dart';
@@ -626,7 +627,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final activeBooking = await (db.select(db.bookings)
             ..where((b) => b.roomNumber.equals(roomNumber))
             ..where((b) => b.status.equals('نشط'))
-            ..orderBy([(b) => OrderingTerm.desc(b.checkinDate)])
+            ..orderBy([(b) => drift.OrderingTerm.desc(b.checkinDate)])
             ..limit(1))
           .getSingleOrNull();
       

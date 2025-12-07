@@ -66,10 +66,6 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
         const SizedBox(height: 16),
 
         _buildLastSyncCard(stats),
-        const SizedBox(height: 16),
-        _buildLastErrorCard(stats),
-        const SizedBox(height: 16),
-        _buildTimelineCard(stats),
       ],
     );
   }
