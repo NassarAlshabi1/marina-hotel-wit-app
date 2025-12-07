@@ -143,41 +143,55 @@ class SyncQueueService {
     _isProcessing = true;
 
     try {
-      debugPrint('🔄 [SyncQueue] محاولة مزامنة ${items.length} عنصر معلق...');
-
-      // استدعاء pushLocalChanges مرة واحدة فقط لمزامنة جميع التغييرات
-      final success = await SmartSyncManager.instance.pushLocalChanges();
-
-      if (success) {
-        // نجحت المزامنة - حذف جميع العناصر من الطابور
-        debugPrint('✅ [SyncQueue] تمت مزامنة الطابور بنجاح. يتم حذف جميع العناصر.');
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove(_queueKey);
-        _emitQueueCount();
-      } else {
-        // فشلت المزامنة - تحديث عدد المحاولات لكل عنصر
-        debugPrint('⚠️ [SyncQueue] فشلت المزامنة. سيتم إعادة المحاولة لاحقاً.');
-        for (final item in items) {
-          if (item.attempts < _maxAttempts) {
-            item.attempts++;
-            await updateQueueItem(item);
-          } else {
-            debugPrint('⚠️ [SyncQueue] تجاوز الحد الأقصى للمحاولات: ${item.id}');
-            await removeFromQueue(item.id);
-          }
+      final items = await getQueueItems();
+      if (items.isEmpty) {
+        debugPrint('✓ [SyncQueue] الطابور فارغ');
+        return;
+      }
+      
+      debugPrint('🔄 [SyncQueue] معالجة ${items.length} عنصر...');
+      
+      final itemsToRemove = <String>[];
+      final itemsToUpdate = <SyncQueueItem>[];
+      
+      for (final item in items) {
+        if (item.attempts >= _maxAttempts) {
+          debugPrint('⚠️ [SyncQueue] تجاوز الحد الأقصى للمحاولات: ${item.id}');
+          itemsToRemove.add(item.id);
         }
       }
-    } catch (e) {
-      debugPrint('❌ [SyncQueue] خطأ فادح أثناء معالجة الطابور: $e');
-      // في حالة الخطأ، تحديث عدد المحاولات
-      for (final item in items) {
-        if (item.attempts < _maxAttempts) {
+      
+      for (final id in itemsToRemove) {
+        await removeFromQueue(id);
+      }
+      
+      final remainingItems = items.where((item) => !itemsToRemove.contains(item.id)).toList();
+      if (remainingItems.isEmpty) {
+        debugPrint('✓ [SyncQueue] لا توجد عناصر متبقية للمعالجة');
+        return;
+      }
+      
+      try {
+        final success = await SmartSyncManager.instance.pushLocalChanges();
+        
+        if (success) {
+          for (final item in remainingItems) {
+            await removeFromQueue(item.id);
+          }
+          debugPrint('✅ [SyncQueue] تم رفع جميع العناصر بنجاح (${remainingItems.length} عنصر)');
+        } else {
+          for (final item in remainingItems) {
+            item.attempts++;
+            await updateQueueItem(item);
+          }
+          debugPrint('⚠️ [SyncQueue] فشل الرفع - تحديث محاولات ${remainingItems.length} عنصر');
+        }
+      } catch (e) {
+        for (final item in remainingItems) {
           item.attempts++;
           await updateQueueItem(item);
-        } else {
-          debugPrint('⚠️ [SyncQueue] تجاوز الحد الأقصى للمحاولات: ${item.id}');
-          await removeFromQueue(item.id);
         }
+        debugPrint('❌ [SyncQueue] خطأ في المزامنة: $e');
       }
     } finally {
       _isProcessing = false;
