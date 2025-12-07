@@ -11,6 +11,7 @@
     "appwrite:create": "node scripts/appwrite/create_appwrite_collections.js",
     "appwrite:indexes": "node scripts/appwrite/create_unique_indexes.js",
     "appwrite:mobile-indexes": "node scripts/appwrite/create_mobile_indexes.js",
+    "appwrite:sync-logs": "node scripts/appwrite/ensure_sync_logs_action.js",
     "appwrite:list": "node scripts/appwrite/list_appwrite_collections.js"
   },
   "devDependencies": {
