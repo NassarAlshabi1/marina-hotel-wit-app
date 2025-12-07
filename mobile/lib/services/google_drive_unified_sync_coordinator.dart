@@ -109,6 +109,12 @@ class GoogleDriveUnifiedSyncCoordinator {
   SyncPhase _currentPhase = SyncPhase.idle;
   final _syncResultController = StreamController<SyncResult>.broadcast();
   
+  bool _pushEnabled = true;
+  bool _pullEnabled = true;
+  int _debounceSeconds = _defaultDebounceSeconds;
+  int _pullIntervalMinutes = _defaultPullIntervalMinutes;
+  int _fullBackupIntervalHours = _defaultFullBackupHours;
+  
   static const String _prefsPushEnabledKey = 'gd_unified_push_enabled';
   static const String _prefsPullEnabledKey = 'gd_unified_pull_enabled';
   static const String _prefsDebounceSecondsKey = 'gd_unified_debounce_seconds';
@@ -188,6 +194,12 @@ class GoogleDriveUnifiedSyncCoordinator {
     if (!prefs.containsKey(_prefsSyncModeKey)) {
       await prefs.setString(_prefsSyncModeKey, SyncMode.smart.name);
     }
+    
+    _pushEnabled = prefs.getBool(_prefsPushEnabledKey) ?? true;
+    _pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? true;
+    _debounceSeconds = prefs.getInt(_prefsDebounceSecondsKey) ?? _defaultDebounceSeconds;
+    _pullIntervalMinutes = prefs.getInt(_prefsPullIntervalKey) ?? _defaultPullIntervalMinutes;
+    _fullBackupIntervalHours = prefs.getInt(_prefsFullBackupIntervalKey) ?? _defaultFullBackupHours;
   }
 
   Future<void> onSignInChanged(bool isSignedIn) async {
@@ -208,17 +220,13 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
-    final prefs = await SharedPreferences.getInstance();
-    final pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? true;
-    final pullInterval = prefs.getInt(_prefsPullIntervalKey) ?? _defaultPullIntervalMinutes;
-    
-    if (pullEnabled) {
+    if (_pullEnabled) {
       _pullCheckTimer?.cancel();
       _pullCheckTimer = Timer.periodic(
-        Duration(minutes: pullInterval),
+        Duration(minutes: _pullIntervalMinutes),
         (_) => _handlePeriodicPull(),
       );
-      _log('⏰ Started periodic pull monitoring (every $pullInterval minutes)');
+      _log('⏰ Started periodic pull monitoring (every $_pullIntervalMinutes minutes)');
     }
     
     _scheduleFullBackup();
@@ -232,15 +240,12 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   Future<void> _scheduleFullBackup() async {
-    final prefs = await SharedPreferences.getInstance();
-    final intervalHours = prefs.getInt(_prefsFullBackupIntervalKey) ?? _defaultFullBackupHours;
-    
     Duration delay;
     if (_lastFullBackupTime == null) {
       delay = const Duration(hours: 1);
     } else {
       final elapsed = DateTime.now().difference(_lastFullBackupTime!);
-      final target = Duration(hours: intervalHours);
+      final target = Duration(hours: _fullBackupIntervalHours);
       if (elapsed >= target) {
         delay = const Duration(minutes: 5);
       } else {
@@ -252,11 +257,21 @@ class GoogleDriveUnifiedSyncCoordinator {
     
     _periodicSyncTimer?.cancel();
     _periodicSyncTimer = Timer(delay, () async {
-      await performSync(trigger: SyncTrigger.scheduled, mode: SyncMode.fullBackup);
+      try {
+        await performSync(trigger: SyncTrigger.scheduled, mode: SyncMode.fullBackup);
+      } catch (e) {
+        _log('❌ Scheduled backup failed: $e');
+      }
       
       _periodicSyncTimer = Timer.periodic(
-        Duration(hours: intervalHours),
-        (_) => performSync(trigger: SyncTrigger.scheduled, mode: SyncMode.fullBackup),
+        Duration(hours: _fullBackupIntervalHours),
+        (_) async {
+          try {
+            await performSync(trigger: SyncTrigger.scheduled, mode: SyncMode.fullBackup);
+          } catch (e) {
+            _log('❌ Periodic backup failed: $e');
+          }
+        },
       );
     });
   }
@@ -269,21 +284,20 @@ class GoogleDriveUnifiedSyncCoordinator {
     
     _debounceTimer?.cancel();
     
-    SharedPreferences.getInstance().then((prefs) async {
-      final debounceSeconds = prefs.getInt(_prefsDebounceSecondsKey) ?? _defaultDebounceSeconds;
-      final pushEnabled = prefs.getBool(_prefsPushEnabledKey) ?? true;
-      
-      if (!pushEnabled) {
-        _log('⏸️ Push disabled - changes queued ($_pendingChangesCount)');
-        return;
-      }
-      
-      _debounceTimer = Timer(Duration(seconds: debounceSeconds), () async {
-        if (_hasPendingChanges) {
-          _log('📤 Debounce complete - pushing $_pendingChangesCount changes');
+    if (!_pushEnabled) {
+      _log('⏸️ Push disabled - changes queued ($_pendingChangesCount)');
+      return;
+    }
+    
+    _debounceTimer = Timer(Duration(seconds: _debounceSeconds), () async {
+      if (_hasPendingChanges) {
+        _log('📤 Debounce complete - pushing $_pendingChangesCount changes');
+        try {
           await performSync(trigger: SyncTrigger.localChange, mode: SyncMode.smart);
+        } catch (e) {
+          _log('❌ Failed to sync local changes: $e');
         }
-      });
+      }
     });
   }
 
@@ -294,10 +308,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     
     _log('📱 App entered foreground');
     
-    final prefs = await SharedPreferences.getInstance();
-    final pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? true;
-    
-    if (!pullEnabled) {
+    if (!_pullEnabled) {
       _log('⏸️ Pull disabled - skipping foreground sync');
       return;
     }
@@ -312,18 +323,23 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     
     Future.delayed(const Duration(milliseconds: 500), () async {
-      await performSync(trigger: SyncTrigger.appForeground, mode: SyncMode.smart);
+      try {
+        await performSync(trigger: SyncTrigger.appForeground, mode: SyncMode.smart);
+      } catch (e) {
+        _log('❌ Foreground sync failed: $e');
+      }
     });
   }
 
   Future<void> _handlePeriodicPull() async {
     if (!_isSyncing && (_backupService?.isSignedIn ?? false)) {
-      final prefs = await SharedPreferences.getInstance();
-      final pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? true;
-      
-      if (pullEnabled) {
+      if (_pullEnabled) {
         _log('🔄 Periodic pull check triggered');
-        await performSync(trigger: SyncTrigger.periodic, mode: SyncMode.deltaOnly);
+        try {
+          await performSync(trigger: SyncTrigger.periodic, mode: SyncMode.deltaOnly);
+        } catch (e) {
+          _log('❌ Periodic pull failed: $e');
+        }
       }
     }
   }
@@ -448,7 +464,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       }
       
       final hoursSinceFullBackup = DateTime.now().difference(_lastFullBackupTime!).inHours;
-      if (hoursSinceFullBackup >= 24) {
+      if (hoursSinceFullBackup >= _fullBackupIntervalHours) {
         return SyncMode.fullBackup;
       }
       
@@ -550,12 +566,14 @@ class GoogleDriveUnifiedSyncCoordinator {
   Future<void> setPushEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefsPushEnabledKey, enabled);
+    _pushEnabled = enabled;
     _log('🔧 Push ${enabled ? 'enabled' : 'disabled'}');
   }
 
   Future<void> setPullEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefsPullEnabledKey, enabled);
+    _pullEnabled = enabled;
     
     if (enabled && _isInitialized && (_backupService?.isSignedIn ?? false)) {
       await _startMonitoring();
@@ -569,12 +587,14 @@ class GoogleDriveUnifiedSyncCoordinator {
   Future<void> setDebounceSeconds(int seconds) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsDebounceSecondsKey, seconds);
+    _debounceSeconds = seconds;
     _log('⏱️ Debounce set to $seconds seconds');
   }
 
   Future<void> setPullInterval(int minutes) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsPullIntervalKey, minutes);
+    _pullIntervalMinutes = minutes;
     
     if (_isInitialized && (_backupService?.isSignedIn ?? false)) {
       await _startMonitoring();
@@ -586,6 +606,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   Future<void> setFullBackupInterval(int hours) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsFullBackupIntervalKey, hours);
+    _fullBackupIntervalHours = hours;
     
     if (_isInitialized && (_backupService?.isSignedIn ?? false)) {
       _scheduleFullBackup();
@@ -595,8 +616,6 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   Future<Map<String, dynamic>> getStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    
     return {
       'initialized': _isInitialized,
       'signed_in': _backupService?.isSignedIn ?? false,
@@ -604,11 +623,11 @@ class GoogleDriveUnifiedSyncCoordinator {
       'current_phase': _currentPhase.name,
       'has_pending_changes': _hasPendingChanges,
       'pending_changes_count': _pendingChangesCount,
-      'push_enabled': prefs.getBool(_prefsPushEnabledKey) ?? true,
-      'pull_enabled': prefs.getBool(_prefsPullEnabledKey) ?? true,
-      'debounce_seconds': prefs.getInt(_prefsDebounceSecondsKey) ?? _defaultDebounceSeconds,
-      'pull_interval_minutes': prefs.getInt(_prefsPullIntervalKey) ?? _defaultPullIntervalMinutes,
-      'full_backup_interval_hours': prefs.getInt(_prefsFullBackupIntervalKey) ?? _defaultFullBackupHours,
+      'push_enabled': _pushEnabled,
+      'pull_enabled': _pullEnabled,
+      'debounce_seconds': _debounceSeconds,
+      'pull_interval_minutes': _pullIntervalMinutes,
+      'full_backup_interval_hours': _fullBackupIntervalHours,
       'last_push': _lastPushTime?.toIso8601String(),
       'last_pull': _lastPullTime?.toIso8601String(),
       'last_full_backup': _lastFullBackupTime?.toIso8601String(),
