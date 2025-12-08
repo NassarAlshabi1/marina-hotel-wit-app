@@ -76,9 +76,7 @@ lib/services/
 docs/sync-system/
 ├── README.md                        (البداية)
 ├── architecture.md                  (المعمارية)
-├── usage-guide.md                   (دليل الاستخدام)
-├── troubleshooting.md               (حل المشاكل)
-├── testing-guide.md                 (الاختبار)
+├── ERROR_REDUCTION_STRATEGY.md      (استراتيجية تقليل الأخطاء)
 └── CHANGELOG.md                     (هذا الملف)
 ```
 

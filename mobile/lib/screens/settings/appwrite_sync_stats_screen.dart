@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../services/providers.dart';
+import '../../services/daos/outbox_dao.dart';
 
 class AppwriteSyncStatsScreen extends ConsumerWidget {
   const AppwriteSyncStatsScreen({super.key});
@@ -11,6 +13,7 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(syncStatsProvider);
+    final outboxCountAsync = ref.watch(outboxCountProvider);
 
     return AppScaffold(
       title: 'إحصائيات المزامنة',
@@ -19,7 +22,7 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
           ref.invalidate(syncStatsProvider);
         },
         child: statsAsync.when(
-          data: (stats) => _buildContent(context, stats),
+          data: (stats) => _buildContent(context, ref, stats),
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => Center(
             child: Column(
@@ -45,11 +48,12 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, Map<String, dynamic> stats) {
+  Widget _buildContent(BuildContext context, WidgetRef ref, Map<String, dynamic> stats) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // البطاقة الإحصائية الرئيسية
+        _buildOutboxAndActions(context, ref, stats),
+        const SizedBox(height: 16),
         _buildSummaryCard(stats),
         const SizedBox(height: 16),
 
@@ -61,9 +65,55 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
         _buildDataTransferCard(stats),
         const SizedBox(height: 16),
 
-        // معلومات آخر مزامنة
         _buildLastSyncCard(stats),
       ],
+    );
+  }
+
+  Widget _buildOutboxAndActions(BuildContext context, WidgetRef ref, Map<String, dynamic> stats) {
+    final outboxCount = stats['outboxCount'] ?? 0;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Outbox', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('$outboxCount عنصر قيد الإرسال', style: const TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final manager = ref.read(appwriteSyncManagerProvider);
+                await manager.sync();
+                ref.invalidate(syncStatsProvider);
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت إعادة المحاولة')));
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('إعادة محاولة'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: () async {
+                final db = ref.read(databaseProvider);
+                final dao = OutboxDao(db);
+                await dao.resetErrors();
+                await dao.clearStale(attemptsThreshold: 3);
+                ref.invalidate(syncStatsProvider);
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تفريغ ذكي: تم تهيئة المحاولات وحذف العناصر القديمة')));
+              },
+              icon: const Icon(Icons.cleaning_services),
+              label: const Text('تفريغ ذكي'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

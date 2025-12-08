@@ -143,12 +143,6 @@ class SyncQueueService {
     _isProcessing = true;
 
     try {
-      final items = await getQueueItems();
-      if (items.isEmpty) {
-        debugPrint('✓ [SyncQueue] الطابور فارغ');
-        return;
-      }
-      
       debugPrint('🔄 [SyncQueue] معالجة ${items.length} عنصر...');
       
       final itemsToRemove = <String>[];

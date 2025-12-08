@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' as d;
 import 'delta_sync_service.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
+import 'sync_constants.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
 
@@ -198,20 +199,59 @@ class GoogleDriveDeltaSync {
     final changes = deltaData['changes'] as List<dynamic>?;
     if (changes == null || changes.isEmpty) return 0;
 
-    int applied = 0;
-    for (final change in changes) {
-      try {
+    return await _database!.transaction(() async {
+      final sortedChanges = _sortChangesByDependency(changes);
+      int applied = 0;
+      
+      for (final change in sortedChanges) {
         final entity = change['entity'] as String;
         final op = change['op'] as String;
         final data = change['data'] as Map<String, dynamic>;
         
         await _applyChange(entity, op, data);
         applied++;
-      } catch (e) {
-        debugPrint('⚠️ خطأ في تطبيق تغيير: $e');
+      }
+      
+      debugPrint('✅ تم تطبيق $applied تغيير بنجاح داخل transaction واحدة');
+      return applied;
+    });
+  }
+
+  List<Map<String, dynamic>> _sortChangesByDependency(List<dynamic> changes) {
+    final changesList = List<Map<String, dynamic>>.from(
+      changes.map((c) => Map<String, dynamic>.from(c as Map))
+    );
+
+    final deletes = <Map<String, dynamic>>[];
+    final nonDeletes = <Map<String, dynamic>>[];
+
+    for (final change in changesList) {
+      final op = change['op'] as String;
+      if (op == 'delete') {
+        deletes.add(change);
+      } else {
+        nonDeletes.add(change);
       }
     }
-    return applied;
+
+    nonDeletes.sort((a, b) {
+      final aOrder = _getTableOrderIndex(a['entity'] as String);
+      final bOrder = _getTableOrderIndex(b['entity'] as String);
+      return aOrder.compareTo(bOrder);
+    });
+
+    deletes.sort((a, b) {
+      final aOrder = _getTableOrderIndex(a['entity'] as String);
+      final bOrder = _getTableOrderIndex(b['entity'] as String);
+      return bOrder.compareTo(aOrder);
+    });
+
+    return [...nonDeletes, ...deletes];
+  }
+
+  int _getTableOrderIndex(String entity) {
+    final index = SyncConstants.tableOrder.indexOf(entity);
+    return index == -1 ? 999 : index;
   }
 
   Future<void> _applyChange(String entity, String operation, Map<String, dynamic> data) async {
