@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'utils/theme.dart';
 import 'utils/env.dart';
 
@@ -14,7 +17,6 @@ import 'screens/expenses/expenses_list.dart';
 import 'screens/finance/finance_screen.dart';
 import 'screens/reports/reports_screen.dart';
 import 'screens/payments/payments_main_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
@@ -24,203 +26,183 @@ import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/repository_providers.dart';
 import 'services/seed.dart';
-import 'services/auto_backup_task.dart';
-import 'services/auto_backup_manager.dart';
 import 'services/app_session_manager.dart';
-import 'services/smart_sync_manager.dart';
 import 'services/google_drive_backup_service.dart';
-import 'services/google_drive_sync_service.dart';
-import 'services/google_drive_delta_sync.dart';
-import 'services/sync_guardian.dart';
-import 'services/alarm_backup.dart';
-import 'components/admin_layout.dart';
 import 'services/google_drive_logger.dart';
 import 'services/local_db.dart';
-import 'services/appwrite_config.dart';
-import 'services/appwrite_logger.dart';
-import 'services/appwrite_cache_manager.dart';
-import 'services/appwrite_service.dart';
-import 'services/appwrite_sync_manager.dart';
-import 'services/appwrite_realtime_service.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'services/sync_queue_service.dart';
 
+// AutoSync Engine imports
+import 'services/google_drive_auto_sync_engine.dart';
+import 'services/google_drive_conflict_resolver.dart';
+import 'services/google_drive_unified_sync_coordinator.dart';
+import 'services/logging/log_models.dart';
 
-void main() async {
+import 'components/admin_layout.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // تهيئة نظام Alarm للنسخ الاحتياطي
-  await AlarmBackup.initAlarmSystem();
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   
-  // تهيئة خدمة النسخ التلقائي التقليدي (المجدول)
-  await AutoBackupTask.initialize();
-  
-  // تهيئة مدير النسخ التلقائي الذكي (على أساس التغييرات)
-  await _initializeSmartAutoBackup();
-  
-  // تهيئة نظام Appwrite
-  await _initializeAppwrite();
+  await _initializeFullyAutomatedSyncSystem();
   
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
 }
 
-/// تهيئة نظام النسخ التلقائي الذكي والمزامنة بين الأجهزة
-Future<void> _initializeSmartAutoBackup() async {
+Future<void> _initializeFullyAutomatedSyncSystem() async {
+  debugPrint('═══════════════════════════════════════════════════════');
+  debugPrint('🚀 Initializing Fully Automated Sync System');
+  debugPrint('═══════════════════════════════════════════════════════');
+  
   try {
+    debugPrint('📝 [1/6] Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
-    await driveLogger.initialize(minLevel: LogLevel.debug, enableConsole: true, enableFile: false);
-
-    final backupService = GoogleDriveBackupService();
-    
-    // محاولة استعادة جلسة Google Drive أولاً
-    try {
-      await backupService.attemptSilentSignIn();
-    } catch (e) {
-      debugPrint('⚠️ لم يتم استعادة جلسة Google Drive: $e');
-    }
-    
-    // تهيئة مدير النسخ التلقائي
-    final autoBackupManager = AutoBackupManager.instance;
-    await autoBackupManager.initialize(backupService);
-    
-    // تفعيل النسخ التلقائي بشكل افتراضي
-    await autoBackupManager.setEnabled(true);
-    await autoBackupManager.setMaxBackupCount(10); // الاحتفاظ بـ 10 نسخ فقط
-    await autoBackupManager.setRetentionDays(14); // لمدة 14 يوماً
-    
-    // تهيئة مدير المزامنة الذكية بين الأجهزة
-    final smartSyncManager = SmartSyncManager.instance;
-    await smartSyncManager.initialize(backupService);
-    
-    // تهيئة Delta Sync للمزامنة السريعة (التحديثات الصغيرة فقط)
-    await GoogleDriveDeltaSync.instance.initialize(backupService, DatabaseManager.instance);
-    debugPrint('✅ تم تهيئة Delta Sync للمزامنة السريعة');
-    
-    // تهيئة SyncGuardian مع Google Drive (بشكل مستقل عن Appwrite)
-    final syncGuardian = SyncGuardian.instance;
-    final driveSyncService = GoogleDriveSyncService(googleSignIn: backupService.googleSignIn);
-    await syncGuardian.initialize(
-      database: DatabaseManager.instance,
-      driveService: driveSyncService,
-      appwriteSyncManager: null, // سيتم ربطه لاحقاً إذا كان Appwrite متوفر
-    );
-    
-    await SyncQueueService.instance.initialize();
-    debugPrint('✅ تم تهيئة SyncQueueService');
-    
-    debugPrint('✅ تم تهيئة النسخ التلقائي والمزامنة الذكية عبر Google Drive بنجاح');
-  } catch (e) {
-    debugPrint('❌ خطأ في تهيئة النظام الذكي: $e');
-  }
-}
-
-/// تهيئة نظام Appwrite للمزامنة السحابية (اختياري)
-Future<void> _initializeAppwrite() async {
-  try {
-    // طباعة الإعدادات
-    AppwriteConfig.printConfig();
-    
-    // التحقق من صحة الإعدادات قبل التهيئة
-    if (!AppwriteConfig.validateConfig()) {
-      debugPrint('ℹ️ Appwrite غير مُعد - سيعمل التطبيق بالمزامنة عبر Google Drive فقط');
-      return; // الخروج بشكل نظيف
-    }
-    
-    // تهيئة المسجل
-    final logger = AppwriteLogger();
-    await logger.initialize(
-      minLevel: LogLevel.info,
+    await driveLogger.initialize(
+      minLevel: LogLevel.debug,
       enableConsole: true,
       enableFile: false,
     );
+    debugPrint('✅ Logger initialized');
     
-    // تهيئة مدير الذاكرة المؤقتة
-    final cacheManager = AppwriteCacheManager();
-    cacheManager.startCleanup();
-    
-    // تهيئة خدمة Appwrite
-    final appwriteService = AppwriteService();
-    final prefs = await SharedPreferences.getInstance();
-
-    if (!prefs.containsKey('appwrite_sync_enabled')) {
-      await prefs.setBool('appwrite_sync_enabled', false); // معطّل افتراضياً حتى يُفعّل المستخدم
-    }
-    if (!prefs.containsKey('appwrite_sync_interval')) {
-      await prefs.setInt('appwrite_sync_interval', 2);
-    }
+    debugPrint('🔐 [2/6] Initializing Google Drive Backup Service...');
+    final backupService = GoogleDriveBackupService();
     
     try {
-      await appwriteService.initialize();
-      
-      // تهيئة مدير المزامنة
-      final syncManager = AppwriteSyncManager(
-        appwriteService: appwriteService,
-        database: DatabaseManager.instance,
-      );
-      await syncManager.initialize();
-      
-      final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
-      final syncIntervalMinutes = prefs.getInt('appwrite_sync_interval') ?? 2;
-      if (syncEnabled) {
-        syncManager.startAutoSync(interval: Duration(minutes: syncIntervalMinutes));
+      final account = await backupService.attemptSilentSignIn();
+      if (account != null) {
+        debugPrint('✅ Silent sign-in successful: ${account.email}');
+      } else {
+        debugPrint('ℹ️ No saved session - user must sign in manually');
       }
-      
-      // تسجيل الجهاز تلقائياً
-      try {
-        await syncManager.registerDevice();
-        debugPrint('✅ تم تسجيل الجهاز في Appwrite تلقائياً');
-      } catch (e) {
-        debugPrint('⚠️ تعذر تسجيل الجهاز: $e');
-      }
-      
-      // تهيئة Appwrite Realtime للتحديثات الفورية (فقط إذا مُفعّل)
-      if (syncEnabled) {
-        await _initializeAppwriteRealtime(appwriteService, syncManager);
-      }
-      
-      // ربط AppwriteSyncManager مع SyncGuardian
-      SyncGuardian.instance.setAppwriteSyncManager(syncManager);
-      
-      debugPrint('✅ تم تهيئة Appwrite بنجاح');
     } catch (e) {
-      debugPrint('⚠️ فشل الاتصال بـ Appwrite (سيعمل التطبيق بمزامنة Google Drive فقط): $e');
+      debugPrint('⚠️ Silent sign-in failed: $e');
     }
+    
+    debugPrint('🔧 [3/6] Initializing Database...');
+    final database = DatabaseManager.instance;
+    debugPrint('✅ Database ready');
+    
+    debugPrint('🎯 [4/6] Initializing Unified Sync Coordinator...');
+    final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
+    await coordinator.initialize(
+      backupService: backupService,
+      database: database,
+      logger: driveLogger,
+    );
+    debugPrint('✅ Coordinator initialized');
+    
+    debugPrint('🤝 [5/6] Initializing Conflict Resolver...');
+    final conflictResolver = GoogleDriveConflictResolver.instance;
+    conflictResolver.initialize(driveLogger);
+    
+    await conflictResolver.setStrategy(ConflictResolutionStrategy.newerWins);
+    await conflictResolver.setConflictThreshold(30);
+    debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
+    
+    debugPrint('🤖 [6/6] Initializing & Starting Auto Sync Engine...');
+    final autoSyncEngine = AutoSyncEngine.instance;
+    
+    await autoSyncEngine.initialize(
+      backupService: backupService,
+      database: database,
+      logger: driveLogger,
+    );
+    
+    await _configureAutoSyncEngine(autoSyncEngine);
+    
+    await autoSyncEngine.start();
+    
+    if (backupService.isSignedIn) {
+      await autoSyncEngine.onSignInChanged(true);
+    }
+    
+    _setupEngineMonitoring(autoSyncEngine);
+    
+    debugPrint('✅ Auto Sync Engine started');
+    
+    debugPrint('═══════════════════════════════════════════════════════');
+    debugPrint('✅ Fully Automated Sync System Ready!');
+    debugPrint('═══════════════════════════════════════════════════════');
+    debugPrint('📡 Network monitoring: ACTIVE');
+    debugPrint('🔄 Lifecycle monitoring: ACTIVE');
+    debugPrint('💾 Data stream listening: ACTIVE');
+    debugPrint('❤️ Health checks: ACTIVE (every 5 minutes)');
+    debugPrint('🔁 Auto-retry: ACTIVE (exponential backoff)');
+    debugPrint('═══════════════════════════════════════════════════════');
+    
   } catch (e, stackTrace) {
-    debugPrint('ℹ️ Appwrite غير متوفر - المزامنة عبر Google Drive فقط');
+    debugPrint('═══════════════════════════════════════════════════════');
+    debugPrint('❌ CRITICAL ERROR in Sync System Initialization');
+    debugPrint('═══════════════════════════════════════════════════════');
+    debugPrint('Error: $e');
+    debugPrint('Stack trace: $stackTrace');
+    debugPrint('═══════════════════════════════════════════════════════');
   }
 }
 
-/// تهيئة Appwrite Realtime للتحديثات الفورية
-Future<void> _initializeAppwriteRealtime(
-  AppwriteService appwriteService, 
-  AppwriteSyncManager syncManager,
-) async {
-  try {
-    final realtimeService = AppwriteRealtimeService();
-    await realtimeService.initialize(appwriteService.client);
+Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
+  debugPrint('⚙️ Configuring Auto Sync Engine...');
+  
+  final prefs = await SharedPreferences.getInstance();
+  
+  final debounceSeconds = prefs.getInt('auto_sync_debounce') ?? 5;
+  await engine.setDebounceSeconds(debounceSeconds);
+  debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
+  
+  final pullInterval = prefs.getInt('auto_sync_pull_interval') ?? 2;
+  await engine.setPullInterval(pullInterval);
+  debugPrint('   ⏰ Pull interval: ${pullInterval}min');
+  
+  final retryEnabled = prefs.getBool('auto_sync_retry_enabled') ?? true;
+  await engine.setRetryEnabled(retryEnabled);
+  debugPrint('   🔁 Auto-retry: $retryEnabled');
+  
+  final conflictStrategy = prefs.getString('conflict_strategy') ?? 'newerWins';
+  final strategy = ConflictResolutionStrategy.values.firstWhere(
+    (s) => s.name == conflictStrategy,
+    orElse: () => ConflictResolutionStrategy.newerWins,
+  );
+  await engine.setConflictStrategy(strategy);
+  debugPrint('   🤝 Conflict strategy: ${strategy.name}');
+  
+  debugPrint('✅ Configuration complete');
+}
+
+void _setupEngineMonitoring(AutoSyncEngine engine) {
+  debugPrint('📊 Setting up engine state monitoring...');
+  
+  engine.stateStream.listen((state) {
+    final statusIcon = state.isRunning ? '🟢' : '🔴';
+    final networkIcon = state.hasNetworkConnection ? '🌐' : '📴';
+    final authIcon = state.isSignedIn ? '🔐' : '🔓';
     
-    // معالج الأحداث الفورية - يسحب التغييرات فوراً
-    void handleRealtimeEvent(RealtimeEvent event) {
-      debugPrint('🔔 حدث Appwrite Realtime: ${event.type} على ${event.collection}');
-      
-      // سحب التغييرات فوراً عند استقبال حدث
-      syncManager.pullRemoteChanges().then((hasChanges) {
-        if (hasChanges) {
-          debugPrint('✅ تم سحب تغييرات جديدة من Appwrite بعد حدث Realtime');
-        }
-      }).catchError((error) {
-        debugPrint('⚠️ فشل سحب التغييرات بعد حدث Realtime: $error');
-      });
+    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    debugPrint('📊 ENGINE STATE UPDATE');
+    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━====');
+    debugPrint('$statusIcon Running: ${state.isRunning}');
+    debugPrint('$networkIcon Network: ${state.hasNetworkConnection}');
+    debugPrint('$authIcon Signed in: ${state.isSignedIn}');
+    debugPrint('📦 Pending changes: ${state.pendingChangesCount}');
+    debugPrint('✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}');
+    debugPrint('❌ Failed attempts: ${state.failedAttempts}');
+    
+    if (state.nextRetryAt != null) {
+      final secondsUntil = state.nextRetryAt!.difference(DateTime.now()).inSeconds;
+      debugPrint('⏰ Next retry in: ${secondsUntil}s');
     }
     
-    // الاشتراك في جميع المجموعات
-    await realtimeService.subscribeToAllCollections(handleRealtimeEvent);
+    if (state.lastError != null) {
+      debugPrint('⚠️ Last error: ${state.lastError}');
+    }
     
-    debugPrint('✅ تم تفعيل Appwrite Realtime - التحديثات الفورية نشطة');
-  } catch (e) {
-    debugPrint('⚠️ فشل تفعيل Appwrite Realtime: $e');
-  }
+    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  });
+  
+  debugPrint('✅ Monitoring setup complete');
 }
 
 class App extends ConsumerStatefulWidget {
@@ -271,7 +253,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
         AppSessionManager.configure(
           database: database,
-          deviceIdResolver: () async => SmartSyncManager.instance.deviceId,
+          deviceIdResolver: () async => GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
         );
         await Seeder(database).seedIfEmpty();
         await AppSessionManager.onAppOpen();
@@ -301,7 +283,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.resumed) {
       unawaited(AppSessionManager.onAppOpen());
-      unawaited(SyncGuardian.instance.onAppForeground());
+      unawaited(GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
