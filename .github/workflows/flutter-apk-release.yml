@@ -34,18 +34,18 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.3'
+          flutter-version: '3.32.0'
           cache: true
-          cache-key: flutter-${{ runner.os }}-3.38.3
+          cache-key: flutter-${{ runner.os }}-3.32.0
 
-      - name: Install Android SDK components (API 36)
+      - name: Install Android SDK components (API 35)
         run: |
           echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          echo "Installing Android SDK Platform 36 and Build-Tools..."
+          echo "Installing Android SDK Platform 35 and Build-Tools..."
           sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
             "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;36.0.0" || sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "build-tools;36.0.1" || true
+            "platforms;android-35" \
+            "build-tools;35.0.0" || true
           ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --list | head -n 50
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}

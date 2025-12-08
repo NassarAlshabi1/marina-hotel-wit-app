@@ -132,7 +132,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('AutoSyncEngine', message);
     debugPrint('[AutoSyncEngine] $message');
-    _logger?.log(level, message, tag: 'AUTO_SYNC');
+    _logger?.log(message, level: level, tag: 'AUTO_SYNC');
   }
   
   void _emitState() {
