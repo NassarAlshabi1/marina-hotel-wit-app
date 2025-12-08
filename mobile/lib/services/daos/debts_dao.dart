@@ -38,6 +38,16 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return query.watch();
   }
 
+  Stream<List<Debt>> watchUnsettled({bool includeDeleted = false}) {
+    final query = select(debts);
+    query.where((t) => t.isSettled.equals(0));
+    if (!includeDeleted) {
+      query.where((t) => t.deletedAt.isNull());
+    }
+    query.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
+    return query.watch();
+  }
+
   Future<Debt?> getById(int id) {
     return (select(debts)..where((t) => t.id.equals(id))).getSingleOrNull();
   }

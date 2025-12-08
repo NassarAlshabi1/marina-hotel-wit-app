@@ -307,7 +307,7 @@ class DebtsRepositoryAutomated {
   final DebtsDao dao;
 
   Stream<List<Debt>> watchAll() => dao.watchList();
-  Stream<List<Debt>> watchUnsettled() => dao.watchList();
+  Stream<List<Debt>> watchUnsettled() => dao.watchUnsettled();
 
   Future<int> create({
     required String guestName,
@@ -387,7 +387,7 @@ class EmployeesRepositoryAutomated {
   final EmployeesDao dao;
 
   Stream<List<Employee>> watchAll() => dao.watchList();
-  Stream<List<Employee>> watchActive() => dao.watchList();
+  Stream<List<Employee>> watchActive() => dao.watchActive();
 
   Future<int> create({
     required String name,
