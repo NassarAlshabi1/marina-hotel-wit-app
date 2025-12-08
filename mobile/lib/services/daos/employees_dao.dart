@@ -31,6 +31,13 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixi
     return q.watch();
   }
 
+  Stream<List<Employee>> watchActive({bool includeDeleted = false}) {
+    final q = select(employees);
+    q.where((t) => t.status.equals('active'));
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    return q.watch();
+  }
+
   Future<Employee?> getById(int id) => (select(employees)..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<Employee?> watchById(int id) => (select(employees)..where((t) => t.id.equals(id))).watchSingleOrNull();
   Future<Employee?> getByLocalUuid(String localUuid) => (select(employees)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();

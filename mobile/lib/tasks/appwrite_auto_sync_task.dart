@@ -25,7 +25,6 @@ class AppwriteAutoSyncTask {
   AppwriteAutoSyncTask._();
 
   static int _debounceToken = 0;
-  static Future<void>? _pendingDebounce;
   static bool _initialized = false;
 
   static Future<void> initialize({bool debug = false}) async {
@@ -40,14 +39,14 @@ class AppwriteAutoSyncTask {
       throw StateError('AppwriteAutoSyncTask not initialized');
     }
     final token = ++_debounceToken;
-    _pendingDebounce = Future<void>.delayed(delay, () async {
+    Future<void>.delayed(delay, () async {
       if (token != _debounceToken) return;
       await Workmanager().registerOneOffTask(
         _kImmediateWorkName,
         _kImmediateWorkName,
         existingWorkPolicy: ExistingWorkPolicy.replace,
         inputData: const <String, dynamic>{},
-        constraints: const Constraints(
+        constraints: Constraints(
           networkType: NetworkType.connected,
           requiresBatteryNotLow: true,
         ),
@@ -66,9 +65,9 @@ class AppwriteAutoSyncTask {
       _kPeriodicWorkName,
       frequency: frequency,
       initialDelay: frequency,
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       inputData: const <String, dynamic>{},
-      constraints: const Constraints(
+      constraints: Constraints(
         networkType: NetworkType.connected,
         requiresBatteryNotLow: true,
       ),
@@ -80,7 +79,6 @@ class AppwriteAutoSyncTask {
   static Future<void> cancelAll() async {
     if (!_initialized) return;
     _debounceToken++;
-    _pendingDebounce = null;
     await Workmanager().cancelByUniqueName(_kImmediateWorkName);
     await Workmanager().cancelByUniqueName(_kPeriodicWorkName);
   }
