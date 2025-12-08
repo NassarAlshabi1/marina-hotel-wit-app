@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
-import '../auto_backup_manager.dart';
+import '../google_drive_auto_sync_engine.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 
@@ -59,16 +59,11 @@ class BookingsRepositoryWithAutoBackup {
       ),
     );
 
-    // تسجيل التغيير للنسخ التلقائي
-    AutoBackupManager.instance.onDataChange(
-      'bookings',
-      'CREATE',
-      recordData: {
-        'id': bookingId,
-        'guest_name': guestName,
-        'room_number': roomNumber,
-        'status': status,
-      },
+    // تسجيل التغيير للمزامنة التلقائية
+    AutoSyncEngine.instance.notifyDataChange(
+      table: 'bookings',
+      operation: 'CREATE',
+      count: 1,
     );
 
     return bookingId;
@@ -117,16 +112,11 @@ class BookingsRepositoryWithAutoBackup {
     );
 
     if (updatedRows > 0) {
-      // تسجيل التغيير للنسخ التلقائي
-      AutoBackupManager.instance.onDataChange(
-        'bookings',
-        'UPDATE',
-        recordData: {
-          'id': id,
-          'guest_name': guestName,
-          'room_number': roomNumber,
-          'status': status,
-        },
+      // تسجيل التغيير للمزامنة التلقائية
+      AutoSyncEngine.instance.notifyDataChange(
+        table: 'bookings',
+        operation: 'UPDATE',
+        count: 1,
       );
     }
 
@@ -140,16 +130,11 @@ class BookingsRepositoryWithAutoBackup {
     final deletedRows = await dao.deleteById(id);
 
     if (deletedRows > 0 && booking != null) {
-      // تسجيل التغيير للنسخ التلقائي
-      AutoBackupManager.instance.onDataChange(
-        'bookings',
-        'DELETE',
-        recordData: {
-          'id': id,
-          'guest_name': booking.guestName,
-          'room_number': booking.roomNumber,
-          'status': booking.status,
-        },
+      // تسجيل التغيير للمزامنة التلقائية
+      AutoSyncEngine.instance.notifyDataChange(
+        table: 'bookings',
+        operation: 'DELETE',
+        count: 1,
       );
     }
 

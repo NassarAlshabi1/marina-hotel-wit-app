@@ -2,8 +2,7 @@ import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/expenses_dao.dart';
-import '../auto_backup_manager.dart';
-import '../sync_guardian.dart';
+import '../google_drive_auto_sync_engine.dart';
 
 class ExpensesRepository {
   ExpensesRepository(this.db)
@@ -26,8 +25,7 @@ class ExpensesRepository {
         date: d.Value(date),
       ),
     );
-    AutoBackupManager.instance.onDataChange('expenses', 'INSERT', recordData: {'amount': amount});
-    SyncGuardian.instance.notifyLocalChange(table: 'expenses', operation: 'INSERT');
+    AutoSyncEngine.instance.notifyDataChange(table: 'expenses', operation: 'INSERT', count: 1);
     return result;
   }
 
@@ -43,8 +41,7 @@ class ExpensesRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange('expenses', 'UPDATE', recordData: {'id': id});
-      SyncGuardian.instance.notifyLocalChange(table: 'expenses', operation: 'UPDATE');
+      AutoSyncEngine.instance.notifyDataChange(table: 'expenses', operation: 'UPDATE', count: 1);
     }
     return result;
   }
@@ -52,8 +49,7 @@ class ExpensesRepository {
   Future<int> delete(int id) async {
     final result = await dao.softDelete(id);
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange('expenses', 'DELETE', recordData: {'id': id});
-      SyncGuardian.instance.notifyLocalChange(table: 'expenses', operation: 'DELETE');
+      AutoSyncEngine.instance.notifyDataChange(table: 'expenses', operation: 'DELETE', count: 1);
     }
     return result;
   }

@@ -3,12 +3,12 @@
 
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
-import '../auto_backup_manager.dart';
+import '../google_drive_auto_sync_engine.dart';
 
 /// Mixin لإضافة النسخ التلقائي لأي repository
 mixin AutoBackupMixin {
-  void triggerAutoBackup(String tableName, String operation, {Map<String, dynamic>? recordData}) {
-    AutoBackupManager.instance.onDataChange(tableName, operation, recordData: recordData);
+  void triggerAutoBackup(String tableName, String operation, {int count = 1}) {
+    AutoSyncEngine.instance.notifyDataChange(table: tableName, operation: operation, count: count);
   }
 }
 
@@ -38,13 +38,8 @@ class PaymentsRepositoryWithAutoBackup with AutoBackupMixin {
       ),
     );
 
-    // تشغيل النسخ التلقائي
-    triggerAutoBackup('payments', 'CREATE', recordData: {
-      'id': paymentId,
-      'booking_id': bookingId,
-      'amount': amount,
-      'payment_method': paymentMethod,
-    });
+    // تشغيل المزامنة التلقائية
+    triggerAutoBackup('payments', 'CREATE');
 
     return paymentId;
   }
@@ -65,12 +60,8 @@ class PaymentsRepositoryWithAutoBackup with AutoBackupMixin {
         ));
 
     if (updatedRows > 0) {
-      // تشغيل النسخ التلقائي
-      triggerAutoBackup('payments', 'UPDATE', recordData: {
-        'id': id,
-        'amount': amount,
-        'payment_method': paymentMethod,
-      });
+      // تشغيل المزامنة التلقائية
+      triggerAutoBackup('payments', 'UPDATE');
     }
 
     return updatedRows > 0;
@@ -83,13 +74,8 @@ class PaymentsRepositoryWithAutoBackup with AutoBackupMixin {
     final deletedRows = await (db.delete(db.payments)..where((p) => p.id.equals(id))).go();
 
     if (deletedRows > 0 && payment != null) {
-      // تشغيل النسخ التلقائي
-      triggerAutoBackup('payments', 'DELETE', recordData: {
-        'id': id,
-        'amount': payment.amount,
-        'payment_method': payment.paymentMethod,
-        'booking_id': payment.bookingLocalId,
-      });
+      // تشغيل المزامنة التلقائية
+      triggerAutoBackup('payments', 'DELETE');
     }
 
     return deletedRows > 0;
@@ -119,14 +105,8 @@ class RoomsRepositoryWithAutoBackup with AutoBackupMixin {
       ),
     );
 
-    // تشغيل النسخ التلقائي
-    triggerAutoBackup('rooms', 'CREATE', recordData: {
-      'id': roomId,
-      'room_number': roomNumber,
-      'type': type,
-      'price': price,
-      'status': status,
-    });
+    // تشغيل المزامنة التلقائية
+    triggerAutoBackup('rooms', 'CREATE');
 
     return roomId;
   }
@@ -139,11 +119,8 @@ class RoomsRepositoryWithAutoBackup with AutoBackupMixin {
         ));
 
     if (updatedRows > 0) {
-      // تشغيل النسخ التلقائي
-      triggerAutoBackup('rooms', 'UPDATE', recordData: {
-        'room_number': roomNumber,
-        'new_status': newStatus,
-      });
+      // تشغيل المزامنة التلقائية
+      triggerAutoBackup('rooms', 'UPDATE');
     }
 
     return updatedRows > 0;
@@ -173,13 +150,8 @@ class ExpensesRepositoryWithAutoBackup with AutoBackupMixin {
       ),
     );
 
-    // تشغيل النسخ التلقائي
-    triggerAutoBackup('expenses', 'CREATE', recordData: {
-      'id': expenseId,
-      'expense_type': expenseType,
-      'amount': amount,
-      'description': description,
-    });
+    // تشغيل المزامنة التلقائية
+    triggerAutoBackup('expenses', 'CREATE');
 
     return expenseId;
   }

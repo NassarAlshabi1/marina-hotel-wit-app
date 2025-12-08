@@ -2,8 +2,7 @@ import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/rooms_dao.dart';
-import '../auto_backup_manager.dart';
-import '../sync_guardian.dart';
+import '../google_drive_auto_sync_engine.dart';
 
 class RoomsRepository {
   RoomsRepository(this.db)
@@ -27,8 +26,7 @@ class RoomsRepository {
         imageUrl: d.Value(imageUrl),
       ),
     );
-    AutoBackupManager.instance.onDataChange('rooms', 'INSERT', recordData: {'room_number': roomNumber});
-    SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'INSERT');
+    AutoSyncEngine.instance.notifyDataChange(table: 'rooms', operation: 'INSERT', count: 1);
     return result;
   }
 
@@ -43,8 +41,7 @@ class RoomsRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange('rooms', 'UPDATE', recordData: {'id': id});
-      SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'UPDATE');
+      AutoSyncEngine.instance.notifyDataChange(table: 'rooms', operation: 'UPDATE', count: 1);
     }
     return result;
   }
@@ -60,8 +57,7 @@ class RoomsRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange('rooms', 'UPDATE', recordData: {'room_number': roomNumber});
-      SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'UPDATE');
+      AutoSyncEngine.instance.notifyDataChange(table: 'rooms', operation: 'UPDATE', count: 1);
     }
     return result;
   }
@@ -69,8 +65,7 @@ class RoomsRepository {
   Future<int> delete(String roomNumber) async {
     final result = await dao.softDelete(roomNumber);
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange('rooms', 'DELETE', recordData: {'room_number': roomNumber});
-      SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'DELETE');
+      AutoSyncEngine.instance.notifyDataChange(table: 'rooms', operation: 'DELETE', count: 1);
     }
     return result;
   }

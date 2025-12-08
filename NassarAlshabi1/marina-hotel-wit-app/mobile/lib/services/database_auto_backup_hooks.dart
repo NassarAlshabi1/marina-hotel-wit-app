@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
-import 'auto_backup_manager.dart';
+import 'google_drive_auto_sync_engine.dart';
 import 'local_db.dart';
 
 /// مدد لتتبع التغييرات في قاعدة البيانات للنسخ التلقائي
@@ -25,11 +25,11 @@ extension DatabaseAutoBackupExtension on AppDatabase {
   }) async {
     final result = await into(table).insert(entity, mode: mode, onConflict: onConflict);
     
-    // تسجيل التغيير للنسخ التلقائي
-    AutoBackupManager.instance.onDataChange(
-      table.actualTableName,
-      'INSERT',
-      recordData: entity.toColumns(false),
+    // تسجيل التغيير للمزامنة التلقائية
+    AutoSyncEngine.instance.notifyDataChange(
+      table: table.actualTableName,
+      operation: 'INSERT',
+      count: 1,
     );
     
     return result;
@@ -49,11 +49,11 @@ extension DatabaseAutoBackupExtension on AppDatabase {
     final result = await statement.write(entity);
     
     if (result > 0) {
-      // تسجيل التغيير للنسخ التلقائي
-      AutoBackupManager.instance.onDataChange(
-        table.actualTableName,
-        'UPDATE',
-        recordData: entity.toColumns(false),
+      // تسجيل التغيير للمزامنة التلقائية
+      AutoSyncEngine.instance.notifyDataChange(
+        table: table.actualTableName,
+        operation: 'UPDATE',
+        count: 1,
       );
     }
     
@@ -64,7 +64,6 @@ extension DatabaseAutoBackupExtension on AppDatabase {
   Future<int> deleteWithBackupTrigger<TTable extends Table, TData extends DataClass>(
     TableInfo<TTable, TData> table, {
     TablePredicate<TTable>? where,
-    Map<String, dynamic>? recordData,
   }) async {
     final statement = delete(table);
     if (where != null) {
@@ -74,11 +73,11 @@ extension DatabaseAutoBackupExtension on AppDatabase {
     final result = await statement.go();
     
     if (result > 0) {
-      // تسجيل التغيير للنسخ التلقائي
-      AutoBackupManager.instance.onDataChange(
-        table.actualTableName,
-        'DELETE',
-        recordData: recordData,
+      // تسجيل التغيير للمزامنة التلقائية
+      AutoSyncEngine.instance.notifyDataChange(
+        table: table.actualTableName,
+        operation: 'DELETE',
+        count: 1,
       );
     }
     
@@ -111,7 +110,6 @@ class AutoBackupDatabaseHelper {
     final result = await _db.deleteWithBackupTrigger(
       _db.bookings,
       where: (t) => t.id.equals(id),
-      recordData: {'id': id, 'guest_name': guestName},
     );
     if (result > 0) debugPrint('🗑️ تم حذف حجز ($id - $guestName) - سيتم النسخ التلقائي');
     return result;

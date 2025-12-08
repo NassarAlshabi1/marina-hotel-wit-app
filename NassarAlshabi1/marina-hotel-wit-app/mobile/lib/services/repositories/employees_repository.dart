@@ -35,7 +35,7 @@ class EmployeesRepository {
         status: d.Value(status),
       ),
     );
-    AutoBackupManager.instance.onDataChange('employees', 'INSERT', recordData: {'name': name});
+    AutoSyncEngine.instance.notifyDataChange(table: 'employees', operation: 'INSERT', count: 1);
     return result;
   }
 
@@ -51,7 +51,7 @@ class EmployeesRepository {
         status: status != null ? d.Value(status) : const d.Value.absent(),
       ),
     );
-    if (result > 0) AutoBackupManager.instance.onDataChange('employees', 'UPDATE', recordData: {'id': id});
+    if (result > 0) AutoSyncEngine.instance.notifyDataChange(table: 'employees', operation: 'UPDATE', count: 1);
     return result;
   }
 
@@ -69,7 +69,7 @@ class EmployeesRepository {
 
   Future<int> delete(int id) async {
     final result = await dao.softDelete(id);
-    if (result > 0) AutoBackupManager.instance.onDataChange('employees', 'DELETE', recordData: {'id': id});
+    if (result > 0) AutoSyncEngine.instance.notifyDataChange(table: 'employees', operation: 'DELETE', count: 1);
     return result;
   }
 

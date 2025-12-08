@@ -66,7 +66,6 @@ class BookingsRepositoryAutomated {
       table: 'bookings',
       operation: 'INSERT',
       count: 1,
-      recordData: {'guest_name': guestName, 'room_number': roomNumber},
     );
 
     return result;
@@ -151,7 +150,6 @@ class PaymentsRepositoryAutomated {
       table: 'payments',
       operation: 'INSERT',
       count: 1,
-      recordData: {'amount': amount, 'payment_method': paymentMethod},
     );
 
     return result;
@@ -209,7 +207,6 @@ class ExpensesRepositoryAutomated {
       table: 'expenses',
       operation: 'INSERT',
       count: 1,
-      recordData: {'expense_type': expenseType, 'amount': amount},
     );
 
     return result;
@@ -268,7 +265,6 @@ class RoomsRepositoryAutomated {
       table: 'rooms',
       operation: 'INSERT',
       count: 1,
-      recordData: {'room_number': roomNumber, 'type': type},
     );
 
     return result;
@@ -281,7 +277,6 @@ class RoomsRepositoryAutomated {
       table: 'rooms',
       operation: 'UPDATE_STATUS',
       count: 1,
-      recordData: {'room_number': roomNumber, 'status': newStatus},
     );
 
     return result;
@@ -345,7 +340,6 @@ class DebtsRepositoryAutomated {
       table: 'debts',
       operation: 'INSERT',
       count: 1,
-      recordData: {'guest_name': guestName, 'total_amount': totalAmount},
     );
 
     return result;
@@ -373,7 +367,6 @@ class DebtsRepositoryAutomated {
       table: 'debts',
       operation: 'PAYMENT',
       count: 1,
-      recordData: {'debt_id': debtId, 'payment_amount': paymentAmount},
     );
 
     return result;
@@ -412,7 +405,6 @@ class EmployeesRepositoryAutomated {
       table: 'employees',
       operation: 'INSERT',
       count: 1,
-      recordData: {'name': name, 'position': position},
     );
 
     return result;
@@ -473,7 +465,6 @@ class CashTransactionsRepositoryAutomated {
       table: 'cash_transactions',
       operation: 'INSERT',
       count: 1,
-      recordData: {'type': transactionType, 'amount': amount},
     );
 
     return result;
@@ -558,12 +549,6 @@ class MixedOperationsExample {
       table: 'bookings',
       operation: 'CHECKOUT_WITH_PAYMENT',
       count: operationsCount,
-      recordData: {
-        'booking_id': bookingId,
-        'total_amount': totalAmount,
-        'paid_amount': paidAmount,
-        'remaining': remainingAmount,
-      },
     );
   }
 
@@ -619,11 +604,6 @@ class MixedOperationsExample {
       table: 'finance',
       operation: 'DAILY_CLOSE',
       count: totalOperations,
-      recordData: {
-        'payments_count': payments.length,
-        'expenses_count': expenses.length,
-        'balance': cashRegisterBalance,
-      },
     );
   }
 }

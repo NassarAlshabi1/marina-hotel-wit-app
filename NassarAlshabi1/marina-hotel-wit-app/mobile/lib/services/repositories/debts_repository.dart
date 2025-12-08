@@ -2,7 +2,7 @@ import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/debts_dao.dart';
 import '../daos/outbox_dao.dart';
-import '../auto_backup_manager.dart';
+import '../google_drive_auto_sync_engine.dart';
 
 class DebtsRepository {
   DebtsRepository(this.db) : dao = DebtsDao(db, OutboxDao(db));
@@ -54,7 +54,7 @@ class DebtsRepository {
         note: d.Value(note),
       ),
     );
-    AutoBackupManager.instance.onDataChange('debts', 'INSERT', recordData: {'guest_name': guestName});
+    AutoSyncEngine.instance.notifyDataChange(table: 'debts', operation: 'INSERT', count: 1);
     return result;
   }
 
@@ -101,13 +101,13 @@ class DebtsRepository {
         note: note != null ? d.Value(note) : const d.Value.absent(),
       ),
     );
-    if (result > 0) AutoBackupManager.instance.onDataChange('debts', 'UPDATE', recordData: {'id': id});
+    if (result > 0) AutoSyncEngine.instance.notifyDataChange(table: 'debts', operation: 'UPDATE', count: 1);
     return result;
   }
 
   Future<int> delete(int id) async {
     final result = await dao.softDelete(id);
-    if (result > 0) AutoBackupManager.instance.onDataChange('debts', 'DELETE', recordData: {'id': id});
+    if (result > 0) AutoSyncEngine.instance.notifyDataChange(table: 'debts', operation: 'DELETE', count: 1);
     return result;
   }
 
