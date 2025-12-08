@@ -247,7 +247,7 @@ class RoomsRepositoryAutomated {
   Stream<List<Room>> watchAll() => dao.watchList();
   Stream<Room?> watchOne(String roomNumber) => dao.watchByNumber(roomNumber);
 
-  Future<int> create({
+  Future<String> create({
     required String roomNumber,
     required String type,
     required double price,

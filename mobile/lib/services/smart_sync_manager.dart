@@ -442,7 +442,6 @@ class SmartSyncManager {
                  if (createdAt.isAfter(lastSync)) {
                    newNotesCount++;
                    lastNoteTitle = noteData['title'] ?? 'بدون عنوان';
-                   noteCreator = noteData['created_by'] ?? 'مسؤول';
                  }
                } catch (e) {
                  _log('⚠️ تعذر تحليل تاريخ الملاحظة: $createdAtStr - $e');
