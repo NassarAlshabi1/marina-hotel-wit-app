@@ -4,6 +4,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'logging/log_models.dart';
 
+export 'logging/log_models.dart';
+
 class GoogleDriveLogger extends ChangeNotifier {
   static final GoogleDriveLogger _instance = GoogleDriveLogger._internal();
   factory GoogleDriveLogger() => _instance;
