@@ -1,0 +1,282 @@
+<?php
+require_once '../../includes/functions.php';
+include_once '../../includes/db.php';      // يفترض أن هذا الملف يقوم بإنشاء اتصال $conn بقاعدة البيانات
+include_once '../../includes/auth.php';    // للمصادقة فقط
+
+// جلب رقم الحجز من الرابط
+$booking_id = intval($_GET['id'] ?? 0);
+if ($booking_id <= 0) {
+    die("رقم الحجز غير صالح");
+}
+
+// جلب بيانات الحجز مع سعر الغرفة
+$booking_query = "
+    SELECT b.booking_id, b.guest_name, b.guest_phone, b.room_number, b.checkin_date, b.checkout_date, 
+           r.price AS room_price,
+           b.status,
+           IFNULL((SELECT SUM(p.amount) FROM payment p WHERE p.booking_id = b.booking_id), 0) AS paid_amount
+    FROM bookings b
+    LEFT JOIN rooms r ON b.room_number = r.room_number
+    WHERE b.booking_id = ? LIMIT 1
+";
+
+$stmt = $conn->prepare($booking_query);
+if (!$stmt) {
+    die("خطأ في الاستعلام: " . $conn->error);
+}
+$stmt->bind_param("i", $booking_id);
+$stmt->execute();
+$booking_result = $stmt->get_result();
+if ($booking_result->num_rows === 0) {
+    die("الحجز غير موجود");
+}
+$booking = $booking_result->fetch_assoc();
+
+// حساب عدد الليالي بين checkin_date و checkout_date
+$checkin = new DateTime($booking['checkin_date']);
+$checkout = new DateTime($booking['checkout_date']);
+$nights = $checkout->diff($checkin)->days;
+if ($nights < 1) $nights = 1;
+
+// حساب المبلغ الإجمالي والمتبقي
+$total_price = $booking['room_price'] * $nights;
+$paid_amount = $booking['paid_amount'];
+$remaining = max(0, $total_price - $paid_amount);
+
+$payment_error = '';
+$success_msg = '';
+
+// معالجة تسجيل المغادرة
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['checkout'])) {
+    if ($remaining == 0) {
+        $conn->begin_transaction();
+        try {
+            // تحديث حالة الحجز إلى 'شاغرة' وتسجيل actual_checkout
+            $update_booking = "UPDATE bookings SET status = 'شاغرة', actual_checkout = NOW() WHERE booking_id = ?";
+            $stmt_update_booking = $conn->prepare($update_booking);
+            $stmt_update_booking->bind_param("i", $booking_id);
+            if (!$stmt_update_booking->execute()) {
+                throw new Exception("خطأ في تحديث حالة الحجز: " . $stmt_update_booking->error);
+            }
+
+            // تحديث حالة الغرفة إلى 'شاغرة'
+            $update_room = "UPDATE rooms SET status = 'شاغرة' WHERE room_number = ?";
+            $stmt_update_room = $conn->prepare($update_room);
+            $stmt_update_room->bind_param("s", $booking['room_number']);
+            if (!$stmt_update_room->execute()) {
+                throw new Exception("خطأ في تحديث حالة الغرفة: " . $stmt_update_room->error);
+            }
+
+            $conn->commit();
+
+            header("Location: payment.php?id={$booking_id}&success=" . urlencode("تم تسجيل خروج النزيل بنجاح وتم تحرير الغرفة."));
+            exit();
+
+        } catch (Exception $e) {
+            $conn->rollback();
+            $payment_error = $e->getMessage();
+        }
+    } else {
+        $payment_error = "لا يمكن تسجيل المغادرة قبل تسديد كافة المستحقات.";
+    }
+}
+
+// معالجة تسجيل دفعة جديدة
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment'])) {
+    $amount = intval($_POST['amount'] ?? 0);
+    $payment_date = $_POST['payment_date'] ?? date('Y-m-d H:i:s');
+    $payment_method = $conn->real_escape_string($_POST['payment_method'] ?? 'نقدي');
+    $notes = $conn->real_escape_string($_POST['notes'] ?? '');
+
+    if ($amount <= 0 || $amount > $remaining) {
+        $payment_error = "المبلغ يجب أن يكون بين 1 و {$remaining} ريال";
+    } else {
+        $insert_payment = "INSERT INTO payment (booking_id, amount, payment_date, payment_method, notes) VALUES (?, ?, ?, ?, ?)";
+        $stmt_insert = $conn->prepare($insert_payment);
+        if (!$stmt_insert) {
+            $payment_error = "خطأ في تحضير الاستعلام: " . $conn->error;
+        } else {
+            $stmt_insert->bind_param("iisss", $booking_id, $amount, $payment_date, $payment_method, $notes);
+            if ($stmt_insert->execute()) {
+                // تحديث المبلغ المتبقي بعد الدفع الجديد
+                $remaining_after_payment = $remaining - $amount;
+
+                // إرسال رسالة واتساب للعميل
+                $phone = $booking['guest_phone'];
+                $message = "عزيزي {$booking['guest_name']}، تم استلام دفعة بقيمة: {$amount} ريال\nرقم الحجز: {$booking_id}\nالمبلغ المتبقي: {$remaining_after_payment} ريال\nشكراً لاختيارك فندقنا\nللاستفسار: 9677734587456";
+
+                $wa_result = send_yemeni_whatsapp($phone, $message);
+
+                $success_msg = "تم تسجيل الدفعة بنجاح";
+                if (isset($wa_result['status']) && $wa_result['status'] === 'sent') {
+                    $success_msg .= " وتم إرسال الإشعار للعميل عبر واتساب.";
+                } else {
+                    $success_msg .= " ولكن لم يتم إرسال الإشعار للعميل.";
+                }
+
+                header("Location: payment.php?id={$booking_id}&success=" . urlencode($success_msg));
+                exit();
+            } else {
+                $payment_error = "خطأ في تسجيل الدفعة: " . $stmt_insert->error;
+            }
+        }
+    }
+}
+
+// جلب سجل الدفعات السابقة
+$payments_query = "SELECT * FROM payment WHERE booking_id = ? ORDER BY payment_date DESC";
+$stmt_payments = $conn->prepare($payments_query);
+$stmt_payments->bind_param("i", $booking_id);
+$stmt_payments->execute();
+$payments_result = $stmt_payments->get_result();
+
+// تضمين الهيدر بعد انتهاء معالجة POST
+include_once '../../includes/header.php';
+?>
+
+
+
+<body>
+<?php include_once '../../includes/sidebar.php'; ?>
+<div class="main-layout">
+    <div class="content-area">
+        <div class="container py-4">
+<h1 class="text-center mb-4">إدارة الدفعات - حجز #<?= htmlspecialchars($booking_id) ?></h1>
+
+<?php if (isset($error)): ?>
+    <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+<?php endif; ?>
+
+<?php if (isset($_GET['success'])): ?>
+    <div class="alert alert-success"><?= htmlspecialchars($_GET['success']) ?></div>
+<?php endif; ?>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-info-circle"></i> تفاصيل الحجز
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-6"><b>اسم النزيل:</b></div>
+                    <div class="col-6"><?= htmlspecialchars($booking['guest_name']); ?></div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-6"><b>رقم الغرفة:</b></div>
+                    <div class="col-6"><?= htmlspecialchars($booking['room_number']); ?></div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-6"><b>تاريخ الوصول:</b></div>
+                    <div class="col-6"><?= date('d/m/Y', strtotime($booking['checkin_date'])) ?></div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-6"><b>تاريخ المغادرة:</b></div>
+                    <div class="col-6"><?= date('d/m/Y', strtotime($booking['checkout_date'])) ?></div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-6"><b>عدد الليالي:</b></div>
+                    <div class="col-6"><?= $nights ?> ليلة</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-6"><b>سعر الليلة:</b></div>
+                    <div class="col-6"><?= number_format($booking['room_price'], 0); ?></div>
+                </div>
+                <div class="row mb-2 fw-bold text-primary">
+                    <div class="col-6">المبلغ الإجمالي:</div>
+                    <div class="col-6"><?= number_format($total_price, 0); ?></div>
+                </div>
+                <div class="row mb-2 text-success">
+                    <div class="col-6">المدفوع:</div>
+                    <div class="col-6"><?= number_format($paid_amount, 0); ?></div>
+                </div>
+                <div class="row mb-2 fw-bold text-danger">
+                    <div class="col-6">المتبقي:</div>
+                    <div class="col-6"><?= number_format($remaining, 0); ?></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white"><i class="fas fa-money-bill-wave"></i> إضافة دفعة جديدة</div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">المبلغ (ر.س)</label>
+                        <input type="number" name="amount" id="amount" class="form-control"
+                               step="1" min="1" max="<?= $remaining ?>" value="<?= min($remaining, 1000) ?>" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="payment_date" class="form-label">تاريخ الدفع:</label>
+                        <input type="datetime-local" id="payment_date" name="payment_date" class="form-control" value="<?= date('Y-m-d\TH:i') ?>" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="payment_method" class="form-label">طريقة الدفع:</label>
+                        <select id="payment_method" name="payment_method" class="form-select">
+                            <option value="نقدي">نقدي</option>
+                            <option value="تحويل">تحويل</option>
+                            <option value="بطاقة ائتمان">بطاقة ائتمان</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">ملاحظات:</label>
+                        <textarea id="notes" name="notes" rows="2" class="form-control" placeholder="اختياري"></textarea>
+                    </div>
+
+        <button type="submit" name="submit_payment" class="btn btn-success"><i class="fas fa-plus-circle"></i> تسجيل الدفعة</button>
+    </form>
+
+    <?php if ($remaining == 0 && $booking['status'] == 'محجوزة'): ?>
+        <form method="post" style="text-align: center; margin-top: 20px;">
+        <button type="submit" name="checkout" class="btn btn-primary mt-3"><i class="fas fa-sign-out-alt"></i> تسجيل خروج النزيل</button>
+        </form>
+    <?php elseif ($booking['status'] == 'شاغرة'): ?>
+        <p style="text-align:center; color: #27ae60; font-weight: bold; margin-top: 20px;">
+            تم تسجيل خروج النزيل والغرفة متاحة الآن.
+        </p>
+    <?php endif; ?>
+
+<div class="card shadow-sm mt-4">
+    <div class="card-header bg-info text-white">
+        <i class="fas fa-history"></i> سجل الدفعات السابقة
+    </div>
+    <div class="card-body">
+        <?php if ($payments_result->num_rows > 0): ?>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>المبلغ</th>
+                            <th>تاريخ الدفع</th>
+                            <th>طريقة الدفع</th>
+                            <th>ملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php while($payment = $payments_result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?= number_format($payment['amount'], 0); ?></td>
+                            <td><?= date('d/m/Y H:i', strtotime($payment['payment_date'])) ?></td>
+                            <td><?= htmlspecialchars($payment['payment_method']) ?></td>
+                            <td><?= htmlspecialchars($payment['notes']) ?></td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <p class="text-muted">لا توجد دفعات سابقة لهذا الحجز.</p>
+        <?php endif; ?>
+    </div>
+</div>
+    </div>
+</div>
+
+        </div>
+    </div>
+</div>
+<?php include_once '../../includes/footer.php'; ?>

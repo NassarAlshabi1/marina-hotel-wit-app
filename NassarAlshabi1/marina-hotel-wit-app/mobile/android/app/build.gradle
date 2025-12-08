@@ -1,0 +1,108 @@
+plugins {
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader("UTF-8") { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode")
+if (flutterVersionCode == null) {
+    flutterVersionCode = "1"
+}
+
+def flutterVersionName = localProperties.getProperty("flutter.versionName")
+if (flutterVersionName == null) {
+    flutterVersionName = "1.0"
+}
+
+// Load keystore properties for release signing
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace = "com.aden.marina"
+    compileSdk = 36
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+        coreLibraryDesugaringEnabled true
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+
+    defaultConfig {
+        applicationId = "com.aden.marina"
+        minSdk = 21
+        targetSdk = 36
+        versionCode = flutterVersionCode.toInteger()
+        versionName = flutterVersionName
+        multiDexEnabled = true
+        
+        // ABI filters handled by Flutter --split-per-abi during build
+        // This allows flexible multi-architecture builds via GitHub Actions
+        
+        // Add app metadata
+        manifestPlaceholders = [
+            appName: "Marina Hotel",
+            appDescription: "Complete Hotel Management System",
+            applicationName: "io.flutter.app.FlutterApplication"
+        ]
+    }
+
+    signingConfigs {
+        // Unified signing config - same keystore and alias for all builds  
+        // Ensures consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
+        unified {
+            if (keystoreProperties['keyAlias'] != null) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            signingConfig signingConfigs.unified
+        }
+        
+        release {
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.unified
+        }
+    }
+
+    packagingOptions {
+        resources {
+            excludes += ['META-INF/LICENSE*', 'META-INF/AL2.0', 'META-INF/LGPL2.1']
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+dependencies {
+    implementation "androidx.multidex:multidex:2.0.1"
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.4"
+}

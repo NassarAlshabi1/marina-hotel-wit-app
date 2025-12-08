@@ -1,0 +1,15 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+[remote "origin"]
+	url = https://github.com/NassarAlshabi1/marina-hotel-wit-app.git
+	tagOpt = --no-tags
+	fetch = +refs/heads/A:refs/remotes/origin/A
+[branch "A"]
+	remote = origin
+	merge = refs/heads/A
+[user]
+	name = NassarAlshabi1
+	email = adenmarina2@gmail.com

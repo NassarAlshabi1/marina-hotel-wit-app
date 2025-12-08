@@ -1,0 +1,55 @@
+name: Build Flutter APK
+
+on:
+  # Triggers:
+  # - Push to 'main' or 'capy/google-drive-c3b36ed3' (no path filters).
+  #   This ensures any commit to the capy branch runs the workflow regardless of changed files.
+  # - Manual trigger via 'workflow_dispatch'.
+  push:
+    branches:
+      - main
+      - capy/google-drive-c3b36ed3
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: false
+
+      - name: Flutter Clean
+        run: flutter clean
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload debug artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'marina-hotel-debug-main-${{ github.run_number }}'
+          path: mobile/build/app/outputs/flutter-apk/*-debug*.apk
+          if-no-files-found: error

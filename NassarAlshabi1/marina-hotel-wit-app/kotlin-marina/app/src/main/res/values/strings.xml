@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Marina Hotel</string>
+    <string name="menu_login">تسجيل الدخول</string>
+    <string name="menu_dashboard">لوحة القيادة</string>
+    <string name="menu_bookings">الحجوزات</string>
+    <string name="menu_reports">التقارير</string>
+    <string name="menu_logout">تسجيل الخروج</string>
+
+    <string name="content_toolbar">شريط الأدوات الرئيسي</string>
+    <string name="content_navigation_drawer">قائمة التنقل</string>
+
+    <string name="title_login">تسجيل الدخول</string>
+    <string name="hint_username">اسم المستخدم</string>
+    <string name="hint_password">كلمة المرور</string>
+    <string name="action_login">دخول</string>
+    <string name="error_invalid_credentials">بيانات الدخول غير صحيحة</string>
+    <string name="error_required_credentials">الرجاء إدخال اسم المستخدم وكلمة المرور</string>
+
+    <string name="title_dashboard_alerts">التنبيهات النشطة</string>
+    <string name="title_dashboard_rooms">حالة الغرف</string>
+    <string name="label_room_status_vacant">شاغرة</string>
+    <string name="label_room_status_reserved">محجوزة</string>
+    <string name="label_room_status_maintenance">صيانة</string>
+    <string name="label_booking_status_reserved">محجوزة</string>
+    <string name="label_booking_status_completed">مكتملة</string>
+    <string name="label_booking_status_cancelled">ملغاة</string>
+    <string name="label_no_alerts">لا توجد تنبيهات</string>
+    <string name="label_room_floor">طابق %1$d</string>
+    <string name="label_room_number">الغرفة %1$s</string>
+    <string name="label_alert_until">مستمر حتى %1$s</string>
+    <string name="message_room_maintenance">الغرفة قيد الصيانة حاليًا</string>
+
+    <string name="title_booking_list">إدارة الحجوزات</string>
+    <string name="action_add_booking">إضافة حجز جديد</string>
+    <string name="label_search_hint">بحث عن نزيل أو غرفة</string>
+
+    <string name="title_booking_form">تفاصيل الحجز</string>
+    <string name="hint_guest_name">اسم النزيل</string>
+    <string name="hint_guest_phone">رقم الهاتف</string>
+    <string name="hint_guest_id_type">نوع الهوية</string>
+    <string name="hint_guest_id_number">رقم الهوية</string>
+    <string name="hint_guest_nationality">الجنسية</string>
+    <string name="hint_room_number">رقم الغرفة</string>
+    <string name="hint_room_type">نوع الغرفة</string>
+    <string name="hint_checkin_date">تاريخ الوصول</string>
+    <string name="hint_checkout_date">تاريخ المغادرة</string>
+    <string name="hint_notes">ملاحظات</string>
+    <string name="action_save_booking">حفظ الحجز</string>
+    <string name="action_update_booking">تحديث الحجز</string>
+    <string name="error_required_field">هذا الحقل مطلوب</string>
+    <string name="error_room_unavailable">الغرفة المختارة غير متاحة</string>
+    <string name="message_booking_saved">تم حفظ الحجز بنجاح</string>
+    <string name="message_booking_updated">تم تحديث الحجز بنجاح</string>
+    <string name="error_select_room">يرجى اختيار الغرفة</string>
+    <string name="error_select_checkin">يرجى تحديد تاريخ الوصول</string>
+
+    <string name="title_booking_details">تفاصيل الحجز</string>
+    <string name="title_guest_information">بيانات النزيل</string>
+    <string name="title_booking_summary">ملخص الحجز</string>
+    <string name="label_booking_notes">ملاحظات الحجز</string>
+    <string name="label_total_amount">الإجمالي</string>
+    <string name="label_paid_amount">المدفوع</string>
+    <string name="label_remaining_amount">المتبقي</string>
+    <string name="label_checkin">الوصول: %1$s</string>
+    <string name="label_checkout">المغادرة: %1$s</string>
+    <string name="label_nights">عدد الليالي: %1$d</string>
+    <string name="label_amount_format">%1$,d ر.س</string>
+    <string name="label_value_format">%1$s: %2$s</string>
+    <string name="label_not_set">—</string>
+    <string name="label_guest_phone_value">الهاتف: %1$s</string>
+    <string name="label_guest_id_value">الهوية: %1$s • %2$s</string>
+    <string name="label_guest_nationality_value">الجنسية: %1$s</string>
+    <string name="label_room_type_value">نوع الغرفة: %1$s</string>
+    <string name="label_booking_status_value">حالة الحجز: %1$s</string>
+    <string name="label_no_notes">لا توجد ملاحظات</string>
+    <string name="label_payment_method_value">طريقة الدفع: %1$s</string>
+    <string name="label_payment_date_value">التاريخ: %1$s</string>
+    <string name="label_payment_notes_value">ملاحظات: %1$s</string>
+    <string name="label_payments_history">سجل المدفوعات</string>
+    <string name="text_no_payments">لم يتم إضافة مدفوعات حتى الآن</string>
+    <string name="hint_payment_amount">قيمة الدفعة</string>
+    <string name="hint_payment_method">طريقة الدفع</string>
+    <string name="hint_payment_notes">ملاحظات الدفع</string>
+    <string name="error_payment_amount">يرجى إدخال قيمة دفع صحيحة</string>
+    <string name="error_payment_method">يرجى اختيار طريقة الدفع</string>
+    <string name="message_payment_added">تم تسجيل الدفعة بنجاح</string>
+    <string name="message_checkout_success">تم إنهاء الحجز وتفريغ الغرفة بنجاح</string>
+    <string name="action_add_payment">إضافة دفعة</string>
+    <string name="action_checkout">تسجيل المغادرة</string>
+    <string name="dialog_checkout_title">تأكيد تسجيل المغادرة</string>
+    <string name="dialog_checkout_message">هل أنت متأكد من إنهاء الحجز وتفريغ الغرفة؟</string>
+    <string name="action_confirm">تأكيد</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="error_outstanding_amount">لا يمكن تسجيل المغادرة قبل سداد المبلغ المتبقي</string>
+    <string name="error_missing_booking">لا يمكن العثور على الحجز المحدد</string>
+
+    <string name="title_reports">التقارير</string>
+    <string name="hint_from_date">من تاريخ</string>
+    <string name="hint_to_date">إلى تاريخ</string>
+    <string name="label_occupancy_chart">معدل الإشغال</string>
+    <string name="label_revenue_chart">الإيرادات</string>
+    <string name="label_expense_summary">ملخص المصروفات</string>
+    <string name="label_total_revenue">إجمالي الإيرادات</string>
+    <string name="label_total_expenses">إجمالي المصروفات</string>
+    <string name="label_net_income">صافي الدخل</string>
+    <string name="label_daily_summary">ملخص يومي</string>
+    <string name="label_summary_revenue">الإيرادات</string>
+    <string name="label_summary_expenses">المصروفات</string>
+    <string name="label_summary_occupancy">الإشغال</string>
+    <string name="label_occupancy_percent">الإشغال: ‎%1$.0f%%</string>
+    <string name="label_revenue_amount">الإيرادات: %1$s</string>
+    <string name="label_expense_amount">المصروفات: %1$s</string>
+
+    <string name="text_no_data">لا توجد بيانات</string>
+    <string name="status_booked_with_guest">محجوز بواسطة %1$s</string>
+    <string name="status_available_room">الغرفة %1$s متاحة</string>
+    <string name="status_room_in_maintenance">الغرفة %1$s تحت الصيانة</string>
+
+    <string name="version_format_simple">الإصدار %1$s</string>
+</resources>
