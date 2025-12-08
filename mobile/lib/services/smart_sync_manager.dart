@@ -427,7 +427,6 @@ class SmartSyncManager {
 
         int newNotesCount = 0;
         String lastNoteTitle = '';
-        String noteCreator = 'الإدارة';
 
         for (final noteData in notes) {
           if (noteData is Map<String, dynamic>) {

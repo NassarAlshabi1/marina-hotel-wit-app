@@ -146,7 +146,6 @@ class SyncQueueService {
       debugPrint('🔄 [SyncQueue] معالجة ${items.length} عنصر...');
       
       final itemsToRemove = <String>[];
-      final itemsToUpdate = <SyncQueueItem>[];
       
       for (final item in items) {
         if (item.attempts >= _maxAttempts) {
