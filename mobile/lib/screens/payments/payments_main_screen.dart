@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../components/app_scaffold.dart';
+import '../../constants/status_constants.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
@@ -338,7 +339,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         }
 
         final activeBookings = snapshot.data!
-            .where((booking) => booking.status == 'محجوزة')
+            .where((booking) => booking.status == BookingStatus.booked)
             .toList();
 
         if (activeBookings.isEmpty) {

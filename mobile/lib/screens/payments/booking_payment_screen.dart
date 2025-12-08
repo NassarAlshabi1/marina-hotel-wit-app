@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
+import '../../constants/status_constants.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/message_templates.dart';
 import '../../models/payment_models.dart';
@@ -1619,13 +1620,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
     await bookingsRepo.update(
       widget.booking.id,
-      status: 'مكتمل',
+      status: BookingStatus.completed,
       actualCheckout: nowIso,
       calculatedNights: actualNights,
     );
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
     if (room != null) {
-      await roomsRepo.update(room.id, status: 'شاغرة');
+      await roomsRepo.update(room.id, status: RoomStatus.available);
     }
     markDataChanged();
     if (!mounted) return;
@@ -1681,14 +1682,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
       await bookingsRepo.update(
         widget.booking.id,
-        status: 'مكتمل',
+        status: BookingStatus.completed,
         actualCheckout: nowIso,
         calculatedNights: actualNights,
       );
 
       final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
       if (room != null) {
-        await roomsRepo.update(room.id, status: 'شاغرة');
+        await roomsRepo.update(room.id, status: RoomStatus.available);
       }
       markDataChanged();
 
