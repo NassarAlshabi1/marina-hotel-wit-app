@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../constants/status_constants.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 
@@ -17,7 +18,7 @@ class RoomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAvailable = room.status == 'شاغرة';
+    final isAvailable = room.status == RoomStatus.available;
     final cardColor = isAvailable ? Colors.green : Colors.red;
 
     return GestureDetector(
@@ -356,7 +357,7 @@ class _FloorSectionState extends State<FloorSection>
 
   @override
   Widget build(BuildContext context) {
-    final availableCount = widget.rooms.where((r) => r.status == 'شاغرة').length;
+    final availableCount = widget.rooms.where((r) => r.status == RoomStatus.available).length;
     final occupiedCount = widget.rooms.length - availableCount;
 
     return Card(
@@ -411,7 +412,7 @@ class RoomDetailsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAvailable = room.status == 'شاغرة';
+    final isAvailable = room.status == RoomStatus.available;
 
     return Directionality(
       textDirection: TextDirection.rtl,

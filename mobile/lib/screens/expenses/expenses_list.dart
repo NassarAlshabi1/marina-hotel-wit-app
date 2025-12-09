@@ -8,7 +8,6 @@ import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/screen_sync_controller.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -170,17 +169,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
-                      controller: description,
-                      decoration: const InputDecoration(labelText: 'الوصف'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: amount,
-                      decoration: const InputDecoration(labelText: 'المبلغ'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    ),
-                    const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: selectedType,
                       decoration: const InputDecoration(labelText: 'نوع المصروف'),
@@ -205,6 +193,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           }
                         });
                       },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: amount,
+                      decoration: const InputDecoration(labelText: 'المبلغ'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: description,
+                      decoration: const InputDecoration(labelText: 'الوصف'),
                     ),
                     if (selectedType == _salaryType) ...[
                       const SizedBox(height: 12),
