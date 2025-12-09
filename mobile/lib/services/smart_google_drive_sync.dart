@@ -6,6 +6,7 @@ import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
 import '../utils/debug_logs.dart';
+import 'sync_performance_optimizer.dart';
 import 'data_usage_manager.dart';
 
 /// مدير مزامنة Google Drive الذكي المبسط

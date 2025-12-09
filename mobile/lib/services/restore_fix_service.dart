@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import '../constants/status_constants.dart';
 import 'local_db.dart';
 import 'daos/bookings_dao.dart';
 import 'daos/rooms_dao.dart';
@@ -279,10 +278,10 @@ class RestoreFixService {
     
     // البحث عن الحجوزات النشطة (لم تسجل مغادرة فعلية)
     query.where((b) => 
-      (b.status.equals(BookingStatus.booked) |
-       b.status.equals(BookingStatus.active) |
-       b.status.equals(BookingStatus.confirmed) |
-       b.status.equals(BookingStatus.checkedIn)) &
+      (b.status.equals('محجوزة') |
+       b.status.equals('active') |
+       b.status.equals('confirmed') |
+       b.status.equals('checked_in')) &
       b.actualCheckout.isNull()
     );
     
@@ -487,7 +486,7 @@ class RestoreFixService {
     try {
       final activeBookings = await (db.select(db.bookings)
             ..where((b) => b.deletedAt.isNull())
-            ..where((b) => b.status.equals(BookingStatus.booked) | b.status.equals(BookingStatus.active)))
+            ..where((b) => b.status.equals('محجوزة') | b.status.equals('active')))
           .get();
       final occupiedRooms = activeBookings.map((b) => b.roomNumber).toSet();
       final rooms = await (db.select(db.rooms)

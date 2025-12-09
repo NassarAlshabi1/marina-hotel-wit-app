@@ -427,6 +427,7 @@ class SmartSyncManager {
 
         int newNotesCount = 0;
         String lastNoteTitle = '';
+        String noteCreator = 'الإدارة';
 
         for (final noteData in notes) {
           if (noteData is Map<String, dynamic>) {
@@ -442,6 +443,7 @@ class SmartSyncManager {
                  if (createdAt.isAfter(lastSync)) {
                    newNotesCount++;
                    lastNoteTitle = noteData['title'] ?? 'بدون عنوان';
+                   noteCreator = noteData['created_by'] ?? 'مسؤول';
                  }
                } catch (e) {
                  _log('⚠️ تعذر تحليل تاريخ الملاحظة: $createdAtStr - $e');

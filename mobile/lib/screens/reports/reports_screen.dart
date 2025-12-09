@@ -2,7 +2,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
-import '../../constants/status_constants.dart';
 import '../../providers/core_providers.dart' as coreProviders;
 import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
@@ -128,7 +127,7 @@ class ReportsScreen extends ConsumerWidget {
 
     // dummy last 7 days occupancy by current status
     final daily = List.generate(7, (i) {
-      final busy = rooms.where((r) => r.status == RoomStatus.occupied).length;
+      final busy = rooms.where((r) => r.status == 'محجوزة').length;
       final occ = (busy * 100 / total).round();
       return BarChartGroupData(x: i, barRods: [BarChartRodData(toY: occ.toDouble())]);
     });
@@ -154,7 +153,7 @@ class ReportsScreen extends ConsumerWidget {
     final topBars = <BarChartGroupData>[];
     for (var i = 0; i < topRooms.length; i++) {
       final r = topRooms[i];
-      final v = r.status == RoomStatus.occupied ? 100.0 : 20.0;
+      final v = r.status == 'محجوزة' ? 100.0 : 20.0;
       topBars.add(BarChartGroupData(x: i, barRods: [BarChartRodData(toY: v)]));
     }
 
