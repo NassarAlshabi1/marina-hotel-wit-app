@@ -3,12 +3,15 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
+import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../data/sync_models.dart';
+import 'delta_sync_service.dart';
 import 'google_drive_sync_service.dart';
 import 'local_db.dart';
 import 'sync_safety_layer.dart';
@@ -25,7 +28,8 @@ class SyncManager {
     required this.driveService,
     this.triggerDispatcher,
   }) : _statusController = StreamController<SyncStatus>.broadcast(),
-        _auditDao = SyncAuditDao(db);
+        _auditDao = SyncAuditDao(db),
+        _deltaSyncService = DeltaSyncService(db);
 
   final AppDatabase db;
   final GoogleDriveSyncService driveService;
@@ -33,10 +37,13 @@ class SyncManager {
   final SyncAuditDao _auditDao;
   final StreamController<SyncStatus> _statusController;
   final SyncSafetyLayer _safetyLayer = SyncSafetyLayer.instance;
+  final DeltaSyncService _deltaSyncService;
+  final _syncLock = Lock();
 
   bool _isInitialized = false;
   bool _isDrainingQueue = false;
   bool _pullInProgress = false;
+  bool _syncInProgress = false;
   String? _deviceId;
   int _devicePriority = 100;
   String? _lastUploadedChecksum;
@@ -89,9 +96,21 @@ class SyncManager {
 
   /// تشغيل مزامنة كاملة (رفع ثم سحب)
   Future<void> syncAllTables({bool force = false}) async {
-    await _ensureReady();
-    await _drainQueue(force: force);
-    await pullAndMerge(force: force);
+    await _syncLock.synchronized(() async {
+      if (_syncInProgress && !force) {
+        debugPrint('⏳ Sync already in progress, skipping...');
+        return;
+      }
+      _syncInProgress = true;
+      try {
+        await _ensureReady();
+        await _deltaSyncService.repairMirrorIfNeeded();
+        await _drainQueue(force: force);
+        await pullAndMerge(force: force);
+      } finally {
+        _syncInProgress = false;
+      }
+    });
   }
 
   /// سحب آخر نسخة من Google Drive ودمجها مع قاعدة البيانات المحلية
@@ -191,6 +210,65 @@ class SyncManager {
   bool compareChecksum(SyncSnapshot remote, Map<String, dynamic> localTables) {
     final localChecksum = SyncChecksum.compute({'tables': localTables});
     return localChecksum == remote.metadata.checksum;
+  }
+
+  /// حساب checksum باستخدام stream لتجنب memory issues
+  Future<String> _computeStreamChecksum() async {
+    final digest = sha256.newInstance();
+    final tableOrder = [
+      'rooms',
+      'bookings',
+      'booking_notes',
+      'guests',
+      'payments',
+      'employees',
+      'services',
+      'settings',
+      'expenses',
+      'cash_transactions',
+      'debts',
+    ];
+
+    for (final table in tableOrder) {
+      await for (final batch in _streamTableRows(table, batchSize: 100)) {
+        final batchJson = jsonEncode(batch);
+        digest.update(utf8.encode(batchJson));
+      }
+    }
+
+    return digest.convert([]).toString();
+  }
+
+  /// stream صفوف الجدول على دفعات لتجنب تحميل كل البيانات في الذاكرة
+  Stream<List<Map<String, dynamic>>> _streamTableRows(
+    String table,
+    {int batchSize = 100}
+  ) async* {
+    int offset = 0;
+    while (true) {
+      try {
+        final batch = await db.customSelect(
+          'SELECT * FROM $table ORDER BY local_uuid LIMIT ? OFFSET ?',
+          variables: [drift.Variable.withInt(batchSize), drift.Variable.withInt(offset)],
+        ).get();
+        
+        if (batch.isEmpty) break;
+        
+        final mappedBatch = batch.map((row) {
+          final result = <String, dynamic>{};
+          for (final column in row.data.keys) {
+            result[column] = row.data[column];
+          }
+          return result;
+        }).toList();
+        
+        yield mappedBatch;
+        offset += batchSize;
+      } catch (e) {
+        debugPrint('⚠️ Error streaming table $table at offset $offset: $e');
+        break;
+      }
+    }
   }
 
   Future<void> _persistSyncHistory(String syncId) async {

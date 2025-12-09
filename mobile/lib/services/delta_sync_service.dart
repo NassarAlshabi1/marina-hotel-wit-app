@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
+import '../data/sync_models.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -227,6 +229,103 @@ class DeltaSyncService {
           [uuid] = MirrorRow(localUuid: uuid, rowHash: row.read<String>('row_hash'), payload: payload, lastSeenAt: row.read<int>('last_seen_at'));
     }
     return result;
+  }
+
+  /// التحقق من صحة Mirror ومقارنته مع قاعدة البيانات الفعلية
+  Future<MirrorValidationResult> validateMirror() async {
+    final issues = <String>[];
+    final configs = _entityConfigs();
+
+    for (final config in configs) {
+      try {
+        final currentRows = await config.fetchAll();
+        final mirrorRows = await _loadMirror();
+        final tableMirror = mirrorRows[config.entity] ?? {};
+
+        if (currentRows.length != tableMirror.length) {
+          issues.add('${config.entity}: row count mismatch (current: ${currentRows.length}, mirror: ${tableMirror.length})');
+        }
+
+        final sampleSize = (currentRows.length * 0.1).ceil().clamp(1, 50);
+        final sample = (currentRows.toList()..shuffle()).take(sampleSize);
+
+        for (final row in sample) {
+          final uuid = config.localUuid(row);
+          if (uuid.isEmpty) continue;
+
+          final mirrorRow = tableMirror[uuid];
+          if (mirrorRow == null) {
+            issues.add('${config.entity}: missing mirror for $uuid');
+            continue;
+          }
+
+          final sanitized = _preparePayload(config.toJson(row));
+          sanitized['local_uuid'] = uuid;
+          final currentHash = _hashPayload(sanitized);
+          
+          if (currentHash != mirrorRow.rowHash) {
+            issues.add('${config.entity}: hash mismatch for $uuid');
+          }
+        }
+      } catch (e) {
+        issues.add('${config.entity}: validation error - $e');
+      }
+    }
+
+    return MirrorValidationResult(
+      isValid: issues.isEmpty,
+      issues: issues,
+      validatedAt: DateTime.now(),
+    );
+  }
+
+  /// إصلاح Mirror تلقائياً إذا كان غير متسق
+  Future<void> repairMirrorIfNeeded() async {
+    final validation = await validateMirror();
+    if (!validation.isValid) {
+      debugPrint('⚠️ Mirror inconsistency detected, repairing...');
+      debugPrint('Issues: ${validation.issues.join(', ')}');
+      await _rebuildMirror();
+    }
+  }
+
+  /// إعادة بناء Mirror من الصفر
+  Future<void> _rebuildMirror() async {
+    await _ensureMirrorTable();
+    await db.customStatement('DELETE FROM sync_mirror');
+
+    final configs = _entityConfigs();
+    final nowTs = _normalizeTimestamp(Time.nowEpoch());
+
+    for (final config in configs) {
+      try {
+        final rows = await config.fetchAll();
+        for (final row in rows) {
+          final uuid = config.localUuid(row);
+          if (uuid.isEmpty) continue;
+
+          final sanitized = _preparePayload(config.toJson(row));
+          sanitized['local_uuid'] = uuid;
+          final rowHash = _hashPayload(sanitized);
+
+          await db.customStatement(
+            'REPLACE INTO sync_mirror (table_name, local_uuid, row_hash, payload, last_seen_at) VALUES (?, ?, ?, ?, ?)',
+            [
+              config.entity,
+              uuid,
+              rowHash,
+              jsonEncode(sanitized),
+              nowTs,
+            ],
+          );
+        }
+        debugPrint('✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)');
+      } catch (e) {
+        debugPrint('❌ Failed to rebuild mirror for ${config.entity}: $e');
+      }
+    }
+
+    debugPrint('✅ Mirror rebuild completed');
   }
 
   List<_EntityConfig<dynamic>> _entityConfigs() {
