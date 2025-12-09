@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart';
-import '../../constants/status_constants.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
@@ -29,13 +28,6 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixi
       final s = '%${search.trim()}%';
       q.where((t) => t.name.like(s) | t.status.like(s));
     }
-    return q.watch();
-  }
-
-  Stream<List<Employee>> watchActive({bool includeDeleted = false}) {
-    final q = select(employees);
-    q.where((t) => t.status.equals(EmployeeStatus.active));
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     return q.watch();
   }
 

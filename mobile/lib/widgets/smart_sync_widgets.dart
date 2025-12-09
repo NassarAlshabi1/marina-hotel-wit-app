@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/smart_sync_manager.dart';
 import '../providers/smart_sync_provider.dart';
 
 /// Widget لعرض حالة المزامنة في الوقت الفعلي
