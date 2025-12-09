@@ -9,7 +9,6 @@ import '../../utils/currency_formatter.dart';
 import 'payment_history_screen.dart';
 import 'booking_checkout_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/screen_sync_controller.dart';
 
 class PaymentsMainScreen extends ConsumerStatefulWidget {
   const PaymentsMainScreen({super.key});

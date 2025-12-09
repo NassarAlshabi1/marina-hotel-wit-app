@@ -10,12 +10,10 @@ import '../../constants/status_constants.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/message_templates.dart';
 import '../../models/payment_models.dart';
-import '../../components/widgets/payment_widgets.dart';
 import '../../providers/repository_providers.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/screen_sync_controller.dart';
 
 const List<PaymentMethod> _allowedPaymentMethods = [
   PaymentMethod.cash,
