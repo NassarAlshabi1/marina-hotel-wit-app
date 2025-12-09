@@ -109,7 +109,7 @@ class GoogleDriveConflictResolver {
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('ConflictResolver', message);
     debugPrint('[ConflictResolver] $message');
-    _logger?.log(message, level: level, tag: 'CONFLICT');
+    _logger?.log(level, message, tag: 'CONFLICT');
   }
 
   void initialize(GoogleDriveLogger? logger) {
@@ -442,38 +442,39 @@ class GoogleDriveConflictResolver {
   Future<Map<String, dynamic>> getConflictStatistics() async {
     final history = await getConflictHistory(limit: 100);
     
-    final byTable = <String, int>{};
-    final byStrategy = <String, int>{};
-    int manualReviewsNeeded = 0;
+    final stats = {
+      'total_conflicts': history.length,
+      'by_table': <String, int>{},
+      'by_strategy': <String, int>{},
+      'avg_time_diff_seconds': 0.0,
+      'manual_reviews_needed': 0,
+    };
+    
     int totalTimeDiff = 0;
     
     for (final entry in history) {
       final table = entry['table'] as String?;
       if (table != null) {
-        byTable[table] = (byTable[table] ?? 0) + 1;
+        stats['by_table']![table] = (stats['by_table']![table] ?? 0) + 1;
       }
       
       final strategy = entry['strategy'] as String?;
       if (strategy != null) {
-        byStrategy[strategy] = (byStrategy[strategy] ?? 0) + 1;
+        stats['by_strategy']![strategy] = (stats['by_strategy']![strategy] ?? 0) + 1;
       }
       
       final timeDiff = entry['time_diff_seconds'] as int? ?? 0;
       totalTimeDiff += timeDiff;
       
       if (entry['selected'] == 'manual') {
-        manualReviewsNeeded += 1;
+        stats['manual_reviews_needed'] = (stats['manual_reviews_needed'] as int) + 1;
       }
     }
     
-    final avgTimeDiff = history.isNotEmpty ? totalTimeDiff / history.length : 0.0;
+    if (history.isNotEmpty) {
+      stats['avg_time_diff_seconds'] = totalTimeDiff / history.length;
+    }
     
-    return {
-      'total_conflicts': history.length,
-      'by_table': byTable,
-      'by_strategy': byStrategy,
-      'avg_time_diff_seconds': avgTimeDiff,
-      'manual_reviews_needed': manualReviewsNeeded,
-    };
+    return stats;
   }
 }

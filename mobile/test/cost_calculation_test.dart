@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marina_hotel_mobile/utils/time.dart';
+import '../lib/utils/time.dart';
 
 void main() {
   group('اختبارات منطق احتساب التكلفة الجديد - قاعدة 14:00', () {

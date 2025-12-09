@@ -90,8 +90,8 @@ void main() {
       ];
 
       for (final testCase in testCases) {
-        final results = testCase.$1;
-        final expectedIsOnWiFi = testCase.$2;
+        final results = testCase.$1 as List<ConnectivityResult>;
+        final expectedIsOnWiFi = testCase.$2 as bool;
         
         optimizer._updateConnectivityStatus(results);
         expect(
@@ -176,8 +176,30 @@ extension SyncPerformanceOptimizerTestExtension on SyncPerformanceOptimizer {
     // في الاستخدام الفعلي، هذه الدالة تُستدعى داخلياً
     // ولكن للاختبار نحتاج للوصول إليها
     
+    // نسخ منطق الدالة للاختبار
+    final wasOnWiFi = isOnWiFi;
+    
     if (results.isEmpty) {
+      // معالجة القائمة الفارغة
       return;
+    }
+    
+    bool newIsOnWiFi = false;
+    
+    if (results.contains(ConnectivityResult.wifi)) {
+      newIsOnWiFi = true;
+    } else if (results.contains(ConnectivityResult.ethernet)) {
+      newIsOnWiFi = true;
+    } else if (results.contains(ConnectivityResult.mobile)) {
+      newIsOnWiFi = false;
+    } else if (results.contains(ConnectivityResult.vpn)) {
+      newIsOnWiFi = false;
+    } else if (results.contains(ConnectivityResult.bluetooth)) {
+      newIsOnWiFi = false;
+    } else if (results.contains(ConnectivityResult.other)) {
+      newIsOnWiFi = false;
+    } else {
+      newIsOnWiFi = false;
     }
     
     // محاكاة تحديث الحالة الداخلية

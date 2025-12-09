@@ -240,7 +240,7 @@ class BookingsRepositoryUnified {
   Future<Booking?> getById(int id) => dao.getById(id);
   
   Future<List<Booking>> getAll({String? roomNumber, String? status}) => 
-      dao.list(roomNumber: roomNumber, status: status);
+      dao.getList(roomNumber: roomNumber, status: status);
   
   Future<List<Booking>> getByRoomNumber(String roomNumber) => 
       dao.getByRoomNumber(roomNumber);

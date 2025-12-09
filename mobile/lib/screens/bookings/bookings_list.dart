@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
-import '../../constants/status_constants.dart';
 import '../../services/local_db.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
@@ -13,6 +12,7 @@ import '../payments/booking_payment_screen.dart';
 import 'booking_edit.dart';
 import '../payments/payments_main_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 class BookingsListScreen extends ConsumerStatefulWidget {
   const BookingsListScreen({super.key});
@@ -70,7 +70,11 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
 
           final filtered = bookings
               .where((b) {
-                return !BookingStatus.isCompleted(b.status);
+                final status = b.status.toLowerCase();
+                if (status == 'مكتمل' || status == 'completed' || status == 'غادر' || status == 'departed') {
+                  return false;
+                }
+                return true;
               })
               .toList()
             ..sort((a, b) => b.checkinDate.compareTo(a.checkinDate));
