@@ -47,14 +47,15 @@ class BookingStatus {
     departedEn,
   ];
 
+  static final Set<String> _activeStatusesSet = activeStatuses.toSet();
+  static final Set<String> _completedStatusesLowerSet =
+      completedStatuses.map((s) => s.toLowerCase()).toSet();
+
   static bool isActive(String status) {
-    return activeStatuses.contains(status);
+    return _activeStatusesSet.contains(status);
   }
 
   static bool isCompleted(String status) {
-    final normalized = status.toLowerCase();
-    return completedStatuses
-        .map((s) => s.toLowerCase())
-        .contains(normalized);
+    return _completedStatusesLowerSet.contains(status.toLowerCase());
   }
 }
