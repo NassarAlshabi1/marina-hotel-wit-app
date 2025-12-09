@@ -214,7 +214,9 @@ class SyncManager {
 
   /// حساب checksum باستخدام stream لتجنب memory issues
   Future<String> _computeStreamChecksum() async {
-    final digest = sha256.newInstance();
+    final output = AccumulatorSink<Digest>();
+    final input = sha256.startChunkedConversion(output);
+    
     final tableOrder = [
       'rooms',
       'bookings',
@@ -232,11 +234,12 @@ class SyncManager {
     for (final table in tableOrder) {
       await for (final batch in _streamTableRows(table, batchSize: 100)) {
         final batchJson = jsonEncode(batch);
-        digest.update(utf8.encode(batchJson));
+        input.add(utf8.encode(batchJson));
       }
     }
 
-    return digest.convert([]).toString();
+    input.close();
+    return output.events.single.toString();
   }
 
   /// stream صفوف الجدول على دفعات لتجنب تحميل كل البيانات في الذاكرة
