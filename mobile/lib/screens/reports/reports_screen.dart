@@ -7,6 +7,7 @@ import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
 import 'debts_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
+import 'income_expense_report_screen.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -26,47 +27,83 @@ class ReportsScreen extends ConsumerWidget {
             children: [
               const Text('التقارير التفصيلية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  _ReportShortcut(
-                    icon: Icons.receipt_long,
-                    label: 'تقرير دفوعات النزلاء',
-                    color: Colors.green,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const PaymentsReportScreen()),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final shortcuts = [
+                    _ReportShortcut(
+                      icon: Icons.receipt_long,
+                      label: 'تقرير دفوعات النزلاء',
+                      color: Colors.green,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const PaymentsReportScreen()),
+                      ),
                     ),
-                  ),
-                  _ReportShortcut(
-                    icon: Icons.pie_chart,
-                    label: 'تقرير الديون',
-                    color: Colors.purple,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DebtsReportScreen()),
+                    _ReportShortcut(
+                      icon: Icons.pie_chart,
+                      label: 'تقرير الديون',
+                      color: Colors.purple,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const DebtsReportScreen()),
+                      ),
                     ),
-                  ),
-                  _ReportShortcut(
-                    icon: Icons.account_balance_wallet,
-                    label: 'تقرير المصروفات',
-                    color: Colors.orange,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
+                    _ReportShortcut(
+                      icon: Icons.account_balance_wallet,
+                      label: 'تقرير المصروفات',
+                      color: Colors.orange,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
+                      ),
                     ),
-                  ),
-                  _ReportShortcut(
-                    icon: Icons.payments_outlined,
-                    label: 'تقرير سحبيات الرواتب',
-                    color: Colors.blue,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SalaryWithdrawalsReportScreen()),
+                    _ReportShortcut(
+                      icon: Icons.payments_outlined,
+                      label: 'تقرير سحبيات الرواتب',
+                      color: Colors.blue,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SalaryWithdrawalsReportScreen()),
+                      ),
                     ),
-                  ),
-                ],
+                    _ReportShortcut(
+                      icon: Icons.stacked_line_chart,
+                      label: 'تقرير الدخل والخرج',
+                      color: Colors.teal,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const IncomeExpenseReportScreen()),
+                      ),
+                    ),
+                  ];
+
+                  if (shortcuts.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final rows = <Widget>[];
+                  for (int i = 0; i < shortcuts.length; i += 2) {
+                    final first = shortcuts[i];
+                    final second = i + 1 < shortcuts.length ? shortcuts[i + 1] : null;
+                    rows.add(
+                      Row(
+                        children: [
+                          Expanded(child: first),
+                          const SizedBox(width: 12),
+                          Expanded(child: second ?? const SizedBox()),
+                        ],
+                      ),
+                    );
+                    if (i + 2 < shortcuts.length) {
+                      rows.add(const SizedBox(height: 12));
+                    }
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: rows,
+                  );
+                },
               ),
               const SizedBox(height: 24),
               const Text('الإشغال اليومي (آخر 7 أيام)', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -139,28 +176,25 @@ class _ReportShortcut extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 220,
-      height: 120,
-      child: Card(
-        elevation: 2,
-        color: color.withOpacity(0.1),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, size: 32, color: color),
-                Text(
-                  label,
-                  style: TextStyle(fontWeight: FontWeight.bold, color: color),
-                ),
-              ],
-            ),
+    return Card(
+      elevation: 2,
+      color: color.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, size: 32, color: color),
+              Text(
+                label,
+                style: TextStyle(fontWeight: FontWeight.bold, color: color),
+              ),
+            ],
           ),
         ),
       ),

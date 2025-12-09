@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
-import '../../services/providers.dart';
-import '../../services/local_db.dart';
+import '../../providers/repository_providers.dart';
+import '../../models/shift_note_adapter.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 /// شاشة الملاحظات البسيطة
 class NotesScreen extends ConsumerStatefulWidget {
@@ -13,7 +15,10 @@ class NotesScreen extends ConsumerStatefulWidget {
 }
 
 class _NotesScreenState extends ConsumerState<NotesScreen> 
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'notes_screen';
   late TabController _tabController;
 
   @override
@@ -30,7 +35,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
       title: 'الملاحظات والتنبيهات',
       actions: [
         IconButton(
@@ -56,6 +62,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -165,7 +172,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           note.title,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: note.isRead == 1 ? Colors.grey : Colors.black,
+            color: note.isRead ? Colors.grey : Colors.black,
           ),
         ),
         subtitle: Column(
@@ -174,7 +181,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
             Text(note.content),
             const SizedBox(height: 4),
             Text(
-              _formatDate(DateTime.parse(note.createdAt)),
+              _formatDate(note.createdAt),
               style: const TextStyle(fontSize: 12),
             ),
           ],
@@ -182,7 +189,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (note.isRead == 0)
+            if (!note.isRead)
               Container(
                 width: 8,
                 height: 8,
@@ -193,7 +200,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               ),
             PopupMenuButton(
               itemBuilder: (context) => [
-                if (note.isRead == 0)
+                if (!note.isRead)
                   const PopupMenuItem(
                     value: 'read',
                     child: Text('وضع علامة مقروء'),
@@ -269,8 +276,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   void _showNoteDialog({ShiftNote? note}) {
     final titleController = TextEditingController(text: note?.title ?? '');
     final contentController = TextEditingController(text: note?.content ?? '');
-    String priority = note?.priority ?? 'medium';
-    String shiftType = note?.shiftType ?? 'all';
+    String priority = note?.priority.name ?? 'medium';
+    String shiftType = note?.shiftType.name ?? 'all';
 
     showDialog(
       context: context,
@@ -363,6 +370,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       );
     }
     
+    markDataChanged();
     _refreshData();
   }
 

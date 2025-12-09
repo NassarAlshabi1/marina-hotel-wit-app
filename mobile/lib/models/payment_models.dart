@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../utils/arabic_amount_formatter.dart';
 import '../utils/pdf_utils.dart';
 
 /// أنواع طرق الدفع المتاحة
@@ -173,8 +175,8 @@ class Receipt {
     required this.guestPhone,
     required this.roomNumber,
     this.hotelName = 'فندق مارينا بلازا',
-    this.hotelAddress = 'اليمن - صنعاء',
-    this.hotelPhone = '+967-1-234567',
+    this.hotelAddress = 'عدن - اليمن - شارع أحمد قاسم',
+    this.hotelPhone = '+967-2-324457',
     required this.generatedAt,
   });
 
@@ -196,51 +198,66 @@ class Receipt {
   }
 
   pw.Widget _buildReceiptContent(ArabicPdfFonts fonts) {
+    final formattedAmount = payment.amount.toStringAsFixed(0);
+    final amountInWords = formatYemeniAmount(payment.amount);
+    final formattedGeneratedAt = _formatDateTime(generatedAt);
+    final formattedPaymentDate = _formatDateTime(payment.paymentDate);
+    final trimmedPhone = guestPhone.trim();
+    final trimmedRoom = roomNumber.trim();
+    final purpose = payment.notes != null && payment.notes!.trim().isNotEmpty
+        ? payment.notes!.trim()
+        : 'حجز رقم ${payment.bookingId}';
+
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        // رأس الإيصال
         pw.Container(
           width: double.infinity,
-          padding: const pw.EdgeInsets.all(16),
-          color: PdfColors.blue,
+          padding: const pw.EdgeInsets.symmetric(vertical: 12),
           child: pw.Column(
             children: [
               pw.Text(
+                'MARINA PLAZA HOTEL',
+                style: pw.TextStyle(font: fonts.bold, fontSize: 16),
+              ),
+              pw.SizedBox(height: 2),
+              pw.Text(
                 hotelName,
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 18,
-                  color: PdfColors.white,
-                ),
+                style: pw.TextStyle(font: fonts.bold, fontSize: 16),
               ),
               pw.SizedBox(height: 4),
               pw.Text(
+                'Aden - Yemen, Ahmed Qasem St.',
+                style: pw.TextStyle(font: fonts.base, fontSize: 10),
+              ),
+              pw.Text(
                 hotelAddress,
-                style: pw.TextStyle(
-                  font: fonts.base,
-                  fontSize: 12,
-                  color: PdfColors.white,
-                ),
+                style: pw.TextStyle(font: fonts.base, fontSize: 10),
+              ),
+              pw.Text(
+                'الهاتف: $hotelPhone',
+                style: pw.TextStyle(font: fonts.base, fontSize: 10),
               ),
             ],
           ),
         ),
-        
-        pw.SizedBox(height: 20),
-        
-        // معلومات الإيصال
-        pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            pw.Text('رقم الإيصال: $receiptNumber'),
-            pw.Text('التاريخ: ${_formatDate(generatedAt)}'),
-          ],
+        pw.Divider(),
+        pw.SizedBox(height: 8),
+        pw.Center(
+          child: pw.Column(
+            children: [
+              pw.Text(
+                'CASH RECEIPT',
+                style: pw.TextStyle(font: fonts.bold, fontSize: 14),
+              ),
+              pw.Text(
+                'إيصال استلام نقدي',
+                style: pw.TextStyle(font: fonts.bold, fontSize: 14),
+              ),
+            ],
+          ),
         ),
-        
         pw.SizedBox(height: 16),
-        
-        // معلومات العميل
         pw.Container(
           padding: const pw.EdgeInsets.all(12),
           decoration: pw.BoxDecoration(
@@ -249,18 +266,28 @@ class Receipt {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('بيانات العميل:', style: pw.TextStyle(font: fonts.bold)),
-              pw.SizedBox(height: 8),
-              pw.Text('الاسم: $guestName'),
-              pw.Text('الهاتف: $guestPhone'),
-              pw.Text('رقم الغرفة: $roomNumber'),
+              _detailRow(fonts, 'رقم الإيصال', receiptNumber),
+              _detailRow(fonts, 'التاريخ والوقت', formattedGeneratedAt),
+              _detailRow(fonts, 'تاريخ الدفع', formattedPaymentDate),
+              _detailRow(fonts, 'استلم من', guestName),
+              if (trimmedPhone.isNotEmpty)
+                _detailRow(fonts, 'رقم الهاتف', trimmedPhone),
+              if (trimmedRoom.isNotEmpty)
+                _detailRow(fonts, 'رقم الغرفة', trimmedRoom),
+              _detailRow(fonts, 'مقابل', purpose),
+              _detailRow(fonts, 'طريقة الدفع', payment.method.displayName),
+              if (payment.referenceNumber != null &&
+                  payment.referenceNumber!.trim().isNotEmpty)
+                _detailRow(
+                  fonts,
+                  'رقم المرجع',
+                  payment.referenceNumber!.trim(),
+                ),
+              _detailRow(fonts, 'الموظف المسؤول', payment.receivedBy),
             ],
           ),
         ),
-        
-        pw.SizedBox(height: 16),
-        
-        // تفاصيل الدفعة
+        pw.SizedBox(height: 12),
         pw.Container(
           padding: const pw.EdgeInsets.all(12),
           decoration: pw.BoxDecoration(
@@ -269,78 +296,38 @@ class Receipt {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('تفاصيل الدفعة:', style: pw.TextStyle(font: fonts.bold)),
-              pw.SizedBox(height: 8),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('المبلغ:'),
-                  pw.Text(payment.amount.toStringAsFixed(0)),
-                ],
-              ),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('طريقة الدفع:'),
-                  pw.Text(payment.method.displayName),
-                ],
-              ),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('تاريخ الدفع:'),
-                  pw.Text(_formatDate(payment.paymentDate)),
-                ],
-              ),
-              if (payment.referenceNumber != null)
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('رقم المرجع:'),
-                    pw.Text(payment.referenceNumber!),
-                  ],
-                ),
-              if (payment.notes != null && payment.notes!.isNotEmpty)
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.SizedBox(height: 8),
-                    pw.Text('ملاحظات:'),
-                    pw.Text(payment.notes!),
-                  ],
-                ),
+              _detailRow(fonts, 'المبلغ', '$formattedAmount ريال يمني'),
+              _detailRow(fonts, 'المبلغ كتابة', amountInWords),
+              _detailRow(fonts, 'الإجمالي', '$formattedAmount ريال يمني'),
             ],
           ),
         ),
-        
-        pw.Spacer(),
-        
-        // التوقيع والختم
+        pw.SizedBox(height: 24),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Column(
               children: [
-                pw.Text('المحاسب: ${payment.receivedBy}'),
-                pw.SizedBox(height: 20),
+                pw.Text('توقيع النزيل', style: pw.TextStyle(font: fonts.bold)),
+                pw.SizedBox(height: 30),
                 pw.Container(
                   height: 1,
-                  width: 100,
+                  width: 140,
                   color: PdfColors.black,
                 ),
-                pw.Text('التوقيع'),
               ],
             ),
             pw.Column(
               children: [
-                pw.Text('ختم الفندق'),
-                pw.SizedBox(height: 30),
+                pw.Text('ختم الفندق', style: pw.TextStyle(font: fonts.bold)),
+                pw.SizedBox(height: 40),
                 pw.Container(
-                  height: 40,
-                  width: 40,
+                  height: 60,
+                  width: 60,
                   decoration: pw.BoxDecoration(
                     border: pw.Border.all(color: PdfColors.black, width: 2),
-                    shape: pw.BoxShape.circle,
+                    borderRadius: pw.BorderRadius.circular(30),
                   ),
                 ),
               ],
@@ -351,8 +338,36 @@ class Receipt {
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  pw.Widget _detailRow(ArabicPdfFonts fonts, String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(
+            flex: 2,
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(font: fonts.bold, fontSize: 11),
+            ),
+          ),
+          pw.SizedBox(width: 8),
+          pw.Expanded(
+            flex: 3,
+            child: pw.Text(
+              value,
+              style: pw.TextStyle(font: fonts.base, fontSize: 11),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateTime(DateTime date) {
+    final datePart = DateFormat('dd/MM/yyyy', 'ar').format(date);
+    final timePart = DateFormat('hh:mm a', 'ar').format(date);
+    return '$datePart $timePart';
   }
 }
 

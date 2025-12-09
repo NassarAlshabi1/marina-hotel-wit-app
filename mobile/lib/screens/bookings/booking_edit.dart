@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -14,7 +16,14 @@ class BookingEditScreen extends ConsumerStatefulWidget {
   ConsumerState<BookingEditScreen> createState() => _BookingEditScreenState();
 }
 
-class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
+class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
+    with SyncOnExitMixin {
+  @override
+  String get screenId => 'booking_edit';
+  
+  @override
+  Duration get debounceDelay => const Duration(seconds: 15);
+  
   final _formKey = GlobalKey<FormState>();
   final _guestName = TextEditingController();
   final _guestPhone = TextEditingController();
@@ -39,7 +48,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   final _advancePayment = TextEditingController();
   String _paymentMethod = 'نقداً';
   final _paymentNotes = TextEditingController();
-  static const _paymentMethods = ['نقداً', 'بطاقة ائتمان', 'تحويل بنكي', 'محفظة إلكترونية'];
+  static const _paymentMethods = ['نقداً', 'تحويل بنكي'];
 
   static const _idTypes = ['بطاقة شخصية', 'جواز سفر', 'رخصة قيادة', 'بطاقة عسكرية', 'استبيان', 'شهادة ميلاد'];
   static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
@@ -47,6 +56,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   @override
   void initState() {
     super.initState();
+    
+    _guestName.addListener(markDataChanged);
+    _guestPhone.addListener(markDataChanged);
+    _guestNationality.addListener(markDataChanged);
+    _guestAddress.addListener(markDataChanged);
+    _guestIdNumber.addListener(markDataChanged);
+    _guestIdIssueDate.addListener(markDataChanged);
+    _guestIdIssuePlace.addListener(markDataChanged);
+    _roomNumber.addListener(markDataChanged);
+    _checkin.addListener(markDataChanged);
+    _checkout.addListener(markDataChanged);
+    _expectedNights.addListener(markDataChanged);
+    _notes.addListener(markDataChanged);
+    _advancePayment.addListener(markDataChanged);
+    _paymentNotes.addListener(markDataChanged);
+    
     final b = widget.existing;
     if (b != null) {
       _guestName.text = b.guestName;
@@ -76,6 +101,21 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
 
   @override
   void dispose() {
+    _guestName.removeListener(markDataChanged);
+    _guestPhone.removeListener(markDataChanged);
+    _guestNationality.removeListener(markDataChanged);
+    _guestAddress.removeListener(markDataChanged);
+    _guestIdNumber.removeListener(markDataChanged);
+    _guestIdIssueDate.removeListener(markDataChanged);
+    _guestIdIssuePlace.removeListener(markDataChanged);
+    _roomNumber.removeListener(markDataChanged);
+    _checkin.removeListener(markDataChanged);
+    _checkout.removeListener(markDataChanged);
+    _expectedNights.removeListener(markDataChanged);
+    _notes.removeListener(markDataChanged);
+    _advancePayment.removeListener(markDataChanged);
+    _paymentNotes.removeListener(markDataChanged);
+    
     _guestName.dispose();
     _guestPhone.dispose();
     _guestNationality.dispose();
@@ -88,7 +128,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
     _checkout.dispose();
     _expectedNights.dispose();
     _notes.dispose();
-    // تنظيف متغيرات الدفع المتقدم
     _advancePayment.dispose();
     _paymentNotes.dispose();
     super.dispose();
@@ -98,10 +137,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   Widget build(BuildContext context) {
     final repo = ref.watch(bookingsRepoProvider);
     final roomsAsync = ref.watch(roomsListProvider);
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(title: Text(widget.existing == null ? 'إضافة حجز' : 'تعديل حجز')),
+    return wrapWithSyncOnExit(
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(widget.existing == null ? 'إضافة حجز' : 'تعديل حجز'),
+            actions: [
+              StreamBuilder<SyncStatus>(
+                stream: syncStatusStream,
+                builder: (context, snapshot) {
+                  final status = snapshot.data ?? SyncStatus.idle;
+                  return _buildSyncIndicator(status);
+                },
+              ),
+            ],
+          ),
         body: Form(
           key: _formKey,
           child: ListView(
@@ -209,18 +260,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
                         ),
                         onChanged: (_) => _recalculateExpectedNights(),
                         onTap: () => _pickDate(_checkout),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _expectedNights,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'عدد الليالي المتوقع *'),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'مطلوب';
-                          final value = int.tryParse(v.trim());
-                          if (value == null || value < 1) return 'عدد الليالي غير صحيح';
-                          return null;
-                        },
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
@@ -378,6 +417,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
 
                   await _refreshRoomOccupancy(ref);
 
+                  await syncNow();
                   if (mounted) Navigator.pop(context);
                 },
                 icon: const Icon(Icons.save),
@@ -385,9 +425,41 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
               ),
             ],
           ),
+          ),
         ),
       ),
     );
+  }
+  
+  Widget _buildSyncIndicator(SyncStatus status) {
+    switch (status) {
+      case SyncStatus.pending:
+        return const Padding(
+          padding: EdgeInsets.all(8),
+          child: Icon(Icons.cloud_upload_outlined, color: Colors.orange, size: 20),
+        );
+      case SyncStatus.syncing:
+        return const Padding(
+          padding: EdgeInsets.all(8),
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue),
+          ),
+        );
+      case SyncStatus.synced:
+        return const Padding(
+          padding: EdgeInsets.all(8),
+          child: Icon(Icons.cloud_done, color: Colors.green, size: 20),
+        );
+      case SyncStatus.queued:
+        return const Padding(
+          padding: EdgeInsets.all(8),
+          child: Icon(Icons.cloud_off, color: Colors.grey, size: 20),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Widget _buildSectionTitle(String text) {
@@ -575,77 +647,4 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> {
   String? _optionalText(String text) => text.trim().isEmpty ? null : text.trim();
   String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null;
   
-  /// تسجيل الدفعة المقدمة مع الحجز الجديد
-  Future<void> _registerAdvancePayment(int bookingId, String roomNumber) async {
-    final amount = double.tryParse(_advancePayment.text.trim());
-    if (amount == null || amount <= 0) return;
-    
-    final paymentsRepo = ref.read(paymentsRepoProvider);
-    final whatsappService = ref.read(whatsappServiceProvider);
-    
-    try {
-      // تسجيل الدفعة في قاعدة البيانات
-      await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: roomNumber,
-        amount: amount,
-        paymentDate: Time.nowIso(),
-        notes: _paymentNotes.text.trim().isEmpty 
-          ? 'دفعة مقدمة عند الحجز' 
-          : _paymentNotes.text.trim(),
-        paymentMethod: _paymentMethod,
-        revenueType: 'deposit', // تسجيل كعربون
-      );
-      
-      // إرسال رسالة تأكيد بسيطة
-      final cleanedPhone = _normalizePhone(_guestPhone.text);
-      if (cleanedPhone.isNotEmpty) {
-        String formatAmount(double amount) {
-          if (amount == amount.toInt()) {
-            return '${amount.toInt()}';
-          } else {
-            return amount.toStringAsFixed(2);
-          }
-        }
-        
-        final message = 'عزيزي ${_guestName.text.trim()}، تم استلام دفعة بقيمة: ${formatAmount(amount)} ريال\n'
-            'رقم الغرفة: $roomNumber\n'
-            'تم تسجيل حجزكم بنجاح\n'
-            'شكراً لاختيارك فندق مارينا\n'
-            'للاستفسار: 9677734587456';
-            
-        await whatsappService.sendMessage(
-          phoneE164: cleanedPhone, 
-          message: message,
-        );
-      }
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تم حفظ الحجز وتسجيل دفعة مقدمة بقيمة ${formatAmount(amount)}'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('خطأ في تسجيل الدفعة المقدمة: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم حفظ الحجز لكن فشل تسجيل الدفعة المقدمة'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-    }
-  }
-  
-  String formatAmount(double amount) {
-    if (amount == amount.toInt()) {
-      return '${amount.toInt()}';
-    } else {
-      return amount.toStringAsFixed(2);
-    }
-  }
 }

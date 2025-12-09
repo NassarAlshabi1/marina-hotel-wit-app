@@ -1,5 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart' hide PdfColors;
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../models/enhanced_payment_models.dart';
 import '../../models/enhanced_reports.dart';
@@ -8,7 +14,6 @@ import '../../utils/enhanced_pdf_utils.dart';
 
 /// مساعد لإنشاء PDF محسّنة من البيانات الموجودة
 class EnhancedPdfHelper {
-  
   /// إنشاء إيصال دفع محسّن من Payment موجود
   static Future<void> generateEnhancedReceipt({
     required Payment payment,
@@ -64,9 +69,9 @@ class EnhancedPdfHelper {
       hotelName: 'فندق مارينا بلازا',
       hotelAddress: 'القاهرة - شارع احمد قاسم',
       checkIn: DateTime.parse(booking.checkinDate),
-      checkOut: booking.checkoutDate != null 
-        ? DateTime.parse(booking.checkoutDate!)
-        : DateTime.parse(booking.checkinDate).add(Duration(days: nights)),
+      checkOut: booking.checkoutDate != null
+          ? DateTime.parse(booking.checkoutDate!)
+          : DateTime.parse(booking.checkinDate).add(Duration(days: nights)),
       issuedAt: DateTime.now(),
       notes: booking.notes,
     );
@@ -87,24 +92,56 @@ class EnhancedPdfHelper {
     final reportItems = payments.map((payment) {
       final booking = relatedBookings.firstWhere(
         (b) => b.id == payment.bookingLocalId,
-        orElse: () => Booking(
-          id: 0,
-          roomNumber: 'غير محدد',
-          guestName: 'غير محدد',
-          guestPhone: '',
-          guestNationality: '',
-          checkinDate: '',
-          status: '',
-          localUuid: '',
-          serverId: null,
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-          deletedAt: null,
-          lastModified: DateTime.now().millisecondsSinceEpoch,
-          version: 1,
-          origin: 'local',
-          calculatedNights: 1,
-        ),
+        orElse: () {
+          final now = DateTime.now();
+          final nowMillis = now.millisecondsSinceEpoch;
+          final nowIso = now.toIso8601String();
+          return Booking(
+            localUuid: 'fallback-${payment.id ?? nowMillis}',
+            serverId: null,
+            createdAt: nowMillis,
+            updatedAt: nowMillis,
+            deletedAt: null,
+            lastModified: nowMillis,
+            createdAtIso: nowIso,
+            updatedAtIso: nowIso,
+            deletedAtIso: null,
+            createdAtEpoch: nowMillis,
+            lastModifiedEpoch: nowMillis,
+            version: 1,
+            origin: 'local',
+            id: -1,
+            serverBookingId: null,
+            roomNumber: 'غير محدد',
+            guestName: 'غير محدد',
+            guestPhone: '',
+            guestIdType: 'غير محدد',
+            guestIdNumber: '',
+            guestIdIssueDate: null,
+            guestIdIssuePlace: null,
+            guestNationality: '',
+            guestEmail: null,
+            guestAddress: null,
+            checkinDate: '',
+            checkoutDate: '',
+            actualCheckout: null,
+            status: '',
+            notes: null,
+            expectedNights: 1,
+            calculatedNights: 1,
+            totalNightsCached: 0,
+            stayDurationIso: null,
+            lastNightEpoch: null,
+            isOverdue: false,
+            needsCheckoutReview: false,
+            totalDueCached: 0,
+            totalPaidCached: 0,
+            remainingBalanceCached: 0,
+            isFullyPaid: false,
+            hotelDayCheckin: null,
+            hotelDayCheckout: null,
+          );
+        },
       );
 
       return PaymentReportItem(
@@ -113,7 +150,7 @@ class EnhancedPdfHelper {
         amount: payment.amount,
         method: payment.paymentMethod,
         paymentDate: DateTime.parse(payment.paymentDate),
-        receivedBy: 'النظام', // يمكن إضافة هذا الحقل لاحقاً
+        receivedBy: 'النظام',
         notes: payment.notes,
       );
     }).toList();
@@ -142,7 +179,7 @@ class EnhancedPdfHelper {
       category: expense.expenseType,
       amount: expense.amount,
       date: DateTime.parse(expense.date),
-      notes: null, // يمكن إضافة حقل notes للمصروفات
+      notes: null,
     )).toList();
 
     final report = EnhancedExpensesReport(
@@ -234,7 +271,6 @@ class EnhancedPdfHelper {
                 child: EnhancedPdfUtils.buildStatisticsBox(
                   title: 'إجمالي الإيرادات',
                   value: EnhancedPdfUtils.formatNumber(totalRevenue),
-                  // subtitle: '',
                   fonts: fonts,
                   color: PdfColors.success,
                   icon: '💰',
@@ -245,7 +281,6 @@ class EnhancedPdfHelper {
                 child: EnhancedPdfUtils.buildStatisticsBox(
                   title: 'إجمالي المصروفات',
                   value: EnhancedPdfUtils.formatNumber(totalExpenses),
-                  // subtitle: '',
                   fonts: fonts,
                   color: PdfColors.danger,
                   icon: '💸',
@@ -382,7 +417,7 @@ class EnhancedPdfPreviewScreen extends ConsumerWidget {
               ),
             );
           }
-          
+
           if (snapshot.hasError) {
             return Center(
               child: Column(
@@ -400,7 +435,7 @@ class EnhancedPdfPreviewScreen extends ConsumerWidget {
               ),
             );
           }
-          
+
           return PdfPreview(
             build: (format) => snapshot.data!,
             allowSharing: true,
@@ -441,24 +476,7 @@ class PdfPreviewHelper {
               notes: payment.notes,
             );
 
-            // إنشاء PDF وإرجاع البايتات
-            final fonts = await EnhancedPdfUtils.loadArabicFonts();
-            final logo = await EnhancedPdfUtils.loadLogoImage();
-            final pdf = pw.Document();
-
-            pdf.addPage(
-              pw.Page(
-                pageFormat: PdfPageFormat.a4,
-                textDirection: pw.TextDirection.rtl,
-                theme: pw.ThemeData.withFont(
-                  base: fonts.regular,
-                  bold: fonts.bold,
-                ),
-                build: (context) => receipt._buildReceiptContent(fonts, logo),
-              ),
-            );
-
-            return pdf.save();
+            return receipt.generatePdfBytes();
           },
         ),
       ),

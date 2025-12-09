@@ -1,10 +1,5 @@
-import 'dart:convert';
-
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/auth_local_store.dart';
-
-import '../utils/env.dart';
+import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 
 class AuthUser {
   final int id;
@@ -186,6 +181,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> addUser({
+    required String username,
+    required String password,
+    required String fullName,
+    required String userType,
+    required List<String> permissions,
+  }) async {
+    await _store.addUser(
+      username: username,
+      password: password,
+      fullName: fullName,
+      userType: userType,
+      permissions: permissions,
+    );
+  }
 
 }
 

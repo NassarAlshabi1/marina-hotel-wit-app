@@ -7,7 +7,12 @@
     "test:ui": "npx playwright test --ui",
     "test:debug": "npx playwright test --debug",
     "test:expenses": "npx playwright test tests/expenses --reporter=line",
-    "install:playwright": "npx playwright install --with-deps"
+    "install:playwright": "npx playwright install --with-deps",
+    "appwrite:create": "node scripts/appwrite/create_appwrite_collections.js",
+    "appwrite:indexes": "node scripts/appwrite/create_unique_indexes.js",
+    "appwrite:mobile-indexes": "node scripts/appwrite/create_mobile_indexes.js",
+    "appwrite:sync-logs": "node scripts/appwrite/ensure_sync_logs_action.js",
+    "appwrite:list": "node scripts/appwrite/list_appwrite_collections.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0",
@@ -15,6 +20,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@daytonaio/sdk": "^0.21.5"
+    "@daytonaio/sdk": "^0.21.5",
+    "node-appwrite": "^20.3.0"
   }
 }

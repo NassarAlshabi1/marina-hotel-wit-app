@@ -1,58 +1,74 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
+import '../../utils/currency_formatter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 import '../../providers/auth_provider.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 Future<ImagePicker> _lazyPicker() async => ImagePicker();
 
-class RoomsListScreen extends ConsumerWidget {
+class RoomsListScreen extends ConsumerStatefulWidget {
   const RoomsListScreen({super.key});
+  
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RoomsListScreen> createState() => _RoomsListScreenState();
+}
+
+class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
+    with SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'rooms_list';
+  
+  @override
+  Widget build(BuildContext context) {
     final roomsStream = ref.watch(roomsListProvider);
     final auth = ref.watch(authProvider);
     final canRooms = auth.currentUser?.permissions.contains('all') == true ||
         auth.currentUser?.userType == 'admin' ||
         (auth.currentUser?.permissions.contains('rooms') ?? false);
-    return AppScaffold(
-      title: 'الغرف',
-      actions: [
-        if (canRooms)
-          IconButton(
-            onPressed: () async {
-              await _editRoom(context, ref);
-            },
-            icon: const Icon(Icons.add),
-          )
-      ],
-      body: roomsStream.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('خطأ: $e')),
-        data: (rooms) {
-          return ListView.builder(
-            itemCount: rooms.length,
-            itemBuilder: (c, i) {
-              final r = rooms[i];
-              return ListTile(
-                title: Text('${r.roomNumber} • ${r.type}'),
-                subtitle: Text('السعر: ${r.price.toStringAsFixed(2)} • الحالة: ${r.status}'),
-                trailing: canRooms
-                    ? IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () => _editRoom(context, ref, existing: r),
-                      )
-                    : null,
-              );
-            },
-          );
-        },
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
+        title: 'الغرف',
+        actions: [
+          if (canRooms)
+            IconButton(
+              onPressed: () async {
+                await _editRoom(context, ref);
+              },
+              icon: const Icon(Icons.add),
+            )
+        ],
+        body: roomsStream.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, st) => Center(child: Text('خطأ: $e')),
+          data: (rooms) {
+            return ListView.builder(
+              itemCount: rooms.length,
+              itemBuilder: (c, i) {
+                final r = rooms[i];
+                return ListTile(
+                  title: Text('${r.roomNumber} • ${r.type}'),
+                  subtitle: Text('السعر: ${CurrencyFormatter.formatAmount(r.price)} • الحالة: ${r.status}'),
+                  trailing: canRooms
+                      ? IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _editRoom(context, ref, existing: r),
+                        )
+                      : null,
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -128,13 +144,11 @@ class RoomsListScreen extends ConsumerWidget {
         imageUrl: imageUrl,
       );
     }
+    markDataChanged();
   }
 
   Future<void> _uploadImage(BuildContext context, String roomNumber) async {
     try {
-      // pick image
-      // Lazy import to keep file concise
-      // ignore: depend_on_referenced_packages
       final picker = await _lazyPicker();
       final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1600, maxHeight: 1600, imageQuality: 85);
       if (picked == null) return;

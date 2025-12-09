@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../components/app_scaffold.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/currency_formatter.dart';
 import 'payment_history_screen.dart';
 import 'booking_checkout_screen.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 class PaymentsMainScreen extends ConsumerStatefulWidget {
   const PaymentsMainScreen({super.key});
@@ -15,7 +18,10 @@ class PaymentsMainScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'payments_main';
   late TabController _tabController;
 
   @override
@@ -32,7 +38,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
       title: 'إدارة المدفوعات',
       body: Column(
         children: [
@@ -57,6 +64,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -65,7 +73,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     final paymentsRepo = ref.watch(paymentsRepoProvider);
 
     return StreamBuilder<List<Payment>>(
-      stream: paymentsRepo.paymentsByBooking(-1),
+      stream: paymentsRepo.watchAll(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -145,7 +153,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         Expanded(
           child: _buildStatCard(
             'الإجمالي',
-            '${totalAmount.toStringAsFixed(2)}',
+            CurrencyFormatter.formatAmount(totalAmount),
             Icons.account_balance_wallet,
             Colors.green,
           ),
@@ -154,7 +162,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         Expanded(
           child: _buildStatCard(
             'هذا الشهر',
-            '${monthlyAmount.toStringAsFixed(2)}',
+            CurrencyFormatter.formatAmount(monthlyAmount),
             Icons.calendar_month,
             Colors.blue,
           ),
@@ -163,7 +171,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         Expanded(
           child: _buildStatCard(
             'هذا الأسبوع',
-            '${weeklyAmount.toStringAsFixed(2)}',
+            CurrencyFormatter.formatAmount(weeklyAmount),
             Icons.date_range,
             Colors.orange,
           ),
@@ -175,24 +183,25 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 6),
             Text(
               value,
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               title,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 color: Colors.grey.shade600,
               ),
               textAlign: TextAlign.center,
@@ -283,7 +292,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                 _getPaymentMethodIcon(payment.paymentMethod),
                 color: _getPaymentMethodColor(payment.paymentMethod),
               ),
-              title: Text('${payment.amount.toStringAsFixed(2)}'),
+              title: Text(CurrencyFormatter.formatAmount(payment.amount)),
               subtitle: Text('${payment.paymentMethod} • ${payment.paymentDate}'),
               trailing: payment.roomNumber != null 
                   ? Chip(

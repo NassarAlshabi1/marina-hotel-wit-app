@@ -1,12 +1,36 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import '../local_db.dart';
+import '../sync_guardian.dart';
 
 part 'outbox_dao.g.dart';
 
 @DriftAccessor(tables: [Outbox])
 class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
-  OutboxDao(AppDatabase db) : super(db);
+  OutboxDao(super.db);
+
+  Stream<int> watchCount() {
+    return (select(outbox)).watch().map((rows) => rows.length);
+  }
+
+  Future<int> count() async {
+    final rows = await (select(outbox)).get();
+    return rows.length;
+  }
+
+  Future<void> resetErrors() async {
+    await (update(outbox)).write(
+      OutboxCompanion(
+        attempts: const Value(0),
+        lastError: const Value.absent(),
+      ),
+    );
+  }
+
+  Future<int> clearStale({int attemptsThreshold = 3}) async {
+    return (delete(outbox)..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold))).go();
+  }
 
   Future<int> merge({
     required String entity,
@@ -20,24 +44,25 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
         .getSingleOrNull();
     final data = jsonEncode(payload);
-    if (existing != null) {
-      return (update(outbox)..where((t) => t.id.equals(existing.id))).write(OutboxCompanion(
-        payload: Value(data),
-        serverId: Value(serverId),
-        clientTs: Value(clientTs),
-        attempts: const Value(0),
-        lastError: const Value.absent(),
-      ));
-    } else {
-      return into(outbox).insert(OutboxCompanion(
-        entity: Value(entity),
-        op: Value(op),
-        localUuid: Value(localUuid),
-        serverId: Value(serverId),
-        payload: Value(data),
-        clientTs: Value(clientTs),
-      ));
-    }
+    final result = existing != null
+        ? await (update(outbox)..where((t) => t.id.equals(existing.id))).write(OutboxCompanion(
+            payload: Value(data),
+            serverId: Value(serverId),
+            clientTs: Value(clientTs),
+            attempts: const Value(0),
+            lastError: const Value.absent(),
+          ))
+        : await into(outbox).insert(OutboxCompanion(
+            entity: Value(entity),
+            op: Value(op),
+            localUuid: Value(localUuid),
+            serverId: Value(serverId),
+            payload: Value(data),
+            clientTs: Value(clientTs),
+          ));
+
+    unawaited(SyncGuardian.instance.notifyLocalChange(table: entity, operation: op));
+    return result;
   }
 
   Future<List<OutboxData>> takeBatch(int limit) {

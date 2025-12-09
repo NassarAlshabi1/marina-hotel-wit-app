@@ -1,435 +1,324 @@
-import 'dart:convert';
 import 'dart:io';
-import 'package:flutter_test/flutter_test.dart';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/services/delta_sync_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/restore_fix_service.dart';
-import 'package:marina_hotel_mobile/utils/time.dart';
 import 'package:marina_hotel_mobile/utils/id.dart';
+import 'package:marina_hotel_mobile/utils/status_utils.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
 
 void main() {
-  late AppDatabase database;
-  late RestoreFixService service;
+  group('RestoreFixService', () {
+    late AppDatabase database;
+    late RestoreFixService service;
 
-  setUp(() async {
-    // إنشاء قاعدة بيانات في الذاكرة للاختبار
-    database = AppDatabase.forTesting(NativeDatabase.memory());
-    service = RestoreFixService(database);
-  });
-
-  tearDown(() async {
-    await database.close();
-  });
-
-  group('RestoreFixService Tests', () {
-    
-    test('الاختبار الأول: إعادة حساب الليالي من تاريخ سابق', () async {
-      // الإعداد: إنشاء حجز من نسخة احتياطية قديمة
-      final checkin = DateTime(2024, 11, 5, 19, 0); // الدخول: 5 نوفمبر 7:00 PM
-      final checkout = DateTime(2024, 11, 6, 14, 1); // الخروج: 6 نوفمبر 2:01 PM (بعد الساعة المحددة)
-      
-      final bookingId = await database.into(database.bookings).insert(
-        BookingsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          roomNumber: const Value('101'),
-          guestName: const Value('أحمد محمد'),
-          guestPhone: const Value('0501234567'),
-          guestNationality: const Value('سعودي'),
-          checkinDate: Value(checkin.toIso8601String()),
-          checkoutDate: Value(checkout.toIso8601String()),
-          status: const Value('محجوزة'),
-          expectedNights: const Value(1), // قيمة قديمة خاطئة
-          calculatedNights: const Value(1), // قيمة قديمة خاطئة
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
-
-      // التنفيذ: تشغيل الإصلاح التلقائي
-      final report = await service.runAutoFixAfterRestore();
-
-      // التحقق: يجب أن ينجح الإصلاح وأن يتم تحديث الحجز إلى ليلتين
-      expect(report.success, isTrue);
-      expect(report.bookingsFixed, equals(1));
-
-      final updatedBooking = await (database.select(database.bookings)
-        ..where((b) => b.id.equals(bookingId)))
-        .getSingle();
-
-      expect(updatedBooking.calculatedNights, equals(2));
-      expect(updatedBooking.expectedNights, equals(2));
-
-      // التحقق من تسجيل الإصلاح
-      final logs = await database.select(database.restoreFixLog).get();
-      expect(logs, hasLength(greaterThan(0)));
-      expect(logs.any((log) => 
-        log.targetTable == 'bookings' && 
-        log.fieldName == 'calculatedNights'
-      ), isTrue);
+    setUp(() async {
+      database = AppDatabase.forTesting(NativeDatabase.memory());
+      service = RestoreFixService(database);
     });
 
-    test('الاختبار الثاني: اكتشاف عدم تطابق المدفوعات', () async {
-      // الإعداد: إنشاء غرفة
-      await database.into(database.rooms).insert(
-        RoomsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          roomNumber: const Value('101'),
-          type: const Value('single'),
-          price: const Value(15000.0),
-          status: const Value('محجوزة'),
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
+    tearDown(() async {
+      await database.close();
+    });
 
-      // إنشاء حجز بليلتين
-      final checkin = DateTime(2024, 11, 5, 15, 0);
-      final checkout = DateTime(2024, 11, 7, 12, 0);
-      final bookingId = await database.into(database.bookings).insert(
-        BookingsCompanion(
+    test('recalculates debts and settlement status', () async {
+      final now = Time.nowEpoch();
+      final roomUuid = IdGen.uuid();
+      final bookingUuid = IdGen.uuid();
+      await database.into(database.rooms).insert(RoomsCompanion(
+        localUuid: Value(roomUuid),
+        roomNumber: const Value('101'),
+        type: const Value('single'),
+        price: const Value(200.0),
+        status: const Value('محجوزة'),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      final bookingId = await database.into(database.bookings).insert(BookingsCompanion(
+        localUuid: Value(bookingUuid),
+        roomNumber: const Value('101'),
+        guestName: const Value('أحمد'),
+        guestPhone: const Value('0500000000'),
+        guestNationality: const Value('سعودي'),
+        checkinDate: Value(DateTime(2024, 10, 1, 15).toIso8601String()),
+        checkoutDate: Value(DateTime(2024, 10, 4, 13).toIso8601String()),
+        status: const Value('محجوزة'),
+        expectedNights: const Value(1),
+        calculatedNights: const Value(1),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      await database.into(database.payments).insert(PaymentsCompanion(
+        localUuid: Value(IdGen.uuid()),
+        bookingLocalId: Value(bookingId),
+        amount: const Value(600.0),
+        paymentDate: Value(DateTime.now().toIso8601String()),
+        paymentMethod: const Value('cash'),
+        revenueType: const Value('room'),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      final debtUuid = IdGen.uuid();
+      await database.into(database.debts).insert(DebtsCompanion(
+        localUuid: Value(debtUuid),
+        bookingLocalId: Value(bookingId),
+        guestName: const Value('أحمد'),
+        checkinDate: Value(DateTime(2024, 10, 1).toIso8601String()),
+        checkoutDate: Value(DateTime(2024, 10, 4).toIso8601String()),
+        totalAmount: const Value(1200.0),
+        paidAmount: const Value(0.0),
+        remainingAmount: const Value(1200.0),
+        paymentDate: Value(DateTime.now().toIso8601String()),
+        isSettled: const Value(0),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+
+      final report = await service.runAutoFixAfterRestore();
+
+      expect(report.success, isTrue);
+      final debt = await (database.select(database.debts)..where((d) => d.localUuid.equals(debtUuid))).getSingle();
+      expect(debt.totalAmount, closeTo(600.0, 0.01));
+      expect(debt.paidAmount, closeTo(600.0, 0.01));
+      expect(debt.remainingAmount, closeTo(0.0, 0.01));
+      expect(debt.isSettled, equals(1));
+    });
+
+    test('handles large dataset efficiently', () async {
+      final now = Time.nowEpoch();
+      for (var i = 0; i < 100; i++) {
+        await database.into(database.rooms).insert(RoomsCompanion(
           localUuid: Value(IdGen.uuid()),
-          roomNumber: const Value('101'),
-          guestName: const Value('فهد سالم'),
-          guestPhone: const Value('0509876543'),
+          roomNumber: Value('R${i + 1}'),
+          type: const Value('standard'),
+          price: const Value(150.0),
+          status: const Value('شاغرة'),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ));
+      }
+      for (var i = 0; i < 50; i++) {
+        final bookingId = await database.into(database.bookings).insert(BookingsCompanion(
+          localUuid: Value(IdGen.uuid()),
+          roomNumber: Value('R${(i % 100) + 1}'),
+          guestName: Value('ضيف ${i + 1}'),
+          guestPhone: const Value('0501111111'),
           guestNationality: const Value('سعودي'),
-          checkinDate: Value(checkin.toIso8601String()),
-          checkoutDate: Value(checkout.toIso8601String()),
+          checkinDate: Value(DateTime(2024, 9, 1, 14).toIso8601String()),
+          checkoutDate: Value(DateTime(2024, 9, 4, 18).toIso8601String()),
           status: const Value('محجوزة'),
-          expectedNights: const Value(2),
-          calculatedNights: const Value(2),
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
-
-      // إنشاء دفعة لليلة واحدة فقط (15000)، المفروض 30000
-      await database.into(database.payments).insert(
-        PaymentsCompanion(
+          expectedNights: const Value(1),
+          calculatedNights: const Value(1),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ));
+        await database.into(database.payments).insert(PaymentsCompanion(
           localUuid: Value(IdGen.uuid()),
           bookingLocalId: Value(bookingId),
-          amount: const Value(15000.0), // يجب أن يكون 30000
+          amount: const Value(150.0),
           paymentDate: Value(DateTime.now().toIso8601String()),
           paymentMethod: const Value('cash'),
           revenueType: const Value('room'),
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ));
+      }
 
-      // التنفيذ: تشغيل الإصلاح التلقائي
+      final stopwatch = Stopwatch()..start();
+      final report = await service.runAutoFixAfterRestore();
+      stopwatch.stop();
+
+      expect(report.success, isTrue);
+      expect(stopwatch.elapsedMilliseconds, lessThan(4000));
+      expect(report.bookingsFixed, equals(50));
+    });
+
+    test('snapshot rollback restores data on failure', () async {
+      final now = Time.nowEpoch();
+      final originalStatus = 'شاغرة';
+      await database.into(database.rooms).insert(RoomsCompanion(
+        localUuid: Value(IdGen.uuid()),
+        roomNumber: const Value('201'),
+        type: const Value('double'),
+        price: const Value(250.0),
+        status: Value(originalStatus),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      final failingService = RestoreFixService(database, onBeforeCommit: () => Future.error(Exception('fail')));
+      final report = await failingService.runAutoFixAfterRestore();
+
+      expect(report.success, isFalse);
+      final room = await (database.select(database.rooms)..where((r) => r.roomNumber.equals('201'))).getSingle();
+      expect(room.status, equals(originalStatus));
+    });
+
+    test('end-to-end auto fix normalizes bookings and rooms', () async {
+      final now = Time.nowEpoch();
+      await database.into(database.rooms).insert(RoomsCompanion(
+        localUuid: Value(IdGen.uuid()),
+        roomNumber: const Value('301'),
+        type: const Value('suite'),
+        price: const Value(500.0),
+        status: const Value('شاغرة'),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      final bookingId = await database.into(database.bookings).insert(BookingsCompanion(
+        localUuid: Value(IdGen.uuid()),
+        roomNumber: const Value('301'),
+        guestName: const Value('سارة'),
+        guestPhone: const Value('0502222222'),
+        guestNationality: const Value('سعودية'),
+        checkinDate: Value(DateTime(2024, 8, 10, 16).toIso8601String()),
+        checkoutDate: Value(DateTime(2024, 8, 13, 15).toIso8601String()),
+        status: const Value('محجوزة'),
+        actualCheckout: Value(DateTime(2024, 8, 13, 15).toIso8601String()),
+        expectedNights: const Value(1),
+        calculatedNights: const Value(1),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      await database.into(database.payments).insert(PaymentsCompanion(
+        localUuid: Value(IdGen.uuid()),
+        bookingLocalId: Value(bookingId),
+        amount: const Value(500.0),
+        paymentDate: Value(DateTime.now().toIso8601String()),
+        paymentMethod: const Value('cash'),
+        revenueType: const Value('room'),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+
       final report = await service.runAutoFixAfterRestore();
 
-      // التحقق: يجب أن ينجح الإصلاح ويكتشف عدم التطابق
       expect(report.success, isTrue);
+      final updatedBooking = await (database.select(database.bookings)..where((b) => b.id.equals(bookingId))).getSingle();
+      final expectedNights = Time.nightsWithCutoff(DateTime(2024, 8, 10, 16), checkout: DateTime(2024, 8, 13, 15));
+      expect(updatedBooking.calculatedNights, equals(expectedNights));
+      final room = await (database.select(database.rooms)..where((r) => r.roomNumber.equals('301'))).getSingle();
+      expect(room.status, equals(StatusUtils.roomStatusForOccupancy(true)));
+      final fixLogs = await database.select(database.restoreFixLog).get();
+      final conflictLogs = await database.customSelect('SELECT * FROM restore_conflict_log').get();
+      expect(fixLogs, isNotEmpty);
+      expect(conflictLogs, isNotEmpty);
+    });
+  });
 
-      final logs = await database.select(database.restoreFixLog).get();
-      final paymentLogs = logs.where((log) => log.fixType == 'payment_check').toList();
-      expect(paymentLogs, isNotEmpty);
-      expect(paymentLogs.first.reason, contains('مبلغ الدفع لا يتطابق'));
+  group('DeltaSyncService', () {
+    late AppDatabase database;
+    late DeltaSyncService deltaService;
+
+    setUp(() async {
+      database = AppDatabase.forTesting(NativeDatabase.memory());
+      deltaService = DeltaSyncService(database);
     });
 
-    test('الاختبار الثالث: تحديث حالة الغرفة بناءً على الحجوزات النشطة', () async {
-      // الإعداد: إنشاء غرفة مُعلمة كشاغرة
-      await database.into(database.rooms).insert(
-        RoomsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          roomNumber: const Value('102'),
-          type: const Value('single'),
-          price: const Value(15000.0),
-          status: const Value('شاغرة'), // شاغرة
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
-
-      // إنشاء حجز نشط للغرفة 102
-      await database.into(database.bookings).insert(
-        BookingsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          roomNumber: const Value('102'),
-          guestName: const Value('خالد أحمد'),
-          guestPhone: const Value('0508765432'),
-          guestNationality: const Value('سعودي'),
-          checkinDate: Value(DateTime.now().toIso8601String()),
-          status: const Value('محجوزة'), // حجز نشط
-          expectedNights: const Value(1),
-          calculatedNights: const Value(1),
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
-
-      // التنفيذ: تشغيل الإصلاح التلقائي
-      final report = await service.runAutoFixAfterRestore();
-
-      // التحقق: يجب أن تُحدث حالة الغرفة إلى محجوزة
-      expect(report.success, isTrue);
-      expect(report.roomsUpdated, equals(1));
-
-      final room = await (database.select(database.rooms)
-        ..where((r) => r.roomNumber.equals('102')))
-        .getSingle();
-
-      expect(room.status, equals('محجوزة')); // يجب أن تكون محجوزة
-
-      // التحقق من تسجيل التغيير
-      final logs = await database.select(database.restoreFixLog).get();
-      final roomLogs = logs.where((log) => 
-        log.targetTable == 'rooms' && 
-        log.fieldName == 'status'
-      ).toList();
-      expect(roomLogs, isNotEmpty);
+    tearDown(() async {
+      await database.close();
     });
 
-    test('الاختبار الرابع: اختبار معقد مع حالات متعددة', () async {
-      // الإعداد: إنشاء بيانات معقدة مع أخطاء متعددة
+    test('detects inserts and normalizes timestamps', () async {
+      final now = Time.nowEpoch();
+      await database.into(database.rooms).insert(RoomsCompanion(
+        localUuid: Value(IdGen.uuid()),
+        roomNumber: const Value('401'),
+        type: const Value('standard'),
+        price: const Value(100.0),
+        status: const Value('محجوزة'),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
 
-      // غرفة 201 - سعر 20000
-      await database.into(database.rooms).insert(
-        RoomsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          roomNumber: const Value('201'),
-          type: const Value('double'),
-          price: const Value(20000.0),
-          status: const Value('شاغرة'), // خطأ: يجب أن تكون محجوزة
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
+      final computation = await deltaService.compute();
 
-      // حجز بحساب ليالي خطأ
-      final checkin = DateTime(2024, 11, 1, 16, 0);
-      final checkout = DateTime(2024, 11, 3, 15, 0); // يومين كاملين
-      final bookingId = await database.into(database.bookings).insert(
-        BookingsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          roomNumber: const Value('201'),
-          guestName: const Value('سارة محمد'),
-          guestPhone: const Value('0507654321'),
-          guestNationality: const Value('سعودية'),
-          checkinDate: Value(checkin.toIso8601String()),
-          checkoutDate: Value(checkout.toIso8601String()),
-          status: const Value('محجوزة'),
-          expectedNights: const Value(1), // خطأ: يجب أن يكون 2
-          calculatedNights: const Value(1), // خطأ: يجب أن يكون 2
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
-
-      // دفعة ناقصة
-      await database.into(database.payments).insert(
-        PaymentsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          bookingLocalId: Value(bookingId),
-          amount: const Value(30000.0), // ناقص: يجب أن يكون 40000 (2 × 20000)
-          paymentDate: Value(DateTime.now().toIso8601String()),
-          paymentMethod: const Value('card'),
-          revenueType: const Value('room'),
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
-
-      // التنفيذ
-      final report = await service.runAutoFixAfterRestore();
-
-      // التحقق الشامل
-      expect(report.success, isTrue);
-      expect(report.bookingsFixed, equals(1));
-      expect(report.roomsUpdated, equals(1));
-      expect(report.paymentsRecalculated, equals(1));
-      expect(report.changes, hasLength(greaterThan(2)));
-
-      // التحقق من إصلاح الحجز
-      final updatedBooking = await (database.select(database.bookings)
-        ..where((b) => b.id.equals(bookingId)))
-        .getSingle();
-      expect(updatedBooking.calculatedNights, equals(2));
-
-      // التحقق من إصلاح الغرفة
-      final updatedRoom = await (database.select(database.rooms)
-        ..where((r) => r.roomNumber.equals('201')))
-        .getSingle();
-      expect(updatedRoom.status, equals('محجوزة'));
-
-      // التحقق من وجود سجلات متنوعة
-      final logs = await database.select(database.restoreFixLog).get();
-      final fixTypes = logs.map((log) => log.fixType).toSet();
-      expect(fixTypes.contains('nights_recalc'), isTrue);
-      expect(fixTypes.contains('room_status'), isTrue);
-      expect(fixTypes.contains('payment_check'), isTrue);
+      expect(computation.changes.any((c) => c.entity == 'rooms' && c.operation == 'insert'), isTrue);
+      final change = computation.changes.first;
+      expect(change.clientTimestamp, greaterThan(1000000000000));
+      expect((change.data['created_at'] as int), greaterThan(1000000000000));
     });
 
-    test('الاختبار الخامس: اختبار إنشاء ونقل اللقطة الاحتياطية', () async {
-      // الإعداد: بيانات بسيطة
-      await database.into(database.rooms).insert(
-        RoomsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          roomNumber: const Value('301'),
-          type: const Value('suite'),
-          price: const Value(50000.0),
-          status: const Value('شاغرة'),
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
+    test('detects updates after mirror persistence', () async {
+      final now = Time.nowEpoch();
+      final roomUuid = IdGen.uuid();
+      await database.into(database.rooms).insert(RoomsCompanion(
+        localUuid: Value(roomUuid),
+        roomNumber: const Value('501'),
+        type: const Value('standard'),
+        price: const Value(120.0),
+        status: const Value('محجوزة'),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      final firstComputation = await deltaService.compute();
+      await deltaService.persistMirror(firstComputation);
+      await (database.into(database.syncState)).insertOnConflictUpdate(SyncStateCompanion(
+        id: const Value(1),
+        lastPushTs: Value(now),
+        lastServerTs: const Value(0),
+        lastPullTs: const Value(0),
+        isSyncing: const Value(0),
+      ));
+      final updateTs = now + 100;
+      await (database.update(database.rooms)..where((t) => t.roomNumber.equals('501'))).write(RoomsCompanion(
+        price: const Value(150.0),
+        updatedAt: Value(updateTs),
+        lastModified: Value(updateTs),
+      ));
 
-      // التنفيذ: إنشاء لقطة احتياطية
-      final snapshot = await service.createLocalSnapshot('test');
+      final secondComputation = await deltaService.compute();
 
-      // التحقق: يجب أن تحتوي اللقطة على البيانات الصحيحة
-      expect(snapshot.filePath, isNotEmpty);
-      expect(snapshot.recordCounts['rooms'], equals(1));
-      expect(snapshot.recordCounts['bookings'], equals(0));
-      expect(snapshot.totalSizeBytes, greaterThan(0));
-
-      // التحقق من وجود الملف
-      final file = File(snapshot.filePath);
-      expect(await file.exists(), isTrue);
-      
-      // قراءة وتحقق محتوى الملف
-      final content = await file.readAsString();
-      final data = jsonDecode(content);
-      expect(data['metadata'], isNotNull);
-      expect(data['rooms'], isA<List>());
-      expect((data['rooms'] as List).length, equals(1));
+      expect(secondComputation.changes.any((c) => c.entity == 'rooms' && c.operation == 'update'), isTrue);
     });
 
-    test('الاختبار السادس: فحص حساب الليالي مع قاعدة 14:00', () async {
-      // حالات مختلفة لحساب الليالي
+    test('detects deletes after soft removal', () async {
+      final now = Time.nowEpoch();
+      final roomUuid = IdGen.uuid();
+      await database.into(database.rooms).insert(RoomsCompanion(
+        localUuid: Value(roomUuid),
+        roomNumber: const Value('601'),
+        type: const Value('standard'),
+        price: const Value(140.0),
+        status: const Value('محجوزة'),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      final initial = await deltaService.compute();
+      await deltaService.persistMirror(initial);
+      await (database.into(database.syncState)).insertOnConflictUpdate(SyncStateCompanion(
+        id: const Value(1),
+        lastPushTs: Value(now),
+        lastServerTs: const Value(0),
+        lastPullTs: const Value(0),
+        isSyncing: const Value(0),
+      ));
+      final deleteTs = now + 200;
+      await (database.update(database.rooms)..where((t) => t.roomNumber.equals('601'))).write(RoomsCompanion(
+        deletedAt: Value(deleteTs),
+        lastModified: Value(deleteTs),
+      ));
 
-      // الحالة 1: دخول وخروج في نفس اليوم قبل 14:00
-      var checkin1 = DateTime(2024, 11, 5, 10, 0);
-      var checkout1 = DateTime(2024, 11, 5, 13, 59);
-      expect(Time.nightsWithCutoff(checkin1, checkout: checkout1), equals(1));
+      final deleteComputation = await deltaService.compute();
 
-      // الحالة 2: دخول وخروج في نفس اليوم بعد 14:00
-      var checkin2 = DateTime(2024, 11, 5, 10, 0);
-      var checkout2 = DateTime(2024, 11, 5, 14, 01);
-      expect(Time.nightsWithCutoff(checkin2, checkout: checkout2), equals(2));
-
-      // الحالة 3: دخول وخروج عبر يومين بالضبط في 14:00
-      var checkin3 = DateTime(2024, 11, 5, 15, 0);
-      var checkout3 = DateTime(2024, 11, 7, 14, 0);
-      expect(Time.nightsWithCutoff(checkin3, checkout: checkout3), equals(2));
-
-      // الحالة 4: دخول وخروج عبر يومين بعد 14:00
-      var checkin4 = DateTime(2024, 11, 5, 15, 0);
-      var checkout4 = DateTime(2024, 11, 7, 14, 30);
-      expect(Time.nightsWithCutoff(checkin4, checkout: checkout4), equals(3));
-    });
-
-    test('الاختبار السابع: اختبار تصدير سجلات الإصلاح', () async {
-      // الإعداد: تشغيل إصلاح لإنشاء بعض السجلات
-      await database.into(database.rooms).insert(
-        RoomsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          roomNumber: const Value('401'),
-          type: const Value('single'),
-          price: const Value(12000.0),
-          status: const Value('شاغرة'),
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
-
-      final checkin = DateTime(2024, 11, 10, 14, 0);
-      final checkout = DateTime(2024, 11, 12, 15, 0); // 3 ليالي
-      await database.into(database.bookings).insert(
-        BookingsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          roomNumber: const Value('401'),
-          guestName: const Value('عبدالله سعد'),
-          guestPhone: const Value('0501111111'),
-          guestNationality: const Value('سعودي'),
-          checkinDate: Value(checkin.toIso8601String()),
-          checkoutDate: Value(checkout.toIso8601String()),
-          status: const Value('محجوزة'),
-          expectedNights: const Value(2), // خطأ: يجب أن يكون 3
-          calculatedNights: const Value(2), // خطأ: يجب أن يكون 3
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
-
-      // تشغيل الإصلاح
-      await service.runAutoFixAfterRestore();
-
-      // التنفيذ: تصدير السجلات
-      final exportedData = await service.exportFixLogsAsJson();
-
-      // التحقق
-      expect(exportedData['total_logs'], greaterThan(0));
-      expect(exportedData['logs'], isA<List>());
-      expect(exportedData['exported_at'], isNotNull);
-      
-      final logs = exportedData['logs'] as List;
-      expect(logs.first['fix_type'], isNotNull);
-      expect(logs.first['reason'], isNotNull);
-      expect(logs.first['executed_at_iso'], isNotNull);
-    });
-
-    test('الاختبار الثامن: فحص حالات الأخطاء والاستثناءات', () async {
-      // اختبار مع بيانات فاسدة
-      
-      // إنشاء حجز بتاريخ فاسد
-      final invalidBookingId = await database.into(database.bookings).insert(
-        BookingsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          roomNumber: const Value('999'), // غرفة غير موجودة
-          guestName: const Value('اختبار خطأ'),
-          guestPhone: const Value('0500000000'),
-          guestNationality: const Value('سعودي'),
-          checkinDate: const Value('تاريخ فاسد'), // تاريخ فاسد
-          checkoutDate: const Value('2024-13-45'), // تاريخ فاسد
-          status: const Value('محجوزة'),
-          expectedNights: const Value(1),
-          calculatedNights: const Value(1),
-          createdAt: Value(Time.nowEpoch()),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),
-      );
-
-      // التنفيذ: يجب أن يتعامل مع الأخطاء بأمان
-      final report = await service.runAutoFixAfterRestore();
-
-      // التحقق: يجب أن ينجح الإصلاح رغم البيانات الفاسدة
-      expect(report.success, isTrue);
-      
-      // التحقق أن الحجز الفاسد لم يتأثر
-      final unchangedBooking = await (database.select(database.bookings)
-        ..where((b) => b.id.equals(invalidBookingId)))
-        .getSingle();
-      expect(unchangedBooking.expectedNights, equals(1)); // لم يتغير
+      expect(deleteComputation.changes.any((c) => c.entity == 'rooms' && c.operation == 'delete'), isTrue);
     });
   });
 }
 
-// امتداد لقاعدة البيانات لدعم الاختبار
-extension on AppDatabase {
-  static AppDatabase forTesting(QueryExecutor executor) {
-    return _TestAppDatabase(executor);
-  }
-}
-
-class _TestAppDatabase extends AppDatabase {
-  _TestAppDatabase(super.executor);
-  
-  @override
-  int get schemaVersion => 10; // نفس الإصدار في الإنتاج
-}

@@ -2,6 +2,8 @@ import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/rooms_dao.dart';
+import '../auto_backup_manager.dart';
+import '../sync_guardian.dart';
 
 class RoomsRepository {
   RoomsRepository(this.db)
@@ -15,8 +17,8 @@ class RoomsRepository {
   Stream<Room?> watchRoom(String roomNumber) => dao.watchByNumber(roomNumber);
   Stream<Room?> watchByNumber(String roomNumber) => dao.watchByNumber(roomNumber);
 
-  Future<String> create({required String roomNumber, required String type, required double price, required String status, String? imageUrl}) {
-    return dao.insertOne(
+  Future<String> create({required String roomNumber, required String type, required double price, required String status, String? imageUrl}) async {
+    final result = await dao.insertOne(
       RoomsCompanion(
         roomNumber: d.Value(roomNumber),
         type: d.Value(type),
@@ -25,10 +27,13 @@ class RoomsRepository {
         imageUrl: d.Value(imageUrl),
       ),
     );
+    AutoBackupManager.instance.onDataChange('rooms', 'INSERT', recordData: {'room_number': roomNumber});
+    SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'INSERT');
+    return result;
   }
 
-  Future<int> update(int id, {String? type, double? price, String? status, String? imageUrl}) {
-    return dao.updateById(
+  Future<int> update(int id, {String? type, double? price, String? status, String? imageUrl}) async {
+    final result = await dao.updateById(
       id,
       RoomsCompanion(
         type: type != null ? d.Value(type) : const d.Value.absent(),
@@ -37,10 +42,15 @@ class RoomsRepository {
         imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
       ),
     );
+    if (result > 0) {
+      AutoBackupManager.instance.onDataChange('rooms', 'UPDATE', recordData: {'id': id});
+      SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'UPDATE');
+    }
+    return result;
   }
   
-  Future<int> updateByRoomNumber(String roomNumber, {String? type, double? price, String? status, String? imageUrl}) {
-    return dao.updateByNumber(
+  Future<int> updateByRoomNumber(String roomNumber, {String? type, double? price, String? status, String? imageUrl}) async {
+    final result = await dao.updateByNumber(
       roomNumber,
       RoomsCompanion(
         type: type != null ? d.Value(type) : const d.Value.absent(),
@@ -49,9 +59,21 @@ class RoomsRepository {
         imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
       ),
     );
+    if (result > 0) {
+      AutoBackupManager.instance.onDataChange('rooms', 'UPDATE', recordData: {'room_number': roomNumber});
+      SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'UPDATE');
+    }
+    return result;
   }
 
-  Future<int> delete(String roomNumber) => dao.softDelete(roomNumber);
+  Future<int> delete(String roomNumber) async {
+    final result = await dao.softDelete(roomNumber);
+    if (result > 0) {
+      AutoBackupManager.instance.onDataChange('rooms', 'DELETE', recordData: {'room_number': roomNumber});
+      SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'DELETE');
+    }
+    return result;
+  }
 
   // دوال النسخ الاحتياطي
 

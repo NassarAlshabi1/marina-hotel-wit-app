@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -10,7 +11,7 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/local_db.dart';
-import '../../utils/pdf_utils.dart';
+import '../../utils/enhanced_pdf_utils.dart';
 
 class ExpensesReportScreen extends ConsumerStatefulWidget {
   const ExpensesReportScreen({
@@ -21,6 +22,8 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
     this.typeLabel = 'نوع المصروف',
     this.showTypeFilter = true,
     this.includeEmployeeDetails = false,
+    this.totalSummaryLabel = 'إجمالي المصروفات',
+    this.totalRowLabel = 'الإجمالي',
   });
 
   final Set<String>? allowedTypes;
@@ -29,13 +32,15 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
   final String typeLabel;
   final bool showTypeFilter;
   final bool includeEmployeeDetails;
+  final String totalSummaryLabel;
+  final String totalRowLabel;
 
   @override
   ConsumerState<ExpensesReportScreen> createState() => _ExpensesReportScreenState();
 }
 
 class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
-  final NumberFormat _currencyFmt = NumberFormat('#,##0.00', 'en_US');
+  final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   String _formatNumber(num value) => value.toStringAsFixed(0);
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd');
@@ -182,107 +187,185 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
-    final fonts = await PdfUtils.loadArabicFonts();
-    final logo = await PdfUtils.loadLogoImage();
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
     final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
-    final typeLabel = _selectedType?.isNotEmpty == true ? _selectedType! : 'الكل';
-    final summaryEntries = [
-      MapEntry('إجمالي المصروفات', _formatNumber(_totalAmount)),
-      MapEntry('عدد السجلات', _rows.length.toString()),
-    ];
+    final selectedTypeLabel = _selectedType?.isNotEmpty == true ? _selectedType! : 'الكل';
+
+    pw.Widget metaRow(String label, String value) {
+      return pw.Padding(
+        padding: const pw.EdgeInsets.only(bottom: 6),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+            pw.Text(value, style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+          ],
+        ),
+      );
+    }
+
+    final metaInfoCard = EnhancedPdfUtils.buildInfoCard(
+      title: widget.title,
+      fonts: fonts,
+      content: [
+        metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
+        metaRow(widget.typeLabel, selectedTypeLabel),
+        metaRow('عدد السجلات', _rows.length.toString()),
+      ],
+    );
+
+    pw.Widget _buildReportHeader() {
+      final periodText = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
+      return pw.Container(
+        width: double.infinity,
+        decoration: const pw.BoxDecoration(color: PdfColors.primary),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text(
+              'فندق مارينا بلازا',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              widget.title,
+              style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: PdfColors.textWhite),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              periodText,
+              style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
+              textAlign: pw.TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget _buildTotalsSummary() {
+      pw.Widget buildSummaryItem(String title, String value, PdfColor accent) {
+        return pw.Container(
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.backgroundCard,
+            border: pw.Border.all(color: accent, width: 0.7),
+            borderRadius: pw.BorderRadius.circular(4),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Text(
+                title,
+                style: pw.TextStyle(
+                  font: fonts.regular,
+                  fontSize: 11,
+                  color: PdfColors.textDark,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                value,
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 16,
+                  color: accent,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.backgroundLight,
+          borderRadius: pw.BorderRadius.circular(6),
+          border: pw.Border.all(color: PdfColors.primary, width: 0.4),
+        ),
+        child: pw.Row(
+          children: [
+            pw.Expanded(child: buildSummaryItem(widget.totalSummaryLabel, EnhancedPdfUtils.formatNumber(_totalAmount), PdfColors.secondary)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(child: buildSummaryItem('عدد السجلات', _rows.length.toString(), PdfColors.info)),
+          ],
+        ),
+      );
+    }
 
     final headers = <String>['التاريخ', 'المبلغ', 'النوع', 'الوصف'];
     if (widget.includeEmployeeDetails) {
       headers.add('الموظف');
     }
 
-    pw.Widget buildSummaryTable() {
-      return pw.Table(
-        border: pw.TableBorder.all(width: 0.5),
-        children: summaryEntries
-            .map(
-              (entry) => pw.TableRow(
-                children: [
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(entry.key, style: pw.TextStyle(font: fonts.bold)),
-                  ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(entry.value, style: pw.TextStyle(font: fonts.base)),
-                  ),
-                ],
-              ),
-            )
-            .toList(),
-      );
-    }
-
-    final dataRows = _rows.map((row) {
+    final dataRows = <List<String>>[];
+    for (final row in _rows) {
       final cells = [
         _dateLabelFormat.format(row.date),
-        _formatNumber(row.amount),
+        EnhancedPdfUtils.formatNumber(row.amount),
         row.type,
-        row.description,
+        row.description.isNotEmpty ? row.description : '-',
       ];
       if (widget.includeEmployeeDetails) {
         cells.add(row.employee?.name ?? 'غير محدد');
       }
-      return cells;
-    }).toList();
+      dataRows.add(cells);
+    }
+
+    final totalRow = [
+      widget.totalRowLabel,
+      EnhancedPdfUtils.formatNumber(_totalAmount),
+      '',
+      '',
+    ];
+    if (widget.includeEmployeeDetails) {
+      totalRow.add('');
+    }
+    dataRows.add(totalRow);
 
     doc.addPage(
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         footer: (context) => pw.Align(
           alignment: pw.Alignment.center,
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.base, fontSize: 10),
+            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
           ),
         ),
-        build: (context) {
-          return [
-            if (logo != null)
-              pw.Align(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Image(logo, width: 80),
-              ),
-            pw.Align(
-              alignment: pw.Alignment.centerRight,
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
-                children: [
-                  pw.Text('فندق مارينا بلازا', style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
-                  pw.Text('القاهرة - شارع احمد قاسم • رقم الهاتف 02324457', style: pw.TextStyle(font: fonts.base, fontSize: 8)),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 6),
-            pw.Text(widget.title, style: pw.TextStyle(font: fonts.bold, fontSize: 20)),
-            pw.SizedBox(height: 8),
-            pw.Text('الفترة: من $fromLabel إلى $toLabel'),
-            pw.Text('${widget.typeLabel}: $typeLabel'),
-            pw.SizedBox(height: 12),
-            buildSummaryTable(),
-            pw.SizedBox(height: 12),
-            pw.Table.fromTextArray(
-              headers: headers,
-              headerStyle: pw.TextStyle(font: fonts.bold),
-              cellStyle: pw.TextStyle(font: fonts.base),
-              data: dataRows,
-              cellAlignment: pw.Alignment.centerRight,
-              border: pw.TableBorder.all(width: 0.5),
-            ),
-          ];
-        },
+        build: (context) => [
+          _buildReportHeader(),
+          pw.SizedBox(height: 16),
+          metaInfoCard,
+          pw.SizedBox(height: 12),
+          EnhancedPdfUtils.buildProfessionalTable(
+            headers: headers,
+            data: dataRows,
+            fonts: fonts,
+            headerColor: PdfColors.primary,
+            alternateRowColor: PdfColors.backgroundLight,
+          ),
+          pw.SizedBox(height: 12),
+          _buildTotalsSummary(),
+        ],
       ),
     );
 
-    await Printing.sharePdf(bytes: await doc.save(), filename: 'expenses-report.pdf');
+    String _generateFileName(String title) {
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final sanitizedTitle = title.replaceAll(RegExp(r'\s+'), '-');
+      return '$sanitizedTitle-$timestamp.pdf';
+    }
+
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename: _generateFileName(widget.title),
+    );
   }
 
   @override
@@ -401,7 +484,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Expanded(child: _buildSummaryTile('إجمالي المصروفات', _currencyFmt.format(_totalAmount))),
+            Expanded(child: _buildSummaryTile(widget.totalSummaryLabel, _currencyFmt.format(_totalAmount))),
             Expanded(child: _buildSummaryTile('عدد السجلات', _rows.length.toString())),
           ],
         ),

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import '../../components/app_scaffold.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
   final Booking booking;
@@ -18,7 +21,11 @@ class BookingCheckoutScreen extends ConsumerStatefulWidget {
   ConsumerState<BookingCheckoutScreen> createState() => _BookingCheckoutScreenState();
 }
 
-class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
+class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
+    with SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'booking_checkout';
   bool _isProcessing = false;
   
   @override
@@ -26,8 +33,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
     final paymentsRepo = ref.watch(paymentsRepoProvider);
     final roomsRepo = ref.watch(roomsRepoProvider);
     
-    return AppScaffold(
-      title: 'دفع الحجز',
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
+        title: 'دفع الحجز',
       body: StreamBuilder<Room?>(
         stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
         builder: (context, roomSnap) {
@@ -76,8 +84,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                         Text('الليالي المتوقعة: $expectedNights'),
                         if (actualCheckout != null)
                           Text('الليالي الفعلية: $actualNights'),
-                        Text('سعر الليلة: ${roomPrice.toStringAsFixed(2)}'),
-                        Text('المبلغ المستحق: ${totalDue.toStringAsFixed(2)}'),
+                        Text('سعر الليلة: ${CurrencyFormatter.formatAmount(roomPrice)}'),
+                        Text('المبلغ المستحق: ${CurrencyFormatter.formatAmount(totalDue)}'),
                         Text('الحالة: ${widget.booking.status}'),
                       ],
                     ),
@@ -145,13 +153,15 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                                 return Card(
                                   child: ListTile(
                                     leading: Icon(
-                                      payment.paymentMethod == 'نقدي'
-                                          ? Icons.money
-                                          : Icons.credit_card,
-                                      color: Colors.green,
+                                      payment.paymentMethod == 'تحويل'
+                                          ? Icons.account_balance
+                                          : Icons.money,
+                                      color: payment.paymentMethod == 'تحويل'
+                                          ? Colors.blue
+                                          : Colors.green,
                                     ),
                                     title: Text(
-                                      '${payment.amount.toStringAsFixed(2)}',
+                                      CurrencyFormatter.formatAmount(payment.amount),
                                       style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     subtitle: Column(
@@ -221,6 +231,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
             ),
           );
         },
+        ),
       ),
     );
   }
@@ -234,7 +245,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: color),
         ),
         Text(
-          '${amount.toStringAsFixed(2)}',
+          CurrencyFormatter.formatAmount(amount),
           style: TextStyle(fontWeight: FontWeight.bold, color: color),
         ),
       ],
@@ -275,9 +286,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
                   ),
                   items: const [
                     DropdownMenuItem(value: 'نقدي', child: Text('نقدي')),
-                    DropdownMenuItem(value: 'بطاقة', child: Text('بطاقة ائتمان')),
                     DropdownMenuItem(value: 'تحويل', child: Text('تحويل بنكي')),
-                    DropdownMenuItem(value: 'شيك', child: Text('شيك')),
                   ],
                   onChanged: (value) => selectedMethod = value!,
                 ),
@@ -347,6 +356,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
           paymentMethod: selectedMethod,
           revenueType: selectedType,
         );
+        markDataChanged();
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -422,6 +432,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
             status: 'شاغرة',
           );
         }
+        markDataChanged();
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

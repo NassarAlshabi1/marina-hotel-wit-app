@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../utils/env.dart';
 
@@ -42,18 +41,6 @@ class ApiService {
   late final Dio _dio;
   static const _storage = FlutterSecureStorage();
   static const _kToken = 'auth_token';
-
-  Future<bool> _tryRefresh() async {
-    try {
-      final res = await Dio(BaseOptions(baseUrl: Env.baseApiUrl)).post('/auth/refresh.php');
-      if (res.statusCode == 200 && res.data['success'] == true) {
-        final token = res.data['data']['token'];
-        await _storage.write(key: _kToken, value: token);
-        return true;
-      }
-    } catch (_) {}
-    return false;
-  }
 
   Future<Response<dynamic>> _retryRequest(RequestOptions ro) async {
     final opts = Options(method: ro.method, headers: ro.headers);

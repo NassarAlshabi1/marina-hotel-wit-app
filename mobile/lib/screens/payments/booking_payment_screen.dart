@@ -4,13 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/local_db.dart' as db;
+import '../../utils/message_templates.dart';
 import '../../models/payment_models.dart';
 import '../../components/widgets/payment_widgets.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
+
+const List<PaymentMethod> _allowedPaymentMethods = [
+  PaymentMethod.cash,
+  PaymentMethod.transfer,
+];
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
   final db.Booking booking;
@@ -25,12 +34,18 @@ class BookingPaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'booking_payment';
   late TabController _tabController;
   late TextEditingController _phoneController;
-  final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
+  final _currencyFmt = NumberFormat('#,##0', 'en_US');
   double _remainingAmount = 0;
   late String _currentGuestPhone;
+  int? _expectedNightsOverride;
+  DateTime? _plannedCheckoutOverride;
+  String? _bookingNotesOverride;
 
   Payment _mapDbPaymentToUi(db.Payment p) {
     return Payment(
@@ -97,16 +112,45 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     return digitsOnly;
   }
 
+  DateTime? _resolvePlannedCheckout() {
+    if (_plannedCheckoutOverride != null) {
+      return _plannedCheckoutOverride;
+    }
+    if (widget.booking.checkoutDate != null) {
+      return DateTime.tryParse(widget.booking.checkoutDate!);
+    }
+    return null;
+  }
+
+  int _resolveExpectedNights(DateTime checkin, DateTime? plannedCheckout) {
+    if (_expectedNightsOverride != null) {
+      return _expectedNightsOverride!;
+    }
+    if (widget.booking.expectedNights > 0) {
+      return widget.booking.expectedNights;
+    }
+    return Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
+  }
+
+  String _formatDateOnly(DateTime dt) {
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _phoneController = TextEditingController(text: widget.booking.guestPhone);
+    _phoneController.addListener(markDataChanged);
     _currentGuestPhone = widget.booking.guestPhone;
   }
 
   @override
   void dispose() {
+    _phoneController.removeListener(markDataChanged);
     _tabController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -118,8 +162,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final roomsRepo = ref.watch(roomsRepoProvider);
     final paymentsRepo = ref.watch(paymentsRepoProvider);
 
-    return AppScaffold(
-      title: 'معالجة المدفوعات',
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
+        title: 'معالجة المدفوعات',
       actions: [
         IconButton(
           onPressed: () => Navigator.push(
@@ -137,12 +182,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         builder: (context, roomSnap) {
           final roomRate = roomSnap.data?.price ?? 0.0;
           final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-          final plannedCheckout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null;
+          final plannedCheckout = _resolvePlannedCheckout();
           final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : null;
-          final expectedNights = widget.booking.expectedNights > 0
-              ? widget.booking.expectedNights
-              : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
-          final actualNights = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
+          final expectedNights = _resolveExpectedNights(checkin, plannedCheckout);
+          final actualNights = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? DateTime.now());
           
           // التكلفة الإجمالية = الليالي الفعلية × سعر الليلة (وليس المتوقعة)
           final totalAmount = actualNights * roomRate;
@@ -211,6 +254,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             },
           );
         },
+        ),
       ),
     );
   }
@@ -530,9 +574,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
-          itemCount: PaymentMethod.values.length,
+          itemCount: _allowedPaymentMethods.length,
           itemBuilder: (context, index) {
-            final method = PaymentMethod.values[index];
+            final method = _allowedPaymentMethods[index];
             return _buildPaymentMethodCard(method);
           },
         ),
@@ -609,6 +653,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   Widget _buildActionsTab(BookingPaymentSummary summary) {
+    final checkoutDate = _plannedCheckoutOverride ?? (widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null);
+    final checkoutDisplay = checkoutDate != null ? _formatDateOnly(checkoutDate) : null;
+    final bookingNotes = _bookingNotesOverride ?? widget.booking.notes;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -642,15 +690,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
           ),
           
-          if (summary.isFullyPaid) ...[
-            _buildActionCard(
-              'تسجيل المغادرة',
-              'تسجيل مغادرة العميل وتحرير الغرفة',
-              Icons.logout,
-              Colors.green,
-              () => _showCheckoutConfirmation(summary),
-            ),
-          ],
+          _buildActionCard(
+            'تسجيل المغادرة',
+            summary.isFullyPaid
+                ? 'تسجيل مغادرة العميل وتحرير الغرفة'
+                : 'سيتم نقل المتبقي (${_currencyFmt.format(summary.remainingAmount)}) إلى الديون تلقائياً وتحرير الغرفة',
+            Icons.logout,
+            summary.isFullyPaid ? Colors.green : Colors.orange,
+            () => _handleCheckout(summary),
+          ),
           
           _buildActionCard(
             'إرسال كشف حساب',
@@ -676,11 +724,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   const SizedBox(height: 12),
                   _buildInfoRow('رقم الحجز', widget.booking.localUuid),
                   _buildInfoRow('تاريخ الوصول', widget.booking.checkinDate.split(' ')[0]),
-                  if (widget.booking.checkoutDate != null)
-                    _buildInfoRow('تاريخ المغادرة', widget.booking.checkoutDate!.split(' ')[0]),
+                  if (checkoutDisplay != null)
+                    _buildInfoRow('تاريخ المغادرة', checkoutDisplay),
                   _buildInfoRow('الحالة', widget.booking.status),
-                  if (widget.booking.notes != null && widget.booking.notes!.isNotEmpty)
-                    _buildInfoRow('ملاحظات', widget.booking.notes!),
+                  if (bookingNotes != null && bookingNotes.isNotEmpty)
+                    _buildInfoRow('ملاحظات', bookingNotes),
                 ],
               ),
             ),
@@ -695,19 +743,35 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String subtitle,
     IconData icon,
     Color color,
-    VoidCallback onTap,
-  ) {
+    VoidCallback? onTap, {
+    bool enabled = true,
+  }) {
+    final effectiveColor = enabled ? color : Colors.grey;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.2),
-          child: Icon(icon, color: color),
+          backgroundColor: effectiveColor.withOpacity(0.2),
+          child: Icon(icon, color: effectiveColor),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: onTap,
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: enabled ? null : Colors.grey,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: enabled ? null : Colors.grey.shade600),
+        ),
+        trailing: Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: enabled ? null : Colors.grey,
+        ),
+        onTap: enabled ? onTap : null,
+        enabled: enabled,
       ),
     );
   }
@@ -844,32 +908,68 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
-  Future<void> _sendPaymentConfirmation(double amountPaidNow, double remaining, String cleanedPhone) async {
+  Future<String> _buildMessage({
+    required double amount,
+    required double remaining,
+    int addedNights = 0,
+    DateTime? newCheckout,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final template = prefs.getString('whatsapp_template') ?? whatsappPaymentTemplate;
+
+    String formatAmount(double value) {
+      if (value == value.toInt()) return '${value.toInt()}';
+      return _currencyFmt.format(value);
+    }
+
+    String message = template
+        .replaceAll('{name}', widget.booking.guestName)
+        .replaceAll('{amount}', formatAmount(amount))
+        .replaceAll('{room}', widget.booking.roomNumber)
+        .replaceAll('{remaining}', formatAmount(remaining));
+
+    if (addedNights > 0) {
+      final extraNightsText = 'تم تمديد الإقامة تلقائياً بـ $addedNights ${addedNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}';
+      message = message.replaceAll('{extra_nights}', extraNightsText);
+    } else {
+      message = message.replaceAll('{extra_nights}', '');
+    }
+
+    if (newCheckout != null) {
+      final checkoutText = 'تاريخ المغادرة الجديد: ${newCheckout.day}/${newCheckout.month}/${newCheckout.year}';
+      message = message.replaceAll('{new_checkout}', checkoutText);
+    } else {
+      message = message.replaceAll('{new_checkout}', '');
+    }
+
+    // Clean up empty lines potentially left by removed placeholders
+    return message.replaceAll(RegExp(r'\n\s*\n'), '\n').trim();
+  }
+
+  Future<void> _sendPaymentConfirmation(
+    double amountPaidNow,
+    double remaining,
+    String cleanedPhone, {
+    int addedNights = 0,
+    DateTime? newCheckout,
+  }) async {
     if (cleanedPhone.isEmpty) {
       return;
     }
 
     final whatsappService = ref.read(whatsappServiceProvider);
 
-    String formatAmount(double amount) {
-      if (amount == amount.toInt()) {
-        return '${amount.toInt()}';
-      }
-      return _currencyFmt.format(amount);
-    }
-
-    final message = StringBuffer()
-      ..writeln('عزيزي ${widget.booking.guestName}')
-      ..writeln('تم استلام دفعتك بقيمة ${formatAmount(amountPaidNow)} ريال')
-      ..writeln('رقم الغرفة: ${widget.booking.roomNumber}')
-      ..writeln('المبلغ المتبقي: ${formatAmount(remaining)} ريال')
-      ..writeln('شكراً لاختيارك فندق مارينا')
-      ..write('للاستفسار: 9677734587456');
+    final message = await _buildMessage(
+      amount: amountPaidNow,
+      remaining: remaining,
+      addedNights: addedNights,
+      newCheckout: newCheckout,
+    );
 
     try {
       await whatsappService.sendMessage(
         phoneE164: cleanedPhone,
-        message: message.toString(),
+        message: message,
       );
     } catch (_) {
       if (mounted) {
@@ -885,15 +985,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
     final now = DateTime.now();
     final currentStay = Time.nightsWithCutoff(checkin, checkout: now);
-    final expectedNights = widget.booking.expectedNights;
-    
+    final plannedCheckout = _resolvePlannedCheckout();
+    final expectedNights = _resolveExpectedNights(checkin, plannedCheckout);
+
     // عرض خيارات الليالي الإضافية إذا:
     // 1. الليالي الحالية أكثر من المتوقعة
     // 2. أو إذا كان اليوم الحالي بعد تاريخ المغادرة المخطط
-    final plannedCheckout = widget.booking.checkoutDate != null 
-      ? DateTime.tryParse(widget.booking.checkoutDate!) : null;
     final isPastCheckoutDate = plannedCheckout != null && now.isAfter(plannedCheckout);
-    
+
     return currentStay > expectedNights || isPastCheckoutDate;
   }
 
@@ -902,7 +1001,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
     final now = DateTime.now();
     final currentStay = Time.nightsWithCutoff(checkin, checkout: now);
-    final expectedNights = widget.booking.expectedNights;
+    final plannedCheckout = _resolvePlannedCheckout();
+    final expectedNights = _resolveExpectedNights(checkin, plannedCheckout);
     final extraNights = currentStay - expectedNights;
     
     if (extraNights <= 0) {
@@ -1095,6 +1195,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       paymentMethod: 'نقدي', // افتراضي، يمكن تحسينه لاحقاً
       revenueType: 'room', // رسوم غرفة للليالي الإضافية
     );
+    markDataChanged();
 
     Navigator.pop(context);
     
@@ -1142,20 +1243,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     
     final whatsappService = ref.read(whatsappServiceProvider);
     
-    String formatAmount(double amount) {
-      if (amount == amount.toInt()) {
-        return '${amount.toInt()}';
-      } else {
-        return _currencyFmt.format(amount);
-      }
-    }
+    // Reuse the same builder but we can treat nightsPaid as addedNights
+    // Note: The standard template handles extra nights generic text.
+    // If we want specific text for manual extension, we might need to adjust template variables or logic.
+    // For now, let's use the standard builder which is consistent.
     
-    String message = 'عزيزي ${widget.booking.guestName}، تم استلام دفعة بقيمة: ${formatAmount(amountPaidNow)} ريال\n';
-    message += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
-    message += 'دفع $nightsPaid ${nightsPaid == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}\n';
-    message += 'المبلغ المتبقي: ${formatAmount(remaining)} ريال\n';
-    message += 'شكراً لاختيارك فندق مارينا\n';
-    message += 'للاستفسار: 9677734587456';
+    final message = await _buildMessage(
+      amount: amountPaidNow,
+      remaining: remaining,
+      addedNights: nightsPaid,
+      // Note: newCheckout is not passed here in original code but we can calculate/pass if needed.
+      // For now we stick to existing behavior: just notify payment and extra nights.
+    );
     
     try {
       await whatsappService.sendMessage(phoneE164: cleanedPhone, message: message);
@@ -1187,20 +1286,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final bookingsRepo = ref.read(bookingsRepoProvider);
 
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
+    final roomRate = room?.price ?? 0;
     final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final plannedCheckout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null;
-    final expectedNights = widget.booking.expectedNights > 0
-        ? widget.booking.expectedNights
-        : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
-    final total = (room?.price ?? 0) * expectedNights;
+    final plannedCheckout = _resolvePlannedCheckout();
+    final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : null;
+    final actualNights = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
+    final total = roomRate * actualNights;
     final existingPayments = await paymentsRepo.paymentsByBooking(widget.booking.id).first;
     final paidSoFar = existingPayments.fold<double>(0, (s, p) => s + p.amount);
-    final remaining = ((total - paidSoFar).clamp(0.0, total)).toDouble();
-
-    if (amount > remaining) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('المبلغ أكبر من المتبقي (${_currencyFmt.format(remaining)})')));
-      return;
-    }
+    const double epsilon = 0.5;
+    double remaining = ((total - paidSoFar).clamp(0.0, total)).toDouble();
 
     final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
 
@@ -1219,17 +1314,105 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       _currentGuestPhone = cleanedPhone;
     }
 
+    int autoExtensionNights = 0;
+    DateTime? autoExtensionCheckout;
+    double updatedTotal = total;
+    double updatedRemainingBeforePayment = remaining;
+
+    if (amount > remaining + epsilon) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => Directionality(
+          textDirection: ui.TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('المبلغ أكبر من المتبقي'),
+            content: Text('المبلغ المتبقي هو ${_currencyFmt.format(remaining)} ريال، بينما أدخلت ${_currencyFmt.format(amount)} ريال.\nهل تريد المتابعة؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('إلغاء'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('متابعة'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (confirmed != true) {
+        return;
+      }
+
+      if (roomRate <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا يمكن تمديد الإقامة لأن سعر الليلة غير محدد')));
+        return;
+      }
+      final extra = amount - remaining;
+      autoExtensionNights = (extra / roomRate).ceil();
+      if (autoExtensionNights < 1) {
+        autoExtensionNights = 1;
+      }
+
+      updatedTotal += autoExtensionNights * roomRate;
+      updatedRemainingBeforePayment += autoExtensionNights * roomRate;
+
+      final baseCheckout = (_plannedCheckoutOverride ?? plannedCheckout) ?? DateTime.now().add(const Duration(days: 1));
+      autoExtensionCheckout = baseCheckout.add(Duration(days: autoExtensionNights));
+      final newExpectedNights = _resolveExpectedNights(checkin, plannedCheckout) + autoExtensionNights;
+      final currentNotes = _bookingNotesOverride ?? widget.booking.notes;
+      final extensionNote = 'تمديد تلقائي $autoExtensionNights ${autoExtensionNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}';
+      final updatedNotes = (currentNotes != null && currentNotes.isNotEmpty)
+          ? '$currentNotes\n$extensionNote'
+          : extensionNote;
+      final shouldPersistCheckout = widget.booking.checkoutDate != null;
+
+      await bookingsRepo.update(
+        widget.booking.id,
+        checkoutDate: shouldPersistCheckout ? _formatDateTime(autoExtensionCheckout) : null,
+        expectedNights: newExpectedNights,
+        notes: updatedNotes,
+      );
+
+      if (mounted) {
+        setState(() {
+          _plannedCheckoutOverride = autoExtensionCheckout;
+          _expectedNightsOverride = newExpectedNights;
+          _bookingNotesOverride = updatedNotes;
+        });
+      } else {
+        _plannedCheckoutOverride = autoExtensionCheckout;
+        _expectedNightsOverride = newExpectedNights;
+        _bookingNotesOverride = updatedNotes;
+      }
+    }
+
+    if (amount > updatedRemainingBeforePayment + epsilon) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('المبلغ أكبر من المتبقي (${_currencyFmt.format(updatedRemainingBeforePayment)})')),
+      );
+      return;
+    }
+
+    String? paymentNotes = notes.isNotEmpty ? notes : null;
+    if (autoExtensionNights > 0) {
+      final extensionLabel = 'تمديد تلقائي $autoExtensionNights ${autoExtensionNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}';
+      paymentNotes = paymentNotes == null ? extensionLabel : '$paymentNotes • $extensionLabel';
+    }
+
     await paymentsRepo.create(
       bookingLocalId: widget.booking.id,
       roomNumber: widget.booking.roomNumber,
       amount: amount,
       paymentDate: Time.nowIso(),
-      notes: notes.isEmpty ? null : notes,
+      notes: paymentNotes,
       paymentMethod: _mapUiMethodToDb(method),
       revenueType: 'room',
     );
+    markDataChanged();
 
-    final newRemaining = ((remaining - amount).clamp(0.0, total)).toDouble();
+    final newRemaining = ((updatedRemainingBeforePayment - amount).clamp(0.0, updatedTotal)).toDouble();
 
     Navigator.pop(context);
 
@@ -1248,7 +1431,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       method: method,
       status: PaymentStatus.completed,
       paymentDate: DateTime.now(),
-      notes: notes.isNotEmpty ? notes : null,
+      notes: paymentNotes,
       referenceNumber: reference.isNotEmpty ? reference : null,
       cardLastFourDigits: cardDigits.isNotEmpty ? cardDigits : null,
       bankName: bank.isNotEmpty ? bank : null,
@@ -1260,16 +1443,30 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     _showReceiptDialog(receipt);
 
     if (cleanedPhone.isNotEmpty) {
-      await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
+      await _sendPaymentConfirmation(
+        amount,
+        newRemaining,
+        cleanedPhone,
+        addedNights: autoExtensionNights,
+        newCheckout: autoExtensionCheckout,
+      );
     }
 
     if (!mounted) {
       return;
     }
 
+    final snackMessage = autoExtensionNights > 0
+        ? 'تم تسجيل الدفعة وتم تمديد الإقامة $autoExtensionNights ${autoExtensionNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}'
+        : 'تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}'),
+        duration: const Duration(seconds: 20),
+        content: Text(
+          autoExtensionNights > 0
+              ? '$snackMessage. المتبقي الجديد: ${_currencyFmt.format(newRemaining)}'
+              : snackMessage,
+        ),
         action: SnackBarAction(label: 'طباعة إيصال', onPressed: () => _generateReceipt(receipt)),
       ),
     );
@@ -1321,7 +1518,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   void _generateInvoice(BookingPaymentSummary summary) async {
     final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final plannedCheckout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null;
+    final plannedCheckout = _resolvePlannedCheckout();
     final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : null;
     final checkout = actualCheckout ?? plannedCheckout ?? checkin;
     final roomsRepo = ref.read(roomsRepoProvider);
@@ -1342,6 +1539,49 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       generatedAt: DateTime.now(),
     );
     await invoice.generatePDF();
+  }
+
+  void _handleCheckout(BookingPaymentSummary summary) {
+    if (summary.remainingAmount <= 0) {
+      _showCheckoutConfirmation(summary);
+    } else {
+      _showCheckoutWithDebtDialog(summary);
+    }
+  }
+
+  void _showCheckoutWithDebtDialog(BookingPaymentSummary summary) {
+    final remainingText = _currencyFmt.format(summary.remainingAmount);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تحويل المتبقي إلى دين'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('المبلغ المتبقي: $remainingText'),
+            const SizedBox(height: 8),
+            Text('سيتم إنشاء سجل دين باسم ${widget.booking.guestName} وربطه بالحجز الحالي.'),
+            const SizedBox(height: 8),
+            const Text('بعد التحويل سيتم تحرير الغرفة وتحديث حالة الحجز إلى مكتمل.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _processCheckoutWithDebt(summary);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700),
+            child: const Text('إنشاء دين وتحرير الغرفة'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showCheckoutConfirmation(BookingPaymentSummary summary) {
@@ -1387,9 +1627,88 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (room != null) {
       await roomsRepo.update(room.id, status: 'شاغرة');
     }
+    markDataChanged();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'), backgroundColor: Colors.green));
     Navigator.pop(context);
+  }
+
+  Future<void> _processCheckoutWithDebt(BookingPaymentSummary summary) async {
+    final bookingsRepo = ref.read(bookingsRepoProvider);
+    final roomsRepo = ref.read(roomsRepoProvider);
+    final debtsRepo = ref.read(debtsRepoProvider);
+    final nowIso = Time.nowIso();
+    final dateOnly = Time.nowDateString();
+    final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+    final nowDate = DateTime.parse(nowIso);
+    final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
+
+    try {
+      final existingDebts = await debtsRepo.listByBookingLocalId(widget.booking.id);
+      db.Debt? openDebt;
+      for (final debt in existingDebts) {
+        if (debt.isSettled == 0 && debt.remainingAmount > 0) {
+          openDebt = debt;
+          break;
+        }
+      }
+
+      if (openDebt != null) {
+        await debtsRepo.update(
+          id: openDebt.id,
+          totalAmount: summary.totalAmount,
+          paidAmount: summary.paidAmount,
+          checkoutDate: nowIso,
+          dateRecorded: dateOnly,
+          debtReason: 'مغادرة مع مبلغ متبقي',
+          note: 'تحديث تلقائي من شاشة المدفوعات - غرفة ${widget.booking.roomNumber}',
+        );
+      } else {
+        await debtsRepo.create(
+          bookingLocalId: widget.booking.id,
+          guestName: widget.booking.guestName,
+          checkinDate: widget.booking.checkinDate,
+          checkoutDate: nowIso,
+          dateRecorded: dateOnly,
+          debtReason: 'مغادرة مع مبلغ متبقي',
+          totalAmount: summary.totalAmount,
+          paidAmount: summary.paidAmount,
+          paymentDate: dateOnly,
+          isSettled: false,
+          note: 'تم الإنشاء تلقائياً من شاشة المدفوعات (غرفة ${widget.booking.roomNumber})',
+        );
+      }
+
+      await bookingsRepo.update(
+        widget.booking.id,
+        status: 'مكتمل',
+        actualCheckout: nowIso,
+        calculatedNights: actualNights,
+      );
+
+      final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
+      if (room != null) {
+        await roomsRepo.update(room.id, status: 'شاغرة');
+      }
+      markDataChanged();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم تحويل المبلغ المتبقي (${_currencyFmt.format(summary.remainingAmount)}) إلى سجل ديون وتحرير الغرفة'),
+          backgroundColor: Colors.orange.shade700,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل تحويل الحجز إلى دين: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _sendAccountStatement(BookingPaymentSummary summary) {
@@ -1640,49 +1959,60 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   Future<void> _processExtendStay(int additionalNights, double roomRate, String notes) async {
     final bookingsRepo = ref.read(bookingsRepoProvider);
     final paymentsRepo = ref.read(paymentsRepoProvider);
-    
-    // تحديث تاريخ المغادرة المخطط
-    final currentCheckout = widget.booking.checkoutDate != null 
-      ? DateTime.tryParse(widget.booking.checkoutDate!) 
-      : DateTime.now().add(Duration(days: 1));
-    
-    final newCheckout = (currentCheckout ?? DateTime.now())
-        .add(Duration(days: additionalNights));
-    
-    final newExpectedNights = widget.booking.expectedNights + additionalNights;
-    
-    // تحديث الحجز
+
+    final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+    final plannedCheckout = _resolvePlannedCheckout();
+    final baseCheckout = plannedCheckout ?? DateTime.now().add(const Duration(days: 1));
+    final newCheckout = baseCheckout.add(Duration(days: additionalNights));
+    final currentExpectedNights = _resolveExpectedNights(checkin, plannedCheckout);
+    final newExpectedNights = currentExpectedNights + additionalNights;
+
+    final currentNotes = _bookingNotesOverride ?? widget.booking.notes;
+    final extensionNote = 'تمديد: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}';
+    final updatedNotes = currentNotes != null && currentNotes.isNotEmpty
+        ? '$currentNotes\n$extensionNote'
+        : extensionNote;
+    final shouldPersistCheckout = widget.booking.checkoutDate != null;
+
     await bookingsRepo.update(
       widget.booking.id,
-      checkoutDate: _formatDateTime(newCheckout),
+      checkoutDate: shouldPersistCheckout ? _formatDateTime(newCheckout) : null,
       expectedNights: newExpectedNights,
-      notes: widget.booking.notes != null 
-        ? '${widget.booking.notes}\nتمديد: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}'
-        : 'تمديد: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}',
+      notes: updatedNotes,
     );
-    
-    // تسجيل دفعة الليالي الإضافية
+
+    if (mounted) {
+      setState(() {
+        _plannedCheckoutOverride = newCheckout;
+        _expectedNightsOverride = newExpectedNights;
+        _bookingNotesOverride = updatedNotes;
+      });
+    } else {
+      _plannedCheckoutOverride = newCheckout;
+      _expectedNightsOverride = newExpectedNights;
+      _bookingNotesOverride = updatedNotes;
+    }
+
     final amount = additionalNights * roomRate;
     await paymentsRepo.create(
       bookingLocalId: widget.booking.id,
       roomNumber: widget.booking.roomNumber,
       amount: amount,
       paymentDate: Time.nowIso(),
-      notes: notes.isEmpty 
-        ? 'تمديد $additionalNights ${additionalNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}'
-        : notes,
+      notes: notes.isEmpty
+          ? 'تمديد $additionalNights ${additionalNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}'
+          : notes,
       paymentMethod: 'نقدي',
       revenueType: 'room',
     );
-    
-    // إرسال رسالة واتساب
+
     final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
     if (cleanedPhone.isNotEmpty) {
       await _sendExtensionConfirmation(additionalNights, amount, newCheckout, cleanedPhone);
     }
 
     if (!mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('تم تمديد الإقامة $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'} وتسجيل الدفعة'),

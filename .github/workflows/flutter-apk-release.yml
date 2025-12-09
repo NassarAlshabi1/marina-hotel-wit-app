@@ -34,8 +34,22 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
-          cache: false
+          flutter-version: '3.38.3'
+          cache: true
+          cache-key: flutter-${{ runner.os }}-3.38.3
+
+      - name: Install Android SDK components (API 36)
+        run: |
+          echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          echo "Installing Android SDK Platform 36 and Build-Tools..."
+          sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" || sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "build-tools;36.0.1" || true
+          ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --list | head -n 50
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
 
       - name: Verify Android Signing Files
         # Local keystore and key.properties are committed to repo

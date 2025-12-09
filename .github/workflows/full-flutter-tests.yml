@@ -1,0 +1,62 @@
+name: Full Flutter Tests (DB + Workmanager)
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master, dev ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Removed sqlite service: SQLite is file-based and does not require a network service container.
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: stable
+
+      - name: Enable Flutter integration tests
+        run: flutter config --enable-web
+        working-directory: mobile
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: mobile
+
+      - name: Run Dart format check
+        run: dart format --set-exit-if-changed .
+        working-directory: mobile
+
+      - name: Run flutter analyze
+        run: flutter analyze
+        working-directory: mobile
+
+      - name: Run unit tests with DB
+        run: flutter test --coverage
+        working-directory: mobile
+
+      - name: Prepare Workmanager test environment
+        run: echo "WORKMANAGER_TEST_MODE=true" >> $GITHUB_ENV
+
+      - name: Run Workmanager tests
+        run: flutter test test/workmanager_test.dart
+        working-directory: mobile
+
+      - name: Install WebDriver for integration tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-driver
+
+      - name: Run flutter integration tests (Web)
+        run: |
+          flutter test integration_test \
+            --platform chrome \
+            --no-pub
+        working-directory: mobile

@@ -10,8 +10,13 @@ class SalaryWithdrawalsReportScreen extends StatelessWidget {
     'salaries',
     'salary_withdrawal',
     'salary-withdrawal',
+    'salary_deduction',
+    'salary-deduction',
     'رواتب',
     'سحب راتب',
+    'سحب من الراتب',
+    'خصم راتب',
+    'خصم من الراتب',
   };
 
   @override
@@ -22,6 +27,8 @@ class SalaryWithdrawalsReportScreen extends StatelessWidget {
       allowedTypes: _salaryTypes,
       showTypeFilter: false,
       includeEmployeeDetails: true,
+      totalSummaryLabel: 'إجمالي سحبيات الرواتب',
+      totalRowLabel: 'إجمالي سحبيات الرواتب',
     );
   }
 }

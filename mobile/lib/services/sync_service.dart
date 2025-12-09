@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import '../utils/time.dart';
@@ -13,26 +12,26 @@ import 'daos/employees_dao.dart';
 import 'daos/expenses_dao.dart';
 import 'daos/cash_transactions_dao.dart';
 import 'daos/payments_dao.dart';
-import 'providers.dart';
+import '../providers/repository_providers.dart';
 import 'sync_performance_optimizer.dart';
+import 'delta_sync_service.dart';
 import 'package:flutter/material.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
 class SyncService {
   SyncService(this.db)
-      : outboxDao = OutboxDao(db),
-        roomsDao = RoomsDao(db, OutboxDao(db)),
+      : roomsDao = RoomsDao(db, OutboxDao(db)),
         bookingsDao = BookingsDao(db, OutboxDao(db)),
         notesDao = BookingNotesDao(db, OutboxDao(db)),
         employeesDao = EmployeesDao(db, OutboxDao(db)),
         expensesDao = ExpensesDao(db, OutboxDao(db)),
         cashDao = CashTransactionsDao(db, OutboxDao(db)),
         paymentsDao = PaymentsDao(db, OutboxDao(db)),
+        deltaSyncService = DeltaSyncService(db),
         _performanceOptimizer = SyncPerformanceOptimizer();
 
   final AppDatabase db;
-  final OutboxDao outboxDao;
   final RoomsDao roomsDao;
   final BookingsDao bookingsDao;
   final BookingNotesDao notesDao;
@@ -40,6 +39,7 @@ class SyncService {
   final ExpensesDao expensesDao;
   final CashTransactionsDao cashDao;
   final PaymentsDao paymentsDao;
+  final DeltaSyncService deltaSyncService;
   final SyncPerformanceOptimizer _performanceOptimizer;
 
   final _status = StreamController<SyncStatus>.broadcast();
@@ -96,48 +96,43 @@ class SyncService {
   }
 
   Future<void> _push() async {
-    // الحصول على حجم الدفعة المثالي حسب نوع الشبكة
     final settings = _performanceOptimizer.getCurrentPerformanceSettings();
-    final batchSize = settings['batchSize'] as int;
-    
-    final batch = await outboxDao.takeBatch(batchSize);
-    if (batch.isEmpty) return;
-    final changes = batch
-        .map((o) => {
-              'entity': o.entity,
-              'op': o.op,
-              'uuid': o.localUuid,
-              'server_id': o.serverId,
-              'data': jsonDecode(o.payload),
-              'client_ts': o.clientTs,
-            })
-        .toList();
+    final timeout = Duration(seconds: settings['timeout'] as int);
+    final computation = await deltaSyncService.compute();
+    if (computation.changes.isEmpty) {
+      return;
+    }
+    final payload = computation.toPayload();
     try {
-      // الحصول على مهلة زمنية مثالية حسب نوع الشبكة
-      final settings = _performanceOptimizer.getCurrentPerformanceSettings();
-      final timeout = Duration(seconds: settings['timeout'] as int);
-      
-      final res = await ApiService.I.syncPush(changes).timeout(timeout);
-      if (res['success'] == true) {
-        final results = List<Map<String, dynamic>>.from(res['data']['results']);
-        for (var i = 0; i < batch.length; i++) {
-          final o = batch[i];
-          final r = results[i];
-          if (r['success'] == true) {
-            final sid = r['server_id'];
-            await _applyServerId(o.entity, o.localUuid, sid);
-            await outboxDao.removeById(o.id);
+      final response = await ApiService.I.syncPush(payload).timeout(timeout);
+      if (response['success'] == true) {
+        final results = List<Map<String, dynamic>>.from(response['data']['results']);
+        var allSucceeded = true;
+        for (var index = 0; index < results.length && index < computation.changes.length; index++) {
+          final result = results[index];
+          final change = computation.changes[index];
+          if (result['success'] == true) {
+            await _applyServerId(change.entity, change.localUuid, result['server_id']);
           } else {
-            final attempts = o.attempts + 1;
-            await outboxDao.setError(o.id, r['error']?.toString() ?? 'error', attempts);
+            allSucceeded = false;
+            debugPrint('❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}');
           }
+        }
+        if (allSucceeded) {
+          await deltaSyncService.persistMirror(computation);
+          final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
+          final now = Time.nowEpoch();
+          await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
+            id: const d.Value(1),
+            lastServerTs: d.Value(state?.lastServerTs ?? 0),
+            lastPullTs: d.Value(state?.lastPullTs ?? 0),
+            lastPushTs: d.Value(now),
+            isSyncing: const d.Value(0),
+          ));
         }
       }
     } catch (e) {
-      for (final o in batch) {
-        final attempts = o.attempts + 1;
-        await outboxDao.setError(o.id, e.toString(), attempts);
-      }
+      debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
       rethrow;
     }
   }
@@ -196,6 +191,10 @@ class SyncService {
       case 'payments':
         final rowP = await (db.select(db.payments)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
         if (rowP != null) await (db.update(db.payments)..where((t) => t.id.equals(rowP.id))).write(PaymentsCompanion(serverPaymentId: d.Value(serverId is int ? serverId : null), serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
+        break;
+      case 'debts':
+        final rowD = await (db.select(db.debts)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        if (rowD != null) await (db.update(db.debts)..where((t) => t.id.equals(rowD.id))).write(DebtsCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
         break;
     }
   }
@@ -482,8 +481,243 @@ class SyncService {
           if (target != null) await paymentsDao.softDelete(target.id, originIsServer: true);
         }
         break;
+      case 'booking_nights':
+        await _applyBookingNight(op, serverTs, data);
+        break;
+      case 'hotel_day_ledger':
+        await _applyHotelDayLedger(op, serverTs, data);
+        break;
     }
   }
+
+  Future<void> _applyBookingNight(String op, int serverTs, Map<String, dynamic> data) async {
+    final localUuid = _asString(data['local_uuid']);
+    if (localUuid == null || localUuid.isEmpty) {
+      return;
+    }
+
+    final existing = await (db.select(db.bookingNights)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    final bool isDelete = op == 'delete' || data['deleted_at'] != null;
+    final int normalizedServerTs = _normalizeTimestampField(serverTs, fallback: Time.nowEpoch());
+    final int createdAt = _normalizeTimestampField(data['created_at'], fallback: normalizedServerTs);
+    final int updatedAt = _normalizeTimestampField(data['updated_at'], fallback: normalizedServerTs);
+    final int lastModified = _normalizeTimestampField(data['last_modified'], fallback: updatedAt);
+    final int createdEpoch = _normalizeTimestampField(data['created_at_epoch'], fallback: createdAt);
+    final int lastModifiedEpoch = _normalizeTimestampField(data['last_modified_epoch'], fallback: lastModified);
+    final int? deletedAt = data.containsKey('deleted_at')
+        ? _normalizeTimestampField(data['deleted_at'], fallback: normalizedServerTs)
+        : null;
+    final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
+    final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
+    final String? deletedIso = _maybeIsoFromData(data['deleted_at_iso'], deletedAt);
+
+    if (isDelete) {
+      if (existing != null) {
+        await (db.update(db.bookingNights)..where((t) => t.id.equals(existing.id))).write(
+          BookingNightsCompanion(
+            deletedAt: deletedAt != null ? d.Value(deletedAt) : const d.Value.absent(),
+            deletedAtIso: deletedIso != null ? d.Value(deletedIso) : const d.Value.absent(),
+            updatedAt: d.Value(updatedAt),
+            lastModified: d.Value(lastModified),
+            updatedAtIso: d.Value(updatedIso),
+            lastModifiedEpoch: d.Value(lastModifiedEpoch),
+            origin: const d.Value('server'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final bookingLocalId = _asInt(data['booking_local_id']);
+    final hotelDayKey = _asString(data['hotel_day_key']);
+    final nightStart = _asString(data['night_start']);
+    final nightEnd = _asString(data['night_end']);
+
+    if (bookingLocalId == null || hotelDayKey == null || nightStart == null || nightEnd == null) {
+      debugPrint('⚠️ تخطي booking_nights/$localUuid لعدم اكتمال البيانات');
+      return;
+    }
+
+    final companion = BookingNightsCompanion(
+      localUuid: existing == null ? d.Value(localUuid) : const d.Value.absent(),
+      bookingLocalId: d.Value(bookingLocalId),
+      hotelDayKey: d.Value(hotelDayKey),
+      nightStart: d.Value(nightStart),
+      nightEnd: d.Value(nightEnd),
+      nightlyRate: _doubleValue(data['nightly_rate']),
+      sequence: _intValue(data['sequence']),
+      isProcessedByAutoFix: _boolValue(data['is_processed_by_auto_fix']),
+      createdAt: d.Value(createdAt),
+      updatedAt: d.Value(updatedAt),
+      deletedAt: deletedAt != null ? d.Value(deletedAt) : const d.Value.absent(),
+      lastModified: d.Value(lastModified),
+      createdAtIso: d.Value(createdIso),
+      updatedAtIso: d.Value(updatedIso),
+      deletedAtIso: deletedIso != null ? d.Value(deletedIso) : const d.Value.absent(),
+      createdAtEpoch: d.Value(createdEpoch),
+      lastModifiedEpoch: d.Value(lastModifiedEpoch),
+      version: _intValue(data['version']),
+      origin: const d.Value('server'),
+    );
+
+    if (existing == null) {
+      await db.into(db.bookingNights).insert(companion);
+    } else {
+      await (db.update(db.bookingNights)..where((t) => t.id.equals(existing.id))).write(companion);
+    }
+  }
+
+  Future<void> _applyHotelDayLedger(String op, int serverTs, Map<String, dynamic> data) async {
+    final localUuid = _asString(data['local_uuid']);
+    if (localUuid == null || localUuid.isEmpty) {
+      return;
+    }
+
+    final existing = await (db.select(db.hotelDayLedger)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    final bool isDelete = op == 'delete' || data['deleted_at'] != null;
+    final int normalizedServerTs = _normalizeTimestampField(serverTs, fallback: Time.nowEpoch());
+    final int createdAt = _normalizeTimestampField(data['created_at'], fallback: normalizedServerTs);
+    final int updatedAt = _normalizeTimestampField(data['updated_at'], fallback: normalizedServerTs);
+    final int lastModified = _normalizeTimestampField(data['last_modified'], fallback: updatedAt);
+    final int createdEpoch = _normalizeTimestampField(data['created_at_epoch'], fallback: createdAt);
+    final int lastModifiedEpoch = _normalizeTimestampField(data['last_modified_epoch'], fallback: lastModified);
+    final int? deletedAt = data.containsKey('deleted_at')
+        ? _normalizeTimestampField(data['deleted_at'], fallback: normalizedServerTs)
+        : null;
+    final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
+    final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
+    final String? deletedIso = _maybeIsoFromData(data['deleted_at_iso'], deletedAt);
+
+    if (isDelete) {
+      if (existing != null) {
+        await (db.update(db.hotelDayLedger)..where((t) => t.id.equals(existing.id))).write(
+          HotelDayLedgerCompanion(
+            deletedAt: deletedAt != null ? d.Value(deletedAt) : const d.Value.absent(),
+            deletedAtIso: deletedIso != null ? d.Value(deletedIso) : const d.Value.absent(),
+            updatedAt: d.Value(updatedAt),
+            lastModified: d.Value(lastModified),
+            updatedAtIso: d.Value(updatedIso),
+            lastModifiedEpoch: d.Value(lastModifiedEpoch),
+            origin: const d.Value('server'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final hotelDayKey = _asString(data['hotel_day_key']);
+    if (hotelDayKey == null || hotelDayKey.isEmpty) {
+      debugPrint('⚠️ تخطي hotel_day_ledger/$localUuid لعدم اكتمال البيانات');
+      return;
+    }
+
+    final companion = HotelDayLedgerCompanion(
+      localUuid: existing == null ? d.Value(localUuid) : const d.Value.absent(),
+      hotelDayKey: d.Value(hotelDayKey),
+      totalIncome: _doubleValue(data['total_income']),
+      totalExpenses: _doubleValue(data['total_expenses']),
+      pendingBalances: _doubleValue(data['pending_balances']),
+      occupancyRate: _doubleValue(data['occupancy_rate']),
+      bookingsProcessed: _intValue(data['bookings_processed']),
+      paymentsProcessed: _intValue(data['payments_processed']),
+      debtsProcessed: _intValue(data['debts_processed']),
+      expensesProcessed: _intValue(data['expenses_processed']),
+      status: d.Value(_asString(data['status']) ?? 'draft'),
+      createdAt: d.Value(createdAt),
+      updatedAt: d.Value(updatedAt),
+      deletedAt: deletedAt != null ? d.Value(deletedAt) : const d.Value.absent(),
+      lastModified: d.Value(lastModified),
+      createdAtIso: d.Value(createdIso),
+      updatedAtIso: d.Value(updatedIso),
+      deletedAtIso: deletedIso != null ? d.Value(deletedIso) : const d.Value.absent(),
+      createdAtEpoch: d.Value(createdEpoch),
+      lastModifiedEpoch: d.Value(lastModifiedEpoch),
+      version: _intValue(data['version']),
+      origin: const d.Value('server'),
+    );
+
+    if (existing == null) {
+      await db.into(db.hotelDayLedger).insert(companion);
+    } else {
+      await (db.update(db.hotelDayLedger)..where((t) => t.id.equals(existing.id))).write(companion);
+    }
+  }
+}
+
+int? _asInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
+double? _asDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is double) return value;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
+}
+
+bool? _asBool(dynamic value) {
+  if (value == null) return null;
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.toLowerCase();
+    if (normalized == 'true' || normalized == '1' || normalized == 'yes') return true;
+    if (normalized == 'false' || normalized == '0' || normalized == 'no') return false;
+  }
+  return null;
+}
+
+String? _asString(dynamic value) {
+  if (value == null) return null;
+  return value.toString();
+}
+
+int _normalizeTimestampField(dynamic value, {int? fallback}) {
+  final parsed = _asInt(value);
+  if (parsed == null) {
+    return fallback ?? Time.nowEpoch();
+  }
+  return parsed >= 1000000000000 ? parsed ~/ 1000 : parsed;
+}
+
+String _isoFromData(dynamic value, int secondsFallback) {
+  final iso = _asString(value);
+  if (iso != null && iso.isNotEmpty) return iso;
+  return _secondsToIso(secondsFallback);
+}
+
+String? _maybeIsoFromData(dynamic value, int? secondsFallback) {
+  final iso = _asString(value);
+  if (iso != null && iso.isNotEmpty) {
+    return iso;
+  }
+  if (secondsFallback != null) {
+    return _secondsToIso(secondsFallback);
+  }
+  return null;
+}
+
+String _secondsToIso(int seconds) =>
+    DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true).toIso8601String();
+
+d.Value<int> _intValue(dynamic value) {
+  final parsed = _asInt(value);
+  return parsed == null ? const d.Value.absent() : d.Value(parsed);
+}
+
+d.Value<double> _doubleValue(dynamic value) {
+  final parsed = _asDouble(value);
+  return parsed == null ? const d.Value.absent() : d.Value(parsed);
+}
+
+d.Value<bool> _boolValue(dynamic value) {
+  final parsed = _asBool(value);
+  return parsed == null ? const d.Value.absent() : d.Value(parsed);
 }
 
 final syncServiceProvider = Provider<SyncService>((ref) => SyncService(ref.read(databaseProvider)));

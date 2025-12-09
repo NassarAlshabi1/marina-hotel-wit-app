@@ -1,14 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:drift/drift.dart' as drift;
 
 import '../services/local_db.dart';
-import '../services/providers.dart';
-import '../services/sync_service.dart';
+import '../providers/repository_providers.dart';
+import '../providers/smart_sync_provider.dart';
 import '../utils/status_utils.dart';
 
 import '../widgets/smart_sync_widgets.dart';
 import 'bookings/booking_edit.dart';
 import 'bookings/bookings_list.dart';
+import 'reports/expenses_report_screen.dart';
+import 'payments/booking_payment_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101', '102', '103', '104',
@@ -18,11 +23,273 @@ const List<String> _dashboardRoomNumbers = [
   '501', '502', '503', '504',
 ];
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
   
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  bool _isImmediateSyncing = false;
+  Timer? _lastSyncUpdateTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastSyncUpdateTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _lastSyncUpdateTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<bool> _checkLocalChanges() async {
+    try {
+      final manager = ref.read(smartSyncManagerProvider);
+      final hasChanges = await manager.hasLocalChanges();
+      return hasChanges;
+    } catch (e) {
+      debugPrint('❌ خطأ في فحص التغييرات المحلية: $e');
+      return false;
+    }
+  }
+
+  Future<void> _triggerImmediateSync(BuildContext context) async {
+    if (_isImmediateSyncing) {
+      return;
+    }
+
+    try {
+      final hasLocalChanges = await _checkLocalChanges();
+      
+      if (hasLocalChanges) {
+        final action = await _showLocalChangesDialog(context);
+        
+        if (action == null) {
+          return;
+        }
+        
+        setState(() => _isImmediateSyncing = true);
+        
+        if (action == 'push_first') {
+          await _pushThenPull(context);
+        } else if (action == 'pull_only') {
+          await _pullOnly(context);
+        }
+      } else {
+        setState(() => _isImmediateSyncing = true);
+        await _performSync(context);
+      }
+      
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ فشلت المزامنة: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isImmediateSyncing = false);
+      }
+    }
+  }
+
+  Future<String?> _showLocalChangesDialog(BuildContext context) async {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 8),
+            Expanded(child: Text('⚠️ تنبيه: تغييرات محلية')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'لديك تغييرات محلية لم يتم رفعها إلى السحابة بعد.',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            ),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '💡 ماذا تريد أن تفعل؟',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '• رفع أولاً: يرفع تغييراتك ثم يسحب من السحابة',
+                    style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '• سحب فقط: يسحب من السحابة دون رفع تغييراتك',
+                    style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: Text('إلغاء'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(context, 'pull_only'),
+            icon: Icon(Icons.download, size: 18),
+            label: Text('سحب فقط'),
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, 'push_first'),
+            icon: Icon(Icons.upload, size: 18),
+            label: Text('رفع أولاً'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          ),
+        ],
+        actionsAlignment: MainAxisAlignment.spaceBetween,
+      ),
+    );
+  }
+
+  Future<void> _pushThenPull(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    
+    try {
+      final manager = ref.read(smartSyncManagerProvider);
+      
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('📤 جاري رفع التغييرات المحلية...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      final pushSuccess = await manager.pushLocalChanges();
+      
+      if (!mounted) return;
+      
+      if (!pushSuccess) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ فشل رفع التغييرات المحلية'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('✅ تم رفع التغييرات بنجاح'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (!mounted) return;
+      await _performSync(context);
+      
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('❌ خطأ في رفع التغييرات: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _pullOnly(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    
+    try {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ تحذير: سيتم تجاهل التغييرات المحلية'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (!mounted) return;
+      await _performSync(context);
+      
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('❌ خطأ في السحب: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _performSync(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    
+    final manager = ref.read(smartSyncManagerProvider);
+    await manager.forceSyncNow();
+    ref.invalidate(smartSyncStatusProvider);
+    
+    if (mounted) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('⚡ تمت المزامنة الفورية بنجاح')),
+      );
+    }
+  }
+
+  String _formatLastSyncTime(DateTime? lastSync) {
+    if (lastSync == null) return 'لم تتم مزامنة بعد';
+    
+    final now = DateTime.now();
+    final difference = now.difference(lastSync);
+    
+    if (difference.inSeconds < 60) {
+      return 'منذ ${difference.inSeconds} ثانية';
+    } else if (difference.inMinutes < 60) {
+      return 'منذ ${difference.inMinutes} دقيقة';
+    } else if (difference.inHours < 24) {
+      return 'منذ ${difference.inHours} ساعة';
+    } else {
+      final days = difference.inDays;
+      return 'منذ $days ${days == 1 ? "يوم" : "أيام"}';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusAsync = ref.watch(smartSyncStatusProvider);
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -40,12 +307,51 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  await ref.read(syncServiceProvider).runSync();
-                },
-                icon: const Icon(Icons.sync, size: 16),
-                label: const Text('مزامنة احتياطية'),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _isImmediateSyncing ? null : () => _triggerImmediateSync(context),
+                    icon: _isImmediateSyncing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.flash_on, size: 16),
+                    label: Text(_isImmediateSyncing ? 'جاري المزامنة...' : 'مزامنة فورية'),
+                  ),
+                  const SizedBox(height: 4),
+                  statusAsync.when(
+                    data: (status) {
+                      final lastSyncStr = status['last_sync_check'] as String?;
+                      final lastSync = lastSyncStr != null ? DateTime.tryParse(lastSyncStr) : null;
+                      final isEnabled = status['enabled'] as bool? ?? false;
+                      final isSyncing = status['is_syncing'] as bool? ?? false;
+                      
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isEnabled ? Icons.cloud_done : Icons.cloud_off,
+                            size: 14,
+                            color: isEnabled ? Colors.green : Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isSyncing ? 'جاري المزامنة...' : _formatLastSyncTime(lastSync),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -58,7 +364,7 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           
           // Statistics Cards - بطاقات أصغر مع إحصائيات مفيدة أكثر
-          _buildStatisticsCards(ref),
+          _buildStatisticsCards(),
           
           const SizedBox(height: 24),
           
@@ -79,7 +385,8 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatisticsCards(WidgetRef ref) {
+  Widget _buildStatisticsCards() {
+    final currencyFmt = NumberFormat('#,##0', 'en_US');
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -137,7 +444,7 @@ class DashboardScreen extends ConsumerWidget {
               ),
               data: (total) => _StatCard(
                 title: 'مدفوعات اليوم',
-                value: '${total.toStringAsFixed(0)}',
+                value: currencyFmt.format(total),
                 icon: Icons.payments,
                 color: Colors.green,
               ),
@@ -163,9 +470,13 @@ class DashboardScreen extends ConsumerWidget {
               ),
               data: (total) => _StatCard(
                 title: 'مصروفات اليوم',
-                value: '${total.toStringAsFixed(0)}',
+                value: currencyFmt.format(total),
                 icon: Icons.money_off,
                 color: Colors.red,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
+                ),
               ),
             );
           },
@@ -272,27 +583,21 @@ class DashboardScreen extends ConsumerWidget {
   }
   
   /// التعامل مع الضغط على أزرار الغرف
-  void _handleRoomTap(BuildContext context, String roomNumber, Room? room) {
+  void _handleRoomTap(BuildContext context, String roomNumber, Room? room) async {
     if (roomNumber == '503' || roomNumber == '504') {
-      // منطق خاص للغرف الجديدة
       _showNewRoomDialog(context, roomNumber);
     } else if (room != null) {
-      // فحص حالة الغرفة
       final isAvailable = StatusUtils.isRoomAvailable(room.status);
       final isOccupied = StatusUtils.isRoomOccupied(room.status);
       
       if (isAvailable) {
-        // الغرفة شاغرة - انتقال لشاشة حجز جديد
         _navigateToNewBooking(context, roomNumber);
       } else if (isOccupied) {
-        // الغرفة محجوزة - عرض تفاصيل الغرفة
-        _showRoomDetailsDialog(context, room);
+        await _navigateToPaymentForRoom(context, roomNumber);
       } else {
-        // حالة غير معروفة - عرض تفاصيل
         _showRoomDetailsDialog(context, room);
       }
     } else {
-      // غرف غير مسجلة
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
@@ -311,6 +616,48 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+  
+  /// الانتقال إلى شاشة إضافة دفعة للغرفة المحجوزة
+  Future<void> _navigateToPaymentForRoom(BuildContext context, String roomNumber) async {
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      
+      // البحث عن الحجز النشط للغرفة
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
+      
+      if (activeBooking == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('لا يوجد حجز نشط للغرفة $roomNumber'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      
+      // الانتقال لشاشة إضافة دفعة
+      if (context.mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => BookingPaymentScreen(
+              booking: activeBooking,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تحميل الحجز: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
   
   /// الانتقال إلى قائمة الحجوزات لغرفة محددة
@@ -442,42 +789,49 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
   
   const _StatCard({
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12), // تقليل padding
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24, color: color), // تصغير الأيقونة
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16, // تصغير الخط
-                fontWeight: FontWeight.bold,
-                color: color,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12), // تقليل padding
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 24, color: color), // تصغير الأيقونة
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16, // تصغير الخط
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12, // تصغير الخط
-                color: Colors.grey,
+              const SizedBox(height: 2),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12, // تصغير الخط
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

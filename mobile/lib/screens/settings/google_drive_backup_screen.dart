@@ -7,6 +7,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/backup_provider.dart';
 import '../../services/google_drive_backup_service.dart';
 import '../../utils/theme.dart';
+import 'google_drive_logs_screen.dart';
 
 class GoogleDriveBackupScreen extends ConsumerStatefulWidget {
   const GoogleDriveBackupScreen({super.key});
@@ -32,6 +33,13 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
     return AppScaffold(
       title: 'النسخ الاحتياطي - Google Drive',
       actions: [
+        IconButton(
+          onPressed: () {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GoogleDriveLogsScreen()));
+          },
+          icon: const Icon(Icons.article_outlined),
+          tooltip: 'سجلات Google Drive',
+        ),
         if (backupState.isSignedIn)
           IconButton(
             onPressed: () => ref.read(backupStatusProvider.notifier).refreshBackupsList(),
@@ -417,7 +425,7 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
     final sizeInMB = backup.size != null 
         ? (backup.size! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
-    final recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '') ?? 0;
+    final recordsCount = (backup.metadata?['total_records'] as int?) ?? int.tryParse(backup.appProperties['records_count'] ?? '') ?? 0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
     final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
@@ -441,7 +449,7 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
 
   void _showRestoreConfirmation(DriveBackupFile backup) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    final recordsCount = backup.metadata?.totalRecords ?? int.tryParse(backup.appProperties?['records_count'] ?? '') ?? 0;
+    final recordsCount = (backup.metadata?['total_records'] as int?) ?? int.tryParse(backup.appProperties['records_count'] ?? '') ?? 0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : 'غير معروف';
     final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
     

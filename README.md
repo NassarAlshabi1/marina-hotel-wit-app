@@ -178,6 +178,7 @@ marina-hotel-wit-app/
 - ✅ **تشغيل يدوي** - من Actions tab
 - ✅ **Pull Requests** - فحص الكود
 - 🔄 **تحديث 2025-10-23** - تم تنفيذ دفع اختباري لتأكيد تشغيل سير العمل
+- ✅ **تشغيل 2025-11-17** - تم اختبار بناء Release APK من الفرع A1
 
 **📥 [أحدث إصدار](https://github.com/Nassaralshabi/marina-hotel-wit-app/releases)**
 

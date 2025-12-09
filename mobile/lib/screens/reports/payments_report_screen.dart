@@ -10,7 +10,7 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/local_db.dart';
-import '../../utils/pdf_utils.dart';
+import '../../utils/enhanced_pdf_utils.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
@@ -21,7 +21,7 @@ class PaymentsReportScreen extends ConsumerStatefulWidget {
 
 class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd HH:mm');
-  final NumberFormat _currencyFmt = NumberFormat('#,##0.00', 'en_US');
+  final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   String _formatNumber(num value) => value.toStringAsFixed(0);
 
@@ -36,6 +36,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   double _totalPaid = 0;
   double _totalRemaining = 0;
+
+  String _formatBookingCode(int bookingId) => bookingId.toString().padLeft(6, '0');
 
   @override
   void didChangeDependencies() {
@@ -163,6 +165,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final roomNumber = payment.roomNumber ?? booking?.roomNumber ?? 'غير محدد';
       final payerName = booking?.guestName ?? payment.revenueType ?? 'غير محدد';
       final paymentDate = _parseDateTime(payment.paymentDate);
+      final bookingCode = booking != null ? _formatBookingCode(booking.id) : null;
       totalPaid += payment.amount;
       if (booking != null) {
         relevantBookingIds.add(booking.id);
@@ -173,6 +176,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         roomNumber: roomNumber,
         payerName: payerName,
         bookingId: booking?.id,
+        bookingCode: bookingCode ?? 'غير متوفر',
         booking: booking,
         payment: payment,
       ));
@@ -214,99 +218,151 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
-    final fonts = await PdfUtils.loadArabicFonts();
-    final logo = await PdfUtils.loadLogoImage();
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
     final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
-    final roomLabel = _selectedRoom?.isNotEmpty == true ? _selectedRoom! : 'كل الغرف';
-    final summaryEntries = [
-      MapEntry('إجمالي المدفوع', _formatNumber(_totalPaid)),
-      MapEntry('الإجمالي المتبقي', _formatNumber(_totalRemaining)),
-      MapEntry('عدد السجلات', _rows.length.toString()),
+    final selectedRoomLabel = _selectedRoom?.isNotEmpty == true ? _selectedRoom! : '';
+
+    final dataRows = [
+      for (final entry in _rows.asMap().entries)
+        [
+          (entry.key + 1).toString(),
+          entry.value.bookingCode,
+          entry.value.booking?.guestName ?? entry.value.payerName,
+          entry.value.roomNumber,
+          _translatePaymentMethod(entry.value.payment.paymentMethod),
+          _dateLabelFormat.format(entry.value.paymentDate),
+          EnhancedPdfUtils.formatNumber(entry.value.amount),
+        ],
+      [
+        '',
+        '',
+        '',
+        '',
+        '',
+        'الإجمالي',
+        EnhancedPdfUtils.formatNumber(_totalPaid),
+      ],
     ];
 
-    final headers = ['التاريخ', 'المبلغ', 'الغرفة', 'اسم الدافع', 'طريقة الدفع'];
-    final dataRows = _rows
-        .map((row) => [
-              _dateLabelFormat.format(row.paymentDate),
-              _formatNumber(row.amount),
-              row.roomNumber,
-              row.payerName,
-              row.payment.paymentMethod,
-            ])
-        .toList();
-
-    pw.Widget buildSummaryTable() => pw.Table(
-          border: pw.TableBorder.all(width: 0.5),
-          children: summaryEntries
-              .map(
-                (entry) => pw.TableRow(
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(entry.key, style: pw.TextStyle(font: fonts.bold)),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(entry.value, style: pw.TextStyle(font: fonts.base)),
-                    ),
-                  ],
+    pw.Widget _buildReportHeader() {
+      final periodLabel = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
+      return pw.Container(
+        width: double.infinity,
+        decoration: const pw.BoxDecoration(color: PdfColors.primary),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text(
+              'فندق مارينا بلازا',
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 22,
+                color: PdfColors.textWhite,
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              'مدفوعات النزلاء',
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 20,
+                color: PdfColors.textWhite,
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              periodLabel,
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 12,
+                color: PdfColors.textWhite,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+            if (selectedRoomLabel.isNotEmpty) ...[
+              pw.SizedBox(height: 4),
+              pw.Text(
+                'الغرفة: $selectedRoomLabel',
+                style: pw.TextStyle(
+                  font: fonts.regular,
+                  fontSize: 12,
+                  color: PdfColors.textWhite,
                 ),
-              )
-              .toList(),
-        );
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    pw.Widget _buildPaymentsTable() {
+      return EnhancedPdfUtils.buildProfessionalTable(
+        headers: ['م', 'رقم الحجز', 'اسم النزيل', 'الغرفة', 'طريقة الدفع', 'التاريخ', 'المبلغ'],
+        data: dataRows,
+        fonts: fonts,
+        headerColor: PdfColors.primary,
+        alternateRowColor: PdfColors.backgroundLight,
+      );
+    }
+
+    pw.Widget _buildTotalsFooter() {
+      return pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.all(16),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.backgroundLight,
+          border: pw.Border.all(color: PdfColors.primary, width: 0.5),
+        ),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.end,
+          children: [
+            pw.Text(
+              'الإجمالي الكلي: ',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textDark),
+            ),
+            pw.Text(
+              EnhancedPdfUtils.formatNumber(_totalPaid),
+              style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.secondary),
+            ),
+          ],
+        ),
+      );
+    }
 
     doc.addPage(
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         footer: (context) => pw.Align(
           alignment: pw.Alignment.center,
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.base, fontSize: 10),
+            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
           ),
         ),
-        build: (context) {
-          return [
-            if (logo != null)
-              pw.Align(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Image(logo, width: 80),
-              ),
-            pw.Align(
-              alignment: pw.Alignment.centerRight,
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
-                children: [
-                  pw.Text('فندق مارينا بلازا', style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
-                  pw.Text('القاهرة - شارع احمد قاسم • رقم الهاتف 02324457', style: pw.TextStyle(font: fonts.base, fontSize: 8)),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 6),
-            pw.Text('تقرير دفوعات النزلاء', style: pw.TextStyle(font: fonts.bold, fontSize: 20)),
-            pw.SizedBox(height: 8),
-            pw.Text('الفترة: من $fromLabel إلى $toLabel'),
-            pw.Text('الغرفة: $roomLabel'),
-            pw.SizedBox(height: 12),
-            buildSummaryTable(),
-            pw.SizedBox(height: 12),
-            pw.Table.fromTextArray(
-              headers: headers,
-              headerStyle: pw.TextStyle(font: fonts.bold),
-              cellStyle: pw.TextStyle(font: fonts.base),
-              data: dataRows,
-              cellAlignment: pw.Alignment.centerRight,
-              border: pw.TableBorder.all(width: 0.5),
-            ),
-          ];
-        },
+        build: (context) => [
+          _buildReportHeader(),
+          pw.SizedBox(height: 20),
+          _buildPaymentsTable(),
+          pw.SizedBox(height: 12),
+          _buildTotalsFooter(),
+        ],
       ),
     );
 
-    await Printing.sharePdf(bytes: await doc.save(), filename: 'payments-report.pdf');
+    String _generateFileName(String title) {
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final sanitizedTitle = title.replaceAll(RegExp(r'\s+'), '-');
+      return '$sanitizedTitle-$timestamp.pdf';
+    }
+
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename: _generateFileName('مدفوعات النزلاء'),
+    );
   }
 
   @override
@@ -402,9 +458,11 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                                     Text('اسم الدافع: ${row.payerName}'),
                                     const SizedBox(height: 4),
                                     Text('طريقة الدفع: ${row.payment.paymentMethod}'),
+                                    const SizedBox(height: 4),
+                                    Text('رقم الحجز: ${row.bookingCode}'),
                                     if (row.booking != null) ...[
                                       const SizedBox(height: 4),
-                                      Text('رقم الحجز: ${row.booking!.id}'),
+                                      Text('اسم الضيف: ${row.booking!.guestName}'),
                                     ],
                                   ],
                                 ),
@@ -433,6 +491,23 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         ),
       ),
     );
+  }
+
+  String _translatePaymentMethod(String value) {
+    final normalized = value.toLowerCase();
+    if (normalized.contains('cash') || normalized.contains('نقد')) {
+      return 'نقداً';
+    }
+    if (normalized.contains('card') || normalized.contains('بطاق')) {
+      return 'بطاقة';
+    }
+    if (normalized.contains('transfer') || normalized.contains('تحويل')) {
+      return 'تحويل';
+    }
+    if (normalized.contains('check') || normalized.contains('شيك')) {
+      return 'شيك';
+    }
+    return value;
   }
 
   Widget _buildSummaryTile(String label, String value) {
@@ -475,6 +550,7 @@ class _PaymentReportRow {
     required this.roomNumber,
     required this.payerName,
     required this.bookingId,
+    required this.bookingCode,
     required this.booking,
     required this.payment,
   });
@@ -484,6 +560,7 @@ class _PaymentReportRow {
   final String roomNumber;
   final String payerName;
   final int? bookingId;
+  final String bookingCode;
   final Booking? booking;
   final Payment payment;
 }

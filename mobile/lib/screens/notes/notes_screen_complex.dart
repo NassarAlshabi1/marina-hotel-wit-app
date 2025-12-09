@@ -2,8 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/sync_service.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../models/shift_note_adapter.dart';
+
+final shiftNotesListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(shiftNotesRepoProvider).watchAll(),
+);
+final unreadNotesCountProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(shiftNotesRepoProvider).getUnreadCount(),
+);
+final activeShiftNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(shiftNotesRepoProvider).listAllActive(),
+);
+final unreadShiftNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(shiftNotesRepoProvider).listUnread(),
+);
+final highPriorityNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(shiftNotesRepoProvider).listHighPriority(),
+);
 
 /// شاشة إدارة الملاحظات والتنبيهات - النسخة المحدثة
 class NotesScreen extends ConsumerStatefulWidget {
