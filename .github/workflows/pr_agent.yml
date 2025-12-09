@@ -1,0 +1,42 @@
+name: PR Agent
+
+on:
+  pull_request:
+    # يعمل على جميع الفروع والأحداث
+    types: [opened, reopened, ready_for_review, edited, synchronize]
+  issue_comment:
+    # يعمل على جميع التعليقات في PRs
+  pull_request_review_comment:
+
+jobs:
+  pr_agent_job:
+    # تجاهل بوتات أخرى لتجنب loops لا نهائية
+    if: ${{ github.event.sender.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+    name: Run PR Agent on every pull request and respond to user comments
+    steps:
+      - name: PR Agent action step
+        id: pragent
+        uses: qodo-ai/pr-agent@main
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+          # تفعيل الأدوات الأساسية تلقائياً
+          github_action_config.auto_review: "true"
+          github_action_config.auto_describe: "true"
+          github_action_config.auto_improve: "true"
+          
+          # إعدادات إضافية
+          PR_REVIEWER.REQUIRE_TESTS_REVIEW: "true"
+          PR_CODE_SUGGESTIONS.NUM_CODE_SUGGESTIONS: 5
+          PR_DESCRIPTION.PUBLISH_LABELS: "true"
+          PR_DESCRIPTION.ADD_ORIGINAL_USER_DESCRIPTION: "true"
+          
+          # إعدادات اللغة العربية
+          PR_DESCRIPTION.USE_DESCRIPTION_MARKERS: "true"
+          PR_REVIEWER.INLINE_CODE_COMMENTS: "true"
