@@ -155,11 +155,27 @@ class BookingsRepository {
   
   /// الحصول على الحجز النشط للغرفة
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
-    return await (db.select(db.bookings)
+    final allBookings = await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
-          ..where((b) => b.status.equals('نشط'))
-          ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
-          ..limit(1))
-        .getSingleOrNull();
+          ..where((b) => b.deletedAt.isNull())
+          ..where((b) => b.actualCheckout.isNull())
+          ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)]))
+        .get();
+    
+    for (final booking in allBookings) {
+      final normalized = booking.status.trim().toLowerCase();
+      if (normalized == 'محجوزة' || 
+          normalized == 'محجوز' ||
+          normalized == 'نشط' || 
+          normalized == 'active' ||
+          normalized == 'confirmed' ||
+          normalized == 'checked_in' ||
+          normalized == 'قيد الحجز' ||
+          normalized == 'in_progress') {
+        return booking;
+      }
+    }
+    
+    return null;
   }
 }
