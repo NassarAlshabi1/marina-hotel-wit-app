@@ -1,19 +1,17 @@
 name: PR Agent
+
 on:
   pull_request:
+    types: [opened, reopened, ready_for_review]
+    branches:
+      - main
+      - develop
     paths:
       - 'mobile/**'
-      - '.github/workflows/pr_agent.yml'
-  # Allows manual triggering of the workflow from the GitHub Actions tab
-  workflow_dispatch:
-
   issue_comment:
-    # يعمل على جميع التعليقات في PRs
-  pull_request_review_comment:
 
 jobs:
   pr_agent_job:
-    # تجاهل بوتات أخرى لتجنب loops لا نهائية
     if: ${{ github.event.sender.type != 'Bot' }}
     runs-on: ubuntu-latest
     permissions:
@@ -28,18 +26,12 @@ jobs:
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-          # تفعيل الأدوات الأساسية تلقائياً
           github_action_config.auto_review: "true"
           github_action_config.auto_describe: "true"
           github_action_config.auto_improve: "true"
-          
-          # إعدادات إضافية
           PR_REVIEWER.REQUIRE_TESTS_REVIEW: "true"
-          PR_CODE_SUGGESTIONS.NUM_CODE_SUGGESTIONS: 5
+          PR_REVIEWER.INLINE_CODE_COMMENTS: "true"
+          PR_CODE_SUGGESTIONS.NUM_CODE_SUGGESTIONS: "5"
           PR_DESCRIPTION.PUBLISH_LABELS: "true"
           PR_DESCRIPTION.ADD_ORIGINAL_USER_DESCRIPTION: "true"
-          
-          # إعدادات اللغة العربية
           PR_DESCRIPTION.USE_DESCRIPTION_MARKERS: "true"
-          PR_REVIEWER.INLINE_CODE_COMMENTS: "true"
