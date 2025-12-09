@@ -235,11 +235,11 @@ class DeltaSyncService {
   Future<MirrorValidationResult> validateMirror() async {
     final issues = <String>[];
     final configs = _entityConfigs();
+    final mirrorRows = await _loadMirror();
 
     for (final config in configs) {
       try {
         final currentRows = await config.fetchAll();
-        final mirrorRows = await _loadMirror();
         final tableMirror = mirrorRows[config.entity] ?? {};
 
         if (currentRows.length != tableMirror.length) {
@@ -247,7 +247,7 @@ class DeltaSyncService {
         }
 
         final sampleSize = (currentRows.length * 0.1).ceil().clamp(1, 50);
-        final sample = (currentRows.toList()..shuffle()).take(sampleSize);
+        final sample = (currentRows..shuffle()).take(sampleSize);
 
         for (final row in sample) {
           final uuid = config.localUuid(row);

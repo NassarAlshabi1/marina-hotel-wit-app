@@ -244,6 +244,26 @@ class SyncManager {
     String table,
     {int batchSize = 100}
   ) async* {
+    // Whitelist validation for security
+    const allowedTables = {
+      'rooms',
+      'bookings',
+      'booking_notes',
+      'guests',
+      'payments',
+      'employees',
+      'services',
+      'settings',
+      'expenses',
+      'cash_transactions',
+      'debts',
+    };
+    
+    if (!allowedTables.contains(table)) {
+      debugPrint('⚠️ Invalid table name: $table');
+      return;
+    }
+    
     int offset = 0;
     while (true) {
       try {
@@ -254,13 +274,7 @@ class SyncManager {
         
         if (batch.isEmpty) break;
         
-        final mappedBatch = batch.map((row) {
-          final result = <String, dynamic>{};
-          for (final column in row.data.keys) {
-            result[column] = row.data[column];
-          }
-          return result;
-        }).toList();
+        final mappedBatch = batch.map((row) => Map<String, dynamic>.from(row.data)).toList();
         
         yield mappedBatch;
         offset += batchSize;

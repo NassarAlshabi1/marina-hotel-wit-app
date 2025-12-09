@@ -278,6 +278,7 @@ class SyncResult {
       'success': success,
       'syncedCount': syncedCount,
       'failedCount': failedCount,
+      'failedItems': failedItems,
       'hasPartialFailure': hasPartialFailure,
       'errorMessage': errorMessage,
     };

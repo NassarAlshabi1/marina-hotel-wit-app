@@ -142,13 +142,14 @@ class AppwriteDeltaSync {
     List<DeltaSyncChange> successfulChanges,
   ) async {
     final successfulUuids = successfulChanges.map((c) => c.localUuid).toSet();
+    final allChangeUuids = computation.changes.map((c) => c.localUuid).toSet();
     final filteredSnapshot = <String, Map<String, MirrorRow>>{};
 
     for (final entry in computation.mirrorSnapshot.entries) {
       final filteredRows = <String, MirrorRow>{};
       for (final rowEntry in entry.value.entries) {
         if (successfulUuids.contains(rowEntry.key) ||
-            !computation.changes.any((c) => c.localUuid == rowEntry.key)) {
+            !allChangeUuids.contains(rowEntry.key)) {
           filteredRows[rowEntry.key] = rowEntry.value;
         }
       }
