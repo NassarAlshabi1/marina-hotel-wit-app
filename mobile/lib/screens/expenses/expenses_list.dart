@@ -211,6 +211,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       if (availableEmployees.isEmpty)
                         const Text('لا يوجد موظفين مسجلين حالياً.'),
                       if (availableEmployees.isNotEmpty) ...[
+                        DropdownButtonFormField<int>(
+                          value: selectedEmployeeId,
+                          decoration: const InputDecoration(labelText: 'اسم الموظف'),
+                          items: availableEmployees
+                              .map((employee) => DropdownMenuItem<int>(
+                                    value: employee.id,
+                                    child: Text(employee.name),
+                                  ))
+                              .toList(),
+                          onChanged: (value) => setState(() => selectedEmployeeId = value),
+                        ),
+                        const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           value: dialogSalaryAction,
                           decoration: const InputDecoration(labelText: 'نوع المعاملة'),
@@ -226,18 +238,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             if (value == null) return;
                             setState(() => dialogSalaryAction = value);
                           },
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<int>(
-                          value: selectedEmployeeId,
-                          decoration: const InputDecoration(labelText: 'الموظف'),
-                          items: availableEmployees
-                              .map((employee) => DropdownMenuItem<int>(
-                                    value: employee.id,
-                                    child: Text(employee.name),
-                                  ))
-                              .toList(),
-                          onChanged: (value) => setState(() => selectedEmployeeId = value),
                         ),
                       ],
                     ],
