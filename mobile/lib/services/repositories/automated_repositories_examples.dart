@@ -72,7 +72,7 @@ class BookingsRepositoryAutomated {
     return result;
   }
 
-  Future<int> update(int id, d.BookingsCompanion updates) async {
+  Future<int> update(int id, BookingsCompanion updates) async {
     final result = await dao.updateById(id, updates);
 
     AutoSyncEngine.instance.notifyDataChange(
@@ -123,7 +123,7 @@ class PaymentsRepositoryAutomated {
   final AppDatabase db;
   final PaymentsDao dao;
 
-  Stream<List<Payment>> watchAll() => dao.watchAll();
+  Stream<List<Payment>> watchAll() => dao.watchList();
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
   Future<int> create({
@@ -170,7 +170,7 @@ class PaymentsRepositoryAutomated {
   }
 
   Future<void> delete(int id) async {
-    await dao.deleteById(id);
+    await dao.softDelete(id);
 
     AutoSyncEngine.instance.notifyDataChange(
       table: 'payments',
@@ -186,7 +186,7 @@ class ExpensesRepositoryAutomated {
   final AppDatabase db;
   final ExpensesDao dao;
 
-  Stream<List<Expense>> watchAll() => dao.watchAll();
+  Stream<List<Expense>> watchAll() => dao.watchList();
 
   Future<int> create({
     required String expenseType,
@@ -228,7 +228,7 @@ class ExpensesRepositoryAutomated {
   }
 
   Future<void> delete(int id) async {
-    await dao.deleteById(id);
+    await dao.softDelete(id);
 
     AutoSyncEngine.instance.notifyDataChange(
       table: 'expenses',
@@ -244,10 +244,10 @@ class RoomsRepositoryAutomated {
   final AppDatabase db;
   final RoomsDao dao;
 
-  Stream<List<Room>> watchAll() => dao.watchAll();
-  Stream<Room?> watchOne(String roomNumber) => dao.watchByRoomNumber(roomNumber);
+  Stream<List<Room>> watchAll() => dao.watchList();
+  Stream<Room?> watchOne(String roomNumber) => dao.watchByNumber(roomNumber);
 
-  Future<int> create({
+  Future<String> create({
     required String roomNumber,
     required String type,
     required double price,
@@ -275,7 +275,7 @@ class RoomsRepositoryAutomated {
   }
 
   Future<int> updateStatus(String roomNumber, String newStatus) async {
-    final result = await dao.updateStatus(roomNumber, newStatus);
+    final result = await dao.updateByNumber(roomNumber, RoomsCompanion(status: d.Value(newStatus)));
 
     AutoSyncEngine.instance.notifyDataChange(
       table: 'rooms',
@@ -288,7 +288,7 @@ class RoomsRepositoryAutomated {
   }
 
   Future<int> update(String roomNumber, RoomsCompanion updates) async {
-    final result = await dao.updateByRoomNumber(roomNumber, updates);
+    final result = await dao.updateByNumber(roomNumber, updates);
 
     AutoSyncEngine.instance.notifyDataChange(
       table: 'rooms',
@@ -306,7 +306,7 @@ class DebtsRepositoryAutomated {
   final AppDatabase db;
   final DebtsDao dao;
 
-  Stream<List<Debt>> watchAll() => dao.watchAll();
+  Stream<List<Debt>> watchAll() => dao.watchList();
   Stream<List<Debt>> watchUnsettled() => dao.watchUnsettled();
 
   Future<int> create({
@@ -386,7 +386,7 @@ class EmployeesRepositoryAutomated {
   final AppDatabase db;
   final EmployeesDao dao;
 
-  Stream<List<Employee>> watchAll() => dao.watchAll();
+  Stream<List<Employee>> watchAll() => dao.watchList();
   Stream<List<Employee>> watchActive() => dao.watchActive();
 
   Future<int> create({
@@ -431,7 +431,7 @@ class EmployeesRepositoryAutomated {
   }
 
   Future<void> delete(int id) async {
-    await dao.deleteById(id);
+    await dao.softDelete(id);
 
     AutoSyncEngine.instance.notifyDataChange(
       table: 'employees',
@@ -448,7 +448,7 @@ class CashTransactionsRepositoryAutomated {
   final AppDatabase db;
   final CashTransactionsDao dao;
 
-  Stream<List<CashTransaction>> watchAll() => dao.watchAll();
+  Stream<List<CashTransaction>> watchAll() => dao.watchList();
 
   Future<int> create({
     required String transactionType,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../constants/status_constants.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
@@ -457,14 +458,14 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
 
       await bookingsRepo.update(
         booking.id,
-        status: 'مكتمل',
+        status: BookingStatus.completed,
         actualCheckout: nowIso,
         calculatedNights: data.nights,
       );
 
       final room = await roomsRepo.watchByNumber(booking.roomNumber).first;
       if (room != null) {
-        await roomsRepo.update(room.id, status: 'شاغرة');
+        await roomsRepo.update(room.id, status: RoomStatus.available);
       }
 
       if (!mounted) return;

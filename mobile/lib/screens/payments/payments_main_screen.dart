@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../components/app_scaffold.dart';
+import '../../constants/status_constants.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import 'payment_history_screen.dart';
 import 'booking_checkout_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/screen_sync_controller.dart';
 
 class PaymentsMainScreen extends ConsumerStatefulWidget {
   const PaymentsMainScreen({super.key});
@@ -338,7 +338,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         }
 
         final activeBookings = snapshot.data!
-            .where((booking) => booking.status == 'محجوزة')
+            .where((booking) => booking.status == BookingStatus.booked)
             .toList();
 
         if (activeBookings.isEmpty) {

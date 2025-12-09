@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:drift/drift.dart' as d;
 import '../../components/app_scaffold.dart';
+import '../../constants/status_constants.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/screen_sync_controller.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
   final Booking booking;
@@ -418,7 +417,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
         await bookingsRepo.update(
           widget.booking.id,
-          status: 'مكتمل',
+          status: BookingStatus.completed,
           actualCheckout: nowIso,
           calculatedNights: actualNights,
         );
@@ -429,7 +428,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         if (room != null) {
           await roomsRepo.update(
             room.id,
-            status: 'شاغرة',
+            status: RoomStatus.available,
           );
         }
         markDataChanged();
