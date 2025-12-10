@@ -528,7 +528,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               _buildInfoRow('الجنسية:', guest.nationality),
               const Divider(),
               _buildInfoRow('إجمالي الحجوزات:', guest.bookings.length.toString()),
-              _buildInfoRow('الحجوزات النشطة:', guest.bookings.where((b) => b.status == 'محجوزة').length.toString()),
+              _buildInfoRow('الحجوزات النشطة:', guest.bookings.where((b) => StatusUtils.isActiveBooking(b.status)).length.toString()),
               _buildInfoRow('آخر زيارة:', _formatDate(guest.bookings.first.checkinDate)),
               if (guest.bookings.length > 1)
                 _buildInfoRow('أول زيارة:', _formatDate(guest.bookings.last.checkinDate)),
@@ -559,7 +559,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   Future<void> _deleteGuest(BuildContext context, GuestInfo guest) async {
-    final active = guest.bookings.where((b) => b.status == 'محجوزة').length;
+    final active = guest.bookings.where((b) => StatusUtils.isActiveBooking(b.status)).length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => Directionality(
