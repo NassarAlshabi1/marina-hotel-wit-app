@@ -50,14 +50,18 @@ jobs:
         id: kimi_review
         run: |
           echo "Analyzing PR changes with Kimi CLI..."
-          kimi "Review this code changes and provide detailed feedback on:
+          cat > review_prompt.txt << 'EOF'
+          Review this code changes and provide detailed feedback on:
           1. Code quality and best practices
           2. Potential bugs or issues
           3. Security concerns
           4. Performance optimizations
           5. Test coverage suggestions
           
-          $(cat pr_changes.diff)" > kimi_review.md
+          Here are the changes:
+          EOF
+          cat pr_changes.diff >> review_prompt.txt
+          cat review_prompt.txt | kimi > kimi_review.md
         env:
           KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
         continue-on-error: true
