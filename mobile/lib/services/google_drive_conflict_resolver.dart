@@ -110,7 +110,7 @@ class GoogleDriveConflictResolver {
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('ConflictResolver', message);
     debugPrint('[ConflictResolver] $message');
-    _logger?.log(level, message, tag: 'CONFLICT');
+    _logger?.log(message, level: level, tag: 'CONFLICT');
   }
 
   void initialize(GoogleDriveLogger? logger) {
@@ -456,12 +456,14 @@ class GoogleDriveConflictResolver {
     for (final entry in history) {
       final table = entry['table'] as String?;
       if (table != null) {
-        stats['by_table']![table] = (stats['by_table']![table] ?? 0) + 1;
+        final byTable = stats['by_table'] as Map<String, int>;
+        byTable[table] = (byTable[table] ?? 0) + 1;
       }
       
       final strategy = entry['strategy'] as String?;
       if (strategy != null) {
-        stats['by_strategy']![strategy] = (stats['by_strategy']![strategy] ?? 0) + 1;
+        final byStrategy = stats['by_strategy'] as Map<String, int>;
+        byStrategy[strategy] = (byStrategy[strategy] ?? 0) + 1;
       }
       
       final timeDiff = entry['time_diff_seconds'] as int? ?? 0;
