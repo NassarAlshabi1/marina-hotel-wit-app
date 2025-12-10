@@ -176,8 +176,8 @@ class BookingsRepository {
         .get();
     
     for (final booking in allBookings) {
-      // A utility class or a getter on the model would be more maintainable.
-      if (StatusUtils.isBookingActive(booking.status)) {
+      // A utility class أو getter على الموديل سيكون أكثر قابلية للصيانة.
+      if (StatusUtils.isBookingActive(booking)) {
         return booking;
       }
     }
