@@ -689,14 +689,23 @@ class SyncManager {
   }
 }
 
+/// A [Sink] that accumulates all data added to it in a list.
 class AccumulatorSink<T> extends Sink<T> {
-  final events = <T>[];
+  bool _isClosed = false;
+  final List<T> _events = [];
+
+  List<T> get events => List.unmodifiable(_events);
 
   @override
   void add(T data) {
-    events.add(data);
+    if (_isClosed) {
+      throw StateError('Cannot add to a closed sink.');
+    }
+    _events.add(data);
   }
 
   @override
-  void close() {}
+  void close() {
+    _isClosed = true;
+  }
 }
