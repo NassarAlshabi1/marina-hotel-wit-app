@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/debug_logs.dart';
 import '../utils/time.dart';
 import 'google_drive_logger.dart';
+import 'logging/log_models.dart';
 
 enum ConflictResolutionStrategy {
   newerWins,

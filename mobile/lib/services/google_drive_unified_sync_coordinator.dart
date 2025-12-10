@@ -11,6 +11,7 @@ import 'google_drive_logger.dart';
 import 'local_db.dart';
 import 'data_usage_manager.dart';
 import 'sync_performance_optimizer.dart';
+import 'logging/log_models.dart';
 
 enum SyncTrigger {
   manual,
