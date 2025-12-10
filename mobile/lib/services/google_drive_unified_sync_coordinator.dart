@@ -135,6 +135,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   SyncPhase get currentPhase => _currentPhase;
   bool get hasPendingChanges => _hasPendingChanges;
   int get pendingChangesCount => _pendingChangesCount;
+  String? get deviceId => _deltaSync?.deviceId;
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('UnifiedSyncCoordinator', message);
