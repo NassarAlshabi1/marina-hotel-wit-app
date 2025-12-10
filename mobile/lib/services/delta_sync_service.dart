@@ -185,27 +185,35 @@ class DeltaSyncService {
     return computation;
   }
 
-  Future<void> persistMirror(DeltaSyncComputation computation) async {
+  Future<void> persistMirror(DeltaSyncComputation computation, {bool useExistingTransaction = false}) async {
     final snapshot = computation.mirrorSnapshot;
     await _ensureMirrorTable();
-    await db.transaction(() async {
-      for (final entry in snapshot.entries) {
-        final table = entry.key;
-        await db.customStatement('DELETE FROM sync_mirror WHERE table_name = ?', [table]);
-        for (final row in entry.value.values) {
-          await db.customStatement(
-            'REPLACE INTO sync_mirror (table_name, local_uuid, row_hash, payload, last_seen_at) VALUES (?, ?, ?, ?, ?)',
-            [
-              table,
-              row.localUuid,
-              row.rowHash,
-              jsonEncode(row.payload),
-              row.lastSeenAt,
-            ],
-          );
-        }
+    if (useExistingTransaction) {
+      await _persistMirrorSnapshot(snapshot);
+    } else {
+      await db.transaction(() async {
+        await _persistMirrorSnapshot(snapshot);
+      });
+    }
+  }
+
+  Future<void> _persistMirrorSnapshot(Map<String, Map<String, MirrorRow>> snapshot) async {
+    for (final entry in snapshot.entries) {
+      final table = entry.key;
+      await db.customStatement('DELETE FROM sync_mirror WHERE table_name = ?', [table]);
+      for (final row in entry.value.values) {
+        await db.customStatement(
+          'REPLACE INTO sync_mirror (table_name, local_uuid, row_hash, payload, last_seen_at) VALUES (?, ?, ?, ?, ?)',
+          [
+            table,
+            row.localUuid,
+            row.rowHash,
+            jsonEncode(row.payload),
+            row.lastSeenAt,
+          ],
+        );
       }
-    });
+    }
   }
 
   Future<void> _ensureMirrorTable() async {

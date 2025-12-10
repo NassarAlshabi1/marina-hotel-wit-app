@@ -107,10 +107,22 @@ class SyncService {
     final payload = computation.toPayload();
     try {
       final response = await ApiService.I.syncPush(payload).timeout(timeout);
-      if (response['success'] == true) {
-        final results = List<Map<String, dynamic>>.from(response['data']['results']);
+      if (response['success'] != true) {
+        return;
+      }
+
+      final results = List<Map<String, dynamic>>.from(response['data']['results']);
+      await db.transaction(() async {
         var allSucceeded = true;
-        for (var index = 0; index < results.length && index < computation.changes.length; index++) {
+
+        for (var index = 0; index < computation.changes.length; index++) {
+          if (index >= results.length) {
+            allSucceeded = false;
+            final missingChange = computation.changes[index];
+            debugPrint('❌ Missing push result for ${missingChange.entity}/${missingChange.localUuid}');
+            break;
+          }
+
           final result = results[index];
           final change = computation.changes[index];
           if (result['success'] == true) {
@@ -120,19 +132,26 @@ class SyncService {
             debugPrint('❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}');
           }
         }
-        if (allSucceeded) {
-          await deltaSyncService.persistMirror(computation);
-          final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
-          final now = Time.nowEpoch();
-          await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
-            id: const d.Value(1),
-            lastServerTs: d.Value(state?.lastServerTs ?? 0),
-            lastPullTs: d.Value(state?.lastPullTs ?? 0),
-            lastPushTs: d.Value(now),
-            isSyncing: const d.Value(0),
-          ));
+
+        if (!allSucceeded) {
+          throw StateError('Push response contained failures');
         }
-      }
+
+        await deltaSyncService.persistMirror(
+          computation,
+          useExistingTransaction: true,
+        );
+
+        final now = Time.nowEpoch();
+        final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
+        await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
+          id: const d.Value(1),
+          lastServerTs: d.Value(state?.lastServerTs ?? 0),
+          lastPullTs: d.Value(state?.lastPullTs ?? 0),
+          lastPushTs: d.Value(now),
+          isSyncing: const d.Value(0),
+        ));
+      });
     } catch (e) {
       debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
       rethrow;
@@ -140,9 +159,22 @@ class SyncService {
   }
 
   Future<void> _pull() async {
+    final pullSettings = _performanceOptimizer.getCurrentPerformanceSettings();
+    final pullTimeoutSeconds = (() {
+      final custom = pullSettings['pullTimeout'];
+      if (custom is int && custom > 0) {
+        return custom;
+      }
+      final fallback = pullSettings['timeout'];
+      if (fallback is int && fallback > 0) {
+        return fallback;
+      }
+      return 30;
+    })();
+
     final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
     final since = state?.lastServerTs ?? 0;
-    final res = await ApiService.I.syncPull(since);
+    final res = await ApiService.I.syncPull(since).timeout(Duration(seconds: pullTimeoutSeconds));
     if (res['success'] != true) return;
     final data = List<Map<String, dynamic>>.from(res['data']['data']);
     
