@@ -4,6 +4,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import '../../utils/status_utils.dart';
 import 'guest_edit_screen.dart';
 import 'guest_info.dart';
 
@@ -191,7 +192,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   Widget _buildGuestStats(List<GuestInfo> guests) {
     final totalGuests = guests.length;
     final activeGuests = guests.where((g) => 
-      g.bookings.any((b) => b.status == 'محجوزة')).length;
+      g.bookings.any((b) => StatusUtils.isActiveBooking(b.status))).length;
     final repeatGuests = guests.where((g) => g.bookings.length > 1).length;
     final totalBookings = guests.fold<int>(0, (sum, g) => sum + g.bookings.length);
 
@@ -273,7 +274,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   Widget _buildGuestCard(BuildContext context, GuestInfo guest) {
-    final activeBookings = guest.bookings.where((b) => b.status == 'محجوزة').length;
+    final activeBookings = guest.bookings.where((b) => StatusUtils.isActiveBooking(b.status)).length;
     final lastVisit = guest.bookings.first.checkinDate;
     
     return Card(
@@ -481,7 +482,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: booking.status == 'محجوزة' ? Colors.green : Colors.blue,
+                      backgroundColor: StatusUtils.isActiveBooking(booking.status) ? Colors.green : Colors.blue,
                       child: Text((index + 1).toString()),
                     ),
                     title: Text('غرفة ${booking.roomNumber}'),
@@ -612,7 +613,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         // تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
         if (b.roomNumber.isNotEmpty) {
           final room = await roomsRepo.watchByNumber(b.roomNumber).first;
-          if (room != null && room.status != 'شاغرة') {
+          if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
             await roomsRepo.update(room.id, status: 'شاغرة');
           }
         }
