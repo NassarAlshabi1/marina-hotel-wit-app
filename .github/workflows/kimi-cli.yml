@@ -8,6 +8,7 @@ on:
       - develop
     paths:
       - 'mobile/**'
+      - '.github/workflows/**'
 
 jobs:
   kimi-review:
