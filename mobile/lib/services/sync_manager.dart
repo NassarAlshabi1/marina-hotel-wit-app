@@ -688,3 +688,15 @@ class SyncManager {
     return DateTime.tryParse(value)?.toUtc();
   }
 }
+
+class AccumulatorSink<T> extends Sink<T> {
+  final events = <T>[];
+
+  @override
+  void add(T data) {
+    events.add(data);
+  }
+
+  @override
+  void close() {}
+}
