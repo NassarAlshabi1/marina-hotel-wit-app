@@ -16,6 +16,7 @@ import 'daos/payments_dao.dart';
 import '../providers/repository_providers.dart';
 import 'sync_performance_optimizer.dart';
 import 'delta_sync_service.dart';
+import 'repositories/rooms_repository.dart';
 import 'package:flutter/material.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
@@ -144,25 +145,35 @@ class SyncService {
     final res = await ApiService.I.syncPull(since);
     if (res['success'] != true) return;
     final data = List<Map<String, dynamic>>.from(res['data']['data']);
-    int maxTs = since;
-    for (final it in data) {
-      final entity = it['entity'] as String;
-      final op = it['op'] as String;
-      final serverId = it['server_id'];
-      final serverTs = (it['server_ts'] as num).toInt();
-      final item = Map<String, dynamic>.from(it['data']);
-      await _applyIncoming(entity, op, serverId, serverTs, item);
-      if (serverTs > maxTs) maxTs = serverTs;
-    }
-    final now = Time.nowEpoch();
-    await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
-      id: const d.Value(1),
-      lastServerTs: d.Value(maxTs),
-      lastPullTs: d.Value(now),
-      isSyncing: const d.Value(0),
-    ));
     
-    await _refreshRoomOccupancy();
+    await db.transaction(() async {
+      int maxTs = since;
+      for (final it in data) {
+        final entity = it['entity'] as String;
+        final op = it['op'] as String;
+        final serverId = it['server_id'];
+        final serverTs = (it['server_ts'] as num).toInt();
+        final item = Map<String, dynamic>.from(it['data']);
+        
+        try {
+          await _applyIncoming(entity, op, serverId, serverTs, item);
+          if (serverTs > maxTs) maxTs = serverTs;
+        } catch (e) {
+          debugPrint('❌ Failed to apply incoming change for $entity: $e');
+          rethrow;
+        }
+      }
+      
+      final now = Time.nowEpoch();
+      await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
+        id: const d.Value(1),
+        lastServerTs: d.Value(maxTs),
+        lastPullTs: d.Value(now),
+        isSyncing: const d.Value(0),
+      ));
+    });
+    
+    await RoomsRepository(db).refreshAllRoomOccupancy();
   }
 
   Future<void> _applyServerId(String entity, String localUuid, dynamic serverId) async {
@@ -646,29 +657,6 @@ class SyncService {
     }
   }
 
-  Future<void> _refreshRoomOccupancy() async {
-    final bookings = await (db.select(db.bookings)..where((t) => t.deletedAt.isNull())).get();
-    final occupiedRooms = <String>{};
-    
-    for (final booking in bookings) {
-      if (StatusUtils.isActiveBooking(booking.status)) {
-        occupiedRooms.add(booking.roomNumber);
-      }
-    }
-    
-    final rooms = await (db.select(db.rooms)..where((t) => t.deletedAt.isNull())).get();
-    for (final room in rooms) {
-      final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
-      final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
-      final isCurrentlyAvailable = StatusUtils.isRoomAvailable(room.status);
-      
-      if (shouldBeOccupied && !isCurrentlyOccupied) {
-        await roomsDao.updateByNumber(room.roomNumber, RoomsCompanion(status: d.Value('محجوزة')), originIsServer: false);
-      } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
-        await roomsDao.updateByNumber(room.roomNumber, RoomsCompanion(status: d.Value('شاغرة')), originIsServer: false);
-      }
-    }
-  }
 }
 
 int? _asInt(dynamic value) {
