@@ -688,3 +688,24 @@ class SyncManager {
     return DateTime.tryParse(value)?.toUtc();
   }
 }
+
+/// A [Sink] that accumulates all data added to it in a list.
+class AccumulatorSink<T> implements Sink<T> {
+  bool _isClosed = false;
+  final List<T> _events = [];
+
+  List<T> get events => List.unmodifiable(_events);
+
+  @override
+  void add(T data) {
+    if (_isClosed) {
+      throw StateError('Cannot add to a closed sink.');
+    }
+    _events.add(data);
+  }
+
+  @override
+  void close() {
+    _isClosed = true;
+  }
+}
