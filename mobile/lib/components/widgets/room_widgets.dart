@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/status_utils.dart';
 
 /// Widget لعرض بطاقة غرفة واحدة
 class RoomCard extends StatelessWidget {
@@ -17,7 +18,7 @@ class RoomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAvailable = room.status == 'شاغرة';
+    final isAvailable = StatusUtils.isRoomAvailable(room.status);
     final cardColor = isAvailable ? Colors.green : Colors.red;
 
     return GestureDetector(
@@ -356,7 +357,7 @@ class _FloorSectionState extends State<FloorSection>
 
   @override
   Widget build(BuildContext context) {
-    final availableCount = widget.rooms.where((r) => r.status == 'شاغرة').length;
+    final availableCount = widget.rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).length;
     final occupiedCount = widget.rooms.length - availableCount;
 
     return Card(
@@ -411,7 +412,7 @@ class RoomDetailsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAvailable = room.status == 'شاغرة';
+    final isAvailable = StatusUtils.isRoomAvailable(room.status);
 
     return Directionality(
       textDirection: TextDirection.rtl,

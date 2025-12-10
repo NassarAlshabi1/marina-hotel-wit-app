@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import '../utils/time.dart';
+import '../utils/status_utils.dart';
 import 'api_service.dart';
 import 'local_db.dart';
 import 'daos/outbox_dao.dart';
@@ -15,6 +16,7 @@ import 'daos/payments_dao.dart';
 import '../providers/repository_providers.dart';
 import 'sync_performance_optimizer.dart';
 import 'delta_sync_service.dart';
+import 'repositories/rooms_repository.dart';
 import 'package:flutter/material.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
@@ -170,6 +172,8 @@ class SyncService {
         isSyncing: const d.Value(0),
       ));
     });
+    
+    await RoomsRepository(db).refreshAllRoomOccupancy();
   }
 
   Future<void> _applyServerId(String entity, String localUuid, dynamic serverId) async {
@@ -652,6 +656,7 @@ class SyncService {
       await (db.update(db.hotelDayLedger)..where((t) => t.id.equals(existing.id))).write(companion);
     }
   }
+
 }
 
 int? _asInt(dynamic value) {
