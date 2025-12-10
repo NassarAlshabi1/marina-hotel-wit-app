@@ -179,6 +179,7 @@ class BookingsRepository {
       if (StatusUtils.isBookingActive(booking.status)) {
         return booking;
       }
+    }
     
     return null;
   }
