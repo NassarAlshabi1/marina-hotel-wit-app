@@ -175,18 +175,10 @@ class BookingsRepository {
         .get();
     
     for (final booking in allBookings) {
-      final normalized = booking.status.trim().toLowerCase();
-      if (normalized == 'محجوزة' || 
-          normalized == 'محجوز' ||
-          normalized == 'نشط' || 
-          normalized == 'active' ||
-          normalized == 'confirmed' ||
-          normalized == 'checked_in' ||
-          normalized == 'قيد الحجز' ||
-          normalized == 'in_progress') {
+      // A utility class or a getter on the model would be more maintainable.
+      if (StatusUtils.isBookingActive(booking.status)) {
         return booking;
       }
-    }
     
     return null;
   }

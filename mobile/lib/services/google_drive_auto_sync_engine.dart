@@ -13,6 +13,7 @@ import 'google_drive_delta_sync.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
+import 'logging/log_models.dart';
 
 class RetryConfig {
   final int maxRetries;
@@ -132,7 +133,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('AutoSyncEngine', message);
     debugPrint('[AutoSyncEngine] $message');
-    _logger?.log(level, message, tag: 'AUTO_SYNC');
+    _logger?.log(message, level: level, tag: 'AUTO_SYNC');
   }
   
   void _emitState() {

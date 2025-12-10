@@ -254,3 +254,55 @@ class SyncChecksum {
     return result;
   }
 }
+
+/// نتيجة عملية المزامنة مع تفاصيل النجاح والفشل
+class SyncResult {
+  SyncResult({
+    required this.success,
+    this.syncedCount = 0,
+    this.failedCount = 0,
+    this.failedItems = const [],
+    this.errorMessage,
+  });
+
+  final bool success;
+  final int syncedCount;
+  final int failedCount;
+  final List<dynamic> failedItems;
+  final String? errorMessage;
+
+  bool get hasPartialFailure => !success && syncedCount > 0;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'success': success,
+      'syncedCount': syncedCount,
+      'failedCount': failedCount,
+      'failedItems': failedItems,
+      'hasPartialFailure': hasPartialFailure,
+      'errorMessage': errorMessage,
+    };
+  }
+}
+
+/// نتيجة التحقق من صحة Mirror
+class MirrorValidationResult {
+  MirrorValidationResult({
+    required this.isValid,
+    required this.issues,
+    required this.validatedAt,
+  });
+
+  final bool isValid;
+  final List<String> issues;
+  final DateTime validatedAt;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'isValid': isValid,
+      'issuesCount': issues.length,
+      'issues': issues,
+      'validatedAt': validatedAt.toIso8601String(),
+    };
+  }
+}
