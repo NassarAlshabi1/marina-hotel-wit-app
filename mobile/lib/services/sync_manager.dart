@@ -690,7 +690,7 @@ class SyncManager {
 }
 
 /// A [Sink] that accumulates all data added to it in a list.
-class AccumulatorSink<T> extends Sink<T> {
+class AccumulatorSink<T> implements Sink<T> {
   bool _isClosed = false;
   final List<T> _events = [];
 
