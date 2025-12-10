@@ -246,7 +246,7 @@ class DeltaSyncService {
           issues.add('${config.entity}: row count mismatch (current: ${currentRows.length}, mirror: ${tableMirror.length})');
         }
 
-        final sampleSize = (currentRows.length * 0.1).ceil().clamp(1, 50);
+        final int sampleSize = (currentRows.length * 0.1).ceil().clamp(1, 50);
         final sample = (currentRows..shuffle()).take(sampleSize);
 
         for (final row in sample) {
