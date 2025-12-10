@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import '../utils/time.dart';
+import '../utils/status_utils.dart';
 import 'api_service.dart';
 import 'local_db.dart';
 import 'daos/outbox_dao.dart';
@@ -160,6 +161,8 @@ class SyncService {
       lastPullTs: d.Value(now),
       isSyncing: const d.Value(0),
     ));
+    
+    await _refreshRoomOccupancy();
   }
 
   Future<void> _applyServerId(String entity, String localUuid, dynamic serverId) async {
@@ -640,6 +643,30 @@ class SyncService {
       await db.into(db.hotelDayLedger).insert(companion);
     } else {
       await (db.update(db.hotelDayLedger)..where((t) => t.id.equals(existing.id))).write(companion);
+    }
+  }
+
+  Future<void> _refreshRoomOccupancy() async {
+    final bookings = await (db.select(db.bookings)..where((t) => t.deletedAt.isNull())).get();
+    final occupiedRooms = <String>{};
+    
+    for (final booking in bookings) {
+      if (StatusUtils.isActiveBooking(booking.status)) {
+        occupiedRooms.add(booking.roomNumber);
+      }
+    }
+    
+    final rooms = await (db.select(db.rooms)..where((t) => t.deletedAt.isNull())).get();
+    for (final room in rooms) {
+      final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
+      final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
+      final isCurrentlyAvailable = StatusUtils.isRoomAvailable(room.status);
+      
+      if (shouldBeOccupied && !isCurrentlyOccupied) {
+        await roomsDao.updateByNumber(room.roomNumber, RoomsCompanion(status: d.Value('محجوزة')), originIsServer: false);
+      } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
+        await roomsDao.updateByNumber(room.roomNumber, RoomsCompanion(status: d.Value('شاغرة')), originIsServer: false);
+      }
     }
   }
 }
