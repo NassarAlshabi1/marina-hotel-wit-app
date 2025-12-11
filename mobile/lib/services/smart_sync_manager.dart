@@ -34,6 +34,7 @@ class SmartSyncManager {
   Timer? _periodicSyncTimer;
   bool _isSyncing = false;
   bool _isEnabled = false;
+  bool _isLoggedIn = false;
   String? _deviceId;
   
   String? get deviceId => _deviceId;
@@ -185,9 +186,13 @@ class SmartSyncManager {
   Future<void> onGoogleDriveSignInChanged(bool isSignedIn) async {
     _log('🔔 تغيرت حالة تسجيل الدخول Google Drive: $isSignedIn');
     
+    _isLoggedIn = isSignedIn;
+    
     if (isSignedIn && _isEnabled) {
       _log('✅ بدء المراقبة بعد تسجيل الدخول...');
       await _startSyncMonitoring();
+      
+      await _performOptimizedSyncCheck();
     } else {
       _log('⏹️ إيقاف المراقبة بعد تسجيل الخروج...');
       _stopSyncMonitoring();

@@ -9,6 +9,7 @@ import '../services/local_backup_service.dart' show LocalBackupService, LocalBac
 import '../services/file_management_service.dart';
 import '../services/auto_backup_task.dart';
 import '../services/smart_sync_manager.dart';
+import '../services/google_drive_auto_sync_engine.dart';
 
 import '../services/sqlite_backup_restore.dart';
 import '../services/restore_fix_service.dart';
@@ -278,6 +279,14 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
         }
         
+        // إشعار محرك المزامنة التلقائية
+        try {
+          final autoSyncEngine = GoogleDriveAutoSyncEngine.instance;
+          await autoSyncEngine.onSignInChanged(true);
+        } catch (e) {
+          debugPrint('⚠️ خطأ في إشعار محرك المزامنة التلقائية: $e');
+        }
+        
         state = state.copyWith(
           status: BackupStatus.success,
           message: 'تم تسجيل الدخول بنجاح',
@@ -311,6 +320,14 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         await smartSync.onGoogleDriveSignInChanged(false);
       } catch (e) {
         debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
+      }
+      
+      // إشعار محرك المزامنة التلقائية
+      try {
+        final autoSyncEngine = GoogleDriveAutoSyncEngine.instance;
+        await autoSyncEngine.onSignInChanged(false);
+      } catch (e) {
+        debugPrint('⚠️ خطأ في إشعار محرك المزامنة التلقائية: $e');
       }
       
       state = state.copyWith(

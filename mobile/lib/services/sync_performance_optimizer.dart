@@ -173,9 +173,11 @@ class SyncPerformanceOptimizer {
       final timeSinceLastSync = DateTime.now().difference(_lastSyncTime!);
       
       if (timeSinceLastSync < minInterval) {
-        debugPrint('⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد');
+        debugPrint('⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد (${timeSinceLastSync.inSeconds}/${minInterval.inSeconds} ثانية)');
         return true;
       }
+    } else {
+      return false;
     }
 
     // التحقق من عدد المحاولات الفاشلة
