@@ -44,7 +44,6 @@ class SyncQueueService {
   SyncQueueService._();
   
   static const String _queueKey = 'sync_queue_items';
-  static const int _maxAttempts = 5;
   static const Duration _retryInterval = Duration(minutes: 2);
   
   Timer? _processingTimer;
@@ -145,43 +144,25 @@ class SyncQueueService {
     try {
       debugPrint('🔄 [SyncQueue] معالجة ${items.length} عنصر...');
       
-      final itemsToRemove = <String>[];
-      final itemsToUpdate = <SyncQueueItem>[];
-      
-      for (final item in items) {
-        if (item.attempts >= _maxAttempts) {
-          debugPrint('⚠️ [SyncQueue] تجاوز الحد الأقصى للمحاولات: ${item.id}');
-          itemsToRemove.add(item.id);
-        }
-      }
-      
-      for (final id in itemsToRemove) {
-        await removeFromQueue(id);
-      }
-      
-      final remainingItems = items.where((item) => !itemsToRemove.contains(item.id)).toList();
-      if (remainingItems.isEmpty) {
-        debugPrint('✓ [SyncQueue] لا توجد عناصر متبقية للمعالجة');
-        return;
-      }
+      final itemsToProcess = List<SyncQueueItem>.from(items);
       
       try {
         final success = await SmartSyncManager.instance.pushLocalChanges();
         
         if (success) {
-          for (final item in remainingItems) {
+          for (final item in itemsToProcess) {
             await removeFromQueue(item.id);
           }
-          debugPrint('✅ [SyncQueue] تم رفع جميع العناصر بنجاح (${remainingItems.length} عنصر)');
+          debugPrint('✅ [SyncQueue] تم رفع جميع العناصر بنجاح (${itemsToProcess.length} عنصر)');
         } else {
-          for (final item in remainingItems) {
+          for (final item in itemsToProcess) {
             item.attempts++;
             await updateQueueItem(item);
           }
-          debugPrint('⚠️ [SyncQueue] فشل الرفع - تحديث محاولات ${remainingItems.length} عنصر');
+          debugPrint('⚠️ [SyncQueue] فشل الرفع - تحديث محاولات ${itemsToProcess.length} عنصر');
         }
       } catch (e) {
-        for (final item in remainingItems) {
+        for (final item in itemsToProcess) {
           item.attempts++;
           await updateQueueItem(item);
         }
