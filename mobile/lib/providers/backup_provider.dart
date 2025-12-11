@@ -268,7 +268,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     
     // إشعار محرك المزامنة التلقائية
     try {
-      final autoSyncEngine = GoogleDriveAutoSyncEngine.instance;
+      final autoSyncEngine = AutoSyncEngine.instance;
       await autoSyncEngine.onSignInChanged(isSignedIn);
     } catch (e) {
       debugPrint('⚠️ خطأ في إشعار محرك المزامنة التلقائية: $e');
