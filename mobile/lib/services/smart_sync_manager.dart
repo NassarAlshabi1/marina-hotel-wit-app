@@ -191,8 +191,6 @@ class SmartSyncManager {
     if (isSignedIn && _isEnabled) {
       _log('✅ بدء المراقبة بعد تسجيل الدخول...');
       await _startSyncMonitoring();
-      
-      await _performOptimizedSyncCheck();
     } else {
       _log('⏹️ إيقاف المراقبة بعد تسجيل الخروج...');
       _stopSyncMonitoring();

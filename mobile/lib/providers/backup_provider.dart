@@ -256,6 +256,25 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     state = state.copyWith(driveLoginSkipped: value);
   }
 
+  /// إشعار مديري المزامنة بتغير حالة تسجيل الدخول
+  Future<void> _notifySyncManagers(bool isSignedIn) async {
+    // إشعار مدير المزامنة الذكية
+    try {
+      final smartSync = SmartSyncManager.instance;
+      await smartSync.onGoogleDriveSignInChanged(isSignedIn);
+    } catch (e) {
+      debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
+    }
+    
+    // إشعار محرك المزامنة التلقائية
+    try {
+      final autoSyncEngine = GoogleDriveAutoSyncEngine.instance;
+      await autoSyncEngine.onSignInChanged(isSignedIn);
+    } catch (e) {
+      debugPrint('⚠️ خطأ في إشعار محرك المزامنة التلقائية: $e');
+    }
+  }
+
   /// تسجيل الدخول في Google Drive
   Future<void> signInToDrive() async {
     try {
@@ -271,21 +290,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         // جلب قائمة النسخ المتاحة
         final backups = await _backupService.listBackupFiles();
         
-        // إشعار مدير المزامنة الذكية بتغير حالة تسجيل الدخول
-        try {
-          final smartSync = SmartSyncManager.instance;
-          await smartSync.onGoogleDriveSignInChanged(true);
-        } catch (e) {
-          debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
-        }
-        
-        // إشعار محرك المزامنة التلقائية
-        try {
-          final autoSyncEngine = GoogleDriveAutoSyncEngine.instance;
-          await autoSyncEngine.onSignInChanged(true);
-        } catch (e) {
-          debugPrint('⚠️ خطأ في إشعار محرك المزامنة التلقائية: $e');
-        }
+        // إشعار مديري المزامنة بتغير حالة تسجيل الدخول
+        await _notifySyncManagers(true);
         
         state = state.copyWith(
           status: BackupStatus.success,
@@ -314,21 +320,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       await _backupService.signOut();
       await setSkippedDriveLogin(false);
       
-      // إشعار مدير المزامنة الذكية بتسجيل الخروج
-      try {
-        final smartSync = SmartSyncManager.instance;
-        await smartSync.onGoogleDriveSignInChanged(false);
-      } catch (e) {
-        debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
-      }
-      
-      // إشعار محرك المزامنة التلقائية
-      try {
-        final autoSyncEngine = GoogleDriveAutoSyncEngine.instance;
-        await autoSyncEngine.onSignInChanged(false);
-      } catch (e) {
-        debugPrint('⚠️ خطأ في إشعار محرك المزامنة التلقائية: $e');
-      }
+      // إشعار مديري المزامنة بتسجيل الخروج
+      await _notifySyncManagers(false);
       
       state = state.copyWith(
         status: BackupStatus.success,
