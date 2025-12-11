@@ -409,12 +409,18 @@ class GoogleDriveUnifiedSyncCoordinator {
       final optimizer = SyncPerformanceOptimizer.instance;
       final dataManager = DataUsageManager.instance;
       
-      if (await optimizer.shouldSkipSync()) {
-        _log('⏸️ Optimizer suggests skipping sync');
-        return SyncResult.failure(
-          message: 'Skipped by performance optimizer',
-          phase: SyncPhase.idle,
-        );
+      final shouldSkip = await optimizer.shouldSkipSync();
+      final enforceOptimizer = trigger == SyncTrigger.periodic || trigger == SyncTrigger.scheduled;
+      if (shouldSkip) {
+        if (enforceOptimizer) {
+          _log('⏸️ Optimizer suggests skipping sync');
+          return SyncResult.failure(
+            message: 'Skipped by performance optimizer',
+            phase: SyncPhase.idle,
+          );
+        } else {
+          _log('⚠️ Optimizer suggested skipping but trigger $trigger requires immediate sync');
+        }
       }
       
       if (await dataManager.isLimitExceeded()) {
