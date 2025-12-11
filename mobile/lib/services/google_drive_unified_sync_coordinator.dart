@@ -97,6 +97,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   Timer? _debounceTimer;
   Timer? _periodicSyncTimer;
   Timer? _pullCheckTimer;
+  StreamSubscription? _outboxSubscription;
   
   bool _isInitialized = false;
   bool _isSyncing = false;
@@ -220,6 +221,16 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
+    // مراقبة تغييرات outbox للمزامنة التلقائية
+    _outboxSubscription?.cancel();
+    if (_pushEnabled && _database != null) {
+      _outboxSubscription = (_database!.select(_database!.outbox)).watch().listen((_) {
+        _log('📦 Detected change in outbox', level: LogLevel.debug);
+        notifyLocalChange();
+      });
+      _log('✅ Started outbox monitoring for auto-sync');
+    }
+    
     if (_pullEnabled) {
       _pullCheckTimer?.cancel();
       _pullCheckTimer = Timer.periodic(
@@ -236,7 +247,8 @@ class GoogleDriveUnifiedSyncCoordinator {
     _debounceTimer?.cancel();
     _periodicSyncTimer?.cancel();
     _pullCheckTimer?.cancel();
-    _log('⏸️ Stopped all sync monitoring');
+    _outboxSubscription?.cancel();
+    _log('⏹️ Stopped all monitoring');
   }
 
   Future<void> _scheduleFullBackup() async {
