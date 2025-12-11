@@ -127,8 +127,8 @@ class GoogleDriveUnifiedSyncCoordinator {
   static const String _prefsLastPullKey = 'gd_unified_last_pull';
   static const String _prefsLastFullBackupKey = 'gd_unified_last_full_backup';
   
-  static const int _defaultDebounceSeconds = 2;  // ينتظر ثانيتين بعد آخر تغيير
-  static const int _maxDebounceSeconds = 15;      // الحد الأقصى للانتظار
+  static const int _defaultDebounceSeconds = 1;  // انتظار قصير جداً بعد الحفظ (ثانية واحدة فقط لتجميع العمليات المتعددة)
+  static const int _maxDebounceSeconds = 3;      // الحد الأقصى للانتظار (غير مستخدم حالياً)
   static const int _defaultPullIntervalMinutes = 2;
   static const int _defaultFullBackupHours = 24;
 
@@ -282,17 +282,20 @@ class GoogleDriveUnifiedSyncCoordinator {
 
   /// إشعار بتغيير محلي في البيانات
   /// 
-  /// آلية ذكية:
-  /// - ينتظر ثانيتين بعد آخر تغيير (يعطي فرصة لإكمال الإدخال)
-  /// - إذا استمر الإدخال، يعيد تشغيل المؤقت
-  /// - الحد الأقصى 15 ثانية حتى لو استمر الإدخال (للأمان)
+  /// آلية فورية وذكية:
+  /// - مزامنة شبه فورية بعد الضغط على زر الحفظ/الإضافة/التعديل/الحذف
+  /// - انتظار ثانية واحدة فقط لتجميع العمليات المتعددة السريعة
   /// - يجمع كل التغييرات ويزامنها دفعة واحدة
   /// 
   /// مثال:
-  /// - المستخدم يضيف حجز → انتظار ثانيتين
-  /// - يضيف حجز آخر بعد ثانية → إعادة المؤقت (انتظار ثانيتين من الآن)
-  /// - يتوقف عن الإدخال → بعد ثانيتين تبدأ المزامنة التلقائية
-  /// - لو استمر الإدخال 15 ثانية متواصلة → مزامنة إجبارية
+  /// - المستخدم يضغط "حفظ حجز" → انتظار ثانية واحدة → مزامنة تلقائية ✅
+  /// - يضغط "حفظ" 3 مرات بسرعة → تُجمع كلها وتُزامن مرة واحدة
+  /// - يحذف 5 عناصر بسرعة → تُجمع وتُزامن مرة واحدة
+  /// 
+  /// الفائدة:
+  /// - شبه فوري: يشعر المستخدم بالمزامنة الفورية
+  /// - ذكي: لا يزعج المستخدم بمزامنات متعددة
+  /// - فعال: يوفر البطارية والبيانات
   void notifyLocalChange({String? table, String? operation, int count = 1}) {
     if (!_isInitialized) return;
     
@@ -300,7 +303,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     
     if (!_hasPendingChanges) {
       _firstChangeTime = now;
-      _log('📝 First change detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
+      _log('💾 Save action detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
     }
     
     _hasPendingChanges = true;
@@ -313,23 +316,14 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
-    final waitingSince = _firstChangeTime != null 
-        ? now.difference(_firstChangeTime!).inSeconds 
-        : 0;
-    
-    if (waitingSince >= _maxDebounceSeconds) {
-      _log('⏰ Max wait time reached (${waitingSince}s) - forcing sync of $_pendingChangesCount changes');
-      _triggerSync();
-      return;
-    }
-    
+    // مزامنة شبه فورية: ثانية واحدة فقط
     final effectiveDebounce = _debounceSeconds;
-    _log('⏱️ Change detected: ${table ?? "unknown"} ($operation) - waiting ${effectiveDebounce}s (total: $_pendingChangesCount changes, ${waitingSince}s elapsed)', 
+    _log('🚀 Triggering sync in ${effectiveDebounce}s (${_pendingChangesCount} changes pending)', 
         level: LogLevel.debug);
     
     _debounceTimer = Timer(Duration(seconds: effectiveDebounce), () async {
       if (_hasPendingChanges) {
-        _log('✅ Input completed - syncing $_pendingChangesCount changes');
+        _log('✅ Starting sync for $_pendingChangesCount changes');
         _triggerSync();
       }
     });
