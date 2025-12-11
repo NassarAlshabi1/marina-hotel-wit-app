@@ -63,7 +63,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ));
 
     unawaited(SyncGuardian.instance.notifyLocalChange(table: entity, operation: op));
-    unawaited(GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op));
+    GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
     return result;
   }
 
