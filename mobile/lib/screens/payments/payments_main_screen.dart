@@ -5,6 +5,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/status_utils.dart';
 import 'payment_history_screen.dart';
 import 'booking_checkout_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
@@ -338,7 +339,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         }
 
         final activeBookings = snapshot.data!
-            .where((booking) => booking.status == 'محجوزة')
+            .where((booking) => StatusUtils.isActiveBooking(booking.status))
             .toList();
 
         if (activeBookings.isEmpty) {
