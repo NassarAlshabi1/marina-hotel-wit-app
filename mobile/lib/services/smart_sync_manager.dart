@@ -38,6 +38,7 @@ class SmartSyncManager {
   String? _deviceId;
   
   String? get deviceId => _deviceId;
+  bool get isDriveSignedIn => _backupService?.isSignedIn ?? false;
   
   void _log(String message) {
     DebugLogs.add('SmartSync', message);
