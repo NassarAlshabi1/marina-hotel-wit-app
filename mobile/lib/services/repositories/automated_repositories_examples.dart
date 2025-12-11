@@ -72,7 +72,7 @@ class BookingsRepositoryAutomated {
     return result;
   }
 
-  Future<int> update(int id, d.BookingsCompanion updates) async {
+  Future<int> update(int id, BookingsCompanion updates) async {
     final result = await dao.updateById(id, updates);
 
     AutoSyncEngine.instance.notifyDataChange(
