@@ -4,6 +4,7 @@ import '../daos/outbox_dao.dart';
 import '../daos/rooms_dao.dart';
 import '../auto_backup_manager.dart';
 import '../sync_guardian.dart';
+import '../../utils/status_utils.dart';
 
 class RoomsRepository {
   RoomsRepository(this.db)
@@ -107,5 +108,30 @@ class RoomsRepository {
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
     return await dao.getRecordCount();
+  }
+
+  Future<void> refreshAllRoomOccupancy() async {
+    final bookings = await (db.select(db.bookings)..where((tbl) => tbl.deletedAt.isNull())).get();
+    final occupiedRooms = <String>{};
+    
+    for (final booking in bookings) {
+      if (StatusUtils.isActiveBooking(booking.status)) {
+        occupiedRooms.add(booking.roomNumber);
+      }
+    }
+    
+    final rooms = await (db.select(db.rooms)..where((tbl) => tbl.deletedAt.isNull())).get();
+    for (final room in rooms) {
+      final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
+      final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
+      final isCurrentlyAvailable = StatusUtils.isRoomAvailable(room.status);
+      final target = StatusUtils.roomStatusForOccupancy(shouldBeOccupied);
+      
+      if (shouldBeOccupied && !isCurrentlyOccupied) {
+        await updateByRoomNumber(room.roomNumber, status: target);
+      } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
+        await updateByRoomNumber(room.roomNumber, status: target);
+      }
+    }
   }
 }

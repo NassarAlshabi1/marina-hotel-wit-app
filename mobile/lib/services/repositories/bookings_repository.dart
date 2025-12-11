@@ -2,8 +2,10 @@ import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
+import '../daos/rooms_dao.dart';
 import '../auto_backup_manager.dart';
 import '../sync_guardian.dart';
+import '../../utils/status_utils.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
@@ -111,10 +113,21 @@ class BookingsRepository {
   }
 
   Future<int> delete(int id) async {
+    final booking = await (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingleOrNull();
+    final roomNumber = booking?.roomNumber;
+    
     final result = await dao.softDelete(id);
     if (result > 0) {
       AutoBackupManager.instance.onDataChange('bookings', 'DELETE', recordData: {'id': id});
       SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'DELETE');
+      
+      if (roomNumber != null) {
+        final activeBooking = await getActiveBookingForRoom(roomNumber);
+        if (activeBooking == null) {
+          final roomsDao = RoomsDao(db, OutboxDao(db));
+          await roomsDao.updateByNumber(roomNumber, RoomsCompanion(status: d.Value('شاغرة')));
+        }
+      }
     }
     return result;
   }
@@ -163,15 +176,8 @@ class BookingsRepository {
         .get();
     
     for (final booking in allBookings) {
-      final normalized = booking.status.trim().toLowerCase();
-      if (normalized == 'محجوزة' || 
-          normalized == 'محجوز' ||
-          normalized == 'نشط' || 
-          normalized == 'active' ||
-          normalized == 'confirmed' ||
-          normalized == 'checked_in' ||
-          normalized == 'قيد الحجز' ||
-          normalized == 'in_progress') {
+      // A utility class أو getter على الموديل سيكون أكثر قابلية للصيانة.
+      if (StatusUtils.isBookingActive(booking)) {
         return booking;
       }
     }
