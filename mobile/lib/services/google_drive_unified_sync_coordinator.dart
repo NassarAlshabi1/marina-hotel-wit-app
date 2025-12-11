@@ -106,6 +106,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   DateTime? _lastPushTime;
   DateTime? _lastPullTime;
   DateTime? _lastFullBackupTime;
+  DateTime? _firstChangeTime;
   
   SyncPhase _currentPhase = SyncPhase.idle;
   final _syncResultController = StreamController<SyncResult>.broadcast();
@@ -126,7 +127,8 @@ class GoogleDriveUnifiedSyncCoordinator {
   static const String _prefsLastPullKey = 'gd_unified_last_pull';
   static const String _prefsLastFullBackupKey = 'gd_unified_last_full_backup';
   
-  static const int _defaultDebounceSeconds = 5;
+  static const int _defaultDebounceSeconds = 2;  // ينتظر ثانيتين بعد آخر تغيير
+  static const int _maxDebounceSeconds = 15;      // الحد الأقصى للانتظار
   static const int _defaultPullIntervalMinutes = 2;
   static const int _defaultFullBackupHours = 24;
 
@@ -278,8 +280,28 @@ class GoogleDriveUnifiedSyncCoordinator {
     });
   }
 
+  /// إشعار بتغيير محلي في البيانات
+  /// 
+  /// آلية ذكية:
+  /// - ينتظر ثانيتين بعد آخر تغيير (يعطي فرصة لإكمال الإدخال)
+  /// - إذا استمر الإدخال، يعيد تشغيل المؤقت
+  /// - الحد الأقصى 15 ثانية حتى لو استمر الإدخال (للأمان)
+  /// - يجمع كل التغييرات ويزامنها دفعة واحدة
+  /// 
+  /// مثال:
+  /// - المستخدم يضيف حجز → انتظار ثانيتين
+  /// - يضيف حجز آخر بعد ثانية → إعادة المؤقت (انتظار ثانيتين من الآن)
+  /// - يتوقف عن الإدخال → بعد ثانيتين تبدأ المزامنة التلقائية
+  /// - لو استمر الإدخال 15 ثانية متواصلة → مزامنة إجبارية
   void notifyLocalChange({String? table, String? operation, int count = 1}) {
     if (!_isInitialized) return;
+    
+    final now = DateTime.now();
+    
+    if (!_hasPendingChanges) {
+      _firstChangeTime = now;
+      _log('📝 First change detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
+    }
     
     _hasPendingChanges = true;
     _pendingChangesCount += count;
@@ -291,12 +313,34 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
-    _debounceTimer = Timer(Duration(seconds: _debounceSeconds), () async {
+    final waitingSince = _firstChangeTime != null 
+        ? now.difference(_firstChangeTime!).inSeconds 
+        : 0;
+    
+    if (waitingSince >= _maxDebounceSeconds) {
+      _log('⏰ Max wait time reached (${waitingSince}s) - forcing sync of $_pendingChangesCount changes');
+      _triggerSync();
+      return;
+    }
+    
+    final effectiveDebounce = _debounceSeconds;
+    _log('⏱️ Change detected: ${table ?? "unknown"} ($operation) - waiting ${effectiveDebounce}s (total: $_pendingChangesCount changes, ${waitingSince}s elapsed)', 
+        level: LogLevel.debug);
+    
+    _debounceTimer = Timer(Duration(seconds: effectiveDebounce), () async {
       if (_hasPendingChanges) {
-        _log('📤 Debounce complete - pushing $_pendingChangesCount changes');
-        await performSync(trigger: SyncTrigger.localChange, mode: SyncMode.smart);
+        _log('✅ Input completed - syncing $_pendingChangesCount changes');
+        _triggerSync();
       }
     });
+  }
+  
+  Future<void> _triggerSync() async {
+    try {
+      await performSync(trigger: SyncTrigger.localChange, mode: SyncMode.smart);
+    } finally {
+      _firstChangeTime = null;
+    }
   }
 
   Future<void> onAppForeground() async {
@@ -474,6 +518,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       if (result.success) {
         _hasPendingChanges = false;
         _pendingChangesCount = 0;
+        _firstChangeTime = null;
         _lastPushTime = DateTime.now();
         
         final prefs = await SharedPreferences.getInstance();
