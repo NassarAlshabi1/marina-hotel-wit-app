@@ -209,6 +209,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       List<DriveBackupFile> driveBackups = [];
       if (_backupService.isSignedIn) {
         account = _backupService.currentUser;
+        
+        // إشعار مديري المزامنة بنجاح تسجيل الدخول الصامت
+        await _notifySyncManagers(true);
+        
         // جلب قائمة النسخ المتاحة في Google Drive
         try {
           driveBackups = await _backupService.listBackupFiles();
