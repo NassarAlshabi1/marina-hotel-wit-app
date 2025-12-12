@@ -7,6 +7,7 @@ import 'sync_core/sync_error_handler.dart';
 import 'sync_core/retry_strategy.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_core/sync_validator.dart';
+import 'sync_locks.dart';
 
 class ScreenSyncController {
   final String screenId;
@@ -69,13 +70,20 @@ class ScreenSyncController {
       return true;
     }
     
-    if (_isSyncing) {
+    final canStart = await SyncLocks.screenSyncLock.synchronized(() async {
+      if (_isSyncing) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) {
       debugPrint('⏳ [$screenId] المزامنة جارية بالفعل');
       return false;
     }
     
     cancelTimer();
-    _isSyncing = true;
     _emitStatus(SyncStatus.syncing);
     
     try {
@@ -153,7 +161,9 @@ class ScreenSyncController {
       await _addToQueue();
       return false;
     } finally {
-      _isSyncing = false;
+      await SyncLocks.screenSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
   

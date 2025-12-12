@@ -12,6 +12,7 @@ import 'local_db.dart';
 import 'data_usage_manager.dart';
 import 'sync_performance_optimizer.dart';
 import 'logging/log_models.dart';
+import 'sync_locks.dart';
 
 enum SyncTrigger {
   manual,
@@ -304,15 +305,17 @@ class GoogleDriveUnifiedSyncCoordinator {
   void notifyLocalChange({String? table, String? operation, int count = 1}) {
     if (!_isInitialized) return;
     
-    final now = DateTime.now();
-    
-    if (!_hasPendingChanges) {
-      _firstChangeTime = now;
-      _log('💾 Save action detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
-    }
-    
-    _hasPendingChanges = true;
-    _pendingChangesCount += count;
+    SyncLocks.mainSyncLock.synchronized(() {
+      final now = DateTime.now();
+      
+      if (!_hasPendingChanges) {
+        _firstChangeTime = now;
+        _log('💾 Save action detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
+      }
+      
+      _hasPendingChanges = true;
+      _pendingChangesCount += count;
+    });
     
     _debounceTimer?.cancel();
     
@@ -321,7 +324,6 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
-    // مزامنة شبه فورية: ثانية واحدة فقط
     final effectiveDebounce = _debounceSeconds;
     _log('🚀 Triggering sync in ${effectiveDebounce}s (${_pendingChangesCount} changes pending)', 
         level: LogLevel.debug);
@@ -381,51 +383,62 @@ class GoogleDriveUnifiedSyncCoordinator {
     required SyncTrigger trigger,
     SyncMode mode = SyncMode.smart,
   }) async {
-    if (!_isInitialized) {
+    final canStart = await SyncLocks.mainSyncLock.synchronized(() async {
+      if (!_isInitialized) return 'not_initialized';
+      if (!(_backupService?.isSignedIn ?? false)) return 'not_signed_in';
+      
+      if (_isSyncing) {
+        if (_syncStartTime != null) {
+          final elapsed = DateTime.now().difference(_syncStartTime!);
+          if (elapsed > _syncTimeout) {
+            _log('⚠️ Sync timeout detected (${elapsed.inSeconds}s) - resetting state');
+            _isSyncing = false;
+            _syncStartTime = null;
+            _currentPhase = SyncPhase.idle;
+          } else {
+            return 'already_syncing:${elapsed.inSeconds}';
+          }
+        } else {
+          _log('⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
+          _isSyncing = false;
+        }
+      }
+      
+      _isSyncing = true;
+      _syncStartTime = DateTime.now();
+      _currentPhase = SyncPhase.authenticating;
+      return 'ok';
+    });
+    
+    if (canStart == 'not_initialized') {
       return SyncResult.failure(
         message: 'Coordinator not initialized',
         phase: SyncPhase.idle,
       );
     }
-
-    if (!(_backupService?.isSignedIn ?? false)) {
+    
+    if (canStart == 'not_signed_in') {
       return SyncResult.failure(
         message: 'Not signed in to Google Drive',
         phase: SyncPhase.authenticating,
       );
     }
-
-    if (_isSyncing) {
-      if (_syncStartTime != null) {
-        final elapsed = DateTime.now().difference(_syncStartTime!);
-        if (elapsed > _syncTimeout) {
-          _log('⚠️ Sync timeout detected (${elapsed.inSeconds}s) - resetting state');
-          _isSyncing = false;
-          _syncStartTime = null;
-          _currentPhase = SyncPhase.idle;
-        } else {
-          _log('⏸️ Sync already in progress (${elapsed.inSeconds}s elapsed) - skipping $trigger');
-          if (trigger == SyncTrigger.periodic || trigger == SyncTrigger.scheduled) {
-            return SyncResult.success(
-              message: 'Sync already in progress - not an error for periodic sync',
-              pushed: 0,
-              pulled: 0,
-            );
-          }
-          return SyncResult.failure(
-            message: 'Sync already in progress',
-            phase: _currentPhase,
-          );
-        }
-      } else {
-        _log('⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
-        _isSyncing = false;
+    
+    if (canStart.startsWith('already_syncing')) {
+      final elapsed = canStart.split(':')[1];
+      _log('⏸️ Sync already in progress (${elapsed}s elapsed) - skipping $trigger');
+      if (trigger == SyncTrigger.periodic || trigger == SyncTrigger.scheduled) {
+        return SyncResult.success(
+          message: 'Sync already in progress - not an error for periodic sync',
+          pushed: 0,
+          pulled: 0,
+        );
       }
+      return SyncResult.failure(
+        message: 'Sync already in progress',
+        phase: _currentPhase,
+      );
     }
-
-    _isSyncing = true;
-    _syncStartTime = DateTime.now();
-    _currentPhase = SyncPhase.authenticating;
     
     _log('🚀 Starting sync [trigger=$trigger, mode=$mode]');
 
@@ -524,9 +537,11 @@ class GoogleDriveUnifiedSyncCoordinator {
       return result;
       
     } finally {
-      _isSyncing = false;
-      _syncStartTime = null;
-      _currentPhase = SyncPhase.idle;
+      await SyncLocks.mainSyncLock.synchronized(() async {
+        _isSyncing = false;
+        _syncStartTime = null;
+        _currentPhase = SyncPhase.idle;
+      });
     }
   }
 

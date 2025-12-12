@@ -13,6 +13,7 @@ import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
+import 'sync_locks.dart';
 
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
@@ -202,12 +203,17 @@ class SmartSyncManager {
 
   /// التحقق من وجود نسخ احتياطية جديدة
   Future<void> _performSyncCheck() async {
-    if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
-      return;
-    }
+    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
+      if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) return;
 
     try {
-      _isSyncing = true;
       _log('🔍 فحص وجود نسخ احتياطية جديدة...');
 
       // جلب قائمة النسخ الاحتياطية من Google Drive
@@ -245,7 +251,9 @@ class SmartSyncManager {
     } catch (e) {
       _log('❌ خطأ في فحص المزامنة: $e');
     } finally {
-      _isSyncing = false;
+      await SyncLocks.smartSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 
@@ -676,19 +684,28 @@ class SmartSyncManager {
 
   /// رفع التغييرات المحلية إلى Google Drive فوراً
   Future<bool> pushLocalChanges() async {
-    // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
     int retries = 0;
-    while (_isSyncing && retries < 10) {
+    while (retries < 10) {
+      final isSyncing = await SyncLocks.smartSyncLock.synchronized(() => _isSyncing);
+      if (!isSyncing) break;
       await Future.delayed(const Duration(milliseconds: 500));
       retries++;
     }
     
-    if (_isSyncing) {
-      _log('⚠️ تخطي الرفع - المزامنة جارية لفترة طويلة');
-      return false;
-    }
-
-    if (_backupService == null || !_backupService!.isSignedIn) {
+    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
+      if (_isSyncing) {
+        _log('⚠️ تخطي الرفع - المزامنة جارية لفترة طويلة');
+        return false;
+      }
+      if (_backupService == null || !_backupService!.isSignedIn) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) {
+      if (_backupService == null || !_backupService!.isSignedIn) {
       _log('⚠️ لا يمكن رفع التغييرات: غير مسجل الدخول في Google Drive');
       _log('🔍 Debug: _backupService == null? ${_backupService == null}, isSignedIn? ${_backupService?.isSignedIn}');
       _log('🔍 Debug: currentUser? ${_backupService?.currentUser?.email}');
@@ -711,11 +728,11 @@ class SmartSyncManager {
         }
       }
       
+      }
       return false;
     }
 
     try {
-      _isSyncing = true;
       _log('📤 رفع التغييرات المحلية إلى Google Drive...');
       
       // محاولة استخدام Delta Sync أولاً (أسرع وأخف)
@@ -755,14 +772,29 @@ class SmartSyncManager {
       _log('❌ خطأ في رفع التغييرات: $e');
       return false;
     } finally {
-      _isSyncing = false;
+      await SyncLocks.smartSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 
   /// سحب التغييرات من Google Drive
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {
-    if (_backupService == null || !_backupService!.isSignedIn) {
+    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
+      if (_backupService == null || !_backupService!.isSignedIn) {
+        return false;
+      }
+      if (_isSyncing) {
+        _log('⏸️ تخطي السحب - المزامنة جارية');
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) {
+      if (_backupService == null || !_backupService!.isSignedIn) {
       _log('⚠️ لا يمكن سحب التغييرات: غير مسجل الدخول');
       _log('🔍 Debug: _backupService?.isSignedIn = ${_backupService?.isSignedIn}');
       
@@ -783,17 +815,11 @@ class SmartSyncManager {
           _log('❌ خطأ في تسجيل الدخول الصامت: $e');
         }
       }
-      
-      return false;
-    }
-
-    if (_isSyncing) {
-      _log('⏸️ تخطي السحب - المزامنة جارية');
+      }
       return false;
     }
 
     try {
-      _isSyncing = true;
       _log('📥 سحب التغييرات من Google Drive...');
       
       if (GoogleDriveDeltaSync.instance.isInitialized) {
@@ -858,7 +884,9 @@ class SmartSyncManager {
       _log('❌ خطأ في سحب التغييرات: $e');
       return false;
     } finally {
-      _isSyncing = false;
+      await SyncLocks.smartSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 

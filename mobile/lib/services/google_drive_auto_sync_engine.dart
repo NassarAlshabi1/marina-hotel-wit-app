@@ -14,6 +14,7 @@ import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
+import 'sync_locks.dart';
 
 class RetryConfig {
   final int maxRetries;
@@ -178,19 +179,25 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> start() async {
-    if (!_isInitialized) {
+    final canStart = await SyncLocks.autoEngineLock.synchronized(() async {
+      if (!_isInitialized) return 'not_initialized';
+      if (_isRunning) return 'already_running';
+      
+      _isRunning = true;
+      return 'ok';
+    });
+    
+    if (canStart == 'not_initialized') {
       _log('❌ Cannot start - engine not initialized');
       return;
     }
     
-    if (_isRunning) {
+    if (canStart == 'already_running') {
       _log('⚠️ Engine already running');
       return;
     }
 
     _log('🎬 Starting Auto Sync Engine...');
-    
-    _isRunning = true;
     _emitState();
     
     _setupConnectivityListener();
@@ -210,28 +217,30 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   void stop() {
-    if (!_isRunning) return;
-    
-    _log('🛑 Stopping Auto Sync Engine...');
-    
-    _isRunning = false;
-    
-    _connectivitySubscription?.cancel();
-    _connectivitySubscription = null;
-    
-    _syncResultSubscription?.cancel();
-    _syncResultSubscription = null;
-    
-    _retryTimer?.cancel();
-    _retryTimer = null;
-    
-    _healthCheckTimer?.cancel();
-    _healthCheckTimer = null;
-    
-    WidgetsBinding.instance.removeObserver(this);
-    
-    _emitState();
-    _log('✅ Auto Sync Engine stopped');
+    SyncLocks.autoEngineLock.synchronized(() {
+      if (!_isRunning) return;
+      
+      _log('🛑 Stopping Auto Sync Engine...');
+      
+      _isRunning = false;
+      
+      _connectivitySubscription?.cancel();
+      _connectivitySubscription = null;
+      
+      _syncResultSubscription?.cancel();
+      _syncResultSubscription = null;
+      
+      _retryTimer?.cancel();
+      _retryTimer = null;
+      
+      _healthCheckTimer?.cancel();
+      _healthCheckTimer = null;
+      
+      WidgetsBinding.instance.removeObserver(this);
+      
+      _emitState();
+      _log('✅ Auto Sync Engine stopped');
+    });
   }
 
   void _setupConnectivityListener() {
@@ -333,7 +342,8 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> _performHealthCheck() async {
-    if (!_isRunning) return;
+    final shouldRun = await SyncLocks.autoEngineLock.synchronized(() => _isRunning);
+    if (!shouldRun) return;
     
     _log('❤️ Performing health check...');
     
@@ -491,7 +501,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }) {
     if (!_isRunning) return;
     
-    _pendingChangesCount += count;
+    SyncLocks.autoEngineLock.synchronized(() {
+      _pendingChangesCount += count;
+    });
+    
     _emitState();
     
     _log('💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)');

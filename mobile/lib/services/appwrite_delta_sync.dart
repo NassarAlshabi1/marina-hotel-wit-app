@@ -11,6 +11,7 @@ import 'local_db.dart';
 import '../data/sync_models.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
+import 'sync_locks.dart';
 
 class AppwriteDeltaSyncResult {
   final bool success;
@@ -76,7 +77,15 @@ class AppwriteDeltaSync {
   }
 
   Future<AppwriteDeltaSyncResult> pushDeltaChanges() async {
-    if (!isInitialized || _isSyncing) {
+    final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
+      if (!isInitialized || _isSyncing) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) {
       return AppwriteDeltaSyncResult(
         success: false,
         message: 'الخدمة غير جاهزة أو المزامنة جارية',
@@ -84,7 +93,6 @@ class AppwriteDeltaSync {
     }
 
     try {
-      _isSyncing = true;
       _logger.info('📤 بدء المزامنة التفاضلية إلى Appwrite...', tag: 'DELTA_SYNC');
 
       final lastSyncTs = await _getLastDeltaSyncTimestamp();
@@ -133,7 +141,9 @@ class AppwriteDeltaSync {
       _logger.error('❌ خطأ في المزامنة التفاضلية: $e', tag: 'DELTA_SYNC');
       return AppwriteDeltaSyncResult(success: false, message: e.toString());
     } finally {
-      _isSyncing = false;
+      await SyncLocks.appwriteSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 
@@ -201,7 +211,15 @@ class AppwriteDeltaSync {
   }
 
   Future<AppwriteDeltaSyncResult> pullDeltaChanges() async {
-    if (!isInitialized || _isSyncing) {
+    final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
+      if (!isInitialized || _isSyncing) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) {
       return AppwriteDeltaSyncResult(
         success: false,
         message: 'الخدمة غير جاهزة',
@@ -209,7 +227,6 @@ class AppwriteDeltaSync {
     }
 
     try {
-      _isSyncing = true;
       _logger.info('📥 فحص التغييرات من Appwrite...', tag: 'DELTA_SYNC');
 
       final lastPullTs = await _getLastDeltaSyncTimestamp();
@@ -243,7 +260,9 @@ class AppwriteDeltaSync {
       _logger.error('❌ خطأ في سحب التغييرات: $e', tag: 'DELTA_SYNC');
       return AppwriteDeltaSyncResult(success: false, message: e.toString());
     } finally {
-      _isSyncing = false;
+      await SyncLocks.appwriteSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 
