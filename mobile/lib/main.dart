@@ -36,6 +36,7 @@ import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/logging/log_models.dart';
+import 'services/sync_queue_service.dart';
 
 import 'components/admin_layout.dart';
 
@@ -119,6 +120,8 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     if (backupService.isSignedIn) {
       await autoSyncEngine.onSignInChanged(true);
     }
+    
+    await SyncQueueService.instance.initialize();
     
     _setupEngineMonitoring(autoSyncEngine);
     
