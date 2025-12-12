@@ -30,6 +30,7 @@ import 'services/app_session_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_logger.dart';
 import 'services/local_db.dart';
+import 'services/smart_sync_manager.dart';
 
 // AutoSync Engine imports
 import 'services/google_drive_auto_sync_engine.dart';
@@ -104,7 +105,12 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     await conflictResolver.setConflictThreshold(30);
     debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
     
-    debugPrint('🤖 [6/6] Initializing & Starting Auto Sync Engine...');
+    debugPrint('🧠 [6/7] Initializing SmartSyncManager...');
+    final smartSync = SmartSyncManager.instance;
+    await smartSync.initialize(backupService);
+    debugPrint('✅ SmartSyncManager initialized');
+    
+    debugPrint('🤖 [7/7] Initializing & Starting Auto Sync Engine...');
     final autoSyncEngine = AutoSyncEngine.instance;
     
     await autoSyncEngine.initialize(
@@ -118,7 +124,10 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     await autoSyncEngine.start();
     
     if (backupService.isSignedIn) {
+      debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
       await autoSyncEngine.onSignInChanged(true);
+      await smartSync.onGoogleDriveSignInChanged(true);
+      debugPrint('✅ تم إشعار جميع أنظمة المزامنة');
     }
     
     await SyncQueueService.instance.initialize();
