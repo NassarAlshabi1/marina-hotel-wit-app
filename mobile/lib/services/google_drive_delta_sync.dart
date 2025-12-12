@@ -8,10 +8,18 @@ import 'local_db.dart';
 import 'sync_constants.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
+import 'sync_locks.dart';
 
 enum SyncFileType {
   fullBackup,
   deltaSync,
+}
+
+enum _DeltaSyncStartResult {
+  ok,
+  notInitialized,
+  alreadySyncing,
+  notSignedIn,
 }
 
 class GoogleDriveDeltaSync {
@@ -52,16 +60,24 @@ class GoogleDriveDeltaSync {
   String? get deviceId => _deviceId;
 
   Future<DeltaSyncResult> pushDeltaChanges() async {
-    if (!isInitialized || _isSyncing) {
+    final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
+      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
+      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
+      if (_driveService?.isSignedIn != true) return _DeltaSyncStartResult.notSignedIn;
+      
+      _isSyncing = true;
+      return _DeltaSyncStartResult.ok;
+    });
+    
+    if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
       return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة أو المزامنة جارية');
     }
 
-    if (_driveService?.isSignedIn != true) {
+    if (canStart == _DeltaSyncStartResult.notSignedIn) {
       return DeltaSyncResult(success: false, message: 'غير مسجل الدخول في Google Drive');
     }
 
     try {
-      _isSyncing = true;
       debugPrint('📤 بدء المزامنة التفاضلية إلى Google Drive...');
 
       final lastSyncTs = await _getLastDeltaSyncTimestamp();
@@ -92,21 +108,31 @@ class GoogleDriveDeltaSync {
       debugPrint('🔍 Stack trace: $stackTrace');
       return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
-      _isSyncing = false;
+      await SyncLocks.deltaSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 
   Future<DeltaSyncResult> pullDeltaChanges() async {
-    if (!isInitialized || _isSyncing) {
+    final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
+      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
+      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
+      if (_driveService?.isSignedIn != true) return _DeltaSyncStartResult.notSignedIn;
+      
+      _isSyncing = true;
+      return _DeltaSyncStartResult.ok;
+    });
+    
+    if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
       return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة');
     }
 
-    if (_driveService?.isSignedIn != true) {
+    if (canStart == _DeltaSyncStartResult.notSignedIn) {
       return DeltaSyncResult(success: false, message: 'غير مسجل الدخول');
     }
 
     try {
-      _isSyncing = true;
       debugPrint('📥 فحص التغييرات من Google Drive...');
 
       final deltaFiles = await _listDeltaSyncFiles();
@@ -147,7 +173,9 @@ class GoogleDriveDeltaSync {
       debugPrint('🔍 Stack trace: $stackTrace');
       return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
-      _isSyncing = false;
+      await SyncLocks.deltaSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'google_drive_auto_sync_engine.dart';
 import 'smart_sync_manager.dart';
+import 'sync_locks.dart';
 
 class SyncQueueItem {
   final String id;
@@ -134,7 +135,13 @@ class SyncQueueService {
   }
   
   Future<void> processQueue() async {
-    if (_isProcessing) return;
+    final canStart = await SyncLocks.queueLock.synchronized(() async {
+      if (_isProcessing) return false;
+      _isProcessing = true;
+      return true;
+    });
+    
+    if (!canStart) return;
     
     final hasConnection = await hasInternetConnection();
     if (!hasConnection) {
@@ -153,8 +160,6 @@ class SyncQueueService {
       debugPrint('✓ [SyncQueue] الطابور فارغ');
       return;
     }
-
-    _isProcessing = true;
 
     try {
       debugPrint('🔄 [SyncQueue] معالجة ${items.length} عنصر...');
@@ -184,7 +189,9 @@ class SyncQueueService {
         debugPrint('❌ [SyncQueue] خطأ في المزامنة: $e');
       }
     } finally {
-      _isProcessing = false;
+      await SyncLocks.queueLock.synchronized(() async {
+        _isProcessing = false;
+      });
       _emitQueueCount();
     }
   }
