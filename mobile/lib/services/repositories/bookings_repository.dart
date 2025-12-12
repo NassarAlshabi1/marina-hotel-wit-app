@@ -2,8 +2,10 @@ import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
+import '../daos/rooms_dao.dart';
 import '../auto_backup_manager.dart';
 import '../sync_guardian.dart';
+import '../../utils/status_utils.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
@@ -111,10 +113,21 @@ class BookingsRepository {
   }
 
   Future<int> delete(int id) async {
+    final booking = await (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingleOrNull();
+    final roomNumber = booking?.roomNumber;
+    
     final result = await dao.softDelete(id);
     if (result > 0) {
       AutoBackupManager.instance.onDataChange('bookings', 'DELETE', recordData: {'id': id});
       SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'DELETE');
+      
+      if (roomNumber != null) {
+        final activeBooking = await getActiveBookingForRoom(roomNumber);
+        if (activeBooking == null) {
+          final roomsDao = RoomsDao(db, OutboxDao(db));
+          await roomsDao.updateByNumber(roomNumber, RoomsCompanion(status: d.Value('شاغرة')));
+        }
+      }
     }
     return result;
   }
@@ -155,11 +168,20 @@ class BookingsRepository {
   
   /// الحصول على الحجز النشط للغرفة
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
-    return await (db.select(db.bookings)
+    final allBookings = await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
-          ..where((b) => b.status.equals('نشط'))
-          ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
-          ..limit(1))
-        .getSingleOrNull();
+          ..where((b) => b.deletedAt.isNull())
+          ..where((b) => b.actualCheckout.isNull())
+          ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)]))
+        .get();
+    
+    for (final booking in allBookings) {
+      // A utility class أو getter على الموديل سيكون أكثر قابلية للصيانة.
+      if (StatusUtils.isBookingActive(booking)) {
+        return booking;
+      }
+    }
+    
+    return null;
   }
 }

@@ -34,9 +34,11 @@ class SmartSyncManager {
   Timer? _periodicSyncTimer;
   bool _isSyncing = false;
   bool _isEnabled = false;
+  bool _isLoggedIn = false;
   String? _deviceId;
   
   String? get deviceId => _deviceId;
+  bool get isDriveSignedIn => _backupService?.isSignedIn ?? false;
   
   void _log(String message) {
     DebugLogs.add('SmartSync', message);
@@ -184,6 +186,10 @@ class SmartSyncManager {
   /// استدعاء هذه الدالة عند تغير حالة تسجيل الدخول في Google Drive
   Future<void> onGoogleDriveSignInChanged(bool isSignedIn) async {
     _log('🔔 تغيرت حالة تسجيل الدخول Google Drive: $isSignedIn');
+    _log('🔍 Debug: _backupService?.isSignedIn = ${_backupService?.isSignedIn}');
+    _log('🔍 Debug: _isEnabled = $_isEnabled');
+    
+    _isLoggedIn = isSignedIn;
     
     if (isSignedIn && _isEnabled) {
       _log('✅ بدء المراقبة بعد تسجيل الدخول...');
@@ -684,6 +690,27 @@ class SmartSyncManager {
 
     if (_backupService == null || !_backupService!.isSignedIn) {
       _log('⚠️ لا يمكن رفع التغييرات: غير مسجل الدخول في Google Drive');
+      _log('🔍 Debug: _backupService == null? ${_backupService == null}, isSignedIn? ${_backupService?.isSignedIn}');
+      _log('🔍 Debug: currentUser? ${_backupService?.currentUser?.email}');
+      
+      // محاولة تسجيل الدخول الصامت تلقائياً
+      if (_backupService != null) {
+        _log('🔐 محاولة تسجيل الدخول الصامت...');
+        try {
+          final account = await _backupService!.attemptSilentSignIn();
+          if (account != null) {
+            _log('✅ نجح تسجيل الدخول الصامت - إعادة محاولة الرفع...');
+            _isLoggedIn = true;
+            // إعادة المحاولة مباشرة
+            return await pushLocalChanges();
+          } else {
+            _log('❌ فشل تسجيل الدخول الصامت - يحتاج تدخل المستخدم');
+          }
+        } catch (e) {
+          _log('❌ خطأ في تسجيل الدخول الصامت: $e');
+        }
+      }
+      
       return false;
     }
 
@@ -737,6 +764,26 @@ class SmartSyncManager {
   Future<bool> pullRemoteChanges() async {
     if (_backupService == null || !_backupService!.isSignedIn) {
       _log('⚠️ لا يمكن سحب التغييرات: غير مسجل الدخول');
+      _log('🔍 Debug: _backupService?.isSignedIn = ${_backupService?.isSignedIn}');
+      
+      // محاولة تسجيل الدخول الصامت تلقائياً
+      if (_backupService != null) {
+        _log('🔐 محاولة تسجيل الدخول الصامت...');
+        try {
+          final account = await _backupService!.attemptSilentSignIn();
+          if (account != null) {
+            _log('✅ نجح تسجيل الدخول الصامت - إعادة محاولة السحب...');
+            _isLoggedIn = true;
+            // إعادة المحاولة مباشرة
+            return await pullRemoteChanges();
+          } else {
+            _log('❌ فشل تسجيل الدخول الصامت - يحتاج تدخل المستخدم');
+          }
+        } catch (e) {
+          _log('❌ خطأ في تسجيل الدخول الصامت: $e');
+        }
+      }
+      
       return false;
     }
 

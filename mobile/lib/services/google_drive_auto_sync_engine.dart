@@ -13,6 +13,7 @@ import 'google_drive_delta_sync.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
+import 'logging/log_models.dart';
 
 class RetryConfig {
   final int maxRetries;
@@ -132,7 +133,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('AutoSyncEngine', message);
     debugPrint('[AutoSyncEngine] $message');
-    _logger?.log(level, message, tag: 'AUTO_SYNC');
+    _logger?.log(message, level: level, tag: 'AUTO_SYNC');
   }
   
   void _emitState() {
@@ -282,9 +283,13 @@ class AutoSyncEngine with WidgetsBindingObserver {
           _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
         } else {
           _failedAttempts++;
-          _lastError = result.error;
+          _lastError = result.error ?? result.message;
           
-          _log('❌ Sync failed (attempt $_failedAttempts): ${result.message}', 
+          final errorDetails = result.error != null 
+              ? '${result.message} - ${result.error}' 
+              : result.message;
+          
+          _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails', 
                level: LogLevel.error);
           
           final prefs = SharedPreferences.getInstance();
@@ -638,17 +643,21 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('🚀 Force sync triggered by user');
     
     if (!_hasNetworkConnection) {
-      _log('📴 No network connection');
+      final message = 'لا يوجد اتصال بالإنترنت';
+      _log('📴 $message');
       return SyncResult.failure(
-        message: 'No network connection',
+        message: message,
+        error: 'NetworkUnavailable',
         phase: SyncPhase.idle,
       );
     }
     
     if (!_isSignedIn) {
-      _log('🔐 Not signed in');
+      final message = 'غير مسجل الدخول في Google Drive';
+      _log('🔐 $message');
       return SyncResult.failure(
-        message: 'Not signed in',
+        message: message,
+        error: 'NotSignedIn',
         phase: SyncPhase.authenticating,
       );
     }

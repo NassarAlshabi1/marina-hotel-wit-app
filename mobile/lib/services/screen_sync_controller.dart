@@ -92,6 +92,12 @@ class ScreenSyncController {
         return false;
       }
       
+      if (!SmartSyncManager.instance.isDriveSignedIn) {
+        debugPrint('🔒 [$screenId] المستخدم غير مسجل في Google Drive - إضافة التغيير للطابور');
+        await _addToQueue();
+        return false;
+      }
+      
       if (networkValidation.warnings.isNotEmpty) {
         for (final warning in networkValidation.warnings) {
           debugPrint('⚠️ [$screenId] $warning');

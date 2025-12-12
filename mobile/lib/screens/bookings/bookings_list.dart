@@ -8,6 +8,7 @@ import '../../services/local_db.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
 import '../../utils/time.dart';
+import '../../utils/status_utils.dart';
 import '../payments/booking_payment_screen.dart';
 import 'booking_edit.dart';
 import '../payments/payments_main_screen.dart';
@@ -519,26 +520,26 @@ class _BookingRow extends ConsumerWidget {
 Widget _buildBookingStatusChip(String status, TextStyle baseTextStyle) {
   Color bg;
   String txt;
-  switch (status.toLowerCase()) {
-    case 'active':
-    case 'محجوزة':
-    case 'نشط':
-      bg = Colors.green.shade100;
-      txt = 'محجوزة';
-      break;
-    case 'completed':
-    case 'مكتمل':
-      bg = Colors.blue.shade100;
-      txt = 'مكتمل';
-      break;
-    case 'cancelled':
-    case 'ملغي':
-      bg = Colors.red.shade100;
-      txt = 'ملغي';
-      break;
-    default:
-      bg = Colors.grey.shade100;
-      txt = status;
+  
+  if (StatusUtils.isActiveBooking(status)) {
+    bg = Colors.green.shade100;
+    txt = 'محجوزة';
+  } else {
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'مكتمل':
+        bg = Colors.blue.shade100;
+        txt = 'مكتمل';
+        break;
+      case 'cancelled':
+      case 'ملغي':
+        bg = Colors.red.shade100;
+        txt = 'ملغي';
+        break;
+      default:
+        bg = Colors.grey.shade100;
+        txt = status;
+    }
   }
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),

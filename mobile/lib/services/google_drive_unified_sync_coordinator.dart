@@ -11,6 +11,7 @@ import 'google_drive_logger.dart';
 import 'local_db.dart';
 import 'data_usage_manager.dart';
 import 'sync_performance_optimizer.dart';
+import 'logging/log_models.dart';
 
 enum SyncTrigger {
   manual,
@@ -97,6 +98,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   Timer? _debounceTimer;
   Timer? _periodicSyncTimer;
   Timer? _pullCheckTimer;
+  StreamSubscription? _outboxSubscription;
   
   bool _isInitialized = false;
   bool _isSyncing = false;
@@ -105,6 +107,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   DateTime? _lastPushTime;
   DateTime? _lastPullTime;
   DateTime? _lastFullBackupTime;
+  DateTime? _firstChangeTime;
   
   SyncPhase _currentPhase = SyncPhase.idle;
   final _syncResultController = StreamController<SyncResult>.broadcast();
@@ -125,7 +128,8 @@ class GoogleDriveUnifiedSyncCoordinator {
   static const String _prefsLastPullKey = 'gd_unified_last_pull';
   static const String _prefsLastFullBackupKey = 'gd_unified_last_full_backup';
   
-  static const int _defaultDebounceSeconds = 5;
+  static const int _defaultDebounceSeconds = 1;  // انتظار قصير جداً بعد الحفظ (ثانية واحدة فقط لتجميع العمليات المتعددة)
+  static const int _maxDebounceSeconds = 3;      // الحد الأقصى للانتظار (غير مستخدم حالياً)
   static const int _defaultPullIntervalMinutes = 2;
   static const int _defaultFullBackupHours = 24;
 
@@ -135,11 +139,12 @@ class GoogleDriveUnifiedSyncCoordinator {
   SyncPhase get currentPhase => _currentPhase;
   bool get hasPendingChanges => _hasPendingChanges;
   int get pendingChangesCount => _pendingChangesCount;
+  String? get deviceId => _deltaSync?.deviceId;
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('UnifiedSyncCoordinator', message);
     debugPrint('[UnifiedSyncCoordinator] $message');
-    _logger?.log(level, message, tag: 'SYNC_COORD');
+    _logger?.log(message, level: level, tag: 'SYNC_COORD');
   }
 
   Future<void> initialize({
@@ -220,6 +225,16 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
+    // مراقبة تغييرات outbox للمزامنة التلقائية
+    _outboxSubscription?.cancel();
+    if (_pushEnabled && _database != null) {
+      _outboxSubscription = (_database!.select(_database!.outbox)).watch().listen((_) {
+        _log('📦 Detected change in outbox', level: LogLevel.debug);
+        notifyLocalChange();
+      });
+      _log('✅ Started outbox monitoring for auto-sync');
+    }
+    
     if (_pullEnabled) {
       _pullCheckTimer?.cancel();
       _pullCheckTimer = Timer.periodic(
@@ -236,7 +251,8 @@ class GoogleDriveUnifiedSyncCoordinator {
     _debounceTimer?.cancel();
     _periodicSyncTimer?.cancel();
     _pullCheckTimer?.cancel();
-    _log('⏸️ Stopped all sync monitoring');
+    _outboxSubscription?.cancel();
+    _log('⏹️ Stopped all monitoring');
   }
 
   Future<void> _scheduleFullBackup() async {
@@ -266,8 +282,31 @@ class GoogleDriveUnifiedSyncCoordinator {
     });
   }
 
+  /// إشعار بتغيير محلي في البيانات
+  /// 
+  /// آلية فورية وذكية:
+  /// - مزامنة شبه فورية بعد الضغط على زر الحفظ/الإضافة/التعديل/الحذف
+  /// - انتظار ثانية واحدة فقط لتجميع العمليات المتعددة السريعة
+  /// - يجمع كل التغييرات ويزامنها دفعة واحدة
+  /// 
+  /// مثال:
+  /// - المستخدم يضغط "حفظ حجز" → انتظار ثانية واحدة → مزامنة تلقائية ✅
+  /// - يضغط "حفظ" 3 مرات بسرعة → تُجمع كلها وتُزامن مرة واحدة
+  /// - يحذف 5 عناصر بسرعة → تُجمع وتُزامن مرة واحدة
+  /// 
+  /// الفائدة:
+  /// - شبه فوري: يشعر المستخدم بالمزامنة الفورية
+  /// - ذكي: لا يزعج المستخدم بمزامنات متعددة
+  /// - فعال: يوفر البطارية والبيانات
   void notifyLocalChange({String? table, String? operation, int count = 1}) {
     if (!_isInitialized) return;
+    
+    final now = DateTime.now();
+    
+    if (!_hasPendingChanges) {
+      _firstChangeTime = now;
+      _log('💾 Save action detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
+    }
     
     _hasPendingChanges = true;
     _pendingChangesCount += count;
@@ -279,12 +318,25 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
-    _debounceTimer = Timer(Duration(seconds: _debounceSeconds), () async {
+    // مزامنة شبه فورية: ثانية واحدة فقط
+    final effectiveDebounce = _debounceSeconds;
+    _log('🚀 Triggering sync in ${effectiveDebounce}s (${_pendingChangesCount} changes pending)', 
+        level: LogLevel.debug);
+    
+    _debounceTimer = Timer(Duration(seconds: effectiveDebounce), () async {
       if (_hasPendingChanges) {
-        _log('📤 Debounce complete - pushing $_pendingChangesCount changes');
-        await performSync(trigger: SyncTrigger.localChange, mode: SyncMode.smart);
+        _log('✅ Starting sync for $_pendingChangesCount changes');
+        _triggerSync();
       }
     });
+  }
+  
+  Future<void> _triggerSync() async {
+    try {
+      await performSync(trigger: SyncTrigger.localChange, mode: SyncMode.smart);
+    } finally {
+      _firstChangeTime = null;
+    }
   }
 
   Future<void> onAppForeground() async {
@@ -357,12 +409,18 @@ class GoogleDriveUnifiedSyncCoordinator {
       final optimizer = SyncPerformanceOptimizer.instance;
       final dataManager = DataUsageManager.instance;
       
-      if (await optimizer.shouldSkipSync()) {
-        _log('⏸️ Optimizer suggests skipping sync');
-        return SyncResult.failure(
-          message: 'Skipped by performance optimizer',
-          phase: SyncPhase.idle,
-        );
+      final shouldSkip = await optimizer.shouldSkipSync();
+      final enforceOptimizer = trigger == SyncTrigger.periodic || trigger == SyncTrigger.scheduled;
+      if (shouldSkip) {
+        if (enforceOptimizer) {
+          _log('⏸️ Optimizer suggests skipping sync');
+          return SyncResult.failure(
+            message: 'Skipped by performance optimizer',
+            phase: SyncPhase.idle,
+          );
+        } else {
+          _log('⚠️ Optimizer suggested skipping but trigger $trigger requires immediate sync');
+        }
       }
       
       if (await dataManager.isLimitExceeded()) {
@@ -411,14 +469,30 @@ class GoogleDriveUnifiedSyncCoordinator {
       return result;
       
     } catch (error, stackTrace) {
-      _log('❌ Sync failed: $error');
-      _log('Stack trace: $stackTrace');
+      final errorMessage = error.toString();
+      _log('❌ Sync failed: $errorMessage', level: LogLevel.error);
+      _log('Stack trace: $stackTrace', level: LogLevel.debug);
       
       SyncPerformanceOptimizer.instance.recordSyncFailure();
       
+      String userFriendlyMessage = 'فشلت المزامنة';
+      if (errorMessage.contains('NetworkException') || errorMessage.contains('SocketException')) {
+        userFriendlyMessage = 'خطأ في الاتصال بالإنترنت';
+      } else if (errorMessage.contains('Unauthorized') || errorMessage.contains('401')) {
+        userFriendlyMessage = 'انتهت صلاحية تسجيل الدخول - يرجى تسجيل الدخول مرة أخرى';
+      } else if (errorMessage.contains('QuotaExceeded') || errorMessage.contains('Storage')) {
+        userFriendlyMessage = 'مساحة التخزين ممتلئة على Google Drive';
+      } else if (errorMessage.contains('غير مسجل الدخول')) {
+        userFriendlyMessage = 'غير مسجل الدخول في Google Drive';
+      } else if (errorMessage.contains('الخدمة غير جاهزة')) {
+        userFriendlyMessage = 'خدمة المزامنة غير جاهزة';
+      } else {
+        userFriendlyMessage = 'فشلت المزامنة: $errorMessage';
+      }
+      
       final result = SyncResult.failure(
-        message: 'Sync failed',
-        error: error.toString(),
+        message: userFriendlyMessage,
+        error: errorMessage,
         phase: _currentPhase,
       );
       
@@ -462,6 +536,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       if (result.success) {
         _hasPendingChanges = false;
         _pendingChangesCount = 0;
+        _firstChangeTime = null;
         _lastPushTime = DateTime.now();
         
         final prefs = await SharedPreferences.getInstance();
