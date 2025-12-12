@@ -184,7 +184,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _emitState();
   }
 
-  Future<void> start() async {
     final canStart = await SyncLocks.autoEngineLock.synchronized(() async {
       if (!_isInitialized) return _StartResult.notInitialized;
       if (_isRunning) return _StartResult.alreadyRunning;
