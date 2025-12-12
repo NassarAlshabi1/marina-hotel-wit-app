@@ -668,7 +668,10 @@ class SmartSyncManager {
     }
     
     _log('🚀 بدء المزامنة اليدوية الفورية...');
-    await _performSyncCheck();
+    
+    await pushLocalChanges();
+    
+    await pullRemoteChanges();
   }
 
   /// رفع التغييرات المحلية إلى Google Drive فوراً
@@ -792,6 +795,22 @@ class SmartSyncManager {
     try {
       _isSyncing = true;
       _log('📥 سحب التغييرات من Google Drive...');
+      
+      if (GoogleDriveDeltaSync.instance.isInitialized) {
+        _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
+        final deltaResult = await GoogleDriveDeltaSync.instance.pullDeltaChanges();
+        
+        if (deltaResult.success && deltaResult.changesCount > 0) {
+          await _updateLastSyncTime();
+          _log('✅ تم سحب ${deltaResult.changesCount} تغيير عبر Delta Sync');
+          return true;
+        } else if (deltaResult.success && deltaResult.changesCount == 0) {
+          _log('✓ لا توجد تغييرات للسحب');
+          return false;
+        } else {
+          _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
+        }
+      }
       
       // جلب قائمة النسخ الاحتياطية
       final backupFiles = await _backupService!.listBackupFiles();
