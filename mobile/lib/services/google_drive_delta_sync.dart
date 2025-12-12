@@ -15,6 +15,13 @@ enum SyncFileType {
   deltaSync,
 }
 
+enum _DeltaSyncStartResult {
+  ok,
+  notInitialized,
+  alreadySyncing,
+  notSignedIn,
+}
+
 class GoogleDriveDeltaSync {
   GoogleDriveDeltaSync._();
   static final instance = GoogleDriveDeltaSync._();
@@ -54,19 +61,19 @@ class GoogleDriveDeltaSync {
 
   Future<DeltaSyncResult> pushDeltaChanges() async {
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
-      if (!isInitialized) return 'not_initialized';
-      if (_isSyncing) return 'already_syncing';
-      if (_driveService?.isSignedIn != true) return 'not_signed_in';
+      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
+      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
+      if (_driveService?.isSignedIn != true) return _DeltaSyncStartResult.notSignedIn;
       
       _isSyncing = true;
-      return 'ok';
+      return _DeltaSyncStartResult.ok;
     });
     
-    if (canStart == 'not_initialized' || canStart == 'already_syncing') {
+    if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
       return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة أو المزامنة جارية');
     }
 
-    if (canStart == 'not_signed_in') {
+    if (canStart == _DeltaSyncStartResult.notSignedIn) {
       return DeltaSyncResult(success: false, message: 'غير مسجل الدخول في Google Drive');
     }
 
@@ -109,19 +116,19 @@ class GoogleDriveDeltaSync {
 
   Future<DeltaSyncResult> pullDeltaChanges() async {
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
-      if (!isInitialized) return 'not_initialized';
-      if (_isSyncing) return 'already_syncing';
-      if (_driveService?.isSignedIn != true) return 'not_signed_in';
+      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
+      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
+      if (_driveService?.isSignedIn != true) return _DeltaSyncStartResult.notSignedIn;
       
       _isSyncing = true;
-      return 'ok';
+      return _DeltaSyncStartResult.ok;
     });
     
-    if (canStart == 'not_initialized' || canStart == 'already_syncing') {
+    if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
       return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة');
     }
 
-    if (canStart == 'not_signed_in') {
+    if (canStart == _DeltaSyncStartResult.notSignedIn) {
       return DeltaSyncResult(success: false, message: 'غير مسجل الدخول');
     }
 

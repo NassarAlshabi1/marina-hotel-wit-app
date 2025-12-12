@@ -79,6 +79,12 @@ class AutoSyncEngineState {
   }
 }
 
+enum _StartResult {
+  ok,
+  notInitialized,
+  alreadyRunning,
+}
+
 class AutoSyncEngine with WidgetsBindingObserver {
   AutoSyncEngine._();
   static final instance = AutoSyncEngine._();
@@ -180,19 +186,19 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   Future<void> start() async {
     final canStart = await SyncLocks.autoEngineLock.synchronized(() async {
-      if (!_isInitialized) return 'not_initialized';
-      if (_isRunning) return 'already_running';
+      if (!_isInitialized) return _StartResult.notInitialized;
+      if (_isRunning) return _StartResult.alreadyRunning;
       
       _isRunning = true;
-      return 'ok';
+      return _StartResult.ok;
     });
     
-    if (canStart == 'not_initialized') {
+    if (canStart == _StartResult.notInitialized) {
       _log('❌ Cannot start - engine not initialized');
       return;
     }
     
-    if (canStart == 'already_running') {
+    if (canStart == _StartResult.alreadyRunning) {
       _log('⚠️ Engine already running');
       return;
     }

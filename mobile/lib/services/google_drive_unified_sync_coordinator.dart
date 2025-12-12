@@ -38,6 +38,22 @@ enum SyncPhase {
   failed,
 }
 
+enum _SyncStartResult {
+  ok,
+  notInitialized,
+  notSignedIn,
+  alreadySyncing,
+}
+
+sealed class _PerformSyncStartResult {}
+class _PerformSyncOk extends _PerformSyncStartResult {}
+class _PerformSyncNotInitialized extends _PerformSyncStartResult {}
+class _PerformSyncNotSignedIn extends _PerformSyncStartResult {}
+class _PerformSyncAlreadyInProgress extends _PerformSyncStartResult {
+  final int elapsedSeconds;
+  _PerformSyncAlreadyInProgress(this.elapsedSeconds);
+}
+
 class SyncResult {
   final bool success;
   final String message;
@@ -383,9 +399,9 @@ class GoogleDriveUnifiedSyncCoordinator {
     required SyncTrigger trigger,
     SyncMode mode = SyncMode.smart,
   }) async {
-    final canStart = await SyncLocks.mainSyncLock.synchronized(() async {
-      if (!_isInitialized) return 'not_initialized';
-      if (!(_backupService?.isSignedIn ?? false)) return 'not_signed_in';
+    final canStartResult = await SyncLocks.mainSyncLock.synchronized(() async {
+      if (!_isInitialized) return _PerformSyncNotInitialized();
+      if (!(_backupService?.isSignedIn ?? false)) return _PerformSyncNotSignedIn();
       
       if (_isSyncing) {
         if (_syncStartTime != null) {
@@ -396,7 +412,7 @@ class GoogleDriveUnifiedSyncCoordinator {
             _syncStartTime = null;
             _currentPhase = SyncPhase.idle;
           } else {
-            return 'already_syncing:${elapsed.inSeconds}';
+            return _PerformSyncAlreadyInProgress(elapsed.inSeconds);
           }
         } else {
           _log('⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
@@ -407,37 +423,35 @@ class GoogleDriveUnifiedSyncCoordinator {
       _isSyncing = true;
       _syncStartTime = DateTime.now();
       _currentPhase = SyncPhase.authenticating;
-      return 'ok';
+      return _PerformSyncOk();
     });
     
-    if (canStart == 'not_initialized') {
-      return SyncResult.failure(
-        message: 'Coordinator not initialized',
-        phase: SyncPhase.idle,
-      );
-    }
-    
-    if (canStart == 'not_signed_in') {
-      return SyncResult.failure(
-        message: 'Not signed in to Google Drive',
-        phase: SyncPhase.authenticating,
-      );
-    }
-    
-    if (canStart.startsWith('already_syncing')) {
-      final elapsed = canStart.split(':')[1];
-      _log('⏸️ Sync already in progress (${elapsed}s elapsed) - skipping $trigger');
-      if (trigger == SyncTrigger.periodic || trigger == SyncTrigger.scheduled) {
-        return SyncResult.success(
-          message: 'Sync already in progress - not an error for periodic sync',
-          pushed: 0,
-          pulled: 0,
+    switch (canStartResult) {
+      case _PerformSyncNotInitialized():
+        return SyncResult.failure(
+          message: 'Coordinator not initialized',
+          phase: SyncPhase.idle,
         );
-      }
-      return SyncResult.failure(
-        message: 'Sync already in progress',
-        phase: _currentPhase,
-      );
+      case _PerformSyncNotSignedIn():
+        return SyncResult.failure(
+          message: 'Not signed in to Google Drive',
+          phase: SyncPhase.authenticating,
+        );
+      case _PerformSyncAlreadyInProgress(elapsedSeconds: final elapsed):
+        _log('⏸️ Sync already in progress (${elapsed}s elapsed) - skipping $trigger');
+        if (trigger == SyncTrigger.periodic || trigger == SyncTrigger.scheduled) {
+          return SyncResult.success(
+            message: 'Sync already in progress - not an error for periodic sync',
+            pushed: 0,
+            pulled: 0,
+          );
+        }
+        return SyncResult.failure(
+          message: 'Sync already in progress',
+          phase: _currentPhase,
+        );
+      case _PerformSyncOk():
+        break;
     }
     
     _log('🚀 Starting sync [trigger=$trigger, mode=$mode]');

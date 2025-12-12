@@ -148,18 +148,12 @@ abstract class BaseSyncManager {
     final optimizer = SyncPerformanceOptimizer.instance;
     
     if (await optimizer.shouldSkipSync()) {
-      await SyncLocks.baseSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
       _log('⏸️ تم تخطي المزامنة لتوفير الطاقة');
       return;
     }
     
     final dataManager = DataUsageManager.instance;
     if (await dataManager.isLimitExceeded()) {
-      await SyncLocks.baseSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
       _log('⏸️ تم تخطي المزامنة بسبب قيود البيانات');
       return;
     }

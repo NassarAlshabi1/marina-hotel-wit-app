@@ -145,27 +145,18 @@ class SyncQueueService {
     
     final hasConnection = await hasInternetConnection();
     if (!hasConnection) {
-      await SyncLocks.queueLock.synchronized(() async {
-        _isProcessing = false;
-      });
       debugPrint('📴 [SyncQueue] لا يوجد اتصال - تأجيل المعالجة');
       return;
     }
 
     final driveOnline = await _ensureDriveOnline();
     if (!driveOnline) {
-      await SyncLocks.queueLock.synchronized(() async {
-        _isProcessing = false;
-      });
       debugPrint('🔒 [SyncQueue] Google Drive غير جاهز - الانتظار');
       return;
     }
 
     final items = await getQueueItems();
     if (items.isEmpty) {
-      await SyncLocks.queueLock.synchronized(() async {
-        _isProcessing = false;
-      });
       debugPrint('✓ [SyncQueue] الطابور فارغ');
       return;
     }
