@@ -560,24 +560,24 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   SyncMode _determineEffectiveMode(SyncMode requestedMode, SyncTrigger trigger) {
-    if (requestedMode == SyncMode.smart) {
-      if (trigger == SyncTrigger.scheduled) {
-        return SyncMode.fullBackup;
-      }
-      
-      if (_lastFullBackupTime == null) {
-        return SyncMode.fullBackup;
-      }
-      
-      final hoursSinceFullBackup = DateTime.now().difference(_lastFullBackupTime!).inHours;
-      if (hoursSinceFullBackup >= _fullBackupIntervalHours) {
-        return SyncMode.fullBackup;
-      }
-      
-      return SyncMode.deltaOnly;
+    if (requestedMode != SyncMode.smart) {
+      return requestedMode;
     }
     
-    return requestedMode;
+    if (trigger == SyncTrigger.scheduled) {
+      return SyncMode.fullBackup;
+    }
+    
+    if (_lastFullBackupTime == null) {
+      return SyncMode.fullBackup;
+    }
+    
+    final hoursSinceFullBackup = DateTime.now().difference(_lastFullBackupTime!).inHours;
+    if (hoursSinceFullBackup >= _fullBackupIntervalHours) {
+      return SyncMode.fullBackup;
+    }
+    
+    return SyncMode.smart;
   }
 
   Future<int?> _performDeltaPush() async {
