@@ -86,9 +86,11 @@ class GoogleDriveDeltaSync {
         message: 'تم رفع التغييرات بنجاح',
         changesCount: computation.changes.length,
       );
-    } catch (e) {
-      debugPrint('❌ خطأ في المزامنة التفاضلية: $e');
-      return DeltaSyncResult(success: false, message: e.toString());
+    } catch (e, stackTrace) {
+      final errorMessage = 'خطأ في رفع التغييرات: $e';
+      debugPrint('❌ $errorMessage');
+      debugPrint('🔍 Stack trace: $stackTrace');
+      return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
       _isSyncing = false;
     }
@@ -139,9 +141,11 @@ class GoogleDriveDeltaSync {
         message: 'تم تطبيق $appliedChanges تغيير',
         changesCount: appliedChanges,
       );
-    } catch (e) {
-      debugPrint('❌ خطأ في سحب التغييرات: $e');
-      return DeltaSyncResult(success: false, message: e.toString());
+    } catch (e, stackTrace) {
+      final errorMessage = 'خطأ في سحب التغييرات: $e';
+      debugPrint('❌ $errorMessage');
+      debugPrint('🔍 Stack trace: $stackTrace');
+      return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
       _isSyncing = false;
     }

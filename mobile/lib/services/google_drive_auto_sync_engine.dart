@@ -283,9 +283,13 @@ class AutoSyncEngine with WidgetsBindingObserver {
           _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
         } else {
           _failedAttempts++;
-          _lastError = result.error;
+          _lastError = result.error ?? result.message;
           
-          _log('❌ Sync failed (attempt $_failedAttempts): ${result.message}', 
+          final errorDetails = result.error != null 
+              ? '${result.message} - ${result.error}' 
+              : result.message;
+          
+          _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails', 
                level: LogLevel.error);
           
           final prefs = SharedPreferences.getInstance();
@@ -639,17 +643,21 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('🚀 Force sync triggered by user');
     
     if (!_hasNetworkConnection) {
-      _log('📴 No network connection');
+      final message = 'لا يوجد اتصال بالإنترنت';
+      _log('📴 $message');
       return SyncResult.failure(
-        message: 'No network connection',
+        message: message,
+        error: 'NetworkUnavailable',
         phase: SyncPhase.idle,
       );
     }
     
     if (!_isSignedIn) {
-      _log('🔐 Not signed in');
+      final message = 'غير مسجل الدخول في Google Drive';
+      _log('🔐 $message');
       return SyncResult.failure(
-        message: 'Not signed in',
+        message: message,
+        error: 'NotSignedIn',
         phase: SyncPhase.authenticating,
       );
     }
