@@ -108,8 +108,11 @@ class GoogleDriveUnifiedSyncCoordinator {
   DateTime? _lastPullTime;
   DateTime? _lastFullBackupTime;
   DateTime? _firstChangeTime;
+  DateTime? _syncStartTime;
   
   SyncPhase _currentPhase = SyncPhase.idle;
+  
+  static const Duration _syncTimeout = Duration(minutes: 2);
   final _syncResultController = StreamController<SyncResult>.broadcast();
   
   bool _pushEnabled = true;
@@ -393,14 +396,35 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
 
     if (_isSyncing) {
-      _log('⏸️ Sync already in progress - skipping $trigger');
-      return SyncResult.failure(
-        message: 'Sync already in progress',
-        phase: _currentPhase,
-      );
+      if (_syncStartTime != null) {
+        final elapsed = DateTime.now().difference(_syncStartTime!);
+        if (elapsed > _syncTimeout) {
+          _log('⚠️ Sync timeout detected (${elapsed.inSeconds}s) - resetting state');
+          _isSyncing = false;
+          _syncStartTime = null;
+          _currentPhase = SyncPhase.idle;
+        } else {
+          _log('⏸️ Sync already in progress (${elapsed.inSeconds}s elapsed) - skipping $trigger');
+          if (trigger == SyncTrigger.periodic || trigger == SyncTrigger.scheduled) {
+            return SyncResult.success(
+              message: 'Sync already in progress - not an error for periodic sync',
+              pushed: 0,
+              pulled: 0,
+            );
+          }
+          return SyncResult.failure(
+            message: 'Sync already in progress',
+            phase: _currentPhase,
+          );
+        }
+      } else {
+        _log('⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
+        _isSyncing = false;
+      }
     }
 
     _isSyncing = true;
+    _syncStartTime = DateTime.now();
     _currentPhase = SyncPhase.authenticating;
     
     _log('🚀 Starting sync [trigger=$trigger, mode=$mode]');
@@ -501,6 +525,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       
     } finally {
       _isSyncing = false;
+      _syncStartTime = null;
       _currentPhase = SyncPhase.idle;
     }
   }
