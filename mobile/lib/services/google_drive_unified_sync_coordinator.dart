@@ -469,14 +469,30 @@ class GoogleDriveUnifiedSyncCoordinator {
       return result;
       
     } catch (error, stackTrace) {
-      _log('❌ Sync failed: $error');
-      _log('Stack trace: $stackTrace');
+      final errorMessage = error.toString();
+      _log('❌ Sync failed: $errorMessage', level: LogLevel.error);
+      _log('Stack trace: $stackTrace', level: LogLevel.debug);
       
       SyncPerformanceOptimizer.instance.recordSyncFailure();
       
+      String userFriendlyMessage = 'فشلت المزامنة';
+      if (errorMessage.contains('NetworkException') || errorMessage.contains('SocketException')) {
+        userFriendlyMessage = 'خطأ في الاتصال بالإنترنت';
+      } else if (errorMessage.contains('Unauthorized') || errorMessage.contains('401')) {
+        userFriendlyMessage = 'انتهت صلاحية تسجيل الدخول - يرجى تسجيل الدخول مرة أخرى';
+      } else if (errorMessage.contains('QuotaExceeded') || errorMessage.contains('Storage')) {
+        userFriendlyMessage = 'مساحة التخزين ممتلئة على Google Drive';
+      } else if (errorMessage.contains('غير مسجل الدخول')) {
+        userFriendlyMessage = 'غير مسجل الدخول في Google Drive';
+      } else if (errorMessage.contains('الخدمة غير جاهزة')) {
+        userFriendlyMessage = 'خدمة المزامنة غير جاهزة';
+      } else {
+        userFriendlyMessage = 'فشلت المزامنة: $errorMessage';
+      }
+      
       final result = SyncResult.failure(
-        message: 'Sync failed',
-        error: error.toString(),
+        message: userFriendlyMessage,
+        error: errorMessage,
         phase: _currentPhase,
       );
       
