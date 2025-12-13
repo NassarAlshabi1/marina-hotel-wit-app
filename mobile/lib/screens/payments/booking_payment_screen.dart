@@ -11,6 +11,7 @@ import '../../components/widgets/payment_widgets.dart';
 import '../../services/providers.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
   final db.Booking booking;
@@ -25,7 +26,10 @@ class BookingPaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, SyncOnExitMixin {
+  
+  @override
+  String get screenId => 'booking_payment';
   late TabController _tabController;
   late TextEditingController _phoneController;
   final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
@@ -118,7 +122,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final roomsRepo = ref.watch(roomsRepoProvider);
     final paymentsRepo = ref.watch(paymentsRepoProvider);
 
-    return AppScaffold(
+    return wrapWithSyncOnExit(
+      child: AppScaffold(
       title: 'معالجة المدفوعات',
       actions: [
         IconButton(
@@ -211,6 +216,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             },
           );
         },
+        ),
       ),
     );
   }
@@ -1095,6 +1101,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       paymentMethod: 'نقدي', // افتراضي، يمكن تحسينه لاحقاً
       revenueType: 'room', // رسوم غرفة للليالي الإضافية
     );
+    
+    markDataChanged();
 
     Navigator.pop(context);
     
@@ -1228,6 +1236,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       paymentMethod: _mapUiMethodToDb(method),
       revenueType: 'room',
     );
+    
+    markDataChanged();
 
     final newRemaining = ((remaining - amount).clamp(0.0, total)).toDouble();
 
@@ -1674,6 +1684,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       paymentMethod: 'نقدي',
       revenueType: 'room',
     );
+    
+    markDataChanged();
     
     // إرسال رسالة واتساب
     final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
