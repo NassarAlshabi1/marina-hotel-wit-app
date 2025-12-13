@@ -415,9 +415,12 @@ class FileManagementService {
           
           // تحديث metadata
           if (backupData.containsKey('metadata')) {
-            final metadata = BackupMetadata.fromJson(backupData['metadata']);
-            if (latestMetadata == null || metadata.backupTimestamp.isAfter(latestMetadata.backupTimestamp)) {
-              latestMetadata = metadata;
+            final metadataSource = backupData['metadata'];
+            if (metadataSource is Map) {
+              final metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
+              if (latestMetadata == null || metadata.backupTimestamp.isAfter(latestMetadata.backupTimestamp)) {
+                latestMetadata = metadata;
+              }
             }
           }
         } catch (e) {

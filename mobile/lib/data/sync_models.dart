@@ -111,8 +111,10 @@ class SyncSnapshot {
           .toList();
       parsedTables[entry.key] = list;
     }
+    final metadataSource = json['metadata'];
+    final metadataJson = metadataSource is Map ? Map<String, dynamic>.from(metadataSource) : <String, dynamic>{};
     return SyncSnapshot(
-      metadata: SyncMetadata.fromJson(json['metadata'] as Map<String, dynamic>? ?? {}),
+      metadata: SyncMetadata.fromJson(metadataJson),
       tables: parsedTables,
     );
   }

@@ -757,7 +757,17 @@ class SmartSyncManager {
       // Fallback: رفع النسخة الكاملة (للأمان)
       _log('📦 رفع النسخة الكاملة...');
       final backupData = await _backupService!.exportDatabaseToJson();
-      final metadata = backupData['metadata'] as Map<String, dynamic>;
+      final existingMetadata = backupData['metadata'];
+      Map<String, dynamic> metadata;
+      if (existingMetadata is Map<String, dynamic>) {
+        metadata = existingMetadata;
+      } else if (existingMetadata is Map) {
+        metadata = Map<String, dynamic>.from(existingMetadata);
+        backupData['metadata'] = metadata;
+      } else {
+        metadata = <String, dynamic>{};
+        backupData['metadata'] = metadata;
+      }
       metadata['device_id'] = _deviceId;
       metadata['sync_type'] = 'push';
       metadata['sync_timestamp'] = DateTime.now().toIso8601String();

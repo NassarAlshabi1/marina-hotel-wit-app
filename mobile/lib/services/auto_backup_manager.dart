@@ -191,12 +191,22 @@ class AutoBackupManager {
       final backupData = await _backupService!.exportDatabaseToJson();
       
       // تحديث البيانات الوصفية لتمييز النسخة التلقائية
-      final metadata = backupData['metadata'] as Map<String, dynamic>;
+      final existingMetadata = backupData['metadata'];
+      Map<String, dynamic> metadata;
+      if (existingMetadata is Map<String, dynamic>) {
+        metadata = existingMetadata;
+      } else if (existingMetadata is Map) {
+        metadata = Map<String, dynamic>.from(existingMetadata);
+        backupData['metadata'] = metadata;
+      } else {
+        metadata = <String, dynamic>{};
+        backupData['metadata'] = metadata;
+      }
       metadata['backup_type'] = 'auto';
       metadata['trigger_reason'] = reason;
       metadata['changes_count'] = changesCount;
       metadata['device_info'] = '${Platform.operatingSystem} (تلقائي)';
-      metadata['device_id'] = _deviceId; // معرف الجهاز للمزامنة الذكية
+      metadata['device_id'] = _deviceId;
       metadata['created_by_device'] = _deviceId;
       
       // رفع النسخة الاحتياطية كملف تلقائي
