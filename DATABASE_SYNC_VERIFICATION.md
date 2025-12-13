@@ -128,12 +128,25 @@ class Payments extends Table with SyncFields {
 ```dart
 class Debts extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get bookingLocalId => integer().references(Bookings, #id)();
+  IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
   TextColumn get guestName => text()();
+  TextColumn get checkinDate => text()();
+  TextColumn get checkoutDate => text()();
+  TextColumn get dateRecorded => text().withDefault(const Constant(''))();
+  TextColumn get debtReason => text().withDefault(const Constant(''))();
   RealColumn get totalAmount => real()();
   RealColumn get paidAmount => real()();
   RealColumn get remainingAmount => real()();
-  IntColumn get isSettled => integer()();
+  TextColumn get paymentDate => text()();
+  IntColumn get isSettled => integer().withDefault(const Constant(0))();
+  TextColumn get pledge => text().nullable()();
+  TextColumn get pledgeType => text().nullable()();
+  TextColumn get note => text().nullable()();
+  TextColumn get debtUuid => text().nullable()();
+  TextColumn get hotelDayOpened => text().nullable()();
+  TextColumn get hotelDayClosed => text().nullable()();
+  BoolColumn get isFromAutoFix => boolean().withDefault(const Constant(false))();
+  BoolColumn get settlementConfirmed => boolean().withDefault(const Constant(false))();
 }
 ```
 

@@ -227,7 +227,16 @@ class DatabaseHealthChecker {
       SELECT local_uuid, COUNT(*) as count FROM (
         SELECT local_uuid FROM rooms
         UNION ALL SELECT local_uuid FROM bookings
+        UNION ALL SELECT local_uuid FROM booking_notes
+        UNION ALL SELECT local_uuid FROM employees
+        UNION ALL SELECT local_uuid FROM expenses
+        UNION ALL SELECT local_uuid FROM cash_transactions
         UNION ALL SELECT local_uuid FROM payments
+        UNION ALL SELECT local_uuid FROM debts
+        UNION ALL SELECT local_uuid FROM booking_nights
+        UNION ALL SELECT local_uuid FROM hotel_day_ledger
+        UNION ALL SELECT local_uuid FROM salary_cycles
+        UNION ALL SELECT local_uuid FROM salary_payments
       )
       GROUP BY local_uuid
       HAVING count > 1
