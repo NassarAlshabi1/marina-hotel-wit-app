@@ -8,7 +8,7 @@ import '../../components/app_scaffold.dart';
 import '../../services/local_db.dart' as db;
 import '../../models/payment_models.dart';
 import '../../components/widgets/payment_widgets.dart';
-import '../../services/providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
@@ -1116,7 +1116,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final currentTotal = currentNights * roomRate;
     final allPayments = await paymentsRepo.paymentsByBooking(widget.booking.id).first;
     final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
-    final newRemaining = (currentTotal - totalPaid).clamp(0.0, currentTotal);
+    final newRemaining = (currentTotal - totalPaid).clamp(0.0, currentTotal).toDouble();
 
     // إرسال رسالة واتساب
     final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
