@@ -32,7 +32,7 @@ class SyncAutomationConfig {
     this.realtimeCallbackUrl,
     this.realtimeTtl = const Duration(hours: 6),
     this.enableForegroundNotifications = false,
-  }) : assert(maxDebounceWindow >= debounceWindow);
+  }) : assert(maxDebounceWindow.inMicroseconds >= debounceWindow.inMicroseconds);
 
   final Duration debounceWindow;
   final Duration maxDebounceWindow;
