@@ -652,8 +652,10 @@ class GoogleDriveUnifiedSyncCoordinator {
     try {
       final backupData = await _backupService!.exportDatabaseToJson();
       
+      final metadata = backupData['metadata'];
+      final baseMetadata = metadata is Map ? Map<String, dynamic>.from(metadata) : <String, dynamic>{};
       backupData['metadata'] = {
-        ...backupData['metadata'],
+        ...baseMetadata,
         'backup_type': 'full',
         'sync_type': 'scheduled',
         'device_id': _deltaSync!.deviceId,

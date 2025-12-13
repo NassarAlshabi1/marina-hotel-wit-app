@@ -238,8 +238,10 @@ class SmartGoogleDriveSync {
       final backupData = await _driveService!.exportDatabaseToJson();
       
       // إضافة metadata للتمييز
+      final metadata = backupData['metadata'];
+      final baseMetadata = metadata is Map ? Map<String, dynamic>.from(metadata) : <String, dynamic>{};
       backupData['metadata'] = {
-        ...backupData['metadata'],
+        ...baseMetadata,
         'backup_type': 'full',
         'sync_type': 'scheduled',
       };
