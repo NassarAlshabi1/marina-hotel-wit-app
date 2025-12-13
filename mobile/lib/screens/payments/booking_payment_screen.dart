@@ -1195,8 +1195,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         amount: amount,
         paymentDate: Time.nowIso(),
         notes: notes.isEmpty ? 'دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية' : notes,
-        paymentMethod: 'نقدي', // افتراضي، يمكن تحسينه لاحقاً
-        revenueType: 'room', // رسوم غرفة للليالي الإضافية
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
       );
       
       if (paymentId <= 0) {
@@ -1204,10 +1204,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
       
       markDataChanged();
-
-      Navigator.pop(context);
       
-      // حساب المتبقي الجديد
       final roomsRepo = ref.read(roomsRepoProvider);
       final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
       final roomRate = room?.price ?? 0.0;
@@ -1219,7 +1216,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
       final newRemaining = (currentTotal - totalPaid).clamp(0.0, currentTotal);
 
-      // إرسال رسالة واتساب
       final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
       if (cleanedPhone.isNotEmpty) {
         await _sendExtendedStayPaymentConfirmation(
@@ -1239,16 +1235,19 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      Navigator.pop(context);
+      debugPrint('_processDailyPayment error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل في تسجيل الدفعة: $e'),
+          const SnackBar(
+            content: Text('حدث خطأ أثناء تسجيل الدفعة. يرجى المحاولة مرة أخرى'),
             backgroundColor: Colors.red,
           ),
         );
       }
-      return;
+    } finally {
+      if (mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -1440,8 +1439,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
       final newRemaining = ((updatedRemainingBeforePayment - amount).clamp(0.0, updatedTotal)).toDouble();
 
-      Navigator.pop(context);
-
       if (mounted) {
         setState(() {
           _remainingAmount = newRemaining;
@@ -1497,16 +1494,19 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      Navigator.pop(context);
+      debugPrint('_processPayment error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل في تسجيل الدفعة: $e'),
+          const SnackBar(
+            content: Text('حدث خطأ أثناء تسجيل الدفعة. يرجى المحاولة مرة أخرى'),
             backgroundColor: Colors.red,
           ),
         );
       }
-      return;
+    } finally {
+      if (mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
