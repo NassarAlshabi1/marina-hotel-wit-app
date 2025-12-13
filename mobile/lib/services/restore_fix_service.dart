@@ -962,10 +962,10 @@ class RestoreFixService {
       
       await db.transaction(() async {
         // مسح الجداول المتأثرة
-        await db.delete(db.bookings).go();
-        await db.delete(db.rooms).go();
         await db.delete(db.payments).go();
         await db.delete(db.debts).go();
+        await db.delete(db.bookings).go();
+        await db.delete(db.rooms).go();
         
         // استعادة البيانات
         if (snapshotData.containsKey('bookings')) {

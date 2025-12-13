@@ -426,14 +426,14 @@ class LocalBackupService {
 
     await db.customStatement('PRAGMA foreign_keys = OFF');
     try {
-      await db.delete(db.rooms).go();
-      await db.delete(db.bookings).go();
-      await db.delete(db.bookingNotes).go();
-      await db.delete(db.employees).go();
-      await db.delete(db.expenses).go();
-      await db.delete(db.cashTransactions).go();
-      await db.delete(db.payments).go();
       await db.delete(db.syncState).go();
+      await db.delete(db.bookingNotes).go();
+      await db.delete(db.payments).go();
+      await db.delete(db.cashTransactions).go();
+      await db.delete(db.expenses).go();
+      await db.delete(db.employees).go();
+      await db.delete(db.bookings).go();
+      await db.delete(db.rooms).go();
     } finally {
       await db.customStatement('PRAGMA foreign_keys = ON');
     }
