@@ -2,11 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:battery_plus/battery_plus.dart';
 import 'package:collection/collection.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:synchronized/synchronized.dart';
 
@@ -21,13 +24,35 @@ abstract class SyncTriggerDispatcher {
   Future<void> sendTrigger({required String syncId, required String sourceDeviceId});
 }
 
+class SyncAutomationConfig {
+  const SyncAutomationConfig({
+    this.debounceWindow = const Duration(milliseconds: 900),
+    this.maxDebounceWindow = const Duration(seconds: 4),
+    this.realtimePollInterval = const Duration(seconds: 45),
+    this.realtimeCallbackUrl,
+    this.realtimeTtl = const Duration(hours: 6),
+    this.enableForegroundNotifications = false,
+  }) : assert(maxDebounceWindow >= debounceWindow);
+
+  final Duration debounceWindow;
+  final Duration maxDebounceWindow;
+  final Duration realtimePollInterval;
+  final Uri? realtimeCallbackUrl;
+  final Duration realtimeTtl;
+  final bool enableForegroundNotifications;
+}
+
 /// مدير المزامنة الرئيسي المسؤول عن دمج البيانات ورفعها إلى Google Drive
 class SyncManager {
   SyncManager({
     required this.db,
     required this.driveService,
     this.triggerDispatcher,
-  }) : _statusController = StreamController<SyncStatus>.broadcast(),
+    SyncAutomationConfig automationConfig = const SyncAutomationConfig(),
+    ForegroundSyncController? foregroundController,
+  })  : _automationConfig = automationConfig,
+        _foregroundController = foregroundController ?? ForegroundSyncController(),
+        _statusController = StreamController<SyncStatus>.broadcast(),
         _auditDao = SyncAuditDao(db),
         _deltaSyncService = DeltaSyncService(db);
 
@@ -39,6 +64,28 @@ class SyncManager {
   final SyncSafetyLayer _safetyLayer = SyncSafetyLayer.instance;
   final DeltaSyncService _deltaSyncService;
   final _syncLock = Lock();
+  final SyncAutomationConfig _automationConfig;
+  final ForegroundSyncController _foregroundController;
+  final Battery _battery = Battery();
+  final Connectivity _connectivity = Connectivity();
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  StreamSubscription<BatteryState>? _batteryStateSubscription;
+  Timer? _batteryPollTimer;
+  Timer? _debounceTimer;
+  Timer? _realtimePollingTimer;
+  Timer? _driveWatchRenewTimer;
+  Timer? _foregroundDelayTimer;
+  bool _hasNetworkConnection = true;
+  bool _batteryHoldActive = false;
+  bool _autoSyncPending = false;
+  bool _pendingRemotePull = false;
+  DateTime? _debounceFirstChangeAt;
+  String? _currentChangeToken;
+  DriveRealtimeWatchHandle? _watchHandle;
+  int _foregroundRefs = 0;
+  int? _lastBatteryLevel;
+  DateTime? _lastBatteryCheck;
+  bool _batteryCharging = false;
 
   bool _isInitialized = false;
   bool _isDrainingQueue = false;
@@ -60,6 +107,9 @@ class SyncManager {
     await driveService.init(enableEncryption: enableEncryption, encryptionKey: encryptionKey);
     _deviceId = await _resolveDeviceId();
     await _loadSyncHistory();
+    await _setupConnectivityMonitoring();
+    await _setupBatteryMonitoring();
+    await _initializeRealtimePull();
     _isInitialized = true;
     _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'المزامنة جاهزة'));
   }
@@ -91,7 +141,7 @@ class SyncManager {
       ),
     );
 
-    unawaited(_drainQueue());
+    _scheduleAutoSync();
   }
 
   /// تشغيل مزامنة كاملة (رفع ثم سحب)
@@ -119,8 +169,20 @@ class SyncManager {
     if (_pullInProgress) {
       return;
     }
+
+    if (!_hasNetworkConnection) {
+      _pendingRemotePull = true;
+      return;
+    }
+
+    if (!force && !await _batteryAllowsSync()) {
+      _pendingRemotePull = true;
+      return;
+    }
+
     _pullInProgress = true;
     _statusController.add(SyncStatus(phase: SyncPhase.pulling, message: 'جلب أحدث النسخ من Google Drive'));
+    _retainForeground('جلب أحدث النسخ من Google Drive');
 
     SyncSafetySnapshot? safetySnapshot;
     try {
@@ -190,8 +252,9 @@ class SyncManager {
         await _persistRemoteSignature(remoteSyncId);
       }
       await _persistSyncHistory(syncId);
-
+      _pendingRemotePull = false;
       _statusController.add(SyncStatus(phase: SyncPhase.completing, message: 'تم تطبيق التغييرات الواردة'));
+      unawaited(_refreshRealtimeToken(force: true));
     } catch (error, stack) {
       if (safetySnapshot != null) {
         await _safetyLayer.rollbackSnapshot(db: db, snapshot: safetySnapshot, error: error);
@@ -203,6 +266,7 @@ class SyncManager {
     } finally {
       _pullInProgress = false;
       _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'انتهى السحب'));
+      await _releaseForeground();
     }
   }
 
@@ -320,6 +384,281 @@ class SyncManager {
     return 'sync_history_${_deviceId!}';
   }
 
+  void _scheduleAutoSync() {
+    _autoSyncPending = true;
+    _debounceTimer?.cancel();
+    final now = DateTime.now();
+    _debounceFirstChangeAt ??= now;
+    if (!_hasNetworkConnection || _batteryHoldActive) {
+      return;
+    }
+    final elapsed = now.difference(_debounceFirstChangeAt!);
+    if (elapsed >= _automationConfig.maxDebounceWindow || _automationConfig.debounceWindow <= Duration.zero) {
+      _debounceFirstChangeAt = null;
+      _autoSyncPending = false;
+      unawaited(_drainQueue());
+      return;
+    }
+    final delay = _automationConfig.debounceWindow;
+    _debounceTimer = Timer(delay, () {
+      _debounceTimer = null;
+      _debounceFirstChangeAt = null;
+      if (_hasNetworkConnection && !_batteryHoldActive) {
+        _autoSyncPending = false;
+        unawaited(_drainQueue());
+      } else {
+        _autoSyncPending = true;
+      }
+    });
+  }
+
+  Future<void> _setupConnectivityMonitoring() async {
+    try {
+      final initial = await _connectivity.checkConnectivity();
+      _handleConnectivityChange(initial);
+    } catch (error) {
+      debugPrint('⚠️ تعذر فحص الشبكة: $error');
+    }
+    await _connectivitySubscription?.cancel();
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+      _handleConnectivityChange,
+      onError: (error) => debugPrint('⚠️ تعذر مراقبة الشبكة: $error'),
+    );
+  }
+
+  void _handleConnectivityChange(List<ConnectivityResult> results) {
+    final connected = results.any((result) => result != ConnectivityResult.none);
+    final wasConnected = _hasNetworkConnection;
+    _hasNetworkConnection = connected;
+    if (!connected) {
+      return;
+    }
+    if (!wasConnected || (!_batteryHoldActive && (_autoSyncPending || _pendingRemotePull))) {
+      _runPendingSyncIfPossible();
+    }
+  }
+
+  Future<void> _setupBatteryMonitoring() async {
+    await _refreshBatteryState();
+    await _batteryStateSubscription?.cancel();
+    _batteryStateSubscription = _battery.onBatteryStateChanged.listen((state) {
+      _batteryCharging = state == BatteryState.charging || state == BatteryState.full;
+      if (_batteryCharging && _batteryHoldActive) {
+        _batteryHoldActive = false;
+        _runPendingSyncIfPossible();
+      }
+    }, onError: (error) => debugPrint('⚠️ تعذر مراقبة البطارية: $error'));
+    _batteryPollTimer?.cancel();
+    _batteryPollTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+      unawaited(_refreshBatteryState());
+    });
+  }
+
+  Future<void> _refreshBatteryState() async {
+    try {
+      final level = await _battery.batteryLevel;
+      _lastBatteryLevel = level;
+      _lastBatteryCheck = DateTime.now();
+      final wasHeld = _batteryHoldActive;
+      _batteryHoldActive = level < 20 && !_batteryCharging;
+      if (wasHeld && !_batteryHoldActive) {
+        _runPendingSyncIfPossible();
+      }
+    } catch (error) {
+      debugPrint('⚠️ تعذر تحديث حالة البطارية: $error');
+    }
+  }
+
+  Future<int?> _currentBatteryLevel() async {
+    final now = DateTime.now();
+    if (_lastBatteryLevel != null && _lastBatteryCheck != null && now.difference(_lastBatteryCheck!) < const Duration(minutes: 1)) {
+      return _lastBatteryLevel;
+    }
+    try {
+      final level = await _battery.batteryLevel;
+      _lastBatteryLevel = level;
+      _lastBatteryCheck = now;
+      return level;
+    } catch (error) {
+      debugPrint('⚠️ مستوى البطارية غير متاح: $error');
+      return _lastBatteryLevel;
+    }
+  }
+
+  Future<bool> _batteryAllowsSync({bool force = false}) async {
+    if (force) {
+      _batteryHoldActive = false;
+      return true;
+    }
+    final level = await _currentBatteryLevel();
+    if (level == null) {
+      return true;
+    }
+    final allowed = level >= 20 || _batteryCharging;
+    _batteryHoldActive = !allowed;
+    return allowed;
+  }
+
+  void _runPendingSyncIfPossible() {
+    if (_batteryHoldActive || !_hasNetworkConnection) {
+      return;
+    }
+    if (_autoSyncPending) {
+      _autoSyncPending = false;
+      unawaited(_drainQueue());
+    }
+    if (_pendingRemotePull) {
+      _pendingRemotePull = false;
+      unawaited(pullAndMerge());
+    }
+  }
+
+  Future<void> _initializeRealtimePull() async {
+    await _refreshRealtimeToken(force: true);
+    if (_automationConfig.realtimePollInterval > Duration.zero) {
+      _realtimePollingTimer?.cancel();
+      _realtimePollingTimer = Timer.periodic(_automationConfig.realtimePollInterval, (_) {
+        unawaited(_handleRealtimeTick());
+      });
+    }
+    if (_automationConfig.realtimeCallbackUrl != null) {
+      await _startRealtimeWatch();
+    }
+  }
+
+  Future<void> _refreshRealtimeToken({bool force = false}) async {
+    if (!force && _currentChangeToken != null) {
+      return;
+    }
+    try {
+      final token = await driveService.fetchStartPageToken();
+      if (token != null) {
+        _currentChangeToken = token;
+      }
+    } catch (error) {
+      debugPrint('⚠️ تعذر تحديث رمز تغييرات Drive: $error');
+    }
+  }
+
+  Future<void> _handleRealtimeTick() async {
+    if (_syncInProgress || _pullInProgress) {
+      _pendingRemotePull = true;
+      return;
+    }
+    if (!_hasNetworkConnection) {
+      _pendingRemotePull = true;
+      return;
+    }
+    if (_currentChangeToken == null) {
+      await _refreshRealtimeToken(force: true);
+    }
+    final token = _currentChangeToken;
+    if (token == null) {
+      return;
+    }
+    try {
+      final poll = await driveService.pollRemoteChanges(token);
+      if (poll == null) {
+        return;
+      }
+      _currentChangeToken = poll.nextPageToken;
+      if (!poll.hasChanges) {
+        return;
+      }
+      if (await _batteryAllowsSync()) {
+        _pendingRemotePull = false;
+        await pullAndMerge();
+      } else {
+        _pendingRemotePull = true;
+      }
+    } catch (error) {
+      debugPrint('⚠️ فشل فحص تغييرات Drive: $error');
+      _currentChangeToken = null;
+    }
+  }
+
+  Future<void> _startRealtimeWatch() async {
+    final callback = _automationConfig.realtimeCallbackUrl;
+    if (callback == null) {
+      return;
+    }
+    await _stopRealtimeWatch();
+    try {
+      final handle = await driveService.startRealtimeWatch(
+        callbackUrl: callback,
+        ttl: _automationConfig.realtimeTtl,
+      );
+      if (handle == null) {
+        return;
+      }
+      _watchHandle = handle;
+      _currentChangeToken ??= handle.pageToken;
+      final renewAfter = handle.expiration.difference(DateTime.now()) - const Duration(minutes: 5);
+      _driveWatchRenewTimer?.cancel();
+      final wait = renewAfter.isNegative ? const Duration(minutes: 5) : renewAfter;
+      _driveWatchRenewTimer = Timer(wait, () {
+        unawaited(_startRealtimeWatch());
+      });
+    } catch (error) {
+      debugPrint('⚠️ تعذر تفعيل مراقبة التغييرات: $error');
+    }
+  }
+
+  Future<void> _stopRealtimeWatch() async {
+    _driveWatchRenewTimer?.cancel();
+    final handle = _watchHandle;
+    if (handle == null) {
+      return;
+    }
+    _watchHandle = null;
+    try {
+      await driveService.stopRealtimeWatch(handle);
+    } catch (error) {
+      debugPrint('⚠️ تعذر إيقاف مراقبة التغييرات: $error');
+    }
+  }
+
+  void _retainForeground(String description) {
+    if (!_automationConfig.enableForegroundNotifications) {
+      return;
+    }
+    _foregroundRefs++;
+    if (_foregroundRefs == 1) {
+      _foregroundDelayTimer?.cancel();
+      _foregroundDelayTimer = Timer(const Duration(seconds: 3), () {
+        unawaited(_foregroundController.ensureRunning(title: 'Marina Sync', text: description));
+      });
+    } else {
+      unawaited(_foregroundController.ensureRunning(title: 'Marina Sync', text: description));
+    }
+  }
+
+  Future<void> _releaseForeground() async {
+    if (!_automationConfig.enableForegroundNotifications) {
+      return;
+    }
+    if (_foregroundRefs <= 0) {
+      _foregroundRefs = 0;
+      _foregroundDelayTimer?.cancel();
+      return;
+    }
+    _foregroundRefs--;
+    if (_foregroundRefs == 0) {
+      _foregroundDelayTimer?.cancel();
+      await _foregroundController.stop();
+    }
+  }
+
+  Future<void> dispose() async {
+    await _connectivitySubscription?.cancel();
+    await _batteryStateSubscription?.cancel();
+    _batteryPollTimer?.cancel();
+    _debounceTimer?.cancel();
+    _realtimePollingTimer?.cancel();
+    await _stopRealtimeWatch();
+    await _releaseForeground();
+  }
+
   Future<void> _drainQueue({bool force = false}) async {
     await _ensureReady();
     if (_isDrainingQueue) {
@@ -335,8 +674,19 @@ class SyncManager {
       return;
     }
 
+    if (!_hasNetworkConnection) {
+      _autoSyncPending = pending.isNotEmpty || _autoSyncPending;
+      return;
+    }
+
+    if (!force && !await _batteryAllowsSync()) {
+      _autoSyncPending = pending.isNotEmpty || _autoSyncPending;
+      return;
+    }
+
     _isDrainingQueue = true;
     _statusController.add(SyncStatus(phase: SyncPhase.pushing, message: 'رفع التغييرات المعلقة', progress: 0));
+    _retainForeground('رفع التغييرات المعلقة');
 
     SyncSafetySnapshot? safetySnapshot;
     try {
@@ -412,7 +762,10 @@ class SyncManager {
         await triggerDispatcher!.sendTrigger(syncId: _lastSyncId!, sourceDeviceId: deviceId);
       }
 
+      _autoSyncPending = false;
+      _debounceFirstChangeAt = null;
       _statusController.add(SyncStatus(phase: SyncPhase.completing, message: 'تم رفع التغييرات بنجاح', progress: 1));
+      unawaited(_refreshRealtimeToken(force: true));
     } catch (error, stack) {
       if (safetySnapshot != null) {
         await _safetyLayer.rollbackSnapshot(db: db, snapshot: safetySnapshot, error: error);
@@ -424,6 +777,7 @@ class SyncManager {
     } finally {
       _isDrainingQueue = false;
       _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'طابور المزامنة فارغ'));
+      await _releaseForeground();
     }
   }
 
@@ -686,6 +1040,40 @@ class SyncManager {
       return null;
     }
     return DateTime.tryParse(value)?.toUtc();
+  }
+}
+
+class ForegroundSyncController {
+  ForegroundSyncController();
+
+  static const MethodChannel _channel = MethodChannel('marina.sync/foreground');
+  bool _active = false;
+
+  Future<void> ensureRunning({required String title, required String text}) async {
+    try {
+      if (_active) {
+        await _channel.invokeMethod('update', {'title': title, 'text': text});
+        return;
+      }
+      await _channel.invokeMethod('start', {'title': title, 'text': text});
+      _active = true;
+    } catch (error) {
+      debugPrint('⚠️ تعذر تشغيل خدمة المزامنة في المقدمة: $error');
+      _active = false;
+    }
+  }
+
+  Future<void> stop() async {
+    if (!_active) {
+      return;
+    }
+    try {
+      await _channel.invokeMethod('stop');
+    } catch (error) {
+      debugPrint('⚠️ تعذر إيقاف خدمة المزامنة في المقدمة: $error');
+    } finally {
+      _active = false;
+    }
   }
 }
 

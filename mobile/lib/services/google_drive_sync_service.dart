@@ -135,6 +135,32 @@ class DriveSyncIndex {
   }
 }
 
+class DriveRealtimeWatchHandle {
+  DriveRealtimeWatchHandle({
+    required this.channelId,
+    required this.resourceId,
+    required this.pageToken,
+    required this.expiration,
+    required this.callbackUrl,
+  });
+
+  final String channelId;
+  final String resourceId;
+  final String pageToken;
+  final DateTime expiration;
+  final Uri callbackUrl;
+}
+
+class DriveChangePollResult {
+  DriveChangePollResult({
+    required this.hasChanges,
+    required this.nextPageToken,
+  });
+
+  final bool hasChanges;
+  final String nextPageToken;
+}
+
 /// عميل HTTP يضيف رؤوس Google Sign-In تلقائياً
 class _GoogleAuthClient extends http.BaseClient {
   _GoogleAuthClient(this._headers) : _client = http.Client();
@@ -251,6 +277,97 @@ class GoogleDriveSyncService {
       shards: index.shards,
       driveVersion: index.version,
     );
+  }
+
+  Future<String?> fetchStartPageToken() async {
+    final api = await _ensureDriveApi();
+    try {
+      final response = await api.changes.getStartPageToken(supportsAllDrives: false);
+      return response.startPageToken;
+    } catch (error) {
+      debugPrint('⚠️ تعذر الحصول على startPageToken: $error');
+      return null;
+    }
+  }
+
+  Future<DriveChangePollResult?> pollRemoteChanges(String pageToken) async {
+    final api = await _ensureDriveApi();
+    try {
+      final response = await api.changes.list(
+        pageToken,
+        spaces: 'appDataFolder',
+        includeRemoved: true,
+        restrictToMyDrive: true,
+        supportsAllDrives: false,
+        pageSize: 10,
+        $fields: 'changes(fileId,removed,changeType,time),newStartPageToken,nextPageToken',
+      );
+      final hasChanges = (response.changes?.isNotEmpty ?? false);
+      final nextToken = response.newStartPageToken ?? response.nextPageToken ?? pageToken;
+      return DriveChangePollResult(hasChanges: hasChanges, nextPageToken: nextToken);
+    } catch (error) {
+      debugPrint('⚠️ تعذر فحص تغيرات Google Drive: $error');
+      return null;
+    }
+  }
+
+  Future<DriveRealtimeWatchHandle?> startRealtimeWatch({
+    required Uri callbackUrl,
+    Duration ttl = const Duration(hours: 6),
+    String? verificationToken,
+  }) async {
+    final api = await _ensureDriveApi();
+    try {
+      final tokenResponse = await api.changes.getStartPageToken(supportsAllDrives: false);
+      final pageToken = tokenResponse.startPageToken;
+      if (pageToken == null) {
+        return null;
+      }
+      final channelId = 'marina_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1 << 32)}';
+      final expiration = DateTime.now().add(ttl);
+      final channel = drive.Channel()
+        ..id = channelId
+        ..type = 'web_hook'
+        ..address = callbackUrl.toString()
+        ..expiration = expiration.millisecondsSinceEpoch.toString()
+        ..params = {'ttl': ttl.inSeconds.toString()};
+      if (verificationToken != null && verificationToken.isNotEmpty) {
+        channel.token = verificationToken;
+      }
+      final response = await api.changes.watch(
+        channel,
+        pageToken,
+        spaces: 'appDataFolder',
+        includeRemoved: true,
+        restrictToMyDrive: true,
+        supportsAllDrives: false,
+      );
+      final handle = DriveRealtimeWatchHandle(
+        channelId: response.id ?? channelId,
+        resourceId: response.resourceId ?? '',
+        pageToken: pageToken,
+        expiration: DateTime.fromMillisecondsSinceEpoch(
+          int.tryParse(response.expiration ?? '') ?? expiration.millisecondsSinceEpoch,
+        ),
+        callbackUrl: callbackUrl,
+      );
+      return handle;
+    } catch (error) {
+      debugPrint('⚠️ تعذر إنشاء قناة مراقبة Google Drive: $error');
+      return null;
+    }
+  }
+
+  Future<void> stopRealtimeWatch(DriveRealtimeWatchHandle handle) async {
+    final api = await _ensureDriveApi();
+    try {
+      final channel = drive.Channel()
+        ..id = handle.channelId
+        ..resourceId = handle.resourceId;
+      await api.channels.stop(channel);
+    } catch (error) {
+      debugPrint('⚠️ تعذر إيقاف قناة مراقبة Google Drive: $error');
+    }
   }
 
   /// رفع لقطة كاملة مع التحقق من الإصدار وتجزئة الملفات
