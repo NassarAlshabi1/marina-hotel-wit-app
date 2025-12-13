@@ -189,10 +189,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           
           // التكلفة الإجمالية = الليالي الفعلية × سعر الليلة (وليس المتوقعة)
           final totalAmount = actualNights * roomRate;
+          debugPrint('BookingPaymentScreen: booking.id=${widget.booking.id}, booking.localUuid=${widget.booking.localUuid}');
           return StreamBuilder<List<db.Payment>>(
             stream: paymentsRepo.paymentsByBooking(widget.booking.id),
             builder: (context, paySnap) {
               final dbPayments = paySnap.data ?? const <db.Payment>[];
+              debugPrint('BookingPaymentScreen: StreamBuilder received ${dbPayments.length} payments');
               final paidAmount = dbPayments.fold<double>(0, (s, p) => s + p.amount);
               final remainingAmount = ((totalAmount - paidAmount).clamp(0.0, totalAmount)).toDouble();
               _remainingAmount = remainingAmount;
@@ -1186,50 +1188,68 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   Future<void> _processDailyPayment(double amount, String notes, int nights) async {
     final paymentsRepo = ref.read(paymentsRepoProvider);
     
-    await paymentsRepo.create(
-      bookingLocalId: widget.booking.id,
-      roomNumber: widget.booking.roomNumber,
-      amount: amount,
-      paymentDate: Time.nowIso(),
-      notes: notes.isEmpty ? 'دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية' : notes,
-      paymentMethod: 'نقدي', // افتراضي، يمكن تحسينه لاحقاً
-      revenueType: 'room', // رسوم غرفة للليالي الإضافية
-    );
-    markDataChanged();
-
-    Navigator.pop(context);
-    
-    // حساب المتبقي الجديد
-    final roomsRepo = ref.read(roomsRepoProvider);
-    final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
-    final roomRate = room?.price ?? 0.0;
-    final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final now = DateTime.now();
-    final currentNights = Time.nightsWithCutoff(checkin, checkout: now);
-    final currentTotal = currentNights * roomRate;
-    final allPayments = await paymentsRepo.paymentsByBooking(widget.booking.id).first;
-    final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
-    final newRemaining = (currentTotal - totalPaid).clamp(0.0, currentTotal);
-
-    // إرسال رسالة واتساب
-    final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
-    if (cleanedPhone.isNotEmpty) {
-      await _sendExtendedStayPaymentConfirmation(
-        amount, 
-        newRemaining, 
-        cleanedPhone, 
-        nights,
+    try {
+      final paymentId = await paymentsRepo.create(
+        bookingLocalId: widget.booking.id,
+        roomNumber: widget.booking.roomNumber,
+        amount: amount,
+        paymentDate: Time.nowIso(),
+        notes: notes.isEmpty ? 'دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية' : notes,
+        paymentMethod: 'نقدي', // افتراضي، يمكن تحسينه لاحقاً
+        revenueType: 'room', // رسوم غرفة للليالي الإضافية
       );
+      
+      if (paymentId <= 0) {
+        throw Exception('فشل في إنشاء الدفعة');
+      }
+      
+      markDataChanged();
+
+      Navigator.pop(context);
+      
+      // حساب المتبقي الجديد
+      final roomsRepo = ref.read(roomsRepoProvider);
+      final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
+      final roomRate = room?.price ?? 0.0;
+      final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+      final now = DateTime.now();
+      final currentNights = Time.nightsWithCutoff(checkin, checkout: now);
+      final currentTotal = currentNights * roomRate;
+      final allPayments = await paymentsRepo.paymentsByBooking(widget.booking.id).first;
+      final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
+      final newRemaining = (currentTotal - totalPaid).clamp(0.0, currentTotal);
+
+      // إرسال رسالة واتساب
+      final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
+      if (cleanedPhone.isNotEmpty) {
+        await _sendExtendedStayPaymentConfirmation(
+          amount, 
+          newRemaining, 
+          cleanedPhone, 
+          nights,
+        );
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم تسجيل دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية - ${_currencyFmt.format(amount)}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل في تسجيل الدفعة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
     }
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تم تسجيل دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية - ${_currencyFmt.format(amount)}'),
-        backgroundColor: Colors.green,
-      ),
-    );
   }
 
   /// رسالة واتساب للدفع اليومي/الليالي الإضافية
@@ -1401,75 +1421,93 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       paymentNotes = paymentNotes == null ? extensionLabel : '$paymentNotes • $extensionLabel';
     }
 
-    await paymentsRepo.create(
-      bookingLocalId: widget.booking.id,
-      roomNumber: widget.booking.roomNumber,
-      amount: amount,
-      paymentDate: Time.nowIso(),
-      notes: paymentNotes,
-      paymentMethod: _mapUiMethodToDb(method),
-      revenueType: 'room',
-    );
-    markDataChanged();
-
-    final newRemaining = ((updatedRemainingBeforePayment - amount).clamp(0.0, updatedTotal)).toDouble();
-
-    Navigator.pop(context);
-
-    if (mounted) {
-      setState(() {
-        _remainingAmount = newRemaining;
-      });
-    } else {
-      _remainingAmount = newRemaining;
-    }
-
-    final receipt = Payment(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      bookingId: widget.booking.localUuid,
-      amount: amount,
-      method: method,
-      status: PaymentStatus.completed,
-      paymentDate: DateTime.now(),
-      notes: paymentNotes,
-      referenceNumber: reference.isNotEmpty ? reference : null,
-      cardLastFourDigits: cardDigits.isNotEmpty ? cardDigits : null,
-      bankName: bank.isNotEmpty ? bank : null,
-      receivedBy: 'admin',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-
-    _showReceiptDialog(receipt);
-
-    if (cleanedPhone.isNotEmpty) {
-      await _sendPaymentConfirmation(
-        amount,
-        newRemaining,
-        cleanedPhone,
-        addedNights: autoExtensionNights,
-        newCheckout: autoExtensionCheckout,
+    try {
+      final paymentId = await paymentsRepo.create(
+        bookingLocalId: widget.booking.id,
+        roomNumber: widget.booking.roomNumber,
+        amount: amount,
+        paymentDate: Time.nowIso(),
+        notes: paymentNotes,
+        paymentMethod: _mapUiMethodToDb(method),
+        revenueType: 'room',
       );
-    }
+      
+      if (paymentId <= 0) {
+        throw Exception('فشل في إنشاء الدفعة');
+      }
+      
+      markDataChanged();
 
-    if (!mounted) {
+      final newRemaining = ((updatedRemainingBeforePayment - amount).clamp(0.0, updatedTotal)).toDouble();
+
+      Navigator.pop(context);
+
+      if (mounted) {
+        setState(() {
+          _remainingAmount = newRemaining;
+        });
+      } else {
+        _remainingAmount = newRemaining;
+      }
+
+      final receipt = Payment(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        bookingId: widget.booking.localUuid,
+        amount: amount,
+        method: method,
+        status: PaymentStatus.completed,
+        paymentDate: DateTime.now(),
+        notes: paymentNotes,
+        referenceNumber: reference.isNotEmpty ? reference : null,
+        cardLastFourDigits: cardDigits.isNotEmpty ? cardDigits : null,
+        bankName: bank.isNotEmpty ? bank : null,
+        receivedBy: 'admin',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      _showReceiptDialog(receipt);
+
+      if (cleanedPhone.isNotEmpty) {
+        await _sendPaymentConfirmation(
+          amount,
+          newRemaining,
+          cleanedPhone,
+          addedNights: autoExtensionNights,
+          newCheckout: autoExtensionCheckout,
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      final snackMessage = autoExtensionNights > 0
+          ? 'تم تسجيل الدفعة وتم تمديد الإقامة $autoExtensionNights ${autoExtensionNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}'
+          : 'تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 20),
+          content: Text(
+            autoExtensionNights > 0
+                ? '$snackMessage. المتبقي الجديد: ${_currencyFmt.format(newRemaining)}'
+                : snackMessage,
+          ),
+          action: SnackBarAction(label: 'طباعة إيصال', onPressed: () => _generateReceipt(receipt)),
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل في تسجيل الدفعة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
-
-    final snackMessage = autoExtensionNights > 0
-        ? 'تم تسجيل الدفعة وتم تمديد الإقامة $autoExtensionNights ${autoExtensionNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}'
-        : 'تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 20),
-        content: Text(
-          autoExtensionNights > 0
-              ? '$snackMessage. المتبقي الجديد: ${_currencyFmt.format(newRemaining)}'
-              : snackMessage,
-        ),
-        action: SnackBarAction(label: 'طباعة إيصال', onPressed: () => _generateReceipt(receipt)),
-      ),
-    );
   }
 
   void _showReceiptDialog(Payment payment) {

@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
@@ -18,21 +19,29 @@ class PaymentsRepository {
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
   Future<int> create({int? bookingLocalId, int? serverBookingId, String? roomNumber, required double amount, required String paymentDate, String? notes, required String paymentMethod, required String revenueType}) async {
-    final result = await dao.insertOne(
-      PaymentsCompanion(
-        bookingLocalId: d.Value(bookingLocalId),
-        serverBookingId: d.Value(serverBookingId),
-        roomNumber: d.Value(roomNumber),
-        amount: d.Value(amount),
-        paymentDate: d.Value(paymentDate),
-        notes: d.Value(notes),
-        paymentMethod: d.Value(paymentMethod),
-        revenueType: d.Value(revenueType),
-      ),
-    );
-    AutoBackupManager.instance.onDataChange('payments', 'INSERT', recordData: {'amount': amount});
-    SyncGuardian.instance.notifyLocalChange(table: 'payments', operation: 'INSERT');
-    return result;
+    debugPrint('PaymentsRepository.create: bookingLocalId=$bookingLocalId, amount=$amount, method=$paymentMethod');
+    try {
+      final result = await dao.insertOne(
+        PaymentsCompanion(
+          bookingLocalId: d.Value(bookingLocalId),
+          serverBookingId: d.Value(serverBookingId),
+          roomNumber: d.Value(roomNumber),
+          amount: d.Value(amount),
+          paymentDate: d.Value(paymentDate),
+          notes: d.Value(notes),
+          paymentMethod: d.Value(paymentMethod),
+          revenueType: d.Value(revenueType),
+        ),
+      );
+      debugPrint('PaymentsRepository.create: success, id=$result');
+      AutoBackupManager.instance.onDataChange('payments', 'INSERT', recordData: {'amount': amount});
+      SyncGuardian.instance.notifyLocalChange(table: 'payments', operation: 'INSERT');
+      return result;
+    } catch (e, stackTrace) {
+      debugPrint('PaymentsRepository.create: error=$e');
+      debugPrint('StackTrace: $stackTrace');
+      rethrow;
+    }
   }
 
   Future<int> update(int id, {int? bookingLocalId, int? serverBookingId, String? roomNumber, double? amount, String? paymentDate, String? notes, String? paymentMethod, String? revenueType}) async {
