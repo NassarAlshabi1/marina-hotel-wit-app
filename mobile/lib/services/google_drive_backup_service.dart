@@ -446,8 +446,8 @@ class GoogleDriveBackupService {
     }
   }
 
-  static const fullBackupPrefix = 'marina_backup_full_';
-  static const autoSyncPrefix = 'marina_sync_auto_';
+  static const fullBackupPrefix = 'marina_backup_manual_';
+  static const autoSyncPrefix = 'marina_sync_';
   static const deltaSyncPrefix = 'marina_sync_delta_';
 
   void _log(String message) {
@@ -478,13 +478,13 @@ class GoogleDriveBackupService {
         
         if (isSync || syncType == 'push') {
           prefix = autoSyncPrefix;
-          typeLabel = 'مزامنة تلقائية';
+          typeLabel = 'مزامنة';
         } else if (backupType == 'auto') {
           prefix = autoSyncPrefix;
-          typeLabel = 'نسخ تلقائي';
+          typeLabel = 'مزامنة تلقائية';
         } else {
           prefix = fullBackupPrefix;
-          typeLabel = 'نسخة شاملة';
+          typeLabel = 'نسخة احتياطية';
         }
         
         final fileName = '${prefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';

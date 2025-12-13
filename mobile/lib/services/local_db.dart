@@ -204,7 +204,7 @@ class ShiftNotes extends Table {
 @DataClassName('BookingNight')
 class BookingNights extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get bookingLocalId => integer().references(Bookings, #id)();
+  IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
   TextColumn get hotelDayKey => text()();
   TextColumn get nightStart => text()();
   TextColumn get nightEnd => text()();
@@ -419,7 +419,7 @@ class AppDatabase extends _$AppDatabase {
   static AppDatabase forTesting(QueryExecutor executor) => AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -549,6 +549,60 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(appSessions);
             await m.createTable(salaryCycles);
             await m.createTable(salaryPayments);
+          }
+          if (from < 17) {
+            // تعديل bookingLocalId ليكون nullable في جدول BookingNights
+            // SQLite لا يدعم ALTER COLUMN، لذلك نحتاج لإعادة إنشاء الجدول
+            await customStatement('PRAGMA foreign_keys = OFF');
+            try {
+              // إنشاء جدول مؤقت بالـ schema الجديد
+              await customStatement('''
+                CREATE TABLE booking_nights_new (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                  booking_local_id INTEGER NULL REFERENCES bookings(id),
+                  hotel_day_key TEXT NOT NULL,
+                  night_start TEXT NOT NULL,
+                  night_end TEXT NOT NULL,
+                  nightly_rate REAL NOT NULL DEFAULT 0,
+                  sequence INTEGER NOT NULL DEFAULT 0,
+                  is_processed_by_auto_fix INTEGER NOT NULL DEFAULT 0,
+                  local_uuid TEXT NOT NULL UNIQUE,
+                  server_id INTEGER NULL,
+                  created_at INTEGER NOT NULL,
+                  updated_at INTEGER NOT NULL,
+                  deleted_at INTEGER NULL,
+                  last_modified INTEGER NOT NULL,
+                  created_at_iso TEXT NULL,
+                  updated_at_iso TEXT NULL,
+                  deleted_at_iso TEXT NULL,
+                  created_at_epoch INTEGER NOT NULL DEFAULT 0,
+                  last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+                  version INTEGER NOT NULL DEFAULT 1,
+                  origin TEXT NOT NULL DEFAULT 'local',
+                  UNIQUE(booking_local_id, hotel_day_key)
+                )
+              ''');
+              
+              // نسخ البيانات من الجدول القديم
+              await customStatement('''
+                INSERT INTO booking_nights_new 
+                SELECT * FROM booking_nights
+              ''');
+              
+              // حذف الجدول القديم
+              await customStatement('DROP TABLE booking_nights');
+              
+              // إعادة تسمية الجدول الجديد
+              await customStatement('ALTER TABLE booking_nights_new RENAME TO booking_nights');
+              
+              // إعادة إنشاء الـ indexes
+              await customStatement('''
+                CREATE INDEX IF NOT EXISTS idx_booking_nights_day 
+                ON booking_nights (hotel_day_key)
+              ''');
+            } finally {
+              await customStatement('PRAGMA foreign_keys = ON');
+            }
           }
         },
       );
