@@ -37,7 +37,7 @@ class GoogleDriveDeltaSync {
   static const _prefsLastPullTsKey = 'gd_last_pull_ts';
   static const _prefsDeviceIdKey = 'gd_delta_device_id';
   
-  static const fullBackupPrefix = 'marina_backup_full_';
+  static const fullBackupPrefix = 'marina_backup_';
   static const deltaSyncPrefix = 'marina_sync_delta_';
 
   Future<void> initialize(GoogleDriveBackupService driveService, AppDatabase db) async {
