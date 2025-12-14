@@ -7,6 +7,7 @@ import 'package:drift/drift.dart' as drift;
 import '../services/local_db.dart';
 import '../providers/repository_providers.dart';
 import '../providers/smart_sync_provider.dart';
+import '../providers/appwrite_providers.dart';
 import '../utils/status_utils.dart';
 
 import '../widgets/smart_sync_widgets.dart';
@@ -257,13 +258,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _performSync(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     
-    final manager = ref.read(smartSyncManagerProvider);
-    await manager.forceSyncNow();
+    final appwriteManager = ref.read(appwriteSyncManagerProvider);
+    final smartManager = ref.read(smartSyncManagerProvider);
+    final appwriteResult = await appwriteManager.sync();
+    if (!appwriteResult.isSuccess) {
+      throw Exception(appwriteResult.errorMessage ?? 'فشلت مزامنة Appwrite');
+    }
+    await smartManager.forceSyncNow();
     ref.invalidate(smartSyncStatusProvider);
     
     if (mounted) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('⚡ تمت المزامنة الفورية بنجاح')),
+        const SnackBar(content: Text('⚡ تمت المزامنة السريعة بنجاح')),
       );
     }
   }
