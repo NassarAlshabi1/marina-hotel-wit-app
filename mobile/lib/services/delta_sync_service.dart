@@ -336,97 +336,97 @@ class DeltaSyncService {
     debugPrint('✅ Mirror rebuild completed');
   }
 
-  List<_EntityConfig<dynamic>> _entityConfigs() {
+  List<_EntityConfig> _entityConfigs() {
     return [
-      _EntityConfig<Room>(
+      _EntityConfig(
         entity: 'rooms',
-        fetchAll: () => db.select(db.rooms).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        fetchAll: () async => List<dynamic>.from(await db.select(db.rooms).get()),
+        localUuid: (row) => _as<Room>(row).localUuid,
+        createdAt: (row) => _as<Room>(row).createdAt,
+        lastModified: (row) => _as<Room>(row).lastModified,
+        deletedAt: (row) => _as<Room>(row).deletedAt,
+        toJson: (row) => _as<Room>(row).toJson(),
       ),
-      _EntityConfig<Booking>(
+      _EntityConfig(
         entity: 'bookings',
-        fetchAll: () => db.select(db.bookings).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        fetchAll: () async => List<dynamic>.from(await db.select(db.bookings).get()),
+        localUuid: (row) => _as<Booking>(row).localUuid,
+        createdAt: (row) => _as<Booking>(row).createdAt,
+        lastModified: (row) => _as<Booking>(row).lastModified,
+        deletedAt: (row) => _as<Booking>(row).deletedAt,
+        toJson: (row) => _as<Booking>(row).toJson(),
       ),
-      _EntityConfig<BookingNote>(
+      _EntityConfig(
         entity: 'booking_notes',
-        fetchAll: () => db.select(db.bookingNotes).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        fetchAll: () async => List<dynamic>.from(await db.select(db.bookingNotes).get()),
+        localUuid: (row) => _as<BookingNote>(row).localUuid,
+        createdAt: (row) => _as<BookingNote>(row).createdAt,
+        lastModified: (row) => _as<BookingNote>(row).lastModified,
+        deletedAt: (row) => _as<BookingNote>(row).deletedAt,
+        toJson: (row) => _as<BookingNote>(row).toJson(),
       ),
-      _EntityConfig<Employee>(
+      _EntityConfig(
         entity: 'employees',
-        fetchAll: () => db.select(db.employees).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        fetchAll: () async => List<dynamic>.from(await db.select(db.employees).get()),
+        localUuid: (row) => _as<Employee>(row).localUuid,
+        createdAt: (row) => _as<Employee>(row).createdAt,
+        lastModified: (row) => _as<Employee>(row).lastModified,
+        deletedAt: (row) => _as<Employee>(row).deletedAt,
+        toJson: (row) => _as<Employee>(row).toJson(),
       ),
-      _EntityConfig<Expense>(
+      _EntityConfig(
         entity: 'expenses',
-        fetchAll: () => db.select(db.expenses).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        fetchAll: () async => List<dynamic>.from(await db.select(db.expenses).get()),
+        localUuid: (row) => _as<Expense>(row).localUuid,
+        createdAt: (row) => _as<Expense>(row).createdAt,
+        lastModified: (row) => _as<Expense>(row).lastModified,
+        deletedAt: (row) => _as<Expense>(row).deletedAt,
+        toJson: (row) => _as<Expense>(row).toJson(),
       ),
-      _EntityConfig<CashTransaction>(
+      _EntityConfig(
         entity: 'cash_transactions',
-        fetchAll: () => db.select(db.cashTransactions).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        fetchAll: () async => List<dynamic>.from(await db.select(db.cashTransactions).get()),
+        localUuid: (row) => _as<CashTransaction>(row).localUuid,
+        createdAt: (row) => _as<CashTransaction>(row).createdAt,
+        lastModified: (row) => _as<CashTransaction>(row).lastModified,
+        deletedAt: (row) => _as<CashTransaction>(row).deletedAt,
+        toJson: (row) => _as<CashTransaction>(row).toJson(),
       ),
-      _EntityConfig<Payment>(
+      _EntityConfig(
         entity: 'payments',
-        fetchAll: () => db.select(db.payments).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        fetchAll: () async => List<dynamic>.from(await db.select(db.payments).get()),
+        localUuid: (row) => _as<Payment>(row).localUuid,
+        createdAt: (row) => _as<Payment>(row).createdAt,
+        lastModified: (row) => _as<Payment>(row).lastModified,
+        deletedAt: (row) => _as<Payment>(row).deletedAt,
+        toJson: (row) => _as<Payment>(row).toJson(),
       ),
-      _EntityConfig<Debt>(
+      _EntityConfig(
         entity: 'debts',
-        fetchAll: () => db.select(db.debts).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        fetchAll: () async => List<dynamic>.from(await db.select(db.debts).get()),
+        localUuid: (row) => _as<Debt>(row).localUuid,
+        createdAt: (row) => _as<Debt>(row).createdAt,
+        lastModified: (row) => _as<Debt>(row).lastModified,
+        deletedAt: (row) => _as<Debt>(row).deletedAt,
+        toJson: (row) => _as<Debt>(row).toJson(),
       ),
-      _EntityConfig<BookingNight>(
+      _EntityConfig(
         entity: 'booking_nights',
-        fetchAll: () => db.select(db.bookingNights).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        fetchAll: () async => List<dynamic>.from(await db.select(db.bookingNights).get()),
+        localUuid: (row) => _as<BookingNight>(row).localUuid,
+        createdAt: (row) => _as<BookingNight>(row).createdAt,
+        lastModified: (row) => _as<BookingNight>(row).lastModified,
+        deletedAt: (row) => _as<BookingNight>(row).deletedAt,
+        toJson: (row) => _as<BookingNight>(row).toJson(),
       ),
-      _EntityConfig<HotelDayLedgerEntry>(
+      _EntityConfig(
         entity: 'hotel_day_ledger',
-        fetchAll: () => db.select(db.hotelDayLedger).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        fetchAll: () async => List<dynamic>.from(await db.select(db.hotelDayLedger).get()),
+        localUuid: (row) => _as<HotelDayLedgerEntry>(row).localUuid,
+        createdAt: (row) => _as<HotelDayLedgerEntry>(row).createdAt,
+        lastModified: (row) => _as<HotelDayLedgerEntry>(row).lastModified,
+        deletedAt: (row) => _as<HotelDayLedgerEntry>(row).deletedAt,
+        toJson: (row) => _as<HotelDayLedgerEntry>(row).toJson(),
       ),
     ];
   }
@@ -446,7 +446,7 @@ class MirrorRow {
   final int lastSeenAt;
 }
 
-class _EntityConfig<T> {
+class _EntityConfig {
   const _EntityConfig({
     required this.entity,
     required this.fetchAll,
@@ -458,13 +458,15 @@ class _EntityConfig<T> {
   });
 
   final String entity;
-  final Future<List<T>> Function() fetchAll;
-  final String Function(T row) localUuid;
-  final int? Function(T row) createdAt;
-  final int? Function(T row) lastModified;
-  final int? Function(T row) deletedAt;
-  final Map<String, dynamic> Function(T row) toJson;
+  final Future<List<dynamic>> Function() fetchAll;
+  final String Function(dynamic row) localUuid;
+  final int? Function(dynamic row) createdAt;
+  final int? Function(dynamic row) lastModified;
+  final int? Function(dynamic row) deletedAt;
+  final Map<String, dynamic> Function(dynamic row) toJson;
 }
+
+T _as<T>(dynamic value) => value as T;
 
 int _normalizeTimestamp(int value) {
   if (value <= 0) {
