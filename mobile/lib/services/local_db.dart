@@ -553,6 +553,7 @@ class AppDatabase extends _$AppDatabase {
           if (from < 17) {
             await customStatement('PRAGMA foreign_keys = OFF');
             try {
+              await customStatement('DROP TABLE IF EXISTS booking_nights_new');
               await customStatement('''
                 CREATE TABLE booking_nights_new (
                   id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
