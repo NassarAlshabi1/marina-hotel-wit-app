@@ -157,7 +157,7 @@ class BookingsRepository {
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
     return await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
-          ..where((b) => b.status.equals('نشط'))
+          ..where((b) => b.status.equals('محجوزة').or(b.status.equals('نشط')))
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
           ..limit(1))
         .getSingleOrNull();

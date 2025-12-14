@@ -546,6 +546,12 @@ class SmartSyncManager {
   }
 
   Future<void> setSyncInterval(int minutes) async {
+    // الحد الأدنى هو دقيقتان لتجنب الحمل الزائد
+    if (minutes < 2) {
+      _log('⚠️ الحد الأدنى للفترة هو دقيقتان، تم تعديل القيمة');
+      minutes = 2;
+    }
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsIntervalKey, minutes);
     

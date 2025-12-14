@@ -93,6 +93,19 @@ Future<void> _initializeSmartAutoBackup() async {
     final smartSyncManager = SmartSyncManager.instance;
     await smartSyncManager.initialize(backupService);
     
+    // تفعيل المزامنة التلقائية إذا كان المستخدم مسجل دخول
+    if (backupService.isSignedIn) {
+      try {
+        await smartSyncManager.setEnabled(true);
+        await smartSyncManager.onGoogleDriveSignInChanged(true);
+        debugPrint('✅ تم تفعيل المزامنة التلقائية بين الأجهزة');
+      } catch (e) {
+        debugPrint('⚠️ فشل تفعيل المزامنة التلقائية: $e');
+      }
+    } else {
+      debugPrint('ℹ️ المزامنة التلقائية معطّلة - يجب تسجيل الدخول إلى Google Drive');
+    }
+    
     // تهيئة Delta Sync للمزامنة السريعة (التحديثات الصغيرة فقط)
     await GoogleDriveDeltaSync.instance.initialize(backupService, DatabaseManager.instance);
     debugPrint('✅ تم تهيئة Delta Sync للمزامنة السريعة');
