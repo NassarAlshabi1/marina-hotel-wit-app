@@ -582,8 +582,65 @@ class AppDatabase extends _$AppDatabase {
               ''');
               
               await customStatement('''
-                INSERT INTO booking_nights_new 
-                SELECT * FROM booking_nights
+                INSERT INTO booking_nights_new (
+                  id,
+                  booking_local_id,
+                  hotel_day_key,
+                  night_start,
+                  night_end,
+                  nightly_rate,
+                  sequence,
+                  is_processed_by_auto_fix,
+                  local_uuid,
+                  server_id,
+                  created_at,
+                  updated_at,
+                  deleted_at,
+                  last_modified,
+                  created_at_iso,
+                  updated_at_iso,
+                  deleted_at_iso,
+                  created_at_epoch,
+                  last_modified_epoch,
+                  version,
+                  origin
+                )
+                SELECT
+                  id,
+                  booking_local_id,
+                  hotel_day_key,
+                  night_start,
+                  night_end,
+                  CASE
+                    WHEN nightly_rate IS NULL THEN 0
+                    WHEN typeof(nightly_rate) = 'text' AND nightly_rate = '' THEN 0
+                    WHEN typeof(nightly_rate) = 'text' THEN CAST(nightly_rate AS REAL)
+                    ELSE nightly_rate
+                  END AS nightly_rate,
+                  CASE
+                    WHEN sequence IS NULL THEN 0
+                    WHEN typeof(sequence) = 'text' AND sequence = '' THEN 0
+                    WHEN typeof(sequence) = 'text' THEN CAST(sequence AS INTEGER)
+                    ELSE sequence
+                  END AS sequence,
+                  CASE
+                    WHEN is_processed_by_auto_fix IN (1, '1', 'true', 'TRUE') THEN 1
+                    ELSE 0
+                  END AS is_processed_by_auto_fix,
+                  local_uuid,
+                  server_id,
+                  created_at,
+                  updated_at,
+                  deleted_at,
+                  last_modified,
+                  created_at_iso,
+                  updated_at_iso,
+                  deleted_at_iso,
+                  created_at_epoch,
+                  last_modified_epoch,
+                  version,
+                  origin
+                FROM booking_nights
               ''');
               
               await customStatement('DROP TABLE booking_nights');
