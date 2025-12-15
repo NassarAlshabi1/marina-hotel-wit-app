@@ -1189,10 +1189,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
     final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
     final plannedCheckout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null;
-    final expectedNights = widget.booking.expectedNights > 0
-        ? widget.booking.expectedNights
-        : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
-    final total = (room?.price ?? 0) * expectedNights;
+    final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : null;
+    final actualNights = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout ?? DateTime.now());
+    final total = (room?.price ?? 0) * actualNights;
     final existingPayments = await paymentsRepo.paymentsByBooking(widget.booking.id).first;
     final paidSoFar = existingPayments.fold<double>(0, (s, p) => s + p.amount);
     final remaining = ((total - paidSoFar).clamp(0.0, total)).toDouble();
