@@ -78,7 +78,9 @@ class SyncGuardian {
       await _driveService!.init();
 
       _manager = SyncManager(db: database, driveService: _driveService!);
+      SyncManager.configureSingleton(_manager!);
       await _manager!.initSyncService();
+      _manager!.startOutboxDebouncedSync(debounce: const Duration(seconds: 30));
       await _restoreDevicePriority();
       
       _appwriteSyncManager = appwriteSyncManager;
