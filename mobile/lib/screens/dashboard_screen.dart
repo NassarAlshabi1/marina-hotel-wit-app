@@ -630,7 +630,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('لا يوجد حجز نشط للغرفة $roomNumber'),
+              content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
               backgroundColor: Colors.orange,
             ),
           );

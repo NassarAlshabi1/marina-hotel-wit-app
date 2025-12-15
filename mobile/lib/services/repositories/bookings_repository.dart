@@ -3,7 +3,6 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
-import '../sync_guardian.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
@@ -58,7 +57,6 @@ class BookingsRepository {
       ),
     );
     AutoBackupManager.instance.onDataChange('bookings', 'INSERT', recordData: {'guest_name': guestName});
-    SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'INSERT');
     return result;
   }
 
@@ -105,7 +103,6 @@ class BookingsRepository {
     );
     if (result > 0) {
       AutoBackupManager.instance.onDataChange('bookings', 'UPDATE', recordData: {'id': id});
-      SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'UPDATE');
     }
     return result;
   }
@@ -114,7 +111,6 @@ class BookingsRepository {
     final result = await dao.softDelete(id);
     if (result > 0) {
       AutoBackupManager.instance.onDataChange('bookings', 'DELETE', recordData: {'id': id});
-      SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'DELETE');
     }
     return result;
   }
@@ -153,11 +149,11 @@ class BookingsRepository {
     return await dao.getRecordCount();
   }
   
-  /// الحصول على الحجز النشط للغرفة
+  /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
     return await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
-          ..where((b) => b.status.equals('نشط'))
+          ..where((b) => b.status.equals('محجوزة'))
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
           ..limit(1))
         .getSingleOrNull();
