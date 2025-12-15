@@ -3,7 +3,6 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
-import '../sync_guardian.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
@@ -58,7 +57,6 @@ class BookingsRepository {
       ),
     );
     AutoBackupManager.instance.onDataChange('bookings', 'INSERT', recordData: {'guest_name': guestName});
-    SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'INSERT');
     return result;
   }
 
@@ -105,7 +103,6 @@ class BookingsRepository {
     );
     if (result > 0) {
       AutoBackupManager.instance.onDataChange('bookings', 'UPDATE', recordData: {'id': id});
-      SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'UPDATE');
     }
     return result;
   }
@@ -114,7 +111,6 @@ class BookingsRepository {
     final result = await dao.softDelete(id);
     if (result > 0) {
       AutoBackupManager.instance.onDataChange('bookings', 'DELETE', recordData: {'id': id});
-      SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'DELETE');
     }
     return result;
   }

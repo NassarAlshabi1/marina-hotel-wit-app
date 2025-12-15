@@ -3,7 +3,6 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/expenses_dao.dart';
 import '../auto_backup_manager.dart';
-import '../sync_guardian.dart';
 
 class ExpensesRepository {
   ExpensesRepository(this.db)
@@ -27,7 +26,6 @@ class ExpensesRepository {
       ),
     );
     AutoBackupManager.instance.onDataChange('expenses', 'INSERT', recordData: {'amount': amount});
-    SyncGuardian.instance.notifyLocalChange(table: 'expenses', operation: 'INSERT');
     return result;
   }
 
@@ -44,7 +42,6 @@ class ExpensesRepository {
     );
     if (result > 0) {
       AutoBackupManager.instance.onDataChange('expenses', 'UPDATE', recordData: {'id': id});
-      SyncGuardian.instance.notifyLocalChange(table: 'expenses', operation: 'UPDATE');
     }
     return result;
   }
@@ -53,7 +50,6 @@ class ExpensesRepository {
     final result = await dao.softDelete(id);
     if (result > 0) {
       AutoBackupManager.instance.onDataChange('expenses', 'DELETE', recordData: {'id': id});
-      SyncGuardian.instance.notifyLocalChange(table: 'expenses', operation: 'DELETE');
     }
     return result;
   }
