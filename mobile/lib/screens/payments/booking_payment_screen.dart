@@ -1081,6 +1081,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     
     await paymentsRepo.create(
       bookingLocalId: widget.booking.id,
+      serverBookingId: widget.booking.serverBookingId,
       roomNumber: widget.booking.roomNumber,
       amount: amount,
       paymentDate: Time.nowIso(),
@@ -1205,6 +1206,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     await paymentsRepo.create(
       bookingLocalId: widget.booking.id,
+      serverBookingId: widget.booking.serverBookingId,
       roomNumber: widget.booking.roomNumber,
       amount: amount,
       paymentDate: Time.nowIso(),
@@ -1649,6 +1651,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final amount = additionalNights * roomRate;
     await paymentsRepo.create(
       bookingLocalId: widget.booking.id,
+      serverBookingId: widget.booking.serverBookingId,
       roomNumber: widget.booking.roomNumber,
       amount: amount,
       paymentDate: Time.nowIso(),
