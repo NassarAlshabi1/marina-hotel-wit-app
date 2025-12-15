@@ -3,10 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
-import '../../services/smart_sync_manager.dart';
 import '../../services/sync_guardian.dart';
-import '../../services/appwrite_sync_manager.dart';
-import '../../services/google_drive_backup_service.dart';
 import '../../providers/smart_sync_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/backup_provider.dart';
@@ -250,6 +247,13 @@ class _AutoSyncDiagnosticScreenState extends ConsumerState<AutoSyncDiagnosticScr
   }
 
   Widget _buildGoogleDriveCard(BackupState backupState) {
+    final bool isConnected =
+        backupState.signedInAccount != null &&
+        backupState.hasStoragePermission &&
+        backupState.status != BackupStatus.error;
+    final String? lastErrorMessage =
+        backupState.status == BackupStatus.error ? backupState.message : null;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -276,8 +280,8 @@ class _AutoSyncDiagnosticScreenState extends ConsumerState<AutoSyncDiagnosticScr
               _buildStatusRow('الحساب', backupState.signedInAccount!.email, Colors.blue),
             _buildStatusRow(
               'حالة الاتصال',
-              backupState.isConnected ? 'متصل ✅' : 'غير متصل ⚠️',
-              backupState.isConnected ? Colors.green : Colors.orange,
+              isConnected ? 'متصل ✅' : 'غير متصل ⚠️',
+              isConnected ? Colors.green : Colors.orange,
             ),
             if (backupState.lastBackupTime != null)
               _buildStatusRow(
@@ -285,8 +289,8 @@ class _AutoSyncDiagnosticScreenState extends ConsumerState<AutoSyncDiagnosticScr
                 DateFormat('dd/MM/yyyy HH:mm').format(backupState.lastBackupTime!),
                 Colors.grey,
               ),
-            if (backupState.lastError != null)
-              _buildStatusRow('آخر خطأ', backupState.lastError!, Colors.red),
+            if (lastErrorMessage != null)
+              _buildStatusRow('آخر خطأ', lastErrorMessage, Colors.red),
           ],
         ),
       ),
