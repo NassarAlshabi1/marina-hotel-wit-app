@@ -851,18 +851,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final whatsappService = ref.read(whatsappServiceProvider);
 
-    String formatAmount(double amount) {
-      if (amount == amount.toInt()) {
-        return '${amount.toInt()}';
-      }
-      return _currencyFmt.format(amount);
-    }
-
     final message = StringBuffer()
       ..writeln('عزيزي ${widget.booking.guestName}')
-      ..writeln('تم استلام دفعتك بقيمة ${formatAmount(amountPaidNow)} ريال')
+      ..writeln('تم استلام دفعتك بقيمة ${_formatAmountForMessage(amountPaidNow)} ريال')
       ..writeln('رقم الغرفة: ${widget.booking.roomNumber}')
-      ..writeln('المبلغ المتبقي: ${formatAmount(remaining)} ريال')
+      ..writeln('المبلغ المتبقي: ${_formatAmountForMessage(remaining)} ريال')
       ..writeln('شكراً لاختيارك فندق مارينا')
       ..write('للاستفسار: 9677734587456');
 
@@ -1142,18 +1135,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     
     final whatsappService = ref.read(whatsappServiceProvider);
     
-    String formatAmount(double amount) {
-      if (amount == amount.toInt()) {
-        return '${amount.toInt()}';
-      } else {
-        return _currencyFmt.format(amount);
-      }
-    }
-    
-    String message = 'عزيزي ${widget.booking.guestName}، تم استلام دفعة بقيمة: ${formatAmount(amountPaidNow)} ريال\n';
+    String message = 'عزيزي ${widget.booking.guestName}، تم استلام دفعة بقيمة: ${_formatAmountForMessage(amountPaidNow)} ريال\n';
     message += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
     message += 'دفع $nightsPaid ${nightsPaid == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}\n';
-    message += 'المبلغ المتبقي: ${formatAmount(remaining)} ريال\n';
+    message += 'المبلغ المتبقي: ${_formatAmountForMessage(remaining)} ريال\n';
     message += 'شكراً لاختيارك فندق مارينا\n';
     message += 'للاستفسار: 9677734587456';
     
@@ -1699,18 +1684,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   ) async {
     final whatsappService = ref.read(whatsappServiceProvider);
     
-    String formatAmount(double amount) {
-      if (amount == amount.toInt()) {
-        return '${amount.toInt()}';
-      } else {
-        return _currencyFmt.format(amount);
-      }
-    }
-    
     String message = 'عزيزي ${widget.booking.guestName}، تم تمديد إقامتكم\n';
     message += 'رقم الغرفة: ${widget.booking.roomNumber}\n';
     message += 'ليالي إضافية: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}\n';
-    message += 'المبلغ المدفوع: ${formatAmount(amount)} ريال\n';
+    message += 'المبلغ المدفوع: ${_formatAmountForMessage(amount)} ريال\n';
     message += 'تاريخ المغادرة الجديد: ${newCheckout.day}/${newCheckout.month}/${newCheckout.year}\n';
     message += 'شكراً لاختيارك فندق مارينا\n';
     message += 'للاستفسار: 9677734587456';
@@ -1720,6 +1697,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     } catch (_) {
       // تجاهل الأخطاء، الدفعة مسجلة بنجاح
     }
+  }
+
+  String _formatAmountForMessage(double amount) {
+    if (amount == amount.toInt()) {
+      return '${amount.toInt()}';
+    }
+    return _currencyFmt.format(amount);
   }
 
   String _formatDateTime(DateTime dt) {
