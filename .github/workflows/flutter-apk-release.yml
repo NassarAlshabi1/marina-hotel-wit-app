@@ -31,6 +31,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+          cache-read-only: false
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -70,8 +76,25 @@ jobs:
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Build release APK
-        # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
-        run: flutter build apk --release
+        run: |
+          for i in 1 2 3; do
+            echo "=== Build attempt $i of 3 ==="
+            if flutter build apk --release; then
+              echo "Build succeeded!"
+              exit 0
+            else
+              echo "Build failed on attempt $i"
+              if [ $i -lt 3 ]; then
+                echo "Waiting 30 seconds before retry..."
+                sleep 30
+              fi
+            fi
+          done
+          echo "All build attempts failed"
+          exit 1
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true"
+        timeout-minutes: 30
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
