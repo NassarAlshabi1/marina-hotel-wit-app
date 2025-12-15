@@ -4,7 +4,6 @@ import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
 import '../sync_guardian.dart';
-import '../../utils/status_utils.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
@@ -154,24 +153,13 @@ class BookingsRepository {
     return await dao.getRecordCount();
   }
   
-  /// الحصول على الحجز النشط للغرفة
+  /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
-    final recentBookings = await (db.select(db.bookings)
+    return await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
+          ..where((b) => b.status.equals('محجوزة'))
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
-          ..limit(10))
-        .get();
-
-    if (recentBookings.isEmpty) {
-      return null;
-    }
-
-    for (final booking in recentBookings) {
-      if (StatusUtils.isBookingActive(booking)) {
-        return booking;
-      }
-    }
-
-    return recentBookings.first;
+          ..limit(1))
+        .getSingleOrNull();
   }
 }
