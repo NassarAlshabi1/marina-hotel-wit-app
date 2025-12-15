@@ -156,10 +156,10 @@ class _SyncControlPanelScreenState extends ConsumerState<SyncControlPanelScreen>
                 return Column(
                   children: [
                     Slider(
-                      value: interval.toDouble(),
-                      min: 1,
+                      value: interval.toDouble().clamp(2.0, 60.0),
+                      min: 2,
                       max: 60,
-                      divisions: 11,
+                      divisions: 10,
                       label: '$interval دقائق',
                       onChanged: _isLoading ? null : (value) => _changeSyncInterval(value.toInt()),
                     ),
@@ -171,7 +171,6 @@ class _SyncControlPanelScreenState extends ConsumerState<SyncControlPanelScreen>
                     Wrap(
                       spacing: 8,
                       children: [
-                        _buildIntervalChip(1),
                         _buildIntervalChip(2),
                         _buildIntervalChip(5),
                         _buildIntervalChip(10),
