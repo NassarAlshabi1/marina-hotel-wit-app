@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/smart_sync_manager.dart';
 import '../../services/sync_guardian.dart';
@@ -63,7 +64,7 @@ class _AutoSyncDiagnosticScreenState extends ConsumerState<AutoSyncDiagnosticScr
   Widget _buildOverallStatus(
     AsyncValue<Map<String, dynamic>> smartSyncStatus,
     AsyncValue<SyncHealthSnapshot> syncHealth,
-    BackupStatusState backupState,
+    BackupState backupState,
   ) {
     bool allSystemsGo = false;
     String statusText = 'جاري التحميل...';
@@ -248,7 +249,7 @@ class _AutoSyncDiagnosticScreenState extends ConsumerState<AutoSyncDiagnosticScr
     );
   }
 
-  Widget _buildGoogleDriveCard(BackupStatusState backupState) {
+  Widget _buildGoogleDriveCard(BackupState backupState) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),

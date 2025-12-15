@@ -43,7 +43,7 @@ class _SyncControlPanelScreenState extends ConsumerState<SyncControlPanelScreen>
 
   Widget _buildMainToggleCard(
     AsyncValue<Map<String, dynamic>> smartSyncStatus,
-    BackupStatusState backupState,
+    BackupState backupState,
   ) {
     return Card(
       child: Padding(
