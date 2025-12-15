@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
@@ -30,7 +31,14 @@ void autoSyncCallbackDispatcher() {
       await manager.initSyncService(allowInteractiveSignIn: false);
       await manager.smartSync(force: false);
       await prefs.setBool(_kPendingFlagKey, false);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      developer.log(
+        'Auto-sync background task failed',
+        name: 'AutoSyncTask',
+        error: error is Exception ? error.runtimeType.toString() : error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
       await prefs.setBool(_kPendingFlagKey, true);
     } finally {
       await DatabaseManager.close();

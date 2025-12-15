@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 
@@ -18,6 +19,13 @@ import 'sync_safety_layer.dart';
 /// واجهة اختيارية لإرسال إشعارات FCM عند اكتمال الرفع
 abstract class SyncTriggerDispatcher {
   Future<void> sendTrigger({required String syncId, required String sourceDeviceId});
+}
+
+class _SyncJob {
+  _SyncJob(this.work) : completer = Completer<void>();
+
+  final Future<void> Function() work;
+  final Completer<void> completer;
 }
 
 /// مدير المزامنة الرئيسي المسؤول عن دمج البيانات ورفعها إلى Google Drive
@@ -56,8 +64,8 @@ class SyncManager {
   bool _isDrainingQueue = false;
   bool _pullInProgress = false;
 
-  Future<void>? _syncLock;
-  bool _syncQueued = false;
+  final Queue<_SyncJob> _syncJobs = Queue<_SyncJob>();
+  bool _syncWorkerRunning = false;
 
   StreamSubscription<int>? _outboxWatchSub;
   Timer? _outboxDebounceTimer;
@@ -197,31 +205,37 @@ class SyncManager {
   }
 
   Future<void> _withSyncLock(Future<void> Function() work) {
-    final existing = _syncLock;
-    if (existing != null) {
-      _syncQueued = true;
-      return existing;
+    final job = _SyncJob(work);
+    _syncJobs.add(job);
+    _startSyncWorkerIfNeeded();
+    return job.completer.future;
+  }
+
+  void _startSyncWorkerIfNeeded() {
+    if (_syncWorkerRunning) {
+      return;
     }
+    _syncWorkerRunning = true;
+    unawaited(_runSyncQueue());
+  }
 
-    final completer = Completer<void>();
-    final future = completer.future;
-    _syncLock = future;
-
-    () async {
-      try {
-        do {
-          _syncQueued = false;
-          await work();
-        } while (_syncQueued);
-        completer.complete();
-      } catch (error, stack) {
-        completer.completeError(error, stack);
-      } finally {
-        _syncLock = null;
+  Future<void> _runSyncQueue() async {
+    try {
+      while (_syncJobs.isNotEmpty) {
+        final job = _syncJobs.removeFirst();
+        try {
+          await job.work();
+          job.completer.complete();
+        } catch (error, stack) {
+          job.completer.completeError(error, stack);
+        }
       }
-    }();
-
-    return future;
+    } finally {
+      _syncWorkerRunning = false;
+      if (_syncJobs.isNotEmpty) {
+        _startSyncWorkerIfNeeded();
+      }
+    }
   }
 
   /// سحب آخر نسخة من Google Drive ودمجها مع قاعدة البيانات المحلية
