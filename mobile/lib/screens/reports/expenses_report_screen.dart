@@ -42,7 +42,7 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
 class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
 
-  String _formatNumber(num value) => value.toStringAsFixed(0);
+  String _formatNumber(num value) => _currencyFmt.format(value);
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd');
 
   DateTime? _fromDate;

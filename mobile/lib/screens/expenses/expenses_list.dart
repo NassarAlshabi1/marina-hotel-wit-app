@@ -143,7 +143,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
     final description = TextEditingController(text: existing?.description ?? '');
-    final amount = TextEditingController(text: existing?.amount.toString() ?? '');
+    final amount = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.amount) : '');
     final date = TextEditingController(text: existing?.date ?? Time.hotelDayKey());
 
     String dialogSalaryAction = _salaryWithdrawAction;
@@ -178,7 +178,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     TextField(
                       controller: amount,
                       decoration: const InputDecoration(labelText: 'المبلغ'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -283,7 +283,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     final repo = ref.read(expensesRepoProvider);
     final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
-    final parsedAmount = double.tryParse(amount.text.replaceAll(',', '').trim()) ?? 0;
+    final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
     final trimmedDescription = description.text.trim();
     final trimmedDate = date.text.trim().isEmpty ? Time.hotelDayKey() : date.text.trim();
     final isSalaryExpense = selectedType == _salaryType;

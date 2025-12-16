@@ -2,32 +2,31 @@ import 'package:intl/intl.dart';
 
 /// دوال تنسيق الأرقام المالية (بدون رموز عملة)
 class CurrencyFormatter {
+  static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
+
   /// تنسيق المبلغ بالفواصل فقط (5,000)
   static String formatCurrency(double amount, {bool showDecimals = false}) {
-    final formatter = NumberFormat('#,###${showDecimals ? '.##' : ''}', 'ar');
-    return formatter.format(amount);
+    return _intFormatter.format(amount.truncate());
   }
 
   /// تنسيق المبلغ بالفواصل فقط (5,000)
   static String formatAmount(double amount, {bool showDecimals = false}) {
-    final formatter = NumberFormat('#,###${showDecimals ? '.##' : ''}', 'ar');
-    return formatter.format(amount);
+    return _intFormatter.format(amount.truncate());
   }
 
   /// تنسيق المبلغ بالفواصل الإنجليزية (للأنظمة التي لا تدعم الفواصل العربية)
   static String formatCurrencyEnglish(double amount, {bool showDecimals = false}) {
-    final formatter = NumberFormat('#,###${showDecimals ? '.##' : ''}', 'en');
-    return formatter.format(amount);
+    return _intFormatter.format(amount.truncate());
   }
 
   /// تنسيق المبلغ للعرض في واجهة المستخدم (أرقام فقط)
   static String formatForDisplay(double amount, {bool showDecimals = false}) {
-    return formatAmount(amount, showDecimals: showDecimals);
+    return formatAmount(amount);
   }
 
   /// تنسيق المبلغ للرسائل النصية (أرقام فقط)
   static String formatForMessage(double amount, {bool showDecimals = false}) {
-    return formatAmount(amount, showDecimals: showDecimals);
+    return formatAmount(amount);
   }
 
   /// تحويل المبلغ من النص إلى رقم
@@ -65,10 +64,12 @@ class CurrencyFormatter {
 
     cleanText = cleanText.split('').map((ch) => digitMap[ch] ?? ch).join();
 
-    return double.tryParse(cleanText);
+    final parsed = double.tryParse(cleanText);
+    if (parsed == null) return null;
+    return parsed.truncateToDouble();
   }
 
   /// إنشاء NumberFormat للاستخدام المتكرر
-  static NumberFormat get defaultFormatter => NumberFormat('#,###', 'ar');
-  static NumberFormat get decimalFormatter => NumberFormat('#,###.##', 'ar');
+  static NumberFormat get defaultFormatter => _intFormatter;
+  static NumberFormat get decimalFormatter => _intFormatter;
 }

@@ -29,7 +29,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late TextEditingController _phoneController;
-  final _currencyFmt = NumberFormat('#,##0.00', 'en_US');
+  final _currencyFmt = NumberFormat('#,##0', 'en_US');
   double _remainingAmount = 0;
   late String _currentGuestPhone;
 
@@ -733,7 +733,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   void _showPaymentDialog(PaymentMethod method, [double? presetAmount]) {
     final amountController = TextEditingController(
-      text: presetAmount?.toStringAsFixed(0) ?? '',
+      text: presetAmount != null ? _currencyFmt.format(presetAmount) : '',
     );
     final notesController = TextEditingController();
     final referenceController = TextEditingController();
