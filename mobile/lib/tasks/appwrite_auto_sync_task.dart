@@ -47,7 +47,7 @@ class AppwriteAutoSyncTask {
         _kImmediateWorkName,
         existingWorkPolicy: ExistingWorkPolicy.replace,
         inputData: const <String, dynamic>{},
-        constraints: const Constraints(
+        constraints: Constraints(
           networkType: NetworkType.connected,
           requiresBatteryNotLow: true,
         ),
@@ -68,7 +68,7 @@ class AppwriteAutoSyncTask {
       initialDelay: frequency,
       existingWorkPolicy: ExistingWorkPolicy.keep,
       inputData: const <String, dynamic>{},
-      constraints: const Constraints(
+      constraints: Constraints(
         networkType: NetworkType.connected,
         requiresBatteryNotLow: true,
       ),

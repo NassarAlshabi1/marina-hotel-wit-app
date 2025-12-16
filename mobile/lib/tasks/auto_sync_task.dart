@@ -97,7 +97,7 @@ class AutoSyncTask {
       frequency: frequency,
       initialDelay: frequency,
       existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
-      constraints: const Constraints(networkType: NetworkType.connected),
+      constraints: Constraints(networkType: NetworkType.connected),
       inputData: const <String, dynamic>{},
     );
   }
