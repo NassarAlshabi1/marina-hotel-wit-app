@@ -626,14 +626,7 @@ class AppDatabase extends _$AppDatabase {
         if (rows == null) {
           return;
         }
-        if (rows.isEmpty) {
-          developer.log(
-            'applyMergedData: incoming table "$key" is empty. Skipping replace to avoid wiping local data.',
-            name: 'AppDatabase',
-            level: 900,
-          );
-          return;
-        }
+        // This block should be removed.
 
         await delete(table).go();
         await batch((batch) {
