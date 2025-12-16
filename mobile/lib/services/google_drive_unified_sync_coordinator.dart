@@ -11,6 +11,7 @@ import 'google_drive_logger.dart';
 import 'local_db.dart';
 import 'data_usage_manager.dart';
 import 'sync_performance_optimizer.dart';
+import 'logging/log_models.dart';
 
 enum SyncTrigger {
   manual,
@@ -139,7 +140,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('UnifiedSyncCoordinator', message);
     debugPrint('[UnifiedSyncCoordinator] $message');
-    _logger?.log(level, message, tag: 'SYNC_COORD');
+    _logger?.log(message, level: level, tag: 'SYNC_COORD');
   }
 
   Future<void> initialize({

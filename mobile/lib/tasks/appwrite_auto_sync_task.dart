@@ -66,7 +66,7 @@ class AppwriteAutoSyncTask {
       _kPeriodicWorkName,
       frequency: frequency,
       initialDelay: frequency,
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       inputData: const <String, dynamic>{},
       constraints: Constraints(
         networkType: NetworkType.connected,
