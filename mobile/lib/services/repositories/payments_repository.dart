@@ -43,6 +43,9 @@ class PaymentsRepository {
   }
 
   Future<int> update(int id, {int? bookingLocalId, int? serverBookingId, String? roomNumber, double? amount, String? paymentDate, String? notes, String? paymentMethod, String? revenueType}) async {
+    final before = await (db.select(db.payments)..where((p) => p.id.equals(id))).getSingleOrNull();
+    final oldBookingId = before?.bookingLocalId;
+
     final hotelDayKey = paymentDate != null ? Time.hotelDayKeyFromIso(paymentDate) : null;
     final result = await dao.updateById(
       id,
@@ -59,9 +62,16 @@ class PaymentsRepository {
       ),
     );
     if (result > 0) {
-      final payment = await (db.select(db.payments)..where((p) => p.id.equals(id))).getSingleOrNull();
-      if (payment?.bookingLocalId != null) {
-        await derivedFields.refreshForBookingId(payment!.bookingLocalId!);
+      final newBookingId = bookingLocalId ?? oldBookingId;
+      final bookingIds = <int>{};
+      if (oldBookingId != null) {
+        bookingIds.add(oldBookingId);
+      }
+      if (newBookingId != null) {
+        bookingIds.add(newBookingId);
+      }
+      for (final bId in bookingIds) {
+        await derivedFields.refreshForBookingId(bId);
       }
       AutoBackupManager.instance.onDataChange('payments', 'UPDATE', recordData: {'id': id});
     }

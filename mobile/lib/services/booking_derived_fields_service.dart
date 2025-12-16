@@ -25,7 +25,11 @@ class BookingDerivedFieldsService {
   Future<void> refreshForBooking(Booking booking, {DateTime? now}) async {
     final moment = now ?? DateTime.now();
 
-    final checkin = _parseDateTime(booking.checkinDate) ?? moment;
+    final checkin = _parseDateTime(booking.checkinDate);
+    if (checkin == null) {
+      return;
+    }
+
     final plannedCheckout = _parseDateTime(booking.checkoutDate);
     final actualCheckout = _parseDateTime(booking.actualCheckout);
 
@@ -41,10 +45,8 @@ class BookingDerivedFieldsService {
     }
 
     final segments = _buildNightSegments(checkin, checkout);
-    final totalNights = segments.isEmpty ? 1 : segments.length;
-    final expectedNightsValue = plannedCheckout != null && actualCheckout == null
-        ? totalNights
-        : booking.expectedNights;
+    final totalNights = segments.length;
+    final expectedNightsValue = plannedCheckout != null && actualCheckout == null ? totalNights : booking.expectedNights;
 
     final room = await (db.select(db.rooms)
           ..where((r) => r.roomNumber.equals(booking.roomNumber))
@@ -71,73 +73,68 @@ class BookingDerivedFieldsService {
     final needsReview = isOverdue || remaining > 0.009;
 
     final stayDurationIso = '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
-    final lastNightEpoch = segments.isNotEmpty
-        ? segments.last.end.millisecondsSinceEpoch ~/ 1000
-        : checkout.millisecondsSinceEpoch ~/ 1000;
+    final lastNightEpoch = segments.last.end.millisecondsSinceEpoch ~/ 1000;
 
     final hotelDayCheckin = Time.hotelDayKey(now: checkin);
     final hotelDayCheckout = Time.hotelDayKey(now: checkout);
 
-    final stamp = Time.nowEpoch();
-    final stampIso = DateTime.now().toUtc().toIso8601String();
+    final nowUtc = DateTime.now().toUtc();
+    final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
+    final stampIso = nowUtc.toIso8601String();
 
-    await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
-      BookingsCompanion(
-        expectedNights: d.Value(expectedNightsValue),
-        calculatedNights: d.Value(totalNights),
-        totalNightsCached: d.Value(totalNights),
-        stayDurationIso: d.Value(stayDurationIso),
-        lastNightEpoch: d.Value(lastNightEpoch),
-        isOverdue: d.Value(isOverdue),
-        needsCheckoutReview: d.Value(needsReview),
-        totalDueCached: d.Value(totalDue),
-        totalPaidCached: d.Value(totalPaid),
-        remainingBalanceCached: d.Value(remaining),
-        isFullyPaid: d.Value(isFullyPaid),
-        hotelDayCheckin: d.Value(hotelDayCheckin),
-        hotelDayCheckout: d.Value(hotelDayCheckout),
-        updatedAt: d.Value(stamp),
-        lastModified: d.Value(stamp),
-        updatedAtIso: d.Value(stampIso),
-        lastModifiedEpoch: d.Value(stamp),
-      ),
-    );
+    await db.transaction(() async {
+      await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
+        BookingsCompanion(
+          expectedNights: d.Value(expectedNightsValue),
+          calculatedNights: d.Value(totalNights),
+          totalNightsCached: d.Value(totalNights),
+          stayDurationIso: d.Value(stayDurationIso),
+          lastNightEpoch: d.Value(lastNightEpoch),
+          isOverdue: d.Value(isOverdue),
+          needsCheckoutReview: d.Value(needsReview),
+          totalDueCached: d.Value(totalDue),
+          totalPaidCached: d.Value(totalPaid),
+          remainingBalanceCached: d.Value(remaining),
+          isFullyPaid: d.Value(isFullyPaid),
+          hotelDayCheckin: d.Value(hotelDayCheckin),
+          hotelDayCheckout: d.Value(hotelDayCheckout),
+          updatedAt: d.Value(stamp),
+          lastModified: d.Value(stamp),
+          updatedAtIso: d.Value(stampIso),
+          lastModifiedEpoch: d.Value(stamp),
+        ),
+      );
 
-    await (db.delete(db.bookingNights)..where((t) => t.bookingLocalId.equals(booking.id))).go();
+      await (db.delete(db.bookingNights)..where((t) => t.bookingLocalId.equals(booking.id))).go();
 
-    if (segments.isEmpty) {
-      return;
-    }
-
-    await db.batch((batch) {
-      int sequence = 0;
-      for (final segment in segments) {
-        sequence += 1;
-        final rowEpoch = Time.nowEpoch();
-        final rowIso = DateTime.now().toUtc().toIso8601String();
-        batch.insert(
-          db.bookingNights,
-          BookingNightsCompanion(
-            localUuid: d.Value(IdGen.uuid()),
-            createdAt: d.Value(rowEpoch),
-            updatedAt: d.Value(rowEpoch),
-            lastModified: d.Value(rowEpoch),
-            createdAtIso: d.Value(rowIso),
-            updatedAtIso: d.Value(rowIso),
-            createdAtEpoch: d.Value(rowEpoch),
-            lastModifiedEpoch: d.Value(rowEpoch),
-            origin: const d.Value('derived'),
-            bookingLocalId: d.Value(booking.id),
-            hotelDayKey: d.Value(segment.hotelDayKey),
-            nightStart: d.Value(segment.start.toIso8601String()),
-            nightEnd: d.Value(segment.end.toIso8601String()),
-            nightlyRate: d.Value(nightlyRate),
-            sequence: d.Value(sequence),
-            isProcessedByAutoFix: const d.Value(false),
-          ),
-          mode: d.InsertMode.insertOrReplace,
-        );
-      }
+      await db.batch((batch) {
+        int sequence = 0;
+        for (final segment in segments) {
+          sequence += 1;
+          batch.insert(
+            db.bookingNights,
+            BookingNightsCompanion(
+              localUuid: d.Value(IdGen.uuid()),
+              createdAt: d.Value(stamp),
+              updatedAt: d.Value(stamp),
+              lastModified: d.Value(stamp),
+              createdAtIso: d.Value(stampIso),
+              updatedAtIso: d.Value(stampIso),
+              createdAtEpoch: d.Value(stamp),
+              lastModifiedEpoch: d.Value(stamp),
+              origin: const d.Value('derived'),
+              bookingLocalId: d.Value(booking.id),
+              hotelDayKey: d.Value(segment.hotelDayKey),
+              nightStart: d.Value(segment.start.toIso8601String()),
+              nightEnd: d.Value(segment.end.toIso8601String()),
+              nightlyRate: d.Value(nightlyRate),
+              sequence: d.Value(sequence),
+              isProcessedByAutoFix: const d.Value(false),
+            ),
+            mode: d.InsertMode.insertOrReplace,
+          );
+        }
+      });
     });
   }
 

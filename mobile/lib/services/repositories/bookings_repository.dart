@@ -60,7 +60,7 @@ class BookingsRepository {
       ),
     );
     await derivedFields.refreshForBookingId(result);
-    AutoBackupManager.instance.onDataChange('bookings', 'INSERT', recordData: {'guest_name': guestName});
+    AutoBackupManager.instance.onDataChange('bookings', 'INSERT', recordData: {'id': result});
     return result;
   }
 
