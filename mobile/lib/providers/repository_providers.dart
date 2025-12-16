@@ -16,6 +16,7 @@ import '../services/sync_guardian.dart';
 
 import '../services/whatsapp_service.dart';
 import '../utils/status_utils.dart';
+import '../utils/time.dart';
 
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
@@ -76,15 +77,13 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
 
 // Daily Statistics Providers
 final todayPaymentsProvider = FutureProvider.autoDispose((ref) {
-  final today = DateTime.now();
-  final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-  return ref.watch(paymentsRepoProvider).getTotalByDate(todayStr);
+  final hotelDay = Time.hotelDayKey();
+  return ref.watch(paymentsRepoProvider).getTotalByHotelDayKey(hotelDay);
 });
 
 final todayExpensesProvider = FutureProvider.autoDispose((ref) {
-  final today = DateTime.now();
-  final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-  return ref.watch(expensesRepoProvider).getTotalByDate(todayStr);
+  final hotelDay = Time.hotelDayKey();
+  return ref.watch(expensesRepoProvider).getTotalByHotelDayKey(hotelDay);
 });
 final debtsListProvider = StreamProvider.autoDispose((ref) => ref.watch(debtsRepoProvider).watchAll());
 final pendingDebtsProvider = StreamProvider.autoDispose((ref) => 

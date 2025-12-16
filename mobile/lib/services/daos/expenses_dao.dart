@@ -32,7 +32,18 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
   Future<List<Expense>> listByDate(String date, {bool includeDeleted = false}) async {
     final q = select(expenses);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    q.where((t) => t.date.like('$date%')); // يبدأ بالتاريخ المحدد
+    q.where((t) => t.date.like('$date%'));
+    return q.get();
+  }
+
+  Future<List<Expense>> listByHotelDayKey(String hotelDayKey, {bool includeDeleted = false}) async {
+    final q = select(expenses);
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+
+    final byKey = expenses.hotelDayKey.equals(hotelDayKey);
+    final byDateFallback = expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
+
+    q.where((t) => byKey | byDateFallback);
     return q.get();
   }
 
@@ -207,6 +218,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
       m['date'] = comp.date.value;
     } else if (base != null) {
       m['date'] = base.date;
+    }
+
+    if (comp.hotelDayKey.present) {
+      m['hotel_day_key'] = comp.hotelDayKey.value;
     }
     
     if (comp.cashTransactionId.present) {

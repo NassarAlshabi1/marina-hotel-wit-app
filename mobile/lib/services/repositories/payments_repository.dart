@@ -3,6 +3,7 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
 import '../auto_backup_manager.dart';
+import '../../utils/time.dart';
 
 class PaymentsRepository {
   PaymentsRepository(this.db)
@@ -17,6 +18,7 @@ class PaymentsRepository {
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
   Future<int> create({int? bookingLocalId, int? serverBookingId, String? roomNumber, required double amount, required String paymentDate, String? notes, required String paymentMethod, required String revenueType}) async {
+    final hotelDayKey = Time.hotelDayKeyFromIso(paymentDate);
     final result = await dao.insertOne(
       PaymentsCompanion(
         bookingLocalId: d.Value(bookingLocalId),
@@ -27,6 +29,7 @@ class PaymentsRepository {
         notes: d.Value(notes),
         paymentMethod: d.Value(paymentMethod),
         revenueType: d.Value(revenueType),
+        hotelDayKey: d.Value(hotelDayKey),
       ),
     );
     AutoBackupManager.instance.onDataChange('payments', 'INSERT', recordData: {'amount': amount});
@@ -34,6 +37,7 @@ class PaymentsRepository {
   }
 
   Future<int> update(int id, {int? bookingLocalId, int? serverBookingId, String? roomNumber, double? amount, String? paymentDate, String? notes, String? paymentMethod, String? revenueType}) async {
+    final hotelDayKey = paymentDate != null ? Time.hotelDayKeyFromIso(paymentDate) : null;
     final result = await dao.updateById(
       id,
       PaymentsCompanion(
@@ -45,6 +49,7 @@ class PaymentsRepository {
         notes: notes != null ? d.Value(notes) : const d.Value.absent(),
         paymentMethod: paymentMethod != null ? d.Value(paymentMethod) : const d.Value.absent(),
         revenueType: revenueType != null ? d.Value(revenueType) : const d.Value.absent(),
+        hotelDayKey: hotelDayKey != null ? d.Value(hotelDayKey) : const d.Value.absent(),
       ),
     );
     if (result > 0) {
@@ -98,6 +103,15 @@ class PaymentsRepository {
   /// الحصول على إجمالي المدفوعات لتاريخ محدد
   Future<double> getTotalByDate(String date) async {
     final payments = await dao.listByDate(date);
+    double total = 0;
+    for (final payment in payments) {
+      total += payment.amount;
+    }
+    return total;
+  }
+
+  Future<double> getTotalByHotelDayKey(String hotelDayKey, {String? revenueType}) async {
+    final payments = await dao.listByHotelDayKey(hotelDayKey, revenueType: revenueType);
     double total = 0;
     for (final payment in payments) {
       total += payment.amount;
