@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
@@ -8,10 +9,12 @@ import '../../utils/time.dart';
 class PaymentsRepository {
   PaymentsRepository(this.db)
       : outbox = OutboxDao(db),
-        dao = PaymentsDao(db, OutboxDao(db));
+        dao = PaymentsDao(db, OutboxDao(db)),
+        derivedFields = BookingDerivedFieldsService(db);
   final AppDatabase db;
   final OutboxDao outbox;
   final PaymentsDao dao;
+  final BookingDerivedFieldsService derivedFields;
 
   Stream<List<Payment>> paymentsByBooking(int bookingLocalId) => dao.watchList(bookingLocalId: bookingLocalId);
   Stream<List<Payment>> watchAll({bool includeDeleted = false}) => dao.watchList(includeDeleted: includeDeleted);
@@ -32,6 +35,9 @@ class PaymentsRepository {
         hotelDayKey: d.Value(hotelDayKey),
       ),
     );
+    if (bookingLocalId != null) {
+      await derivedFields.refreshForBookingId(bookingLocalId);
+    }
     AutoBackupManager.instance.onDataChange('payments', 'INSERT', recordData: {'amount': amount});
     return result;
   }
@@ -41,9 +47,9 @@ class PaymentsRepository {
     final result = await dao.updateById(
       id,
       PaymentsCompanion(
-        bookingLocalId: d.Value(bookingLocalId),
-        serverBookingId: d.Value(serverBookingId),
-        roomNumber: d.Value(roomNumber),
+        bookingLocalId: bookingLocalId != null ? d.Value(bookingLocalId) : const d.Value.absent(),
+        serverBookingId: serverBookingId != null ? d.Value(serverBookingId) : const d.Value.absent(),
+        roomNumber: roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
         amount: amount != null ? d.Value(amount) : const d.Value.absent(),
         paymentDate: paymentDate != null ? d.Value(paymentDate) : const d.Value.absent(),
         notes: notes != null ? d.Value(notes) : const d.Value.absent(),
@@ -53,14 +59,24 @@ class PaymentsRepository {
       ),
     );
     if (result > 0) {
+      final payment = await (db.select(db.payments)..where((p) => p.id.equals(id))).getSingleOrNull();
+      if (payment?.bookingLocalId != null) {
+        await derivedFields.refreshForBookingId(payment!.bookingLocalId!);
+      }
       AutoBackupManager.instance.onDataChange('payments', 'UPDATE', recordData: {'id': id});
     }
     return result;
   }
 
   Future<int> delete(int id) async {
+    final payment = await (db.select(db.payments)..where((p) => p.id.equals(id))).getSingleOrNull();
+    final bookingId = payment?.bookingLocalId;
+
     final result = await dao.softDelete(id);
     if (result > 0) {
+      if (bookingId != null) {
+        await derivedFields.refreshForBookingId(bookingId);
+      }
       AutoBackupManager.instance.onDataChange('payments', 'DELETE', recordData: {'id': id});
     }
     return result;
