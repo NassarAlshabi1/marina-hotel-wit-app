@@ -16,12 +16,37 @@ class PaymentsRepository {
   final PaymentsDao dao;
   final BookingDerivedFieldsService derivedFields;
 
-  Stream<List<Payment>> paymentsByBooking(int bookingLocalId) => dao.watchList(bookingLocalId: bookingLocalId);
+  Stream<List<Payment>> paymentsByBooking(int bookingLocalId) {
+    final bookingStream = (db.select(db.bookings)..where((b) => b.id.equals(bookingLocalId))).watchSingleOrNull();
+
+    return bookingStream.asyncExpand((booking) {
+      final q = db.select(db.payments);
+      q.where((p) => p.deletedAt.isNull());
+
+      if (booking == null) {
+        q.where((p) => p.bookingLocalId.equals(bookingLocalId));
+      } else {
+        final byLocalId = db.payments.bookingLocalId.equals(bookingLocalId);
+        final byUuid = db.payments.bookingUuidCache.equals(booking.localUuid);
+        q.where((p) => byLocalId | byUuid);
+      }
+
+      q.orderBy([(p) => d.OrderingTerm.desc(p.paymentDate)]);
+      return q.watch();
+    });
+  }
   Stream<List<Payment>> watchAll({bool includeDeleted = false}) => dao.watchList(includeDeleted: includeDeleted);
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
   Future<int> create({int? bookingLocalId, int? serverBookingId, String? roomNumber, required double amount, required String paymentDate, String? notes, required String paymentMethod, required String revenueType}) async {
     final hotelDayKey = Time.hotelDayKeyFromIso(paymentDate);
+
+    String? bookingUuidCache;
+    if (bookingLocalId != null) {
+      final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingLocalId))).getSingleOrNull();
+      bookingUuidCache = booking?.localUuid;
+    }
+
     final result = await dao.insertOne(
       PaymentsCompanion(
         bookingLocalId: d.Value(bookingLocalId),
@@ -33,6 +58,7 @@ class PaymentsRepository {
         paymentMethod: d.Value(paymentMethod),
         revenueType: d.Value(revenueType),
         hotelDayKey: d.Value(hotelDayKey),
+        bookingUuidCache: d.Value(bookingUuidCache),
       ),
     );
     if (bookingLocalId != null) {
