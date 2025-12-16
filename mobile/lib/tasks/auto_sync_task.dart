@@ -23,29 +23,18 @@ void autoSyncCallbackDispatcher() {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kPendingFlagKey, true);
-try {
-  // The database should be managed as a singleton and not instantiated per task.
-  final db = await DatabaseManager.instance;
-  final driveService = GoogleDriveSyncService();
-  
-  // Use the singleton instance of SyncManager if available.
-  if (SyncManager.instance == null) {
-    final manager = SyncManager(db: db, driveService: driveService);
-    SyncManager.configureSingleton(manager);
-    await manager.initSyncService(allowInteractiveSignIn: false);
-  }
-  
-  await SyncManager.instance.smartSync(force: false);
-  await prefs.setBool(_kPendingFlagKey, false);
-  return true; // Indicate success to Workmanager
-} catch (e, s) {
-  // Log the error for debugging.
-  // Consider if setting the flag is the correct retry strategy.
-  // Let Workmanager handle retries based on its configuration.
-  debugPrint('Auto-sync task failed: $e\n$s');
-  return false; // Indicate failure to Workmanager for retry
-}
-// Do not close the database here. It should be managed globally.
+
+    try {
+      final db = DatabaseManager.instance;
+      final driveService = GoogleDriveSyncService();
+      final manager = SyncManager(db: db, driveService: driveService);
+      await manager.initSyncService(allowInteractiveSignIn: false);
+      await manager.smartSync(force: false);
+      await prefs.setBool(_kPendingFlagKey, false);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Auto-sync background task failed',
+        name: 'AutoSyncTask',
         error: error is Exception ? error.runtimeType.toString() : error,
         stackTrace: stackTrace,
         level: 1000,

@@ -196,35 +196,33 @@ class SyncManager {
     if (lastEpoch == null) {
       return true;
     }
-    final _syncQueue = <Future<void> Function()>[];
+    return remoteModified.toUtc().millisecondsSinceEpoch > lastEpoch;
+  }
 
-    Future<void> _withSyncLock(Future<void> Function() work) {
-      final completer = Completer<void>();
-      _syncQueue.add(() async {
-        try {
-          await work();
-          completer.complete();
-        } catch (e, s) {
-          completer.completeError(e, s);
-        }
-      });
+  Future<void> _persistLastDriveSyncTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsLastDriveSyncEpochKey, DateTime.now().toUtc().millisecondsSinceEpoch);
+  }
 
-      if (_syncLock == null) {
-        _processSyncQueue();
-      }
-  
-      return completer.future;
+  Future<void> _withSyncLock(Future<void> Function() work) {
+    final job = _SyncJob(work);
+    _syncJobs.add(job);
+    _startSyncWorkerIfNeeded();
+    return job.completer.future;
+  }
+
+  void _startSyncWorkerIfNeeded() {
+    if (_syncWorkerRunning) {
+      return;
     }
+    _syncWorkerRunning = true;
+    unawaited(_runSyncQueue());
+  }
 
-    void _processSyncQueue() {
-      if (_syncQueue.isEmpty) {
-        _syncLock = null;
-        return;
-      }
-
-      final work = _syncQueue.removeAt(0);
-      _syncLock = work().whenComplete(_processSyncQueue);
-    }
+  Future<void> _runSyncQueue() async {
+    try {
+      while (_syncJobs.isNotEmpty) {
+        final job = _syncJobs.removeFirst();
         try {
           await job.work();
           job.completer.complete();
