@@ -10,6 +10,7 @@ import '../../models/payment_models.dart';
 import '../../components/widgets/payment_widgets.dart';
 import '../../services/providers.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 import 'payment_history_screen.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
@@ -1162,7 +1163,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String cardDigits,
     String bank,
   ) async {
-    final amount = double.tryParse(amountText);
+    final amount = CurrencyFormatter.parseAmount(amountText);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يرجى إدخال مبلغ صحيح')));
       return;

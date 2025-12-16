@@ -332,7 +332,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     );
     
     if (result == true) {
-      final amount = double.tryParse(amountController.text);
+      final amount = CurrencyFormatter.parseAmount(amountController.text);
       if (amount == null || amount <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
