@@ -46,91 +46,106 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
   }
 
   Future<int> insertOne(ExpensesCompanion data, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
-    final comp = data.copyWith(
-      localUuid: Value(uu),
-      createdAt: Value(now),
-      updatedAt: Value(now),
-      lastModified: Value(now),
-      origin: Value(originIsServer ? 'server' : 'local'),
-    );
-    final id = await into(expenses).insert(comp);
-    if (!originIsServer) {
-      await outboxDao.merge(entity: 'expenses', op: 'create', localUuid: uu, serverId: comp.serverId.present ? comp.serverId.value : null, payload: _payloadFrom(comp), clientTs: now);
-    }
-    return id;
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+      final comp = data.copyWith(
+        localUuid: Value(uu),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        origin: Value(originIsServer ? 'server' : 'local'),
+      );
+      final id = await into(expenses).insert(comp);
+      if (!originIsServer) {
+        await outboxDao.merge(
+          entity: 'expenses',
+          op: 'create',
+          localUuid: uu,
+          serverId: comp.serverId.present ? comp.serverId.value : null,
+          payload: _payloadFrom(comp),
+          clientTs: now,
+        );
+      }
+      return id;
+    });
   }
 
   Future<int> updateById(int id, ExpensesCompanion data, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final existing = await getById(id);
-    if (existing == null) return 0;
-    final comp = data.copyWith(
-      updatedAt: Value(now),
-      lastModified: Value(now),
-      version: Value(existing.version + 1),
-    );
-    final rows = await (update(expenses)..where((t) => t.id.equals(id))).write(comp);
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(
-        entity: 'expenses',
-        op: 'update',
-        localUuid: existing.localUuid,
-        serverId: existing.serverId,
-        payload: _payloadFrom(comp, base: existing),
-        clientTs: now,
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) return 0;
+      final comp = data.copyWith(
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        version: Value(existing.version + 1),
       );
-    }
-    return rows;
+      final rows = await (update(expenses)..where((t) => t.id.equals(id))).write(comp);
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'expenses',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: _payloadFrom(comp, base: existing),
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Future<int> updateByLocalUuid(String localUuid, ExpensesCompanion data, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final existing = await getByLocalUuid(localUuid);
-    if (existing == null) return 0;
-    final comp = data.copyWith(
-      updatedAt: Value(now),
-      lastModified: Value(now),
-      version: Value(existing.version + 1),
-    );
-    final rows = await (update(expenses)..where((t) => t.localUuid.equals(localUuid))).write(comp);
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(
-        entity: 'expenses',
-        op: 'update',
-        localUuid: existing.localUuid,
-        serverId: existing.serverId,
-        payload: _payloadFrom(comp, base: existing),
-        clientTs: now,
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getByLocalUuid(localUuid);
+      if (existing == null) return 0;
+      final comp = data.copyWith(
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        version: Value(existing.version + 1),
       );
-    }
-    return rows;
+      final rows = await (update(expenses)..where((t) => t.localUuid.equals(localUuid))).write(comp);
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'expenses',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: _payloadFrom(comp, base: existing),
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Future<int> updateByServerId(String? serverId, ExpensesCompanion data, {bool originIsServer = false}) async {
-    final parsedServerId = _parseServerId(serverId);
-    if (parsedServerId == null) return 0;
-    final now = Time.nowEpoch();
-    final existing = await (select(expenses)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
-    if (existing == null) return 0;
-    final comp = data.copyWith(
-      updatedAt: Value(now),
-      lastModified: Value(now),
-      version: Value(existing.version + 1),
-    );
-    final rows = await (update(expenses)..where((t) => t.serverId.equals(parsedServerId))).write(comp);
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(
-        entity: 'expenses',
-        op: 'update',
-        localUuid: existing.localUuid,
-        serverId: existing.serverId,
-        payload: _payloadFrom(comp, base: existing),
-        clientTs: now,
+    return db.transaction(() async {
+      final parsedServerId = _parseServerId(serverId);
+      if (parsedServerId == null) return 0;
+      final now = Time.nowEpoch();
+      final existing = await (select(expenses)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+      if (existing == null) return 0;
+      final comp = data.copyWith(
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        version: Value(existing.version + 1),
       );
-    }
-    return rows;
+      final rows = await (update(expenses)..where((t) => t.serverId.equals(parsedServerId))).write(comp);
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'expenses',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: _payloadFrom(comp, base: existing),
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Future<int> hardDelete(int id) async {
@@ -138,18 +153,27 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
   }
 
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final existing = await getById(id);
-    if (existing == null) return 0;
-    final rows = await (update(expenses)..where((t) => t.id.equals(id))).write(ExpensesCompanion(
-      deletedAt: Value(now),
-      updatedAt: Value(now),
-      lastModified: Value(now),
-    ));
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'expenses', op: 'delete', localUuid: existing.localUuid, serverId: existing.serverId, payload: {'id': id}, clientTs: now);
-    }
-    return rows;
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) return 0;
+      final rows = await (update(expenses)..where((t) => t.id.equals(id))).write(ExpensesCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'expenses',
+          op: 'delete',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: {'id': id},
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Map<String, dynamic> _payloadFrom(ExpensesCompanion comp, {Expense? base}) {

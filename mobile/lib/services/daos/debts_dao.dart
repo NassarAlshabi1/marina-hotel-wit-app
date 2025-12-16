@@ -47,74 +47,80 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
   }
 
   Future<int> insertOne(DebtsCompanion data, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final uuid = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
-    final companion = data.copyWith(
-      localUuid: Value(uuid),
-      createdAt: Value(now),
-      updatedAt: Value(now),
-      lastModified: Value(now),
-      version: const Value(1),
-      origin: Value(originIsServer ? 'server' : 'local'),
-    );
-    final id = await into(debts).insert(companion);
-    if (!originIsServer) {
-      await outboxDao.merge(
-        entity: 'debts',
-        op: 'create',
-        localUuid: uuid,
-        serverId: companion.serverId.present ? companion.serverId.value : null,
-        payload: _payloadFrom(companion),
-        clientTs: now,
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final uuid = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+      final companion = data.copyWith(
+        localUuid: Value(uuid),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        version: const Value(1),
+        origin: Value(originIsServer ? 'server' : 'local'),
       );
-    }
-    return id;
+      final id = await into(debts).insert(companion);
+      if (!originIsServer) {
+        await outboxDao.merge(
+          entity: 'debts',
+          op: 'create',
+          localUuid: uuid,
+          serverId: companion.serverId.present ? companion.serverId.value : null,
+          payload: _payloadFrom(companion),
+          clientTs: now,
+        );
+      }
+      return id;
+    });
   }
 
   Future<int> updateById(int id, DebtsCompanion data, {bool originIsServer = false}) async {
-    final existing = await getById(id);
-    if (existing == null) {
-      return 0;
-    }
-    final now = Time.nowEpoch();
-    final companion = data.copyWith(
-      updatedAt: Value(now),
-      lastModified: Value(now),
-    );
-    final rows = await (update(debts)..where((t) => t.id.equals(id))).write(companion);
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(
-        entity: 'debts',
-        op: 'update',
-        localUuid: existing.localUuid,
-        serverId: existing.serverId,
-        payload: _payloadFrom(companion, base: existing),
-        clientTs: now,
+    return db.transaction(() async {
+      final existing = await getById(id);
+      if (existing == null) {
+        return 0;
+      }
+      final now = Time.nowEpoch();
+      final companion = data.copyWith(
+        updatedAt: Value(now),
+        lastModified: Value(now),
       );
-    }
-    return rows;
+      final rows = await (update(debts)..where((t) => t.id.equals(id))).write(companion);
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'debts',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: _payloadFrom(companion, base: existing),
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final existing = await getById(id);
-    if (existing == null) return 0;
-    final rows = await (update(debts)..where((t) => t.id.equals(id))).write(DebtsCompanion(
-      deletedAt: Value(now),
-      updatedAt: Value(now),
-      lastModified: Value(now),
-    ));
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(
-        entity: 'debts',
-        op: 'delete',
-        localUuid: existing.localUuid,
-        serverId: existing.serverId,
-        payload: {'debt_id': existing.serverId},
-        clientTs: now,
-      );
-    }
-    return rows;
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) return 0;
+      final rows = await (update(debts)..where((t) => t.id.equals(id))).write(DebtsCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'debts',
+          op: 'delete',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: {'debt_id': existing.serverId},
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Future<int> hardDelete(int id, {bool originIsServer = false}) {
