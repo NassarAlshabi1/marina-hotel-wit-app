@@ -58,6 +58,7 @@ class BookingDerivedFieldsService {
 
     final payments = await (db.select(db.payments)
           ..where((p) => (p.bookingLocalId.equals(booking.id) | p.bookingUuidCache.equals(booking.localUuid)))
+          ..where((p) => p.revenueType.equals('room'))
           ..where((p) => p.deletedAt.isNull()))
         .get();
 
