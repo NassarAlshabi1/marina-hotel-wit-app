@@ -1,0 +1,179 @@
+name: Kimi CLI Code Review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+    branches:
+      - main
+      - develop
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  kimi-review:
+    if: ${{ github.event.sender.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install kimi-cli
+          pip cache purge || true
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: 1
+
+      - name: Verify Kimi CLI installation
+        run: kimi --version
+
+      - name: Get PR diff
+        id: pr_diff
+        run: |
+          gh pr diff ${{ github.event.pull_request.number }} > pr_changes.diff
+          if [ ! -s pr_changes.diff ]; then
+            echo "WARN: Empty diff detected"
+            echo "## OpenAI Code Review" > kimi_review.md
+            echo "No code changes detected in this PR." >> kimi_review.md
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare review prompt
+        if: hashFiles('pr_changes.diff') != ''
+        run: |
+          cat > review_prompt.txt << 'EOF'
+          Act as an expert code reviewer. Analyze the following code changes and provide detailed feedback:
+
+          ## Review Criteria
+
+          1. **Code Quality & Best Practices**
+             - Code readability and maintainability
+             - Consistency with project standards
+             - Appropriate use of patterns and idioms
+
+          2. **Potential Issues & Bugs**
+             - Logic errors or edge cases
+             - Null safety concerns
+             - Resource leaks
+
+          3. **Security Considerations**
+             - Input validation
+             - Authentication/authorization
+             - Sensitive data exposure
+
+          4. **Performance**  
+             - Efficiency concerns
+             - Memory usage
+             - Scalability considerations
+
+          5. **Testing**
+             - Test coverage adequacy
+             - Test quality
+             - Edge case testing
+
+          Here are the code changes to review:
+          EOF
+          
+          if [ -f pr_changes.diff ]; then
+            cat pr_changes.diff >> review_prompt.txt
+          fi
+
+      - name: Run Kimi CLI Review
+        id: kimi_review
+        if: hashFiles('review_prompt.txt') != ''
+        run: |
+          kimi < review_prompt.txt > kimi_review.md
+        env:
+          KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+          KIMI_MODEL: kimi
+        continue-on-error: false
+
+      - name: Check review output
+        if: steps.kimi_review.conclusion == 'success'
+        run: |
+          if [ ! -f kimi_review.md ]; then
+            echo "❌ kimimi_review.md not found"
+            exit 1
+          fi
+          
+          if [ ! -s kimi_review.md ]; then
+            echo "❌ kimi_review.md is empty"
+            exit 1
+          fi
+          
+          wc -l kimi_review.md
+
+      - name: Post review comment
+        if: steps.kimi_review.outcome == 'success' && github.event.pull_request.user.type != 'Bot'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('kimi_review.md')) {
+              console.log('⚠️ kimi_review.md not found');
+              return;
+            }
+            
+            const review = fs.readFileSync('kimi_review.md', 'utf8');
+            if (!review.trim()) {
+              console.log('⚠️ kimi_review.md is empty');
+              return;
+            }
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## 🤖 Kimi CLI Code Review
+
+${review}
+
+---
+*Review completed by Kimi CLI AI assistant*`.trimEnd()
+            });
+
+      - name: Upload review artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kimi-review-${{ github.event.pull_request.number }}-${{ github.run_number }}
+          path: |
+            kimi_review.md
+            review_prompt.txt
+            pr_changes.diff
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🤖 Kimi CLI Review Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.kimi_review.outcome }}" == "success" ]; then
+            echo "✅ Kimi CLI review completed successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ -f kimi_review.md ]; then
+              lines=$(wc -l < kimi_review.md)
+              echo "- Review length: $lines lines" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "❌ Kimi CLI review failed" >> $GITHUB_STEP_SUMMARY
+          fi

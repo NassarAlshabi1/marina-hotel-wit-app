@@ -277,18 +277,17 @@ class RestoreFixService {
     query.where((b) => b.deletedAt.isNull());
     
     // البحث عن الحجوزات النشطة (لم تسجل مغادرة فعلية)
-    query.where((b) => 
-      (b.status.equals('محجوزة') |
-       b.status.equals('active') |
-       b.status.equals('confirmed') |
-       b.status.equals('checked_in')) &
-      b.actualCheckout.isNull()
-    );
+    query.where((b) => b.actualCheckout.isNull());
+    
+    // تصفية الحجوزات النشطة فقط - سيتم التحقق باستخدام StatusUtils بعد الاستعلام
     
     // التأكد من وجود تاريخ الدخول
     query.where((b) => b.checkinDate.isNotNull());
     
-    return await query.get();
+    final allBookings = await query.get();
+    
+    // تصفية الحجوزات النشطة باستخدام StatusUtils
+    return allBookings.where((b) => StatusUtils.isActiveBooking(b.status)).toList();
   }
 
   /// إصلاح تواريخ وليالي الحجز
@@ -484,10 +483,12 @@ class RestoreFixService {
   Future<List<String>> _updateRoomStatusesFromBookings(String fixId) async {
     final changes = <String>[];
     try {
-      final activeBookings = await (db.select(db.bookings)
-            ..where((b) => b.deletedAt.isNull())
-            ..where((b) => b.status.equals('محجوزة') | b.status.equals('active')))
+      final allBookings = await (db.select(db.bookings)
+            ..where((b) => b.deletedAt.isNull()))
           .get();
+      
+      // تصفية الحجوزات النشطة باستخدام StatusUtils
+      final activeBookings = allBookings.where((b) => StatusUtils.isActiveBooking(b.status)).toList();
       final occupiedRooms = activeBookings.map((b) => b.roomNumber).toSet();
       final rooms = await (db.select(db.rooms)
             ..where((r) => r.deletedAt.isNull()))
