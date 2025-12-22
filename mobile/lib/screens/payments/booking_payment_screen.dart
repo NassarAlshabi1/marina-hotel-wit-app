@@ -30,6 +30,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   late TabController _tabController;
   late TextEditingController _phoneController;
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
+  double _totalAmount = 0;
   double _remainingAmount = 0;
   late String _currentGuestPhone;
 
@@ -153,6 +154,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               final dbPayments = paySnap.data ?? const <db.Payment>[];
               final paidAmount = dbPayments.fold<double>(0, (s, p) => s + p.amount);
               final remainingAmount = ((totalAmount - paidAmount).clamp(0.0, totalAmount)).toDouble();
+              _totalAmount = totalAmount;
               _remainingAmount = remainingAmount;
               final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
               final summary = BookingPaymentSummary(
@@ -1169,19 +1171,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       return;
     }
 
-    final roomsRepo = ref.read(roomsRepoProvider);
     final paymentsRepo = ref.read(paymentsRepoProvider);
     final bookingsRepo = ref.read(bookingsRepoProvider);
 
-    final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
-    final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final plannedCheckout = widget.booking.checkoutDate != null ? DateTime.tryParse(widget.booking.checkoutDate!) : null;
-    final actualCheckout = widget.booking.actualCheckout != null ? DateTime.tryParse(widget.booking.actualCheckout!) : null;
-    final actualNights = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout ?? DateTime.now());
-    final total = (room?.price ?? 0) * actualNights;
-    final existingPayments = await paymentsRepo.paymentsByBooking(widget.booking.id).first;
-    final paidSoFar = existingPayments.fold<double>(0, (s, p) => s + p.amount);
-    final remaining = ((total - paidSoFar).clamp(0.0, total)).toDouble();
+    final total = _totalAmount;
+    final remaining = _remainingAmount;
 
     if (amount > remaining) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('المبلغ أكبر من المتبقي (${_currencyFmt.format(remaining)})')));
