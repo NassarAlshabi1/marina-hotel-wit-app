@@ -8,6 +8,7 @@ import '../services/local_db.dart';
 import '../providers/repository_providers.dart';
 import '../providers/smart_sync_provider.dart';
 import '../utils/status_utils.dart';
+import '../utils/currency_formatter.dart';
 
 import '../widgets/smart_sync_widgets.dart';
 import 'bookings/booking_edit.dart';
@@ -679,7 +680,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('لا يوجد حجز نشط للغرفة $roomNumber'),
+              content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -803,7 +804,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             const SizedBox(height: 12),
             Text('نوع الغرفة: ${room.type}'),
-            Text('السعر: ${room.price.toStringAsFixed(0)} ريال'),
+            Text('السعر: ${CurrencyFormatter.formatAmount(room.price)} ريال'),
           ],
         ),
         actions: [

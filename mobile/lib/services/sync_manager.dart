@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
-import 'package:crypto/crypto.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
@@ -11,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:synchronized/synchronized.dart';
 
 import '../data/sync_models.dart';
-import 'delta_sync_service.dart';
+import 'daos/outbox_dao.dart';
 import 'google_drive_sync_service.dart';
 import 'local_db.dart';
 import 'sync_safety_layer.dart';
@@ -21,8 +22,29 @@ abstract class SyncTriggerDispatcher {
   Future<void> sendTrigger({required String syncId, required String sourceDeviceId});
 }
 
+class _SyncJob {
+  _SyncJob(this.work) : completer = Completer<void>();
+
+  final Future<void> Function() work;
+  final Completer<void> completer;
+}
+
 /// مدير المزامنة الرئيسي المسؤول عن دمج البيانات ورفعها إلى Google Drive
 class SyncManager {
+  static SyncManager? _instance;
+
+  static SyncManager get instance {
+    final instance = _instance;
+    if (instance == null) {
+      throw StateError('SyncManager singleton is not configured');
+    }
+    return instance;
+  }
+
+  static void configureSingleton(SyncManager manager) {
+    _instance ??= manager;
+  }
+
   SyncManager({
     required this.db,
     required this.driveService,
@@ -40,10 +62,18 @@ class SyncManager {
   final DeltaSyncService _deltaSyncService;
   final _syncLock = Lock();
 
+  static const String _prefsLastDriveSyncEpochKey = 'drive_auto_sync_last_epoch';
+
   bool _isInitialized = false;
   bool _isDrainingQueue = false;
   bool _pullInProgress = false;
-  bool _syncInProgress = false;
+
+  final Queue<_SyncJob> _syncJobs = Queue<_SyncJob>();
+  bool _syncWorkerRunning = false;
+
+  StreamSubscription<int>? _outboxWatchSub;
+  Timer? _outboxDebounceTimer;
+
   String? _deviceId;
   int _devicePriority = 100;
   String? _lastUploadedChecksum;
@@ -53,11 +83,19 @@ class SyncManager {
   Stream<SyncStatus> onSyncStatus() => _statusController.stream;
 
   /// تهيئة الخدمة مع خيار التشفير قبل أي مزامنة
-  Future<void> initSyncService({bool enableEncryption = false, String? encryptionKey}) async {
+  Future<void> initSyncService({
+    bool enableEncryption = false,
+    String? encryptionKey,
+    bool allowInteractiveSignIn = true,
+  }) async {
     if (_isInitialized) {
       return;
     }
-    await driveService.init(enableEncryption: enableEncryption, encryptionKey: encryptionKey);
+    await driveService.init(
+      enableEncryption: enableEncryption,
+      encryptionKey: encryptionKey,
+      allowInteractiveSignIn: allowInteractiveSignIn,
+    );
     _deviceId = await _resolveDeviceId();
     await _loadSyncHistory();
     _isInitialized = true;
@@ -94,23 +132,114 @@ class SyncManager {
     unawaited(_drainQueue());
   }
 
-  /// تشغيل مزامنة كاملة (رفع ثم سحب)
+  /// تشغيل مزامنة كاملة (رفع ثم سحب) مع حماية من تداخل الطلبات.
   Future<void> syncAllTables({bool force = false}) async {
-    await _syncLock.synchronized(() async {
-      if (_syncInProgress && !force) {
-        debugPrint('⏳ Sync already in progress, skipping...');
+    return smartSync(force: force);
+  }
+
+  /// مزامنة ذكية (Upload/Download) مع قفل لمنع تشغيل مزامنتين بالتوازي.
+  /// - يتحقق من الاتصال أولاً
+  /// - يتخطى الرفع إذا كان Outbox فارغاً
+  /// - يتخطى السحب إذا لم يتغير ملف Drive منذ آخر مزامنة ناجحة
+  Future<void> smartSync({bool force = false}) async {
+    await _ensureReady();
+    return _withSyncLock(() async {
+      final online = await _hasConnectivity();
+      if (!online) {
+        _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا يوجد اتصال - تم تخطي المزامنة'));
         return;
       }
-      _syncInProgress = true;
-      try {
-        await _ensureReady();
-        await _deltaSyncService.repairMirrorIfNeeded();
-        await _drainQueue(force: force);
-        await pullAndMerge(force: force);
-      } finally {
-        _syncInProgress = false;
+
+      final outboxCount = await OutboxDao(db).count();
+      final shouldUpload = force || outboxCount > 0;
+      if (shouldUpload) {
+        await _drainQueue(force: true);
       }
+
+      final shouldPull = force || await _shouldPullByRemoteModifiedTime();
+      if (shouldPull) {
+        await pullAndMerge(force: force);
+      }
+
+      await _persistLastDriveSyncTime();
     });
+  }
+
+  /// تشغيل مزامنة تلقائية في الواجهة الأمامية عند تغيّر Outbox مع Debounce.
+  void startOutboxDebouncedSync({Duration debounce = const Duration(seconds: 30)}) {
+    if (_outboxWatchSub != null) {
+      return;
+    }
+    _outboxWatchSub = OutboxDao(db).watchCount().listen((_) {
+      _outboxDebounceTimer?.cancel();
+      _outboxDebounceTimer = Timer(debounce, () {
+        unawaited(smartSync(force: false));
+      });
+    });
+  }
+
+  Future<void> stopOutboxDebouncedSync() async {
+    await _outboxWatchSub?.cancel();
+    _outboxWatchSub = null;
+    _outboxDebounceTimer?.cancel();
+    _outboxDebounceTimer = null;
+  }
+
+  Future<bool> _hasConnectivity() async {
+    final results = await Connectivity().checkConnectivity();
+    return results.any((r) => r != ConnectivityResult.none);
+  }
+
+  Future<bool> _shouldPullByRemoteModifiedTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastEpoch = prefs.getInt(_prefsLastDriveSyncEpochKey);
+    final remoteModified = await driveService.getLatestSnapshotModifiedTime();
+    if (remoteModified == null) {
+      return false;
+    }
+    if (lastEpoch == null) {
+      return true;
+    }
+    return remoteModified.toUtc().millisecondsSinceEpoch > lastEpoch;
+  }
+
+  Future<void> _persistLastDriveSyncTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsLastDriveSyncEpochKey, DateTime.now().toUtc().millisecondsSinceEpoch);
+  }
+
+  Future<void> _withSyncLock(Future<void> Function() work) {
+    final job = _SyncJob(work);
+    _syncJobs.add(job);
+    _startSyncWorkerIfNeeded();
+    return job.completer.future;
+  }
+
+  void _startSyncWorkerIfNeeded() {
+    if (_syncWorkerRunning) {
+      return;
+    }
+    _syncWorkerRunning = true;
+    unawaited(_runSyncQueue());
+  }
+
+  Future<void> _runSyncQueue() async {
+    try {
+      while (_syncJobs.isNotEmpty) {
+        final job = _syncJobs.removeFirst();
+        try {
+          await job.work();
+          job.completer.complete();
+        } catch (error, stack) {
+          job.completer.completeError(error, stack);
+        }
+      }
+    } finally {
+      _syncWorkerRunning = false;
+      if (_syncJobs.isNotEmpty) {
+        _startSyncWorkerIfNeeded();
+      }
+    }
   }
 
   /// سحب آخر نسخة من Google Drive ودمجها مع قاعدة البيانات المحلية

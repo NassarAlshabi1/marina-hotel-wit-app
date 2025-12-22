@@ -12,7 +12,7 @@ class PaymentsListScreen extends ConsumerWidget {
     return AppScaffold(
       title: 'المدفوعات',
       body: StreamBuilder(
-        stream: repo.paymentsByBooking(-1),
+        stream: repo.watchAll(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final list = snapshot.data!;

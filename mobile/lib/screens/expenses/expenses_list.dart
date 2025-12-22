@@ -143,8 +143,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
     final description = TextEditingController(text: existing?.description ?? '');
-    final amount = TextEditingController(text: existing?.amount.toString() ?? '');
-    final date = TextEditingController(text: existing?.date ?? Time.nowDateString());
+    final amount = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.amount) : '');
+    final date = TextEditingController(text: existing?.date ?? Time.hotelDayKey());
 
     String dialogSalaryAction = _salaryWithdrawAction;
     selectedType = existing?.expenseType ?? 'اخرى';
@@ -170,6 +170,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    TextField(
+                      controller: description,
+                      decoration: const InputDecoration(labelText: 'الوصف'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: amount,
+                      decoration: const InputDecoration(labelText: 'المبلغ'),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: selectedType,
                       decoration: const InputDecoration(labelText: 'نوع المصروف'),
@@ -283,9 +294,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     final repo = ref.read(expensesRepoProvider);
     final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
-    final parsedAmount = double.tryParse(amount.text.replaceAll(',', '').trim()) ?? 0;
+    final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedDate = date.text.trim().isEmpty ? Time.nowDateString() : date.text.trim();
+    final trimmedDate = date.text.trim().isEmpty ? Time.hotelDayKey() : date.text.trim();
     final isSalaryExpense = selectedType == _salaryType;
     final savedType = isSalaryExpense
         ? _deriveSalaryExpenseType(dialogSalaryAction)

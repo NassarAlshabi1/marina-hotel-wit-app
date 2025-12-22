@@ -12,7 +12,6 @@ import 'local_db.dart';
 import 'data_usage_manager.dart';
 import 'sync_performance_optimizer.dart';
 import 'logging/log_models.dart';
-import 'sync_locks.dart';
 
 enum SyncTrigger {
   manual,

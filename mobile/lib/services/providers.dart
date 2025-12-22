@@ -1,4 +1,10 @@
 /// ملف Providers المركزي لخدمات التطبيق
 /// يعيد تصدير المزودات الأساسية للاستخدام في أجزاء التطبيق المختلفة
 
-export '../providers/repository_providers.dart' show databaseProvider;
+export '../providers/repository_providers.dart'
+    show databaseProvider,
+        roomsRepoProvider,
+        bookingsRepoProvider,
+        paymentsRepoProvider,
+        debtsRepoProvider,
+        whatsappServiceProvider;

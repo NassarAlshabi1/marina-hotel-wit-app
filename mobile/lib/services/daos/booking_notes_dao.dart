@@ -28,47 +28,74 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase> with _$BookingNotesD
   Stream<BookingNote?> watchById(int id) => (select(bookingNotes)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
   Future<int> insertOne(BookingNotesCompanion data, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
-    final comp = data.copyWith(
-      localUuid: Value(uu),
-      createdAt: Value(now),
-      updatedAt: Value(now),
-      lastModified: Value(now),
-      origin: Value(originIsServer ? 'server' : 'local'),
-    );
-    final id = await into(bookingNotes).insert(comp);
-    if (!originIsServer) {
-      await outboxDao.merge(entity: 'booking_notes', op: 'create', localUuid: uu, serverId: comp.serverId.present ? comp.serverId.value : null, payload: _payloadFrom(comp), clientTs: now);
-    }
-    return id;
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+      final comp = data.copyWith(
+        localUuid: Value(uu),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        origin: Value(originIsServer ? 'server' : 'local'),
+      );
+      final id = await into(bookingNotes).insert(comp);
+      if (!originIsServer) {
+        await outboxDao.merge(
+          entity: 'booking_notes',
+          op: 'create',
+          localUuid: uu,
+          serverId: comp.serverId.present ? comp.serverId.value : null,
+          payload: _payloadFrom(comp),
+          clientTs: now,
+        );
+      }
+      return id;
+    });
   }
 
   Future<int> updateById(int id, BookingNotesCompanion data, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final existing = await getById(id);
-    if (existing == null) return 0;
-    final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
-    final rows = await (update(bookingNotes)..where((t) => t.id.equals(id))).write(comp);
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'booking_notes', op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, payload: _payloadFrom(comp, base: existing), clientTs: now);
-    }
-    return rows;
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) return 0;
+      final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
+      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id))).write(comp);
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'booking_notes',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: _payloadFrom(comp, base: existing),
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final existing = await getById(id);
-    if (existing == null) return 0;
-    final rows = await (update(bookingNotes)..where((t) => t.id.equals(id))).write(BookingNotesCompanion(
-      deletedAt: Value(now),
-      updatedAt: Value(now),
-      lastModified: Value(now),
-    ));
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'booking_notes', op: 'delete', localUuid: existing.localUuid, serverId: existing.serverId, payload: {'id': id}, clientTs: now);
-    }
-    return rows;
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) return 0;
+      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id))).write(BookingNotesCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'booking_notes',
+          op: 'delete',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: {'id': id},
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Map<String, dynamic> _payloadFrom(BookingNotesCompanion comp, {BookingNote? base}) {

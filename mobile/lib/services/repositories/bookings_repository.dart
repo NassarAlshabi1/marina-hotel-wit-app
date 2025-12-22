@@ -1,19 +1,20 @@
 import 'package:drift/drift.dart' as d;
+import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 import '../daos/rooms_dao.dart';
 import '../auto_backup_manager.dart';
-import '../sync_guardian.dart';
-import '../../utils/status_utils.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
       : outbox = OutboxDao(db),
-        dao = BookingsDao(db, OutboxDao(db));
+        dao = BookingsDao(db, OutboxDao(db)),
+        derivedFields = BookingDerivedFieldsService(db);
   final AppDatabase db;
   final OutboxDao outbox;
   final BookingsDao dao;
+  final BookingDerivedFieldsService derivedFields;
 
   Stream<List<Booking>> watch({String? roomNumber, String? status}) => dao.watchList(roomNumber: roomNumber, status: status);
   Stream<List<Booking>> watchList({String? roomNumber, String? status}) => dao.watchList(roomNumber: roomNumber, status: status);
@@ -59,8 +60,8 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
       ),
     );
-    AutoBackupManager.instance.onDataChange('bookings', 'INSERT', recordData: {'guest_name': guestName});
-    SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'INSERT');
+    await derivedFields.refreshForBookingId(result);
+    AutoBackupManager.instance.onDataChange('bookings', 'INSERT', recordData: {'id': result});
     return result;
   }
 
@@ -106,8 +107,8 @@ class BookingsRepository {
       ),
     );
     if (result > 0) {
+      await derivedFields.refreshForBookingId(id);
       AutoBackupManager.instance.onDataChange('bookings', 'UPDATE', recordData: {'id': id});
-      SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'UPDATE');
     }
     return result;
   }
@@ -119,15 +120,6 @@ class BookingsRepository {
     final result = await dao.softDelete(id);
     if (result > 0) {
       AutoBackupManager.instance.onDataChange('bookings', 'DELETE', recordData: {'id': id});
-      SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'DELETE');
-      
-      if (roomNumber != null) {
-        final activeBooking = await getActiveBookingForRoom(roomNumber);
-        if (activeBooking == null) {
-          final roomsDao = RoomsDao(db, OutboxDao(db));
-          await roomsDao.updateByNumber(roomNumber, RoomsCompanion(status: d.Value('شاغرة')));
-        }
-      }
     }
     return result;
   }
@@ -166,22 +158,13 @@ class BookingsRepository {
     return await dao.getRecordCount();
   }
   
-  /// الحصول على الحجز النشط للغرفة
+  /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
     final allBookings = await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
-          ..where((b) => b.deletedAt.isNull())
-          ..where((b) => b.actualCheckout.isNull())
-          ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)]))
-        .get();
-    
-    for (final booking in allBookings) {
-      // A utility class أو getter على الموديل سيكون أكثر قابلية للصيانة.
-      if (StatusUtils.isBookingActive(booking)) {
-        return booking;
-      }
-    }
-    
-    return null;
+          ..where((b) => b.status.equals('محجوزة'))
+          ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
+          ..limit(1))
+        .getSingleOrNull();
   }
 }

@@ -11,7 +11,11 @@ class _DummyDriveSyncService extends GoogleDriveSyncService {
   _DummyDriveSyncService() : super();
 
   @override
-  Future<void> init({bool enableEncryption = false, String? encryptionKey}) async {}
+  Future<void> init({
+    bool enableEncryption = false,
+    String? encryptionKey,
+    bool allowInteractiveSignIn = true,
+  }) async {}
 }
 
 class _TestSyncManager extends SyncManager {

@@ -55,7 +55,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
 
   Future<void> _edit(BuildContext context, WidgetRef ref, {Employee? existing}) async {
     final name = TextEditingController(text: existing?.name ?? '');
-    final salary = TextEditingController(text: existing?.basicSalary.toString() ?? '');
+    final salary = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.basicSalary) : '');
     String status = existing?.status ?? 'active';
 
     final ok = await showDialog<bool>(
@@ -82,9 +82,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
 
     final repo = ref.read(employeesRepoProvider);
     if (existing == null) {
-      await repo.create(name: name.text.trim(), basicSalary: double.tryParse(salary.text) ?? 0, status: status);
+      await repo.create(name: name.text.trim(), basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0, status: status);
     } else {
-      await repo.update(existing.id, name: name.text.trim(), basicSalary: double.tryParse(salary.text) ?? 0, status: status);
+      await repo.update(existing.id, name: name.text.trim(), basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0, status: status);
     }
     
     markDataChanged();

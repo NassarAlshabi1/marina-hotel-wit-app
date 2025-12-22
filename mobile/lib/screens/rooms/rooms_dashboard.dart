@@ -7,6 +7,7 @@ import '../../services/sync_service.dart';
 import '../../components/widgets/room_widgets.dart';
 import '../../utils/status_utils.dart';
 import '../bookings/booking_edit.dart';
+import '../payments/booking_payment_screen.dart';
 
 class RoomsDashboard extends ConsumerWidget {
   const RoomsDashboard({super.key});
@@ -132,17 +133,43 @@ class RoomsDashboard extends ConsumerWidget {
     );
   }
 
-  void _showRoomBookings(BuildContext context, WidgetRef ref, String roomNumber) {
-    // إظهار رسالة أو التنقل لعرض حجوزات الغرفة
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('عرض حجوزات غرفة $roomNumber'),
-        action: SnackBarAction(
-          label: 'إغلاق',
-          onPressed: () {},
+  Future<void> _showRoomBookings(BuildContext context, WidgetRef ref, String roomNumber) async {
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
+
+      if (activeBooking == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (!context.mounted) {
+        return;
+      }
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => BookingPaymentScreen(booking: activeBooking),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في تحميل الحجز: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   int _compareRoomNumbers(String a, String b) {
