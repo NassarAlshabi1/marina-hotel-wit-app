@@ -7,22 +7,27 @@ class SyncMutex {
   bool _locked = false;
 
   Future<void> acquire() async {
-    if (_locked) {
+    while (_locked) {
       await _completer!.future;
+    }
+    _locked = true;
+    _completer = Completer<void>();
+  }
+
+  void release() {
+    if (_locked) {
+      _locked = false;
+      _completer!.complete();
     }
   }
 
   /// Runs the action exclusively, acquiring lock before and releasing after.
-  Future&lt;T&gt; runExclusive&lt;T&gt;(Future&lt;T&gt; Function() action) async {
+  Future<T> runExclusive<T>(Future<T> Function() action) async {
     await acquire();
-    final completerLocal = Completer&lt;void&gt;();
-    _completer = completerLocal;
-    _locked = true;
     try {
       return await action();
     } finally {
-      _locked = false;
-      completerLocal.complete();
+      release();
     }
   }
 }

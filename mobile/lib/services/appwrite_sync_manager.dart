@@ -187,8 +187,6 @@ class AppwriteSyncManager {
       });
 
       if (_currentDeviceId != null) {
-        _deviceVersion = (_deviceVersion ?? 1) + 1;
-
         await appwriteService.updateDocument(
           collectionId: AppwriteConfig.devicesCollectionId,
           documentId: _currentDeviceId!,
@@ -992,6 +990,13 @@ class AppwriteSyncManager {
     }
   }
 
+  Map<String, dynamic> _addIdempotencyKey(Map<String, dynamic> payload, OutboxData entry) {
+    if (entry.idempotencyKey != null) {
+      payload['_idempotencyKey'] = entry.idempotencyKey;
+    }
+    return payload;
+  }
+
   Future<bool> _processRoomEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
       await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
@@ -1003,10 +1008,7 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _roomToRemote(room);
-    if (entry.idempotencyKey != null) {
-      payload['_idempotencyKey'] = entry.idempotencyKey;
-    }
-    await appwriteService.upsertRoom(room.localUuid, payload);
+    await appwriteService.upsertRoom(room.localUuid, _addIdempotencyKey(payload, entry));
     return true;
   }
 
@@ -1021,10 +1023,7 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _bookingToRemote(booking);
-    if (entry.idempotencyKey != null) {
-      payload['_idempotencyKey'] = entry.idempotencyKey;
-    }
-    await appwriteService.upsertBooking(booking.localUuid, payload);
+    await appwriteService.upsertBooking(booking.localUuid, _addIdempotencyKey(payload, entry));
     return true;
   }
 
@@ -1039,10 +1038,7 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _expenseToRemote(expense);
-    if (entry.idempotencyKey != null) {
-      payload['_idempotencyKey'] = entry.idempotencyKey;
-    }
-    await appwriteService.upsertExpense(expense.localUuid, payload);
+    await appwriteService.upsertExpense(expense.localUuid, _addIdempotencyKey(payload, entry));
     return true;
   }
 
@@ -1057,10 +1053,7 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _paymentToRemote(payment);
-    if (entry.idempotencyKey != null) {
-      payload['_idempotencyKey'] = entry.idempotencyKey;
-    }
-    await appwriteService.upsertPayment(payment.localUuid, payload);
+    await appwriteService.upsertPayment(payment.localUuid, _addIdempotencyKey(payload, entry));
     return true;
   }
 
@@ -1075,10 +1068,7 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _debtToRemote(debt);
-    if (entry.idempotencyKey != null) {
-      payload['_idempotencyKey'] = entry.idempotencyKey;
-    }
-    await appwriteService.upsertDebt(debt.localUuid, payload);
+    await appwriteService.upsertDebt(debt.localUuid, _addIdempotencyKey(payload, entry));
     return true;
   }
 

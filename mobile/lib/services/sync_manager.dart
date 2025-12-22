@@ -476,6 +476,7 @@ class SyncManager {
       rethrow;
     } finally {
       _isDrainingQueue = false;
+      _drainMutex.release();
       _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'طابور المزامنة فارغ'));
     }
   }

@@ -7,6 +7,8 @@ import '../sync_guardian.dart';
 
 part 'outbox_dao.g.dart';
 
+const _uuid = Uuid();
+
 @DriftAccessor(tables: [Outbox])
 class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   OutboxDao(super.db);
@@ -45,7 +47,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
         .getSingleOrNull();
     final data = jsonEncode(payload);
-    final idempotencyKey = existing?.idempotencyKey ?? const Uuid().v4();
+    final idempotencyKey = existing?.idempotencyKey ?? _uuid.v4();
     final result = existing != null
         ? await (update(outbox)..where((t) => t.id.equals(existing.id))).write(OutboxCompanion(
             payload: Value(data),
