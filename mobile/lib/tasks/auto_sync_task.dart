@@ -40,8 +40,6 @@ void autoSyncCallbackDispatcher() {
         level: 1000,
       );
       await prefs.setBool(_kPendingFlagKey, true);
-    } finally {
-      await DatabaseManager.close();
     }
 
     return true;
