@@ -360,6 +360,39 @@ class GoogleDriveDeltaSync {
       await (db.delete(db.payments)..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
+
+    final serverBookingId = _asInt(data['server_booking_id']) ?? _asInt(data['serverBookingId']);
+    final incomingBookingUuid = _asString(data['booking_uuid_cache']) ??
+        _asString(data['bookingUuidCache']) ??
+        _asString(data['booking_uuid']) ??
+        _asString(data['bookingUuid']);
+
+    String? bookingUuidCache;
+    int? resolvedBookingLocalId;
+
+    if (incomingBookingUuid != null && incomingBookingUuid.isNotEmpty) {
+      bookingUuidCache = incomingBookingUuid;
+      final booking = await (db.select(db.bookings)..where((b) => b.localUuid.equals(incomingBookingUuid))).getSingleOrNull();
+      resolvedBookingLocalId = booking?.id;
+    }
+
+    if (resolvedBookingLocalId == null && serverBookingId != null) {
+      final booking = await (db.select(db.bookings)..where((b) => b.serverBookingId.equals(serverBookingId))).getSingleOrNull();
+      resolvedBookingLocalId = booking?.id;
+      bookingUuidCache = bookingUuidCache ?? booking?.localUuid;
+    }
+
+    dynamic pendingRaw = data['is_pending_balance'] ?? data['isPendingBalance'];
+    bool? isPendingBalance;
+    if (pendingRaw is bool) {
+      isPendingBalance = pendingRaw;
+    } else if (pendingRaw is num) {
+      isPendingBalance = pendingRaw != 0;
+    } else if (pendingRaw is String && pendingRaw.isNotEmpty) {
+      final v = pendingRaw.toLowerCase();
+      isPendingBalance = v == '1' || v == 'true' || v == 'yes';
+    }
+
     final companion = PaymentsCompanion(
       localUuid: d.Value(localUuid),
       serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
@@ -370,14 +403,18 @@ class GoogleDriveDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('google_drive_delta'),
       serverPaymentId: _nullableValue<int>(_asInt(data['server_payment_id']) ?? _asInt(data['serverPaymentId'])),
-      bookingLocalId: _nullableValue<int>(_asInt(data['booking_local_id']) ?? _asInt(data['bookingLocalId'])),
-      serverBookingId: _nullableValue<int>(_asInt(data['server_booking_id']) ?? _asInt(data['serverBookingId'])),
+      serverBookingId: _nullableValue<int>(serverBookingId),
+      bookingLocalId: resolvedBookingLocalId != null ? d.Value(resolvedBookingLocalId) : const d.Value.absent(),
+      bookingUuidCache: bookingUuidCache != null && bookingUuidCache.isNotEmpty ? d.Value(bookingUuidCache) : const d.Value.absent(),
       roomNumber: _nullableValue<String>(_asString(data['room_number']) ?? _asString(data['roomNumber'])),
       amount: d.Value(_asDouble(data['amount'])),
       paymentDate: d.Value(_asString(data['payment_date']) ?? _asString(data['paymentDate']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
       paymentMethod: d.Value(_asString(data['payment_method']) ?? _asString(data['paymentMethod']) ?? ''),
       revenueType: d.Value(_asString(data['revenue_type']) ?? _asString(data['revenueType']) ?? ''),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotel_day_key']) ?? _asString(data['hotelDayKey'])),
+      isPendingBalance: isPendingBalance != null ? d.Value(isPendingBalance) : const d.Value.absent(),
+      linkedDebtUuid: _nullableValue<String>(_asString(data['linked_debt_uuid']) ?? _asString(data['linkedDebtUuid'])),
       cashTransactionLocalId: _nullableValue<int>(_asInt(data['cash_transaction_local_id']) ?? _asInt(data['cashTransactionLocalId'])),
       cashTransactionServerId: _nullableValue<int>(_asInt(data['cash_transaction_server_id']) ?? _asInt(data['cashTransactionServerId'])),
       referenceNumber: _nullableValue<String>(_asString(data['reference_number']) ?? _asString(data['referenceNumber'])),

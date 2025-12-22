@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
@@ -7,10 +8,12 @@ import '../auto_backup_manager.dart';
 class BookingsRepository {
   BookingsRepository(this.db)
       : outbox = OutboxDao(db),
-        dao = BookingsDao(db, OutboxDao(db));
+        dao = BookingsDao(db, OutboxDao(db)),
+        derivedFields = BookingDerivedFieldsService(db);
   final AppDatabase db;
   final OutboxDao outbox;
   final BookingsDao dao;
+  final BookingDerivedFieldsService derivedFields;
 
   Stream<List<Booking>> watch({String? roomNumber, String? status}) => dao.watchList(roomNumber: roomNumber, status: status);
   Stream<List<Booking>> watchList({String? roomNumber, String? status}) => dao.watchList(roomNumber: roomNumber, status: status);
@@ -56,7 +59,8 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
       ),
     );
-    AutoBackupManager.instance.onDataChange('bookings', 'INSERT', recordData: {'guest_name': guestName});
+    await derivedFields.refreshForBookingId(result);
+    AutoBackupManager.instance.onDataChange('bookings', 'INSERT', recordData: {'id': result});
     return result;
   }
 
@@ -102,6 +106,7 @@ class BookingsRepository {
       ),
     );
     if (result > 0) {
+      await derivedFields.refreshForBookingId(id);
       AutoBackupManager.instance.onDataChange('bookings', 'UPDATE', recordData: {'id': id});
     }
     return result;
