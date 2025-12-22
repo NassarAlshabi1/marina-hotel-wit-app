@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'google_drive_auto_sync_engine.dart';
 import 'smart_sync_manager.dart';
+import 'sync_locks.dart';
 
 class SyncQueueItem {
   final String id;
@@ -44,17 +46,22 @@ class SyncQueueService {
   SyncQueueService._();
   
   static const String _queueKey = 'sync_queue_items';
-  static const int _maxAttempts = 5;
   static const Duration _retryInterval = Duration(minutes: 2);
   
   Timer? _processingTimer;
   bool _isProcessing = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  StreamSubscription<AutoSyncEngineState>? _driveStateSubscription;
+  bool _driveOnline = false;
+  bool _initialized = false;
   
   final _queueController = StreamController<int>.broadcast();
   Stream<int> get queueCountStream => _queueController.stream;
   
   Future<void> initialize() async {
+    if (_initialized) return;
+    _initialized = true;
+    
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
       final hasConnection = results.any((r) => r != ConnectivityResult.none);
       if (hasConnection) {
@@ -62,6 +69,8 @@ class SyncQueueService {
         processQueue();
       }
     });
+    
+    _setupDriveStateListener();
     
     _processingTimer = Timer.periodic(_retryInterval, (_) => processQueue());
     
@@ -126,11 +135,23 @@ class SyncQueueService {
   }
   
   Future<void> processQueue() async {
-    if (_isProcessing) return;
+    final canStart = await SyncLocks.queueLock.synchronized(() async {
+      if (_isProcessing) return false;
+      _isProcessing = true;
+      return true;
+    });
+    
+    if (!canStart) return;
     
     final hasConnection = await hasInternetConnection();
     if (!hasConnection) {
       debugPrint('📴 [SyncQueue] لا يوجد اتصال - تأجيل المعالجة');
+      return;
+    }
+
+    final driveOnline = await _ensureDriveOnline();
+    if (!driveOnline) {
+      debugPrint('🔒 [SyncQueue] Google Drive غير جاهز - الانتظار');
       return;
     }
 
@@ -140,55 +161,37 @@ class SyncQueueService {
       return;
     }
 
-    _isProcessing = true;
-
     try {
       debugPrint('🔄 [SyncQueue] معالجة ${items.length} عنصر...');
       
-      final itemsToRemove = <String>[];
-      final itemsToUpdate = <SyncQueueItem>[];
-      
-      for (final item in items) {
-        if (item.attempts >= _maxAttempts) {
-          debugPrint('⚠️ [SyncQueue] تجاوز الحد الأقصى للمحاولات: ${item.id}');
-          itemsToRemove.add(item.id);
-        }
-      }
-      
-      for (final id in itemsToRemove) {
-        await removeFromQueue(id);
-      }
-      
-      final remainingItems = items.where((item) => !itemsToRemove.contains(item.id)).toList();
-      if (remainingItems.isEmpty) {
-        debugPrint('✓ [SyncQueue] لا توجد عناصر متبقية للمعالجة');
-        return;
-      }
+      final itemsToProcess = List<SyncQueueItem>.from(items);
       
       try {
         final success = await SmartSyncManager.instance.pushLocalChanges();
         
         if (success) {
-          for (final item in remainingItems) {
+          for (final item in itemsToProcess) {
             await removeFromQueue(item.id);
           }
-          debugPrint('✅ [SyncQueue] تم رفع جميع العناصر بنجاح (${remainingItems.length} عنصر)');
+          debugPrint('✅ [SyncQueue] تم رفع جميع العناصر بنجاح (${itemsToProcess.length} عنصر)');
         } else {
-          for (final item in remainingItems) {
+          for (final item in itemsToProcess) {
             item.attempts++;
             await updateQueueItem(item);
           }
-          debugPrint('⚠️ [SyncQueue] فشل الرفع - تحديث محاولات ${remainingItems.length} عنصر');
+          debugPrint('⚠️ [SyncQueue] فشل الرفع - تحديث محاولات ${itemsToProcess.length} عنصر');
         }
       } catch (e) {
-        for (final item in remainingItems) {
+        for (final item in itemsToProcess) {
           item.attempts++;
           await updateQueueItem(item);
         }
         debugPrint('❌ [SyncQueue] خطأ في المزامنة: $e');
       }
     } finally {
-      _isProcessing = false;
+      await SyncLocks.queueLock.synchronized(() async {
+        _isProcessing = false;
+      });
       _emitQueueCount();
     }
   }
@@ -203,9 +206,54 @@ class SyncQueueService {
     _queueController.add(count);
   }
   
+  Future<bool> _ensureDriveOnline() async {
+    if (_driveOnline) {
+      return true;
+    }
+    
+    final engine = AutoSyncEngine.instance;
+    if (_isDriveStateOnline(engine.currentState)) {
+      _driveOnline = true;
+      return true;
+    }
+    
+    if (!SmartSyncManager.instance.isDriveSignedIn) {
+      debugPrint('🔓 [SyncQueue] Google Drive غير مسجل الدخول - لا يمكن رفع الطابور');
+      return false;
+    }
+    
+    // في حال كان المحرك لم يحدّث حالته بعد ولكن المستخدم مسجل والدخول متاح
+    return true;
+  }
+  
+  void _setupDriveStateListener() {
+    _driveStateSubscription?.cancel();
+    final engine = AutoSyncEngine.instance;
+    _driveOnline = _isDriveStateOnline(engine.currentState);
+    _driveStateSubscription = engine.stateStream.listen((state) {
+      final online = _isDriveStateOnline(state);
+      if (online && !_driveOnline) {
+        _driveOnline = true;
+        debugPrint('🌐 [SyncQueue] Google Drive متصل - تشغيل الطابور');
+        processQueue();
+      } else if (!online && _driveOnline) {
+        _driveOnline = false;
+        debugPrint('📴 [SyncQueue] Google Drive غير متصل - الانتظار');
+      } else {
+        _driveOnline = online;
+      }
+    });
+  }
+  
+  bool _isDriveStateOnline(AutoSyncEngineState state) {
+    return state.isSignedIn && state.hasNetworkConnection;
+  }
+  
   void dispose() {
     _processingTimer?.cancel();
     _connectivitySubscription?.cancel();
+    _driveStateSubscription?.cancel();
     _queueController.close();
+    _initialized = false;
   }
 }

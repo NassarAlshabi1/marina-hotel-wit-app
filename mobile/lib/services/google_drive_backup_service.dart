@@ -468,7 +468,8 @@ class GoogleDriveBackupService {
         final timestamp = DateTime.now();
         
         // تحديد البادئة والنوع حسب نوع النسخة
-        final metadata = backupData['metadata'] as Map<String, dynamic>? ?? {};
+        final rawMetadata = backupData['metadata'];
+        final metadata = rawMetadata is Map ? Map<String, dynamic>.from(rawMetadata) : <String, dynamic>{};
         final backupType = metadata['backup_type'] as String?;
         final syncType = metadata['sync_type'] as String?;
         
@@ -683,7 +684,11 @@ class GoogleDriveBackupService {
         throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
       }
 
-      final metadata = BackupMetadata.fromJson(backupData['metadata']);
+      final metadataJson = backupData['metadata'];
+      if (metadataJson is! Map) {
+        throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
+      }
+      final metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataJson));
       _logger.info('بدء استعادة نسخة بتاريخ ${metadata.backupTimestamp.toIso8601String()} تحتوي ${metadata.totalRecords} سجل', tag: 'RESTORE');
 
       if (metadata.databaseVersion > 3) {
@@ -692,27 +697,32 @@ class GoogleDriveBackupService {
 
       _log('🔄 بدء استعادة البيانات...');
 
-      await db.delete(db.rooms).go();
-      await db.delete(db.bookings).go();
-      await db.delete(db.bookingNotes).go();
-      await db.delete(db.bookingNights).go();
-      await db.delete(db.hotelDayLedger).go();
-      await db.delete(db.shiftNotes).go();
-      await db.delete(db.employees).go();
-      await db.delete(db.expenses).go();
-      await db.delete(db.cashTransactions).go();
-      await db.delete(db.payments).go();
-      await db.delete(db.debts).go();
-      await db.delete(db.autoFixRuns).go();
-      await db.delete(db.integrityViolations).go();
-      await db.delete(db.appSessions).go();
-      await db.delete(db.salaryCycles).go();
-      await db.delete(db.salaryPayments).go();
-      await db.delete(db.restoreFixLog).go();
-      await db.delete(db.syncQueue).go();
-      await db.delete(db.syncLog).go();
-      await db.delete(db.syncConflicts).go();
-      await db.delete(db.syncState).go();
+      await db.customStatement('PRAGMA foreign_keys = OFF');
+      try {
+        await db.delete(db.rooms).go();
+        await db.delete(db.bookings).go();
+        await db.delete(db.bookingNotes).go();
+        await db.delete(db.bookingNights).go();
+        await db.delete(db.hotelDayLedger).go();
+        await db.delete(db.shiftNotes).go();
+        await db.delete(db.employees).go();
+        await db.delete(db.expenses).go();
+        await db.delete(db.cashTransactions).go();
+        await db.delete(db.payments).go();
+        await db.delete(db.debts).go();
+        await db.delete(db.autoFixRuns).go();
+        await db.delete(db.integrityViolations).go();
+        await db.delete(db.appSessions).go();
+        await db.delete(db.salaryCycles).go();
+        await db.delete(db.salaryPayments).go();
+        await db.delete(db.restoreFixLog).go();
+        await db.delete(db.syncQueue).go();
+        await db.delete(db.syncLog).go();
+        await db.delete(db.syncConflicts).go();
+        await db.delete(db.syncState).go();
+      } finally {
+        await db.customStatement('PRAGMA foreign_keys = ON');
+      }
 
       if (backupData.containsKey('rooms')) {
         final roomsData = backupData['rooms'] as List<dynamic>;
@@ -904,7 +914,11 @@ class GoogleDriveBackupService {
       if (backupData.containsKey('system_settings')) {
         _log('⚙️ تطبيق إعدادات النظام من النسخة الاحتياطية...');
         try {
-          final settings = backupData['system_settings'] as Map<String, dynamic>;
+          final rawSettings = backupData['system_settings'];
+          if (rawSettings is! Map) {
+            throw Exception('صيغة إعدادات النظام غير صالحة');
+          }
+          final settings = Map<String, dynamic>.from(rawSettings);
           final prefs = await SharedPreferences.getInstance();
           
           final keys = SystemSettingKeys.all;

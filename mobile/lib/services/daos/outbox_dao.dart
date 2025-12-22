@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import '../local_db.dart';
 import '../sync_guardian.dart';
+import '../google_drive_unified_sync_coordinator.dart';
+import '../google_drive_auto_sync_engine.dart';
 
 part 'outbox_dao.g.dart';
 
@@ -62,6 +64,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ));
 
     unawaited(SyncGuardian.instance.notifyLocalChange(table: entity, operation: op));
+    GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
+    AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
     return result;
   }
 

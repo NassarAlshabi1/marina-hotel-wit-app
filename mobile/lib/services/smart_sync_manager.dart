@@ -13,6 +13,7 @@ import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
+import 'sync_locks.dart';
 
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
@@ -34,9 +35,11 @@ class SmartSyncManager {
   Timer? _periodicSyncTimer;
   bool _isSyncing = false;
   bool _isEnabled = false;
+  bool _isLoggedIn = false;
   String? _deviceId;
   
   String? get deviceId => _deviceId;
+  bool get isDriveSignedIn => _backupService?.isSignedIn ?? false;
   
   void _log(String message) {
     DebugLogs.add('SmartSync', message);
@@ -184,6 +187,10 @@ class SmartSyncManager {
   /// استدعاء هذه الدالة عند تغير حالة تسجيل الدخول في Google Drive
   Future<void> onGoogleDriveSignInChanged(bool isSignedIn) async {
     _log('🔔 تغيرت حالة تسجيل الدخول Google Drive: $isSignedIn');
+    _log('🔍 Debug: _backupService?.isSignedIn = ${_backupService?.isSignedIn}');
+    _log('🔍 Debug: _isEnabled = $_isEnabled');
+    
+    _isLoggedIn = isSignedIn;
     
     if (isSignedIn && _isEnabled) {
       _log('✅ بدء المراقبة بعد تسجيل الدخول...');
@@ -196,12 +203,17 @@ class SmartSyncManager {
 
   /// التحقق من وجود نسخ احتياطية جديدة
   Future<void> _performSyncCheck() async {
-    if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
-      return;
-    }
+    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
+      if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) return;
 
     try {
-      _isSyncing = true;
       _log('🔍 فحص وجود نسخ احتياطية جديدة...');
 
       // جلب قائمة النسخ الاحتياطية من Google Drive
@@ -239,7 +251,9 @@ class SmartSyncManager {
     } catch (e) {
       _log('❌ خطأ في فحص المزامنة: $e');
     } finally {
-      _isSyncing = false;
+      await SyncLocks.smartSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 
@@ -662,30 +676,63 @@ class SmartSyncManager {
     }
     
     _log('🚀 بدء المزامنة اليدوية الفورية...');
-    await _performSyncCheck();
+    
+    await pushLocalChanges();
+    
+    await pullRemoteChanges();
   }
 
   /// رفع التغييرات المحلية إلى Google Drive فوراً
   Future<bool> pushLocalChanges() async {
-    // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
     int retries = 0;
-    while (_isSyncing && retries < 10) {
+    while (retries < 10) {
+      final isSyncing = await SyncLocks.smartSyncLock.synchronized(() => _isSyncing);
+      if (!isSyncing) break;
       await Future.delayed(const Duration(milliseconds: 500));
       retries++;
     }
     
-    if (_isSyncing) {
-      _log('⚠️ تخطي الرفع - المزامنة جارية لفترة طويلة');
-      return false;
-    }
-
-    if (_backupService == null || !_backupService!.isSignedIn) {
+    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
+      if (_isSyncing) {
+        _log('⚠️ تخطي الرفع - المزامنة جارية لفترة طويلة');
+        return false;
+      }
+      if (_backupService == null || !_backupService!.isSignedIn) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) {
+      if (_backupService == null || !_backupService!.isSignedIn) {
       _log('⚠️ لا يمكن رفع التغييرات: غير مسجل الدخول في Google Drive');
+      _log('🔍 Debug: _backupService == null? ${_backupService == null}, isSignedIn? ${_backupService?.isSignedIn}');
+      _log('🔍 Debug: currentUser? ${_backupService?.currentUser?.email}');
+      
+      // محاولة تسجيل الدخول الصامت تلقائياً
+      if (_backupService != null) {
+        _log('🔐 محاولة تسجيل الدخول الصامت...');
+        try {
+          final account = await _backupService!.attemptSilentSignIn();
+          if (account != null) {
+            _log('✅ نجح تسجيل الدخول الصامت - إعادة محاولة الرفع...');
+            _isLoggedIn = true;
+            // إعادة المحاولة مباشرة
+            return await pushLocalChanges();
+          } else {
+            _log('❌ فشل تسجيل الدخول الصامت - يحتاج تدخل المستخدم');
+          }
+        } catch (e) {
+          _log('❌ خطأ في تسجيل الدخول الصامت: $e');
+        }
+      }
+      
+      }
       return false;
     }
 
     try {
-      _isSyncing = true;
       _log('📤 رفع التغييرات المحلية إلى Google Drive...');
       
       // محاولة استخدام Delta Sync أولاً (أسرع وأخف)
@@ -710,7 +757,17 @@ class SmartSyncManager {
       // Fallback: رفع النسخة الكاملة (للأمان)
       _log('📦 رفع النسخة الكاملة...');
       final backupData = await _backupService!.exportDatabaseToJson();
-      final metadata = backupData['metadata'] as Map<String, dynamic>;
+      final existingMetadata = backupData['metadata'];
+      Map<String, dynamic> metadata;
+      if (existingMetadata is Map<String, dynamic>) {
+        metadata = existingMetadata;
+      } else if (existingMetadata is Map) {
+        metadata = Map<String, dynamic>.from(existingMetadata);
+        backupData['metadata'] = metadata;
+      } else {
+        metadata = <String, dynamic>{};
+        backupData['metadata'] = metadata;
+      }
       metadata['device_id'] = _deviceId;
       metadata['sync_type'] = 'push';
       metadata['sync_timestamp'] = DateTime.now().toIso8601String();
@@ -725,26 +782,71 @@ class SmartSyncManager {
       _log('❌ خطأ في رفع التغييرات: $e');
       return false;
     } finally {
-      _isSyncing = false;
+      await SyncLocks.smartSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 
   /// سحب التغييرات من Google Drive
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {
-    if (_backupService == null || !_backupService!.isSignedIn) {
+    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
+      if (_backupService == null || !_backupService!.isSignedIn) {
+        return false;
+      }
+      if (_isSyncing) {
+        _log('⏸️ تخطي السحب - المزامنة جارية');
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) {
+      if (_backupService == null || !_backupService!.isSignedIn) {
       _log('⚠️ لا يمكن سحب التغييرات: غير مسجل الدخول');
-      return false;
-    }
-
-    if (_isSyncing) {
-      _log('⏸️ تخطي السحب - المزامنة جارية');
+      _log('🔍 Debug: _backupService?.isSignedIn = ${_backupService?.isSignedIn}');
+      
+      // محاولة تسجيل الدخول الصامت تلقائياً
+      if (_backupService != null) {
+        _log('🔐 محاولة تسجيل الدخول الصامت...');
+        try {
+          final account = await _backupService!.attemptSilentSignIn();
+          if (account != null) {
+            _log('✅ نجح تسجيل الدخول الصامت - إعادة محاولة السحب...');
+            _isLoggedIn = true;
+            // إعادة المحاولة مباشرة
+            return await pullRemoteChanges();
+          } else {
+            _log('❌ فشل تسجيل الدخول الصامت - يحتاج تدخل المستخدم');
+          }
+        } catch (e) {
+          _log('❌ خطأ في تسجيل الدخول الصامت: $e');
+        }
+      }
+      }
       return false;
     }
 
     try {
-      _isSyncing = true;
       _log('📥 سحب التغييرات من Google Drive...');
+      
+      if (GoogleDriveDeltaSync.instance.isInitialized) {
+        _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
+        final deltaResult = await GoogleDriveDeltaSync.instance.pullDeltaChanges();
+        
+        if (deltaResult.success && deltaResult.changesCount > 0) {
+          await _updateLastSyncTime();
+          _log('✅ تم سحب ${deltaResult.changesCount} تغيير عبر Delta Sync');
+          return true;
+        } else if (deltaResult.success && deltaResult.changesCount == 0) {
+          _log('✓ لا توجد تغييرات للسحب');
+          return false;
+        } else {
+          _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
+        }
+      }
       
       // جلب قائمة النسخ الاحتياطية
       final backupFiles = await _backupService!.listBackupFiles();
@@ -792,7 +894,9 @@ class SmartSyncManager {
       _log('❌ خطأ في سحب التغييرات: $e');
       return false;
     } finally {
-      _isSyncing = false;
+      await SyncLocks.smartSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 

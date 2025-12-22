@@ -78,6 +78,12 @@ class AutoSyncEngineState {
   }
 }
 
+enum _StartResult {
+  ok,
+  notInitialized,
+  alreadyRunning,
+}
+
 class AutoSyncEngine with WidgetsBindingObserver {
   AutoSyncEngine._();
   static final instance = AutoSyncEngine._();
@@ -178,19 +184,25 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> start() async {
-    if (!_isInitialized) {
+    final canStart = await SyncLocks.autoEngineLock.synchronized(() async {
+      if (!_isInitialized) return _StartResult.notInitialized;
+      if (_isRunning) return _StartResult.alreadyRunning;
+      
+      _isRunning = true;
+      return _StartResult.ok;
+    });
+    
+    if (canStart == _StartResult.notInitialized) {
       _log('❌ Cannot start - engine not initialized');
       return;
     }
     
-    if (_isRunning) {
+    if (canStart == _StartResult.alreadyRunning) {
       _log('⚠️ Engine already running');
       return;
     }
 
     _log('🎬 Starting Auto Sync Engine...');
-    
-    _isRunning = true;
     _emitState();
     
     _setupConnectivityListener();
@@ -210,28 +222,30 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   void stop() {
-    if (!_isRunning) return;
-    
-    _log('🛑 Stopping Auto Sync Engine...');
-    
-    _isRunning = false;
-    
-    _connectivitySubscription?.cancel();
-    _connectivitySubscription = null;
-    
-    _syncResultSubscription?.cancel();
-    _syncResultSubscription = null;
-    
-    _retryTimer?.cancel();
-    _retryTimer = null;
-    
-    _healthCheckTimer?.cancel();
-    _healthCheckTimer = null;
-    
-    WidgetsBinding.instance.removeObserver(this);
-    
-    _emitState();
-    _log('✅ Auto Sync Engine stopped');
+    SyncLocks.autoEngineLock.synchronized(() {
+      if (!_isRunning) return;
+      
+      _log('🛑 Stopping Auto Sync Engine...');
+      
+      _isRunning = false;
+      
+      _connectivitySubscription?.cancel();
+      _connectivitySubscription = null;
+      
+      _syncResultSubscription?.cancel();
+      _syncResultSubscription = null;
+      
+      _retryTimer?.cancel();
+      _retryTimer = null;
+      
+      _healthCheckTimer?.cancel();
+      _healthCheckTimer = null;
+      
+      WidgetsBinding.instance.removeObserver(this);
+      
+      _emitState();
+      _log('✅ Auto Sync Engine stopped');
+    });
   }
 
   void _setupConnectivityListener() {
@@ -283,9 +297,13 @@ class AutoSyncEngine with WidgetsBindingObserver {
           _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
         } else {
           _failedAttempts++;
-          _lastError = result.error;
+          _lastError = result.error ?? result.message;
           
-          _log('❌ Sync failed (attempt $_failedAttempts): ${result.message}', 
+          final errorDetails = result.error != null 
+              ? '${result.message} - ${result.error}' 
+              : result.message;
+          
+          _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails', 
                level: LogLevel.error);
           
           final prefs = SharedPreferences.getInstance();
@@ -329,7 +347,8 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> _performHealthCheck() async {
-    if (!_isRunning) return;
+    final shouldRun = await SyncLocks.autoEngineLock.synchronized(() => _isRunning);
+    if (!shouldRun) return;
     
     _log('❤️ Performing health check...');
     
@@ -487,7 +506,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }) {
     if (!_isRunning) return;
     
-    _pendingChangesCount += count;
+    SyncLocks.autoEngineLock.synchronized(() {
+      _pendingChangesCount += count;
+    });
+    
     _emitState();
     
     _log('💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)');
@@ -639,17 +661,21 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('🚀 Force sync triggered by user');
     
     if (!_hasNetworkConnection) {
-      _log('📴 No network connection');
+      final message = 'لا يوجد اتصال بالإنترنت';
+      _log('📴 $message');
       return SyncResult.failure(
-        message: 'No network connection',
+        message: message,
+        error: 'NetworkUnavailable',
         phase: SyncPhase.idle,
       );
     }
     
     if (!_isSignedIn) {
-      _log('🔐 Not signed in');
+      final message = 'غير مسجل الدخول في Google Drive';
+      _log('🔐 $message');
       return SyncResult.failure(
-        message: 'Not signed in',
+        message: message,
+        error: 'NotSignedIn',
         phase: SyncPhase.authenticating,
       );
     }
