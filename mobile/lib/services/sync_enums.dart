@@ -47,19 +47,19 @@ enum SyncLogStatus {
   }
 }
 
-enum SyncOperation {
+enum SyncOperationType {
   insert('insert'),
   update('update'),
   delete('delete'),
   upsert('upsert');
 
   final String value;
-  const SyncOperation(this.value);
+  const SyncOperationType(this.value);
 
-  static SyncOperation fromString(String value) {
-    return SyncOperation.values.firstWhere(
+  static SyncOperationType fromString(String value) {
+    return SyncOperationType.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => SyncOperation.upsert,
+      orElse: () => SyncOperationType.upsert,
     );
   }
 }
