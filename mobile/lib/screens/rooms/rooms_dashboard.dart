@@ -5,6 +5,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../components/widgets/room_widgets.dart';
+import '../../utils/status_utils.dart';
 import '../bookings/booking_edit.dart';
 import '../payments/booking_payment_screen.dart';
 
@@ -114,8 +115,8 @@ class RoomsDashboard extends ConsumerWidget {
       context: context,
       builder: (context) => RoomDetailsDialog(
         room: room,
-        onBookRoom: room.status == 'شاغرة' ? () => _navigateToBooking(context, room.roomNumber) : null,
-        onViewBookings: room.status != 'شاغرة' ? () => _showRoomBookings(context, ref, room.roomNumber) : null,
+        onBookRoom: StatusUtils.isRoomAvailable(room.status) ? () => _navigateToBooking(context, room.roomNumber) : null,
+        onViewBookings: !StatusUtils.isRoomAvailable(room.status) ? () => _showRoomBookings(context, ref, room.roomNumber) : null,
       ),
     );
   }

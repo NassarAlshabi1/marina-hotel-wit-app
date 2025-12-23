@@ -37,6 +37,22 @@ enum SyncPhase {
   failed,
 }
 
+enum _SyncStartResult {
+  ok,
+  notInitialized,
+  notSignedIn,
+  alreadySyncing,
+}
+
+sealed class _PerformSyncStartResult {}
+class _PerformSyncOk extends _PerformSyncStartResult {}
+class _PerformSyncNotInitialized extends _PerformSyncStartResult {}
+class _PerformSyncNotSignedIn extends _PerformSyncStartResult {}
+class _PerformSyncAlreadyInProgress extends _PerformSyncStartResult {
+  final int elapsedSeconds;
+  _PerformSyncAlreadyInProgress(this.elapsedSeconds);
+}
+
 class SyncResult {
   final bool success;
   final String message;
@@ -98,6 +114,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   Timer? _debounceTimer;
   Timer? _periodicSyncTimer;
   Timer? _pullCheckTimer;
+  StreamSubscription? _outboxSubscription;
   
   bool _isInitialized = false;
   bool _isSyncing = false;
@@ -106,8 +123,12 @@ class GoogleDriveUnifiedSyncCoordinator {
   DateTime? _lastPushTime;
   DateTime? _lastPullTime;
   DateTime? _lastFullBackupTime;
+  DateTime? _firstChangeTime;
+  DateTime? _syncStartTime;
   
   SyncPhase _currentPhase = SyncPhase.idle;
+  
+  static const Duration _syncTimeout = Duration(minutes: 2);
   final _syncResultController = StreamController<SyncResult>.broadcast();
   
   bool _pushEnabled = true;
@@ -126,7 +147,8 @@ class GoogleDriveUnifiedSyncCoordinator {
   static const String _prefsLastPullKey = 'gd_unified_last_pull';
   static const String _prefsLastFullBackupKey = 'gd_unified_last_full_backup';
   
-  static const int _defaultDebounceSeconds = 5;
+  static const int _defaultDebounceSeconds = 1;  // انتظار قصير جداً بعد الحفظ (ثانية واحدة فقط لتجميع العمليات المتعددة)
+  static const int _maxDebounceSeconds = 3;      // الحد الأقصى للانتظار (غير مستخدم حالياً)
   static const int _defaultPullIntervalMinutes = 2;
   static const int _defaultFullBackupHours = 24;
 
@@ -136,6 +158,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   SyncPhase get currentPhase => _currentPhase;
   bool get hasPendingChanges => _hasPendingChanges;
   int get pendingChangesCount => _pendingChangesCount;
+  String? get deviceId => _deltaSync?.deviceId;
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('UnifiedSyncCoordinator', message);
@@ -221,6 +244,16 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
+    // مراقبة تغييرات outbox للمزامنة التلقائية
+    _outboxSubscription?.cancel();
+    if (_pushEnabled && _database != null) {
+      _outboxSubscription = (_database!.select(_database!.outbox)).watch().listen((_) {
+        _log('📦 Detected change in outbox', level: LogLevel.debug);
+        notifyLocalChange();
+      });
+      _log('✅ Started outbox monitoring for auto-sync');
+    }
+    
     if (_pullEnabled) {
       _pullCheckTimer?.cancel();
       _pullCheckTimer = Timer.periodic(
@@ -237,7 +270,8 @@ class GoogleDriveUnifiedSyncCoordinator {
     _debounceTimer?.cancel();
     _periodicSyncTimer?.cancel();
     _pullCheckTimer?.cancel();
-    _log('⏸️ Stopped all sync monitoring');
+    _outboxSubscription?.cancel();
+    _log('⏹️ Stopped all monitoring');
   }
 
   Future<void> _scheduleFullBackup() async {
@@ -267,11 +301,36 @@ class GoogleDriveUnifiedSyncCoordinator {
     });
   }
 
+  /// إشعار بتغيير محلي في البيانات
+  /// 
+  /// آلية فورية وذكية:
+  /// - مزامنة شبه فورية بعد الضغط على زر الحفظ/الإضافة/التعديل/الحذف
+  /// - انتظار ثانية واحدة فقط لتجميع العمليات المتعددة السريعة
+  /// - يجمع كل التغييرات ويزامنها دفعة واحدة
+  /// 
+  /// مثال:
+  /// - المستخدم يضغط "حفظ حجز" → انتظار ثانية واحدة → مزامنة تلقائية ✅
+  /// - يضغط "حفظ" 3 مرات بسرعة → تُجمع كلها وتُزامن مرة واحدة
+  /// - يحذف 5 عناصر بسرعة → تُجمع وتُزامن مرة واحدة
+  /// 
+  /// الفائدة:
+  /// - شبه فوري: يشعر المستخدم بالمزامنة الفورية
+  /// - ذكي: لا يزعج المستخدم بمزامنات متعددة
+  /// - فعال: يوفر البطارية والبيانات
   void notifyLocalChange({String? table, String? operation, int count = 1}) {
     if (!_isInitialized) return;
     
-    _hasPendingChanges = true;
-    _pendingChangesCount += count;
+    SyncLocks.mainSyncLock.synchronized(() {
+      final now = DateTime.now();
+      
+      if (!_hasPendingChanges) {
+        _firstChangeTime = now;
+        _log('💾 Save action detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
+      }
+      
+      _hasPendingChanges = true;
+      _pendingChangesCount += count;
+    });
     
     _debounceTimer?.cancel();
     
@@ -280,12 +339,24 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
-    _debounceTimer = Timer(Duration(seconds: _debounceSeconds), () async {
+    final effectiveDebounce = _debounceSeconds;
+    _log('🚀 Triggering sync in ${effectiveDebounce}s (${_pendingChangesCount} changes pending)', 
+        level: LogLevel.debug);
+    
+    _debounceTimer = Timer(Duration(seconds: effectiveDebounce), () async {
       if (_hasPendingChanges) {
-        _log('📤 Debounce complete - pushing $_pendingChangesCount changes');
-        await performSync(trigger: SyncTrigger.localChange, mode: SyncMode.smart);
+        _log('✅ Starting sync for $_pendingChangesCount changes');
+        _triggerSync();
       }
     });
+  }
+  
+  Future<void> _triggerSync() async {
+    try {
+      await performSync(trigger: SyncTrigger.localChange, mode: SyncMode.smart);
+    } finally {
+      _firstChangeTime = null;
+    }
   }
 
   Future<void> onAppForeground() async {
@@ -327,30 +398,60 @@ class GoogleDriveUnifiedSyncCoordinator {
     required SyncTrigger trigger,
     SyncMode mode = SyncMode.smart,
   }) async {
-    if (!_isInitialized) {
-      return SyncResult.failure(
-        message: 'Coordinator not initialized',
-        phase: SyncPhase.idle,
-      );
+    final canStartResult = await SyncLocks.mainSyncLock.synchronized(() async {
+      if (!_isInitialized) return _PerformSyncNotInitialized();
+      if (!(_backupService?.isSignedIn ?? false)) return _PerformSyncNotSignedIn();
+      
+      if (_isSyncing) {
+        if (_syncStartTime != null) {
+          final elapsed = DateTime.now().difference(_syncStartTime!);
+          if (elapsed > _syncTimeout) {
+            _log('⚠️ Sync timeout detected (${elapsed.inSeconds}s) - resetting state');
+            _isSyncing = false;
+            _syncStartTime = null;
+            _currentPhase = SyncPhase.idle;
+          } else {
+            return _PerformSyncAlreadyInProgress(elapsed.inSeconds);
+          }
+        } else {
+          _log('⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
+          _isSyncing = false;
+        }
+      }
+      
+      _isSyncing = true;
+      _syncStartTime = DateTime.now();
+      _currentPhase = SyncPhase.authenticating;
+      return _PerformSyncOk();
+    });
+    
+    switch (canStartResult) {
+      case _PerformSyncNotInitialized():
+        return SyncResult.failure(
+          message: 'Coordinator not initialized',
+          phase: SyncPhase.idle,
+        );
+      case _PerformSyncNotSignedIn():
+        return SyncResult.failure(
+          message: 'Not signed in to Google Drive',
+          phase: SyncPhase.authenticating,
+        );
+      case _PerformSyncAlreadyInProgress(elapsedSeconds: final elapsed):
+        _log('⏸️ Sync already in progress (${elapsed}s elapsed) - skipping $trigger');
+        if (trigger == SyncTrigger.periodic || trigger == SyncTrigger.scheduled) {
+          return SyncResult.success(
+            message: 'Sync already in progress - not an error for periodic sync',
+            pushed: 0,
+            pulled: 0,
+          );
+        }
+        return SyncResult.failure(
+          message: 'Sync already in progress',
+          phase: _currentPhase,
+        );
+      case _PerformSyncOk():
+        break;
     }
-
-    if (!(_backupService?.isSignedIn ?? false)) {
-      return SyncResult.failure(
-        message: 'Not signed in to Google Drive',
-        phase: SyncPhase.authenticating,
-      );
-    }
-
-    if (_isSyncing) {
-      _log('⏸️ Sync already in progress - skipping $trigger');
-      return SyncResult.failure(
-        message: 'Sync already in progress',
-        phase: _currentPhase,
-      );
-    }
-
-    _isSyncing = true;
-    _currentPhase = SyncPhase.authenticating;
     
     _log('🚀 Starting sync [trigger=$trigger, mode=$mode]');
 
@@ -358,12 +459,18 @@ class GoogleDriveUnifiedSyncCoordinator {
       final optimizer = SyncPerformanceOptimizer.instance;
       final dataManager = DataUsageManager.instance;
       
-      if (await optimizer.shouldSkipSync()) {
-        _log('⏸️ Optimizer suggests skipping sync');
-        return SyncResult.failure(
-          message: 'Skipped by performance optimizer',
-          phase: SyncPhase.idle,
-        );
+      final shouldSkip = await optimizer.shouldSkipSync();
+      final enforceOptimizer = trigger == SyncTrigger.periodic || trigger == SyncTrigger.scheduled;
+      if (shouldSkip) {
+        if (enforceOptimizer) {
+          _log('⏸️ Optimizer suggests skipping sync');
+          return SyncResult.failure(
+            message: 'Skipped by performance optimizer',
+            phase: SyncPhase.idle,
+          );
+        } else {
+          _log('⚠️ Optimizer suggested skipping but trigger $trigger requires immediate sync');
+        }
       }
       
       if (await dataManager.isLimitExceeded()) {
@@ -412,14 +519,30 @@ class GoogleDriveUnifiedSyncCoordinator {
       return result;
       
     } catch (error, stackTrace) {
-      _log('❌ Sync failed: $error');
-      _log('Stack trace: $stackTrace');
+      final errorMessage = error.toString();
+      _log('❌ Sync failed: $errorMessage', level: LogLevel.error);
+      _log('Stack trace: $stackTrace', level: LogLevel.debug);
       
       SyncPerformanceOptimizer.instance.recordSyncFailure();
       
+      String userFriendlyMessage = 'فشلت المزامنة';
+      if (errorMessage.contains('NetworkException') || errorMessage.contains('SocketException')) {
+        userFriendlyMessage = 'خطأ في الاتصال بالإنترنت';
+      } else if (errorMessage.contains('Unauthorized') || errorMessage.contains('401')) {
+        userFriendlyMessage = 'انتهت صلاحية تسجيل الدخول - يرجى تسجيل الدخول مرة أخرى';
+      } else if (errorMessage.contains('QuotaExceeded') || errorMessage.contains('Storage')) {
+        userFriendlyMessage = 'مساحة التخزين ممتلئة على Google Drive';
+      } else if (errorMessage.contains('غير مسجل الدخول')) {
+        userFriendlyMessage = 'غير مسجل الدخول في Google Drive';
+      } else if (errorMessage.contains('الخدمة غير جاهزة')) {
+        userFriendlyMessage = 'خدمة المزامنة غير جاهزة';
+      } else {
+        userFriendlyMessage = 'فشلت المزامنة: $errorMessage';
+      }
+      
       final result = SyncResult.failure(
-        message: 'Sync failed',
-        error: error.toString(),
+        message: userFriendlyMessage,
+        error: errorMessage,
         phase: _currentPhase,
       );
       
@@ -427,30 +550,33 @@ class GoogleDriveUnifiedSyncCoordinator {
       return result;
       
     } finally {
-      _isSyncing = false;
-      _currentPhase = SyncPhase.idle;
+      await SyncLocks.mainSyncLock.synchronized(() async {
+        _isSyncing = false;
+        _syncStartTime = null;
+        _currentPhase = SyncPhase.idle;
+      });
     }
   }
 
   SyncMode _determineEffectiveMode(SyncMode requestedMode, SyncTrigger trigger) {
-    if (requestedMode == SyncMode.smart) {
-      if (trigger == SyncTrigger.scheduled) {
-        return SyncMode.fullBackup;
-      }
-      
-      if (_lastFullBackupTime == null) {
-        return SyncMode.fullBackup;
-      }
-      
-      final hoursSinceFullBackup = DateTime.now().difference(_lastFullBackupTime!).inHours;
-      if (hoursSinceFullBackup >= _fullBackupIntervalHours) {
-        return SyncMode.fullBackup;
-      }
-      
-      return SyncMode.deltaOnly;
+    if (requestedMode != SyncMode.smart) {
+      return requestedMode;
     }
     
-    return requestedMode;
+    if (trigger == SyncTrigger.scheduled) {
+      return SyncMode.fullBackup;
+    }
+    
+    if (_lastFullBackupTime == null) {
+      return SyncMode.fullBackup;
+    }
+    
+    final hoursSinceFullBackup = DateTime.now().difference(_lastFullBackupTime!).inHours;
+    if (hoursSinceFullBackup >= _fullBackupIntervalHours) {
+      return SyncMode.fullBackup;
+    }
+    
+    return SyncMode.smart;
   }
 
   Future<int?> _performDeltaPush() async {
@@ -463,6 +589,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       if (result.success) {
         _hasPendingChanges = false;
         _pendingChangesCount = 0;
+        _firstChangeTime = null;
         _lastPushTime = DateTime.now();
         
         final prefs = await SharedPreferences.getInstance();
@@ -524,8 +651,10 @@ class GoogleDriveUnifiedSyncCoordinator {
     try {
       final backupData = await _backupService!.exportDatabaseToJson();
       
+      final metadata = backupData['metadata'];
+      final baseMetadata = metadata is Map ? Map<String, dynamic>.from(metadata) : <String, dynamic>{};
       backupData['metadata'] = {
-        ...backupData['metadata'],
+        ...baseMetadata,
         'backup_type': 'full',
         'sync_type': 'scheduled',
         'device_id': _deltaSync!.deviceId,

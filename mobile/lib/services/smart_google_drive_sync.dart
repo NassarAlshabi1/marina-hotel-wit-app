@@ -8,6 +8,7 @@ import 'local_db.dart';
 import '../utils/debug_logs.dart';
 import 'sync_performance_optimizer.dart';
 import 'data_usage_manager.dart';
+import 'sync_locks.dart';
 
 /// مدير مزامنة Google Drive الذكي المبسط
 /// 
@@ -130,12 +131,17 @@ class SmartGoogleDriveSync {
 
   /// رفع التغييرات المحلية (Delta Sync)
   Future<bool> pushLocalChanges() async {
-    if (_isSyncing || !_isEnabled || _driveService?.isSignedIn != true) {
-      return false;
-    }
+    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
+      if (_isSyncing || !_isEnabled || _driveService?.isSignedIn != true) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) return false;
     
     try {
-      _isSyncing = true;
       _log('📤 بدء رفع التغييرات...');
       
       // استخدام Delta Sync للتحديثات الصغيرة
@@ -166,18 +172,25 @@ class SmartGoogleDriveSync {
       _log('❌ خطأ في رفع التغييرات: $e');
       return false;
     } finally {
-      _isSyncing = false;
+      await SyncLocks.smartSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 
   /// سحب التغييرات من الأجهزة الأخرى
   Future<bool> pullRemoteChanges() async {
-    if (_isSyncing || !_isEnabled || _driveService?.isSignedIn != true) {
-      return false;
-    }
+    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
+      if (_isSyncing || !_isEnabled || _driveService?.isSignedIn != true) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) return false;
     
     try {
-      _isSyncing = true;
       _log('📥 بدء سحب التحديثات...');
       
       // سحب Delta changes من الأجهزة الأخرى
@@ -201,25 +214,34 @@ class SmartGoogleDriveSync {
       _log('❌ خطأ في سحب التحديثات: $e');
       return false;
     } finally {
-      _isSyncing = false;
+      await SyncLocks.smartSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 
   /// عمل نسخة احتياطية كاملة
   Future<bool> createFullBackup() async {
-    if (_isSyncing || _driveService?.isSignedIn != true) {
-      return false;
-    }
+    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
+      if (_isSyncing || _driveService?.isSignedIn != true) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) return false;
     
     try {
-      _isSyncing = true;
       _log('💾 بدء النسخ الاحتياطي الكامل...');
       
       final backupData = await _driveService!.exportDatabaseToJson();
       
       // إضافة metadata للتمييز
+      final metadata = backupData['metadata'];
+      final baseMetadata = metadata is Map ? Map<String, dynamic>.from(metadata) : <String, dynamic>{};
       backupData['metadata'] = {
-        ...backupData['metadata'],
+        ...baseMetadata,
         'backup_type': 'full',
         'sync_type': 'scheduled',
       };
@@ -235,7 +257,9 @@ class SmartGoogleDriveSync {
       _log('❌ خطأ في النسخ الاحتياطي: $e');
       return false;
     } finally {
-      _isSyncing = false;
+      await SyncLocks.smartSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 

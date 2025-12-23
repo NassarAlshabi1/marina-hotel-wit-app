@@ -76,7 +76,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
   Future<void> _editRoom(BuildContext context, WidgetRef ref, {Room? existing}) async {
     final roomNumberCtrl = TextEditingController(text: existing?.roomNumber ?? '');
     final typeCtrl = TextEditingController(text: existing?.type ?? '');
-    final priceCtrl = TextEditingController(text: existing?.price.toString() ?? '');
+    final priceCtrl = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.price) : '');
     String status = existing?.status ?? 'شاغرة';
 
     String? imageUrl = existing?.imageUrl;
@@ -131,7 +131,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       await repo.create(
         roomNumber: roomNumberCtrl.text.trim(),
         type: typeCtrl.text.trim(),
-        price: double.tryParse(priceCtrl.text) ?? 0,
+        price: CurrencyFormatter.parseAmount(priceCtrl.text) ?? 0,
         status: status,
         imageUrl: imageUrl,
       );
@@ -139,7 +139,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       await repo.updateByRoomNumber(
         existing.roomNumber,
         type: typeCtrl.text.trim(),
-        price: double.tryParse(priceCtrl.text) ?? 0,
+        price: CurrencyFormatter.parseAmount(priceCtrl.text) ?? 0,
         status: status,
         imageUrl: imageUrl,
       );

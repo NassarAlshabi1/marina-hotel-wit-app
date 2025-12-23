@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 
 /// شاشة لإنشاء الدين بطريقة تلقائية من الحجز أو يدوية
 class CreateDebtFromBookingScreen extends ConsumerStatefulWidget {
@@ -495,8 +496,8 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
       return;
     }
 
-    final total = double.tryParse(_manualTotalController.text.trim()) ?? 0;
-    final paid = double.tryParse(_manualPaidController.text.trim().isEmpty ? '0' : _manualPaidController.text.trim()) ?? 0;
+    final total = CurrencyFormatter.parseAmount(_manualTotalController.text) ?? 0;
+    final paid = CurrencyFormatter.parseAmount(_manualPaidController.text) ?? 0;
     final checkout = _manualCheckoutController.text.trim().isEmpty
         ? _manualCheckinController.text.trim()
         : _manualCheckoutController.text.trim();
@@ -572,7 +573,7 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
   }
 
   String _formatCurrency(double value) {
-    return value.toStringAsFixed(0);
+    return CurrencyFormatter.formatAmount(value);
   }
 
   DateTime _resolveCheckoutForBooking(Booking booking) {

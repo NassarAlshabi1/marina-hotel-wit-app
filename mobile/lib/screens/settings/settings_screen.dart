@@ -5,6 +5,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
 import '../../widgets/smart_sync_widgets.dart';
 import '../../providers/theme_provider.dart';
+import '../../utils/status_utils.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
@@ -218,7 +219,7 @@ class SettingsScreen extends ConsumerWidget {
                   child: _buildStatItem(
                     'الحجوزات النشطة',
                     bookingsAsync.value
-                        ?.where((b) => b.status == 'محجوزة')
+                        ?.where((b) => StatusUtils.isActiveBooking(b.status))
                         .length
                         .toString() ?? '---',
                     Icons.assignment,

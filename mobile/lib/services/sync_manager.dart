@@ -9,6 +9,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../data/sync_models.dart';
 import 'daos/outbox_dao.dart';
@@ -49,7 +50,8 @@ class SyncManager {
     required this.driveService,
     this.triggerDispatcher,
   }) : _statusController = StreamController<SyncStatus>.broadcast(),
-        _auditDao = SyncAuditDao(db);
+        _auditDao = SyncAuditDao(db),
+        _deltaSyncService = DeltaSyncService(db);
 
   final AppDatabase db;
   final GoogleDriveSyncService driveService;
@@ -57,6 +59,8 @@ class SyncManager {
   final SyncAuditDao _auditDao;
   final StreamController<SyncStatus> _statusController;
   final SyncSafetyLayer _safetyLayer = SyncSafetyLayer.instance;
+  final DeltaSyncService _deltaSyncService;
+  final _syncLock = Lock();
 
   static const String _prefsLastDriveSyncEpochKey = 'drive_auto_sync_last_epoch';
 
@@ -335,6 +339,82 @@ class SyncManager {
   bool compareChecksum(SyncSnapshot remote, Map<String, dynamic> localTables) {
     final localChecksum = SyncChecksum.compute({'tables': localTables});
     return localChecksum == remote.metadata.checksum;
+  }
+
+  /// حساب checksum باستخدام stream لتجنب memory issues
+  Future<String> _computeStreamChecksum() async {
+    final output = AccumulatorSink<Digest>();
+    final input = sha256.startChunkedConversion(output);
+    
+    final tableOrder = [
+      'rooms',
+      'bookings',
+      'booking_notes',
+      'guests',
+      'payments',
+      'employees',
+      'services',
+      'settings',
+      'expenses',
+      'cash_transactions',
+      'debts',
+    ];
+
+    for (final table in tableOrder) {
+      await for (final batch in _streamTableRows(table, batchSize: 100)) {
+        final batchJson = jsonEncode(batch);
+        input.add(utf8.encode(batchJson));
+      }
+    }
+
+    input.close();
+    return output.events.single.toString();
+  }
+
+  /// stream صفوف الجدول على دفعات لتجنب تحميل كل البيانات في الذاكرة
+  Stream<List<Map<String, dynamic>>> _streamTableRows(
+    String table,
+    {int batchSize = 100}
+  ) async* {
+    // Whitelist validation for security
+    const allowedTables = {
+      'rooms',
+      'bookings',
+      'booking_notes',
+      'guests',
+      'payments',
+      'employees',
+      'services',
+      'settings',
+      'expenses',
+      'cash_transactions',
+      'debts',
+    };
+    
+    if (!allowedTables.contains(table)) {
+      debugPrint('⚠️ Invalid table name: $table');
+      return;
+    }
+    
+    int offset = 0;
+    while (true) {
+      try {
+        final batch = await db.customSelect(
+          'SELECT * FROM $table ORDER BY local_uuid LIMIT ? OFFSET ?',
+          variables: [drift.Variable.withInt(batchSize), drift.Variable.withInt(offset)],
+        ).get();
+        
+        if (batch.isEmpty) break;
+        
+        final mappedBatch = batch.map((row) => Map<String, dynamic>.from(row.data)).toList();
+        
+        yield mappedBatch;
+        offset += batchSize;
+      } catch (e) {
+        debugPrint('⚠️ Error streaming table $table at offset $offset: $e');
+        break;
+      }
+    }
   }
 
   Future<void> _persistSyncHistory(String syncId) async {
@@ -735,5 +815,26 @@ class SyncManager {
       return null;
     }
     return DateTime.tryParse(value)?.toUtc();
+  }
+}
+
+/// A [Sink] that accumulates all data added to it in a list.
+class AccumulatorSink<T> implements Sink<T> {
+  bool _isClosed = false;
+  final List<T> _events = [];
+
+  List<T> get events => List.unmodifiable(_events);
+
+  @override
+  void add(T data) {
+    if (_isClosed) {
+      throw StateError('Cannot add to a closed sink.');
+    }
+    _events.add(data);
+  }
+
+  @override
+  void close() {
+    _isClosed = true;
   }
 }

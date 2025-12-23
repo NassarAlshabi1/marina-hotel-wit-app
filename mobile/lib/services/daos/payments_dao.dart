@@ -32,7 +32,32 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
   Future<List<Payment>> listByDate(String date, {bool includeDeleted = false}) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    q.where((t) => t.paymentDate.like('$date%')); // يبدأ بالتاريخ المحدد
+    q.where((t) => t.paymentDate.like('$date%'));
+    return q.get();
+  }
+
+  Future<List<Payment>> listByHotelDayKey(
+    String hotelDayKey, {
+    bool includeDeleted = false,
+    String? revenueType,
+  }) async {
+    final q = select(payments);
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+
+    final startIso = Time.hotelDayStartIso(hotelDayKey);
+    final endIso = Time.hotelDayEndIso(hotelDayKey);
+
+    final byKey = payments.hotelDayKey.equals(hotelDayKey);
+    final byRangeFallback = payments.hotelDayKey.isNull() &
+        payments.paymentDate.isBiggerOrEqualValue(startIso) &
+        payments.paymentDate.isSmallerThanValue(endIso);
+
+    q.where((t) => byKey | byRangeFallback);
+
+    if (revenueType != null && revenueType.isNotEmpty) {
+      q.where((t) => t.revenueType.equals(revenueType));
+    }
+
     return q.get();
   }
 
@@ -122,6 +147,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
     if (comp.notes.present) m['notes'] = comp.notes.value;
     if (comp.paymentMethod.present) m['payment_method'] = comp.paymentMethod.value;
     if (comp.revenueType.present) m['revenue_type'] = comp.revenueType.value;
+    if (comp.hotelDayKey.present) m['hotel_day_key'] = comp.hotelDayKey.value;
     if (comp.cashTransactionLocalId.present) m['cash_transaction_local_id'] = comp.cashTransactionLocalId.value;
     if (comp.cashTransactionServerId.present) m['cash_transaction_id'] = comp.cashTransactionServerId.value;
     return m;
@@ -153,6 +179,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
         notes: Value(payment.notes),
         paymentMethod: Value(payment.paymentMethod),
         revenueType: Value(payment.revenueType),
+        hotelDayKey: Value(payment.hotelDayKey),
+        linkedDebtUuid: Value(payment.linkedDebtUuid),
+        bookingUuidCache: Value(payment.bookingUuidCache),
         cashTransactionLocalId: Value(payment.cashTransactionLocalId),
         cashTransactionServerId: Value(payment.cashTransactionServerId),
         localUuid: Value(payment.localUuid),
