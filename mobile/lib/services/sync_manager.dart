@@ -5,6 +5,7 @@ import 'dart:math';
 
 import 'package:collection/collection.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,7 @@ import 'package:synchronized/synchronized.dart';
 
 import '../data/sync_models.dart';
 import 'daos/outbox_dao.dart';
+import 'delta_sync_service.dart';
 import 'google_drive_sync_service.dart';
 import 'local_db.dart';
 import 'sync_safety_layer.dart';
