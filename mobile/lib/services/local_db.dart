@@ -326,6 +326,7 @@ class Outbox extends Table {
   IntColumn get clientTs => integer()();
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
+  TextColumn get idempotencyKey => text().nullable()();
 }
 
 class SyncState extends Table {
@@ -420,7 +421,7 @@ class AppDatabase extends _$AppDatabase {
   static AppDatabase forTesting(QueryExecutor executor) => AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -550,6 +551,9 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(appSessions);
             await m.createTable(salaryCycles);
             await m.createTable(salaryPayments);
+          }
+          if (from < 17) {
+            await m.addColumn(outbox, outbox.idempotencyKey);
           }
         },
       );

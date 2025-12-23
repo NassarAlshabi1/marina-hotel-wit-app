@@ -12,6 +12,7 @@ import 'google_drive_conflict_resolver.dart';
 import 'google_drive_delta_sync.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
+import 'sync_locks.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
 import 'sync_locks.dart';
