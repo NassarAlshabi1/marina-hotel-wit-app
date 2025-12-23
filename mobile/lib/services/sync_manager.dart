@@ -5,17 +5,22 @@ import 'dart:math';
 
 import 'package:collection/collection.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:synchronized/synchronized.dart';
+import 'package:crypto/crypto.dart';
 
 import '../data/sync_models.dart';
 import 'daos/outbox_dao.dart';
+import 'delta_sync_service.dart';
 import 'google_drive_sync_service.dart';
 import 'local_db.dart';
 import 'sync_safety_layer.dart';
+import 'sync_mutex.dart';
+import 'sync_enums.dart';
 
 /// واجهة اختيارية لإرسال إشعارات FCM عند اكتمال الرفع
 abstract class SyncTriggerDispatcher {
@@ -50,8 +55,7 @@ class SyncManager {
     required this.driveService,
     this.triggerDispatcher,
   }) : _statusController = StreamController<SyncStatus>.broadcast(),
-        _auditDao = SyncAuditDao(db),
-        _deltaSyncService = DeltaSyncService(db);
+        _auditDao = SyncAuditDao(db);
 
   final AppDatabase db;
   final GoogleDriveSyncService driveService;
@@ -59,8 +63,7 @@ class SyncManager {
   final SyncAuditDao _auditDao;
   final StreamController<SyncStatus> _statusController;
   final SyncSafetyLayer _safetyLayer = SyncSafetyLayer.instance;
-  final DeltaSyncService _deltaSyncService;
-  final _syncLock = Lock();
+  final SyncMutex _drainMutex = SyncMutex();
 
   static const String _prefsLastDriveSyncEpochKey = 'drive_auto_sync_last_epoch';
 
@@ -124,7 +127,7 @@ class SyncManager {
         payload: drift.Value(payload),
         updatedAt: drift.Value(updatedAt),
         deviceId: drift.Value(deviceId),
-        status: const drift.Value('pending'),
+        status: drift.Value(SyncQueueStatus.pending.value),
         createdAt: drift.Value(nowIso),
       ),
     );
@@ -450,6 +453,7 @@ class SyncManager {
   }
 
   Future<void> _drainQueue({bool force = false}) async {
+    await _drainMutex.acquire();
     await _ensureReady();
     if (_isDrainingQueue) {
       return;
@@ -477,7 +481,7 @@ class SyncManager {
       final remoteSnapshot = remoteResult?.snapshot ?? _emptySnapshot();
 
       if (!force && remoteResult != null && remoteResult.metadata.lastDeviceId == deviceId && compareChecksum(remoteResult.snapshot, localTables)) {
-        await _markQueueStatus(pending.map((e) => e.id).toList(), 'synced');
+        await _markQueueStatus(pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
         _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا توجد تغييرات جديدة للرفع'));
         return;
       }
@@ -498,7 +502,7 @@ class SyncManager {
       );
 
       await db.applyMergedData(mergeResult.mergedSnapshot.tables);
-      await _markQueueStatus(pending.map((e) => e.id).toList(), 'synced');
+      await _markQueueStatus(pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
 
       await _auditDao.insertSyncLog(
         syncId: syncId,
@@ -552,6 +556,7 @@ class SyncManager {
       rethrow;
     } finally {
       _isDrainingQueue = false;
+      _drainMutex.release();
       _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'طابور المزامنة فارغ'));
     }
   }
