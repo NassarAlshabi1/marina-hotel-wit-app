@@ -14,7 +14,6 @@ import 'package:crypto/crypto.dart';
 
 import '../data/sync_models.dart';
 import 'daos/outbox_dao.dart';
-import 'delta_sync_service.dart';
 import 'google_drive_sync_service.dart';
 import 'local_db.dart';
 import 'sync_safety_layer.dart';
@@ -54,8 +53,7 @@ class SyncManager {
     required this.driveService,
     this.triggerDispatcher,
   }) : _statusController = StreamController<SyncStatus>.broadcast(),
-        _auditDao = SyncAuditDao(db),
-        _deltaSyncService = DeltaSyncService(db);
+        _auditDao = SyncAuditDao(db);
 
   final AppDatabase db;
   final GoogleDriveSyncService driveService;
