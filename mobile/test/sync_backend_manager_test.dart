@@ -64,6 +64,10 @@ void main() {
       manager.reset();
     });
 
+    test('activeOrNull returns null before activation', () {
+      expect(manager.activeOrNull, isNull);
+    });
+
     test('routes sync calls through active backend', () async {
       final backend = StubBackend(SyncBackendKind.googleDrive);
       manager.register(backend, activate: true);

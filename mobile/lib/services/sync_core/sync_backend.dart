@@ -86,11 +86,17 @@ class SyncBackendManager {
   bool hasBackend(SyncBackendKind kind) => _backends.containsKey(kind);
 
   SyncBackend get active {
-    final kind = _activeKind;
-    if (kind == null || !_backends.containsKey(kind)) {
+    final backend = activeOrNull;
+    if (backend == null) {
       throw StateError('No active sync backend');
     }
-    return _backends[kind]!;
+    return backend;
+  }
+
+  SyncBackend? get activeOrNull {
+    final kind = _activeKind;
+    if (kind == null) return null;
+    return _backends[kind];
   }
 
   void activate(SyncBackendKind kind) {

@@ -6,7 +6,7 @@ final syncBackendManagerProvider = Provider<SyncBackendManager>((ref) {
   return SyncBackendManager.instance;
 });
 
-final activeSyncBackendProvider = Provider<SyncBackend>((ref) {
+final activeSyncBackendProvider = Provider<SyncBackend?>((ref) {
   final manager = ref.watch(syncBackendManagerProvider);
-  return manager.active;
+  return manager.activeOrNull;
 });
