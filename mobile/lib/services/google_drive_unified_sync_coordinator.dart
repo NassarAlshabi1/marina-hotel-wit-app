@@ -244,16 +244,8 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
-    // مراقبة تغييرات outbox للمزامنة التلقائية
     _outboxSubscription?.cancel();
-    if (_pushEnabled && _database != null) {
-      _outboxSubscription = (_database!.select(_database!.outbox)).watch().listen((_) {
-        _log('📦 Detected change in outbox', level: LogLevel.debug);
-        notifyLocalChange();
-      });
-      _log('✅ Started outbox monitoring for auto-sync');
-    }
-    
+
     if (_pullEnabled) {
       _pullCheckTimer?.cancel();
       _pullCheckTimer = Timer.periodic(

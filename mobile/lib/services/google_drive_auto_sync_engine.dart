@@ -505,15 +505,19 @@ class AutoSyncEngine with WidgetsBindingObserver {
     Map<String, dynamic>? recordData,
   }) {
     if (!_isRunning) return;
-    
+
     SyncLocks.autoEngineLock.synchronized(() {
       _pendingChangesCount += count;
     });
-    
+
     _emitState();
-    
+
     _log('💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)');
-    
+
+    if (!_isSignedIn || !_hasNetworkConnection) {
+      return;
+    }
+
     _coordinator!.notifyLocalChange(
       table: table,
       operation: operation,

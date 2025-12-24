@@ -31,6 +31,8 @@ import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_logger.dart';
 import 'services/local_db.dart';
 import 'services/smart_sync_manager.dart';
+import 'services/appwrite_service.dart';
+import 'services/appwrite_sync_manager.dart';
 
 // AutoSync Engine imports
 import 'services/google_drive_auto_sync_engine.dart';
@@ -131,6 +133,8 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     }
     
     await SyncQueueService.instance.initialize();
+
+    unawaited(_initializeAppwriteAssistant(database));
     
     _setupEngineMonitoring(autoSyncEngine);
     
@@ -153,6 +157,25 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     debugPrint('Error: $e');
     debugPrint('Stack trace: $stackTrace');
     debugPrint('═══════════════════════════════════════════════════════');
+  }
+}
+
+Future<void> _initializeAppwriteAssistant(AppDatabase database) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+    if (!enabled) {
+      return;
+    }
+
+    final intervalMinutes = prefs.getInt('appwrite_sync_interval') ?? 15;
+
+    final service = AppwriteService();
+    final manager = AppwriteSyncManager(appwriteService: service, database: database);
+    await manager.initialize();
+    manager.startAutoSync(interval: Duration(minutes: intervalMinutes));
+  } catch (e) {
+    debugPrint('⚠️ Appwrite assistant initialization failed: $e');
   }
 }
 
