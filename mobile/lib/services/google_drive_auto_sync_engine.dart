@@ -14,6 +14,7 @@ import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
+import 'sync_core/sync_backend.dart';
 
 class RetryConfig {
   final int maxRetries;
@@ -93,6 +94,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
   GoogleDriveConflictResolver? _conflictResolver;
   GoogleDriveLogger? _logger;
   AppDatabase? _database;
+  SharedPreferences? _prefs;
+  GoogleDriveSyncBackend? _googleDriveBackend;
+  final SyncBackendManager _backendManager = SyncBackendManager.instance;
   
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   StreamSubscription<SyncResult>? _syncResultSubscription;
@@ -110,6 +114,8 @@ class AutoSyncEngine with WidgetsBindingObserver {
   String? _lastError;
   
   final _stateController = StreamController<AutoSyncEngineState>.broadcast();
+  
+  SyncBackend get _activeBackend => _backendManager.active;
   
   static const String _prefsEnabledKey = 'auto_sync_engine_enabled';
   static const String _prefsDebounceSecondsKey = 'auto_sync_engine_debounce';
@@ -172,6 +178,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _conflictResolver = GoogleDriveConflictResolver.instance;
     _conflictResolver!.initialize(logger);
     
+    _googleDriveBackend = GoogleDriveSyncBackend(_coordinator!);
+    _backendManager.register(_googleDriveBackend!, activate: true);
+    
     await _loadSettings();
     
     _isSignedIn = backupService.isSignedIn;
@@ -207,7 +216,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
     
     _setupConnectivityListener();
     _setupSyncResultListener();
-    _setupDataStreamListener();
     _startHealthCheck();
     
     if (_isSignedIn && _hasNetworkConnection) {
@@ -217,7 +225,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('✅ Auto Sync Engine started successfully');
     _log('   📡 Network monitoring: ACTIVE');
     _log('   🔄 Lifecycle monitoring: ACTIVE');
-    _log('   💾 Data stream listening: ACTIVE');
+    _log('   📊 Sync result monitoring: ACTIVE');
     _log('   ❤️ Health checks: ACTIVE');
   }
 
@@ -282,7 +290,8 @@ class AutoSyncEngine with WidgetsBindingObserver {
   void _setupSyncResultListener() {
     _log('📊 Setting up sync result listener...');
     
-    _syncResultSubscription = _coordinator!.syncResults.listen(
+    _syncResultSubscription?.cancel();
+    _syncResultSubscription = _activeBackend.results.listen(
       (result) {
         if (result.success) {
           _lastSuccessfulSync = result.timestamp;
@@ -292,6 +301,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
           
           if (result.pushedChanges != null && result.pushedChanges! > 0) {
             _pendingChangesCount = max(0, _pendingChangesCount - result.pushedChanges!);
+            _log('📤 Data changes detected and pushed: ${result.pushedChanges}');
           }
           
           _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
@@ -306,16 +316,13 @@ class AutoSyncEngine with WidgetsBindingObserver {
           _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails', 
                level: LogLevel.error);
           
-          final prefs = SharedPreferences.getInstance();
-          prefs.then((p) async {
-            final retryEnabled = p.getBool(_prefsRetryEnabledKey) ?? true;
-            if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
-              await _scheduleRetry();
-            } else if (_failedAttempts >= _retryConfig.maxRetries) {
-              _log('🚫 Max retries reached - stopping automatic retries', 
-                   level: LogLevel.warning);
-            }
-          });
+          final retryEnabled = _prefs?.getBool(_prefsRetryEnabledKey) ?? true;
+          if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
+            unawaited(_scheduleRetry());
+          } else if (_failedAttempts >= _retryConfig.maxRetries) {
+            _log('🚫 Max retries reached - stopping automatic retries', 
+                 level: LogLevel.warning);
+          }
         }
         
         _emitState();
@@ -324,16 +331,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
         _log('❌ Sync result listener error: $error', level: LogLevel.error);
       },
     );
-  }
-
-  void _setupDataStreamListener() {
-    _log('💾 Setting up data stream listener...');
-    
-    _coordinator!.syncResults.listen((result) {
-      if (result.success && result.pushedChanges != null && result.pushedChanges! > 0) {
-        _log('📤 Data changes detected and pushed: ${result.pushedChanges}');
-      }
-    });
   }
 
   void _startHealthCheck() {
@@ -362,7 +359,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     if (_hasNetworkConnection && _isSignedIn) {
       if (_pendingChangesCount > 0) {
         _log('❤️ Health check: found pending changes - triggering sync');
-        await _coordinator!.performSync(
+        await _activeBackend.performSync(
           trigger: SyncTrigger.periodic,
           mode: SyncMode.smart,
         );
@@ -370,7 +367,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
       
       if (!hadConnection || !wasSignedIn) {
         _log('❤️ Health check: connection/auth restored - triggering pull');
-        await _coordinator!.performSync(
+        await _activeBackend.performSync(
           trigger: SyncTrigger.periodic,
           mode: SyncMode.deltaOnly,
         );
@@ -392,7 +389,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
         final account = await _backupService!.attemptSilentSignIn();
         if (account != null) {
           _isSignedIn = true;
-          await _coordinator!.onSignInChanged(true);
+          await _activeBackend.onSignInChanged(true);
           _log('✅ Silent sign-in successful');
         } else {
           _log('⚠️ Silent sign-in failed - user intervention needed');
@@ -406,13 +403,13 @@ class AutoSyncEngine with WidgetsBindingObserver {
     
     if (_pendingChangesCount > 0) {
       _log('📤 Syncing ${_pendingChangesCount} pending changes after network restore');
-      await _coordinator!.performSync(
+      await _activeBackend.performSync(
         trigger: SyncTrigger.localChange,
         mode: SyncMode.smart,
       );
     } else {
       _log('📥 Checking for remote changes after network restore');
-      await _coordinator!.performSync(
+      await _activeBackend.performSync(
         trigger: SyncTrigger.periodic,
         mode: SyncMode.deltaOnly,
       );
@@ -455,7 +452,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
         final account = await _backupService!.attemptSilentSignIn();
         if (account != null) {
           _isSignedIn = true;
-          await _coordinator!.onSignInChanged(true);
+          await _activeBackend.onSignInChanged(true);
         } else {
           _log('⚠️ Silent sign-in failed');
           return;
@@ -468,7 +465,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     
     Future.delayed(const Duration(milliseconds: 500), () async {
       try {
-        await _coordinator!.onAppForeground();
+        await _activeBackend.onAppForeground();
       } catch (e) {
         _log('❌ Error on app foreground sync: $e', level: LogLevel.error);
       }
@@ -481,7 +478,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     if (_pendingChangesCount > 0 && _hasNetworkConnection && _isSignedIn) {
       _log('💾 App paused with pending changes - quick sync before background');
       
-      _coordinator!.performSync(
+      _activeBackend.performSync(
         trigger: SyncTrigger.localChange,
         mode: SyncMode.deltaOnly,
       ).then((result) {
@@ -496,6 +493,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   void _onAppInactive() {
     _log('💤 App inactive');
+  }
+
+  void registerBackend(SyncBackend backend, {bool activate = false}) {
+    _backendManager.register(backend, activate: activate);
   }
 
   void notifyDataChange({
@@ -514,11 +515,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
     
     _log('💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)');
     
-    _coordinator!.notifyLocalChange(
+    unawaited(_activeBackend.notifyLocalChange(
       table: table,
       operation: operation,
       count: count,
-    );
+    ));
   }
 
   Future<void> _scheduleRetry() async {
@@ -552,7 +553,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
             return;
           }
           _isSignedIn = true;
-          await _coordinator!.onSignInChanged(true);
+          await _activeBackend.onSignInChanged(true);
         } catch (e) {
           _log('❌ Retry sign-in error: $e');
           await _scheduleRetry();
@@ -560,7 +561,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
         }
       }
       
-      await _coordinator!.performSync(
+      await _activeBackend.performSync(
         trigger: SyncTrigger.periodic,
         mode: SyncMode.smart,
       );
@@ -572,7 +573,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     
     await Future.delayed(const Duration(seconds: 2));
     
-    await _coordinator!.performSync(
+    await _activeBackend.performSync(
       trigger: SyncTrigger.appForeground,
       mode: SyncMode.smart,
     );
@@ -588,19 +589,27 @@ class AutoSyncEngine with WidgetsBindingObserver {
       _failedAttempts = 0;
       _nextRetryAt = null;
       
-      await _coordinator!.onSignInChanged(true);
+      await _activeBackend.onSignInChanged(true);
       
       if (_hasNetworkConnection && _isRunning) {
         await _performInitialSync();
       }
     } else {
-      await _coordinator!.onSignInChanged(false);
+      await _activeBackend.onSignInChanged(false);
       _retryTimer?.cancel();
     }
   }
 
+  Future<SharedPreferences> _prefsInstance() async {
+    if (_prefs != null) {
+      return _prefs!;
+    }
+    _prefs = await SharedPreferences.getInstance();
+    return _prefs!;
+  }
+  
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefsInstance();
     
     if (!prefs.containsKey(_prefsEnabledKey)) {
       await prefs.setBool(_prefsEnabledKey, true);
@@ -626,14 +635,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> setDebounceSeconds(int seconds) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefsInstance();
     await prefs.setInt(_prefsDebounceSecondsKey, seconds);
     await _coordinator!.setDebounceSeconds(seconds);
     _log('⏱️ Debounce updated: ${seconds}s');
   }
 
   Future<void> setPullInterval(int minutes) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefsInstance();
     await prefs.setInt(_prefsPullIntervalKey, minutes);
     await _coordinator!.setPullInterval(minutes);
     _log('⏰ Pull interval updated: ${minutes}min');
@@ -645,7 +654,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> setRetryEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefsInstance();
     await prefs.setBool(_prefsRetryEnabledKey, enabled);
     
     if (!enabled) {
@@ -680,14 +689,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
       );
     }
     
-    return await _coordinator!.performSync(
+    return await _activeBackend.performSync(
       trigger: SyncTrigger.manual,
       mode: SyncMode.smart,
     );
   }
 
   Future<Map<String, dynamic>> getEngineStatus() async {
-    final coordinatorStatus = await _coordinator?.getStatus() ?? {};
+    final coordinatorStatus = await _activeBackend.status();
     final conflictStats = await _conflictResolver?.getConflictStatistics() ?? {};
     
     return {
