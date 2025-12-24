@@ -625,10 +625,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
     }
     
     final debounce = prefs.getInt(_prefsDebounceSecondsKey) ?? 5;
-    await _coordinator!.setDebounceSeconds(debounce);
+    await _activeBackend.setDebounceSeconds(debounce);
     
     final pullInterval = prefs.getInt(_prefsPullIntervalKey) ?? 2;
-    await _coordinator!.setPullInterval(pullInterval);
+    await _activeBackend.setPullInterval(pullInterval);
     
     final strategy = await _conflictResolver!.getStrategy();
     _log('⚙️ Settings loaded: debounce=${debounce}s, pull=${pullInterval}min, conflicts=$strategy');
@@ -637,14 +637,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
   Future<void> setDebounceSeconds(int seconds) async {
     final prefs = await _prefsInstance();
     await prefs.setInt(_prefsDebounceSecondsKey, seconds);
-    await _coordinator!.setDebounceSeconds(seconds);
+    await _activeBackend.setDebounceSeconds(seconds);
     _log('⏱️ Debounce updated: ${seconds}s');
   }
 
   Future<void> setPullInterval(int minutes) async {
     final prefs = await _prefsInstance();
     await prefs.setInt(_prefsPullIntervalKey, minutes);
-    await _coordinator!.setPullInterval(minutes);
+    await _activeBackend.setPullInterval(minutes);
     _log('⏰ Pull interval updated: ${minutes}min');
   }
 

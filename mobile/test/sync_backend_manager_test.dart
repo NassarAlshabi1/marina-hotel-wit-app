@@ -43,6 +43,12 @@ class StubBackend implements SyncBackend {
   Future<void> onAppForeground() async {}
 
   @override
+  Future<void> setDebounceSeconds(int seconds) async {}
+
+  @override
+  Future<void> setPullInterval(int minutes) async {}
+
+  @override
   Future<Map<String, dynamic>> status() async => {'syncCalls': syncCalls};
 
   void dispose() {

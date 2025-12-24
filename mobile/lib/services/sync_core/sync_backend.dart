@@ -13,6 +13,8 @@ abstract class SyncBackend {
   Future<void> notifyLocalChange({String? table, String? operation, int count});
   Future<void> onSignInChanged(bool isSignedIn);
   Future<void> onAppForeground();
+  Future<void> setDebounceSeconds(int seconds);
+  Future<void> setPullInterval(int minutes);
   Future<Map<String, dynamic>> status();
 }
 
@@ -48,6 +50,16 @@ class GoogleDriveSyncBackend implements SyncBackend {
   @override
   Future<void> onAppForeground() {
     return _coordinator.onAppForeground();
+  }
+
+  @override
+  Future<void> setDebounceSeconds(int seconds) {
+    return _coordinator.setDebounceSeconds(seconds);
+  }
+
+  @override
+  Future<void> setPullInterval(int minutes) {
+    return _coordinator.setPullInterval(minutes);
   }
 
   @override
