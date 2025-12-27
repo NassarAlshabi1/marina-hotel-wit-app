@@ -199,6 +199,6 @@ class TwoPhaseCommit {
   }
 
   void dispose() {
-    _conflictsController.close();
+    // No resources to dispose currently.
   }
 }
