@@ -735,7 +735,8 @@ DateTime? _parseTimestamp(dynamic value) {
   if (value == null) return null;
   if (value is DateTime) return value;
   if (value is int) {
-    if (value > 1e12) {
+    const int millisecondsThreshold = 1000000000000;
+    if (value > millisecondsThreshold) {
       return DateTime.fromMillisecondsSinceEpoch(value);
     }
     return DateTime.fromMillisecondsSinceEpoch(value * 1000);

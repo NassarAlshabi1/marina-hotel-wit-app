@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-class SyncConfig {
+abstract class SyncConfig {
   static const Duration conflictThreshold = Duration(seconds: 30);
   static const Duration snapshotInterval = Duration(minutes: 20);
   static const int defaultDevicePriority = 100;
