@@ -107,7 +107,18 @@ class OptimisticLockManager {
     try {
       return await operation(newVersion);
     } catch (e) {
-      await _updateVersion(table, uuid, expectedVersion);
+      try {
+        await db.customUpdate(
+          'UPDATE $table SET version = ? WHERE local_uuid = ? AND version = ?',
+          variables: [
+            d.Variable.withInt(expectedVersion),
+            d.Variable.withString(uuid),
+            d.Variable.withInt(newVersion),
+          ],
+        );
+      } catch (_) {
+        // Ignore rollback failure to avoid masking the original error.
+      }
       rethrow;
     }
   }
