@@ -166,12 +166,25 @@ class ConflictManager {
       _pendingConflicts.clear();
       
       for (final row in conflicts) {
+        Map<String, dynamic> localData = {};
+        Map<String, dynamic> remoteData = {};
+        try {
+          if (row.localSnapshot != null) {
+            localData = jsonDecode(row.localSnapshot!);
+          }
+          if (row.remoteSnapshot != null) {
+            remoteData = jsonDecode(row.remoteSnapshot!);
+          }
+        } catch(e) {
+          debugPrint('❌ فشل في فك ترميز بيانات التعارض: $e');
+        }
+
         _pendingConflicts.add(PendingConflict(
           id: '${row.tableName}_${row.recordUuid}_${DateTime.parse(row.detectedAt).millisecondsSinceEpoch}',
           table: row.tableName,
           uuid: row.recordUuid,
-          localData: {},
-          remoteData: {},
+          localData: localData,
+          remoteData: remoteData,
           detectedAt: DateTime.parse(row.detectedAt),
         ));
       }
