@@ -11,7 +11,6 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:synchronized/synchronized.dart';
-import 'package:crypto/crypto.dart';
 
 import '../data/sync_models.dart';
 import 'daos/outbox_dao.dart';
