@@ -21,6 +21,7 @@ import 'local_db.dart';
 import 'sync_safety_layer.dart';
 import 'sync_mutex.dart';
 import 'sync_enums.dart';
+import 'sync_config.dart';
 
 /// واجهة اختيارية لإرسال إشعارات FCM عند اكتمال الرفع
 abstract class SyncTriggerDispatcher {
@@ -73,6 +74,15 @@ class SyncManager {
 
   final Queue<_SyncJob> _syncJobs = Queue<_SyncJob>();
   bool _syncWorkerRunning = false;
+
+  void _addSyncJob(_SyncJob job) {
+    if (_syncJobs.length >= SyncConfig.maxQueueSize) {
+      debugPrint('⚠️ طابور المزامنة ممتلئ، حذف أقدم عملية');
+      final dropped = _syncJobs.removeFirst();
+      dropped.completer.completeError(StateError('Sync job dropped due to queue overflow'));
+    }
+    _syncJobs.add(job);
+  }
 
   StreamSubscription<int>? _outboxWatchSub;
   Timer? _outboxDebounceTimer;
@@ -213,7 +223,7 @@ class SyncManager {
 
   Future<void> _withSyncLock(Future<void> Function() work) {
     final job = _SyncJob(work);
-    _syncJobs.add(job);
+    _addSyncJob(job);
     _startSyncWorkerIfNeeded();
     return job.completer.future;
   }

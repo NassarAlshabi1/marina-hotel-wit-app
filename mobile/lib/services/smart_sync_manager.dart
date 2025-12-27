@@ -14,6 +14,7 @@ import 'local_db.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
 import 'sync_locks.dart';
+import 'sync_config.dart';
 
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
@@ -37,6 +38,7 @@ class SmartSyncManager {
   bool _isEnabled = false;
   bool _isLoggedIn = false;
   String? _deviceId;
+  int _silentSignInRetryCount = 0;
   
   String? get deviceId => _deviceId;
   bool get isDriveSignedIn => _backupService?.isSignedIn ?? false;
@@ -710,21 +712,27 @@ class SmartSyncManager {
       _log('🔍 Debug: _backupService == null? ${_backupService == null}, isSignedIn? ${_backupService?.isSignedIn}');
       _log('🔍 Debug: currentUser? ${_backupService?.currentUser?.email}');
       
-      // محاولة تسجيل الدخول الصامت تلقائياً
-      if (_backupService != null) {
-        _log('🔐 محاولة تسجيل الدخول الصامت...');
+      // محاولة تسجيل الدخول الصامت تلقائياً مع حد أقصى للمحاولات
+      if (_backupService != null && _silentSignInRetryCount < SyncConfig.maxSilentSignInRetries) {
+        _silentSignInRetryCount++;
+        _log('🔐 محاولة تسجيل الدخول الصامت (المحاولة $_silentSignInRetryCount/${SyncConfig.maxSilentSignInRetries})...');
         try {
           final account = await _backupService!.attemptSilentSignIn();
           if (account != null) {
             _log('✅ نجح تسجيل الدخول الصامت - إعادة محاولة الرفع...');
             _isLoggedIn = true;
-            // إعادة المحاولة مباشرة
+            _silentSignInRetryCount = 0;
             return await pushLocalChanges();
           } else {
             _log('❌ فشل تسجيل الدخول الصامت - يحتاج تدخل المستخدم');
           }
         } catch (e) {
           _log('❌ خطأ في تسجيل الدخول الصامت: $e');
+        } finally {
+          if (_silentSignInRetryCount >= SyncConfig.maxSilentSignInRetries) {
+            _log('⚠️ تم الوصول للحد الأقصى من محاولات تسجيل الدخول الصامت');
+            _silentSignInRetryCount = 0;
+          }
         }
       }
       
@@ -808,21 +816,27 @@ class SmartSyncManager {
       _log('⚠️ لا يمكن سحب التغييرات: غير مسجل الدخول');
       _log('🔍 Debug: _backupService?.isSignedIn = ${_backupService?.isSignedIn}');
       
-      // محاولة تسجيل الدخول الصامت تلقائياً
-      if (_backupService != null) {
-        _log('🔐 محاولة تسجيل الدخول الصامت...');
+      // محاولة تسجيل الدخول الصامت تلقائياً مع حد أقصى للمحاولات
+      if (_backupService != null && _silentSignInRetryCount < SyncConfig.maxSilentSignInRetries) {
+        _silentSignInRetryCount++;
+        _log('🔐 محاولة تسجيل الدخول الصامت (المحاولة $_silentSignInRetryCount/${SyncConfig.maxSilentSignInRetries})...');
         try {
           final account = await _backupService!.attemptSilentSignIn();
           if (account != null) {
             _log('✅ نجح تسجيل الدخول الصامت - إعادة محاولة السحب...');
             _isLoggedIn = true;
-            // إعادة المحاولة مباشرة
+            _silentSignInRetryCount = 0;
             return await pullRemoteChanges();
           } else {
             _log('❌ فشل تسجيل الدخول الصامت - يحتاج تدخل المستخدم');
           }
         } catch (e) {
           _log('❌ خطأ في تسجيل الدخول الصامت: $e');
+        } finally {
+          if (_silentSignInRetryCount >= SyncConfig.maxSilentSignInRetries) {
+            _log('⚠️ تم الوصول للحد الأقصى من محاولات تسجيل الدخول الصامت');
+            _silentSignInRetryCount = 0;
+          }
         }
       }
       }

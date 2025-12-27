@@ -18,6 +18,8 @@ import 'sync_performance_optimizer.dart';
 import 'delta_sync_service.dart';
 import 'repositories/rooms_repository.dart';
 import 'package:flutter/material.dart';
+import 'sync_mutex.dart';
+import 'sync_config.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
@@ -43,6 +45,7 @@ class SyncService {
   final PaymentsDao paymentsDao;
   final DeltaSyncService deltaSyncService;
   final SyncPerformanceOptimizer _performanceOptimizer;
+  final SyncMutex _syncMutex = SyncMutex();
 
   final _status = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get statusStream => _status.stream;
@@ -69,10 +72,14 @@ class SyncService {
     _status.close();
   }
 
-  /// تشغيل المزامنة مع تحسين الأداء
+  /// تشغيل المزامنة مع تحسين الأداء وحماية من التشغيل المتزامن
   Future<void> runSync() async {
+    if (!await _syncMutex.acquire(timeout: SyncConfig.syncMutexTimeout)) {
+      debugPrint('⏸️ المزامنة جارية بالفعل، تخطي المحاولة الجديدة');
+      return;
+    }
+    
     try {
-      // التحقق من إمكانية بدء المزامنة
       if (await _performanceOptimizer.shouldSkipSync()) {
         debugPrint('⏭️ تم تخطي المزامنة حسب إعدادات محسن الأداء');
         return;
@@ -83,17 +90,17 @@ class SyncService {
       _status.add(SyncStatus.pulling);
       await _pull();
       
-      // تسجيل مزامنة ناجحة
       _performanceOptimizer.recordSyncAttempt(success: true);
       _status.add(SyncStatus.idle);
       
       debugPrint('✅ تم إنجاز المزامنة بنجاح');
     } catch (e) {
-      // تسجيل مزامنة فاشلة
       _performanceOptimizer.recordSyncAttempt(success: false);
       _status.add(SyncStatus.error);
       debugPrint('❌ فشل في المزامنة: $e');
       rethrow;
+    } finally {
+      _syncMutex.release();
     }
   }
 
@@ -722,6 +729,21 @@ bool? _asBool(dynamic value) {
 String? _asString(dynamic value) {
   if (value == null) return null;
   return value.toString();
+}
+
+DateTime? _parseTimestamp(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  if (value is int) {
+    if (value > 1e12) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+  }
+  if (value is String) {
+    return DateTime.tryParse(value);
+  }
+  return null;
 }
 
 int _normalizeTimestampField(dynamic value, {int? fallback}) {
