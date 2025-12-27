@@ -539,38 +539,28 @@ class SyncManager {
         snapshot: safetySnapshot,
         direction: 'push',
         checksum: uploadIndex.checksum,
-        deviceId: deviceId,
-        metadata: {
-          'remoteVersion': uploadIndex.version,
-          'snapshotSize': uploadIndex.snapshotSize,
-          'appliedOperations': mergeResult.appliedOperations.length,
-          'conflicts': mergeResult.conflicts.length,
-        },
-      );
-      safetySnapshot = null;
+  Future<void> _drainQueue({bool force = false}) async {
+    if (!await _drainMutex.acquire(timeout: SyncConfig.syncMutexTimeout)) {
+      debugPrint('⏸️ طابور المزامنة مشغول - تخطي');
+      return;
+    }
 
-      _lastUploadedChecksum = uploadIndex.checksum;
-      _lastSyncId = mergeResult.mergedSnapshot.metadata.lastSyncId;
-      await _persistSyncHistory(_lastSyncId!);
-      await _persistRemoteSignature(uploadIndex.lastSyncId);
-
-      if (triggerDispatcher != null && _lastSyncId != null) {
-        await triggerDispatcher!.sendTrigger(syncId: _lastSyncId!, sourceDeviceId: deviceId);
+    try {
+      await _ensureReady();
+      if (_isDrainingQueue) {
+        return;
       }
 
-      _statusController.add(SyncStatus(phase: SyncPhase.completing, message: 'تم رفع التغييرات بنجاح', progress: 1));
-    } catch (error, stack) {
-      if (safetySnapshot != null) {
-        await _safetyLayer.rollbackSnapshot(db: db, snapshot: safetySnapshot, error: error);
+      _isDrainingQueue = true;
+
+      try {
+        ... (clipped 62 lines)
+      } finally {
+        _isDrainingQueue = false;
+        _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'طابور المزامنة فارغ'));
       }
-      debugPrint('❌ فشل رفع التغييرات: $error');
-      debugPrint('$stack');
-      _statusController.add(SyncStatus(phase: SyncPhase.error, message: 'تعذر رفع التغييرات', error: error));
-      rethrow;
     } finally {
-      _isDrainingQueue = false;
       _drainMutex.release();
-      _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'طابور المزامنة فارغ'));
     }
   }
 
