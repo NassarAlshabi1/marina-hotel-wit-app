@@ -463,7 +463,10 @@ class SyncManager {
   }
 
   Future<void> _drainQueue({bool force = false}) async {
-    await _drainMutex.acquire();
+    if (!await _drainMutex.acquire()) {
+      debugPrint('⏸️ طابور المزامنة مشغول - تخطي');
+      return;
+    }
     await _ensureReady();
     if (_isDrainingQueue) {
       return;

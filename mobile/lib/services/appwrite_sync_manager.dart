@@ -172,7 +172,7 @@ class AppwriteSyncManager {
       _deviceLocalUuid ??= IdGen.uuid();
       _deviceCreatedAtEpoch ??= nowEpoch;
 
-      await _mutex.runExclusive(() async {
+      final result = await _mutex.runExclusive(() async {
         final existingDoc = await appwriteService.getDocument(
           collectionId: AppwriteConfig.devicesCollectionId,
           documentId: _currentDeviceId!,
@@ -185,6 +185,10 @@ class AppwriteSyncManager {
           _deviceVersion = currentRemoteVersion + 1;
         }
       });
+      
+      if (result == null) {
+        _logger.warning('Failed to acquire mutex for device registration', tag: 'SYNC');
+      }
 
       if (_currentDeviceId != null) {
         await appwriteService.updateDocument(
@@ -296,9 +300,19 @@ class AppwriteSyncManager {
 
   /// تنفيذ المزامنة
   Future<SyncResult> sync() async {
-    await _mutex.acquire();
+    if (!await _mutex.acquire()) {
+      _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
+      return SyncResult(
+        status: SyncStatus.failed,
+        errorMessage: 'Sync mutex timeout',
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+    }
+    
     if (_currentStatus == SyncStatus.syncing) {
       _logger.warning('Sync already in progress', tag: 'SYNC');
+      _mutex.release();
       return SyncResult(
         status: SyncStatus.failed,
         errorMessage: 'Sync already in progress',

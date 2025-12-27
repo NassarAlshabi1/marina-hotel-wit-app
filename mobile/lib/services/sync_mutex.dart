@@ -6,12 +6,30 @@ class SyncMutex {
   Completer<void>? _completer;
   bool _locked = false;
 
-  Future<void> acquire() async {
+  Future<bool> acquire({Duration? timeout}) async {
+    final startTime = DateTime.now();
+    
     while (_locked) {
-      await _completer!.future;
+      if (timeout != null && DateTime.now().difference(startTime) > timeout) {
+        return false;
+      }
+      
+      try {
+        if (timeout != null) {
+          final remaining = timeout - DateTime.now().difference(startTime);
+          if (remaining.isNegative) return false;
+          await _completer!.future.timeout(remaining);
+        } else {
+          await _completer!.future;
+        }
+      } on TimeoutException {
+        return false;
+      }
     }
+    
     _locked = true;
     _completer = Completer<void>();
+    return true;
   }
 
   void release() {
@@ -22,8 +40,10 @@ class SyncMutex {
   }
 
   /// Runs the action exclusively, acquiring lock before and releasing after.
-  Future<T> runExclusive<T>(Future<T> Function() action) async {
-    await acquire();
+  Future<T?> runExclusive<T>(Future<T> Function() action, {Duration? timeout}) async {
+    final acquired = await acquire(timeout: timeout);
+    if (!acquired) return null;
+    
     try {
       return await action();
     } finally {
