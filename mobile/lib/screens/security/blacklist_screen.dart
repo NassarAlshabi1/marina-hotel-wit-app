@@ -65,7 +65,7 @@ class BlacklistScreen extends ConsumerWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
+      fab: FloatingActionButton(
         onPressed: () => _openAddDialog(context, repo),
         child: const Icon(Icons.person_add_disabled),
       ),
