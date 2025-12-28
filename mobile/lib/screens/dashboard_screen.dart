@@ -15,6 +15,7 @@ import 'bookings/booking_edit.dart';
 import 'bookings/bookings_list.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
+import 'payments/payments_main_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101', '102', '103', '104',
@@ -555,6 +556,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   value: occupiedRooms.toString(),
                   icon: Icons.bed,
                   color: Colors.blue,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PaymentsMainScreen()),
+                  ),
                 );
               },
             );
