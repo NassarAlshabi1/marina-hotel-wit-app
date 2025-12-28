@@ -373,6 +373,25 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   final notes = _optionalText(_notes.text);
                   const String? email = null;
 
+                  final blacklist = ref.read(blacklistRepoProvider);
+                  final isBlacklisted = await blacklist.isNameBlacklisted(name);
+                  if (isBlacklisted && mounted) {
+                    final proceed = await showDialog<bool>(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) => AlertDialog(
+                        title: const Text('تحذير أمني'),
+                        content: Text('الاسم "$name" موجود في القائمة السوداء ومطلوب أمنياً. هل ترغب بمتابعة تسجيل الحجز؟'),
+                        icon: const Icon(Icons.warning, color: Colors.red),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+                          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('متابعة')),
+                        ],
+                      ),
+                    );
+                    if (proceed != true) return;
+                  }
+
                   if (widget.existing == null) {
                     await repo.create(
                       roomNumber: roomNumber,
