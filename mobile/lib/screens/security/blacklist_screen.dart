@@ -33,10 +33,11 @@ class BlacklistScreen extends ConsumerWidget {
                     backgroundColor: e.active ? Colors.red.shade100 : Colors.grey.shade300,
                     child: Icon(Icons.gavel, color: e.active ? Colors.red : Colors.grey),
                   ),
-                  title: Text(e.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text('${e.name}${e.nationality != null && e.nationality!.isNotEmpty ? ' • ${e.nationality}' : ''}', style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (e.nationality != null && e.nationality!.isNotEmpty) Text('الجنسية: ${e.nationality!}'),
                       if (e.reason != null && e.reason!.isNotEmpty) Text('سبب: ${e.reason!}'),
                       if (e.nationalId != null && e.nationalId!.isNotEmpty) Text('الهوية: ${e.nationalId!}'),
                       if (e.phone != null && e.phone!.isNotEmpty) Text('الهاتف: ${e.phone!}'),
@@ -73,6 +74,7 @@ class BlacklistScreen extends ConsumerWidget {
 
   void _openAddDialog(BuildContext context, BlacklistRepository repo) {
     final name = TextEditingController();
+    final nationality = TextEditingController(text: 'يمني');
     final nationalId = TextEditingController();
     final phone = TextEditingController();
     final reason = TextEditingController();
@@ -93,6 +95,11 @@ class BlacklistScreen extends ConsumerWidget {
                   controller: name,
                   decoration: const InputDecoration(labelText: 'الاسم الكامل *'),
                   validator: (v) => v == null || v.trim().isEmpty ? 'مطلوب' : null,
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: nationality,
+                  decoration: const InputDecoration(labelText: 'الجنسية'),
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -127,6 +134,7 @@ class BlacklistScreen extends ConsumerWidget {
               if (!formKey.currentState!.validate()) return;
               await repo.addEntry(
                 name: name.text,
+                nationality: nationality.text,
                 nationalId: nationalId.text,
                 phone: phone.text,
                 reason: reason.text,

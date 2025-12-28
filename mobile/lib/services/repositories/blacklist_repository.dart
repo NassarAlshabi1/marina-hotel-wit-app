@@ -3,9 +3,30 @@ import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 
+String _normalizeArabic(String input) {
+  var s = input.trim();
+  s = s.replaceAll(RegExp('[\u0617-\u061A\u064B-\u0652\u0670\u0653-\u065F\u06D6-\u06ED]'), ''); // tashkeel
+  s = s.replaceAll('\u0640', ''); // tatweel
+  s = s.replaceAll(RegExp('[إأٱآ]'), 'ا');
+  s = s.replaceAll('ؤ', 'و');
+  s = s.replaceAll('ئ', 'ي');
+  s = s.replaceAll('ى', 'ي');
+  s = s.replaceAll(RegExp('[^\u0621-\u064A0-9 ]+'), ' '); // keep arabic letters, digits, space
+  s = s.replaceAll(RegExp(' +'), ' ').trim();
+  return s.toLowerCase();
+}
+
+List<String> _tokens(String name) => _normalizeArabic(name).split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
+
+bool _tripleMatch(List<String> a, List<String> b) {
+  if (a.length < 3 || b.length < 3) return false;
+  return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+}
+
 class BlacklistEntry {
   final int id;
   final String name;
+  final String? nationality;
   final String? nationalId;
   final String? phone;
   final String? reason;
@@ -17,6 +38,7 @@ class BlacklistEntry {
   const BlacklistEntry({
     required this.id,
     required this.name,
+    this.nationality,
     this.nationalId,
     this.phone,
     this.reason,
@@ -34,6 +56,7 @@ class BlacklistRepository {
   static const _createdByTag = 'blacklist';
 
   Map<String, dynamic> _toPayload({
+    String? nationality,
     String? nationalId,
     String? phone,
     String? reason,
@@ -41,6 +64,7 @@ class BlacklistRepository {
     String reportedBy = 'police',
     bool active = true,
   }) => {
+        'nationality': nationality,
         'nationalId': nationalId,
         'phone': phone,
         'reason': reason,
@@ -57,6 +81,7 @@ class BlacklistRepository {
     return BlacklistEntry(
       id: row.id,
       name: row.title,
+      nationality: payload['nationality'] as String?,
       nationalId: payload['nationalId'] as String?,
       phone: payload['phone'] as String?,
       reason: payload['reason'] as String?,
@@ -84,6 +109,7 @@ class BlacklistRepository {
 
   Future<int> addEntry({
     required String name,
+    String? nationality,
     String? nationalId,
     String? phone,
     String? reason,
@@ -94,6 +120,7 @@ class BlacklistRepository {
     final id = await db.into(db.shiftNotes).insert(ShiftNotesCompanion(
       title: d.Value(name.trim()),
       content: d.Value(jsonEncode(_toPayload(
+        nationality: nationality?.trim(),
         nationalId: nationalId?.trim(),
         phone: phone?.trim(),
         reason: reason?.trim(),
@@ -132,14 +159,19 @@ class BlacklistRepository {
 
   Future<bool> isNameBlacklisted(String name) async {
     final rows = await (db.select(db.shiftNotes)..where((t) => t.createdBy.equals(_createdByTag))).get();
-    final n = name.trim().toLowerCase();
+    final nNorm = _normalizeArabic(name);
+    final nTokens = _tokens(name);
     for (final row in rows) {
-      if (row.title.trim().toLowerCase() == n) {
+      final rNorm = _normalizeArabic(row.title);
+      final rTokens = _tokens(row.title);
+      final fullEq = rNorm == nNorm;
+      final tripleEq = _tripleMatch(rTokens, nTokens);
+      if (fullEq || tripleEq) {
         try {
           final payload = jsonDecode(row.content) as Map<String, dynamic>;
           if ((payload['active'] as bool?) ?? true) return true;
         } catch (_) {
-          return true; // treat malformed payload as active
+          return true; // malformed payload -> treat as active match
         }
       }
     }
