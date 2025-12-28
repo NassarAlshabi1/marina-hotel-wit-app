@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'conflict_resolver.dart';
 import 'local_db.dart';
@@ -101,28 +103,33 @@ class ConflictManager {
   Future<void> _persistConflict(PendingConflict conflict) async {
     try {
       final existingQuery = db.select(db.syncConflicts)
-        ..where((t) => t.tableName.equals(conflict.table) & t.recordUuid.equals(conflict.uuid));
+        ..where((t) => t.targetTable.equals(conflict.table) & t.uuid.equals(conflict.uuid));
       
       final existing = await existingQuery.getSingleOrNull();
       
       if (existing != null) {
         await (db.update(db.syncConflicts)..where((t) => t.id.equals(existing.id))).write(
           SyncConflictsCompanion(
-            localSnapshot: Value(conflict.localData.toString()),
-            remoteSnapshot: Value(conflict.remoteData.toString()),
-            detectedAt: Value(conflict.detectedAt.toIso8601String()),
-            status: const Value('pending'),
+            localPayload: Value(jsonEncode(conflict.localData)),
+            remotePayload: Value(jsonEncode(conflict.remoteData)),
+            resolution: Value(conflict.resolution != null ? jsonEncode(conflict.resolution) : ''),
           ),
         );
       } else {
+        // Get latest sync log ID or use 0
+        final latestLog = await (db.select(db.syncLog)
+          ..orderBy([(t) => OrderingTerm.desc(t.id)])
+          ..limit(1)).getSingleOrNull();
+        
         await db.into(db.syncConflicts).insert(
           SyncConflictsCompanion.insert(
-            tableName: conflict.table,
-            recordUuid: conflict.uuid,
-            localSnapshot: conflict.localData.toString(),
-            remoteSnapshot: conflict.remoteData.toString(),
-            detectedAt: conflict.detectedAt.toIso8601String(),
-            status: 'pending',
+            logId: latestLog?.id ?? 0,
+            targetTable: conflict.table,
+            uuid: conflict.uuid,
+            localPayload: jsonEncode(conflict.localData),
+            remotePayload: jsonEncode(conflict.remoteData),
+            resolution: conflict.resolution != null ? jsonEncode(conflict.resolution) : '',
+            createdAt: conflict.detectedAt.toIso8601String(),
           ),
         );
       }
@@ -140,15 +147,13 @@ class ConflictManager {
       final uuid = parts[1];
       
       final query = db.select(db.syncConflicts)
-        ..where((t) => t.tableName.equals(table) & t.recordUuid.equals(uuid));
+        ..where((t) => t.targetTable.equals(table) & t.uuid.equals(uuid));
       
       final existing = await query.getSingleOrNull();
       if (existing != null) {
         await (db.update(db.syncConflicts)..where((t) => t.id.equals(existing.id))).write(
           SyncConflictsCompanion(
-            resolvedSnapshot: Value(resolution.toString()),
-            resolvedAt: Value(DateTime.now().toIso8601String()),
-            status: const Value('resolved'),
+            resolution: Value(jsonEncode(resolution)),
           ),
         );
       }
@@ -160,7 +165,7 @@ class ConflictManager {
   Future<void> loadPendingConflicts() async {
     try {
       final conflicts = await (db.select(db.syncConflicts)
-        ..where((t) => t.status.equals('pending'))
+        ..where((t) => t.resolution.equals(''))
         ..orderBy([(t) => OrderingTerm.desc(t.id)])).get();
       
       _pendingConflicts.clear();
@@ -168,24 +173,26 @@ class ConflictManager {
       for (final row in conflicts) {
         Map<String, dynamic> localData = {};
         Map<String, dynamic> remoteData = {};
+        Map<String, dynamic>? resolutionData;
+        
         try {
-          if (row.localSnapshot != null) {
-            localData = jsonDecode(row.localSnapshot!);
-          }
-          if (row.remoteSnapshot != null) {
-            remoteData = jsonDecode(row.remoteSnapshot!);
+          localData = jsonDecode(row.localPayload);
+          remoteData = jsonDecode(row.remotePayload);
+          if (row.resolution.isNotEmpty) {
+            resolutionData = jsonDecode(row.resolution);
           }
         } catch(e) {
           debugPrint('❌ فشل في فك ترميز بيانات التعارض: $e');
         }
 
         _pendingConflicts.add(PendingConflict(
-          id: '${row.tableName}_${row.recordUuid}_${DateTime.parse(row.detectedAt).millisecondsSinceEpoch}',
-          table: row.tableName,
-          uuid: row.recordUuid,
+          id: '${row.targetTable}_${row.uuid}_${DateTime.parse(row.createdAt).millisecondsSinceEpoch}',
+          table: row.targetTable,
+          uuid: row.uuid,
           localData: localData,
           remoteData: remoteData,
-          detectedAt: DateTime.parse(row.detectedAt),
+          detectedAt: DateTime.parse(row.createdAt),
+          resolution: resolutionData,
         ));
       }
       
