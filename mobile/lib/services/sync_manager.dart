@@ -21,6 +21,8 @@ import 'sync_safety_layer.dart';
 import 'sync_mutex.dart';
 import 'sync_enums.dart';
 import 'sync_config.dart';
+import 'conflict_resolver.dart';
+import 'vector_clock.dart';
 
 /// واجهة اختيارية لإرسال إشعارات FCM عند اكتمال الرفع
 abstract class SyncTriggerDispatcher {
@@ -670,27 +672,65 @@ class SyncManager {
               winner = remoteRow;
               operation = 'noop';
             } else {
-              if (_devicePriority >= remotePriority) {
-                winner = localRow;
-                operation = 'conflict-local';
-                conflicts.add(SyncConflictModel(
-                  table: table,
-                  uuid: key,
-                  localPayload: localRow,
-                  remotePayload: remoteRow,
-                  resolution: 'local',
-                ));
-              } else {
-                winner = remoteRow;
-                operation = 'conflict-remote';
-                conflicts.add(SyncConflictModel(
-                  table: table,
-                  uuid: key,
-                  localPayload: localRow,
-                  remotePayload: remoteRow,
-                  resolution: 'remote',
-                ));
-              }
+              final conflictResolver = EnhancedConflictResolver(
+                defaultStrategy: ConflictStrategy.fieldLevel,
+                tableStrategies: {
+                  'bookings': ConflictStrategy.fieldLevel,
+                  'payments': ConflictStrategy.lastWriteWins,
+                  'rooms': ConflictStrategy.fieldLevel,
+                  'expenses': ConflictStrategy.lastWriteWins,
+                  'debts': ConflictStrategy.fieldLevel,
+                  'guests': ConflictStrategy.fieldLevel,
+                  'employees': ConflictStrategy.fieldLevel,
+                  'services': ConflictStrategy.lastWriteWins,
+                },
+              );
+
+              VectorClock? localVectorClock;
+              VectorClock? remoteVectorClock;
+              try {
+                final localVc = localRow['vector_clock'] as String?;
+                final remoteVc = remoteRow['vector_clock'] as String?;
+                if (localVc != null && localVc.isNotEmpty) {
+                  localVectorClock = VectorClock.fromJson(localVc);
+                }
+                if (remoteVc != null && remoteVc.isNotEmpty) {
+                  remoteVectorClock = VectorClock.fromJson(remoteVc);
+                }
+              } catch (_) {}
+
+              final context = ConflictContext(
+                table: table,
+                uuid: key,
+                localData: localRow,
+                remoteData: remoteRow,
+                localVectorClock: localVectorClock,
+                remoteVectorClock: remoteVectorClock,
+                localTimestamp: localUpdatedTs,
+                remoteTimestamp: remoteUpdatedTs,
+                localDeviceId: deviceId,
+                remoteDeviceId: remoteSnapshot.metadata.lastDeviceId,
+                localDevicePriority: _devicePriority,
+                remoteDevicePriority: remotePriority,
+              );
+
+              final resolution = conflictResolver.resolve(context);
+              winner = resolution.mergedData ?? resolution.winner;
+              
+              final isLocalWinner = winner == localRow || 
+                  (resolution.mergedData != null && resolution.strategy == ConflictStrategy.fieldLevel);
+              
+              operation = isLocalWinner ? 'conflict-local' : 'conflict-remote';
+              
+              conflicts.add(SyncConflictModel(
+                table: table,
+                uuid: key,
+                localPayload: localRow,
+                remotePayload: remoteRow,
+                resolution: resolution.needsManualReview ? 'pending' : (isLocalWinner ? 'local-merged' : 'remote'),
+              ));
+
+              debugPrint('🔀 تعارض [$table/$key]: استراتيجية ${resolution.strategy.name}');
             }
           }
         }
