@@ -9,6 +9,7 @@ import '../utils/debug_logs.dart';
 import 'sync_performance_optimizer.dart';
 import 'data_usage_manager.dart';
 import 'sync_locks.dart';
+import 'sync_constants.dart';
 
 /// مدير مزامنة Google Drive الذكي المبسط
 /// 
@@ -159,7 +160,7 @@ class SmartGoogleDriveSync {
         // تحديث استهلاك البيانات
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * 500) / 1024 / 1024,
+            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) / 1024 / 1024,
           );
         }
         
@@ -201,7 +202,7 @@ class SmartGoogleDriveSync {
         
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * 500) / 1024 / 1024,
+            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) / 1024 / 1024,
           );
         }
         

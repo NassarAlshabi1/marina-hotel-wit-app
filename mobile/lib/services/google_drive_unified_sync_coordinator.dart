@@ -11,6 +11,7 @@ import 'google_drive_logger.dart';
 import 'local_db.dart';
 import 'data_usage_manager.dart';
 import 'sync_locks.dart';
+import 'sync_constants.dart';
 import 'sync_performance_optimizer.dart';
 import 'logging/log_models.dart';
 import 'sync_locks.dart';
@@ -382,7 +383,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       }
     }
     
-    Future.delayed(const Duration(milliseconds: 500), () async {
+    Future.delayed(SyncConstants.appForegroundDelay, () async {
       await performSync(trigger: SyncTrigger.appForeground, mode: SyncMode.smart);
     });
   }
@@ -599,7 +600,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * 500) / 1024 / 1024,
+            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) / 1024 / 1024,
           );
         }
         
@@ -630,7 +631,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * 500) / 1024 / 1024,
+            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) / 1024 / 1024,
           );
         }
         

@@ -15,6 +15,7 @@ import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
 import 'sync_locks.dart';
 import 'sync_config.dart';
+import 'sync_constants.dart';
 
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
@@ -724,7 +725,7 @@ class SmartSyncManager {
     while (retries < 10) {
       final isSyncing = await SyncLocks.smartSyncLock.synchronized(() => _isSyncing);
       if (!isSyncing) break;
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(SyncConstants.shortPollingDelay);
       retries++;
     }
     

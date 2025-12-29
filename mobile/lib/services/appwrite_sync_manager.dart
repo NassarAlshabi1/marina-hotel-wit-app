@@ -18,6 +18,8 @@ import 'local_db.dart';
 import 'daos/outbox_dao.dart';
 import 'sync_mutex.dart';
 import 'sync_enums.dart';
+import 'sync_constants.dart';
+import 'sync_core/sync_metrics.dart';
 
 /// حالة المزامنة
 enum SyncStatus {
@@ -75,7 +77,7 @@ class AppwriteSyncManager {
   Timer? _syncTimer;
   Timer? _debouncePushTimer;
   StreamSubscription? _outboxSubscription;
-  Duration _debounceWindow = const Duration(seconds: 10);
+  Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
   DateTime? _lastSyncTime;
   String? _currentDeviceId;
@@ -251,7 +253,7 @@ class AppwriteSyncManager {
   }
 
   /// بدء المزامنة التلقائية
-  void startAutoSync({Duration interval = const Duration(minutes: 15)}) {
+  void startAutoSync({Duration interval = AppwriteConfig.syncInterval}) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
       final prefs = await SharedPreferences.getInstance();
@@ -277,15 +279,35 @@ class AppwriteSyncManager {
       _debounceWindow = window;
     }
     _outboxSubscription?.cancel();
-    _outboxSubscription = (database.select(database.outbox)).watch().listen((_) {
-      _debouncePushTimer?.cancel();
-      _debouncePushTimer = Timer(_debounceWindow, () async {
-        _logger.debug('Debounced push triggered', tag: 'SYNC');
-        try {
-          await sync();
-        } catch (_) {}
-      });
-    });
+    _outboxSubscription = (database.select(database.outbox)).watch().listen(
+      (_) {
+        _debouncePushTimer?.cancel();
+        _debouncePushTimer = Timer(_debounceWindow, () async {
+          _logger.debug('Debounced push triggered', tag: 'SYNC');
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+            if (!enabled) {
+              _logger.debug('Debounced push skipped (disabled)', tag: 'SYNC');
+              return;
+            }
+
+            final result = await sync();
+            if (result.status != SyncStatus.success) {
+              _logger.warning(
+                'Debounced push sync failed: ${result.errorMessage ?? ''}',
+                tag: 'SYNC',
+              );
+            }
+          } catch (e, stackTrace) {
+            _logger.error('Debounced push failed', error: e, stackTrace: stackTrace, tag: 'SYNC');
+          }
+        });
+      },
+      onError: (e, stackTrace) {
+        _logger.error('Outbox watch stream failed', error: e, stackTrace: stackTrace, tag: 'SYNC');
+      },
+    );
     _logger.info('Debounced push enabled (window: ${_debounceWindow.inSeconds}s)', tag: 'SYNC');
   }
 
@@ -298,7 +320,14 @@ class AppwriteSyncManager {
     _syncController.close();
   }
 
-  /// تنفيذ المزامنة
+  /// دورة المزامنة الكاملة مع Appwrite:
+  /// - تتحقق من الاتصال بالشبكة
+  /// - تنشئ سجل في sync_logs (start)
+  /// - Push: تفرّغ outbox إلى Appwrite
+  /// - Pull: تسحب collections (rooms → bookings → employees → expenses → payments → debts)
+  /// - تحدّث sync_logs (completed/failed) وتخزّن آخر وقت مزامنة محلياً
+  ///
+  /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
   Future<SyncResult> sync() async {
     if (!await _mutex.acquire()) {
       _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
@@ -325,6 +354,11 @@ class AppwriteSyncManager {
     _syncController.add(_currentStatus);
     
     final startTime = DateTime.now();
+
+    final metrics = SyncMetrics.instance;
+    metrics.startSync();
+
+    final phaseMs = <String, int>{};
     int recordsPushed = 0;
     int recordsPulled = 0;
     int conflicts = 0;
@@ -367,42 +401,50 @@ class AppwriteSyncManager {
       syncLogId = syncLog.$id;
       hasSyncLog = true;
 
+      final pushSw = Stopwatch()..start();
       final pushedCount = await _pushAllEntities();
+      phaseMs['pushAllEntities'] = pushSw.elapsedMilliseconds;
       recordsPushed += pushedCount;
 
-      // مزامنة الغرف
+      final roomsSw = Stopwatch()..start();
       final rooms = await appwriteService.listRooms(useCache: false);
       final roomsSynced = await _syncRooms(rooms);
+      phaseMs['syncRooms'] = roomsSw.elapsedMilliseconds;
       recordsPulled += roomsSynced;
       _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
 
-      // مزامنة الحجوزات
+      final bookingsSw = Stopwatch()..start();
       final bookings = await appwriteService.listBookings(useCache: false);
       final bookingsSynced = await _syncBookings(bookings);
+      phaseMs['syncBookings'] = bookingsSw.elapsedMilliseconds;
       recordsPulled += bookingsSynced;
       _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
 
-      // مزامنة الموظفين
+      final employeesSw = Stopwatch()..start();
       final employees = await appwriteService.listEmployees(useCache: false);
       final employeesSynced = await _syncEmployees(employees);
+      phaseMs['syncEmployees'] = employeesSw.elapsedMilliseconds;
       recordsPulled += employeesSynced;
       _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
 
-      // مزامنة المصروفات
+      final expensesSw = Stopwatch()..start();
       final expenses = await appwriteService.listExpenses(useCache: false);
       final expensesSynced = await _syncExpenses(expenses);
+      phaseMs['syncExpenses'] = expensesSw.elapsedMilliseconds;
       recordsPulled += expensesSynced;
       _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
 
-      // مزامنة المدفوعات
+      final paymentsSw = Stopwatch()..start();
       final payments = await appwriteService.listPayments(useCache: false);
       final paymentsSynced = await _syncPayments(payments);
+      phaseMs['syncPayments'] = paymentsSw.elapsedMilliseconds;
       recordsPulled += paymentsSynced;
       _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
 
-      // مزامنة الديون
+      final debtsSw = Stopwatch()..start();
       final debts = await appwriteService.listDebts(useCache: false);
       final debtsSynced = await _syncDebts(debts);
+      phaseMs['syncDebts'] = debtsSw.elapsedMilliseconds;
       recordsPulled += debtsSynced;
       _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
 
@@ -451,7 +493,9 @@ class AppwriteSyncManager {
             data: {
               'status': SyncLogStatus.failed.value,
               'action': 'sync_failed',
-              'errorMessage': errorMessage.length > 500 ? errorMessage.substring(0, 500) : errorMessage,
+              'errorMessage': errorMessage.length > SyncConstants.maxErrorMessageLength
+                  ? errorMessage.substring(0, SyncConstants.maxErrorMessageLength)
+                  : errorMessage,
               'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
               'updatedAt': failEpoch,
               'lastModified': failEpoch,
@@ -460,7 +504,14 @@ class AppwriteSyncManager {
               'origin': 'mobile',
             },
           );
-        } catch (_) {}
+        } catch (logError, logStackTrace) {
+          _logger.warning(
+            'Failed to update sync log after failure',
+            tag: 'SYNC',
+            error: logError,
+            stackTrace: logStackTrace,
+          );
+        }
       }
       
       _errorHandler.handleError(e, 
@@ -477,6 +528,19 @@ class AppwriteSyncManager {
 
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
+
+    if (finalStatus == SyncStatus.success) {
+      metrics.recordSuccess(recordsSynced: recordsPushed + recordsPulled, conflictsResolved: conflicts);
+    } else {
+      metrics.recordFailure(errorMessage ?? 'Appwrite sync failed');
+    }
+
+    try {
+      _logger.debug(
+        'Sync metrics: ${jsonEncode({"durationMs": duration.inMilliseconds, "recordsPushed": recordsPushed, "recordsPulled": recordsPulled, "conflicts": conflicts, "status": finalStatus.name, "phasesMs": phaseMs})}',
+        tag: 'METRICS',
+      );
+    } catch (_) {}
 
     return SyncResult(
       status: finalStatus,
@@ -1334,7 +1398,7 @@ class AppwriteSyncManager {
     // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
     int retries = 0;
     while (_currentStatus == SyncStatus.syncing && retries < 10) {
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(SyncConstants.shortPollingDelay);
       retries++;
     }
     
