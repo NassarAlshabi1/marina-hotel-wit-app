@@ -28,4 +28,17 @@ class SyncConstants {
       ];
 
   static List<String> get allTablesInReverseOrder => allTablesInOrder.reversed.toList();
+
+  static const int maxErrorMessageLength = 500;
+
+  static const Duration defaultAutoSyncInterval = Duration(minutes: 15);
+  static const Duration outboxDebounceWindow = Duration(seconds: 10);
+  static const Duration guardianOutboxDebounce = Duration(seconds: 30);
+  static const Duration guardianLocalChangeDebounce = Duration(seconds: 5);
+  static const Duration shortPollingDelay = Duration(milliseconds: 500);
+  static const Duration appForegroundDelay = Duration(milliseconds: 500);
+  static const Duration appForegroundAppwriteDelay = Duration(milliseconds: 1000);
+
+  static const int googleDriveDefaultShardBytes = 4 * 1024 * 1024;
+  static const int estimatedBytesPerDeltaChange = 500;
 }

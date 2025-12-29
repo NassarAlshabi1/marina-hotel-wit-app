@@ -12,12 +12,13 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 
 import '../data/sync_models.dart';
+import 'sync_constants.dart';
 
 const _kPrimarySnapshotName = 'sync_data.json.gz';
 const _kIndexFileName = 'sync_index.json';
 const _kDeltaPrefix = 'delta_';
 const _kShardExtension = '.json.gz';
-const _kDefaultShardBytes = 4 * 1024 * 1024; // 4MB لكل جزء
+const _kDefaultShardBytes = SyncConstants.googleDriveDefaultShardBytes;
 
 /// نتيجة التحميل من Google Drive بعد فك الضغط والتشفير
 class DriveSyncDownloadResult {
