@@ -15,6 +15,7 @@ import 'bookings/booking_edit.dart';
 import 'bookings/bookings_list.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
+import 'payments/payments_main_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101', '102', '103', '104',
@@ -330,27 +331,76 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       final isEnabled = status['enabled'] as bool? ?? false;
                       final isSyncing = status['is_syncing'] as bool? ?? false;
                       
-                      return Row(
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isSyncing ? Colors.blue.shade50 : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSyncing ? Colors.blue.shade200 : Colors.grey.shade200,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isEnabled ? (isSyncing ? Icons.sync : Icons.cloud_done) : Icons.cloud_off,
+                              size: 14,
+                              color: isSyncing ? Colors.blue : (isEnabled ? Colors.green : Colors.grey),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isSyncing ? 'جاري المزامنة...' : _formatLastSyncTime(lastSync),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isSyncing ? Colors.blue.shade800 : Colors.grey[700],
+                                fontWeight: isSyncing ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    loading: () => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            isEnabled ? Icons.cloud_done : Icons.cloud_off,
-                            size: 14,
-                            color: isEnabled ? Colors.green : Colors.grey,
+                          SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey),
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            isSyncing ? 'جاري المزامنة...' : _formatLastSyncTime(lastSync),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[600],
-                            ),
+                            'تحميل...',
+                            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                           ),
                         ],
-                      );
-                    },
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
+                      ),
+                    ),
+                    error: (err, __) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.error_outline, size: 14, color: Colors.red),
+                          const SizedBox(width: 4),
+                          Text(
+                            'خطأ',
+                            style: TextStyle(fontSize: 11, color: Colors.red.shade800),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -506,6 +556,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   value: occupiedRooms.toString(),
                   icon: Icons.bed,
                   color: Colors.blue,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PaymentsMainScreen()),
+                  ),
                 );
               },
             );
