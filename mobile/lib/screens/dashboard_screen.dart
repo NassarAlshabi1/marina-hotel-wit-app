@@ -556,10 +556,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   value: occupiedRooms.toString(),
                   icon: Icons.bed,
                   color: Colors.blue,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PaymentsMainScreen()),
-                  ),
                 );
               },
             );
