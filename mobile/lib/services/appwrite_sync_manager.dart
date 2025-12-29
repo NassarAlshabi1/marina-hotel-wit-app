@@ -451,7 +451,7 @@ class AppwriteSyncManager {
             data: {
               'status': SyncLogStatus.failed.value,
               'action': 'sync_failed',
-              'errorMessage': errorMessage,
+              'errorMessage': errorMessage.length > 500 ? errorMessage.substring(0, 500) : errorMessage,
               'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
               'updatedAt': failEpoch,
               'lastModified': failEpoch,
@@ -629,15 +629,24 @@ class AppwriteSyncManager {
   Future<int> _syncBookings(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final localUuid = _asString(data['localUuid']) ?? doc.$id;
-          final roomNumber = _asString(data['roomNumber']) ?? '';
-          if (localUuid.isEmpty || roomNumber.isEmpty) {
-            continue;
-          }
+    
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        final localUuid = _asString(data['localUuid']) ?? doc.$id;
+        final roomNumber = _asString(data['roomNumber']) ?? '';
+        if (localUuid.isEmpty || roomNumber.isEmpty) {
+          continue;
+        }
+        
+        final roomExists = await (database.select(database.rooms)
+          ..where((r) => r.roomNumber.equals(roomNumber))
+          ..limit(1)).getSingleOrNull();
+        
+        if (roomExists == null) {
+          _logger.warning('Skipping booking $localUuid: Room $roomNumber does not exist', tag: 'SYNC');
+          continue;
+        }
           
           final checkinDateStr = _asString(data['checkinDate']) ?? '';
           final checkoutDateStr = _asString(data['checkoutDate']);
@@ -664,39 +673,42 @@ class AppwriteSyncManager {
             }
           }
           
-          final companion = BookingsCompanion(
-            localUuid: d.Value(localUuid),
-            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
-            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
-            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
-            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
-            version: d.Value(_asInt(data['version'], fallback: 1)),
-            origin: d.Value(_asString(data['origin']) ?? 'server'),
-            serverBookingId: _nullableValue<int>(_asIntNullable(data['serverBookingId'])),
-            roomNumber: d.Value(roomNumber),
-            guestName: d.Value(_asString(data['guestName']) ?? ''),
-            guestPhone: d.Value(_asString(data['guestPhone']) ?? ''),
-            guestIdType: d.Value(_asString(data['guestIdType']) ?? ''),
-            guestIdNumber: d.Value(_asString(data['guestIdNumber']) ?? ''),
-            guestIdIssueDate: _nullableValue<String>(_asString(data['guestIdIssueDate'])),
-            guestIdIssuePlace: _nullableValue<String>(_asString(data['guestIdIssuePlace'])),
-            guestNationality: d.Value(_asString(data['guestNationality']) ?? ''),
-            guestEmail: _nullableValue<String>(_asString(data['guestEmail'])),
-            guestAddress: _nullableValue<String>(_asString(data['guestAddress'])),
-            checkinDate: d.Value(checkinDateStr),
-            checkoutDate: _nullableValue<String>(checkoutDateStr),
-            actualCheckout: _nullableValue<String>(actualCheckoutStr),
-            status: d.Value(_asString(data['status']) ?? ''),
-            notes: _nullableValue<String>(_asString(data['notes'])),
-            expectedNights: d.Value(expectedNights),
-            calculatedNights: d.Value(calculatedNights),
-          );
-          batch.insert(database.bookings, companion, mode: d.InsertMode.insertOrReplace);
-          processed++;
-        }
-      });
-    });
+        final companion = BookingsCompanion(
+          localUuid: d.Value(localUuid),
+          serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
+          createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
+          updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
+          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
+          version: d.Value(_asInt(data['version'], fallback: 1)),
+          origin: d.Value(_asString(data['origin']) ?? 'server'),
+          serverBookingId: _nullableValue<int>(_asIntNullable(data['serverBookingId'])),
+          roomNumber: d.Value(roomNumber),
+          guestName: d.Value(_asString(data['guestName']) ?? ''),
+          guestPhone: d.Value(_asString(data['guestPhone']) ?? ''),
+          guestIdType: d.Value(_asString(data['guestIdType']) ?? ''),
+          guestIdNumber: d.Value(_asString(data['guestIdNumber']) ?? ''),
+          guestIdIssueDate: _nullableValue<String>(_asString(data['guestIdIssueDate'])),
+          guestIdIssuePlace: _nullableValue<String>(_asString(data['guestIdIssuePlace'])),
+          guestNationality: d.Value(_asString(data['guestNationality']) ?? ''),
+          guestEmail: _nullableValue<String>(_asString(data['guestEmail'])),
+          guestAddress: _nullableValue<String>(_asString(data['guestAddress'])),
+          checkinDate: d.Value(checkinDateStr),
+          checkoutDate: _nullableValue<String>(checkoutDateStr),
+          actualCheckout: _nullableValue<String>(actualCheckoutStr),
+          status: d.Value(_asString(data['status']) ?? ''),
+          notes: _nullableValue<String>(_asString(data['notes'])),
+          expectedNights: d.Value(expectedNights),
+          calculatedNights: d.Value(calculatedNights),
+        );
+        
+        await database.into(database.bookings).insert(companion, mode: d.InsertMode.insertOrReplace);
+        processed++;
+      } catch (e) {
+        _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
+      }
+    }
+    
     return processed;
   }
 
@@ -775,85 +787,130 @@ class AppwriteSyncManager {
   Future<int> _syncPayments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final localUuid = _asString(data['localUuid']) ?? doc.$id;
-          if (localUuid.isEmpty) {
-            continue;
-          }
-          final companion = PaymentsCompanion(
-            localUuid: d.Value(localUuid),
-            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
-            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
-            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
-            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
-            version: d.Value(_asInt(data['version'], fallback: 1)),
-            origin: d.Value(_asString(data['origin']) ?? 'server'),
-            serverPaymentId: _nullableValue<int>(_asIntNullable(data['serverPaymentId'])),
-            bookingLocalId: _nullableValue<int>(_asIntNullable(data['bookingLocalId'])),
-            serverBookingId: _nullableValue<int>(_asIntNullable(data['serverBookingId'])),
-            roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
-            amount: d.Value(_asDouble(data['amount'])),
-            paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
-            notes: _nullableValue<String>(_asString(data['notes'])),
-            paymentMethod: d.Value(_asString(data['paymentMethod']) ?? ''),
-            revenueType: d.Value(_asString(data['revenueType']) ?? ''),
-            cashTransactionLocalId: _nullableValue<int>(_asIntNullable(data['cashTransactionLocalId'])),
-            cashTransactionServerId: _nullableValue<int>(_asIntNullable(data['cashTransactionServerId'])),
-            referenceNumber: _nullableValue<String>(_asString(data['referenceNumber'])),
-          );
-          batch.insert(database.payments, companion, mode: d.InsertMode.insertOrReplace);
-          processed++;
+    
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        final localUuid = _asString(data['localUuid']) ?? doc.$id;
+        if (localUuid.isEmpty) {
+          continue;
         }
-      });
-    });
+        
+        int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
+        
+        if (bookingLocalId != null) {
+          final bookingExists = await (database.select(database.bookings)
+            ..where((b) => b.id.equals(bookingLocalId))
+            ..limit(1)).getSingleOrNull();
+          
+          if (bookingExists == null) {
+            _logger.warning('Payment $localUuid: bookingLocalId $bookingLocalId not found, setting to null', tag: 'SYNC');
+            bookingLocalId = null;
+          }
+        }
+        
+        int? cashTransactionLocalId = _asIntNullable(data['cashTransactionLocalId']);
+        
+        if (cashTransactionLocalId != null) {
+          final cashTransactionExists = await (database.select(database.cashTransactions)
+            ..where((c) => c.id.equals(cashTransactionLocalId))
+            ..limit(1)).getSingleOrNull();
+          
+          if (cashTransactionExists == null) {
+            _logger.warning('Payment $localUuid: cashTransactionLocalId $cashTransactionLocalId not found, setting to null', tag: 'SYNC');
+            cashTransactionLocalId = null;
+          }
+        }
+        final companion = PaymentsCompanion(
+          localUuid: d.Value(localUuid),
+          serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
+          createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
+          updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
+          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
+          version: d.Value(_asInt(data['version'], fallback: 1)),
+          origin: d.Value(_asString(data['origin']) ?? 'server'),
+          serverPaymentId: _nullableValue<int>(_asIntNullable(data['serverPaymentId'])),
+          bookingLocalId: _nullableValue<int>(bookingLocalId),
+          serverBookingId: _nullableValue<int>(_asIntNullable(data['serverBookingId'])),
+          roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
+          amount: d.Value(_asDouble(data['amount'])),
+          paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
+          notes: _nullableValue<String>(_asString(data['notes'])),
+          paymentMethod: d.Value(_asString(data['paymentMethod']) ?? ''),
+          revenueType: d.Value(_asString(data['revenueType']) ?? ''),
+          cashTransactionLocalId: _nullableValue<int>(cashTransactionLocalId),
+          cashTransactionServerId: _nullableValue<int>(_asIntNullable(data['cashTransactionServerId'])),
+          referenceNumber: _nullableValue<String>(_asString(data['referenceNumber'])),
+        );
+        
+        await database.into(database.payments).insert(companion, mode: d.InsertMode.insertOrReplace);
+        processed++;
+      } catch (e) {
+        _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
+      }
+    }
+    
     return processed;
   }
 
   Future<int> _syncDebts(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final localUuid = _asString(data['localUuid']) ?? doc.$id;
-          final guestName = _asString(data['guestName']);
-          if (localUuid.isEmpty || guestName == null || guestName.isEmpty) {
-            continue;
-          }
-          final companion = DebtsCompanion(
-            localUuid: d.Value(localUuid),
-            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
-            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
-            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
-            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
-            version: d.Value(_asInt(data['version'], fallback: 1)),
-            origin: d.Value(_asString(data['origin']) ?? 'server'),
-            bookingLocalId: _nullableValue<int>(_asIntNullable(data['bookingLocalId'])),
-            guestName: d.Value(guestName),
-            checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
-            checkoutDate: d.Value(_asString(data['checkoutDate']) ?? ''),
-            dateRecorded: d.Value(_asString(data['dateRecorded']) ?? ''),
-            debtReason: d.Value(_asString(data['debtReason']) ?? ''),
-            totalAmount: d.Value(_asDouble(data['totalAmount'])),
-            paidAmount: d.Value(_asDouble(data['paidAmount'])),
-            remainingAmount: d.Value(_asDouble(data['remainingAmount'])),
-            paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
-            isSettled: d.Value(_asInt(data['isSettled'], fallback: 0)),
-            pledge: _nullableValue<String>(_asString(data['pledge'])),
-            pledgeType: _nullableValue<String>(_asString(data['pledgeType'])),
-            note: _nullableValue<String>(_asString(data['note'])),
-          );
-          batch.insert(database.debts, companion, mode: d.InsertMode.insertOrReplace);
-          processed++;
+    
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        final localUuid = _asString(data['localUuid']) ?? doc.$id;
+        final guestName = _asString(data['guestName']);
+        if (localUuid.isEmpty || guestName == null || guestName.isEmpty) {
+          continue;
         }
-      });
-    });
+        
+        int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
+        
+        if (bookingLocalId != null) {
+          final bookingExists = await (database.select(database.bookings)
+            ..where((b) => b.id.equals(bookingLocalId))
+            ..limit(1)).getSingleOrNull();
+          
+          if (bookingExists == null) {
+            _logger.warning('Debt $localUuid: bookingLocalId $bookingLocalId not found, setting to null', tag: 'SYNC');
+            bookingLocalId = null;
+          }
+        }
+        final companion = DebtsCompanion(
+          localUuid: d.Value(localUuid),
+          serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
+          createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
+          updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
+          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
+          version: d.Value(_asInt(data['version'], fallback: 1)),
+          origin: d.Value(_asString(data['origin']) ?? 'server'),
+          bookingLocalId: _nullableValue<int>(bookingLocalId),
+          guestName: d.Value(guestName),
+          checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
+          checkoutDate: d.Value(_asString(data['checkoutDate']) ?? ''),
+          dateRecorded: d.Value(_asString(data['dateRecorded']) ?? ''),
+          debtReason: d.Value(_asString(data['debtReason']) ?? ''),
+          totalAmount: d.Value(_asDouble(data['totalAmount'])),
+          paidAmount: d.Value(_asDouble(data['paidAmount'])),
+          remainingAmount: d.Value(_asDouble(data['remainingAmount'])),
+          paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
+          isSettled: d.Value(_asInt(data['isSettled'], fallback: 0)),
+          pledge: _nullableValue<String>(_asString(data['pledge'])),
+          pledgeType: _nullableValue<String>(_asString(data['pledgeType'])),
+          note: _nullableValue<String>(_asString(data['note'])),
+        );
+        
+        await database.into(database.debts).insert(companion, mode: d.InsertMode.insertOrReplace);
+        processed++;
+      } catch (e) {
+        _logger.warning('Failed to sync debt ${doc.$id}: $e', tag: 'SYNC');
+      }
+    }
+    
     return processed;
   }
 
@@ -1005,9 +1062,6 @@ class AppwriteSyncManager {
   }
 
   Map<String, dynamic> _addIdempotencyKey(Map<String, dynamic> payload, OutboxData entry) {
-    if (entry.idempotencyKey != null) {
-      payload['_idempotencyKey'] = entry.idempotencyKey;
-    }
     return payload;
   }
 
