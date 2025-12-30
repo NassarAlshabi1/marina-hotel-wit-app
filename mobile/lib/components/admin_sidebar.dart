@@ -219,6 +219,15 @@ class AdminSidebar extends ConsumerWidget {
                   ),
                 if (can('settings'))
                   _buildMenuItem(
+                    icon: Icons.gavel,
+                    title: 'القائمة السوداء',
+                    route: '/blacklist',
+                    isActive: currentRoute.startsWith('/blacklist'),
+                    onTap: () => onRouteSelected('/blacklist'),
+                    context: context,
+                  ),
+                if (can('settings'))
+                  _buildMenuItem(
                     icon: Icons.settings,
                     title: 'الإعدادات',
                     route: '/settings',

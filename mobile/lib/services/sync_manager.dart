@@ -11,7 +11,6 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:synchronized/synchronized.dart';
-import 'package:crypto/crypto.dart';
 
 import '../data/sync_models.dart';
 import 'daos/outbox_dao.dart';
@@ -21,6 +20,9 @@ import 'local_db.dart';
 import 'sync_safety_layer.dart';
 import 'sync_mutex.dart';
 import 'sync_enums.dart';
+import 'sync_config.dart';
+import 'conflict_resolver.dart';
+import 'vector_clock.dart';
 
 /// واجهة اختيارية لإرسال إشعارات FCM عند اكتمال الرفع
 abstract class SyncTriggerDispatcher {
@@ -73,6 +75,15 @@ class SyncManager {
 
   final Queue<_SyncJob> _syncJobs = Queue<_SyncJob>();
   bool _syncWorkerRunning = false;
+
+  void _addSyncJob(_SyncJob job) {
+    if (_syncJobs.length >= SyncConfig.maxQueueSize) {
+      debugPrint('⚠️ طابور المزامنة ممتلئ، حذف أقدم عملية');
+      final dropped = _syncJobs.removeFirst();
+      dropped.completer.completeError(StateError('Sync job dropped due to queue overflow'));
+    }
+    _syncJobs.add(job);
+  }
 
   StreamSubscription<int>? _outboxWatchSub;
   Timer? _outboxDebounceTimer;
@@ -213,7 +224,7 @@ class SyncManager {
 
   Future<void> _withSyncLock(Future<void> Function() work) {
     final job = _SyncJob(work);
-    _syncJobs.add(job);
+    _addSyncJob(job);
     _startSyncWorkerIfNeeded();
     return job.completer.future;
   }
@@ -453,7 +464,10 @@ class SyncManager {
   }
 
   Future<void> _drainQueue({bool force = false}) async {
-    await _drainMutex.acquire();
+    if (!await _drainMutex.acquire()) {
+      debugPrint('⏸️ طابور المزامنة مشغول - تخطي');
+      return;
+    }
     await _ensureReady();
     if (_isDrainingQueue) {
       return;
@@ -557,7 +571,6 @@ class SyncManager {
     } finally {
       _isDrainingQueue = false;
       _drainMutex.release();
-      _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'طابور المزامنة فارغ'));
     }
   }
 
@@ -659,27 +672,65 @@ class SyncManager {
               winner = remoteRow;
               operation = 'noop';
             } else {
-              if (_devicePriority >= remotePriority) {
-                winner = localRow;
-                operation = 'conflict-local';
-                conflicts.add(SyncConflictModel(
-                  table: table,
-                  uuid: key,
-                  localPayload: localRow,
-                  remotePayload: remoteRow,
-                  resolution: 'local',
-                ));
-              } else {
-                winner = remoteRow;
-                operation = 'conflict-remote';
-                conflicts.add(SyncConflictModel(
-                  table: table,
-                  uuid: key,
-                  localPayload: localRow,
-                  remotePayload: remoteRow,
-                  resolution: 'remote',
-                ));
-              }
+              final conflictResolver = EnhancedConflictResolver(
+                defaultStrategy: ConflictStrategy.fieldLevel,
+                tableStrategies: {
+                  'bookings': ConflictStrategy.fieldLevel,
+                  'payments': ConflictStrategy.lastWriteWins,
+                  'rooms': ConflictStrategy.fieldLevel,
+                  'expenses': ConflictStrategy.lastWriteWins,
+                  'debts': ConflictStrategy.fieldLevel,
+                  'guests': ConflictStrategy.fieldLevel,
+                  'employees': ConflictStrategy.fieldLevel,
+                  'services': ConflictStrategy.lastWriteWins,
+                },
+              );
+
+              VectorClock? localVectorClock;
+              VectorClock? remoteVectorClock;
+              try {
+                final localVc = localRow['vector_clock'] as String?;
+                final remoteVc = remoteRow['vector_clock'] as String?;
+                if (localVc != null && localVc.isNotEmpty) {
+                  localVectorClock = VectorClock.fromJson(localVc);
+                }
+                if (remoteVc != null && remoteVc.isNotEmpty) {
+                  remoteVectorClock = VectorClock.fromJson(remoteVc);
+                }
+              } catch (_) {}
+
+              final context = ConflictContext(
+                table: table,
+                uuid: key,
+                localData: localRow,
+                remoteData: remoteRow,
+                localVectorClock: localVectorClock,
+                remoteVectorClock: remoteVectorClock,
+                localTimestamp: localUpdatedTs,
+                remoteTimestamp: remoteUpdatedTs,
+                localDeviceId: deviceId,
+                remoteDeviceId: remoteSnapshot.metadata.lastDeviceId,
+                localDevicePriority: _devicePriority,
+                remoteDevicePriority: remotePriority,
+              );
+
+              final resolution = conflictResolver.resolve(context);
+              winner = resolution.mergedData ?? resolution.winner;
+              
+              final isLocalWinner = winner == localRow || 
+                  (resolution.mergedData != null && resolution.strategy == ConflictStrategy.fieldLevel);
+              
+              operation = isLocalWinner ? 'conflict-local' : 'conflict-remote';
+              
+              conflicts.add(SyncConflictModel(
+                table: table,
+                uuid: key,
+                localPayload: localRow,
+                remotePayload: remoteRow,
+                resolution: resolution.needsManualReview ? 'pending' : (isLocalWinner ? 'local-merged' : 'remote'),
+              ));
+
+              debugPrint('🔀 تعارض [$table/$key]: استراتيجية ${resolution.strategy.name}');
             }
           }
         }

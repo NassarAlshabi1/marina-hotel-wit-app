@@ -697,8 +697,10 @@ class GoogleDriveBackupService {
 
       _log('🔄 بدء استعادة البيانات...');
 
+      // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
       await db.customStatement('PRAGMA foreign_keys = OFF');
       try {
+        // حذف جميع الجداول
         await db.delete(db.rooms).go();
         await db.delete(db.bookings).go();
         await db.delete(db.bookingNotes).go();
@@ -720,10 +722,8 @@ class GoogleDriveBackupService {
         await db.delete(db.syncLog).go();
         await db.delete(db.syncConflicts).go();
         await db.delete(db.syncState).go();
-      } finally {
-        await db.customStatement('PRAGMA foreign_keys = ON');
-      }
 
+      // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
       if (backupData.containsKey('rooms')) {
         final roomsData = backupData['rooms'] as List<dynamic>;
         for (final roomJson in roomsData) {
@@ -966,6 +966,11 @@ class GoogleDriveBackupService {
       _log('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
       final fixService = RestoreFixService(db);
       await fixService.runAutoFixAfterRestore(backupTimestamp: metadata.backupTimestamp);
+      } finally {
+        // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الاستعادة بالكامل
+        await db.customStatement('PRAGMA foreign_keys = ON');
+        _log('🔓 تم إعادة تشغيل FOREIGN KEYS');
+      }
     } catch (e) {
       _log('❌ خطأ في استعادة البيانات: $e');
       rethrow;

@@ -151,19 +151,32 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<String> _computeUnifiedChecksum() async {
-    // اجمع لقطات من جداول أساسية لتكوين checksum موحد
-    final rooms = await (database.select(database.rooms)).get();
-    final bookings = await (database.select(database.bookings)).get();
-    final payments = await (database.select(database.payments)).get();
-    final expenses = await (database.select(database.expenses)).get();
-    final debts = await (database.select(database.debts)).get();
+    final results = await Future.wait([
+      (database.select(database.rooms)).get(),
+      (database.select(database.bookings)).get(),
+      (database.select(database.bookingNotes)).get(),
+      (database.select(database.employees)).get(),
+      (database.select(database.expenses)).get(),
+      (database.select(database.cashTransactions)).get(),
+      (database.select(database.payments)).get(),
+      (database.select(database.debts)).get(),
+      (database.select(database.bookingNights)).get(),
+      (database.select(database.hotelDayLedger)).get(),
+      (database.select(database.shiftNotes)).get(),
+    ]);
 
     final snapshot = {
-      'rooms': rooms.map((e) => e.toJson()).toList(),
-      'bookings': bookings.map((e) => e.toJson()).toList(),
-      'payments': payments.map((e) => e.toJson()).toList(),
-      'expenses': expenses.map((e) => e.toJson()).toList(),
-      'debts': debts.map((e) => e.toJson()).toList(),
+      'rooms': (results[0] as List).map((e) => e.toJson()).toList(),
+      'bookings': (results[1] as List).map((e) => e.toJson()).toList(),
+      'booking_notes': (results[2] as List).map((e) => e.toJson()).toList(),
+      'employees': (results[3] as List).map((e) => e.toJson()).toList(),
+      'expenses': (results[4] as List).map((e) => e.toJson()).toList(),
+      'cash_transactions': (results[5] as List).map((e) => e.toJson()).toList(),
+      'payments': (results[6] as List).map((e) => e.toJson()).toList(),
+      'debts': (results[7] as List).map((e) => e.toJson()).toList(),
+      'booking_nights': (results[8] as List).map((e) => e.toJson()).toList(),
+      'hotel_day_ledger': (results[9] as List).map((e) => e.toJson()).toList(),
+      'shift_notes': (results[10] as List).map((e) => e.toJson()).toList(),
     };
     return models.SyncChecksum.compute({'tables': snapshot});
   }
