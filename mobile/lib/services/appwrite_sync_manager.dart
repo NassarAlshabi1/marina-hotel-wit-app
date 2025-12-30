@@ -540,7 +540,9 @@ class AppwriteSyncManager {
         'Sync metrics: ${jsonEncode({"durationMs": duration.inMilliseconds, "recordsPushed": recordsPushed, "recordsPulled": recordsPulled, "conflicts": conflicts, "status": finalStatus.name, "phasesMs": phaseMs})}',
         tag: 'METRICS',
       );
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      _logger.warning('Failed to log sync metrics', error: e, stackTrace: stackTrace, tag: 'METRICS');
+    }
 
     return SyncResult(
       status: finalStatus,
