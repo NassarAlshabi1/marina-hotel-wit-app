@@ -253,7 +253,7 @@ class AppwriteSyncManager {
   }
 
   /// بدء المزامنة التلقائية
-  void startAutoSync({Duration interval = AppwriteConfig.syncInterval}) {
+  void startAutoSync({Duration interval = SyncConstants.defaultAutoSyncInterval}) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
       final prefs = await SharedPreferences.getInstance();
