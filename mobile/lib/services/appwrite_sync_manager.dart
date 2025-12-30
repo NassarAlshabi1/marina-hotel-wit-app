@@ -401,50 +401,58 @@ class AppwriteSyncManager {
       syncLogId = syncLog.$id;
       hasSyncLog = true;
 
-      final pushSw = Stopwatch()..start();
-      final pushedCount = await _pushAllEntities();
-      phaseMs['pushAllEntities'] = pushSw.elapsedMilliseconds;
+      Future<T> timePhase<T>(String name, Future<T> Function() operation) async {
+        final sw = Stopwatch()..start();
+        try {
+          return await operation();
+        } finally {
+          sw.stop();
+          phaseMs[name] = sw.elapsedMilliseconds;
+        }
+      }
+
+      final pushedCount = await timePhase('pushAllEntities', () => _pushAllEntities());
       recordsPushed += pushedCount;
 
-      final roomsSw = Stopwatch()..start();
-      final rooms = await appwriteService.listRooms(useCache: false);
-      final roomsSynced = await _syncRooms(rooms);
-      phaseMs['syncRooms'] = roomsSw.elapsedMilliseconds;
+      final roomsSynced = await timePhase('syncRooms', () async {
+        final rooms = await appwriteService.listRooms(useCache: false);
+        return _syncRooms(rooms);
+      });
       recordsPulled += roomsSynced;
       _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
 
-      final bookingsSw = Stopwatch()..start();
-      final bookings = await appwriteService.listBookings(useCache: false);
-      final bookingsSynced = await _syncBookings(bookings);
-      phaseMs['syncBookings'] = bookingsSw.elapsedMilliseconds;
+      final bookingsSynced = await timePhase('syncBookings', () async {
+        final bookings = await appwriteService.listBookings(useCache: false);
+        return _syncBookings(bookings);
+      });
       recordsPulled += bookingsSynced;
       _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
 
-      final employeesSw = Stopwatch()..start();
-      final employees = await appwriteService.listEmployees(useCache: false);
-      final employeesSynced = await _syncEmployees(employees);
-      phaseMs['syncEmployees'] = employeesSw.elapsedMilliseconds;
+      final employeesSynced = await timePhase('syncEmployees', () async {
+        final employees = await appwriteService.listEmployees(useCache: false);
+        return _syncEmployees(employees);
+      });
       recordsPulled += employeesSynced;
       _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
 
-      final expensesSw = Stopwatch()..start();
-      final expenses = await appwriteService.listExpenses(useCache: false);
-      final expensesSynced = await _syncExpenses(expenses);
-      phaseMs['syncExpenses'] = expensesSw.elapsedMilliseconds;
+      final expensesSynced = await timePhase('syncExpenses', () async {
+        final expenses = await appwriteService.listExpenses(useCache: false);
+        return _syncExpenses(expenses);
+      });
       recordsPulled += expensesSynced;
       _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
 
-      final paymentsSw = Stopwatch()..start();
-      final payments = await appwriteService.listPayments(useCache: false);
-      final paymentsSynced = await _syncPayments(payments);
-      phaseMs['syncPayments'] = paymentsSw.elapsedMilliseconds;
+      final paymentsSynced = await timePhase('syncPayments', () async {
+        final payments = await appwriteService.listPayments(useCache: false);
+        return _syncPayments(payments);
+      });
       recordsPulled += paymentsSynced;
       _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
 
-      final debtsSw = Stopwatch()..start();
-      final debts = await appwriteService.listDebts(useCache: false);
-      final debtsSynced = await _syncDebts(debts);
-      phaseMs['syncDebts'] = debtsSw.elapsedMilliseconds;
+      final debtsSynced = await timePhase('syncDebts', () async {
+        final debts = await appwriteService.listDebts(useCache: false);
+        return _syncDebts(debts);
+      });
       recordsPulled += debtsSynced;
       _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
 
@@ -540,7 +548,9 @@ class AppwriteSyncManager {
         'Sync metrics: ${jsonEncode({"durationMs": duration.inMilliseconds, "recordsPushed": recordsPushed, "recordsPulled": recordsPulled, "conflicts": conflicts, "status": finalStatus.name, "phasesMs": phaseMs})}',
         tag: 'METRICS',
       );
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      _logger.warning('Failed to log sync metrics', error: e, stackTrace: stackTrace, tag: 'METRICS');
+    }
 
     return SyncResult(
       status: finalStatus,
