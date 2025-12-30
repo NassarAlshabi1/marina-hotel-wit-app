@@ -5,6 +5,7 @@ import 'appwrite_logger.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_cache_manager.dart';
 import 'appwrite_network_helper.dart';
+import 'sync_constants.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
 class AppwriteService {
@@ -69,6 +70,169 @@ class AppwriteService {
     }
   }
 
+  static final Map<String, Set<String>> _allowedKeysByCollection = {
+    AppwriteConfig.roomsCollectionId: {
+      'roomNumber',
+      'type',
+      'price',
+      'status',
+      'imageUrl',
+      'localUuid',
+      'serverId',
+      'createdAt',
+      'updatedAt',
+      'deletedAt',
+      'lastModified',
+      'version',
+      'origin',
+    },
+    AppwriteConfig.bookingsCollectionId: {
+      'roomNumber',
+      'guestName',
+      'guestPhone',
+      'guestIdType',
+      'guestIdNumber',
+      'guestIdIssueDate',
+      'guestIdIssuePlace',
+      'guestNationality',
+      'guestEmail',
+      'guestAddress',
+      'checkinDate',
+      'checkoutDate',
+      'actualCheckout',
+      'status',
+      'expectedNights',
+      'calculatedNights',
+      'notes',
+      'serverBookingId',
+      'serverId',
+      'localUuid',
+      'createdAt',
+      'updatedAt',
+      'deletedAt',
+      'lastModified',
+      'version',
+      'origin',
+    },
+    AppwriteConfig.paymentsCollectionId: {
+      'amount',
+      'paymentDate',
+      'paymentMethod',
+      'revenueType',
+      'serverPaymentId',
+      'bookingLocalId',
+      'serverBookingId',
+      'roomNumber',
+      'notes',
+      'cashTransactionLocalId',
+      'cashTransactionServerId',
+      'referenceNumber',
+      'serverId',
+      'localUuid',
+      'createdAt',
+      'updatedAt',
+      'deletedAt',
+      'lastModified',
+      'version',
+      'origin',
+    },
+    AppwriteConfig.expensesCollectionId: {
+      'expenseType',
+      'relatedId',
+      'description',
+      'amount',
+      'date',
+      'cashTransactionId',
+      'serverId',
+      'localUuid',
+      'createdAt',
+      'updatedAt',
+      'deletedAt',
+      'lastModified',
+      'version',
+      'origin',
+    },
+    AppwriteConfig.debtsCollectionId: {
+      'amount',
+      'debtorName',
+      'dueDate',
+      'status',
+      'serverId',
+      'localUuid',
+      'createdAt',
+      'updatedAt',
+      'deletedAt',
+      'lastModified',
+      'version',
+      'origin',
+    },
+    AppwriteConfig.devicesCollectionId: {
+      'deviceName',
+      'deviceModel',
+      'osVersion',
+      'deviceType',
+      'status',
+      'localUuid',
+      'lastSeen',
+      'lastActive',
+      'serverId',
+      'createdAt',
+      'updatedAt',
+      'deletedAt',
+      'lastModified',
+      'version',
+      'origin',
+    },
+    AppwriteConfig.syncLogsCollectionId: {
+      'deviceId',
+      'syncType',
+      'startTime',
+      'endTime',
+      'status',
+      'action',
+      'details',
+      'timestamp',
+      'localUuid',
+      'createdAt',
+      'updatedAt',
+      'deletedAt',
+      'lastModified',
+      'version',
+      'origin',
+      'errorMessage',
+    },
+  };
+
+  Map<String, dynamic> _sanitizeData(String collectionId, Map<String, dynamic> data) {
+    final allowed = _allowedKeysByCollection[collectionId];
+    final cleaned = <String, dynamic>{};
+
+    for (final entry in data.entries) {
+      final key = entry.key;
+
+      if (key.startsWith('_') || key.startsWith(r'$')) {
+        continue;
+      }
+
+      if (allowed != null && !allowed.contains(key)) {
+        continue;
+      }
+
+      var value = entry.value;
+
+      if (key == 'errorMessage') {
+        final stringValue = value == null ? '' : value.toString();
+        value = stringValue.length > SyncConstants.maxErrorMessageLength
+            ? stringValue.substring(0, SyncConstants.maxErrorMessageLength)
+            : stringValue;
+      }
+
+      cleaned[key] = value;
+    }
+
+    return cleaned;
+  }
+
   // ============ Generic CRUD Operations ============
 
   /// إنشاء مستند جديد
@@ -82,13 +246,15 @@ class AppwriteService {
     
     try {
       _logger.debug('Creating document in $collectionId', tag: 'CRUD');
-      
+
+      final sanitizedData = _sanitizeData(collectionId, data);
+
       Future<models.Document> performOperation() {
         return _databases.createDocument(
           databaseId: AppwriteConfig.databaseId,
           collectionId: collectionId,
           documentId: documentId ?? 'unique()',
-          data: data,
+          data: sanitizedData,
         );
       }
 
@@ -172,13 +338,15 @@ class AppwriteService {
     
     try {
       _logger.debug('Updating document $documentId in $collectionId', tag: 'CRUD');
-      
+
+      final sanitizedData = _sanitizeData(collectionId, data);
+
       Future<models.Document> performOperation() {
         return _databases.updateDocument(
           databaseId: AppwriteConfig.databaseId,
           collectionId: collectionId,
           documentId: documentId,
-          data: data,
+          data: sanitizedData,
         );
       }
 
