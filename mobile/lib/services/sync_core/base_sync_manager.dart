@@ -158,7 +158,7 @@ abstract class BaseSyncManager {
       return;
     }
     
-    _metrics.startSync();
+    _metrics.startSync(type: 'google_drive_base');
     
     try {
       await _performSyncInternal();
@@ -166,6 +166,7 @@ abstract class BaseSyncManager {
       await dataManager.recordDataUsage(0.5);
     } catch (e, stack) {
       optimizer.recordSyncFailure();
+      _metrics.recordFailure(e, type: 'google_drive_base');
       _log('❌ خطأ في المزامنة: $e');
       debugPrintStack(stackTrace: stack);
       rethrow;
@@ -186,7 +187,7 @@ abstract class BaseSyncManager {
     final backupsList = await _backupService!.listBackups();
     if (backupsList.isEmpty) {
       _log('ℹ️ لا توجد نسخ احتياطية');
-      _metrics.recordSuccess();
+      _metrics.recordSuccess(type: 'google_drive_base');
       return;
     }
     
@@ -195,7 +196,7 @@ abstract class BaseSyncManager {
     
     if (lastRemoteTimestamp == remoteTimestamp && (lastRemoteTimestamp?.isNotEmpty ?? false)) {
       _log('✅ لا توجد تحديثات جديدة');
-      _metrics.recordSuccess();
+      _metrics.recordSuccess(type: 'google_drive_base');
       return;
     }
     
@@ -227,6 +228,7 @@ abstract class BaseSyncManager {
     _metrics.recordSuccess(
       recordsSynced: _countRecords(backupData),
       conflictsResolved: conflictsResolved,
+      type: 'google_drive_base',
     );
     
     _log('✅ اكتملت المزامنة بنجاح');

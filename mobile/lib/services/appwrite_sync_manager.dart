@@ -356,7 +356,7 @@ class AppwriteSyncManager {
     final startTime = DateTime.now();
 
     final metrics = SyncMetrics.instance;
-    metrics.startSync();
+    metrics.startSync(type: 'appwrite');
 
     final phaseMs = <String, int>{};
     int recordsPushed = 0;
@@ -538,9 +538,9 @@ class AppwriteSyncManager {
     final duration = endTime.difference(startTime);
 
     if (finalStatus == SyncStatus.success) {
-      metrics.recordSuccess(recordsSynced: recordsPushed + recordsPulled, conflictsResolved: conflicts);
+      metrics.recordSuccess(recordsSynced: recordsPushed + recordsPulled, conflictsResolved: conflicts, type: 'appwrite');
     } else {
-      metrics.recordFailure(errorMessage ?? 'Appwrite sync failed');
+      metrics.recordFailure(errorMessage ?? 'Appwrite sync failed', type: 'appwrite');
     }
 
     try {

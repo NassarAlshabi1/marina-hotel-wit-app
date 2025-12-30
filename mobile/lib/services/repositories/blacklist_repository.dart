@@ -19,8 +19,6 @@ String _normalizeArabic(String input) {
 List<String> _tokens(String name) => _normalizeArabic(name).split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
 
 bool _tripleMatch(List<String> a, List<String> b) {
-  if (a.length < 3 || b.length < 3) return false;
-
   final aTokens = a.toSet();
   final bTokens = b.toSet();
 

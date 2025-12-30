@@ -15,6 +15,7 @@ import 'sync_constants.dart';
 import 'sync_performance_optimizer.dart';
 import 'logging/log_models.dart';
 import 'sync_locks.dart';
+import 'sync_core/sync_metrics.dart';
 
 enum SyncTrigger {
   manual,
@@ -458,7 +459,10 @@ class GoogleDriveUnifiedSyncCoordinator {
     
     _log('🚀 Starting sync [trigger=$trigger, mode=$mode]');
 
-    try {
+    final metrics = SyncMetrics.instance;
+    metrics.startSync(type: 'google_drive');
+
+    try { 
       final optimizer = SyncPerformanceOptimizer.instance;
       final dataManager = DataUsageManager.instance;
       
@@ -467,6 +471,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       if (shouldSkip) {
         if (enforceOptimizer) {
           _log('⏸️ Optimizer suggests skipping sync');
+          metrics.recordFailure('Skipped by performance optimizer', type: 'google_drive');
           return SyncResult.failure(
             message: 'Skipped by performance optimizer',
             phase: SyncPhase.idle,
@@ -478,6 +483,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       
       if (await dataManager.isLimitExceeded()) {
         _log('📊 Data limit exceeded - skipping sync');
+        metrics.recordFailure('Data limit exceeded', type: 'google_drive');
         return SyncResult.failure(
           message: 'Data limit exceeded',
           phase: SyncPhase.idle,
@@ -516,6 +522,8 @@ class GoogleDriveUnifiedSyncCoordinator {
         pulled: pulled,
       );
       
+      metrics.recordSuccess(recordsSynced: (pushed ?? 0) + (pulled ?? 0), type: 'google_drive');
+
       _syncResultController.add(result);
       _log('✅ Sync completed [pushed=$pushed, pulled=$pulled]');
       
@@ -543,6 +551,8 @@ class GoogleDriveUnifiedSyncCoordinator {
         userFriendlyMessage = 'فشلت المزامنة: $errorMessage';
       }
       
+      metrics.recordFailure(errorMessage, type: 'google_drive');
+
       final result = SyncResult.failure(
         message: userFriendlyMessage,
         error: errorMessage,

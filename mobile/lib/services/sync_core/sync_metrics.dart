@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// معلومات دورة مزامنة واحدة
 class SyncSession {
+  final String type;
   final DateTime startTime;
   final DateTime? endTime;
   final bool success;
@@ -13,6 +14,7 @@ class SyncSession {
   final int conflictsResolved;
 
   SyncSession({
+    this.type = 'default',
     required this.startTime,
     this.endTime,
     this.success = false,
@@ -24,6 +26,7 @@ class SyncSession {
   Duration get duration => (endTime ?? DateTime.now()).difference(startTime);
 
   Map<String, dynamic> toJson() => {
+    'type': type,
     'startTime': startTime.toIso8601String(),
     'endTime': endTime?.toIso8601String(),
     'success': success,
@@ -33,6 +36,7 @@ class SyncSession {
   };
 
   factory SyncSession.fromJson(Map<String, dynamic> json) => SyncSession(
+    type: json['type'] as String? ?? 'default',
     startTime: DateTime.parse(json['startTime']),
     endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
     success: json['success'] ?? false,
@@ -100,7 +104,7 @@ class SyncMetrics {
   
   SyncMetrics._();
 
-  SyncSession? _currentSession;
+  final Map<String, SyncSession> _currentSessions = {};
   final List<SyncSession> _history = [];
   final _statsController = StreamController<SyncStats>.broadcast();
 
@@ -111,47 +115,53 @@ class SyncMetrics {
   List<SyncSession> get history => List.unmodifiable(_history);
 
   /// بدء دورة مزامنة جديدة
-  void startSync() {
-    _currentSession = SyncSession(startTime: DateTime.now());
-    debugPrint('📊 SyncMetrics: بدأت دورة مزامنة جديدة');
+  void startSync({String type = 'default'}) {
+    _currentSessions[type] = SyncSession(type: type, startTime: DateTime.now());
+    debugPrint('📊 SyncMetrics: بدأت دورة مزامنة جديدة [$type]');
   }
 
   /// تسجيل نجاح المزامنة
-  void recordSuccess({int recordsSynced = 0, int conflictsResolved = 0}) {
-    if (_currentSession == null) return;
+  void recordSuccess({int recordsSynced = 0, int conflictsResolved = 0, String type = 'default'}) {
+    final current = _currentSessions[type];
+    if (current == null) return;
 
     final session = SyncSession(
-      startTime: _currentSession!.startTime,
+      type: type,
+      startTime: current.startTime,
       endTime: DateTime.now(),
       success: true,
       recordsSynced: recordsSynced,
       conflictsResolved: conflictsResolved,
     );
 
+    _currentSessions.remove(type);
     _addToHistory(session);
     _updateStats();
-    
+
     debugPrint(
-      '✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
+      '✅ SyncMetrics: مزامنة ناجحة [$type] - ${session.duration.inSeconds}ث، '
       'السجلات: $recordsSynced، التضارب: $conflictsResolved'
     );
   }
 
   /// تسجيل فشل المزامنة
-  void recordFailure(Object error) {
-    if (_currentSession == null) return;
+  void recordFailure(Object error, {String type = 'default'}) {
+    final current = _currentSessions[type];
+    if (current == null) return;
 
     final session = SyncSession(
-      startTime: _currentSession!.startTime,
+      type: type,
+      startTime: current.startTime,
       endTime: DateTime.now(),
       success: false,
       error: error.toString(),
     );
 
+    _currentSessions.remove(type);
     _addToHistory(session);
     _updateStats();
-    
-    debugPrint('❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error');
+
+    debugPrint('❌ SyncMetrics: مزامنة فاشلة [$type] - ${session.duration.inSeconds}ث، الخطأ: $error');
   }
 
   /// إضافة إلى السجل
