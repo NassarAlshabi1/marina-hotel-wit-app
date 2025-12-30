@@ -154,6 +154,7 @@ void main() {
     final merged = result.mergedData!;
     expect(merged['status'], 'remote');
     expect(merged['notes'], 'Remote note');
+    expect(merged['guestName'], 'Remote Name');
     expect(merged['updated_at'], isA<int>());
     expect(merged['updated_at_iso'], isA<String>());
   });
