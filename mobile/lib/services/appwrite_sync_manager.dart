@@ -536,12 +536,28 @@ class AppwriteSyncManager {
     }
 
     try {
-      _logger.debug(
-        'Sync metrics: ${jsonEncode({"durationMs": duration.inMilliseconds, "recordsPushed": recordsPushed, "recordsPulled": recordsPulled, "conflicts": conflicts, "status": finalStatus.name, "phasesMs": phaseMs})}',
+      final payload = <String, Object?>{
+        'durationMs': duration.inMilliseconds,
+        'recordsPushed': recordsPushed,
+        'recordsPulled': recordsPulled,
+        'conflicts': conflicts,
+        'status': finalStatus.name,
+        'phasesMs': phaseMs,
+      };
+
+      var encoded = jsonEncode(payload, toEncodable: (v) => v.toString());
+      if (encoded.length > 4000) {
+        encoded = '${encoded.substring(0, 4000)}…';
+      }
+
+      _logger.debug('Sync metrics: $encoded', tag: 'METRICS');
+    } catch (e, stackTrace) {
+      _logger.warning(
+        'Failed to log sync metrics',
+        error: e,
+        stackTrace: stackTrace,
         tag: 'METRICS',
       );
-    } catch (e, stackTrace) {
-      _logger.warning('Failed to log sync metrics', error: e, stackTrace: stackTrace, tag: 'METRICS');
     }
 
     return SyncResult(
