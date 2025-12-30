@@ -30,6 +30,7 @@ class SyncConstants {
   static List<String> get allTablesInReverseOrder => allTablesInOrder.reversed.toList();
 
   static const int maxErrorMessageLength = 500;
+  static const int maxMetricsPayloadLength = 4000;
 
   static const Duration defaultAutoSyncInterval = Duration(minutes: 15);
   static const Duration outboxDebounceWindow = Duration(seconds: 10);

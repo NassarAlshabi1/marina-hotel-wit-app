@@ -125,8 +125,8 @@ class AppwriteLogger {
     log(message, level: LogLevel.info, tag: tag);
   }
 
-  void warning(String message, {String tag = 'APPWRITE', dynamic error}) {
-    log(message, level: LogLevel.warning, tag: tag, error: error);
+  void warning(String message, {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
+    log(message, level: LogLevel.warning, tag: tag, error: error, stackTrace: stackTrace);
   }
 
   void error(String message, {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
