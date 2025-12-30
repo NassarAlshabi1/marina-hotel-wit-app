@@ -20,7 +20,13 @@ List<String> _tokens(String name) => _normalizeArabic(name).split(RegExp(r'\s+')
 
 bool _tripleMatch(List<String> a, List<String> b) {
   if (a.length < 3 || b.length < 3) return false;
-  return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+
+  final aTokens = a.toSet();
+  final bTokens = b.toSet();
+
+  final commonTokens = aTokens.intersection(bTokens);
+
+  return commonTokens.length >= 3;
 }
 
 class BlacklistEntry {

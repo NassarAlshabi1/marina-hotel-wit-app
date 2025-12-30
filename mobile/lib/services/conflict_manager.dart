@@ -140,15 +140,18 @@ class ConflictManager {
 
   Future<void> _updateConflictResolution(String conflictId, Map<String, dynamic> resolution) async {
     try {
-      final parts = conflictId.split('_');
-      if (parts.length < 2) return;
-      
-      final table = parts[0];
-      final uuid = parts[1];
-      
+      final lastUnderscore = conflictId.lastIndexOf('_');
+      if (lastUnderscore == -1) return;
+
+      final secondToLastUnderscore = conflictId.lastIndexOf('_', lastUnderscore - 1);
+      if (secondToLastUnderscore == -1) return;
+
+      final table = conflictId.substring(0, secondToLastUnderscore);
+      final uuid = conflictId.substring(secondToLastUnderscore + 1, lastUnderscore);
+
       final query = db.select(db.syncConflicts)
         ..where((t) => t.targetTable.equals(table) & t.uuid.equals(uuid));
-      
+
       final existing = await query.getSingleOrNull();
       if (existing != null) {
         await (db.update(db.syncConflicts)..where((t) => t.id.equals(existing.id))).write(
