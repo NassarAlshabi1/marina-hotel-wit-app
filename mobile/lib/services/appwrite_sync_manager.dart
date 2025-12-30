@@ -493,9 +493,7 @@ class AppwriteSyncManager {
             data: {
               'status': SyncLogStatus.failed.value,
               'action': 'sync_failed',
-              'errorMessage': (errorMessage ?? '').length > SyncConstants.maxErrorMessageLength
-                  ? (errorMessage ?? '').substring(0, SyncConstants.maxErrorMessageLength)
-                  : (errorMessage ?? ''),
+              'errorMessage': ((String msg) => msg.length > SyncConstants.maxErrorMessageLength ? msg.substring(0, SyncConstants.maxErrorMessageLength) : msg)(errorMessage ?? ''),
               'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
               'updatedAt': failEpoch,
               'lastModified': failEpoch,
