@@ -548,7 +548,13 @@ class AppwriteSyncManager {
 
       var encoded = jsonEncode(payload, toEncodable: (v) => v.toString());
       if (encoded.length > SyncConstants.maxMetricsPayloadLength) {
-        encoded = '${encoded.substring(0, SyncConstants.maxMetricsPayloadLength)}…';
+        const ellipsis = '…';
+        final maxLen = SyncConstants.maxMetricsPayloadLength - ellipsis.length;
+        if (maxLen > 0) {
+          encoded = String.fromCharCodes(encoded.runes.take(maxLen)) + ellipsis;
+        } else {
+          encoded = encoded.substring(0, SyncConstants.maxMetricsPayloadLength);
+        }
       }
 
       _logger.debug('Sync metrics: $encoded', tag: 'METRICS');
