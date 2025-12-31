@@ -7,6 +7,7 @@ import 'package:drift/drift.dart' as drift;
 import '../services/local_db.dart';
 import '../providers/repository_providers.dart';
 import '../providers/smart_sync_provider.dart';
+import '../providers/appwrite_providers.dart';
 import '../utils/status_utils.dart';
 import '../utils/currency_formatter.dart';
 
@@ -208,35 +209,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     final messenger = ScaffoldMessenger.of(context);
     
     try {
-      final manager = ref.read(smartSyncManagerProvider);
+      final smartSyncManager = ref.read(smartSyncManagerProvider);
+      final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
       
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('📤 جاري رفع التغييرات المحلية...'),
+          content: Text('📤 جاري رفع التغييرات المحلية (Smart Sync + Appwrite)...'),
           duration: Duration(seconds: 2),
         ),
       );
       
-      final pushSuccess = await manager.pushLocalChanges();
+      final results = await Future.wait([
+        smartSyncManager.pushLocalChanges(),
+        appwriteSyncManager.sync(),
+      ]);
       
       if (!mounted) return;
       
-      if (!pushSuccess) {
+      final smartSyncPushSuccess = results[0] as bool;
+      
+      if (!smartSyncPushSuccess) {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('⚠️ فشل رفع التغييرات المحلية'),
+            content: Text('⚠️ فشل رفع بعض التغييرات'),
             backgroundColor: Colors.orange,
           ),
         );
-        return;
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('✅ تم رفع التغييرات بنجاح'),
+            duration: Duration(seconds: 1),
+          ),
+        );
       }
-      
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('✅ تم رفع التغييرات بنجاح'),
-          duration: Duration(seconds: 1),
-        ),
-      );
       
       await Future.delayed(const Duration(milliseconds: 500));
       
@@ -287,14 +293,42 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   Future<void> _performSync(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     
-    final manager = ref.read(smartSyncManagerProvider);
-    await manager.forceSyncNow();
-    ref.invalidate(smartSyncStatusProvider);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('🔄 جاري مزامنة Smart Sync و Appwrite...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
     
-    if (mounted) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('⚡ تمت المزامنة الفورية بنجاح')),
-      );
+    try {
+      final smartSyncManager = ref.read(smartSyncManagerProvider);
+      final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+      
+      await Future.wait([
+        smartSyncManager.forceSyncNow(),
+        appwriteSyncManager.sync(),
+      ]);
+      
+      ref.invalidate(smartSyncStatusProvider);
+      
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('✅ تمت المزامنة بنجاح (Smart Sync + Appwrite)'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('❌ خطأ في المزامنة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      rethrow;
     }
   }
 
@@ -330,8 +364,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           children: [
             Tooltip(
               message: _pendingChangesCount > 0
-                  ? 'لديك $_pendingChangesCount تغيير معلق - اضغط للمزامنة'
-                  : 'مزامنة البيانات مع السحابة',
+                  ? 'لديك $_pendingChangesCount تغيير معلق - اضغط للمزامنة\n(Smart Sync + Appwrite)'
+                  : 'مزامنة البيانات مع السحابة\n(Smart Sync + Appwrite)',
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -373,19 +407,44 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (_isImmediateSyncing || isSyncing)
-                                RotationTransition(
-                                  turns: _syncAnimationController,
-                                  child: Icon(
-                                    Icons.sync,
-                                    size: 20,
-                                    color: Colors.white,
-                                  ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    RotationTransition(
+                                      turns: _syncAnimationController,
+                                      child: Icon(
+                                        Icons.sync,
+                                        size: 20,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 2),
+                                    RotationTransition(
+                                      turns: _syncAnimationController,
+                                      child: Icon(
+                                        Icons.cloud_sync,
+                                        size: 18,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
                                 )
                               else
-                                Icon(
-                                  isEnabled ? Icons.cloud_upload : Icons.cloud_off,
-                                  size: 20,
-                                  color: Colors.white,
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isEnabled ? Icons.cloud_upload : Icons.cloud_off,
+                                      size: 20,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Icon(
+                                      Icons.storage,
+                                      size: 16,
+                                      color: Colors.white70,
+                                    ),
+                                  ],
                                 ),
                               const SizedBox(width: 8),
                               Text(
@@ -495,9 +554,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       ),
                       if (isEnabled && !isSyncing)
                         Text(
-                          'مفعّلة',
+                          'Smart Sync + Appwrite',
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: 8,
                             color: Colors.green.shade700,
                             fontWeight: FontWeight.w500,
                           ),
