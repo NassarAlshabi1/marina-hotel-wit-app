@@ -32,24 +32,46 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTickerProviderStateMixin {
   bool _isImmediateSyncing = false;
   Timer? _lastSyncUpdateTimer;
+  late AnimationController _syncAnimationController;
+  int _pendingChangesCount = 0;
 
   @override
   void initState() {
     super.initState();
+    _syncAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
     _lastSyncUpdateTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) {
         setState(() {});
       }
     });
+    _loadPendingChangesCount();
   }
 
   @override
   void dispose() {
     _lastSyncUpdateTimer?.cancel();
+    _syncAnimationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPendingChangesCount() async {
+    try {
+      final db = ref.read(databaseProvider);
+      final count = await (db.select(db.outbox)).get();
+      if (mounted) {
+        setState(() {
+          _pendingChangesCount = count.length;
+        });
+      }
+    } catch (e) {
+      debugPrint('خطأ في تحميل عدد التغييرات: $e');
+    }
   }
 
   Future<bool> _checkLocalChanges() async {
@@ -68,8 +90,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       return;
     }
 
+    _syncAnimationController.repeat();
+
     try {
       final hasLocalChanges = await _checkLocalChanges();
+      await _loadPendingChangesCount();
       
       if (hasLocalChanges) {
         final action = await _showLocalChangesDialog(context);
@@ -97,8 +122,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       }
     } finally {
+      _syncAnimationController.stop();
+      _syncAnimationController.reset();
       if (mounted) {
         setState(() => _isImmediateSyncing = false);
+        await _loadPendingChangesCount();
       }
     }
   }
@@ -288,6 +316,254 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
+  Widget _buildEnhancedSyncButton(BuildContext context, AsyncValue<Map<String, dynamic>> statusAsync) {
+    return statusAsync.when(
+      data: (status) {
+        final lastSyncStr = status['last_sync_check'] as String?;
+        final lastSync = lastSyncStr != null ? DateTime.tryParse(lastSyncStr) : null;
+        final isEnabled = status['enabled'] as bool? ?? false;
+        final isSyncing = status['is_syncing'] as bool? ?? false;
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Tooltip(
+              message: _pendingChangesCount > 0
+                  ? 'لديك $_pendingChangesCount تغيير معلق - اضغط للمزامنة'
+                  : 'مزامنة البيانات مع السحابة',
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: _isImmediateSyncing
+                            ? [Colors.blue.shade400, Colors.blue.shade600]
+                            : isSyncing
+                                ? [Colors.orange.shade400, Colors.orange.shade600]
+                                : isEnabled
+                                    ? [Colors.green.shade400, Colors.green.shade600]
+                                    : [Colors.grey.shade400, Colors.grey.shade600],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (_isImmediateSyncing || isSyncing
+                                  ? Colors.blue
+                                  : isEnabled
+                                      ? Colors.green
+                                      : Colors.grey)
+                              .withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: _isImmediateSyncing ? null : () => _triggerImmediateSync(context),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_isImmediateSyncing || isSyncing)
+                                RotationTransition(
+                                  turns: _syncAnimationController,
+                                  child: Icon(
+                                    Icons.sync,
+                                    size: 20,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  isEnabled ? Icons.cloud_upload : Icons.cloud_off,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _isImmediateSyncing
+                                    ? 'جاري المزامنة...'
+                                    : isSyncing
+                                        ? 'المزامنة نشطة'
+                                        : 'مزامنة فورية',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_pendingChangesCount > 0)
+                    Positioned(
+                      top: -6,
+                      right: -6,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.red.withOpacity(0.5),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 22,
+                          minHeight: 22,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _pendingChangesCount > 99 ? '99+' : '$_pendingChangesCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSyncing
+                    ? Colors.blue.shade50
+                    : isEnabled
+                        ? Colors.green.shade50
+                        : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSyncing
+                      ? Colors.blue.shade200
+                      : isEnabled
+                          ? Colors.green.shade200
+                          : Colors.grey.shade300,
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isEnabled
+                        ? (isSyncing ? Icons.sync : Icons.check_circle)
+                        : Icons.cloud_off,
+                    size: 16,
+                    color: isSyncing
+                        ? Colors.blue
+                        : isEnabled
+                            ? Colors.green
+                            : Colors.grey,
+                  ),
+                  const SizedBox(width: 6),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        isSyncing ? 'جاري المزامنة...' : _formatLastSyncTime(lastSync),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isSyncing
+                              ? Colors.blue.shade900
+                              : isEnabled
+                                  ? Colors.green.shade900
+                                  : Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (isEnabled && !isSyncing)
+                        Text(
+                          'مفعّلة',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey.shade600),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'تحميل...',
+                  style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      error: (err, __) => Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade300),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline, size: 20, color: Colors.red.shade700),
+                const SizedBox(width: 8),
+                Text(
+                  'خطأ في التحميل',
+                  style: TextStyle(color: Colors.red.shade900, fontSize: 15),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(smartSyncStatusProvider);
@@ -309,101 +585,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               const Spacer(),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: _isImmediateSyncing ? null : () => _triggerImmediateSync(context),
-                    icon: _isImmediateSyncing
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.flash_on, size: 16),
-                    label: Text(_isImmediateSyncing ? 'جاري المزامنة...' : 'مزامنة فورية'),
-                  ),
-                  const SizedBox(height: 4),
-                  statusAsync.when(
-                    data: (status) {
-                      final lastSyncStr = status['last_sync_check'] as String?;
-                      final lastSync = lastSyncStr != null ? DateTime.tryParse(lastSyncStr) : null;
-                      final isEnabled = status['enabled'] as bool? ?? false;
-                      final isSyncing = status['is_syncing'] as bool? ?? false;
-                      
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isSyncing ? Colors.blue.shade50 : Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSyncing ? Colors.blue.shade200 : Colors.grey.shade200,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isEnabled ? (isSyncing ? Icons.sync : Icons.cloud_done) : Icons.cloud_off,
-                              size: 14,
-                              color: isSyncing ? Colors.blue : (isEnabled ? Colors.green : Colors.grey),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              isSyncing ? 'جاري المزامنة...' : _formatLastSyncTime(lastSync),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isSyncing ? Colors.blue.shade800 : Colors.grey[700],
-                                fontWeight: isSyncing ? FontWeight.bold : FontWeight.normal,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                    loading: () => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'تحميل...',
-                            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-                    ),
-                    error: (err, __) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.error_outline, size: 14, color: Colors.red),
-                          const SizedBox(width: 4),
-                          Text(
-                            'خطأ',
-                            style: TextStyle(fontSize: 11, color: Colors.red.shade800),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              _buildEnhancedSyncButton(context, statusAsync),
             ],
           ),
           
