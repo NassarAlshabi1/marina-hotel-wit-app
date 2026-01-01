@@ -407,44 +407,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (_isImmediateSyncing || isSyncing)
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    RotationTransition(
-                                      turns: _syncAnimationController,
-                                      child: Icon(
-                                        Icons.sync,
-                                        size: 20,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 2),
-                                    RotationTransition(
-                                      turns: _syncAnimationController,
-                                      child: Icon(
-                                        Icons.cloud_sync,
-                                        size: 18,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
+                                RotationTransition(
+                                  turns: _syncAnimationController,
+                                  child: Icon(
+                                    Icons.sync,
+                                    size: 20,
+                                    color: Colors.white,
+                                  ),
                                 )
                               else
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      isEnabled ? Icons.cloud_upload : Icons.cloud_off,
-                                      size: 20,
-                                      color: Colors.white,
-                                    ),
-                                    const SizedBox(width: 2),
-                                    Icon(
-                                      Icons.storage,
-                                      size: 16,
-                                      color: Colors.white70,
-                                    ),
-                                  ],
+                                Icon(
+                                  isEnabled ? Icons.cloud_sync : Icons.cloud_off,
+                                  size: 20,
+                                  color: Colors.white,
                                 ),
                               const SizedBox(width: 8),
                               Text(
