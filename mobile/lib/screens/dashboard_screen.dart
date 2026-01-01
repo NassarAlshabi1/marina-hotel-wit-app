@@ -2,11 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:drift/drift.dart' as drift;
 
 import '../services/local_db.dart';
 import '../providers/repository_providers.dart';
-import '../providers/smart_sync_provider.dart';
 import '../providers/appwrite_providers.dart';
 import '../utils/status_utils.dart';
 import '../utils/currency_formatter.dart';
@@ -16,7 +14,6 @@ import 'bookings/booking_edit.dart';
 import 'bookings/bookings_list.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
-import 'payments/payments_main_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101', '102', '103', '104',

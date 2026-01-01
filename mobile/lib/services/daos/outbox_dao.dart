@@ -48,31 +48,58 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final existing = await (select(outbox)
           ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
         .getSingleOrNull();
+
+    String? existingIdempotencyKey;
+    if (existing != null) {
+      final row = await (selectOnly(outbox)
+            ..addColumns([outbox.idempotencyKey])
+            ..where(outbox.id.equals(existing.id))
+            ..limit(1))
+          .getSingleOrNull();
+      existingIdempotencyKey = row?.read(outbox.idempotencyKey);
+    }
+
+    final idempotencyKey = existingIdempotencyKey ?? _uuid.v4();
     final data = jsonEncode(payload);
-    final idempotencyKey = existing?.idempotencyKey ?? _uuid.v4();
-    final result = existing != null
-        ? await (update(outbox)..where((t) => t.id.equals(existing.id))).write(OutboxCompanion(
-            payload: Value(data),
-            serverId: Value(serverId),
-            clientTs: Value(clientTs),
-            attempts: const Value(0),
-            lastError: const Value.absent(),
-            idempotencyKey: Value(idempotencyKey),
-          ))
-        : await into(outbox).insert(OutboxCompanion(
-            entity: Value(entity),
-            op: Value(op),
-            localUuid: Value(localUuid),
-            serverId: Value(serverId),
-            payload: Value(data),
-            clientTs: Value(clientTs),
-            idempotencyKey: Value(idempotencyKey),
-          ));
+
+    late final int id;
+    if (existing != null) {
+      await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
+        OutboxCompanion(
+          payload: Value(data),
+          serverId: Value(serverId),
+          clientTs: Value(clientTs),
+          attempts: const Value(0),
+          lastError: const Value.absent(),
+        ),
+      );
+      id = existing.id;
+    } else {
+      id = await into(outbox).insert(
+        OutboxCompanion(
+          entity: Value(entity),
+          op: Value(op),
+          localUuid: Value(localUuid),
+          serverId: Value(serverId),
+          payload: Value(data),
+          clientTs: Value(clientTs),
+        ),
+      );
+    }
+
+    await customUpdate(
+      'UPDATE ${outbox.actualTableName} SET ${outbox.idempotencyKey.$name} = ? WHERE ${outbox.id.$name} = ?',
+      variables: [
+        Variable<String>(idempotencyKey),
+        Variable<int>(id),
+      ],
+      updates: {outbox},
+    );
 
     unawaited(SyncGuardian.instance.notifyLocalChange(table: entity, operation: op));
     GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
     AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
-    return result;
+    return id;
   }
 
   Future<List<OutboxData>> takeBatch(int limit) {
