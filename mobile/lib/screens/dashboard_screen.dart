@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/local_db.dart';
 import '../providers/repository_providers.dart';
@@ -68,7 +69,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         });
       }
     } catch (e, stackTrace) {
-      AppwriteLogger().warning('Failed to load pending changes count', error: e, stackTrace: stackTrace);
+      debugPrint('Failed to load pending changes count: $e\n$stackTrace');
     }
   }
 
@@ -83,6 +84,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     }
   }
 
+  Future<bool> _isAppwriteSyncEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('appwrite_sync_enabled') ?? true;
+  }
+
   Future<void> _triggerImmediateSync(BuildContext context) async {
     if (_isImmediateSyncing) {
       return;
@@ -91,26 +97,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     _syncAnimationController.repeat();
 
     try {
-      final hasLocalChanges = await _checkLocalChanges();
       await _loadPendingChangesCount();
 
+      final smartSyncManager = ref.read(smartSyncManagerProvider);
+      final smartEnabled = await smartSyncManager.isEnabled();
+      final appwriteEnabled = await _isAppwriteSyncEnabled();
+
+      if (!smartEnabled && !appwriteEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ℹ️ المزامنة معطلة')),
+          );
+        }
+        return;
+      }
+
+      setState(() => _isImmediateSyncing = true);
+
+      final hasLocalChanges = _pendingChangesCount > 0 || await _checkLocalChanges();
+
       if (hasLocalChanges) {
-        final action = await _showLocalChangesDialog(context);
-
-        if (action == null) {
-          return;
-        }
-
-        setState(() => _isImmediateSyncing = true);
-
-        if (action == 'push_first') {
-          await _pushThenPull(context);
-        } else if (action == 'pull_only') {
-          await _pullOnly(context);
-        }
+        await _pushThenPull(context);
       } else {
-        setState(() => _isImmediateSyncing = true);
-        await _performSync(context);
+        await _pullOnly(context);
       }
     } catch (e) {
       if (mounted) {
@@ -135,9 +144,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            Icon(Icons.tune, color: Colors.blue, size: 28),
             SizedBox(width: 8),
-            Expanded(child: Text('⚠️ تنبيه: تغييرات محلية')),
+            Expanded(child: Text('خيارات المزامنة')),
           ],
         ),
         content: Column(
@@ -145,7 +154,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'لديك تغييرات محلية لم يتم رفعها إلى السحابة بعد.',
+              'اختر الوضع المناسب للمزامنة.',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
             ),
             SizedBox(height: 16),
@@ -160,17 +169,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '💡 ماذا تريد أن تفعل؟',
+                    '💡 الخيارات:',
                     style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
                   ),
                   SizedBox(height: 8),
                   Text(
-                    '• رفع أولاً: يرفع تغييراتك ثم يسحب من السحابة',
+                    '• رفع ثم سحب: يرفع التغييرات المحلية ثم يسحب من السحابة (موصى به)',
                     style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
                   ),
                   SizedBox(height: 4),
                   Text(
-                    '• سحب فقط: يسحب من السحابة دون رفع تغييراتك',
+                    '• سحب فقط: يسحب من السحابة بدون رفع',
+                    style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '• مزامنة كاملة: رفع + سحب (قد تأخذ وقتاً أطول)',
                     style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
                   ),
                 ],
@@ -189,10 +203,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             label: Text('سحب فقط'),
             style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
           ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(context, 'full_sync'),
+            icon: Icon(Icons.sync, size: 18),
+            label: Text('مزامنة كاملة'),
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.blue),
+          ),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, 'push_first'),
             icon: Icon(Icons.upload, size: 18),
-            label: Text('رفع أولاً'),
+            label: Text('رفع ثم سحب'),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
           ),
         ],
@@ -203,31 +223,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
   Future<void> _pushThenPull(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
-    
+
+    final smartSyncManager = ref.read(smartSyncManagerProvider);
+    final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+
+    final smartEnabled = await smartSyncManager.isEnabled();
+    final appwriteEnabled = await _isAppwriteSyncEnabled();
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('📤 جاري رفع التغييرات المحلية...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
     try {
-      final smartSyncManager = ref.read(smartSyncManagerProvider);
-      final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-      
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('📤 جاري رفع التغييرات المحلية (Smart Sync + Appwrite)...'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      
-      final results = await Future.wait([
-        smartSyncManager.pushLocalChanges(),
-        appwriteSyncManager.sync(),
-      ]);
-      
+      final futures = <Future<Object?>>[];
+
+      if (smartEnabled) {
+        futures.add(smartSyncManager.pushLocalChanges());
+      }
+      if (appwriteEnabled) {
+        futures.add(appwriteSyncManager.pushLocalChanges());
+      }
+
+      final results = await Future.wait(futures);
+
+      final hasAnyFailure = results.any((r) => r is bool && r == false);
+
       if (!mounted) return;
-      
-      final smartSyncPushSuccess = results[0] as bool;
-      
-      if (!smartSyncPushSuccess) {
+
+      if (hasAnyFailure) {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('⚠️ فشل رفع بعض التغييرات'),
+            content: Text('⚠️ تم رفع جزء من التغييرات فقط'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -239,12 +268,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           ),
         );
       }
-      
-      await Future.delayed(const Duration(milliseconds: 500));
-      
+
+      await Future.delayed(const Duration(milliseconds: 300));
+
       if (!mounted) return;
-      await _performSync(context);
-      
+      await _pullOnly(context);
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
@@ -257,23 +285,55 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     }
   }
 
-  Future<void> _pullOnly(BuildContext context) async {
+  Future<void> _pullOnly(BuildContext context, {bool showWarning = false}) async {
     final messenger = ScaffoldMessenger.of(context);
-    
-    try {
+
+    final smartSyncManager = ref.read(smartSyncManagerProvider);
+    final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+
+    final smartEnabled = await smartSyncManager.isEnabled();
+    final appwriteEnabled = await _isAppwriteSyncEnabled();
+
+    if (showWarning) {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('⚠️ تحذير: سيتم تجاهل التغييرات المحلية'),
+          content: Text('⚠️ تحذير: سحب فقط (بدون رفع التغييرات المحلية)'),
           backgroundColor: Colors.orange,
           duration: Duration(seconds: 2),
         ),
       );
-      
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      if (!mounted) return;
-      await _performSync(context);
-      
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('📥 جاري سحب التغييرات من السحابة...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      final futures = <Future<Object?>>[];
+
+      if (smartEnabled) {
+        futures.add(smartSyncManager.pullRemoteChanges());
+      }
+      if (appwriteEnabled) {
+        futures.add(appwriteSyncManager.sync(push: false, pull: true));
+      }
+
+      await Future.wait(futures);
+
+      ref.invalidate(smartSyncStatusProvider);
+
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('✅ تم السحب بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
@@ -288,29 +348,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
   Future<void> _performSync(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
-    
+
+    final smartSyncManager = ref.read(smartSyncManagerProvider);
+    final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+
+    final smartEnabled = await smartSyncManager.isEnabled();
+    final appwriteEnabled = await _isAppwriteSyncEnabled();
+
     messenger.showSnackBar(
       const SnackBar(
-        content: Text('🔄 جاري مزامنة Smart Sync و Appwrite...'),
+        content: Text('🔄 جاري المزامنة الكاملة...'),
         duration: Duration(seconds: 2),
       ),
     );
-    
+
     try {
-      final smartSyncManager = ref.read(smartSyncManagerProvider);
-      final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-      
-      await Future.wait([
-        smartSyncManager.forceSyncNow(),
-        appwriteSyncManager.sync(),
-      ]);
-      
+      final futures = <Future<Object?>>[];
+
+      if (smartEnabled) {
+        futures.add(smartSyncManager.forceSyncNow());
+      }
+      if (appwriteEnabled) {
+        futures.add(appwriteSyncManager.sync(push: true, pull: true));
+      }
+
+      await Future.wait(futures);
+
       ref.invalidate(smartSyncStatusProvider);
-      
+
       if (mounted) {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('✅ تمت المزامنة بنجاح (Smart Sync + Appwrite)'),
+            content: Text('✅ تمت المزامنة بنجاح'),
             backgroundColor: Colors.green,
           ),
         );
@@ -397,6 +466,56 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       child: InkWell(
                         borderRadius: BorderRadius.circular(12),
                         onTap: _isImmediateSyncing ? null : () => _triggerImmediateSync(context),
+                        onLongPress: _isImmediateSyncing
+                            ? null
+                            : () async {
+                                final action = await _showLocalChangesDialog(context);
+                                if (!mounted || action == null) {
+                                  return;
+                                }
+
+                                _syncAnimationController.repeat();
+
+                                try {
+                                  await _loadPendingChangesCount();
+
+                                  final smartSyncManager = ref.read(smartSyncManagerProvider);
+                                  final smartEnabled = await smartSyncManager.isEnabled();
+                                  final appwriteEnabled = await _isAppwriteSyncEnabled();
+
+                                  if (!smartEnabled && !appwriteEnabled) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('ℹ️ المزامنة معطلة')),
+                                      );
+                                    }
+                                    return;
+                                  }
+
+                                  setState(() => _isImmediateSyncing = true);
+
+                                  if (action == 'push_first') {
+                                    await _pushThenPull(context);
+                                  } else if (action == 'pull_only') {
+                                    await _pullOnly(context, showWarning: true);
+                                  } else if (action == 'full_sync') {
+                                    await _performSync(context);
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('❌ فشلت المزامنة: $e'), backgroundColor: Colors.red),
+                                    );
+                                  }
+                                } finally {
+                                  _syncAnimationController.stop();
+                                  _syncAnimationController.reset();
+                                  if (mounted) {
+                                    setState(() => _isImmediateSyncing = false);
+                                  }
+                                  await _loadPendingChangesCount();
+                                }
+                              },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           child: Row(
@@ -423,7 +542,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                                     ? 'جاري المزامنة...'
                                     : isSyncing
                                         ? 'المزامنة نشطة'
-                                        : 'مزامنة فورية',
+                                        : 'مزامنة ذكية',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 15,
