@@ -121,11 +121,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ فشلت المزامنة: $e'), backgroundColor: Colors.red),
         );
-      }
-    } finally {
-      _syncAnimationController.stop();
-      _syncAnimationController.reset();
-      if (mounted) {
+      } finally {
+        if (mounted) {
+          _syncAnimationController.stop();
+          _syncAnimationController.reset();
+          setState(() => _isImmediateSyncing = false);
         setState(() => _isImmediateSyncing = false);
         await _loadPendingChangesCount();
       }
