@@ -56,12 +56,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
           .getSingleOrNull();
 
-      String? existingIdempotencyKey;
-      if (existing != null) {
-        existingIdempotencyKey = existing.idempotencyKey;
-      }
-
-      final idempotencyKey = existingIdempotencyKey ?? _uuid.v4();
+      final idempotencyKey = existing?.idempotencyKey ?? _uuid.v4();
 
       late final int resultId;
       if (existing != null) {
