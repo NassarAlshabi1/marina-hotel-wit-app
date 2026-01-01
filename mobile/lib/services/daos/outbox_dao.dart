@@ -58,12 +58,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
       String? existingIdempotencyKey;
       if (existing != null) {
-        final row = await (selectOnly(outbox)
-              ..addColumns([outbox.idempotencyKey])
-              ..where(outbox.id.equals(existing.id))
-              ..limit(1))
-            .getSingleOrNull();
-        existingIdempotencyKey = row?.read(outbox.idempotencyKey);
+        existingIdempotencyKey = existing.idempotencyKey;
       }
 
       final idempotencyKey = existingIdempotencyKey ?? _uuid.v4();
