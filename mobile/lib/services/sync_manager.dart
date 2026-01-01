@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'connectivity_service.dart';
 import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
@@ -200,8 +200,13 @@ class SyncManager {
   }
 
   Future<bool> _hasConnectivity() async {
-    final results = await Connectivity().checkConnectivity();
-    return results.any((r) => r != ConnectivityResult.none);
+    return ConnectivityService.instance.isOnline || await ConnectivityService.instance.checkConnectivity();
+  }
+
+  Future<void> dispose() async {
+    await stopOutboxDebouncedSync();
+    await _statusController.close();
+    _instance = null;
   }
 
   Future<bool> _shouldPullByRemoteModifiedTime() async {

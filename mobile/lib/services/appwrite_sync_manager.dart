@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'connectivity_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:appwrite/models.dart' as models;
@@ -373,10 +373,11 @@ class AppwriteSyncManager {
     try {
       _logger.info('Starting sync...', tag: 'SYNC');
 
-      // التحقق من الاتصال
-      final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity.contains(ConnectivityResult.none)) {
-        throw Exception('No internet connection');
+      if (!ConnectivityService.instance.isOnline) {
+        final hasConnection = await ConnectivityService.instance.checkConnectivity();
+        if (!hasConnection) {
+          throw Exception('No internet connection');
+        }
       }
 
       // إنشاء سجل مزامنة
