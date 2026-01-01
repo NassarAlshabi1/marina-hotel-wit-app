@@ -130,19 +130,20 @@ class BlacklistScreen extends ConsumerWidget {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
           ElevatedButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              await repo.addEntry(
-                name: name.text,
-                nationality: nationality.text,
-                nationalId: nationalId.text,
-                phone: phone.text,
-                reason: reason.text,
-                notes: notes.text,
-              );
-              // ignore: use_build_context_synchronously
-              Navigator.pop(context);
-            },
+onPressed: () async {
+  if (!formKey.currentState!.validate()) return;
+  // من الأفضل تخزين الـ navigator قبل الفجوة غير المتزامنة
+  final navigator = Navigator.of(context);
+  await repo.addEntry(
+    name: name.text,
+    nationality: nationality.text,
+    nationalId: nationalId.text,
+    phone: phone.text,
+    reason: reason.text,
+    notes: notes.text,
+  );
+  navigator.pop();
+},
             child: const Text('حفظ'),
           ),
         ],
