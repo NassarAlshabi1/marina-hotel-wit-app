@@ -214,7 +214,7 @@ class AppwriteService {
         continue;
       }
 
-      if (allowed != null && !allowed.contains(key)) {
+      if (allowed == null || !allowed.contains(key)) {
         continue;
       }
 
