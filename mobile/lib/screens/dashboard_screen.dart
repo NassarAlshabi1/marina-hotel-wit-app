@@ -70,8 +70,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           _pendingChangesCount = count.length;
         });
       }
-    } catch (e) {
-      debugPrint('خطأ في تحميل عدد التغييرات: $e');
+    } catch (e, stackTrace) {
+      AppwriteLogger().warning('Failed to load pending changes count', error: e, stackTrace: stackTrace);
     }
   }
 
