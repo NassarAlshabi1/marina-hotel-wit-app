@@ -62,10 +62,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   Future<void> _loadPendingChangesCount() async {
     try {
       final db = ref.read(databaseProvider);
-      final count = await (db.select(db.outbox)).get();
+      final count = await db.outboxDao.count();
       if (mounted) {
         setState(() {
-          _pendingChangesCount = count.length;
+          _pendingChangesCount = count;
         });
       }
     } catch (e, stackTrace) {
@@ -89,10 +89,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     return prefs.getBool('appwrite_sync_enabled') ?? true;
   }
 
-  Future<void> _triggerImmediateSync(BuildContext context) async {
-    if (_isImmediateSyncing) {
-      return;
-    }
+  Future<void> _executeSyncWithAnimation(BuildContext context, Future<void> Function() syncAction) async {
+    if (_isImmediateSyncing) return;
 
     _syncAnimationController.repeat();
 
@@ -113,14 +111,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       }
 
       setState(() => _isImmediateSyncing = true);
-
-      final hasLocalChanges = _pendingChangesCount > 0 || await _checkLocalChanges();
-
-      if (hasLocalChanges) {
-        await _pushThenPull(context);
-      } else {
-        await _pullOnly(context);
-      }
+      await syncAction();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -135,6 +126,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       }
       await _loadPendingChangesCount();
     }
+  }
+
+  Future<void> _triggerImmediateSync(BuildContext context) async {
+    await _executeSyncWithAnimation(context, () async {
+      final hasLocalChanges = _pendingChangesCount > 0 || await _checkLocalChanges();
+      if (hasLocalChanges) {
+        await _pushThenPull(context);
+      } else {
+        await _pullOnly(context);
+      }
+    });
   }
 
   Future<String?> _showLocalChangesDialog(BuildContext context) async {
@@ -249,7 +251,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
       final results = await Future.wait(futures);
 
-      final hasAnyFailure = results.any((r) => r is bool && r == false);
+      final hasAnyFailure = results.any((r) => r != true);
 
       if (!mounted) return;
 
@@ -474,30 +476,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                             ? null
                             : () async {
                                 final action = await _showLocalChangesDialog(context);
-                                if (!mounted || action == null) {
-                                  return;
-                                }
+                                if (!mounted || action == null) return;
 
-                                _syncAnimationController.repeat();
-
-                                try {
-                                  await _loadPendingChangesCount();
-
-                                  final smartSyncManager = ref.read(smartSyncManagerProvider);
-                                  final smartEnabled = await smartSyncManager.isEnabled();
-                                  final appwriteEnabled = await _isAppwriteSyncEnabled();
-
-                                  if (!smartEnabled && !appwriteEnabled) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('ℹ️ المزامنة معطلة')),
-                                      );
-                                    }
-                                    return;
-                                  }
-
-                                  setState(() => _isImmediateSyncing = true);
-
+                                await _executeSyncWithAnimation(context, () async {
                                   if (action == 'push_first') {
                                     await _pushThenPull(context);
                                   } else if (action == 'pull_only') {
@@ -505,20 +486,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                                   } else if (action == 'full_sync') {
                                     await _performSync(context);
                                   }
-                                } catch (e) {
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('❌ فشلت المزامنة: $e'), backgroundColor: Colors.red),
-                                    );
-                                  }
-                                } finally {
-                                  _syncAnimationController.stop();
-                                  _syncAnimationController.reset();
-                                  if (mounted) {
-                                    setState(() => _isImmediateSyncing = false);
-                                  }
-                                  await _loadPendingChangesCount();
-                                }
+                                });
                               },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

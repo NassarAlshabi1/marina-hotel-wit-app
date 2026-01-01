@@ -909,9 +909,8 @@ class AppwriteSyncManager {
         int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
         
         if (bookingLocalId != null) {
-          final bookingId = bookingLocalId;
           final bookingExists = await (database.select(database.bookings)
-            ..where((b) => b.id.equals(bookingId))
+            ..where((b) => b.id.equals(bookingLocalId))
             ..limit(1)).getSingleOrNull();
           
           if (bookingExists == null) {
@@ -923,9 +922,8 @@ class AppwriteSyncManager {
         int? cashTransactionLocalId = _asIntNullable(data['cashTransactionLocalId']);
         
         if (cashTransactionLocalId != null) {
-          final cashTransactionId = cashTransactionLocalId;
           final cashTransactionExists = await (database.select(database.cashTransactions)
-            ..where((c) => c.id.equals(cashTransactionId))
+            ..where((c) => c.id.equals(cashTransactionLocalId))
             ..limit(1)).getSingleOrNull();
           
           if (cashTransactionExists == null) {
