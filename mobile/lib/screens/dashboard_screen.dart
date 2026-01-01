@@ -366,7 +366,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               message: _pendingChangesCount > 0
                   ? 'لديك $_pendingChangesCount تغيير معلق - اضغط للمزامنة\n(Smart Sync + Appwrite)'
                   : 'مزامنة البيانات مع السحابة\n(Smart Sync + Appwrite)',
-              child: Stack(
+              onTap: (_isImmediateSyncing || isSyncing) ? null : () => _triggerImmediateSync(context),
                 clipBehavior: Clip.none,
                 children: [
                   Container(
