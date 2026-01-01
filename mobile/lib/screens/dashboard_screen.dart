@@ -93,16 +93,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     try {
       final hasLocalChanges = await _checkLocalChanges();
       await _loadPendingChangesCount();
-      
+
       if (hasLocalChanges) {
         final action = await _showLocalChangesDialog(context);
-        
+
         if (action == null) {
           return;
         }
-        
+
         setState(() => _isImmediateSyncing = true);
-        
+
         if (action == 'push_first') {
           await _pushThenPull(context);
         } else if (action == 'pull_only') {
@@ -112,20 +112,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         setState(() => _isImmediateSyncing = true);
         await _performSync(context);
       }
-      
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ فشلت المزامنة: $e'), backgroundColor: Colors.red),
         );
-      } finally {
-        if (mounted) {
-          _syncAnimationController.stop();
-          _syncAnimationController.reset();
-          setState(() => _isImmediateSyncing = false);
-        setState(() => _isImmediateSyncing = false);
-        await _loadPendingChangesCount();
       }
+    } finally {
+      _syncAnimationController.stop();
+      _syncAnimationController.reset();
+      if (mounted) {
+        setState(() => _isImmediateSyncing = false);
+      }
+      await _loadPendingChangesCount();
     }
   }
 
