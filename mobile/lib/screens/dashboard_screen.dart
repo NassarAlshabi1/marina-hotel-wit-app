@@ -429,8 +429,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           children: [
             Tooltip(
               message: _pendingChangesCount > 0
-                  ? 'لديك $_pendingChangesCount تغيير معلق - اضغط للمزامنة\n(Smart Sync + Appwrite)'
-                  : 'مزامنة البيانات مع السحابة\n(Smart Sync + Appwrite)',
+                  ? 'لديك $_pendingChangesCount تغيير معلق - سيتم رفعها للسحابة\nضغطة طويلة لخيارات متقدمة'
+                  : 'سحب آخر التحديثات من السحابة\nضغطة طويلة لخيارات متقدمة',
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -441,30 +441,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                             ? [Colors.blue.shade400, Colors.blue.shade600]
                             : isSyncing
                                 ? [Colors.orange.shade400, Colors.orange.shade600]
-                                : isEnabled
-                                    ? [Colors.green.shade400, Colors.green.shade600]
-                                    : [Colors.grey.shade400, Colors.grey.shade600],
+                                : _pendingChangesCount > 0
+                                    ? [Colors.purple.shade400, Colors.purple.shade600]
+                                    : isEnabled
+                                        ? [Colors.green.shade400, Colors.green.shade600]
+                                        : [Colors.grey.shade400, Colors.grey.shade600],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                       boxShadow: [
                         BoxShadow(
                           color: (_isImmediateSyncing || isSyncing
                                   ? Colors.blue
-                                  : isEnabled
-                                      ? Colors.green
-                                      : Colors.grey)
-                              .withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+                                  : _pendingChangesCount > 0
+                                      ? Colors.purple
+                                      : isEnabled
+                                          ? Colors.green
+                                          : Colors.grey)
+                              .withOpacity(0.25),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                         onTap: _isImmediateSyncing ? null : () => _triggerImmediateSync(context),
                         onLongPress: _isImmediateSyncing
                             ? null
@@ -517,7 +521,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                                 }
                               },
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -526,26 +530,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                                   turns: _syncAnimationController,
                                   child: Icon(
                                     Icons.sync,
-                                    size: 20,
+                                    size: 16,
                                     color: Colors.white,
                                   ),
                                 )
                               else
                                 Icon(
-                                  isEnabled ? Icons.cloud_sync : Icons.cloud_off,
-                                  size: 20,
+                                  _pendingChangesCount > 0
+                                      ? Icons.cloud_upload
+                                      : (isEnabled ? Icons.cloud_download : Icons.cloud_off),
+                                  size: 16,
                                   color: Colors.white,
                                 ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               Text(
                                 _isImmediateSyncing
                                     ? 'جاري المزامنة...'
                                     : isSyncing
                                         ? 'المزامنة نشطة'
-                                        : 'مزامنة ذكية',
+                                        : _pendingChangesCount > 0
+                                            ? 'رفع التغييرات'
+                                            : 'تحديث البيانات',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 15,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -557,32 +565,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   ),
                   if (_pendingChangesCount > 0)
                     Positioned(
-                      top: -6,
-                      right: -6,
+                      top: -4,
+                      right: -4,
                       child: Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(color: Colors.white, width: 1.5),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.red.withOpacity(0.5),
-                              blurRadius: 6,
+                              blurRadius: 4,
                               spreadRadius: 1,
                             ),
                           ],
                         ),
                         constraints: const BoxConstraints(
-                          minWidth: 22,
-                          minHeight: 22,
+                          minWidth: 18,
+                          minHeight: 18,
                         ),
                         child: Center(
                           child: Text(
                             _pendingChangesCount > 99 ? '99+' : '$_pendingChangesCount',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
+                              fontSize: 9,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -592,22 +600,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: isSyncing
                     ? Colors.blue.shade50
-                    : isEnabled
-                        ? Colors.green.shade50
-                        : Colors.grey.shade50,
+                    : _pendingChangesCount > 0
+                        ? Colors.purple.shade50
+                        : isEnabled
+                            ? Colors.green.shade50
+                            : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isSyncing
                       ? Colors.blue.shade200
-                      : isEnabled
-                          ? Colors.green.shade200
-                          : Colors.grey.shade300,
+                      : _pendingChangesCount > 0
+                          ? Colors.purple.shade200
+                          : isEnabled
+                              ? Colors.green.shade200
+                              : Colors.grey.shade300,
                   width: 1.5,
                 ),
               ),
@@ -618,14 +630,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                     isEnabled
                         ? (isSyncing ? Icons.sync : Icons.check_circle)
                         : Icons.cloud_off,
-                    size: 16,
+                    size: 14,
                     color: isSyncing
                         ? Colors.blue
-                        : isEnabled
-                            ? Colors.green
-                            : Colors.grey,
+                        : _pendingChangesCount > 0
+                            ? Colors.purple
+                            : isEnabled
+                                ? Colors.green
+                                : Colors.grey,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -633,21 +647,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       Text(
                         isSyncing ? 'جاري المزامنة...' : _formatLastSyncTime(lastSync),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: isSyncing
                               ? Colors.blue.shade900
-                              : isEnabled
-                                  ? Colors.green.shade900
-                                  : Colors.grey.shade700,
+                              : _pendingChangesCount > 0
+                                  ? Colors.purple.shade900
+                                  : isEnabled
+                                      ? Colors.green.shade900
+                                      : Colors.grey.shade700,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       if (isEnabled && !isSyncing)
                         Text(
-                          'Smart Sync + Appwrite',
+                          _pendingChangesCount > 0
+                              ? '$_pendingChangesCount تغيير معلق'
+                              : 'Smart Sync + Appwrite',
                           style: TextStyle(
-                            fontSize: 8,
-                            color: Colors.green.shade700,
+                            fontSize: 7,
+                            color: _pendingChangesCount > 0
+                                ? Colors.purple.shade700
+                                : Colors.green.shade700,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
