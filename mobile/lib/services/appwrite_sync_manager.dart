@@ -910,7 +910,7 @@ class AppwriteSyncManager {
         
         if (bookingLocalId != null) {
           final bookingExists = await (database.select(database.bookings)
-            ..where((b) => b.id.equals(bookingLocalId))
+            ..where((b) => b.id.equals(bookingLocalId!))
             ..limit(1)).getSingleOrNull();
           
           if (bookingExists == null) {
@@ -923,7 +923,7 @@ class AppwriteSyncManager {
         
         if (cashTransactionLocalId != null) {
           final cashTransactionExists = await (database.select(database.cashTransactions)
-            ..where((c) => c.id.equals(cashTransactionLocalId))
+            ..where((c) => c.id.equals(cashTransactionLocalId!))
             ..limit(1)).getSingleOrNull();
           
           if (cashTransactionExists == null) {

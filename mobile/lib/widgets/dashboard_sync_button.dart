@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/smart_sync_provider.dart';
+import '../services/daos/outbox_dao.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -46,10 +47,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
   Future<void> _loadPendingChangesCount() async {
     try {
       final db = ref.read(databaseProvider);
-      final count = await (db.select(db.outbox)).get();
+      final outboxDao = OutboxDao(db);
+      final count = await outboxDao.count();
       if (mounted) {
         setState(() {
-          _pendingChangesCount = count.length;
+          _pendingChangesCount = count;
         });
       }
     } catch (e, stackTrace) {
