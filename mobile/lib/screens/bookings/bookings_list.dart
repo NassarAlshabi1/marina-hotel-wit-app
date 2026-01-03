@@ -13,6 +13,7 @@ import '../payments/booking_payment_screen.dart';
 import 'booking_edit.dart';
 import '../payments/payments_main_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/screen_sync_controller.dart';
 
 class BookingsListScreen extends ConsumerStatefulWidget {
   const BookingsListScreen({super.key});
