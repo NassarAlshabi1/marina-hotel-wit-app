@@ -7,6 +7,7 @@ import 'package:drift/drift.dart' as d;
 
 import 'delta_sync_service.dart';
 import 'google_drive_backup_service.dart';
+import 'google_drive_logger.dart';
 import 'local_db.dart';
 import 'sync_constants.dart';
 import '../utils/time.dart';
@@ -38,6 +39,7 @@ class GoogleDriveDeltaSync {
   String? _deltaLogFileId;
   bool _isSyncing = false;
   bool _mirrorReady = false;
+  final GoogleDriveLogger _logger = GoogleDriveLogger();
 
   static const _prefsLegacyLastDeltaSyncKey = 'gd_last_delta_sync';
   static const _prefsLastPushTsKey = 'gd_last_push_ts';
@@ -57,7 +59,7 @@ class GoogleDriveDeltaSync {
     _vectorClockDao = VectorClockDao(db);
     await _initializeDeviceId();
     await _ensureMirrorTable();
-    debugPrint('✅ تم تهيئة خدمة المزامنة التفاضلية لـ Google Drive');
+    _logInfo('✅ تم تهيئة خدمة المزامنة التفاضلية لـ Google Drive');
   }
 
   Future<void> _initializeDeviceId() async {
@@ -88,12 +90,12 @@ class GoogleDriveDeltaSync {
     }
 
     try {
-      debugPrint('📤 بدء المزامنة التفاضلية إلى Google Drive...');
+      _logInfo('📤 بدء المزامنة التفاضلية إلى Google Drive...');
       final lastSyncTs = await _getLastPushTimestamp();
       final computation = await _deltaSyncService!.compute(since: lastSyncTs);
 
       if (computation.changes.isEmpty) {
-        debugPrint('✅ لا توجد تغييرات للمزامنة');
+        _logInfo('✅ لا توجد تغييرات للمزامنة');
         await _deltaSyncService!.persistMirror(computation);
         return DeltaSyncResult(success: true, message: 'لا توجد تغييرات', changesCount: 0);
       }
@@ -114,15 +116,14 @@ class GoogleDriveDeltaSync {
       await _updateLastPushTimestamp();
       await _cleanupLegacyDeltaFiles();
 
-      debugPrint('✅ تم رفع ${computation.changes.length} تغيير (seq=$appendedSeq) إلى Google Drive');
+      _logInfo('✅ تم رفع ${computation.changes.length} تغيير (seq=$appendedSeq) إلى Google Drive');
       return DeltaSyncResult(
         success: true,
         message: 'تم رفع التغييرات بنجاح',
         changesCount: computation.changes.length,
       );
     } catch (e, stackTrace) {
-      debugPrint('❌ خطأ في رفع التغييرات: $e');
-      debugPrint('🔍 Stack trace: $stackTrace');
+      _logError('❌ خطأ في رفع التغييرات', error: e, stackTrace: stackTrace);
       return DeltaSyncResult(success: false, message: 'خطأ في رفع التغييرات: $e');
     } finally {
       await SyncLocks.deltaSyncLock.synchronized(() async {
@@ -149,7 +150,7 @@ class GoogleDriveDeltaSync {
     }
 
     try {
-      debugPrint('📥 فحص التغييرات من سجل Google Drive...');
+      _logInfo('📥 فحص التغييرات من سجل Google Drive...');
       final logState = await _loadDeltaLogState();
       final lastAppliedSeq = await _getLastAppliedSeq();
 
@@ -186,11 +187,10 @@ class GoogleDriveDeltaSync {
       );
     } on DeltaLogGapException catch (gap) {
       final message = 'تم تنظيف سجل المزامنة قبل معالجة جميع التغييرات (seq <= ${gap.missingUntil}). يلزم تنفيذ مزامنة كاملة.';
-      debugPrint('⚠️ $message');
+      _logWarning(message);
       return DeltaSyncResult(success: false, message: message);
     } catch (e, stackTrace) {
-      debugPrint('❌ خطأ في سحب التغييرات: $e');
-      debugPrint('🔍 Stack trace: $stackTrace');
+      _logError('❌ خطأ في سحب التغييرات', error: e, stackTrace: stackTrace);
       return DeltaSyncResult(success: false, message: 'خطأ في سحب التغييرات: $e');
     } finally {
       await SyncLocks.deltaSyncLock.synchronized(() async {
@@ -410,11 +410,11 @@ class GoogleDriveDeltaSync {
       final legacyFiles = files.where((f) => f.fileName.startsWith(deltaSyncPrefix)).toList();
       for (final file in legacyFiles) {
         await _driveService!.deleteBackup(file.fileId);
-        debugPrint('🧹 حذف ملف دلتا قديم: ${file.fileName}');
+        _logInfo('🧹 حذف ملف دلتا قديم: ${file.fileName}');
       }
       await prefs.setInt(_prefsLastCleanupTsKey, now);
     } catch (e) {
-      debugPrint('⚠️ فشل تنظيف ملفات الدلتا القديمة: $e');
+      _logWarning('⚠️ فشل تنظيف ملفات الدلتا القديمة', error: e);
     }
   }
 
@@ -503,7 +503,7 @@ class GoogleDriveDeltaSync {
     final localUuid = _asString(data['local_uuid']) ?? _asString(data['localUuid']) ?? '';
     if (localUuid.isEmpty) return;
 
-    debugPrint('🔄 تطبيق $operation على $entity/$localUuid');
+    _logDebug('🔄 تطبيق $operation على $entity/$localUuid');
 
     switch (entity) {
       case 'rooms':
@@ -881,6 +881,13 @@ class GoogleDriveDeltaSync {
       'signed_in': _driveService?.isSignedIn ?? false,
     };
   }
+
+  void _logDebug(String message) => _logger.debug(message, tag: 'DELTA_SYNC');
+  void _logInfo(String message) => _logger.info(message, tag: 'DELTA_SYNC');
+  void _logWarning(String message, {Object? error}) =>
+      _logger.warning(message, tag: 'DELTA_SYNC', error: error);
+  void _logError(String message, {Object? error, StackTrace? stackTrace}) =>
+      _logger.error(message, tag: 'DELTA_SYNC', error: error, stackTrace: stackTrace);
 }
 
 class _DeltaLogEntry {
