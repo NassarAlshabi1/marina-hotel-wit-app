@@ -97,6 +97,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
       final smartEnabled = await smartSyncManager.isEnabled();
+      final isGoogleDriveSignedIn = smartSyncManager.isDriveSignedIn;
       final appwriteEnabled = await _isAppwriteSyncEnabled();
 
       if (!smartEnabled && !appwriteEnabled) {
@@ -118,6 +119,39 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         return;
       }
 
+      if (smartEnabled && !isGoogleDriveSignedIn) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.cloud_off, color: Colors.white),
+                  SizedBox(width: 8),
+                  Expanded(child: Text('⚠️ يرجى تسجيل الدخول إلى Google Drive أولاً')),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'تسجيل الدخول',
+                textColor: Colors.white,
+                onPressed: () {
+                  // التوجه إلى إعدادات Google Drive
+                  Navigator.pushNamed(context, '/settings');
+                },
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final targets = <String>[];
+      if (smartEnabled && isGoogleDriveSignedIn) targets.add('Google Drive');
+      if (appwriteEnabled) targets.add('Appwrite');
+      
+      final targetText = targets.join(' + ');
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -132,25 +166,39 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
                   ),
                 ),
                 SizedBox(width: 12),
-                Text('📤 جاري رفع $_pendingChangesCount تغيير...'),
+                Expanded(
+                  child: Text('📤 رفع $_pendingChangesCount تغيير إلى $targetText...'),
+                ),
               ],
             ),
             backgroundColor: Colors.blue,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 3),
           ),
         );
       }
 
       final futures = <Future<Object?>>[];
+      final results = <String, bool>{};
 
-      if (smartEnabled) {
-        futures.add(smartSyncManager.pushLocalChanges());
+      if (smartEnabled && isGoogleDriveSignedIn) {
+        try {
+          final result = await smartSyncManager.pushLocalChanges();
+          results['Google Drive'] = result;
+        } catch (e) {
+          results['Google Drive'] = false;
+          debugPrint('❌ خطأ في رفع البيانات إلى Google Drive: $e');
+        }
       }
+      
       if (appwriteEnabled) {
-        futures.add(appwriteSyncManager.pushLocalChanges());
+        try {
+          final result = await appwriteSyncManager.pushLocalChanges();
+          results['Appwrite'] = result;
+        } catch (e) {
+          results['Appwrite'] = false;
+          debugPrint('❌ خطأ في رفع البيانات إلى Appwrite: $e');
+        }
       }
-
-      await Future.wait(futures);
 
       setState(() {
         _lastUploadTime = DateTime.now();
@@ -158,20 +206,71 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
       await _loadPendingChangesCount();
 
+      final successTargets = results.entries.where((e) => e.value).map((e) => e.key).toList();
+      final failedTargets = results.entries.where((e) => !e.value).map((e) => e.key).toList();
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.cloud_done, color: Colors.white),
-                SizedBox(width: 8),
-                Text('✅ تم رفع التغييرات بنجاح'),
-              ],
+        if (failedTargets.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.cloud_done, color: Colors.white),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text('✅ تم رفع التغييرات إلى ${successTargets.join(' + ')}'),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
             ),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
+          );
+        } else if (successTargets.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.white),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text('❌ فشل رفع التغييرات إلى ${failedTargets.join(' + ')}'),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'إعادة',
+                textColor: Colors.white,
+                onPressed: () => _uploadChanges(context),
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('⚠️ نجح جزئياً'),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+                  Text('✅ نجح: ${successTargets.join(', ')}', style: TextStyle(fontSize: 12)),
+                  Text('❌ فشل: ${failedTargets.join(', ')}', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
       }
 
       ref.invalidate(smartSyncStatusProvider);
@@ -407,13 +506,30 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  if (_lastUploadTime != null && !hasChanges && !_isUploading)
-                    Text(
-                      _formatLastUploadTime(_lastUploadTime),
-                      style: TextStyle(
-                        fontSize: 8,
-                        color: Colors.green.shade600,
-                      ),
+                  if (!_isUploading)
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final smartSyncManager = ref.read(smartSyncManagerProvider);
+                        final isGoogleDriveSignedIn = smartSyncManager.isDriveSignedIn;
+                        
+                        if (!hasChanges && _lastUploadTime != null) {
+                          return Text(
+                            _formatLastUploadTime(_lastUploadTime),
+                            style: TextStyle(
+                              fontSize: 8,
+                              color: Colors.green.shade600,
+                            ),
+                          );
+                        }
+                        
+                        return Text(
+                          isGoogleDriveSignedIn ? 'Google Drive' : 'غير متصل',
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: isGoogleDriveSignedIn ? Colors.purple.shade600 : Colors.grey.shade600,
+                          ),
+                        );
+                      },
                     ),
                 ],
               ),
