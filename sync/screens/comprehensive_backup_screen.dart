@@ -1101,16 +1101,25 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     String title, description, location;
     DateTime createdTime;
     int? recordsCount;
+    dynamic backup;
 
     if (type == BackupType.googleDrive) {
-      final backup = ref.read(availableBackupsProvider).firstWhere((b) => b.fileId == identifier);
+      try {
+        backup = ref.read(availableBackupsProvider).firstWhere((b) => b.fileId == identifier);
+      } on StateError {
+        return;
+      }
       title = 'استعادة من Google Drive';
       description = 'سيتم تنزيل النسخة من Google Drive واستعادة البيانات';
       location = 'Google Drive';
       createdTime = backup.createdTime;
       recordsCount = int.tryParse(backup.metadata?['records_count']?.toString() ?? '0');
     } else {
-      final backup = ref.read(localBackupsProvider).firstWhere((b) => b.filePath == identifier);
+      try {
+        backup = ref.read(localBackupsProvider).firstWhere((b) => b.filePath == identifier);
+      } on StateError {
+        return;
+      }
       title = 'استعادة من النسخة المحلية';
       description = 'سيتم استعادة البيانات من النسخة المحفوظة محلياً';
       location = 'التخزين المحلي';

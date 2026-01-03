@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
+import 'daos/bookings_dao.dart';
+import 'daos/outbox_dao.dart';
+import 'daos/rooms_dao.dart';
 import 'delta_sync_service.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
@@ -326,7 +329,12 @@ class GoogleDriveDeltaSync {
 
   Future<void> _applyRoomChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
     if (operation == 'delete') {
-      await (db.delete(db.rooms)..where((t) => t.localUuid.equals(localUuid))).go();
+      final room = await (db.select(db.rooms)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+      if (room != null) {
+        final outboxDao = OutboxDao(db);
+        final roomsDao = RoomsDao(db, outboxDao);
+        await roomsDao.softDelete(room.roomNumber, originIsServer: true);
+      }
       return;
     }
     final roomNumber = _asString(data['room_number']);
@@ -352,7 +360,12 @@ class GoogleDriveDeltaSync {
 
   Future<void> _applyBookingChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
     if (operation == 'delete') {
-      await (db.delete(db.bookings)..where((t) => t.localUuid.equals(localUuid))).go();
+      final booking = await (db.select(db.bookings)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+      if (booking != null) {
+        final outboxDao = OutboxDao(db);
+        final bookingsDao = BookingsDao(db, outboxDao);
+        await bookingsDao.softDelete(booking.id, originIsServer: true);
+      }
       return;
     }
     final roomNumber = _asString(data['room_number']) ?? _asString(data['roomNumber']);
