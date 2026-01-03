@@ -982,6 +982,11 @@ class RestoreFixService {
         if (snapshotData.containsKey('debts')) {
           await debtsDao.importFromJson(List<Map<String, dynamic>>.from(snapshotData['debts']), clearExisting: false);
         }
+
+        // إعادة بناء الجداول المشتقة لضمان الاتساق
+        await db.delete(db.bookingNights).go();
+        await db.delete(db.hotelDayLedger).go();
+        await _rebuildBookingStructures(DateTime.now());
       });
       
     } catch (e) {

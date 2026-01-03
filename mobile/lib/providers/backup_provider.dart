@@ -598,6 +598,15 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
   /// إنشاء نسخة احتياطية محلية
   Future<void> createLocalBackup() async {
+    if (!state.hasStoragePermission) {
+      state = state.copyWith(
+        status: BackupStatus.error,
+        message: 'لا توجد أذونات للوصول للتخزين المحلي',
+        progress: null,
+      );
+      return;
+    }
+
     try {
       state = state.copyWith(
         status: BackupStatus.uploading,
