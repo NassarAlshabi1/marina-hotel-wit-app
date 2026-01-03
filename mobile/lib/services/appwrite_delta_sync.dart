@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
@@ -7,10 +8,10 @@ import 'delta_sync_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
+import 'device_identity.dart';
 import 'local_db.dart';
 import '../data/sync_models.dart';
 import '../utils/time.dart';
-import '../utils/id.dart';
 import 'sync_locks.dart';
 
 class AppwriteDeltaSyncResult {
@@ -34,8 +35,10 @@ class AppwriteDeltaSync {
   AppwriteService? _appwriteService;
   DeltaSyncService? _deltaSyncService;
   AppDatabase? _database;
+  VectorClockDao? _vectorClockDao;
   String? _deviceId;
   bool _isSyncing = false;
+  bool _mirrorReady = false;
 
   final _logger = AppwriteLogger();
 
@@ -49,17 +52,16 @@ class AppwriteDeltaSync {
     _appwriteService = appwriteService;
     _database = db;
     _deltaSyncService = DeltaSyncService(db);
+    _vectorClockDao = VectorClockDao(db);
+    await _ensureMirrorTable();
     await _initializeDeviceId();
     _logger.info('تم تهيئة خدمة المزامنة التفاضلية لـ Appwrite', tag: 'DELTA_SYNC');
   }
 
   Future<void> _initializeDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
-    _deviceId = prefs.getString(_prefsDeviceIdKey);
-    if (_deviceId == null) {
-      _deviceId = IdGen.uuid();
-      await prefs.setString(_prefsDeviceIdKey, _deviceId!);
-    }
+    _deviceId = await DeviceIdentity.ensure();
+    await prefs.setString(_prefsDeviceIdKey, _deviceId!);
   }
 
   bool get isInitialized => _appwriteService != null && _deltaSyncService != null;
@@ -300,27 +302,36 @@ class AppwriteDeltaSync {
 
   Future<void> _applyRemoteChange(String entity, String documentId, Map<String, dynamic> data) async {
     final db = _database!;
-    
+    var localUuid = _asString(data['localUuid']) ?? documentId;
+    if (localUuid.isEmpty) {
+      localUuid = documentId;
+    }
+
     switch (entity) {
       case 'rooms':
-        await _applyRoomChange(db, documentId, data);
+        await _applyRoomChange(db, localUuid, data);
         break;
       case 'bookings':
-        await _applyBookingChange(db, documentId, data);
+        await _applyBookingChange(db, localUuid, data);
         break;
       case 'payments':
-        await _applyPaymentChange(db, documentId, data);
+        await _applyPaymentChange(db, localUuid, data);
         break;
       case 'expenses':
-        await _applyExpenseChange(db, documentId, data);
+        await _applyExpenseChange(db, localUuid, data);
         break;
       case 'debts':
-        await _applyDebtChange(db, documentId, data);
+        await _applyDebtChange(db, localUuid, data);
         break;
       case 'employees':
-        await _applyEmployeeChange(db, documentId, data);
+        await _applyEmployeeChange(db, localUuid, data);
         break;
+      default:
+        return;
     }
+
+    await _syncVectorClock(entity, localUuid, data);
+    await _upsertMirrorRow(entity, localUuid, data);
   }
 
   Future<void> _applyRoomChange(AppDatabase db, String localUuid, Map<String, dynamic> data) async {
@@ -487,6 +498,78 @@ class AppwriteDeltaSync {
     );
 
     await db.into(db.employees).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _syncVectorClock(String entity, String localUuid, Map<String, dynamic> data) async {
+    final dao = _vectorClockDao;
+    if (dao == null) return;
+    final vectorClock = data['vector_clock'] ?? data['vectorClock'];
+    if (vectorClock == null) return;
+    final clockString = vectorClock is String ? vectorClock : jsonEncode(vectorClock);
+    if (clockString.isEmpty) return;
+    await dao.upsertClock(entity, localUuid, clockString);
+  }
+
+  Future<void> _upsertMirrorRow(String entity, String localUuid, Map<String, dynamic> remoteData) async {
+    if (_database == null) return;
+    await _ensureMirrorTable();
+    final payload = _normalizeIncomingPayload(localUuid, remoteData);
+    final rowHash = _computePayloadHash(payload);
+    await _database!.customStatement(
+      'REPLACE INTO sync_mirror (table_name, local_uuid, row_hash, payload, last_seen_at) VALUES (?, ?, ?, ?, ?)',
+      [
+        entity,
+        localUuid,
+        rowHash,
+        jsonEncode(payload),
+        Time.nowEpoch(),
+      ],
+    );
+  }
+
+  Map<String, dynamic> _normalizeIncomingPayload(String localUuid, Map<String, dynamic> source) {
+    final result = <String, dynamic>{};
+    source.forEach((key, value) {
+      if (value == null) return;
+      final snakeKey = _toSnakeCase(key);
+      dynamic normalizedValue = value;
+      if (snakeKey == 'vector_clock' && value is Map) {
+        normalizedValue = jsonEncode(value);
+      }
+      result[snakeKey] = normalizedValue;
+    });
+    result['local_uuid'] = localUuid;
+    return result;
+  }
+
+  Future<void> _ensureMirrorTable() async {
+    if (_mirrorReady || _database == null) {
+      if (_mirrorReady) return;
+    }
+    await _database!.customStatement(
+      'CREATE TABLE IF NOT EXISTS sync_mirror (table_name TEXT NOT NULL, local_uuid TEXT NOT NULL, row_hash TEXT NOT NULL, payload TEXT NOT NULL, last_seen_at INTEGER NOT NULL, PRIMARY KEY(table_name, local_uuid))',
+    );
+    _mirrorReady = true;
+  }
+
+  String _computePayloadHash(Map<String, dynamic> payload) {
+    final normalized = jsonEncode(payload);
+    return crypto.md5.convert(utf8.encode(normalized)).toString();
+  }
+
+  String _toSnakeCase(String input) {
+    if (input.contains('_')) return input;
+    final buffer = StringBuffer();
+    for (var i = 0; i < input.length; i++) {
+      final codeUnit = input.codeUnitAt(i);
+      final char = String.fromCharCode(codeUnit);
+      final isUpperCase = char.toUpperCase() == char && char.toLowerCase() != char;
+      if (isUpperCase && i > 0) {
+        buffer.write('_');
+      }
+      buffer.write(char.toLowerCase());
+    }
+    return buffer.toString();
   }
 
   String? _getCollectionId(String entity) {

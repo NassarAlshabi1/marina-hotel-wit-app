@@ -115,6 +115,31 @@ class GoogleAuthClient extends http.BaseClient {
   }
 }
 
+class DriveFileContent {
+  const DriveFileContent({required this.bytes, this.etag});
+
+  final List<int> bytes;
+  final String? etag;
+}
+
+class DriveFileNotFound implements Exception {
+  DriveFileNotFound(this.fileId);
+
+  final String fileId;
+
+  @override
+  String toString() => 'DriveFileNotFound: $fileId';
+}
+
+class DrivePreconditionFailed implements Exception {
+  DrivePreconditionFailed(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'DrivePreconditionFailed: $message';
+}
+
 class GoogleDriveBackupService {
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
@@ -152,6 +177,7 @@ class GoogleDriveBackupService {
 
   GoogleSignIn? _googleSignIn;
   drive.DriveApi? _driveApi;
+  Map<String, String>? _authHeaders;
   String? _backupFolderId;
   final GoogleDriveLogger _logger = GoogleDriveLogger();
 
@@ -184,6 +210,7 @@ class GoogleDriveBackupService {
     }
 
     final headers = await account.authHeaders;
+    _authHeaders = headers;
     _driveApi = drive.DriveApi(GoogleAuthClient(headers));
   }
 
@@ -195,11 +222,20 @@ class GoogleDriveBackupService {
       if (e.status == 401) {
         _log('⚠️ تم فقد صلاحية رمز Google Drive، إعادة المحاولة بعد التحديث...');
         _driveApi = null;
+        _authHeaders = null;
         await _ensureDriveClient();
         return await action();
       }
       rethrow;
     }
+  }
+
+  GoogleAuthClient _buildAuthedHttpClient() {
+    final headers = _authHeaders;
+    if (headers == null || headers.isEmpty) {
+      throw StateError('لم يتم تهيئة رؤوس Google Drive (ETag operations require auth)');
+    }
+    return GoogleAuthClient(Map<String, String>.from(headers));
   }
 
   Future<GoogleSignInAccount?> signInForDrive() async {
@@ -219,6 +255,7 @@ class GoogleDriveBackupService {
       if (account != null) {
         _log('🔑 الحصول على رؤوس المصادقة...');
         final headers = await account.authHeaders;
+        _authHeaders = headers;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
 
@@ -252,6 +289,7 @@ class GoogleDriveBackupService {
       if (account != null) {
         _log('🔑 الحصول على رؤوس المصادقة...');
         final headers = await account.authHeaders;
+        _authHeaders = headers;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
         
@@ -275,6 +313,7 @@ class GoogleDriveBackupService {
       
       if (account != null) {
         final headers = await account.authHeaders;
+        _authHeaders = headers;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
         _log('✅ تم تسجيل الدخول بهدوء: ${account.email}');
@@ -293,6 +332,7 @@ class GoogleDriveBackupService {
     try {
       await _googleSignIn?.signOut();
       _driveApi = null;
+      _authHeaders = null;
       _backupFolderId = null;
       _log('✅ تم تسجيل الخروج من Google Drive');
       _logger.info('تم تسجيل الخروج من Google Drive', tag: 'AUTH');
@@ -621,6 +661,110 @@ class GoogleDriveBackupService {
     addIfPresent('changes_count', metadata['changes_count']);
 
     return props;
+  }
+
+  Future<DriveBackupFile?> findFileByName(String fileName) async {
+    return _runWithAuth(() async {
+      final folderId = await getOrCreateBackupFolder();
+      final query = "name='${fileName}' and '$folderId' in parents and trashed=false";
+      final result = await _driveApi!.files.list(
+        q: query,
+        orderBy: 'modifiedTime desc',
+        pageSize: 1,
+        $fields: 'files(id,name,createdTime,size,appProperties)',
+      );
+      if (result.files == null || result.files!.isEmpty) {
+        return null;
+      }
+      return DriveBackupFile.fromDriveFile(result.files!.first);
+    });
+  }
+
+  Future<DriveBackupFile> getFileById(String fileId) async {
+    return _runWithAuth(() async {
+      final file = await _driveApi!.files.get(
+        fileId,
+        $fields: 'id,name,createdTime,size,appProperties',
+      );
+      return DriveBackupFile.fromDriveFile(file);
+    });
+  }
+
+  Future<DriveBackupFile> createJsonFile(
+    String fileName,
+    Map<String, dynamic> content, {
+    Map<String, String>? appProperties,
+  }) async {
+    return _runWithAuth(() async {
+      final folderId = await getOrCreateBackupFolder();
+      final jsonBytes = utf8.encode(jsonEncode(content));
+      final driveFile = drive.File()
+        ..name = fileName
+        ..parents = [folderId]
+        ..mimeType = 'application/json'
+        ..appProperties = appProperties ?? {};
+      final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
+      final created = await _driveApi!.files.create(driveFile, uploadMedia: media);
+      final metadata = await _driveApi!.files.get(
+        created.id!,
+        $fields: 'id,name,createdTime,size,appProperties',
+      );
+      return DriveBackupFile.fromDriveFile(metadata);
+    });
+  }
+
+  Future<DriveFileContent> downloadFileWithEtag(String fileId) async {
+    return _runWithAuth(() async {
+      final client = _buildAuthedHttpClient();
+      final uri = Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId?alt=media');
+      final request = http.Request('GET', uri);
+      try {
+        final streamed = await client.send(request);
+        final response = await http.Response.fromStream(streamed);
+        if (response.statusCode == 404) {
+          throw DriveFileNotFound(fileId);
+        }
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw Exception('Failed to download Drive file $fileId: ${response.statusCode}');
+        }
+        final etag = response.headers['etag'] ?? response.headers['ETag'];
+        return DriveFileContent(bytes: response.bodyBytes, etag: etag);
+      } finally {
+        client.close();
+      }
+    });
+  }
+
+  Future<void> uploadJsonWithIfMatch({
+    required String fileId,
+    required List<int> bytes,
+    String? etag,
+  }) async {
+    await _runWithAuth(() async {
+      final client = _buildAuthedHttpClient();
+      final uri = Uri.parse('https://www.googleapis.com/upload/drive/v3/files/$fileId?uploadType=media');
+      final request = http.Request('PATCH', uri);
+      request.headers['Content-Type'] = 'application/json; charset=utf-8';
+      if (etag != null && etag.isNotEmpty) {
+        request.headers['If-Match'] = etag;
+      }
+      request.bodyBytes = bytes;
+      try {
+        final streamed = await client.send(request);
+        final response = await http.Response.fromStream(streamed);
+        if (response.statusCode == 404) {
+          throw DriveFileNotFound(fileId);
+        }
+        if (response.statusCode == 412) {
+          throw DrivePreconditionFailed('Drive file $fileId was modified by another client');
+        }
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw Exception('Failed to upload Drive file $fileId: ${response.statusCode} ${response.body}');
+        }
+      } finally {
+        client.close();
+      }
+    });
   }
 
   Future<List<DriveBackupFile>> listBackups() async {

@@ -6,7 +6,9 @@ import 'package:flutter/foundation.dart';
 
 import '../data/sync_models.dart';
 import '../utils/time.dart';
+import 'device_identity.dart';
 import 'local_db.dart';
+import 'vector_clock.dart';
 
 class DeltaSyncChange {
   DeltaSyncChange({
@@ -54,10 +56,17 @@ class DeltaSyncComputation {
 }
 
 class DeltaSyncService {
-  DeltaSyncService(this.db);
+  DeltaSyncService(this.db) : _vectorClockDao = VectorClockDao(db);
 
   final AppDatabase db;
+  final VectorClockDao _vectorClockDao;
   bool _mirrorTableReady = false;
+  String? _deviceId;
+
+  Future<String> _ensureDeviceId() async {
+    _deviceId ??= await DeviceIdentity.ensure();
+    return _deviceId!;
+  }
 
   Future<DeltaSyncComputation> compute({int? since}) async {
     final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
@@ -65,6 +74,11 @@ class DeltaSyncService {
     final normalizedSince = _normalizeTimestamp(baseSince);
     final previousMirror = await _loadMirror();
     final configs = _entityConfigs();
+    final vectorMaps = await _vectorClockDao.getClocksForEntities(configs.map((c) => c.entity));
+    for (final config in configs) {
+      vectorMaps.putIfAbsent(config.entity, () => {});
+    }
+    final deviceId = await _ensureDeviceId();
     final nowTs = _normalizeTimestamp(Time.nowEpoch());
     final changes = <DeltaSyncChange>[];
     final snapshot = <String, Map<String, MirrorRow>>{};
@@ -80,6 +94,7 @@ class DeltaSyncService {
       }
       final tableSnapshot = <String, MirrorRow>{};
       final seen = <String>{};
+      final entityClocks = vectorMaps[config.entity]!;
 
       for (final row in rows) {
         final localUuid = config.localUuid(row);
@@ -88,6 +103,8 @@ class DeltaSyncService {
         }
         final sanitized = _preparePayload(config.toJson(row));
         sanitized['local_uuid'] = localUuid;
+        var vectorClockJson = entityClocks[localUuid] ?? '{}';
+        sanitized['vector_clock'] = vectorClockJson;
         final rowHash = _hashPayload(sanitized);
         final payload = Map<String, dynamic>.from(sanitized);
         payload['row_hash'] = rowHash;
@@ -97,8 +114,22 @@ class DeltaSyncService {
         final previous = existingMirror[localUuid];
         final clientTs = nowTs;
 
+        Future<void> recordMutation({bool keepClock = true}) async {
+          final updatedClock = VectorClock.fromJson(vectorClockJson).increment(deviceId);
+          vectorClockJson = updatedClock.toJson();
+          sanitized['vector_clock'] = vectorClockJson;
+          payload['vector_clock'] = vectorClockJson;
+          entityClocks[localUuid] = vectorClockJson;
+          await _vectorClockDao.upsertClock(config.entity, localUuid, vectorClockJson);
+          if (!keepClock) {
+            await _vectorClockDao.deleteClock(config.entity, localUuid);
+            entityClocks.remove(localUuid);
+          }
+        }
+
         if (deletedAt != null && deletedAt > normalizedSince) {
           payload['deleted_at'] = deletedAt;
+          await recordMutation(keepClock: false);
           changes.add(DeltaSyncChange(
             entity: config.entity,
             operation: 'delete',
@@ -116,6 +147,7 @@ class DeltaSyncService {
           final shouldInsert = isFirstSyncForTable || (hasMirror && isNewRecordInMirror) || createdAfterLastSync;
 
           if (shouldInsert) {
+            await recordMutation();
             changes.add(DeltaSyncChange(
               entity: config.entity,
               operation: 'insert',
@@ -126,6 +158,7 @@ class DeltaSyncService {
             ));
             debugPrint('إرسال كـ INSERT: ${config.entity}/$localUuid');
           } else if (previous != null && lastModified != null && lastModified > normalizedSince) {
+            await recordMutation();
             changes.add(DeltaSyncChange(
               entity: config.entity,
               operation: 'update',
@@ -158,6 +191,13 @@ class DeltaSyncService {
         final deleteStamp = previousDeletedAt ?? nowTs;
         payload['deleted_at'] = deleteStamp;
         payload['row_hash'] = previous.rowHash;
+        final entityClocks = vectorMaps[config.entity]!;
+        var deleteClock = payload['vector_clock']?.toString() ?? entityClocks[uuid] ?? '{}';
+        deleteClock = VectorClock.fromJson(deleteClock).increment(deviceId).toJson();
+        payload['vector_clock'] = deleteClock;
+        await _vectorClockDao.upsertClock(config.entity, uuid, deleteClock);
+        await _vectorClockDao.deleteClock(config.entity, uuid);
+        entityClocks.remove(uuid);
         changes.add(DeltaSyncChange(
           entity: config.entity,
           operation: 'delete',

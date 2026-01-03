@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../data/sync_models.dart' as sync_models;
+import '../utils/time.dart';
 
 part 'local_db.g.dart';
 
@@ -390,6 +391,16 @@ class SyncConflicts extends Table {
   TextColumn get createdAt => text()();
 }
 
+class VectorClocks extends Table {
+  TextColumn get entity => text()();
+  TextColumn get localUuid => text()();
+  TextColumn get clock => text().withDefault(const Constant('{}'))();
+  IntColumn get updatedAt => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {entity, localUuid};
+}
+
 @DriftDatabase(tables: [
   Rooms,
   Bookings,
@@ -413,6 +424,7 @@ class SyncConflicts extends Table {
   SyncQueue,
   SyncLog,
   SyncConflicts,
+  VectorClocks,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
@@ -421,7 +433,7 @@ class AppDatabase extends _$AppDatabase {
   static AppDatabase forTesting(QueryExecutor executor) => AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -555,11 +567,41 @@ class AppDatabase extends _$AppDatabase {
           if (from < 17) {
             await m.addColumn(outbox, outbox.idempotencyKey);
           }
+          if (from < 18) {
+            await m.createTable(vectorClocks);
+          }
         },
       );
 
   /// تجميع جميع الجداول المطلوب مزامنتها في خريطة JSON
   Future<Map<String, dynamic>> getAllTablesAsJson() async {
+    final vectorDao = VectorClockDao(this);
+    final entitiesNeedingClocks = {
+      'rooms',
+      'bookings',
+      'booking_notes',
+      'employees',
+      'expenses',
+      'cash_transactions',
+      'payments',
+      'debts',
+      'booking_nights',
+      'hotel_day_ledger',
+      'salary_cycles',
+      'salary_payments',
+    };
+    final vectorMaps = await vectorDao.getClocksForEntities(entitiesNeedingClocks);
+
+    Map<String, dynamic> attachClock(String entity, Map<String, dynamic> json) {
+      final rawUuid = json['local_uuid'] ?? json['localUuid'];
+      final uuid = rawUuid?.toString();
+      final clock = (uuid != null && uuid.isNotEmpty)
+          ? (vectorMaps[entity]?[uuid] ?? '{}')
+          : '{}';
+      json['vector_clock'] = clock;
+      return json;
+    }
+
     final roomsData = await select(rooms).get();
     final bookingsData = await select(bookings).get();
     final bookingNotesData = await select(bookingNotes).get();
@@ -577,21 +619,21 @@ class AppDatabase extends _$AppDatabase {
     final salaryPaymentsData = await select(salaryPayments).get();
 
     return {
-      'rooms': roomsData.map((e) => e.toJson()).toList(),
-      'bookings': bookingsData.map((e) => e.toJson()).toList(),
-      'booking_notes': bookingNotesData.map((e) => e.toJson()).toList(),
-      'employees': employeesData.map((e) => e.toJson()).toList(),
-      'expenses': expensesData.map((e) => e.toJson()).toList(),
-      'cash_transactions': cashTransactionsData.map((e) => e.toJson()).toList(),
-      'payments': paymentsData.map((e) => e.toJson()).toList(),
-      'debts': debtsData.map((e) => e.toJson()).toList(),
-      'booking_nights': bookingNightsData.map((e) => e.toJson()).toList(),
-      'hotel_day_ledger': ledgerData.map((e) => e.toJson()).toList(),
+      'rooms': roomsData.map((e) => attachClock('rooms', e.toJson())).toList(),
+      'bookings': bookingsData.map((e) => attachClock('bookings', e.toJson())).toList(),
+      'booking_notes': bookingNotesData.map((e) => attachClock('booking_notes', e.toJson())).toList(),
+      'employees': employeesData.map((e) => attachClock('employees', e.toJson())).toList(),
+      'expenses': expensesData.map((e) => attachClock('expenses', e.toJson())).toList(),
+      'cash_transactions': cashTransactionsData.map((e) => attachClock('cash_transactions', e.toJson())).toList(),
+      'payments': paymentsData.map((e) => attachClock('payments', e.toJson())).toList(),
+      'debts': debtsData.map((e) => attachClock('debts', e.toJson())).toList(),
+      'booking_nights': bookingNightsData.map((e) => attachClock('booking_nights', e.toJson())).toList(),
+      'hotel_day_ledger': ledgerData.map((e) => attachClock('hotel_day_ledger', e.toJson())).toList(),
       'auto_fix_runs': autoFixRunsData.map((e) => e.toJson()).toList(),
       'integrity_violations': violationsData.map((e) => e.toJson()).toList(),
       'app_sessions': sessionsData.map((e) => e.toJson()).toList(),
-      'salary_cycles': salaryCyclesData.map((e) => e.toJson()).toList(),
-      'salary_payments': salaryPaymentsData.map((e) => e.toJson()).toList(),
+      'salary_cycles': salaryCyclesData.map((e) => attachClock('salary_cycles', e.toJson())).toList(),
+      'salary_payments': salaryPaymentsData.map((e) => attachClock('salary_payments', e.toJson())).toList(),
       'guests': <Map<String, dynamic>>[],
       'services': <Map<String, dynamic>>[],
       'settings': <Map<String, dynamic>>[],
@@ -608,6 +650,22 @@ class AppDatabase extends _$AppDatabase {
       );
       return;
     }
+
+    final vectorDao = VectorClockDao(this);
+    final entitiesWithVector = {
+      'rooms',
+      'bookings',
+      'booking_notes',
+      'employees',
+      'expenses',
+      'cash_transactions',
+      'payments',
+      'debts',
+      'booking_nights',
+      'hotel_day_ledger',
+      'salary_cycles',
+      'salary_payments',
+    };
 
     List<Map<String, dynamic>>? asListIfPresent(String key) {
       if (!merged.containsKey(key)) {
@@ -637,6 +695,9 @@ class AppDatabase extends _$AppDatabase {
         await batch((batch) {
           batch.insertAll(table, rows.map(fromJson).toList(), mode: InsertMode.insertOrReplace);
         });
+        if (entitiesWithVector.contains(key)) {
+          await vectorDao.replaceEntityData(key, rows);
+        }
       }
 
       await replaceTableIfNonEmpty<Room>(rooms, 'rooms', (row) => Room.fromJson(row));
@@ -664,6 +725,82 @@ LazyDatabase _open() {
     final file = File(p.join(dbDir, _dbFileName));
     return NativeDatabase.createInBackground(file, logStatements: false);
   });
+}
+
+class VectorClockDao {
+  VectorClockDao(this._db);
+
+  final AppDatabase _db;
+
+  Future<String> getClock(String entity, String localUuid) async {
+    final row = await (_db.select(_db.vectorClocks)
+          ..where((tbl) => tbl.entity.equals(entity) & tbl.localUuid.equals(localUuid)))
+        .getSingleOrNull();
+    return row?.clock ?? '{}';
+  }
+
+  Future<Map<String, String>> getClocksForEntity(String entity) async {
+    final rows = await (_db.select(_db.vectorClocks)
+          ..where((tbl) => tbl.entity.equals(entity)))
+        .get();
+    return {for (final row in rows) row.localUuid: row.clock};
+  }
+
+  Future<Map<String, Map<String, String>>> getClocksForEntities(Iterable<String> entities) async {
+    final result = <String, Map<String, String>>{};
+    for (final entity in entities.toSet()) {
+      result[entity] = await getClocksForEntity(entity);
+    }
+    return result;
+  }
+
+  Future<void> upsertClock(String entity, String localUuid, String clockJson) async {
+    await _db.into(_db.vectorClocks).insertOnConflictUpdate(
+          VectorClocksCompanion(
+            entity: Value(entity),
+            localUuid: Value(localUuid),
+            clock: Value(clockJson.isEmpty ? '{}' : clockJson),
+            updatedAt: Value(Time.nowEpoch()),
+          ),
+        );
+  }
+
+  Future<void> deleteClock(String entity, String localUuid) async {
+    await (_db.delete(_db.vectorClocks)
+          ..where((tbl) => tbl.entity.equals(entity) & tbl.localUuid.equals(localUuid)))
+        .go();
+  }
+
+  Future<void> replaceEntityData(String entity, Iterable<Map<String, dynamic>> rows) async {
+    await (_db.delete(_db.vectorClocks)
+          ..where((tbl) => tbl.entity.equals(entity)))
+        .go();
+    if (rows.isEmpty) {
+      return;
+    }
+    await _db.batch((batch) {
+      batch.insertAll(
+        _db.vectorClocks,
+        rows
+            .map((row) {
+              final localUuid = row['local_uuid']?.toString();
+              if (localUuid == null || localUuid.isEmpty) {
+                return null;
+              }
+              final clock = row['vector_clock']?.toString() ?? '{}';
+              return VectorClocksCompanion(
+                entity: Value(entity),
+                localUuid: Value(localUuid),
+                clock: Value(clock),
+                updatedAt: Value(Time.nowEpoch()),
+              );
+            })
+            .whereType<VectorClocksCompanion>()
+            .toList(),
+        mode: InsertMode.insertOrReplace,
+      );
+    });
+  }
 }
 
 extension EmployeeX on Employee {

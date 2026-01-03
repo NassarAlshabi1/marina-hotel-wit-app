@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_logs.dart';
 import 'daos/outbox_dao.dart';
 import 'data_usage_manager.dart';
+import 'device_identity.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
@@ -78,30 +78,17 @@ class SmartSyncManager {
   /// توليد معرف فريد للجهاز تلقائياً
   Future<void> _initializeDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
-    _deviceId = prefs.getString(_prefsDeviceIdKey);
-    
-    if (_deviceId == null) {
-      final deviceInfo = DeviceInfoPlugin();
-      String deviceIdentifier = 'unknown';
-      
-      try {
-        if (Platform.isAndroid) {
-          final androidInfo = await deviceInfo.androidInfo;
-          deviceIdentifier = androidInfo.id;
-        } else if (Platform.isIOS) {
-          final iosInfo = await deviceInfo.iosInfo;
-          deviceIdentifier = iosInfo.identifierForVendor ?? 'ios-${DateTime.now().millisecondsSinceEpoch}';
-        }
-      } catch (e) {
-        deviceIdentifier = 'device-${DateTime.now().millisecondsSinceEpoch}';
-      }
-      
-      _deviceId = deviceIdentifier;
-      await prefs.setString(_prefsDeviceIdKey, _deviceId!);
-      _log('🆔 تم إنشاء معرف الجهاز الفريد تلقائياً: $_deviceId');
-    } else {
+    final existing = prefs.getString(_prefsDeviceIdKey);
+    if (existing != null && existing.isNotEmpty) {
+      _deviceId = existing;
+      await prefs.setString(_prefsDeviceIdKey, existing);
       _log('🆔 معرف الجهاز: $_deviceId');
+      return;
     }
+
+    _deviceId = await DeviceIdentity.ensure();
+    await prefs.setString(_prefsDeviceIdKey, _deviceId!);
+    _log('🆔 تم تعيين معرف الجهاز: $_deviceId');
   }
 
   /// تحميل إعدادات المزامنة
