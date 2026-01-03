@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -596,6 +598,15 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
   /// إنشاء نسخة احتياطية محلية
   Future<void> createLocalBackup() async {
+    if (!state.hasStoragePermission) {
+      state = state.copyWith(
+        status: BackupStatus.error,
+        message: 'لا توجد أذونات للوصول للتخزين المحلي',
+        progress: null,
+      );
+      return;
+    }
+
     try {
       state = state.copyWith(
         status: BackupStatus.uploading,
@@ -904,13 +915,15 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.0,
       );
 
+      String? localBackupPath;
+
       // إنشاء النسخة المحلية أولاً
       if (state.hasStoragePermission) {
         state = state.copyWith(
           message: 'إنشاء النسخة المحلية...',
           progress: 0.2,
         );
-        await _localBackupService.createLocalBackup(format: state.autoSettings.backupFormat);
+        localBackupPath = await _localBackupService.createLocalBackup(format: state.autoSettings.backupFormat);
       }
 
       // ثم النسخة السحابية إذا كان المستخدم مسجل الدخول
@@ -919,9 +932,24 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           message: 'رفع النسخة إلى Google Drive...',
           progress: 0.6,
         );
-        final backupData = await _backupService.exportDatabaseToJson();
-        // رفع كنسخة شاملة يدوية (isSync = false بشكل افتراضي)
-        await _backupService.uploadBackup(backupData);
+        if (state.autoSettings.backupFormat == BackupFormat.json) {
+          final backupData = await _backupService.exportDatabaseToJson();
+          await _backupService.uploadBackup(backupData);
+        } else {
+          final sqlitePath = localBackupPath ?? await SqliteBackupRestore.backupDatabase();
+          final sqliteFile = File(sqlitePath);
+          if (!await sqliteFile.exists()) {
+            throw Exception('تعذر العثور على ملف النسخة الاحتياطية SQLite لرفعه');
+          }
+          final bytes = await sqliteFile.readAsBytes();
+          final timestamp = DateTime.now();
+          final fileName = '${GoogleDriveBackupService.fullBackupPrefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.sqlite';
+          final appProps = <String, String>{
+            'format': BackupFormat.sqlite.name,
+            'backup_type': 'manual',
+          };
+          await _backupService.uploadBackupWithName(fileName, bytes, appProperties: appProps);
+        }
       }
 
       // تحديث جميع القوائم

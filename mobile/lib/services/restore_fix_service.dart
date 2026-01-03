@@ -679,8 +679,10 @@ class RestoreFixService {
         accumulator.paymentsTotal += payment.amount;
       }
       paymentsProcessed += paymentRows.length;
-      final double remainingRaw = double.parse((totalDue - totalPaid).toStringAsFixed(2));
-      final double remaining = remainingRaw < 0 ? 0 : remainingRaw;
+      final double totalDueRounded = (totalDue * 100).round() / 100;
+      final double totalPaidRounded = (totalPaid * 100).round() / 100;
+      double remaining = ((totalDueRounded - totalPaidRounded) * 100).round() / 100;
+      if (remaining < 0) remaining = 0;
       final bool isFullyPaid = remaining <= 0.009;
       final bool needsReview = isOverdue || remaining > 0.009;
 
@@ -702,9 +704,9 @@ class RestoreFixService {
           lastNightEpoch: Value(lastNightEpoch),
           isOverdue: Value(isOverdue),
           needsCheckoutReview: Value(needsReview),
-          totalDueCached: Value(double.parse(totalDue.toStringAsFixed(2))),
-          totalPaidCached: Value(double.parse(totalPaid.toStringAsFixed(2))),
-          remainingBalanceCached: Value(double.parse(remaining.toStringAsFixed(2))),
+          totalDueCached: Value(totalDueRounded),
+          totalPaidCached: Value(totalPaidRounded),
+          remainingBalanceCached: Value(remaining),
           isFullyPaid: Value(isFullyPaid),
           hotelDayCheckin: Value(hotelDayCheckin),
           hotelDayCheckout: Value(hotelDayCheckout),
@@ -980,6 +982,11 @@ class RestoreFixService {
         if (snapshotData.containsKey('debts')) {
           await debtsDao.importFromJson(List<Map<String, dynamic>>.from(snapshotData['debts']), clearExisting: false);
         }
+
+        // إعادة بناء الجداول المشتقة لضمان الاتساق
+        await db.delete(db.bookingNights).go();
+        await db.delete(db.hotelDayLedger).go();
+        await _rebuildBookingStructures(DateTime.now());
       });
       
     } catch (e) {

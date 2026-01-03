@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
+import 'package:appwrite/appwrite.dart' show AppwriteException;
 import 'package:appwrite/models.dart' as models;
 import 'package:device_info_plus/device_info_plus.dart';
 import '../utils/id.dart';
@@ -174,25 +175,25 @@ class AppwriteSyncManager {
       _deviceLocalUuid ??= IdGen.uuid();
       _deviceCreatedAtEpoch ??= nowEpoch;
 
-      final result = await _mutex.runExclusive(() async {
-        final existingDoc = await appwriteService.getDocument(
-          collectionId: AppwriteConfig.devicesCollectionId,
-          documentId: _currentDeviceId!,
-        );
-        int currentRemoteVersion = 0;
-        if (existingDoc != null) {
-          currentRemoteVersion = _asInt(existingDoc.data['version'], fallback: 0);
-        }
-        if (_deviceVersion == null || _deviceVersion! <= currentRemoteVersion) {
-          _deviceVersion = currentRemoteVersion + 1;
-        }
-      });
-      
-      if (result == null) {
-        _logger.warning('Failed to acquire mutex for device registration', tag: 'SYNC');
-      }
-
       if (_currentDeviceId != null) {
+        final result = await _mutex.runExclusive(() async {
+          final existingDoc = await appwriteService.getDocument(
+            collectionId: AppwriteConfig.devicesCollectionId,
+            documentId: _currentDeviceId!,
+          );
+          int currentRemoteVersion = 0;
+          if (existingDoc != null) {
+            currentRemoteVersion = _asInt(existingDoc.data['version'], fallback: 0);
+          }
+          if (_deviceVersion == null || _deviceVersion! <= currentRemoteVersion) {
+            _deviceVersion = currentRemoteVersion + 1;
+          }
+        });
+        
+        if (result == null) {
+          _logger.warning('Failed to acquire mutex for device registration', tag: 'SYNC');
+        }
+
         await appwriteService.updateDocument(
           collectionId: AppwriteConfig.devicesCollectionId,
           documentId: _currentDeviceId!,
@@ -374,8 +375,11 @@ class AppwriteSyncManager {
       _logger.info('Starting sync...', tag: 'SYNC');
 
       // التحقق من الاتصال
-      final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity.contains(ConnectivityResult.none)) {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      final hasConnection = connectivityResult is List<ConnectivityResult>
+          ? connectivityResult.any((r) => r != ConnectivityResult.none)
+          : connectivityResult != ConnectivityResult.none;
+      if (!hasConnection) {
         throw Exception('No internet connection');
       }
 
@@ -1133,20 +1137,22 @@ class AppwriteSyncManager {
 
   Future<int> _pushAllEntities() async {
     const batchSize = 200;
-    final entries = await outboxDao.takeBatch(batchSize);
-    if (entries.isEmpty) {
-      return 0;
-    }
-
     int processed = 0;
-    for (final entry in entries) {
-      final success = await _processOutboxEntry(entry);
-      if (success) {
-        await outboxDao.removeById(entry.id);
-        processed++;
+
+    while (true) {
+      final entries = await outboxDao.takeBatch(batchSize);
+      if (entries.isEmpty) {
+        return processed;
+      }
+
+      for (final entry in entries) {
+        final success = await _processOutboxEntry(entry);
+        if (success) {
+          await outboxDao.removeById(entry.id);
+          processed++;
+        }
       }
     }
-    return processed;
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
@@ -1174,7 +1180,10 @@ class AppwriteSyncManager {
   }
 
   Map<String, dynamic> _addIdempotencyKey(Map<String, dynamic> payload, OutboxData entry) {
-    return payload;
+    return {
+      ...payload,
+      'idempotencyKey': '${entry.entity}:${entry.op}:${entry.localUuid}:${entry.id}',
+    };
   }
 
   Future<bool> _processRoomEntry(OutboxData entry) async {
@@ -1255,18 +1264,19 @@ class AppwriteSyncManager {
   Future<void> _deleteSilently(Future<void> Function() action) async {
     try {
       await action();
-    } catch (error) {
-      if (error is AppwriteError && error.code == 'NOT_FOUND') {
-        _logger.debug('Delete target not found (AppwriteError): ${error.message}', tag: 'SYNC');
+    } on AppwriteException catch (error) {
+      if (error.code == 404) {
+        _logger.debug('Delete target not found (404): ${error.message}', tag: 'SYNC');
         return;
       }
-      
+      rethrow;
+    } catch (error) {
       final message = error.toString().toLowerCase();
       if (message.contains('404') || 
           message.contains('not found') || 
           message.contains('not_found') ||
           message.contains('document_not_found')) {
-        _logger.debug('Delete target not found: $message', tag: 'SYNC');
+        _logger.debug('Delete target not found (fallback): $message', tag: 'SYNC');
         return;
       }
       rethrow;
@@ -1393,9 +1403,19 @@ class AppwriteSyncManager {
   Map<String, dynamic> _debtToRemote(Debt debt) {
     final data = <String, dynamic>{
       'amount': debt.totalAmount,
+      'totalAmount': debt.totalAmount,
       'debtorName': debt.guestName,
+      'guestName': debt.guestName,
       'dueDate': _resolveDebtDueDate(debt),
+      'checkinDate': debt.checkinDate,
+      'checkoutDate': debt.checkoutDate,
+      'dateRecorded': debt.dateRecorded,
+      'debtReason': debt.debtReason,
+      'paidAmount': debt.paidAmount,
+      'remainingAmount': debt.remainingAmount,
+      'paymentDate': debt.paymentDate,
       'status': debt.isSettled == 1 ? 'settled' : 'pending',
+      'isSettled': debt.isSettled,
       'localUuid': debt.localUuid,
       'createdAt': debt.createdAt,
       'updatedAt': debt.updatedAt,
@@ -1403,6 +1423,10 @@ class AppwriteSyncManager {
       'version': debt.version,
       'origin': debt.origin,
     };
+    _putIfNotNull(data, 'bookingLocalId', debt.bookingLocalId);
+    _putIfStringNotEmpty(data, 'pledge', debt.pledge);
+    _putIfStringNotEmpty(data, 'pledgeType', debt.pledgeType);
+    _putIfStringNotEmpty(data, 'note', debt.note);
     _putIfNotNull(data, 'serverId', debt.serverId);
     _putIfNotNull(data, 'deletedAt', debt.deletedAt);
     return data;
