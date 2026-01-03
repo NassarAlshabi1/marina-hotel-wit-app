@@ -424,8 +424,10 @@ class LocalBackupService {
     debugPrint('🔄 بدء استعادة البيانات من نسخة JSON...');
     final db = getDatabase();
 
+    // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
     await db.customStatement('PRAGMA foreign_keys = OFF');
     try {
+      // حذف جميع الجداول
       await db.delete(db.rooms).go();
       await db.delete(db.bookings).go();
       await db.delete(db.bookingNotes).go();
@@ -434,9 +436,6 @@ class LocalBackupService {
       await db.delete(db.cashTransactions).go();
       await db.delete(db.payments).go();
       await db.delete(db.syncState).go();
-    } finally {
-      await db.customStatement('PRAGMA foreign_keys = ON');
-    }
 
     Future<void> insertList<T>(String key, Future<void> Function(Map<String, dynamic> json) insert) async {
       if (!backupData.containsKey(key)) {
@@ -493,6 +492,11 @@ class LocalBackupService {
     }
 
     debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON');
+    } finally {
+      // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الاستعادة بالكامل
+      await db.customStatement('PRAGMA foreign_keys = ON');
+      debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+    }
   }
 
   Future<void> _restoreFromSqliteBackup(String filePath) async {

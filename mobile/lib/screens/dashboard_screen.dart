@@ -14,6 +14,7 @@ import 'bookings/booking_edit.dart';
 import 'bookings/bookings_list.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
+import 'payments/payments_main_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101', '102', '103', '104',
