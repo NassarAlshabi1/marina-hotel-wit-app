@@ -326,15 +326,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     );
   }
 
-  void _setupDataStreamListener() {
-    _log('💾 Setting up data stream listener...');
-    
-    _coordinator!.syncResults.listen((result) {
-      if (result.success && result.pushedChanges != null && result.pushedChanges! > 0) {
-        _log('📤 Data changes detected and pushed: ${result.pushedChanges}');
-      }
-    });
-  }
+  // This method can be removed entirely.
 
   void _startHealthCheck() {
     _log('❤️ Starting health check monitor...');
