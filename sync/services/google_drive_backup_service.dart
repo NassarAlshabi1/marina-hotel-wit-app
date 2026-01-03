@@ -1009,13 +1009,15 @@ class GoogleDriveBackupService {
     }
 
     final now = DateTime.now();
-    final timeParts = timeString.split(':');
+    final parts = timeString.split(':');
+    final hour = (parts.length == 2 && int.tryParse(parts[0]) != null) ? int.parse(parts[0]) : 0;
+    final minute = (parts.length == 2 && int.tryParse(parts[1]) != null) ? int.parse(parts[1]) : 0;
     final targetTime = DateTime(
       now.year,
       now.month,
       now.day,
-      int.parse(timeParts[0]),
-      int.parse(timeParts[1]),
+      hour,
+      minute,
     );
 
     if (targetTime.isBefore(now)) {

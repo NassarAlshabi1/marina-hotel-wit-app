@@ -141,11 +141,10 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               style: TextStyle(color: color, fontWeight: FontWeight.bold),
             ),
           ),
-          if (state.status != BackupStatus.error)
-            IconButton(
-              onPressed: () => ref.read(backupStatusProvider.notifier).clearMessage(),
-              icon: Icon(Icons.close, color: color, size: 20),
-            ),
+          IconButton(
+            onPressed: () => ref.read(backupStatusProvider.notifier).clearMessage(),
+            icon: Icon(Icons.close, color: color, size: 20),
+          ),
         ],
       ),
     );
@@ -979,7 +978,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
         'حجم: $sizeInMB ميجابايت\nالسجلات: $recordsLabel\nالتنسيق: $formatLabel',
       ),
       trailing: IconButton(
-        onPressed: isWorking ? null : () => _showRestoreConfirmation(backup.fileId, BackupType.googleDrive),
+        onPressed: isWorking ? null : () => _showRestoreConfirmation(backup, BackupType.googleDrive),
         icon: const Icon(Icons.cloud_download, color: Colors.indigo),
         tooltip: 'استعادة',
       ),
@@ -1048,7 +1047,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
   void _handleLocalBackupAction(String action, LocalBackupFile backup) {
     switch (action) {
       case 'restore':
-        _showRestoreConfirmation(backup.filePath, BackupType.local);
+        _showRestoreConfirmation(backup, BackupType.local);
         break;
       case 'share':
         ref.read(backupStatusProvider.notifier).shareLocalBackup(backup.filePath);
@@ -1095,38 +1094,27 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     );
   }
 
-  void _showRestoreConfirmation(String identifier, BackupType type) {
+  void _showRestoreConfirmation(dynamic backup, BackupType type) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    
+
     String title, description, location;
     DateTime createdTime;
     int? recordsCount;
-    dynamic backup;
 
     if (type == BackupType.googleDrive) {
-      try {
-        backup = ref.read(availableBackupsProvider).firstWhere((b) => b.fileId == identifier);
-      } on StateError {
-        return;
-      }
       title = 'استعادة من Google Drive';
       description = 'سيتم تنزيل النسخة من Google Drive واستعادة البيانات';
       location = 'Google Drive';
       createdTime = backup.createdTime;
       recordsCount = int.tryParse(backup.metadata?['records_count']?.toString() ?? '0');
     } else {
-      try {
-        backup = ref.read(localBackupsProvider).firstWhere((b) => b.filePath == identifier);
-      } on StateError {
-        return;
-      }
       title = 'استعادة من النسخة المحلية';
       description = 'سيتم استعادة البيانات من النسخة المحفوظة محلياً';
       location = 'التخزين المحلي';
       createdTime = backup.createdTime;
       recordsCount = backup.metadata?.totalRecords;
     }
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1161,9 +1149,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
             onPressed: () {
               Navigator.of(context).pop();
               if (type == BackupType.googleDrive) {
-                ref.read(backupStatusProvider.notifier).restoreFromBackup(identifier);
+                ref.read(backupStatusProvider.notifier).restoreFromBackup(backup.fileId);
               } else {
-                ref.read(backupStatusProvider.notifier).restoreFromLocalBackup(identifier);
+                ref.read(backupStatusProvider.notifier).restoreFromLocalBackup(backup.filePath);
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),

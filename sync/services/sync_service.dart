@@ -185,8 +185,8 @@ class SyncService {
     if (res['success'] != true) return;
     final data = List<Map<String, dynamic>>.from(res['data']['data']);
     
+    int maxTs = since;
     await db.transaction(() async {
-      int maxTs = since;
       for (final it in data) {
         final entity = it['entity'] as String;
         final op = it['op'] as String;
@@ -194,24 +194,23 @@ class SyncService {
         final serverTs = (it['server_ts'] as num).toInt();
         final rawData = it['data'];
         final item = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
-        
+
         try {
           await _applyIncoming(entity, op, serverId, serverTs, item);
           if (serverTs > maxTs) maxTs = serverTs;
         } catch (e) {
-          debugPrint('❌ Failed to apply incoming change for $entity: $e');
-          rethrow;
+          debugPrint('❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.');
         }
       }
-      
-      final now = Time.nowEpoch();
-      await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
-        id: const d.Value(1),
-        lastServerTs: d.Value(maxTs),
-        lastPullTs: d.Value(now),
-        isSyncing: const d.Value(0),
-      ));
     });
+
+    final now = Time.nowEpoch();
+    await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
+      id: const d.Value(1),
+      lastServerTs: d.Value(maxTs),
+      lastPullTs: d.Value(now),
+      isSyncing: const d.Value(0),
+    ));
     
     await RoomsRepository(db).refreshAllRoomOccupancy();
   }

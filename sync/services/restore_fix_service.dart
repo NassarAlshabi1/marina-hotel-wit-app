@@ -108,55 +108,60 @@ class RestoreFixService {
   /// إنشاء لقطة احتياطية محلية قبل بدء عملية الإصلاح
   Future<RestoreSnapshot> createLocalSnapshot(String prefix) async {
     debugPrint('📸 إنشاء لقطة احتياطية أمان: ${prefix}_restore_snapshot_${Time.nowEpoch()}.json');
-    
-    return await db.transaction<RestoreSnapshot>(() async {
-      final directory = await getApplicationCacheDirectory();
-      final timestamp = Time.nowEpoch();
-      final filename = '${prefix}_restore_snapshot_$timestamp.json';
-      final filePath = '${directory.path}/$filename';
-      
-      try {
-        final bookingsData = await bookingsDao.exportToJson();
-        final roomsData = await roomsDao.exportToJson();
-        final paymentsData = await paymentsDao.exportToJson();
-        final debtsData = await debtsDao.exportToJson(includeDeleted: true);
-        
-        final snapshotData = {
-          'metadata': {
-            'timestamp': timestamp,
-            'createdAt': DateTime.now().toIso8601String(),
-            'deviceId': 'local_device',
-            'version': '1.0',
-          },
+
+    final timestamp = Time.nowEpoch();
+
+    final exportResult = await db.transaction<Map<String, dynamic>>(() async {
+      final bookingsData = await bookingsDao.exportToJson();
+      final roomsData = await roomsDao.exportToJson();
+      final paymentsData = await paymentsDao.exportToJson();
+      final debtsData = await debtsDao.exportToJson(includeDeleted: true);
+
+      return {
+        'data': {
           'bookings': bookingsData,
           'rooms': roomsData,
           'payments': paymentsData,
           'debts': debtsData,
-        };
-  
-        final jsonString = jsonEncode(snapshotData);
-        final file = File(filePath);
-        await file.writeAsString(jsonString);
-        
-        final recordCounts = {
+        },
+        'counts': {
           'bookings': bookingsData.length,
           'rooms': roomsData.length,
           'payments': paymentsData.length,
           'debts': debtsData.length,
-        };
-  
-        return RestoreSnapshot(
-          filePath: filePath,
-          createdAt: DateTime.now(),
-          recordCounts: recordCounts,
-          totalSizeBytes: await file.length(),
-        );
-        
-      } catch (e) {
-        debugPrint('❌ خطأ في إنشاء اللقطة الاحتياطية: $e');
-        rethrow;
-      }
+        },
+      };
     });
+
+    final directory = await getApplicationCacheDirectory();
+    final filename = '${prefix}_restore_snapshot_$timestamp.json';
+    final filePath = '${directory.path}/$filename';
+
+    try {
+      final jsonString = jsonEncode({
+        'metadata': {
+          'timestamp': timestamp,
+          'createdAt': DateTime.now().toIso8601String(),
+          'deviceId': 'local_device',
+          'version': '1.0',
+        },
+        ...(exportResult['data'] as Map<String, dynamic>),
+      });
+
+      final file = File(filePath);
+      await file.writeAsString(jsonString);
+      final totalSizeBytes = await file.length();
+
+      return RestoreSnapshot(
+        filePath: filePath,
+        createdAt: DateTime.now(),
+        recordCounts: exportResult['counts'] as Map<String, int>,
+        totalSizeBytes: totalSizeBytes,
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في إنشاء اللقطة الاحتياطية: $e');
+      rethrow;
+    }
   }
 
   /// الدالة الرئيسية لتشغيل الإصلاح التلقائي
@@ -243,26 +248,28 @@ class RestoreFixService {
     } catch (e, stackTrace) {
       debugPrint('❌ فشل الإصلاح التلقائي: $e');
       debugPrint('Stack trace: $stackTrace');
-      
-      // استعادة اللقطة الاحتياطية في حالة الفشل
+
+      String? errorMessage = e.toString();
+
       if (snapshot != null) {
         try {
           await _restoreFromSnapshot(snapshot.filePath);
           debugPrint('✅ تم استعادة البيانات من اللقطة الاحتياطية');
         } catch (restoreError) {
           debugPrint('❌ فشل في استعادة اللقطة الاحتياطية: $restoreError');
+          errorMessage = 'فشل الإصلاح التلقائي، وفشلت استعادة اللقطة الاحتياطية: $restoreError';
         }
       }
-      
+
       final duration = DateTime.now().difference(startTime).inMilliseconds;
-      
+
       return RestoreFixReport(
         success: false,
         bookingsFixed: 0,
         roomsUpdated: 0,
         paymentsRecalculated: 0,
         changes: [],
-        error: e.toString(),
+        error: errorMessage,
         executedAt: startTime,
         durationMs: duration,
       );
@@ -935,8 +942,7 @@ class RestoreFixService {
     required Map<String, dynamic> newData,
   }) async {
     await _ensureConflictLogTable();
-    final epoch = Time.nowEpoch();
-    final normalized = epoch < 1000000000000 ? epoch * 1000 : epoch;
+    final occurredAt = DateTime.now().millisecondsSinceEpoch;
     await db.customStatement(
       'INSERT INTO restore_conflict_log (fix_id, fix_type, table_name, local_uuid, old_data, new_data, occurred_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [
@@ -946,7 +952,7 @@ class RestoreFixService {
         localUuid,
         jsonEncode(oldData),
         jsonEncode(newData),
-        normalized,
+        occurredAt,
       ],
     );
   }

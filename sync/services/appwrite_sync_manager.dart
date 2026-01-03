@@ -176,7 +176,7 @@ class AppwriteSyncManager {
       _deviceCreatedAtEpoch ??= nowEpoch;
 
       if (_currentDeviceId != null) {
-        final result = await _mutex.runExclusive(() async {
+        await _mutex.runExclusive(() async {
           final existingDoc = await appwriteService.getDocument(
             collectionId: AppwriteConfig.devicesCollectionId,
             documentId: _currentDeviceId!,
@@ -189,10 +189,6 @@ class AppwriteSyncManager {
             _deviceVersion = currentRemoteVersion + 1;
           }
         });
-        
-        if (result == null) {
-          _logger.warning('Failed to acquire mutex for device registration', tag: 'SYNC');
-        }
 
         await appwriteService.updateDocument(
           collectionId: AppwriteConfig.devicesCollectionId,
@@ -339,25 +335,10 @@ class AppwriteSyncManager {
         duration: Duration.zero,
       );
     }
-    
-    if (_currentStatus == SyncStatus.syncing) {
-      _logger.warning('Sync already in progress', tag: 'SYNC');
-      _mutex.release();
-      return SyncResult(
-        status: SyncStatus.failed,
-        errorMessage: 'Sync already in progress',
-        timestamp: DateTime.now(),
-        duration: Duration.zero,
-      );
-    }
 
-    _currentStatus = SyncStatus.syncing;
-    _syncController.add(_currentStatus);
-    
-    final startTime = DateTime.now();
+    bool startedSync = false;
 
     final metrics = SyncMetrics.instance;
-    metrics.startSync();
 
     final phaseMs = <String, int>{};
     int recordsPushed = 0;
@@ -371,19 +352,33 @@ class AppwriteSyncManager {
     bool hasSyncLog = false;
     int? syncLogCreatedEpoch;
 
+    final startTime = DateTime.now();
+
     try {
+      if (_currentStatus == SyncStatus.syncing) {
+        _logger.warning('Sync already in progress', tag: 'SYNC');
+        return SyncResult(
+          status: SyncStatus.failed,
+          errorMessage: 'Sync already in progress',
+          timestamp: DateTime.now(),
+          duration: Duration.zero,
+        );
+      }
+
+      _currentStatus = SyncStatus.syncing;
+      _syncController.add(_currentStatus);
+      startedSync = true;
+
+      metrics.startSync();
+
       _logger.info('Starting sync...', tag: 'SYNC');
 
-      // التحقق من الاتصال
       final connectivityResult = await Connectivity().checkConnectivity();
-      final hasConnection = connectivityResult is List<ConnectivityResult>
-          ? connectivityResult.any((r) => r != ConnectivityResult.none)
-          : connectivityResult != ConnectivityResult.none;
+      final hasConnection = connectivityResult != ConnectivityResult.none;
       if (!hasConnection) {
         throw Exception('No internet connection');
       }
 
-      // إنشاء سجل مزامنة
       syncLogLocalUuid = IdGen.uuid();
       syncLogCreatedEpoch = Time.nowEpoch();
 
@@ -459,8 +454,6 @@ class AppwriteSyncManager {
         }, phaseMs);
       }
 
-      // تحديث سجل المزامنة
-      final endTime = DateTime.now();
       final endEpoch = Time.nowEpoch();
       syncLogVersion += 1;
 
@@ -469,7 +462,7 @@ class AppwriteSyncManager {
           collectionId: AppwriteConfig.syncLogsCollectionId,
           documentId: syncLogId,
           data: {
-            'endTime': endTime.toIso8601String(),
+            'endTime': DateTime.now().toIso8601String(),
             'status': SyncLogStatus.completed.value,
             'action': 'sync_complete',
             'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
@@ -483,12 +476,10 @@ class AppwriteSyncManager {
         );
       }
 
-      _lastSyncTime = endTime;
+      _lastSyncTime = DateTime.now();
       await _saveSettings();
 
-      _logger.info('Sync completed successfully (pushed: $recordsPushed, pulled: $recordsPulled)', 
-        tag: 'SYNC'
-      );
+      _logger.info('Sync completed successfully (pushed: $recordsPushed, pulled: $recordsPulled)', tag: 'SYNC');
 
     } catch (e, stackTrace) {
       errorMessage = e.toString();
@@ -528,18 +519,21 @@ class AppwriteSyncManager {
           );
         }
       }
-      
-      _errorHandler.handleError(e, 
-        context: 'sync()', 
-        stackTrace: stackTrace
-      );
-      
-      _logger.error('Sync failed', error: e, stackTrace: stackTrace, tag: 'SYNC');
-    }
 
-    _currentStatus = finalStatus;
-    _syncController.add(_currentStatus);
-    _mutex.release();
+      _errorHandler.handleError(
+        e,
+        context: 'sync()',
+        stackTrace: stackTrace,
+      );
+
+      _logger.error('Sync failed', error: e, stackTrace: stackTrace, tag: 'SYNC');
+    } finally {
+      if (startedSync) {
+        _currentStatus = finalStatus;
+        _syncController.add(_currentStatus);
+      }
+      _mutex.release();
+    }
 
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
@@ -1467,100 +1461,15 @@ class AppwriteSyncManager {
 
   /// رفع التغييرات المحلية إلى Appwrite فوراً
   Future<bool> pushLocalChanges() async {
-    // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
-    int retries = 0;
-    while (_currentStatus == SyncStatus.syncing && retries < 10) {
-      await Future.delayed(SyncConstants.shortPollingDelay);
-      retries++;
-    }
-    
-    if (_currentStatus == SyncStatus.syncing) {
-      _logger.warning('تخطي الرفع - المزامنة جارية لفترة طويلة', tag: 'SYNC');
-      return false;
-    }
-
-    try {
-      _logger.info('📤 رفع التغييرات المحلية إلى Appwrite...', tag: 'SYNC');
-      
-      final pushedCount = await _pushAllEntities();
-      
-      _lastSyncTime = DateTime.now();
-      await _saveSettings();
-      
-      _logger.info('✅ تم رفع $pushedCount تغيير إلى Appwrite', tag: 'SYNC');
-      return true;
-    } catch (e, stackTrace) {
-      _logger.error('❌ خطأ في رفع التغييرات إلى Appwrite', 
-        error: e, 
-        stackTrace: stackTrace, 
-        tag: 'SYNC'
-      );
-      return false;
-    }
+    final result = await sync(push: true, pull: false);
+    return result.status == SyncStatus.success;
   }
 
   /// سحب التغييرات من Appwrite
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {
-    if (_currentStatus == SyncStatus.syncing) {
-      _logger.warning('⏸️ تخطي السحب - المزامنة جارية', tag: 'SYNC');
-      return false;
-    }
-
-    try {
-      _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
-      
-      int recordsPulled = 0;
-      
-      // مزامنة الغرف
-      final rooms = await appwriteService.listRooms(useCache: false);
-      final roomsSynced = await _syncRooms(rooms);
-      recordsPulled += roomsSynced;
-
-      // مزامنة الحجوزات
-      final bookings = await appwriteService.listBookings(useCache: false);
-      final bookingsSynced = await _syncBookings(bookings);
-      recordsPulled += bookingsSynced;
-
-      // مزامنة الموظفين
-      final employees = await appwriteService.listEmployees(useCache: false);
-      final employeesSynced = await _syncEmployees(employees);
-      recordsPulled += employeesSynced;
-
-      // مزامنة المصروفات
-      final expenses = await appwriteService.listExpenses(useCache: false);
-      final expensesSynced = await _syncExpenses(expenses);
-      recordsPulled += expensesSynced;
-
-      // مزامنة المدفوعات
-      final payments = await appwriteService.listPayments(useCache: false);
-      final paymentsSynced = await _syncPayments(payments);
-      recordsPulled += paymentsSynced;
-
-      // مزامنة الديون
-      final debts = await appwriteService.listDebts(useCache: false);
-      final debtsSynced = await _syncDebts(debts);
-      recordsPulled += debtsSynced;
-      
-      _lastSyncTime = DateTime.now();
-      await _saveSettings();
-      
-      if (recordsPulled > 0) {
-        _logger.info('✅ تم سحب $recordsPulled سجل من Appwrite', tag: 'SYNC');
-        return true;
-      } else {
-        _logger.info('ℹ️ لا توجد تغييرات جديدة من Appwrite', tag: 'SYNC');
-        return false;
-      }
-      
-    } catch (e, stackTrace) {
-      _logger.error('❌ خطأ في سحب التغييرات من Appwrite', 
-        error: e, 
-        stackTrace: stackTrace, 
-        tag: 'SYNC'
-      );
-      return false;
-    }
+    final result = await sync(push: false, pull: true);
+    return result.status == SyncStatus.success && result.recordsPulled > 0;
   }
 
   /// رفع جميع البيانات المحلية

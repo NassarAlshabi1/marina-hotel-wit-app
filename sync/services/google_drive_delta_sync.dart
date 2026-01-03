@@ -412,8 +412,10 @@ class GoogleDriveDeltaSync {
 
     if (resolvedBookingLocalId == null && serverBookingId != null) {
       final booking = await (db.select(db.bookings)..where((b) => b.serverBookingId.equals(serverBookingId))).getSingleOrNull();
-      resolvedBookingLocalId = booking?.id;
-      bookingUuidCache = bookingUuidCache ?? booking?.localUuid;
+      if (booking != null) {
+        resolvedBookingLocalId = booking.id;
+        bookingUuidCache = bookingUuidCache ?? booking.localUuid;
+      }
     }
 
     dynamic pendingRaw = data['is_pending_balance'] ?? data['isPendingBalance'];
