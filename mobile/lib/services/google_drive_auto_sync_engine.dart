@@ -308,16 +308,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
           _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails', 
                level: LogLevel.error);
           
-          final prefs = SharedPreferences.getInstance();
-          prefs.then((p) async {
-            final retryEnabled = p.getBool(_prefsRetryEnabledKey) ?? true;
-            if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
-              await _scheduleRetry();
-            } else if (_failedAttempts >= _retryConfig.maxRetries) {
-              _log('🚫 Max retries reached - stopping automatic retries', 
-                   level: LogLevel.warning);
-            }
-          });
+          final prefs = await SharedPreferences.getInstance();
+          final retryEnabled = prefs.getBool(_prefsRetryEnabledKey) ?? true;
+          if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
+            await _scheduleRetry();
+          } else if (_failedAttempts >= _retryConfig.maxRetries) {
+            _log('🚫 Max retries reached - stopping automatic retries',
+                 level: LogLevel.warning);
+          }
         }
         
         _emitState();
