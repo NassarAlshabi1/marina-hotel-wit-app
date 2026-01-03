@@ -289,31 +289,35 @@ class AutoSyncEngine with WidgetsBindingObserver {
         if (result.success) {
           _lastSuccessfulSync = result.timestamp;
           _failedAttempts = 0;
-          _nextRetryAt = null;
-          _lastError = null;
+    _syncResultSubscription = _coordinator!.syncResults.listen(
+          (result) async {
+            if (result.success) {
+              _lastSuccessfulSync = result.timestamp;
+              _failedAttempts = 0;
+              _nextRetryAt = null;
+              _lastError = null;
           
-          if (result.pushedChanges != null && result.pushedChanges! > 0) {
-            _pendingChangesCount = max(0, _pendingChangesCount - result.pushedChanges!);
-          }
+              if (result.pushedChanges != null && result.pushedChanges! > 0) {
+                _pendingChangesCount = max(0, _pendingChangesCount - result.pushedChanges!);
+              }
           
-          _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
-        } else {
-          _failedAttempts++;
-          _lastError = result.error ?? result.message;
+              _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
+            } else {
+              _failedAttempts++;
+              _lastError = result.error ?? result.message;
           
-          final errorDetails = result.error != null 
-              ? '${result.message} - ${result.error}' 
-              : result.message;
+              final errorDetails = result.error != null
+                  ? '${result.message} - ${result.error}'
+                  : result.message;
           
-          _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails', 
-               level: LogLevel.error);
+              _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails',
+                   level: LogLevel.error);
           
-          final prefs = await SharedPreferences.getInstance();
-          final retryEnabled = prefs.getBool(_prefsRetryEnabledKey) ?? true;
-          if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
-            await _scheduleRetry();
-          } else if (_failedAttempts >= _retryConfig.maxRetries) {
-            _log('🚫 Max retries reached - stopping automatic retries',
+              final prefs = await SharedPreferences.getInstance();
+              final retryEnabled = prefs.getBool(_prefsRetryEnabledKey) ?? true;
+              if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
+                unawaited(_scheduleRetry());
+              } else if (_failedAttempts >= _retryConfig.maxRetries) {
                  level: LogLevel.warning);
           }
         }
