@@ -17,30 +17,33 @@ class DashboardSyncButton extends ConsumerStatefulWidget {
 }
 
 class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with SingleTickerProviderStateMixin {
-  bool _isImmediateSyncing = false;
-  Timer? _lastSyncUpdateTimer;
-  late AnimationController _syncAnimationController;
+  bool _isUploading = false;
+  Timer? _pendingChangesTimer;
+  late AnimationController _uploadAnimationController;
   int _pendingChangesCount = 0;
+  DateTime? _lastUploadTime;
 
   @override
   void initState() {
     super.initState();
-    _syncAnimationController = AnimationController(
+    _uploadAnimationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1200),
     );
-    _lastSyncUpdateTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) {
-        setState(() {});
+    
+    _loadPendingChangesCount();
+    
+    _pendingChangesTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted && !_isUploading) {
+        _loadPendingChangesCount();
       }
     });
-    _loadPendingChangesCount();
   }
 
   @override
   void dispose() {
-    _lastSyncUpdateTimer?.cancel();
-    _syncAnimationController.dispose();
+    _pendingChangesTimer?.cancel();
+    _uploadAnimationController.dispose();
     super.dispose();
   }
 
@@ -54,19 +57,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
           _pendingChangesCount = count;
         });
       }
-    } catch (e, stackTrace) {
-      debugPrint('Failed to load pending changes count: $e\n$stackTrace');
-    }
-  }
-
-  Future<bool> _checkLocalChanges() async {
-    try {
-      final manager = ref.read(smartSyncManagerProvider);
-      final hasChanges = await manager.hasLocalChanges();
-      return hasChanges;
     } catch (e) {
-      debugPrint('❌ خطأ في فحص التغييرات المحلية: $e');
-      return false;
+      debugPrint('❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
     }
   }
 
@@ -75,155 +67,80 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
     return prefs.getBool('appwrite_sync_enabled') ?? true;
   }
 
-  Future<void> _triggerImmediateSync(BuildContext context) async {
-    if (_isImmediateSyncing) {
+  Future<void> _uploadChanges(BuildContext context) async {
+    if (_isUploading) return;
+
+    if (_pendingChangesCount == 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Text('✅ لا توجد تغييرات جديدة للرفع'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
       return;
     }
 
-    _syncAnimationController.repeat();
+    _uploadAnimationController.repeat();
+    setState(() => _isUploading = true);
 
     try {
-      await _loadPendingChangesCount();
-
       final smartSyncManager = ref.read(smartSyncManagerProvider);
+      final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+
       final smartEnabled = await smartSyncManager.isEnabled();
       final appwriteEnabled = await _isAppwriteSyncEnabled();
 
       if (!smartEnabled && !appwriteEnabled) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('ℹ️ المزامنة معطلة')),
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.white),
+                  SizedBox(width: 8),
+                  Expanded(child: Text('ℹ️ المزامنة معطلة - يرجى تفعيلها من الإعدادات')),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
           );
         }
         return;
       }
 
-      setState(() => _isImmediateSyncing = true);
-
-      final hasLocalChanges = _pendingChangesCount > 0 || await _checkLocalChanges();
-
-      if (hasLocalChanges) {
-        await _pushThenPull(context);
-      } else {
-        await _pullOnly(context);
-      }
-    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ فشلت المزامنة: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text('📤 جاري رفع $_pendingChangesCount تغيير...'),
+              ],
+            ),
+            backgroundColor: Colors.blue,
+            duration: Duration(seconds: 2),
+          ),
         );
       }
-    } finally {
-      _syncAnimationController.stop();
-      _syncAnimationController.reset();
-      if (mounted) {
-        setState(() => _isImmediateSyncing = false);
-      }
-      await _loadPendingChangesCount();
-    }
-  }
 
-  Future<String?> _showLocalChangesDialog(BuildContext context) async {
-    return showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.tune, color: Colors.blue, size: 28),
-            SizedBox(width: 8),
-            Expanded(child: Text('خيارات المزامنة')),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'اختر الوضع المناسب للمزامنة.',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-            ),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '💡 الخيارات:',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade900),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    '• رفع ثم سحب: يرفع التغييرات المحلية ثم يسحب من السحابة (موصى به)',
-                    style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '• سحب فقط: يسحب من السحابة بدون رفع',
-                    style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '• مزامنة كاملة: رفع + سحب (قد تأخذ وقتاً أطول)',
-                    style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: Text('إلغاء'),
-          ),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.pop(context, 'pull_only'),
-            icon: Icon(Icons.download, size: 18),
-            label: Text('سحب فقط'),
-            style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
-          ),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.pop(context, 'full_sync'),
-            icon: Icon(Icons.sync, size: 18),
-            label: Text('مزامنة كاملة'),
-            style: OutlinedButton.styleFrom(foregroundColor: Colors.blue),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context, 'push_first'),
-            icon: Icon(Icons.upload, size: 18),
-            label: Text('رفع ثم سحب'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          ),
-        ],
-        actionsAlignment: MainAxisAlignment.spaceBetween,
-      ),
-    );
-  }
-
-  Future<void> _pushThenPull(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-
-    final smartSyncManager = ref.read(smartSyncManagerProvider);
-    final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-
-    final smartEnabled = await smartSyncManager.isEnabled();
-    final appwriteEnabled = await _isAppwriteSyncEnabled();
-
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('📤 جاري رفع التغييرات المحلية...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    try {
       final futures = <Future<Object?>>[];
 
       if (smartEnabled) {
@@ -233,492 +150,277 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         futures.add(appwriteSyncManager.pushLocalChanges());
       }
 
-      final results = await Future.wait(futures);
-
-      final hasAnyFailure = results.any((r) => r is bool && r == false);
-
-      if (!mounted) return;
-
-      if (hasAnyFailure) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('⚠️ تم رفع جزء من التغييرات فقط'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      } else {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('✅ تم رفع التغييرات بنجاح'),
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
-
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      if (!mounted) return;
-      await _pullOnly(context);
-    } catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('❌ خطأ في رفع التغييرات: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _pullOnly(BuildContext context, {bool showWarning = false}) async {
-    final messenger = ScaffoldMessenger.of(context);
-
-    final smartSyncManager = ref.read(smartSyncManagerProvider);
-    final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-
-    final smartEnabled = await smartSyncManager.isEnabled();
-    final appwriteEnabled = await _isAppwriteSyncEnabled();
-
-    if (showWarning) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('⚠️ تحذير: سحب فقط (بدون رفع التغييرات المحلية)'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      await Future.delayed(const Duration(milliseconds: 300));
-    }
-
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('📥 جاري سحب التغييرات من السحابة...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    try {
-      final futures = <Future<Object?>>[];
-
-      if (smartEnabled) {
-        futures.add(smartSyncManager.pullRemoteChanges());
-      }
-      if (appwriteEnabled) {
-        futures.add(appwriteSyncManager.sync(push: false, pull: true));
-      }
-
       await Future.wait(futures);
 
-      ref.invalidate(smartSyncStatusProvider);
+      setState(() {
+        _lastUploadTime = DateTime.now();
+      });
+
+      await _loadPendingChangesCount();
 
       if (mounted) {
-        messenger.showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ تم السحب بنجاح'),
+            content: Row(
+              children: [
+                Icon(Icons.cloud_done, color: Colors.white),
+                SizedBox(width: 8),
+                Text('✅ تم رفع التغييرات بنجاح'),
+              ],
+            ),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
       }
+
+      ref.invalidate(smartSyncStatusProvider);
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ خطأ في السحب: $e'),
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(child: Text('❌ فشل رفع التغييرات: $e')),
+              ],
+            ),
             backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'إعادة',
+              textColor: Colors.white,
+              onPressed: () => _uploadChanges(context),
+            ),
           ),
         );
+      }
+    } finally {
+      _uploadAnimationController.stop();
+      _uploadAnimationController.reset();
+      if (mounted) {
+        setState(() => _isUploading = false);
       }
     }
   }
 
-  Future<void> _performSync(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-
-    final smartSyncManager = ref.read(smartSyncManagerProvider);
-    final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-
-    final smartEnabled = await smartSyncManager.isEnabled();
-    final appwriteEnabled = await _isAppwriteSyncEnabled();
-
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('🔄 جاري المزامنة الكاملة...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    try {
-      final futures = <Future<Object?>>[];
-
-      if (smartEnabled) {
-        futures.add(smartSyncManager.forceSyncNow());
-      }
-      if (appwriteEnabled) {
-        futures.add(appwriteSyncManager.sync(push: true, pull: true));
-      }
-
-      await Future.wait(futures);
-
-      ref.invalidate(smartSyncStatusProvider);
-
-      if (mounted) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('✅ تمت المزامنة بنجاح'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('❌ خطأ في المزامنة: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      rethrow;
-    }
-  }
-
-  String _formatLastSyncTime(DateTime? lastSync) {
-    if (lastSync == null) return 'لم تتم مزامنة بعد';
+  String _formatLastUploadTime(DateTime? lastUpload) {
+    if (lastUpload == null) return '';
 
     final now = DateTime.now();
-    final difference = now.difference(lastSync);
+    final difference = now.difference(lastUpload);
 
     if (difference.inSeconds < 60) {
-      return 'منذ ${difference.inSeconds} ثانية';
+      return 'رُفع منذ ${difference.inSeconds} ثانية';
     } else if (difference.inMinutes < 60) {
-      return 'منذ ${difference.inMinutes} دقيقة';
+      return 'رُفع منذ ${difference.inMinutes} دقيقة';
     } else if (difference.inHours < 24) {
-      return 'منذ ${difference.inHours} ساعة';
+      return 'رُفع منذ ${difference.inHours} ساعة';
     } else {
-      final days = difference.inDays;
-      return 'منذ $days ${days == 1 ? "يوم" : "أيام"}';
+      return 'رُفع منذ ${difference.inDays} يوم';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final statusAsync = ref.watch(smartSyncStatusProvider);
+    final hasChanges = _pendingChangesCount > 0;
+    final isEnabled = hasChanges || _isUploading;
 
-    return statusAsync.when(
-      data: (status) {
-        final lastSyncStr = status['last_sync_check'] as String?;
-        final lastSync = lastSyncStr != null ? DateTime.tryParse(lastSyncStr) : null;
-        final isEnabled = status['enabled'] as bool? ?? false;
-        final isSyncing = status['is_syncing'] as bool? ?? false;
+    Color buttonColor;
+    IconData buttonIcon;
+    String buttonText;
+    String tooltipMessage;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Tooltip(
-              message: _pendingChangesCount > 0
-                  ? 'لديك $_pendingChangesCount تغيير معلق - سيتم رفعها للسحابة\nضغطة طويلة لخيارات متقدمة'
-                  : 'سحب آخر التحديثات من السحابة\nضغطة طويلة لخيارات متقدمة',
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: _isImmediateSyncing
-                            ? [Colors.blue.shade400, Colors.blue.shade600]
-                            : isSyncing
-                                ? [Colors.orange.shade400, Colors.orange.shade600]
-                                : _pendingChangesCount > 0
-                                    ? [Colors.purple.shade400, Colors.purple.shade600]
-                                    : isEnabled
-                                        ? [Colors.green.shade400, Colors.green.shade600]
-                                        : [Colors.grey.shade400, Colors.grey.shade600],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (_isImmediateSyncing || isSyncing
-                                  ? Colors.blue
-                                  : _pendingChangesCount > 0
-                                      ? Colors.purple
-                                      : isEnabled
-                                          ? Colors.green
-                                          : Colors.grey)
-                              .withOpacity(0.25),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: _isImmediateSyncing ? null : () => _triggerImmediateSync(context),
-                        onLongPress: _isImmediateSyncing
-                            ? null
-                            : () async {
-                                final action = await _showLocalChangesDialog(context);
-                                if (!mounted || action == null) {
-                                  return;
-                                }
+    if (_isUploading) {
+      buttonColor = Colors.blue;
+      buttonIcon = Icons.cloud_upload;
+      buttonText = 'جاري الرفع...';
+      tooltipMessage = 'جاري رفع التغييرات إلى السحابة';
+    } else if (hasChanges) {
+      buttonColor = Colors.purple;
+      buttonIcon = Icons.cloud_upload;
+      buttonText = 'رفع التغييرات';
+      tooltipMessage = 'اضغط لرفع $_pendingChangesCount تغيير إلى السحابة';
+    } else {
+      buttonColor = Colors.green;
+      buttonIcon = Icons.cloud_done;
+      buttonText = 'محدّث';
+      tooltipMessage = 'جميع التغييرات مرفوعة - لا توجد تغييرات معلقة';
+    }
 
-                                _syncAnimationController.repeat();
-
-                                try {
-                                  await _loadPendingChangesCount();
-
-                                  final smartSyncManager = ref.read(smartSyncManagerProvider);
-                                  final smartEnabled = await smartSyncManager.isEnabled();
-                                  final appwriteEnabled = await _isAppwriteSyncEnabled();
-
-                                  if (!smartEnabled && !appwriteEnabled) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('ℹ️ المزامنة معطلة')),
-                                      );
-                                    }
-                                    return;
-                                  }
-
-                                  setState(() => _isImmediateSyncing = true);
-
-                                  if (action == 'push_first') {
-                                    await _pushThenPull(context);
-                                  } else if (action == 'pull_only') {
-                                    await _pullOnly(context, showWarning: true);
-                                  } else if (action == 'full_sync') {
-                                    await _performSync(context);
-                                  }
-                                } catch (e) {
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('❌ فشلت المزامنة: $e'), backgroundColor: Colors.red),
-                                    );
-                                  }
-                                } finally {
-                                  _syncAnimationController.stop();
-                                  _syncAnimationController.reset();
-                                  if (mounted) {
-                                    setState(() => _isImmediateSyncing = false);
-                                  }
-                                  await _loadPendingChangesCount();
-                                }
-                              },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_isImmediateSyncing || isSyncing)
-                                RotationTransition(
-                                  turns: _syncAnimationController,
-                                  child: Icon(
-                                    Icons.sync,
-                                    size: 16,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              else
-                                Icon(
-                                  _pendingChangesCount > 0
-                                      ? Icons.cloud_upload
-                                      : (isEnabled ? Icons.cloud_download : Icons.cloud_off),
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _isImmediateSyncing
-                                    ? 'جاري المزامنة...'
-                                    : isSyncing
-                                        ? 'المزامنة نشطة'
-                                        : _pendingChangesCount > 0
-                                            ? 'رفع التغييرات'
-                                            : 'تحديث البيانات',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Tooltip(
+          message: tooltipMessage,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      buttonColor.withOpacity(0.85),
+                      buttonColor,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  if (_pendingChangesCount > 0)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.red.withOpacity(0.5),
-                              blurRadius: 4,
-                              spreadRadius: 1,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: buttonColor.withOpacity(hasChanges ? 0.4 : 0.2),
+                      blurRadius: hasChanges ? 8 : 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: _isUploading || !isEnabled ? null : () => _uploadChanges(context),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isUploading)
+                            RotationTransition(
+                              turns: _uploadAnimationController,
+                              child: Icon(
+                                buttonIcon,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            )
+                          else
+                            Icon(
+                              buttonIcon,
+                              size: 18,
+                              color: Colors.white,
                             ),
-                          ],
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
-                        ),
-                        child: Center(
-                          child: Text(
-                            _pendingChangesCount > 99 ? '99+' : '$_pendingChangesCount',
+                          const SizedBox(width: 8),
+                          Text(
+                            buttonText,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 9,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (hasChanges && !_isUploading)
+                Positioned(
+                  top: -6,
+                  right: -6,
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.red.withOpacity(0.5),
+                          blurRadius: 6,
+                          spreadRadius: 1,
                         ),
+                      ],
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 22,
+                      minHeight: 22,
+                    ),
+                    child: Center(
+                      child: Text(
+                        _pendingChangesCount > 99 ? '99+' : '$_pendingChangesCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: _isUploading
+                ? Colors.blue.shade50
+                : hasChanges
+                    ? Colors.purple.shade50
+                    : Colors.green.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _isUploading
+                  ? Colors.blue.shade200
+                  : hasChanges
+                      ? Colors.purple.shade200
+                      : Colors.green.shade200,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                hasChanges
+                    ? Icons.pending_actions
+                    : (_isUploading ? Icons.sync : Icons.check_circle),
+                size: 14,
+                color: _isUploading
+                    ? Colors.blue
+                    : hasChanges
+                        ? Colors.purple
+                        : Colors.green,
+              ),
+              const SizedBox(width: 5),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    hasChanges
+                        ? '$_pendingChangesCount تغيير معلق'
+                        : (_isUploading ? 'جاري الرفع...' : 'لا توجد تغييرات'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: _isUploading
+                          ? Colors.blue.shade900
+                          : hasChanges
+                              ? Colors.purple.shade900
+                              : Colors.green.shade900,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (_lastUploadTime != null && !hasChanges && !_isUploading)
+                    Text(
+                      _formatLastUploadTime(_lastUploadTime),
+                      style: TextStyle(
+                        fontSize: 8,
+                        color: Colors.green.shade600,
                       ),
                     ),
                 ],
               ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: isSyncing
-                    ? Colors.blue.shade50
-                    : _pendingChangesCount > 0
-                        ? Colors.purple.shade50
-                        : isEnabled
-                            ? Colors.green.shade50
-                            : Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSyncing
-                      ? Colors.blue.shade200
-                      : _pendingChangesCount > 0
-                          ? Colors.purple.shade200
-                          : isEnabled
-                              ? Colors.green.shade200
-                              : Colors.grey.shade300,
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isEnabled
-                        ? (isSyncing ? Icons.sync : Icons.check_circle)
-                        : Icons.cloud_off,
-                    size: 14,
-                    color: isSyncing
-                        ? Colors.blue
-                        : _pendingChangesCount > 0
-                            ? Colors.purple
-                            : isEnabled
-                                ? Colors.green
-                                : Colors.grey,
-                  ),
-                  const SizedBox(width: 4),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        isSyncing ? 'جاري المزامنة...' : _formatLastSyncTime(lastSync),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isSyncing
-                              ? Colors.blue.shade900
-                              : _pendingChangesCount > 0
-                                  ? Colors.purple.shade900
-                                  : isEnabled
-                                      ? Colors.green.shade900
-                                      : Colors.grey.shade700,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (isEnabled && !isSyncing)
-                        Text(
-                          _pendingChangesCount > 0
-                              ? '$_pendingChangesCount تغيير معلق'
-                              : 'Smart Sync + Appwrite',
-                          style: TextStyle(
-                            fontSize: 7,
-                            color: _pendingChangesCount > 0
-                                ? Colors.purple.shade700
-                                : Colors.green.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
-      loading: () => Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey.shade600),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'تحميل...',
-                  style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
-                ),
-              ],
-            ),
+            ],
           ),
-        ],
-      ),
-      error: (err, __) => Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.red.shade100,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.red.shade300),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.error_outline, size: 20, color: Colors.red.shade700),
-                const SizedBox(width: 8),
-                Text(
-                  'خطأ في التحميل',
-                  style: TextStyle(color: Colors.red.shade900, fontSize: 15),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
