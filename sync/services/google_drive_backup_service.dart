@@ -910,7 +910,7 @@ class GoogleDriveBackupService {
         final data = SyncStateData.fromJson(syncStateJson, serializer: lenientValueSerializer);
         await db.into(db.syncState).insertOnConflictUpdate(data);
       }
-        });
+      });
 
       // استعادة وتطبيق الإعدادات العامة إذا وجدت
       if (backupData.containsKey('system_settings')) {
