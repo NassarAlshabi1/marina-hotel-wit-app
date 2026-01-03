@@ -4,12 +4,10 @@ import '../services/appwrite_sync_manager.dart';
 import '../services/appwrite_cache_manager.dart';
 import '../services/unified_sync_orchestrator.dart';
 import '../services/smart_sync_manager.dart';
-import '../services/local_db.dart';
 import '../services/appwrite_logger.dart';
 import '../services/appwrite_error_handler.dart';
 import '../services/providers.dart';
 import '../services/daos/outbox_dao.dart';
-import '../services/local_db.dart';
 
 // ============ Service Providers ============
 
