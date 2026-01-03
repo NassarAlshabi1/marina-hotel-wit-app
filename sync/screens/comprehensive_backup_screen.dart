@@ -1256,19 +1256,26 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
   }
 
   void _showTimeSelection(AutoBackupSettings currentSettings) {
-    final timeParts = currentSettings.time.split(':');
-    final currentTime = TimeOfDay(
-      hour: int.parse(timeParts[0]),
-      minute: int.parse(timeParts[1]),
-    );
+    TimeOfDay _safeParseTime(String value) {
+      final parts = value.split(':');
+      if (parts.length != 2) return TimeOfDay.now();
+      final hour = int.tryParse(parts[0]);
+      final minute = int.tryParse(parts[1]);
+      if (hour == null || minute == null) return TimeOfDay.now();
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return TimeOfDay.now();
+      return TimeOfDay(hour: hour, minute: minute);
+    }
+
+    final currentTime = _safeParseTime(currentSettings.time);
 
     showTimePicker(
       context: context,
       initialTime: currentTime,
       builder: (context, child) {
+        if (child == null) return const SizedBox.shrink();
         return Directionality(
           textDirection: ui.TextDirection.rtl,
-          child: child!,
+          child: child,
         );
       },
     ).then((selectedTime) {
@@ -1416,7 +1423,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: state.localBackups.length < 2 ? null : () => _showMergeDialog(state),
+                    onPressed: state.localBackups.where((b) => b.format == BackupFormat.json).length < 2
+                        ? null
+                        : () => _showMergeDialog(state),
                     icon: const Icon(Icons.merge),
                     label: const Text('دمج نسخ'),
                   ),

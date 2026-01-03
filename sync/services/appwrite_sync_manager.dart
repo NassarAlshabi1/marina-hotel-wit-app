@@ -1137,20 +1137,22 @@ class AppwriteSyncManager {
 
   Future<int> _pushAllEntities() async {
     const batchSize = 200;
-    final entries = await outboxDao.takeBatch(batchSize);
-    if (entries.isEmpty) {
-      return 0;
-    }
-
     int processed = 0;
-    for (final entry in entries) {
-      final success = await _processOutboxEntry(entry);
-      if (success) {
-        await outboxDao.removeById(entry.id);
-        processed++;
+
+    while (true) {
+      final entries = await outboxDao.takeBatch(batchSize);
+      if (entries.isEmpty) {
+        return processed;
+      }
+
+      for (final entry in entries) {
+        final success = await _processOutboxEntry(entry);
+        if (success) {
+          await outboxDao.removeById(entry.id);
+          processed++;
+        }
       }
     }
-    return processed;
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
@@ -1178,7 +1180,10 @@ class AppwriteSyncManager {
   }
 
   Map<String, dynamic> _addIdempotencyKey(Map<String, dynamic> payload, OutboxData entry) {
-    return payload;
+    return {
+      ...payload,
+      'idempotencyKey': '${entry.entity}:${entry.op}:${entry.localUuid}:${entry.id}',
+    };
   }
 
   Future<bool> _processRoomEntry(OutboxData entry) async {

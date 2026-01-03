@@ -192,7 +192,8 @@ class SyncService {
         final op = it['op'] as String;
         final serverId = it['server_id'];
         final serverTs = (it['server_ts'] as num).toInt();
-        final item = Map<String, dynamic>.from(it['data']);
+        final rawData = it['data'];
+        final item = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
         
         try {
           await _applyIncoming(entity, op, serverId, serverTs, item);

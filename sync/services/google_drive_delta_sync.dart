@@ -335,7 +335,7 @@ class GoogleDriveDeltaSync {
     final companion = RoomsCompanion(
       roomNumber: d.Value(roomNumber),
       type: d.Value(_asString(data['type']) ?? ''),
-      price: d.Value(_asDouble(data['price'])),
+      price: data.containsKey('price') ? d.Value(_asDouble(data['price'])) : const d.Value.absent(),
       status: d.Value(_asString(data['status']) ?? 'available'),
       imageUrl: _nullableValue<String>(_asString(data['image_url']) ?? _asString(data['imageUrl'])),
       localUuid: d.Value(localUuid),
