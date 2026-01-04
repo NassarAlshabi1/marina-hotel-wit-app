@@ -151,7 +151,8 @@ class GoogleDriveDeltaSync {
       final lastPullTs = await _getLastPullTimestamp();
 
       for (final file in deltaFiles) {
-        if (file.createdTime.millisecondsSinceEpoch <= lastPullTs) continue;
+        final createdSeconds = file.createdTime.millisecondsSinceEpoch ~/ 1000;
+        if (createdSeconds <= lastPullTs) continue;
         
         final sourceDeviceId = file.appProperties['device_id'];
         if (sourceDeviceId == _deviceId) continue;
@@ -163,6 +164,7 @@ class GoogleDriveDeltaSync {
         }
       }
 
+      // update last pull timestamp on every run to avoid reprocessing
       await _updateLastPullTimestamp();
 
       return DeltaSyncResult(
