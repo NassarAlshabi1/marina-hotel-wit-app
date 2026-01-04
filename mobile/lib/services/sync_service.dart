@@ -195,12 +195,12 @@ class SyncService {
         final rawData = it['data'];
         final item = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
         
+        if (serverTs > maxTs) maxTs = serverTs;
+        
         try {
           await _applyIncoming(entity, op, serverId, serverTs, item);
-          if (serverTs > maxTs) maxTs = serverTs;
         } catch (e) {
-          debugPrint('❌ Failed to apply incoming change for $entity: $e');
-          rethrow;
+          debugPrint('❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.');
         }
       }
       

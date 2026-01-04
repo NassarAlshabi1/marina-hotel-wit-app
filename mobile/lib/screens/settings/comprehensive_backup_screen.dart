@@ -1288,10 +1288,10 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     });
   }
 
-  void _refreshAll() {
-    ref.read(backupStatusProvider.notifier).refreshBackupsList();
-    ref.read(backupStatusProvider.notifier).refreshLocalBackups();
-    ref.read(backupStatusProvider.notifier).updateDatabaseSize();
+  Future<void> _refreshAll() async {
+    await ref.read(backupStatusProvider.notifier).refreshBackupsList();
+    await ref.read(backupStatusProvider.notifier).refreshLocalBackups();
+    await ref.read(backupStatusProvider.notifier).updateDatabaseSize();
   }
 
   Widget _buildFileManagementTab(BackupState state) {

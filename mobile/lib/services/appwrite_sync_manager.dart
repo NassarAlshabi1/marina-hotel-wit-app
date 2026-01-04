@@ -515,6 +515,7 @@ class AppwriteSyncManager {
               'timestamp': failEpoch,
               'localUuid': syncLogLocalUuid,
               'origin': 'mobile',
+              'version': syncLogVersion,
             },
           );
         } catch (logError, logStackTrace) {
