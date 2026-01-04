@@ -459,11 +459,11 @@ class _EntityConfig<T> {
 
   final String entity;
   final Future<List<T>> Function() fetchAll;
-  final String Function(dynamic row) localUuid;
-  final int? Function(dynamic row) createdAt;
-  final int? Function(dynamic row) lastModified;
-  final int? Function(dynamic row) deletedAt;
-  final Map<String, dynamic> Function(dynamic row) toJson;
+  final String Function(T row) localUuid;
+  final int? Function(T row) createdAt;
+  final int? Function(T row) lastModified;
+  final int? Function(T row) deletedAt;
+  final Map<String, dynamic> Function(T row) toJson;
 }
 
 int _normalizeTimestamp(int value) {
