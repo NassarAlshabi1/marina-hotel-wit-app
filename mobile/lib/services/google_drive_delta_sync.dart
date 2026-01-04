@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
@@ -149,10 +150,10 @@ class GoogleDriveDeltaSync {
       
       int appliedChanges = 0;
       final lastPullTs = await _getLastPullTimestamp();
+      var maxProcessedMs = lastPullTs * 1000;
 
       for (final file in deltaFiles) {
-        final createdSeconds = file.createdTime.millisecondsSinceEpoch ~/ 1000;
-        if (createdSeconds <= lastPullTs) continue;
+        if (file.createdTime.millisecondsSinceEpoch <= maxProcessedMs) continue;
         
         final sourceDeviceId = file.appProperties['device_id'];
         if (sourceDeviceId == _deviceId) continue;
@@ -161,11 +162,12 @@ class GoogleDriveDeltaSync {
         if (deltaData != null) {
           final changes = await _applyDeltaChanges(deltaData);
           appliedChanges += changes;
+          maxProcessedMs = math.max(maxProcessedMs, file.createdTime.millisecondsSinceEpoch);
         }
       }
 
-      // update last pull timestamp on every run to avoid reprocessing
-      await _updateLastPullTimestamp();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_prefsLastPullTsKey, maxProcessedMs ~/ 1000);
 
       return DeltaSyncResult(
         success: true,
