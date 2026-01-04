@@ -1169,20 +1169,20 @@ class AppwriteSyncManager {
         return processed;
       }
 
-      var removedAnyInBatch = false;
+      int batchSuccessCount = 0;
 
       for (final entry in entries) {
         final success = await _processOutboxEntry(entry);
         if (success) {
           await outboxDao.removeById(entry.id);
           processed++;
-          removedAnyInBatch = true;
+          batchSuccessCount++;
         }
       }
 
-      // Avoid infinite loop if the batch is "stuck" (all entries failed).
-      if (!removedAnyInBatch) {
-        return processed;
+      if (entries.length == batchSize && batchSuccessCount == 0) {
+        _logger.warning('Push loop stuck on failing entries. Breaking.');
+        break;
       }
     }
   }
