@@ -963,29 +963,41 @@ class RestoreFixService {
       final snapshotData = jsonDecode(jsonString) as Map<String, dynamic>;
       
       await db.transaction(() async {
-        // مسح الجداول المتأثرة
-        await db.delete(db.bookings).go();
-        await db.delete(db.rooms).go();
+        // مسح الجداول المتأثرة (احذف children أولًا لتفادي كسر قيود FK)
         await db.delete(db.payments).go();
         await db.delete(db.debts).go();
-        
-        // استعادة البيانات
-        if (snapshotData.containsKey('bookings')) {
-          await bookingsDao.importFromJson(List<Map<String, dynamic>>.from(snapshotData['bookings']), clearExisting: false);
-        }
+        await db.delete(db.bookingNights).go();
+        await db.delete(db.hotelDayLedger).go();
+        await db.delete(db.bookings).go();
+        await db.delete(db.rooms).go();
+
+        // استعادة البيانات (أدخل parents أولًا ثم children)
         if (snapshotData.containsKey('rooms')) {
-          await roomsDao.importFromJson(List<Map<String, dynamic>>.from(snapshotData['rooms']), clearExisting: false);
+          await roomsDao.importFromJson(
+            List<Map<String, dynamic>>.from(snapshotData['rooms']),
+            clearExisting: false,
+          );
+        }
+        if (snapshotData.containsKey('bookings')) {
+          await bookingsDao.importFromJson(
+            List<Map<String, dynamic>>.from(snapshotData['bookings']),
+            clearExisting: false,
+          );
         }
         if (snapshotData.containsKey('payments')) {
-          await paymentsDao.importFromJson(List<Map<String, dynamic>>.from(snapshotData['payments']), clearExisting: false);
+          await paymentsDao.importFromJson(
+            List<Map<String, dynamic>>.from(snapshotData['payments']),
+            clearExisting: false,
+          );
         }
         if (snapshotData.containsKey('debts')) {
-          await debtsDao.importFromJson(List<Map<String, dynamic>>.from(snapshotData['debts']), clearExisting: false);
+          await debtsDao.importFromJson(
+            List<Map<String, dynamic>>.from(snapshotData['debts']),
+            clearExisting: false,
+          );
         }
 
         // إعادة بناء الجداول المشتقة لضمان الاتساق
-        await db.delete(db.bookingNights).go();
-        await db.delete(db.hotelDayLedger).go();
         await _rebuildBookingStructures(DateTime.now());
       });
       
