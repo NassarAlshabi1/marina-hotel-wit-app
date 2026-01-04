@@ -735,8 +735,28 @@ class AppwriteSyncManager {
 
   Future<int> _syncBookings(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
+
     var processed = 0;
-    
+
+    final roomNumbers = <String>{};
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        final rn = _asString(data['roomNumber']);
+        if (rn != null && rn.isNotEmpty) {
+          roomNumbers.add(rn);
+        }
+      } catch (_) {}
+    }
+
+    if (roomNumbers.isEmpty) {
+      return 0;
+    }
+
+    final existingRoomsQuery = database.select(database.rooms)
+      ..where((r) => r.roomNumber.isIn(roomNumbers.toList()));
+    final existingRooms = (await existingRoomsQuery.get()).map((r) => r.roomNumber).toSet();
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -745,16 +765,12 @@ class AppwriteSyncManager {
         if (localUuid.isEmpty || roomNumber.isEmpty) {
           continue;
         }
-        
-        final roomExists = await (database.select(database.rooms)
-          ..where((r) => r.roomNumber.equals(roomNumber))
-          ..limit(1)).getSingleOrNull();
-        
-        if (roomExists == null) {
+
+        if (!existingRooms.contains(roomNumber)) {
           _logger.warning('Skipping booking $localUuid: Room $roomNumber does not exist', tag: 'SYNC');
           continue;
         }
-          
+
           final checkinDateStr = _asString(data['checkinDate']) ?? '';
           final checkoutDateStr = _asString(data['checkoutDate']);
           final actualCheckoutStr = _asString(data['actualCheckout']);
