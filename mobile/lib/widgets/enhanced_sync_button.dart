@@ -5,6 +5,8 @@ import '../services/sync_orchestrator.dart';
 import '../services/sync_error_recovery.dart';
 import '../services/connectivity_service.dart';
 import '../providers/appwrite_providers.dart';
+import '../providers/repository_providers.dart';
+import '../providers/smart_sync_provider.dart';
 
 class EnhancedSyncButton extends ConsumerStatefulWidget {
   final bool showHealthIndicator;
