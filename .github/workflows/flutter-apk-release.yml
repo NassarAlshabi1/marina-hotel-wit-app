@@ -1,9 +1,26 @@
+# Name: Build Flutter Release APK
+#
+# This workflow is triggered on pull requests affecting files in the 'mobile/' directory,
+# or manually via the 'workflow_dispatch' event.
+name: Build Flutter Release APK
+
+on:
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/flutter-apk-release.yml'
+  # Allows manual triggering of the workflow from the GitHub Actions tab
+  workflow_dispatch:
+
 jobs:
   build-release-apk:
+    # Runs the job on the latest Ubuntu runner
     runs-on: ubuntu-latest
+    # Increase job timeout to allow build_runner and pub get more time
     timeout-minutes: 30
     defaults:
       run:
+        # All commands will execute from the 'mobile' directory
         working-directory: mobile
 
     steps:
@@ -45,6 +62,8 @@ jobs:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
 
       - name: Verify Android Signing Files
+        # Local keystore and key.properties are committed to repo
+        # No secrets or base64 decoding needed
         run: |
           echo "Verifying local signing files..."
           ls -la android/app/release.keystore
@@ -61,9 +80,11 @@ jobs:
         run: flutter pub run build_runner clean
 
       - name: Generate code (e.g., using Freezed, json_serializable)
+        # Use delete-conflicting-outputs and verbose logging to avoid conflicts and aid debugging
         run: flutter pub run build_runner build --delete-conflicting-outputs --verbose
 
       - name: Build release APK
+        # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
         run: flutter build apk --release
 
       - name: Upload release artifact
@@ -72,3 +93,11 @@ jobs:
           name: 'marina-hotel-release-${{ github.run_number }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+
+      # Signing files preserved for debugging/reuse
+      # - name: Clean signing files
+      #   if: ${{ always() }}
+      #   run: |
+      #     echo "Cleaning up sensitive signing files..."
+      #     rm -f android/app/release.keystore
+      #     rm -f android/key.properties
