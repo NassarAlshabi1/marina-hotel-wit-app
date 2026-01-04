@@ -150,10 +150,11 @@ class GoogleDriveDeltaSync {
       
       int appliedChanges = 0;
       final lastPullTs = await _getLastPullTimestamp();
-      var maxProcessedMs = lastPullTs * 1000;
+      final cutoff = lastPullTs * 1000;
+      var maxProcessedMs = cutoff;
 
       for (final file in deltaFiles) {
-        if (file.createdTime.millisecondsSinceEpoch <= maxProcessedMs) continue;
+        if (file.createdTime.millisecondsSinceEpoch <= cutoff) continue;
         
         final sourceDeviceId = file.appProperties['device_id'];
         if (sourceDeviceId == _deviceId) continue;
@@ -206,7 +207,7 @@ class GoogleDriveDeltaSync {
   String _generateDeltaSyncFileName() {
     final now = DateTime.now();
     final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-    final timeStr = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}${now.millisecond.toString().padLeft(3, '0')}';
     return '${deltaSyncPrefix}${dateStr}_$timeStr.json';
   }
 
@@ -406,7 +407,13 @@ class GoogleDriveDeltaSync {
 
   Future<void> _applyPaymentChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
     if (operation == 'delete') {
-      await (db.delete(db.payments)..where((t) => t.localUuid.equals(localUuid))).go();
+      await (db.update(db.payments)..where((t) => t.localUuid.equals(localUuid))).write(
+        PaymentsCompanion(
+          deletedAt: d.Value(Time.nowEpoch()),
+          lastModified: d.Value(Time.nowEpoch()),
+          origin: const d.Value('google_drive_delta_delete'),
+        ),
+      );
       return;
     }
 
@@ -473,7 +480,13 @@ class GoogleDriveDeltaSync {
 
   Future<void> _applyExpenseChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
     if (operation == 'delete') {
-      await (db.delete(db.expenses)..where((t) => t.localUuid.equals(localUuid))).go();
+      await (db.update(db.expenses)..where((t) => t.localUuid.equals(localUuid))).write(
+        ExpensesCompanion(
+          deletedAt: d.Value(Time.nowEpoch()),
+          lastModified: d.Value(Time.nowEpoch()),
+          origin: const d.Value('google_drive_delta_delete'),
+        ),
+      );
       return;
     }
     final expenseType = _asString(data['expense_type']) ?? _asString(data['expenseType']);
@@ -500,7 +513,13 @@ class GoogleDriveDeltaSync {
 
   Future<void> _applyDebtChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
     if (operation == 'delete') {
-      await (db.delete(db.debts)..where((t) => t.localUuid.equals(localUuid))).go();
+      await (db.update(db.debts)..where((t) => t.localUuid.equals(localUuid))).write(
+        DebtsCompanion(
+          deletedAt: d.Value(Time.nowEpoch()),
+          lastModified: d.Value(Time.nowEpoch()),
+          origin: const d.Value('google_drive_delta_delete'),
+        ),
+      );
       return;
     }
     final guestName = _asString(data['guest_name']) ?? _asString(data['guestName']) ?? _asString(data['debtor_name']) ?? _asString(data['debtorName']);
@@ -535,7 +554,13 @@ class GoogleDriveDeltaSync {
 
   Future<void> _applyEmployeeChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
     if (operation == 'delete') {
-      await (db.delete(db.employees)..where((t) => t.localUuid.equals(localUuid))).go();
+      await (db.update(db.employees)..where((t) => t.localUuid.equals(localUuid))).write(
+        EmployeesCompanion(
+          deletedAt: d.Value(Time.nowEpoch()),
+          lastModified: d.Value(Time.nowEpoch()),
+          origin: const d.Value('google_drive_delta_delete'),
+        ),
+      );
       return;
     }
     final name = _asString(data['name']);
@@ -562,7 +587,13 @@ class GoogleDriveDeltaSync {
 
   Future<void> _applyBookingNoteChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
     if (operation == 'delete') {
-      await (db.delete(db.bookingNotes)..where((t) => t.localUuid.equals(localUuid))).go();
+      await (db.update(db.bookingNotes)..where((t) => t.localUuid.equals(localUuid))).write(
+        BookingNotesCompanion(
+          deletedAt: d.Value(Time.nowEpoch()),
+          lastModified: d.Value(Time.nowEpoch()),
+          origin: const d.Value('google_drive_delta_delete'),
+        ),
+      );
       return;
     }
 
@@ -594,7 +625,13 @@ class GoogleDriveDeltaSync {
 
   Future<void> _applyCashTransactionChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
     if (operation == 'delete') {
-      await (db.delete(db.cashTransactions)..where((t) => t.localUuid.equals(localUuid))).go();
+      await (db.update(db.cashTransactions)..where((t) => t.localUuid.equals(localUuid))).write(
+        CashTransactionsCompanion(
+          deletedAt: d.Value(Time.nowEpoch()),
+          lastModified: d.Value(Time.nowEpoch()),
+          origin: const d.Value('google_drive_delta_delete'),
+        ),
+      );
       return;
     }
 
