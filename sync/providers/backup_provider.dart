@@ -407,10 +407,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     }
 
     try {
-      final driveBackup = state.availableBackups.firstWhere(
-        (backup) => backup.fileId == fileId,
-        orElse: () => null, // Return null if not found
-      );
+      DriveBackupFile? driveBackup;
+      for (final backup in state.availableBackups) {
+        if (backup.fileId == fileId) {
+          driveBackup = backup;
+          break;
+        }
+      }
 
       if (driveBackup == null) {
         state = state.copyWith(
