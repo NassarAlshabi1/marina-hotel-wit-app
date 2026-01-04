@@ -407,7 +407,18 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     }
 
     try {
-      final driveBackup = state.availableBackups.firstWhere((backup) => backup.fileId == fileId, orElse: () => throw Exception('Backup with ID "$fileId" not found.'));
+      final driveBackup = state.availableBackups.firstWhere(
+        (backup) => backup.fileId == fileId,
+        orElse: () => null, // Return null if not found
+      );
+
+      if (driveBackup == null) {
+        state = state.copyWith(
+          status: BackupStatus.error,
+          message: 'لم يتم العثور على النسخة الاحتياطية المحددة.',
+        );
+        return;
+      }
 
       state = state.copyWith(
         status: BackupStatus.downloading,
