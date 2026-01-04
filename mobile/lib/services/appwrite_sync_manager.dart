@@ -154,12 +154,12 @@ class AppwriteSyncManager {
       if (deviceName == null || deviceModel == null || osVersion == null) {
         final deviceInfo = DeviceInfoPlugin();
         
-        if (Platform.isAndroid) {
+        if (!kIsWeb && Platform.isAndroid) {
           final androidInfo = await deviceInfo.androidInfo;
           finalDeviceName = androidInfo.model;
           finalDeviceModel = androidInfo.device;
           finalOsVersion = 'Android ${androidInfo.version.release}';
-        } else if (Platform.isIOS) {
+        } else if (!kIsWeb && Platform.isIOS) {
           final iosInfo = await deviceInfo.iosInfo;
           finalDeviceName = iosInfo.name;
           finalDeviceModel = iosInfo.model;
@@ -746,7 +746,7 @@ class AppwriteSyncManager {
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
-        final rn = _asString(data['roomNumber']);
+        final rn = _asString(data['roomNumber'])?.trim();
         if (rn != null && rn.isNotEmpty) {
           roomNumbers.add(rn);
         }
@@ -757,9 +757,20 @@ class AppwriteSyncManager {
       return 0;
     }
 
-    final existingRoomsQuery = database.select(database.rooms)
-      ..where((r) => r.roomNumber.isIn(roomNumbers.toList()));
-    final existingRooms = (await existingRoomsQuery.get()).map((r) => r.roomNumber).toSet();
+    final existingRooms = <String>{};
+    const chunkSize = 900; // keep safely under SQLite bind-parameter limits
+    final roomNumberList = roomNumbers.toList();
+
+    for (var i = 0; i < roomNumberList.length; i += chunkSize) {
+      final chunk = roomNumberList.sublist(
+        i,
+        (i + chunkSize) > roomNumberList.length ? roomNumberList.length : (i + chunkSize),
+      );
+
+      final existingRoomsQuery = database.select(database.rooms)
+        ..where((r) => r.roomNumber.isIn(chunk));
+      existingRooms.addAll((await existingRoomsQuery.get()).map((r) => r.roomNumber));
+    }
 
     for (final doc in documents) {
       try {
@@ -1157,12 +1168,20 @@ class AppwriteSyncManager {
         return processed;
       }
 
+      var removedAnyInBatch = false;
+
       for (final entry in entries) {
         final success = await _processOutboxEntry(entry);
         if (success) {
           await outboxDao.removeById(entry.id);
           processed++;
+          removedAnyInBatch = true;
         }
+      }
+
+      // Avoid infinite loop if the batch is "stuck" (all entries failed).
+      if (!removedAnyInBatch) {
+        return processed;
       }
     }
   }

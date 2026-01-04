@@ -1635,7 +1635,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              final paths = state.localBackups.map((b) => b.filePath).toList();
+              final jsonBackups = state.localBackups.where((b) => b.format == BackupFormat.json).toList();
+              final paths = jsonBackups.map((b) => b.filePath).toList();
               final mergedName = 'merged_backup_${DateTime.now().millisecondsSinceEpoch}.json';
               ref.read(backupStatusProvider.notifier).mergeBackups(paths, mergedName);
             },

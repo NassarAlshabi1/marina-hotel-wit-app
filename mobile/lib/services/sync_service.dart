@@ -217,7 +217,9 @@ class SyncService {
   }
 
   Future<void> _applyServerId(String entity, String localUuid, dynamic serverId) async {
-    final sid = serverId is int ? serverId : null;
+    final sid = _asInt(serverId);
+    if (sid == null) return;
+    
     final now = Time.nowEpoch();
     switch (entity) {
       case 'rooms':
