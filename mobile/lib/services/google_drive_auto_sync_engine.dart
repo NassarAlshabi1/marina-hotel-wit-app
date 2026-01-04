@@ -286,34 +286,29 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('📊 Setting up sync result listener...');
     
     _syncResultSubscription = _coordinator!.syncResults.listen(
-      (result) {
+      (result) async {
         if (result.success) {
           _lastSuccessfulSync = result.timestamp;
           _failedAttempts = 0;
-    _syncResultSubscription = _coordinator!.syncResults.listen(
-          (result) async {
-            if (result.success) {
-              _lastSuccessfulSync = result.timestamp;
-              _failedAttempts = 0;
-              _nextRetryAt = null;
-              _lastError = null;
-          
-              if (result.pushedChanges != null && result.pushedChanges! > 0) {
-                _pendingChangesCount = max(0, _pendingChangesCount - result.pushedChanges!);
-              }
-          
-              _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
-            } else {
-              _failedAttempts++;
-              _lastError = result.error ?? result.message;
-          
-              final errorDetails = result.error != null
-                  ? '${result.message} - ${result.error}'
-                  : result.message;
-          
-              _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails',
-                   level: LogLevel.error);
-          
+          _nextRetryAt = null;
+          _lastError = null;
+      
+          if (result.pushedChanges != null && result.pushedChanges! > 0) {
+            _pendingChangesCount = max(0, _pendingChangesCount - result.pushedChanges!);
+          }
+      
+          _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
+        } else {
+          _failedAttempts++;
+          _lastError = result.error ?? result.message;
+      
+          final errorDetails = result.error != null
+              ? '${result.message} - ${result.error}'
+              : result.message;
+      
+          _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails',
+               level: LogLevel.error);
+      
           SharedPreferences.getInstance().then((p) {
             final retryEnabled = p.getBool(_prefsRetryEnabledKey) ?? true;
             if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
