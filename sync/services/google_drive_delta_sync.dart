@@ -160,9 +160,7 @@ class GoogleDriveDeltaSync {
         }
       }
 
-      if (appliedChanges > 0) {
-        await _updateLastPullTimestamp();
-      }
+      await _updateLastPullTimestamp();
 
       return DeltaSyncResult(
         success: true,
