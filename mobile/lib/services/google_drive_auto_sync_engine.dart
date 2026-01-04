@@ -290,24 +290,29 @@ class AutoSyncEngine with WidgetsBindingObserver {
         if (result.success) {
           _lastSuccessfulSync = result.timestamp;
           _failedAttempts = 0;
-          _nextRetryAt = null;
-          _lastError = null;
+    _syncResultSubscription = _coordinator!.syncResults.listen(
+          (result) async {
+            if (result.success) {
+              _lastSuccessfulSync = result.timestamp;
+              _failedAttempts = 0;
+              _nextRetryAt = null;
+              _lastError = null;
           
-          if (result.pushedChanges != null && result.pushedChanges! > 0) {
-            _pendingChangesCount = max(0, _pendingChangesCount - result.pushedChanges!);
-          }
+              if (result.pushedChanges != null && result.pushedChanges! > 0) {
+                _pendingChangesCount = max(0, _pendingChangesCount - result.pushedChanges!);
+              }
           
-          _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
-        } else {
-          _failedAttempts++;
-          _lastError = result.error ?? result.message;
+              _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
+            } else {
+              _failedAttempts++;
+              _lastError = result.error ?? result.message;
           
-          final errorDetails = result.error != null 
-              ? '${result.message} - ${result.error}' 
-              : result.message;
+              final errorDetails = result.error != null
+                  ? '${result.message} - ${result.error}'
+                  : result.message;
           
-          _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails', 
-               level: LogLevel.error);
+              _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails',
+                   level: LogLevel.error);
           
           SharedPreferences.getInstance().then((p) {
             final retryEnabled = p.getBool(_prefsRetryEnabledKey) ?? true;
@@ -330,15 +335,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     );
   }
 
-  void _setupDataStreamListener() {
-    _log('💾 Setting up data stream listener...');
-    
-    _coordinator!.syncResults.listen((result) {
-      if (result.success && result.pushedChanges != null && result.pushedChanges! > 0) {
-        _log('📤 Data changes detected and pushed: ${result.pushedChanges}');
-      }
-    });
-  }
+  // This method can be removed entirely.
 
   void _startHealthCheck() {
     _log('❤️ Starting health check monitor...');
