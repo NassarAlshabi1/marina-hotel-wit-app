@@ -28,6 +28,7 @@ class BookingPaymentScreen extends ConsumerStatefulWidget {
 class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late TextEditingController _phoneController;
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
   double _totalAmount = 0;
   double _remainingAmount = 0;
@@ -102,12 +103,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _phoneController = TextEditingController(text: widget.booking.guestPhone);
     _currentGuestPhone = widget.booking.guestPhone;
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -501,6 +504,20 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   Widget _buildPaymentForm(BookingPaymentSummary summary) {
     return Column(
       children: [
+        // حقل رقم الهاتف مخفي - للاستخدام الداخلي فقط
+        Visibility(
+          visible: false,
+          maintainState: true,
+          child: TextFormField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: 'رقم هاتف النزيل',
+              border: OutlineInputBorder(),
+            ),
+            textDirection: ui.TextDirection.ltr,
+          ),
+        ),
         const Align(
           alignment: Alignment.centerRight,
           child: Text('طريقة الدفع', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -1164,7 +1181,22 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       return;
     }
 
-    final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
+    final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
+
+    await bookingsRepo.update(widget.booking.id, guestPhone: cleanedPhone);
+    if (mounted) {
+      setState(() {
+        _currentGuestPhone = cleanedPhone;
+        if (_phoneController.text != cleanedPhone) {
+          _phoneController.value = TextEditingValue(
+            text: cleanedPhone,
+            selection: TextSelection.collapsed(offset: cleanedPhone.length),
+          );
+        }
+      });
+    } else {
+      _currentGuestPhone = cleanedPhone;
+    }
 
     await paymentsRepo.create(
       bookingLocalId: widget.booking.id,
