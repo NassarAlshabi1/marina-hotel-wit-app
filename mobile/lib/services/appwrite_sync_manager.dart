@@ -257,11 +257,14 @@ class AppwriteSyncManager {
   void startAutoSync({Duration interval = SyncConstants.defaultAutoSyncInterval}) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
-      final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-      
-      if (enabled) {
-        await sync();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+        if (enabled) {
+          await sync();
+        }
+      } catch (e, stackTrace) {
+        _logger.error('Auto sync error', error: e, stackTrace: stackTrace, tag: 'SYNC');
       }
     });
     _logger.info('Auto sync started (interval: ${interval.inMinutes} min)', tag: 'SYNC');
@@ -925,43 +928,59 @@ class AppwriteSyncManager {
 
   Future<int> _syncPayments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
-    var processed = 0;
-    
+
+    final parsedDocuments = <Map<String, dynamic>>[];
+    final bookingIds = <int>{};
+    final cashTransactionIds = <int>{};
+
     for (final doc in documents) {
+      final data = Map<String, dynamic>.from(doc.data);
+      parsedDocuments.add(data);
+      final bookingId = _asIntNullable(data['bookingLocalId']);
+      if (bookingId != null) {
+        bookingIds.add(bookingId);
+      }
+      final cashId = _asIntNullable(data['cashTransactionLocalId']);
+      if (cashId != null) {
+        cashTransactionIds.add(cashId);
+      }
+    }
+
+    final existingBookingIds = bookingIds.isNotEmpty
+        ? (await (database.select(database.bookings)..where((b) => b.id.isIn(bookingIds.toList()))).get())
+            .map((b) => b.id)
+            .toSet()
+        : <int>{};
+
+    final existingCashTransactionIds = cashTransactionIds.isNotEmpty
+        ? (await (database.select(database.cashTransactions)..where((c) => c.id.isIn(cashTransactionIds.toList()))).get())
+            .map((c) => c.id)
+            .toSet()
+        : <int>{};
+
+    final companions = <PaymentsCompanion>[];
+
+    for (var i = 0; i < documents.length; i++) {
+      final doc = documents[i];
+      final data = parsedDocuments[i];
       try {
-        final data = Map<String, dynamic>.from(doc.data);
         final localUuid = _asString(data['localUuid']) ?? doc.$id;
         if (localUuid.isEmpty) {
           continue;
         }
-        
-        int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
-        
-        if (bookingLocalId != null) {
-          final bookingExists = await (database.select(database.bookings)
-            ..where((b) => b.id.equals(bookingLocalId!))
-            ..limit(1)).getSingleOrNull();
-          
-          if (bookingExists == null) {
-            _logger.warning('Payment $localUuid: bookingLocalId $bookingLocalId not found, setting to null', tag: 'SYNC');
-            bookingLocalId = null;
-          }
-        }
-        
-        int? cashTransactionLocalId = _asIntNullable(data['cashTransactionLocalId']);
-        
-        if (cashTransactionLocalId != null) {
-          final localId = cashTransactionLocalId;
-          final cashTransactionExists = await (database.select(database.cashTransactions)
-            ..where((c) => c.id.equals(localId))
 
-            ..limit(1)).getSingleOrNull();
-          
-          if (cashTransactionExists == null) {
-            _logger.warning('Payment $localUuid: cashTransactionLocalId $localId not found, setting to null', tag: 'SYNC');
-            cashTransactionLocalId = null;
-          }
+        int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
+        if (bookingLocalId != null && !existingBookingIds.contains(bookingLocalId)) {
+          _logger.warning('Payment $localUuid: bookingLocalId $bookingLocalId not found, setting to null', tag: 'SYNC');
+          bookingLocalId = null;
         }
+
+        int? cashTransactionLocalId = _asIntNullable(data['cashTransactionLocalId']);
+        if (cashTransactionLocalId != null && !existingCashTransactionIds.contains(cashTransactionLocalId)) {
+          _logger.warning('Payment $localUuid: cashTransactionLocalId $cashTransactionLocalId not found, setting to null', tag: 'SYNC');
+          cashTransactionLocalId = null;
+        }
+
         final companion = PaymentsCompanion(
           localUuid: d.Value(localUuid),
           serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
@@ -984,15 +1003,26 @@ class AppwriteSyncManager {
           cashTransactionServerId: _nullableValue<int>(_asIntNullable(data['cashTransactionServerId'])),
           referenceNumber: _nullableValue<String>(_asString(data['referenceNumber'])),
         );
-        
-        await database.into(database.payments).insert(companion, mode: d.InsertMode.insertOrReplace);
-        processed++;
+
+        companions.add(companion);
       } catch (e) {
         _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
       }
     }
-    
-    return processed;
+
+    if (companions.isEmpty) {
+      return 0;
+    }
+
+    await database.transaction(() async {
+      await database.batch((batch) {
+        for (final companion in companions) {
+          batch.insert(database.payments, companion, mode: d.InsertMode.insertOrReplace);
+        }
+      });
+    });
+
+    return companions.length;
   }
 
   Future<int> _syncDebts(List<models.Document> documents) async {
@@ -1171,19 +1201,24 @@ class AppwriteSyncManager {
         return processed;
       }
 
-      var removedAnyInBatch = false;
-
-      for (final entry in entries) {
+      final results = await Future.wait(entries.map((entry) async {
         final success = await _processOutboxEntry(entry);
-        if (success) {
-          await outboxDao.removeById(entry.id);
-          processed++;
-          removedAnyInBatch = true;
+        return MapEntry(entry.id, success);
+      }));
+
+      final successfulIds = <int>[];
+      for (final result in results) {
+        if (result.value) {
+          successfulIds.add(result.key);
         }
       }
 
-      // Avoid infinite loop if the batch is "stuck" (all entries failed).
-      if (!removedAnyInBatch) {
+      if (successfulIds.isNotEmpty) {
+        await outboxDao.removeByIds(successfulIds);
+        processed += successfulIds.length;
+      }
+
+      if (successfulIds.length < entries.length) {
         return processed;
       }
     }

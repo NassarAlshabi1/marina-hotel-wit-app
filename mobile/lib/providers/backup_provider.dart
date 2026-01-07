@@ -923,6 +923,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
   /// إنشاء نسخة احتياطية شاملة (محلي + Google Drive)
   Future<void> createComprehensiveBackup() async {
+    String? tempSqlitePath;
     try {
       state = state.copyWith(
         status: BackupStatus.uploading,
@@ -951,7 +952,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           final backupData = await _backupService.exportDatabaseToJson();
           await _backupService.uploadBackup(backupData);
         } else {
-          final sqlitePath = localBackupPath ?? await SqliteBackupRestore.backupDatabase();
+          final sqlitePath = localBackupPath ?? (tempSqlitePath = await SqliteBackupRestore.backupDatabase());
           final sqliteFile = File(sqlitePath);
           if (!await sqliteFile.exists()) {
             throw Exception('تعذر العثور على ملف النسخة الاحتياطية SQLite لرفعه');
@@ -993,6 +994,18 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'خطأ في إنشاء النسخة الاحتياطية الشاملة: ${e.toString()}',
         progress: null,
       );
+    } finally {
+      if (tempSqlitePath != null) {
+        try {
+          final tempFile = File(tempSqlitePath);
+          if (await tempFile.exists()) {
+            await tempFile.delete();
+            debugPrint('🗑️ تم حذف ملف النسخة المؤقت: $tempSqlitePath');
+          }
+        } catch (cleanupError) {
+          debugPrint('⚠️ فشل حذف ملف النسخة المؤقت: $cleanupError');
+        }
+      }
     }
   }
 

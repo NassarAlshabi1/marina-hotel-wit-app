@@ -629,19 +629,24 @@ class GoogleDriveBackupService {
 
       // البحث عن جميع أنواع النسخ الاحتياطية (الشاملة والتلقائية والتفاضلية)
       final query = "parents in '$folderId' and (name contains '$fullBackupPrefix' or name contains '$autoSyncPrefix' or name contains '$deltaSyncPrefix' or name contains '$_backupFilePrefix') and trashed=false";
-      final listResult = await _driveApi!.files.list(
-        q: query,
-        orderBy: 'createdTime desc',
-        spaces: 'drive',
-        $fields: 'files(id,name,createdTime,size,appProperties)',
-      );
 
-      final backupFiles = <DriveBackupFile>[];
-      if (listResult.files != null) {
-        for (final file in listResult.files!) {
-          backupFiles.add(DriveBackupFile.fromDriveFile(file));
+      final allFiles = <drive.File>[];
+      String? pageToken;
+      do {
+        final response = await _driveApi!.files.list(
+          q: query,
+          orderBy: 'createdTime desc',
+          spaces: 'drive',
+          pageToken: pageToken,
+          $fields: 'nextPageToken,files(id,name,createdTime,size,appProperties)',
+        );
+        if (response.files != null) {
+          allFiles.addAll(response.files!);
         }
-      }
+        pageToken = response.nextPageToken;
+      } while (pageToken != null);
+
+      final backupFiles = allFiles.map(DriveBackupFile.fromDriveFile).toList();
 
       _log('✅ تم جلب ${backupFiles.length} نسخة احتياطية');
       return backupFiles;
