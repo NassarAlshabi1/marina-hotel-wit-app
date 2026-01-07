@@ -1193,12 +1193,12 @@ class AppwriteSyncManager {
 
   Future<int> _pushAllEntities() async {
     const batchSize = 200;
-    int processed = 0;
+    int totalProcessed = 0;
 
     while (true) {
       final entries = await outboxDao.takeBatch(batchSize);
       if (entries.isEmpty) {
-        return processed;
+        return totalProcessed;
       }
 
       final results = await Future.wait(entries.map((entry) async {
@@ -1213,16 +1213,22 @@ class AppwriteSyncManager {
         }
       }
 
-      if (successfulIds.isNotEmpty) {
+      final processedInBatch = successfulIds.length;
+      if (processedInBatch > 0) {
         await outboxDao.removeByIds(successfulIds);
-        processed += successfulIds.length;
+        totalProcessed += processedInBatch;
       }
 
-      if (successfulIds.length < entries.length) {
-        return processed;
+      if (processedInBatch == 0) {
+        _logger.warning('Push failed for all entries in batch, stopping to prevent infinite loop.', tag: 'SYNC');
+        break;
+      }
+
+      if (processedInBatch < entries.length) {
+        return totalProcessed;
       }
     }
-    return processed;
+    return totalProcessed;
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
