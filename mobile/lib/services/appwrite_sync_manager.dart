@@ -951,13 +951,14 @@ class AppwriteSyncManager {
         int? cashTransactionLocalId = _asIntNullable(data['cashTransactionLocalId']);
         
         if (cashTransactionLocalId != null) {
+          final localId = cashTransactionLocalId;
           final cashTransactionExists = await (database.select(database.cashTransactions)
-            ..where((c) => c.id.equals(cashTransactionLocalId))
+            ..where((c) => c.id.equals(localId))
 
             ..limit(1)).getSingleOrNull();
           
           if (cashTransactionExists == null) {
-            _logger.warning('Payment $localUuid: cashTransactionLocalId $cashTransactionLocalId not found, setting to null', tag: 'SYNC');
+            _logger.warning('Payment $localUuid: cashTransactionLocalId $localId not found, setting to null', tag: 'SYNC');
             cashTransactionLocalId = null;
           }
         }
