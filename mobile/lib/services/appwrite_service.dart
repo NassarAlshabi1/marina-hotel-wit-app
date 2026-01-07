@@ -528,6 +528,16 @@ class AppwriteService {
           data: data,
         );
       }
+      if (error is AppwriteException) {
+        final code = error.code;
+        if (code == 409 || code == '409') {
+          return await updateDocument(
+            collectionId: collectionId,
+            documentId: documentId,
+            data: data,
+          );
+        }
+      }
       rethrow;
     }
   }
