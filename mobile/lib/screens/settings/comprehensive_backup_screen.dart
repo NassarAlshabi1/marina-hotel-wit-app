@@ -1107,6 +1107,15 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       try {
         backup = ref.read(availableBackupsProvider).firstWhere((b) => b.fileId == identifier);
       } on StateError {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ لم يتم العثور على النسخة الاحتياطية. قد تكون تم حذفها أو تحديث القائمة.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
         return;
       }
       title = 'استعادة من Google Drive';
@@ -1118,6 +1127,15 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       try {
         backup = ref.read(localBackupsProvider).firstWhere((b) => b.filePath == identifier);
       } on StateError {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ لم يتم العثور على النسخة الاحتياطية المحلية. قد تكون تم حذفها من التخزين.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
         return;
       }
       title = 'استعادة من النسخة المحلية';
