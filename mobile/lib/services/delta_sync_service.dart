@@ -447,23 +447,35 @@ class MirrorRow {
 }
 
 class _EntityConfig<T> {
-  const _EntityConfig({
+  _EntityConfig({
     required this.entity,
-    required this.fetchAll,
-    required this.localUuid,
-    required this.createdAt,
-    required this.lastModified,
-    required this.deletedAt,
-    required this.toJson,
-  });
+    required Future<List<T>> Function() fetchAll,
+    required String Function(T row) localUuid,
+    required int? Function(T row) createdAt,
+    required int? Function(T row) lastModified,
+    required int? Function(T row) deletedAt,
+    required Map<String, dynamic> Function(T row) toJson,
+  })  : _fetchAll = fetchAll,
+        _localUuid = localUuid,
+        _createdAt = createdAt,
+        _lastModified = lastModified,
+        _deletedAt = deletedAt,
+        _toJson = toJson;
 
   final String entity;
-  final Future<List<T>> Function() fetchAll;
-  final String Function(T row) localUuid;
-  final int? Function(T row) createdAt;
-  final int? Function(T row) lastModified;
-  final int? Function(T row) deletedAt;
-  final Map<String, dynamic> Function(T row) toJson;
+  final Future<List<T>> Function() _fetchAll;
+  final String Function(T row) _localUuid;
+  final int? Function(T row) _createdAt;
+  final int? Function(T row) _lastModified;
+  final int? Function(T row) _deletedAt;
+  final Map<String, dynamic> Function(T row) _toJson;
+
+  Future<List<dynamic>> fetchAll() => _fetchAll();
+  String localUuid(dynamic row) => _localUuid(row as T);
+  int? createdAt(dynamic row) => _createdAt(row as T);
+  int? lastModified(dynamic row) => _lastModified(row as T);
+  int? deletedAt(dynamic row) => _deletedAt(row as T);
+  Map<String, dynamic> toJson(dynamic row) => _toJson(row as T);
 }
 
 int _normalizeTimestamp(int value) {
