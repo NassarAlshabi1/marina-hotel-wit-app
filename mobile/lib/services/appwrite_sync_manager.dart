@@ -952,7 +952,7 @@ class AppwriteSyncManager {
         
         if (cashTransactionLocalId != null) {
           final cashTransactionExists = await (database.select(database.cashTransactions)
-            ..where((c) => c.id.equals(cashTransactionLocalId))
+            ..where((c) => c.id.equals(cashTransactionLocalId!))
 
             ..limit(1)).getSingleOrNull();
           
@@ -1186,6 +1186,7 @@ class AppwriteSyncManager {
         return processed;
       }
     }
+    return processed;
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {

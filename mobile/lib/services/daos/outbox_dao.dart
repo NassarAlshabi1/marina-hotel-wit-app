@@ -56,7 +56,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
           .getSingleOrNull();
 
-      final idempotencyKey = existing?.idempotencyKey ?? _uuid.v4();
+      final idempotencyKey = _uuid.v4();
 
       late final int resultId;
       if (existing != null) {
@@ -84,7 +84,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       }
 
       await customUpdate(
-        'UPDATE ${outbox.actualTableName} SET ${outbox.idempotencyKey.$name} = ? WHERE ${outbox.id.$name} = ?',
+        'UPDATE ${outbox.actualTableName} SET idempotency_key = ? WHERE id = ?',
         variables: [
           Variable<String>(idempotencyKey),
           Variable<int>(resultId),
