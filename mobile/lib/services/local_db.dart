@@ -553,7 +553,10 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(salaryPayments);
           }
           if (from < 17) {
-            await m.addColumn(outbox, outbox.idempotencyKey as GeneratedColumn);
+            await m.addColumn(
+              outbox,
+              outbox.idempotencyKey as GeneratedColumn<Object?>,
+            );
           }
         },
       );
