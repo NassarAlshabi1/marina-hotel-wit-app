@@ -210,7 +210,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
     
     _setupConnectivityListener();
     _setupSyncResultListener();
-    _setupDataStreamListener();
     _startHealthCheck();
     
     if (_isSignedIn && _hasNetworkConnection) {
