@@ -504,21 +504,20 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   Widget _buildPaymentForm(BookingPaymentSummary summary) {
     return Column(
       children: [
-        const Align(
-          alignment: Alignment.centerRight,
-          child: Text('رقم الهاتف', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'رقم هاتف النزيل',
-            border: OutlineInputBorder(),
+        // حقل رقم الهاتف مخفي - للاستخدام الداخلي فقط
+        Visibility(
+          visible: false,
+          maintainState: true,
+          child: TextFormField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: 'رقم هاتف النزيل',
+              border: OutlineInputBorder(),
+            ),
+            textDirection: ui.TextDirection.ltr,
           ),
-          textDirection: ui.TextDirection.ltr,
         ),
-        const SizedBox(height: 20),
         const Align(
           alignment: Alignment.centerRight,
           child: Text('طريقة الدفع', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
