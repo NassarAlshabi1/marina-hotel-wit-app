@@ -119,6 +119,14 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       } catch (e, s) {
         debugPrint('Error notifying SyncGuardian: $e\n$s');
       }
+  void _notifyAllSyncEngines(String entity, String op) {
+    Future.microtask(() async {
+      try {
+        await SyncGuardian.instance.notifyLocalChange(table: entity, operation: op);
+      } catch (e, s) {
+        // تجاهل أخطاء الإشعار - لا نريد إيقاف العملية الأساسية
+        debugPrint('Error notifying SyncGuardian: $e\n$s');
+      }
     });
     try {
       GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
