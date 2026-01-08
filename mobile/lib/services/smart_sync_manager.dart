@@ -340,8 +340,10 @@ class SmartSyncManager {
       
       _log('✅ تم دمج البيانات بنجاح');
       
-    } catch (e) {
-      _log('❌ خطأ في دمج البيانات، استعادة النسخة المحلية...');
+    } catch (e, stackTrace) {
+      _log('❌ خطأ في دمج البيانات: $e');
+      _log('📋 Stack trace: $stackTrace');
+      _log('🔄 استعادة النسخة المحلية...');
       // استعادة البيانات المحلية في حالة الخطأ
       await _restoreLocalBackup(localBackupData);
       rethrow;
@@ -489,7 +491,8 @@ class SmartSyncManager {
 
   /// دمج بيانات النسخ الاحتياطي
   Future<void> _mergeBackupData(Map<String, dynamic> backupData) async {
-    // استخدام خدمة النسخ الاحتياطي الموجودة
+    _log('📦 بدء دمج البيانات...');
+    _log('📊 الجداول الموجودة في النسخة: ${backupData.keys.where((k) => k != 'metadata').toList()}');
     await _backupService!.restoreFromBackup(backupData);
   }
 
@@ -920,8 +923,13 @@ class SmartSyncManager {
 
   /// استعادة النسخة المحلية (في حالة فشل المزامنة)
   Future<void> _restoreLocalBackup(Map<String, dynamic> localData) async {
-    _log('🔄 استعادة النسخة المحلية...');
-    await _backupService!.restoreFromBackup(localData);
+    try {
+      _log('🔄 استعادة النسخة المحلية...');
+      await _backupService!.restoreFromBackup(localData);
+      _log('✅ تم استعادة النسخة المحلية بنجاح');
+    } catch (e) {
+      _log('❌ فشل استعادة النسخة المحلية: $e');
+    }
   }
 }
 
