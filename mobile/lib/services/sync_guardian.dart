@@ -140,10 +140,13 @@ class SyncGuardian {
         }
       } catch (e) {
         debugPrint('⚠️ فشل رفع التغييرات: $e');
-        // جدولة محاولة لاحقة
+        _lastError = e.toString();
+        _failedAttempts++;
         try {
           await AutoSyncTask.scheduleImmediateSync();
-        } catch (_) {}
+        } catch (scheduleError) {
+          debugPrint('⚠️ فشل جدولة محاولة لاحقة: $scheduleError');
+        }
       } finally {
         _emitHealth();
       }
@@ -290,8 +293,15 @@ class SyncGuardian {
 
   Future<void> dispose() async {
     await _statusSubscription?.cancel();
+    _statusSubscription = null;
     _pendingMonitor?.cancel();
-    _healthController.close();
+    _pendingMonitor = null;
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    await _healthController.close();
     _initialized = false;
+    _manager = null;
+    _driveService = null;
+    _appwriteSyncManager = null;
   }
 }

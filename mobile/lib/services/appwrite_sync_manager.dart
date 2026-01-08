@@ -312,12 +312,15 @@ class AppwriteSyncManager {
   }
 
   /// تنظيف الموارد
-  void dispose() {
+  Future<void> dispose() async {
     _syncTimer?.cancel();
+    _syncTimer = null;
     _debouncePushTimer?.cancel();
-    _outboxSubscription?.cancel();
+    _debouncePushTimer = null;
+    await _outboxSubscription?.cancel();
+    _outboxSubscription = null;
     stopAutoSync();
-    _syncController.close();
+    await _syncController.close();
   }
 
   /// دورة المزامنة الكاملة مع Appwrite:

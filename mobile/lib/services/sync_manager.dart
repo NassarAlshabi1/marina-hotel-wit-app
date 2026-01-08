@@ -462,10 +462,8 @@ class SyncManager {
   }
 
   Future<String> _historyPrefix() async {
-    if (_deviceId == null) {
-      _deviceId = await _resolveDeviceId();
-    }
-    return 'sync_history_${_deviceId!}';
+    final deviceId = await _ensureDeviceId();
+    return 'sync_history_$deviceId';
   }
 
   Future<void> _drainQueue({bool force = false}) async {
@@ -473,108 +471,115 @@ class SyncManager {
       debugPrint('⏸️ طابور المزامنة مشغول - تخطي');
       return;
     }
-    await _ensureReady();
-    if (_isDrainingQueue) {
-      return;
-    }
-
-    final pending = await (db.select(db.syncQueue)
-          ..where((tbl) => tbl.status.equals('pending'))
-          ..orderBy([(tbl) => drift.OrderingTerm(expression: tbl.createdAt)])).
-        get();
-
-    if (pending.isEmpty && !force) {
-      return;
-    }
-
-    _isDrainingQueue = true;
-    _statusController.add(SyncStatus(phase: SyncPhase.pushing, message: 'رفع التغييرات المعلقة', progress: 0));
-
-    SyncSafetySnapshot? safetySnapshot;
     try {
-      final deviceId = await _ensureDeviceId();
-      final syncId = _generateSyncId();
-      final localTables = await db.getAllTablesAsJson();
-      final remoteResult = await driveService.downloadLatestSnapshot();
-      final expectedVersion = remoteResult?.driveVersion ?? 0;
-      final remoteSnapshot = remoteResult?.snapshot ?? _emptySnapshot();
-
-      if (!force && remoteResult != null && remoteResult.metadata.lastDeviceId == deviceId && compareChecksum(remoteResult.snapshot, localTables)) {
-        await _markQueueStatus(pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
-        _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا توجد تغييرات جديدة للرفع'));
+      await _ensureReady();
+      if (_isDrainingQueue) {
         return;
       }
 
-      safetySnapshot = await _safetyLayer.captureSnapshot(db: db, syncId: syncId, phase: 'push');
+      final pending = await (db.select(db.syncQueue)
+            ..where((tbl) => tbl.status.equals('pending'))
+            ..orderBy([(tbl) => drift.OrderingTerm(expression: tbl.createdAt)])).
+          get();
 
-      final mergeResult = _mergeSnapshots(
-        remoteSnapshot: remoteSnapshot,
-        localTables: localTables,
-        deviceId: deviceId,
-        syncId: syncId,
-      );
-
-      final uploadIndex = await driveService.uploadSnapshot(
-        snapshot: mergeResult.mergedSnapshot,
-        deviceId: deviceId,
-        expectedVersion: expectedVersion,
-      );
-
-      await db.applyMergedData(mergeResult.mergedSnapshot.tables);
-      await _markQueueStatus(pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
-
-      await _auditDao.insertSyncLog(
-        syncId: syncId,
-        direction: 'push',
-        deviceId: deviceId,
-        metadata: {
-          'version': uploadIndex.version,
-          'checksum': uploadIndex.checksum,
-          'lastDeviceId': uploadIndex.lastDeviceId,
-          'updatedAt': uploadIndex.updatedAt,
-          'snapshotSize': uploadIndex.snapshotSize,
-          'totalParts': uploadIndex.totalParts,
-        },
-        appliedOperations: mergeResult.appliedOperations,
-        conflicts: mergeResult.conflicts,
-        checksumMatched: false,
-      );
-
-      await _safetyLayer.commitSnapshot(
-        db: db,
-        snapshot: safetySnapshot,
-        direction: 'push',
-        checksum: uploadIndex.checksum,
-        deviceId: deviceId,
-        metadata: {
-          'remoteVersion': uploadIndex.version,
-          'snapshotSize': uploadIndex.snapshotSize,
-          'appliedOperations': mergeResult.appliedOperations.length,
-          'conflicts': mergeResult.conflicts.length,
-        },
-      );
-      safetySnapshot = null;
-
-      _lastUploadedChecksum = uploadIndex.checksum;
-      _lastSyncId = mergeResult.mergedSnapshot.metadata.lastSyncId;
-      await _persistSyncHistory(_lastSyncId!);
-      await _persistRemoteSignature(uploadIndex.lastSyncId);
-
-      if (triggerDispatcher != null && _lastSyncId != null) {
-        await triggerDispatcher!.sendTrigger(syncId: _lastSyncId!, sourceDeviceId: deviceId);
+      if (pending.isEmpty && !force) {
+        return;
       }
 
-      _statusController.add(SyncStatus(phase: SyncPhase.completing, message: 'تم رفع التغييرات بنجاح', progress: 1));
-    } catch (error, stack) {
-      if (safetySnapshot != null) {
-        await _safetyLayer.rollbackSnapshot(db: db, snapshot: safetySnapshot, error: error);
+      _isDrainingQueue = true;
+      try {
+        _statusController.add(SyncStatus(phase: SyncPhase.pushing, message: 'رفع التغييرات المعلقة', progress: 0));
+
+        SyncSafetySnapshot? safetySnapshot;
+        try {
+          final deviceId = await _ensureDeviceId();
+          final syncId = _generateSyncId();
+          final localTables = await db.getAllTablesAsJson();
+          final remoteResult = await driveService.downloadLatestSnapshot();
+          final expectedVersion = remoteResult?.driveVersion ?? 0;
+          final remoteSnapshot = remoteResult?.snapshot ?? _emptySnapshot();
+
+          if (!force && remoteResult != null && remoteResult.metadata.lastDeviceId == deviceId && compareChecksum(remoteResult.snapshot, localTables)) {
+            await _markQueueStatus(pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
+            _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا توجد تغييرات جديدة للرفع'));
+            return;
+          }
+
+          safetySnapshot = await _safetyLayer.captureSnapshot(db: db, syncId: syncId, phase: 'push');
+
+          final mergeResult = _mergeSnapshots(
+            remoteSnapshot: remoteSnapshot,
+            localTables: localTables,
+            deviceId: deviceId,
+            syncId: syncId,
+          );
+
+          final uploadIndex = await driveService.uploadSnapshot(
+            snapshot: mergeResult.mergedSnapshot,
+            deviceId: deviceId,
+            expectedVersion: expectedVersion,
+          );
+
+          await db.applyMergedData(mergeResult.mergedSnapshot.tables);
+          await _markQueueStatus(pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
+
+          await _auditDao.insertSyncLog(
+            syncId: syncId,
+            direction: 'push',
+            deviceId: deviceId,
+            metadata: {
+              'version': uploadIndex.version,
+              'checksum': uploadIndex.checksum,
+              'lastDeviceId': uploadIndex.lastDeviceId,
+              'updatedAt': uploadIndex.updatedAt,
+              'snapshotSize': uploadIndex.snapshotSize,
+              'totalParts': uploadIndex.totalParts,
+            },
+            appliedOperations: mergeResult.appliedOperations,
+            conflicts: mergeResult.conflicts,
+            checksumMatched: false,
+          );
+
+          await _safetyLayer.commitSnapshot(
+            db: db,
+            snapshot: safetySnapshot,
+            direction: 'push',
+            checksum: uploadIndex.checksum,
+            deviceId: deviceId,
+            metadata: {
+              'remoteVersion': uploadIndex.version,
+              'snapshotSize': uploadIndex.snapshotSize,
+              'appliedOperations': mergeResult.appliedOperations.length,
+              'conflicts': mergeResult.conflicts.length,
+            },
+          );
+          safetySnapshot = null;
+
+          _lastUploadedChecksum = uploadIndex.checksum;
+          _lastSyncId = mergeResult.mergedSnapshot.metadata.lastSyncId;
+          if (_lastSyncId != null) {
+            await _persistSyncHistory(_lastSyncId!);
+          }
+          await _persistRemoteSignature(uploadIndex.lastSyncId);
+
+          if (triggerDispatcher != null && _lastSyncId != null) {
+            await triggerDispatcher!.sendTrigger(syncId: _lastSyncId!, sourceDeviceId: deviceId);
+          }
+
+          _statusController.add(SyncStatus(phase: SyncPhase.completing, message: 'تم رفع التغييرات بنجاح', progress: 1));
+        } catch (error, stack) {
+          if (safetySnapshot != null) {
+            await _safetyLayer.rollbackSnapshot(db: db, snapshot: safetySnapshot, error: error);
+          }
+          debugPrint('❌ فشل رفع التغييرات: $error');
+          debugPrint('$stack');
+          _statusController.add(SyncStatus(phase: SyncPhase.error, message: 'تعذر رفع التغييرات', error: error));
+          rethrow;
+        }
+      } finally {
+        _isDrainingQueue = false;
       }
-      debugPrint('❌ فشل رفع التغييرات: $error');
-      debugPrint('$stack');
-      _statusController.add(SyncStatus(phase: SyncPhase.error, message: 'تعذر رفع التغييرات', error: error));
-      rethrow;
     } finally {
-      _isDrainingQueue = false;
       _drainMutex.release();
     }
   }

@@ -107,10 +107,20 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       return resultId;
     });
 
-    unawaited(SyncGuardian.instance.notifyLocalChange(table: entity, operation: op));
+    _notifyAllSyncEngines(entity, op);
+    return id;
+  }
+
+  void _notifyAllSyncEngines(String entity, String op) {
+    Future.microtask(() async {
+      try {
+        await SyncGuardian.instance.notifyLocalChange(table: entity, operation: op);
+      } catch (e) {
+        // تجاهل أخطاء الإشعار - لا نريد إيقاف العملية الأساسية
+      }
+    });
     GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
     AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
-    return id;
   }
 
   Future<List<OutboxData>> takeBatch(int limit) {
