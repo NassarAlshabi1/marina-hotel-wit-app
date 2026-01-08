@@ -12,6 +12,7 @@ import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
 import 'services/sync_guardian.dart';
+import 'utils/auto_sync_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -137,25 +138,31 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   
   final prefs = await SharedPreferences.getInstance();
   
-  final debounceSeconds = prefs.getInt(engineDebounceKey) ??
-      prefs.getInt(legacyDebounceKey) ??
-      5;
-  await prefs.setInt(engineDebounceKey, debounceSeconds);
-  await engine.setDebounceSeconds(debounceSeconds);
+  final debounceSeconds = await migrateAutoSyncPreference<int>(
+    prefs: prefs,
+    newKey: engineDebounceKey,
+    legacyKey: legacyDebounceKey,
+    defaultValue: 5,
+    apply: (value) => engine.setDebounceSeconds(value),
+  );
   debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
   
-  final pullInterval = prefs.getInt(enginePullIntervalKey) ??
-      prefs.getInt(legacyPullIntervalKey) ??
-      2;
-  await prefs.setInt(enginePullIntervalKey, pullInterval);
-  await engine.setPullInterval(pullInterval);
+  final pullInterval = await migrateAutoSyncPreference<int>(
+    prefs: prefs,
+    newKey: enginePullIntervalKey,
+    legacyKey: legacyPullIntervalKey,
+    defaultValue: 2,
+    apply: (value) => engine.setPullInterval(value),
+  );
   debugPrint('   ⏰ Pull interval: ${pullInterval}min');
   
-  final retryEnabled = prefs.getBool(engineRetryKey) ??
-      prefs.getBool(legacyRetryKey) ??
-      true;
-  await prefs.setBool(engineRetryKey, retryEnabled);
-  await engine.setRetryEnabled(retryEnabled);
+  final retryEnabled = await migrateAutoSyncPreference<bool>(
+    prefs: prefs,
+    newKey: engineRetryKey,
+    legacyKey: legacyRetryKey,
+    defaultValue: true,
+    apply: (value) => engine.setRetryEnabled(value),
+  );
   debugPrint('   🔁 Auto-retry: $retryEnabled');
   
   final conflictStrategy = prefs.getString('conflict_strategy') ?? 'newerWins';
