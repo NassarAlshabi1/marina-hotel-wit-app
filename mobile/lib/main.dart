@@ -30,8 +30,10 @@ import 'services/seed.dart';
 import 'services/app_session_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_logger.dart';
+import 'services/google_drive_sync_service.dart';
 import 'services/local_db.dart';
 import 'services/smart_sync_manager.dart';
+import 'services/sync_guardian.dart';
 
 // AutoSync Engine imports
 import 'services/google_drive_auto_sync_engine.dart';
@@ -62,7 +64,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
   debugPrint('═══════════════════════════════════════════════════════');
   
   try {
-    debugPrint('📝 [1/6] Initializing Google Drive Logger...');
+    debugPrint('📝 Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
     await driveLogger.initialize(
       minLevel: LogLevel.debug,
@@ -71,7 +73,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     );
     debugPrint('✅ Logger initialized');
     
-    debugPrint('🔐 [2/6] Initializing Google Drive Backup Service...');
+    debugPrint('🔐 Initializing Google Drive Backup Service...');
     final backupService = GoogleDriveBackupService();
     
     try {
@@ -85,11 +87,11 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       debugPrint('⚠️ Silent sign-in failed: $e');
     }
     
-    debugPrint('🔧 [3/6] Initializing Database...');
+    debugPrint('🔧 Initializing Database...');
     final database = DatabaseManager.instance;
     debugPrint('✅ Database ready');
     
-    debugPrint('🎯 [4/6] Initializing Unified Sync Coordinator...');
+    debugPrint('🎯 Initializing Unified Sync Coordinator...');
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
     await coordinator.initialize(
       backupService: backupService,
@@ -98,7 +100,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     );
     debugPrint('✅ Coordinator initialized');
     
-    debugPrint('🤝 [5/6] Initializing Conflict Resolver...');
+    debugPrint('🤝 Initializing Conflict Resolver...');
     final conflictResolver = GoogleDriveConflictResolver.instance;
     conflictResolver.initialize(driveLogger);
     
@@ -106,12 +108,20 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     await conflictResolver.setConflictThreshold(30);
     debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
     
-    debugPrint('🧠 [6/7] Initializing SmartSyncManager...');
+    debugPrint('🧠 Initializing SmartSyncManager...');
     final smartSync = SmartSyncManager.instance;
     await smartSync.initialize(backupService);
     debugPrint('✅ SmartSyncManager initialized');
     
-    debugPrint('🤖 [7/7] Initializing & Starting Auto Sync Engine...');
+    debugPrint('🛡️ Initializing SyncGuardian...');
+    final guardian = SyncGuardian.instance;
+    await guardian.initialize(
+      database: database,
+      driveService: GoogleDriveSyncService(),
+    );
+    debugPrint('✅ SyncGuardian initialized');
+    
+    debugPrint('🤖 Initializing & Starting Auto Sync Engine...');
     final autoSyncEngine = AutoSyncEngine.instance;
     
     await autoSyncEngine.initialize(
@@ -160,17 +170,33 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   debugPrint('⚙️ Configuring Auto Sync Engine...');
   
+  const engineDebounceKey = 'auto_sync_engine_debounce';
+  const legacyDebounceKey = 'auto_sync_debounce';
+  const enginePullIntervalKey = 'auto_sync_engine_pull_interval';
+  const legacyPullIntervalKey = 'auto_sync_pull_interval';
+  const engineRetryKey = 'auto_sync_engine_retry_enabled';
+  const legacyRetryKey = 'auto_sync_retry_enabled';
+  
   final prefs = await SharedPreferences.getInstance();
   
-  final debounceSeconds = prefs.getInt('auto_sync_debounce') ?? 5;
+  final debounceSeconds = prefs.getInt(engineDebounceKey) ??
+      prefs.getInt(legacyDebounceKey) ??
+      5;
+  await prefs.setInt(engineDebounceKey, debounceSeconds);
   await engine.setDebounceSeconds(debounceSeconds);
   debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
   
-  final pullInterval = prefs.getInt('auto_sync_pull_interval') ?? 2;
+  final pullInterval = prefs.getInt(enginePullIntervalKey) ??
+      prefs.getInt(legacyPullIntervalKey) ??
+      2;
+  await prefs.setInt(enginePullIntervalKey, pullInterval);
   await engine.setPullInterval(pullInterval);
   debugPrint('   ⏰ Pull interval: ${pullInterval}min');
   
-  final retryEnabled = prefs.getBool('auto_sync_retry_enabled') ?? true;
+  final retryEnabled = prefs.getBool(engineRetryKey) ??
+      prefs.getBool(legacyRetryKey) ??
+      true;
+  await prefs.setBool(engineRetryKey, retryEnabled);
   await engine.setRetryEnabled(retryEnabled);
   debugPrint('   🔁 Auto-retry: $retryEnabled');
   
@@ -297,6 +323,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       unawaited(AppSessionManager.onAppOpen());
       unawaited(GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground());
+      unawaited(SyncGuardian.instance.onAppForeground());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {

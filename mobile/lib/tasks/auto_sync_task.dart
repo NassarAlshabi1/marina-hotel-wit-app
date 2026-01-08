@@ -79,6 +79,7 @@ class AutoSyncTask {
         _kImmediateWorkName,
         existingWorkPolicy: ExistingWorkPolicy.replace,
         initialDelay: delay,
+        constraints: const Constraints(networkType: NetworkType.connected),
         inputData: const <String, dynamic>{},
       );
     });

@@ -82,11 +82,10 @@ class SyncGuardian {
     _initializing = true;
     try {
       _driveService = driveService ?? GoogleDriveSyncService();
-      await _driveService!.init();
 
       _manager = SyncManager(db: database, driveService: _driveService!);
       SyncManager.configureSingleton(_manager!);
-      await _manager!.initSyncService();
+      await _manager!.initSyncService(allowInteractiveSignIn: false);
       _manager!.startOutboxDebouncedSync(debounce: SyncConstants.guardianOutboxDebounce);
       await _restoreDevicePriority();
       
