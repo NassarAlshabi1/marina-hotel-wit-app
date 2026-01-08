@@ -236,7 +236,8 @@ class GoogleDriveUnifiedSyncCoordinator {
     
     if (isSignedIn) {
       await _startMonitoring();
-      await performSync(trigger: SyncTrigger.manual, mode: SyncMode.smart);
+      // عند تسجيل الدخول، نسحب التغييرات فقط بدون إنشاء نسخة احتياطية جديدة
+      await performSync(trigger: SyncTrigger.manual, mode: SyncMode.deltaOnly);
     } else {
       _stopMonitoring();
       _hasPendingChanges = false;

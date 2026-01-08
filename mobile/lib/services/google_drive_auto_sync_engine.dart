@@ -562,13 +562,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> _performInitialSync() async {
-    _log('🎬 Performing initial sync...');
+    _log('🎬 Performing initial sync (pull only - no backup creation)...');
     
     await Future.delayed(const Duration(seconds: 2));
     
+    // عند تسجيل الدخول، نسحب التغييرات فقط بدون إنشاء نسخة احتياطية جديدة
     await _coordinator!.performSync(
       trigger: SyncTrigger.appForeground,
-      mode: SyncMode.smart,
+      mode: SyncMode.deltaOnly,
     );
   }
 
