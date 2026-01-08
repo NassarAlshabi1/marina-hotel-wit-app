@@ -567,7 +567,9 @@ class GoogleDriveSyncService {
   }
 
   Future<Uint8List> _downloadFileBytes(drive.DriveApi api, String fileId) async {
-    final media = await api.files.get(fileId, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
+    final media = await api.files
+        .get(fileId, downloadOptions: drive.DownloadOptions.fullMedia)
+        .timeout(SyncConstants.driveDownloadTimeout) as drive.Media;
     final builder = BytesBuilder(copy: false);
     await for (final chunk in media.stream) {
       builder.add(chunk);

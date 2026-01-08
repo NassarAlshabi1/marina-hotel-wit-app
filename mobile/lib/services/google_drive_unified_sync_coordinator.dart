@@ -15,6 +15,7 @@ import 'sync_constants.dart';
 import 'sync_performance_optimizer.dart';
 import 'logging/log_models.dart';
 import 'sync_locks.dart';
+import 'sync_core/retry_strategy.dart';
 
 enum SyncTrigger {
   manual,
@@ -131,7 +132,8 @@ class GoogleDriveUnifiedSyncCoordinator {
   
   SyncPhase _currentPhase = SyncPhase.idle;
   
-  static const Duration _syncTimeout = Duration(minutes: 2);
+  static const Duration _syncTimeout = Duration(minutes: 5);
+  final RetryStrategy _retryStrategy = RetryStrategy(config: RetryConfig.balanced);
   final _syncResultController = StreamController<SyncResult>.broadcast();
   
   bool _pushEnabled = true;
@@ -559,6 +561,28 @@ class GoogleDriveUnifiedSyncCoordinator {
         _currentPhase = SyncPhase.idle;
       });
     }
+  }
+
+  Future<SyncResult> performSyncWithRetry({
+    required SyncTrigger trigger,
+    SyncMode mode = SyncMode.smart,
+  }) async {
+    return _retryStrategy.execute<SyncResult>(
+      operation: () => performSync(trigger: trigger, mode: mode),
+      shouldRetry: (error) {
+        final errorStr = error.toString().toLowerCase();
+        if (errorStr.contains('unauthorized') || errorStr.contains('401')) {
+          return false;
+        }
+        if (errorStr.contains('quotaexceeded') || errorStr.contains('storage')) {
+          return false;
+        }
+        return true;
+      },
+      onRetry: (attempt, error) {
+        _log('🔄 إعادة محاولة المزامنة ($attempt): $error');
+      },
+    );
   }
 
   SyncMode _determineEffectiveMode(SyncMode requestedMode, SyncTrigger trigger) {

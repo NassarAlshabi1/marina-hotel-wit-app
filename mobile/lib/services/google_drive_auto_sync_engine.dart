@@ -223,18 +223,18 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('   ❤️ Health checks: ACTIVE');
   }
 
-  void stop() {
-    SyncLocks.autoEngineLock.synchronized(() {
+  Future<void> stop() async {
+    await SyncLocks.autoEngineLock.synchronized(() async {
       if (!_isRunning) return;
       
       _log('🛑 Stopping Auto Sync Engine...');
       
       _isRunning = false;
       
-      _connectivitySubscription?.cancel();
+      await _connectivitySubscription?.cancel();
       _connectivitySubscription = null;
       
-      _syncResultSubscription?.cancel();
+      await _syncResultSubscription?.cancel();
       _syncResultSubscription = null;
       
       _retryTimer?.cancel();
