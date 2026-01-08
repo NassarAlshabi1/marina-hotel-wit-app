@@ -685,15 +685,24 @@ class GoogleDriveBackupService {
     try {
       final db = DatabaseManager.instance;
 
+      BackupMetadata metadata;
       if (!backupData.containsKey('metadata')) {
-        throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
+        _log('⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية - إنشاء metadata افتراضية');
+        metadata = BackupMetadata(
+          appVersion: '1.0.0',
+          databaseVersion: 3,
+          backupTimestamp: DateTime.now(),
+          totalRecords: 0,
+          deviceInfo: 'unknown',
+          format: BackupFormat.json,
+        );
+      } else {
+        final metadataJson = backupData['metadata'];
+        if (metadataJson is! Map) {
+          throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
+        }
+        metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataJson));
       }
-
-      final metadataJson = backupData['metadata'];
-      if (metadataJson is! Map) {
-        throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
-      }
-      final metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataJson));
       _logger.info('بدء استعادة نسخة بتاريخ ${metadata.backupTimestamp.toIso8601String()} تحتوي ${metadata.totalRecords} سجل', tag: 'RESTORE');
 
       if (metadata.databaseVersion > 3) {

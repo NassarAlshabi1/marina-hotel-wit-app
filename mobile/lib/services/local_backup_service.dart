@@ -409,14 +409,23 @@ class LocalBackupService {
     final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
 
     if (!backupData.containsKey('metadata')) {
-      throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
+      debugPrint('⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية - إنشاء metadata افتراضية');
     }
 
+    BackupMetadata metadata;
     final metadataSource = backupData['metadata'];
-    if (metadataSource is! Map) {
-      throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
+    if (metadataSource is Map) {
+      metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
+    } else {
+      metadata = BackupMetadata(
+        appVersion: '1.0.0',
+        databaseVersion: AppDatabase().schemaVersion,
+        backupTimestamp: DateTime.now(),
+        totalRecords: 0,
+        deviceInfo: 'unknown',
+        format: BackupFormat.json,
+      );
     }
-    final metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
     if (metadata.databaseVersion > AppDatabase().schemaVersion) {
       throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
     }
