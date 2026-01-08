@@ -610,9 +610,9 @@ class AppwriteDeltaSync {
     try {
       final derivedFieldsService = BookingDerivedFieldsService(db);
       await derivedFieldsService.refreshForBooking(booking);
-      debugPrint('✅ تم إعادة حساب الحقول للحجز: ${booking.guestName} (${booking.roomNumber})');
+      _logger.info('✅ تم إعادة حساب الحقول للحجز: ${booking.guestName} (${booking.roomNumber})');
     } catch (e) {
-      debugPrint('⚠️ خطأ في إعادة حساب الحقول للحجز ${booking.id}: $e');
+      _logger.warning('⚠️ خطأ في إعادة حساب الحقول للحجز ${booking.id}: $e');
     }
   }
 
