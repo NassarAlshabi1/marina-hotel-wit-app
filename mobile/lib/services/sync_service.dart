@@ -184,6 +184,11 @@ class SyncService {
     final res = await ApiService.I.syncPull(since).timeout(Duration(seconds: pullTimeoutSeconds));
     if (res['success'] != true) return;
     final data = List<Map<String, dynamic>>.from(res['data']['data']);
+    data.sort((a, b) {
+      final ea = (a['entity'] as String?) ?? '';
+      final eb = (b['entity'] as String?) ?? '';
+      return _entityPriority(ea).compareTo(_entityPriority(eb));
+    });
     
     await db.transaction(() async {
       int maxTs = since;
@@ -192,14 +197,15 @@ class SyncService {
         final op = it['op'] as String;
         final serverId = it['server_id'];
         final serverTs = (it['server_ts'] as num).toInt();
-        final item = Map<String, dynamic>.from(it['data']);
+        final rawData = it['data'];
+        final item = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
+        
+        if (serverTs > maxTs) maxTs = serverTs;
         
         try {
           await _applyIncoming(entity, op, serverId, serverTs, item);
-          if (serverTs > maxTs) maxTs = serverTs;
         } catch (e) {
-          debugPrint('❌ Failed to apply incoming change for $entity: $e');
-          rethrow;
+          debugPrint('❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.');
         }
       }
       
@@ -216,38 +222,50 @@ class SyncService {
   }
 
   Future<void> _applyServerId(String entity, String localUuid, dynamic serverId) async {
+    final sid = _asInt(serverId);
+    if (sid == null) return;
+    
+    final now = Time.nowEpoch();
     switch (entity) {
       case 'rooms':
-        final row = await (db.select(db.rooms)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-        if (row != null) await (db.update(db.rooms)..where((t) => t.roomNumber.equals(row.roomNumber))).write(RoomsCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
+        await (db.update(db.rooms)..where((t) => t.localUuid.equals(localUuid))).write(
+          RoomsCompanion(serverId: d.Value(sid), lastModified: d.Value(now)),
+        );
         break;
       case 'bookings':
-        final row = await (db.select(db.bookings)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-        if (row != null) await (db.update(db.bookings)..where((t) => t.id.equals(row.id))).write(BookingsCompanion(serverBookingId: d.Value(serverId is int ? serverId : null), serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
+        await (db.update(db.bookings)..where((t) => t.localUuid.equals(localUuid))).write(
+          BookingsCompanion(serverBookingId: d.Value(sid), serverId: d.Value(sid), lastModified: d.Value(now)),
+        );
         break;
       case 'booking_notes':
-        final rowN = await (db.select(db.bookingNotes)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-        if (rowN != null) await (db.update(db.bookingNotes)..where((t) => t.id.equals(rowN.id))).write(BookingNotesCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
+        await (db.update(db.bookingNotes)..where((t) => t.localUuid.equals(localUuid))).write(
+          BookingNotesCompanion(serverId: d.Value(sid), lastModified: d.Value(now)),
+        );
         break;
       case 'employees':
-        final rowE = await (db.select(db.employees)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-        if (rowE != null) await (db.update(db.employees)..where((t) => t.id.equals(rowE.id))).write(EmployeesCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
+        await (db.update(db.employees)..where((t) => t.localUuid.equals(localUuid))).write(
+          EmployeesCompanion(serverId: d.Value(sid), lastModified: d.Value(now)),
+        );
         break;
       case 'expenses':
-        final rowX = await (db.select(db.expenses)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-        if (rowX != null) await (db.update(db.expenses)..where((t) => t.id.equals(rowX.id))).write(ExpensesCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
+        await (db.update(db.expenses)..where((t) => t.localUuid.equals(localUuid))).write(
+          ExpensesCompanion(serverId: d.Value(sid), lastModified: d.Value(now)),
+        );
         break;
       case 'cash_transactions':
-        final rowC = await (db.select(db.cashTransactions)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-        if (rowC != null) await (db.update(db.cashTransactions)..where((t) => t.id.equals(rowC.id))).write(CashTransactionsCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
+        await (db.update(db.cashTransactions)..where((t) => t.localUuid.equals(localUuid))).write(
+          CashTransactionsCompanion(serverId: d.Value(sid), lastModified: d.Value(now)),
+        );
         break;
       case 'payments':
-        final rowP = await (db.select(db.payments)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-        if (rowP != null) await (db.update(db.payments)..where((t) => t.id.equals(rowP.id))).write(PaymentsCompanion(serverPaymentId: d.Value(serverId is int ? serverId : null), serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
+        await (db.update(db.payments)..where((t) => t.localUuid.equals(localUuid))).write(
+          PaymentsCompanion(serverPaymentId: d.Value(sid), serverId: d.Value(sid), lastModified: d.Value(now)),
+        );
         break;
       case 'debts':
-        final rowD = await (db.select(db.debts)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-        if (rowD != null) await (db.update(db.debts)..where((t) => t.id.equals(rowD.id))).write(DebtsCompanion(serverId: d.Value(serverId is int ? serverId : null), lastModified: d.Value(Time.nowEpoch())));
+        await (db.update(db.debts)..where((t) => t.localUuid.equals(localUuid))).write(
+          DebtsCompanion(serverId: d.Value(sid), lastModified: d.Value(now)),
+        );
         break;
     }
   }
@@ -296,6 +314,9 @@ class SyncService {
           local = await (db.select(db.bookings)..where((t) => t.serverBookingId.equals(sbid))).getSingleOrNull();
         }
         final room = data['room_number'] as String?;
+        if (room != null && room.isNotEmpty) {
+          await _ensureRoomExists(room);
+        }
         if (local != null) {
           if (serverTs >= local.lastModified) {
             await bookingsDao.updateById(
@@ -541,6 +562,36 @@ class SyncService {
         await _applyHotelDayLedger(op, serverTs, data);
         break;
     }
+  }
+
+  static const Map<String, int> _entityPriorityMap = {
+    'rooms': 0,
+    'employees': 1,
+    'cash_transactions': 1,
+    'expenses': 1,
+    'bookings': 2,
+    'booking_notes': 3,
+    'booking_nights': 3,
+    'payments': 4,
+    'debts': 5,
+    'hotel_day_ledger': 6,
+  };
+
+  int _entityPriority(String entity) => _entityPriorityMap[entity] ?? 10;
+
+  Future<void> _ensureRoomExists(String roomNumber) async {
+    if (roomNumber.isEmpty) return;
+    final existing = await roomsDao.getByNumber(roomNumber);
+    if (existing != null) return;
+    await roomsDao.insertOne(
+      RoomsCompanion(
+        roomNumber: d.Value(roomNumber),
+        type: const d.Value('غير محدد'),
+        price: const d.Value(0),
+        status: const d.Value('متاح'),
+      ),
+      originIsServer: true,
+    );
   }
 
   Future<void> _applyBookingNight(String op, int serverTs, Map<String, dynamic> data) async {

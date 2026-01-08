@@ -629,19 +629,24 @@ class GoogleDriveBackupService {
 
       // البحث عن جميع أنواع النسخ الاحتياطية (الشاملة والتلقائية والتفاضلية)
       final query = "parents in '$folderId' and (name contains '$fullBackupPrefix' or name contains '$autoSyncPrefix' or name contains '$deltaSyncPrefix' or name contains '$_backupFilePrefix') and trashed=false";
-      final listResult = await _driveApi!.files.list(
-        q: query,
-        orderBy: 'createdTime desc',
-        spaces: 'drive',
-        $fields: 'files(id,name,createdTime,size,appProperties)',
-      );
 
-      final backupFiles = <DriveBackupFile>[];
-      if (listResult.files != null) {
-        for (final file in listResult.files!) {
-          backupFiles.add(DriveBackupFile.fromDriveFile(file));
+      final allFiles = <drive.File>[];
+      String? pageToken;
+      do {
+        final response = await _driveApi!.files.list(
+          q: query,
+          orderBy: 'createdTime desc',
+          spaces: 'drive',
+          pageToken: pageToken,
+          $fields: 'nextPageToken,files(id,name,createdTime,size,appProperties)',
+        );
+        if (response.files != null) {
+          allFiles.addAll(response.files!);
         }
-      }
+        pageToken = response.nextPageToken;
+      } while (pageToken != null);
+
+      final backupFiles = allFiles.map(DriveBackupFile.fromDriveFile).toList();
 
       _log('✅ تم جلب ${backupFiles.length} نسخة احتياطية');
       return backupFiles;
@@ -700,28 +705,29 @@ class GoogleDriveBackupService {
       // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
       await db.customStatement('PRAGMA foreign_keys = OFF');
       try {
-        // حذف جميع الجداول
-        await db.delete(db.rooms).go();
-        await db.delete(db.bookings).go();
-        await db.delete(db.bookingNotes).go();
-        await db.delete(db.bookingNights).go();
-        await db.delete(db.hotelDayLedger).go();
-        await db.delete(db.shiftNotes).go();
-        await db.delete(db.employees).go();
-        await db.delete(db.expenses).go();
-        await db.delete(db.cashTransactions).go();
-        await db.delete(db.payments).go();
-        await db.delete(db.debts).go();
-        await db.delete(db.autoFixRuns).go();
-        await db.delete(db.integrityViolations).go();
-        await db.delete(db.appSessions).go();
-        await db.delete(db.salaryCycles).go();
-        await db.delete(db.salaryPayments).go();
-        await db.delete(db.restoreFixLog).go();
-        await db.delete(db.syncQueue).go();
-        await db.delete(db.syncLog).go();
-        await db.delete(db.syncConflicts).go();
-        await db.delete(db.syncState).go();
+        await db.transaction(() async {
+          // حذف جميع الجداول
+          await db.delete(db.rooms).go();
+          await db.delete(db.bookings).go();
+          await db.delete(db.bookingNotes).go();
+          await db.delete(db.bookingNights).go();
+          await db.delete(db.hotelDayLedger).go();
+          await db.delete(db.shiftNotes).go();
+          await db.delete(db.employees).go();
+          await db.delete(db.expenses).go();
+          await db.delete(db.cashTransactions).go();
+          await db.delete(db.payments).go();
+          await db.delete(db.debts).go();
+          await db.delete(db.autoFixRuns).go();
+          await db.delete(db.integrityViolations).go();
+          await db.delete(db.appSessions).go();
+          await db.delete(db.salaryCycles).go();
+          await db.delete(db.salaryPayments).go();
+          await db.delete(db.restoreFixLog).go();
+          await db.delete(db.syncQueue).go();
+          await db.delete(db.syncLog).go();
+          await db.delete(db.syncConflicts).go();
+          await db.delete(db.syncState).go();
 
       // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
       if (backupData.containsKey('rooms')) {
@@ -909,6 +915,7 @@ class GoogleDriveBackupService {
         final data = SyncStateData.fromJson(syncStateJson, serializer: lenientValueSerializer);
         await db.into(db.syncState).insertOnConflictUpdate(data);
       }
+      });
 
       // استعادة وتطبيق الإعدادات العامة إذا وجدت
       if (backupData.containsKey('system_settings')) {
@@ -1048,7 +1055,7 @@ class GoogleDriveBackupService {
 
   Future<void> cancelAutoBackup() async {
     try {
-      await Workmanager().cancelByUniqueName('autoBackup');
+      await Workmanager().cancelByUniqueName(AutoBackupTask.taskId);
       _log('✅ تم إلغاء النسخ التلقائي');
     } catch (e) {
       _log('❌ خطأ في إلغاء النسخ التلقائي: $e');

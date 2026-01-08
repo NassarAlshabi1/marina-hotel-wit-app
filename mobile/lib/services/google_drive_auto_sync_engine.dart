@@ -13,6 +13,7 @@ import 'google_drive_delta_sync.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
 import 'sync_locks.dart';
+import 'sync_constants.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
 import 'sync_locks.dart';
@@ -209,7 +210,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
     
     _setupConnectivityListener();
     _setupSyncResultListener();
-    _setupDataStreamListener();
     _startHealthCheck();
     
     if (_isSignedIn && _hasNetworkConnection) {
@@ -285,40 +285,38 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('📊 Setting up sync result listener...');
     
     _syncResultSubscription = _coordinator!.syncResults.listen(
-      (result) {
+      (result) async {
         if (result.success) {
           _lastSuccessfulSync = result.timestamp;
           _failedAttempts = 0;
-    _syncResultSubscription = _coordinator!.syncResults.listen(
-          (result) async {
-            if (result.success) {
-              _lastSuccessfulSync = result.timestamp;
-              _failedAttempts = 0;
-              _nextRetryAt = null;
-              _lastError = null;
-          
-              if (result.pushedChanges != null && result.pushedChanges! > 0) {
-                _pendingChangesCount = max(0, _pendingChangesCount - result.pushedChanges!);
-              }
-          
-              _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
-            } else {
-              _failedAttempts++;
-              _lastError = result.error ?? result.message;
-          
-              final errorDetails = result.error != null
-                  ? '${result.message} - ${result.error}'
-                  : result.message;
-          
-              _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails',
-                   level: LogLevel.error);
-          
-              final prefs = await SharedPreferences.getInstance();
-              final retryEnabled = prefs.getBool(_prefsRetryEnabledKey) ?? true;
-              if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
-                unawaited(_scheduleRetry());
-              } else if (_failedAttempts >= _retryConfig.maxRetries) {
-                 level: LogLevel.warning);
+          _nextRetryAt = null;
+          _lastError = null;
+      
+          if (result.pushedChanges != null && result.pushedChanges! > 0) {
+            _pendingChangesCount = max(0, _pendingChangesCount - result.pushedChanges!);
+          }
+      
+          _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
+        } else {
+          _failedAttempts++;
+          _lastError = result.error ?? result.message;
+      
+          final errorDetails = result.error != null
+              ? '${result.message} - ${result.error}'
+              : result.message;
+      
+          _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails',
+               level: LogLevel.error);
+      
+          final p = await SharedPreferences.getInstance();
+          final retryEnabled = p.getBool(_prefsRetryEnabledKey) ?? true;
+          if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
+            _scheduleRetry();
+          } else if (_failedAttempts >= _retryConfig.maxRetries) {
+            _log(
+              '🚫 Max retries reached - stopping automatic retries',
+              level: LogLevel.warning,
+            );
           }
         }
         
@@ -462,7 +460,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
       }
     }
     
-    Future.delayed(const Duration(milliseconds: 500), () async {
+    Future.delayed(SyncConstants.appForegroundDelay, () async {
       try {
         await _coordinator!.onAppForeground();
       } catch (e) {

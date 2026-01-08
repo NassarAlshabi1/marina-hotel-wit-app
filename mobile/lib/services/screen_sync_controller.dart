@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'smart_sync_manager.dart';
-import 'sync_queue_service.dart';
+import 'sync_queue_service.dart' hide RetryConfig;
 import 'sync_core/sync_error_handler.dart';
 import 'sync_core/retry_strategy.dart';
 import 'sync_core/circuit_breaker.dart';
