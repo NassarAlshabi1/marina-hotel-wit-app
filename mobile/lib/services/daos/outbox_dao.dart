@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../local_db.dart';
 import '../sync_guardian.dart';
@@ -115,12 +116,20 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     Future.microtask(() async {
       try {
         await SyncGuardian.instance.notifyLocalChange(table: entity, operation: op);
-      } catch (e) {
-        // تجاهل أخطاء الإشعار - لا نريد إيقاف العملية الأساسية
+      } catch (e, s) {
+        debugPrint('Error notifying SyncGuardian: $e\n$s');
       }
     });
-    GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
-    AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
+    try {
+      GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
+    } catch (e, s) {
+      debugPrint('Error notifying GoogleDriveUnifiedSyncCoordinator: $e\n$s');
+    }
+    try {
+      AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
+    } catch (e, s) {
+      debugPrint('Error notifying AutoSyncEngine: $e\n$s');
+    }
   }
 
   Future<List<OutboxData>> takeBatch(int limit) {
