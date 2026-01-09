@@ -423,6 +423,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     
     _PerformSyncResult canStartResult;
+    
     if (!_isInitialized) {
       canStartResult = _PerformSyncNotInitialized();
     } else if (!(_backupService?.isSignedIn ?? false)) {
@@ -435,6 +436,7 @@ class GoogleDriveUnifiedSyncCoordinator {
           _isSyncing = false;
           _syncStartTime = null;
           _currentPhase = SyncPhase.idle;
+          canStartResult = _PerformSyncOk();
         } else {
           canStartResult = _PerformSyncAlreadyInProgress(elapsed.inSeconds);
           UnifiedLockManager.instance.release(
@@ -445,16 +447,16 @@ class GoogleDriveUnifiedSyncCoordinator {
       } else {
         _log('⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
         _isSyncing = false;
+        canStartResult = _PerformSyncOk();
       }
+    } else {
+      canStartResult = _PerformSyncOk();
     }
     
-    if (!_isSyncing) {
+    if (canStartResult is _PerformSyncOk && !_isSyncing) {
       _isSyncing = true;
       _syncStartTime = DateTime.now();
       _currentPhase = SyncPhase.authenticating;
-      canStartResult = _PerformSyncOk();
-    } else if (canStartResult is! _PerformSyncAlreadyInProgress) {
-      canStartResult = _PerformSyncOk();
     }
     
     switch (canStartResult) {
@@ -813,4 +815,17 @@ class GoogleDriveUnifiedSyncCoordinator {
     _syncResultController.close();
     _log('🛑 Unified Sync Coordinator disposed');
   }
+}
+
+sealed class _PerformSyncResult {}
+
+class _PerformSyncOk extends _PerformSyncResult {}
+
+class _PerformSyncNotInitialized extends _PerformSyncResult {}
+
+class _PerformSyncNotSignedIn extends _PerformSyncResult {}
+
+class _PerformSyncAlreadyInProgress extends _PerformSyncResult {
+  final int elapsedSeconds;
+  _PerformSyncAlreadyInProgress(this.elapsedSeconds);
 }
