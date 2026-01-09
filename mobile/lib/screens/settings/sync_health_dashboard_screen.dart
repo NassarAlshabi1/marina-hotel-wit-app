@@ -67,6 +67,7 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
           data: (dashboard) => RefreshIndicator(
             onRefresh: _refreshAll,
             child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
