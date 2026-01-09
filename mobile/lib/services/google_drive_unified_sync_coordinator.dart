@@ -322,18 +322,25 @@ class GoogleDriveUnifiedSyncCoordinator {
   /// - شبه فوري: يشعر المستخدم بالمزامنة الفورية
   /// - ذكي: لا يزعج المستخدم بمزامنات متعددة
   /// - فعال: يوفر البطارية والبيانات
-  void notifyLocalChange({String? table, String? operation, int count = 1}) {
+  Future<void> notifyLocalChange({String? table, String? operation, int count = 1}) async {
     if (!_isInitialized) return;
     
-    final now = DateTime.now();
-    
-    if (!_hasPendingChanges) {
-      _firstChangeTime = now;
-      _log('💾 Save action detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
-    }
-    
-    _hasPendingChanges = true;
-    _pendingChangesCount += count;
+    await UnifiedLockManager.instance.runWithLock(
+      category: LockCategory.mainSync,
+      holder: 'GoogleDriveUnifiedSyncCoordinator.notifyLocalChange',
+      priority: LockPriority.low,
+      operation: () async {
+        final now = DateTime.now();
+        
+        if (!_hasPendingChanges) {
+          _firstChangeTime = now;
+          _log('💾 Save action detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
+        }
+        
+        _hasPendingChanges = true;
+        _pendingChangesCount += count;
+      },
+    );
     
     _debounceTimer?.cancel();
     
