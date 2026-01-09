@@ -532,7 +532,15 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }) {
     if (!_isRunning) return;
     
-    _pendingChangesCount += count;
+    // يجب تغيير توقيع الدالة إلى `Future<void> notifyDataChange(...) async`
+    await UnifiedLockManager.instance.runWithLock(
+      category: LockCategory.mainSync,
+      holder: 'AutoSyncEngine.notifyDataChange',
+      priority: LockPriority.low,
+      operation: () async {
+        _pendingChangesCount += count;
+      },
+    );
     
     _emitState();
     
