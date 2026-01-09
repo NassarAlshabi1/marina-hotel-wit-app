@@ -418,10 +418,10 @@ class LocalBackupService {
       metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
     } else {
       metadata = BackupMetadata(
-        appVersion: '1.0.0',
+        appVersion: '0.0.0-unknown',
         databaseVersion: AppDatabase().schemaVersion,
-        backupTimestamp: DateTime.now(),
-        totalRecords: 0,
+        backupTimestamp: DateTime.fromMillisecondsSinceEpoch(0),
+        totalRecords: -1,
         deviceInfo: 'unknown',
         format: BackupFormat.json,
       );
