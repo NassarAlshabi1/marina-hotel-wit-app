@@ -656,6 +656,73 @@ class AppDatabase extends _$AppDatabase {
       await replaceTableIfNonEmpty<SalaryPayment>(salaryPayments, 'salary_payments', (row) => SalaryPayment.fromJson(row));
     });
   }
+
+  Future<void> applyMergedDataBatched(Map<String, dynamic> merged) async {
+    if (merged.isEmpty) {
+      developer.log(
+        'applyMergedDataBatched: merged snapshot is empty. Skipping apply to avoid wiping local data.',
+        name: 'AppDatabase',
+        level: 900,
+      );
+      return;
+    }
+
+    List<Map<String, dynamic>>? asListIfPresent(String key) {
+      if (!merged.containsKey(key)) {
+        return null;
+      }
+      final value = merged[key];
+      if (value == null) {
+        return <Map<String, dynamic>>[];
+      }
+      if (value is! List) {
+        throw StateError('Invalid snapshot table type for $key: ${value.runtimeType}');
+      }
+      return value.map((row) => Map<String, dynamic>.from(row as Map)).toList();
+    }
+
+    const batchSize = 100;
+
+    await transaction(() async {
+      Future<void> replaceTableInBatches<T extends Insertable<dynamic>>(
+        TableInfo<Table, dynamic> table,
+        String key,
+        T Function(Map<String, dynamic> json) fromJson,
+      ) async {
+        final rows = asListIfPresent(key);
+        if (rows == null) {
+          return;
+        }
+        
+        await delete(table).go();
+        
+        for (var i = 0; i < rows.length; i += batchSize) {
+          final batchRows = rows.skip(i).take(batchSize).toList();
+          await batch((batch) {
+            batch.insertAll(table, batchRows.map(fromJson).toList(), mode: InsertMode.insertOrReplace);
+          });
+          
+          await Future.delayed(Duration.zero);
+        }
+      }
+
+      await replaceTableInBatches<Room>(rooms, 'rooms', (row) => Room.fromJson(row));
+      await replaceTableInBatches<Booking>(bookings, 'bookings', (row) => Booking.fromJson(row));
+      await replaceTableInBatches<BookingNote>(bookingNotes, 'booking_notes', (row) => BookingNote.fromJson(row));
+      await replaceTableInBatches<Employee>(employees, 'employees', (row) => Employee.fromJson(row));
+      await replaceTableInBatches<Expense>(expenses, 'expenses', (row) => Expense.fromJson(row));
+      await replaceTableInBatches<CashTransaction>(cashTransactions, 'cash_transactions', (row) => CashTransaction.fromJson(row));
+      await replaceTableInBatches<Payment>(payments, 'payments', (row) => Payment.fromJson(row));
+      await replaceTableInBatches<Debt>(debts, 'debts', (row) => Debt.fromJson(row));
+      await replaceTableInBatches<BookingNight>(bookingNights, 'booking_nights', (row) => BookingNight.fromJson(row));
+      await replaceTableInBatches<HotelDayLedgerEntry>(hotelDayLedger, 'hotel_day_ledger', (row) => HotelDayLedgerEntry.fromJson(row));
+      await replaceTableInBatches<AutoFixRun>(autoFixRuns, 'auto_fix_runs', (row) => AutoFixRun.fromJson(row));
+      await replaceTableInBatches<IntegrityViolation>(integrityViolations, 'integrity_violations', (row) => IntegrityViolation.fromJson(row));
+      await replaceTableInBatches<AppSession>(appSessions, 'app_sessions', (row) => AppSession.fromJson(row));
+      await replaceTableInBatches<SalaryCycle>(salaryCycles, 'salary_cycles', (row) => SalaryCycle.fromJson(row));
+      await replaceTableInBatches<SalaryPayment>(salaryPayments, 'salary_payments', (row) => SalaryPayment.fromJson(row));
+    });
+  }
 }
 
 LazyDatabase _open() {

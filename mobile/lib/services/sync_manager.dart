@@ -21,6 +21,7 @@ import 'sync_safety_layer.dart';
 import 'sync_mutex.dart';
 import 'sync_enums.dart';
 import 'sync_config.dart';
+import 'sync_constants.dart';
 import 'conflict_resolver.dart';
 import 'vector_clock.dart';
 
@@ -291,8 +292,7 @@ class SyncManager {
         return;
       }
 
-      final localTables = await db.getAllTablesAsJson();
-      if (!force && compareChecksum(remoteResult.snapshot, localTables)) {
+      if (!force && await compareChecksumAsync(remoteResult.snapshot)) {
         _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا تغييرات بعد التحقق من checksum'));
         return;
       }
@@ -300,14 +300,13 @@ class SyncManager {
       final syncId = _generateSyncId();
       safetySnapshot = await _safetyLayer.captureSnapshot(db: db, syncId: syncId, phase: 'pull');
 
-      final mergeResult = _mergeSnapshots(
+      final mergeResult = await _mergeSnapshotsStreaming(
         remoteSnapshot: remoteResult.snapshot,
-        localTables: localTables,
         deviceId: deviceId,
         syncId: syncId,
       );
 
-      await db.applyMergedData(mergeResult.mergedSnapshot.tables);
+      await db.applyMergedDataBatched(mergeResult.mergedSnapshot.tables);
 
       await _auditDao.insertSyncLog(
         syncId: syncId,
@@ -357,6 +356,11 @@ class SyncManager {
   /// مقارنة Checksum المحلي مع البعيد لتحديد التطابق
   bool compareChecksum(SyncSnapshot remote, Map<String, dynamic> localTables) {
     final localChecksum = SyncChecksum.compute({'tables': localTables});
+    return localChecksum == remote.metadata.checksum;
+  }
+
+  Future<bool> compareChecksumAsync(SyncSnapshot remote) async {
+    final localChecksum = await _computeStreamChecksum();
     return localChecksum == remote.metadata.checksum;
   }
 
@@ -494,12 +498,11 @@ class SyncManager {
         try {
           final deviceId = await _ensureDeviceId();
           final syncId = _generateSyncId();
-          final localTables = await db.getAllTablesAsJson();
           final remoteResult = await driveService.downloadLatestSnapshot();
           final expectedVersion = remoteResult?.driveVersion ?? 0;
           final remoteSnapshot = remoteResult?.snapshot ?? _emptySnapshot();
 
-          if (!force && remoteResult != null && remoteResult.metadata.lastDeviceId == deviceId && compareChecksum(remoteResult.snapshot, localTables)) {
+          if (!force && remoteResult != null && remoteResult.metadata.lastDeviceId == deviceId && await compareChecksumAsync(remoteResult.snapshot)) {
             await _markQueueStatus(pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
             _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا توجد تغييرات جديدة للرفع'));
             return;
@@ -507,9 +510,8 @@ class SyncManager {
 
           safetySnapshot = await _safetyLayer.captureSnapshot(db: db, syncId: syncId, phase: 'push');
 
-          final mergeResult = _mergeSnapshots(
+          final mergeResult = await _mergeSnapshotsStreaming(
             remoteSnapshot: remoteSnapshot,
-            localTables: localTables,
             deviceId: deviceId,
             syncId: syncId,
           );
@@ -520,7 +522,7 @@ class SyncManager {
             expectedVersion: expectedVersion,
           );
 
-          await db.applyMergedData(mergeResult.mergedSnapshot.tables);
+          await db.applyMergedDataBatched(mergeResult.mergedSnapshot.tables);
           await _markQueueStatus(pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
 
           await _auditDao.insertSyncLog(
@@ -775,6 +777,234 @@ class SyncManager {
       appliedOperations: operations,
       conflicts: conflicts,
     );
+  }
+
+  Future<SyncMergeResult> _mergeSnapshotsStreaming({
+    required SyncSnapshot remoteSnapshot,
+    required String deviceId,
+    required String syncId,
+  }) async {
+    final mergedTables = <String, List<Map<String, dynamic>>>{};
+    final operations = <SyncOperation>[];
+    final conflicts = <SyncConflictModel>[];
+    final remotePriority = remoteSnapshot.metadata.devicePriority;
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+
+    final remoteTables = remoteSnapshot.tables;
+    final allTableNames = <String>{
+      ...remoteTables.keys,
+      ...SyncConstants.allTablesInOrder,
+    };
+
+    for (final table in allTableNames) {
+      debugPrint('🔄 معالجة جدول: $table');
+      
+      final remoteList = (remoteTables[table] ?? [])
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+      
+      final remoteMap = <String, Map<String, dynamic>>{};
+      for (final row in remoteList) {
+        final uuid = _extractUuid(row);
+        if (uuid != null) remoteMap[uuid] = row;
+      }
+      
+      final localMap = <String, Map<String, dynamic>>{};
+      int recordCount = 0;
+      await for (final batch in _streamTableRows(table, batchSize: SyncConfig.streamingBatchSize)) {
+        for (final row in batch) {
+          final uuid = _extractUuid(row);
+          if (uuid != null) {
+            localMap[uuid] = row;
+            recordCount++;
+          }
+        }
+      }
+      
+      debugPrint('  📊 $table: $recordCount سجلات محلية، ${remoteMap.length} سجلات بعيدة');
+      
+      final mergedList = await _mergeTableRecords(
+        table: table,
+        localMap: localMap,
+        remoteMap: remoteMap,
+        deviceId: deviceId,
+        remotePriority: remotePriority,
+        remoteDeviceId: remoteSnapshot.metadata.lastDeviceId,
+        nowIso: nowIso,
+        operations: operations,
+        conflicts: conflicts,
+      );
+      
+      mergedTables[table] = mergedList;
+      
+      localMap.clear();
+    }
+
+    final metadata = SyncMetadata(
+      version: remoteSnapshot.metadata.version,
+      lastUpdatedAt: nowIso,
+      devicePriority: _devicePriority,
+      snapshotSize: remoteSnapshot.metadata.snapshotSize,
+      lastSyncId: syncId,
+      checksum: remoteSnapshot.metadata.checksum,
+      lastDeviceId: deviceId,
+    );
+
+    return SyncMergeResult(
+      mergedSnapshot: SyncSnapshot(metadata: metadata, tables: mergedTables),
+      appliedOperations: operations,
+      conflicts: conflicts,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _mergeTableRecords({
+    required String table,
+    required Map<String, Map<String, dynamic>> localMap,
+    required Map<String, Map<String, dynamic>> remoteMap,
+    required String deviceId,
+    required int remotePriority,
+    required String nowIso,
+    required String remoteDeviceId,
+    required List<SyncOperation> operations,
+    required List<SyncConflictModel> conflicts,
+  }) async {
+    final mergedList = <Map<String, dynamic>>[];
+    final allKeys = <String>{...remoteMap.keys, ...localMap.keys};
+
+    for (final key in allKeys) {
+      final remoteRow = remoteMap[key];
+      final localRow = localMap[key];
+
+      if (remoteRow == null && localRow != null) {
+        mergedList.add(localRow);
+        operations.add(SyncOperation(
+          table: table,
+          uuid: key,
+          operation: 'insert',
+          payload: localRow,
+          timestamp: _extractUpdatedAt(localRow) ?? nowIso,
+        ));
+        continue;
+      }
+
+      if (remoteRow != null && localRow == null) {
+        mergedList.add(remoteRow);
+        continue;
+      }
+
+      if (remoteRow == null || localRow == null) {
+        continue;
+      }
+
+      final remoteUpdated = _parseDateTime(_extractUpdatedAt(remoteRow));
+      final localUpdated = _parseDateTime(_extractUpdatedAt(localRow));
+      final remoteDeleted = _parseDateTime(_extractDeletedAt(remoteRow));
+      final localDeleted = _parseDateTime(_extractDeletedAt(localRow));
+
+      Map<String, dynamic> winner;
+      String operation;
+
+      if (remoteDeleted != null || localDeleted != null) {
+        final remoteTs = remoteDeleted ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+        final localTs = localDeleted ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+        if (localTs.isAfter(remoteTs)) {
+          winner = localRow;
+          operation = 'delete';
+        } else {
+          winner = remoteRow;
+          operation = 'delete';
+        }
+      } else {
+        final remoteUpdatedTs = remoteUpdated ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+        final localUpdatedTs = localUpdated ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+        if (localUpdatedTs.isAfter(remoteUpdatedTs)) {
+          winner = localRow;
+          operation = 'update';
+        } else if (remoteUpdatedTs.isAfter(localUpdatedTs)) {
+          winner = remoteRow;
+          operation = 'remote';
+        } else {
+          final equality = const DeepCollectionEquality().equals(remoteRow, localRow);
+          if (equality) {
+            winner = remoteRow;
+            operation = 'noop';
+          } else {
+            final conflictResolver = EnhancedConflictResolver(
+              defaultStrategy: ConflictStrategy.fieldLevel,
+              tableStrategies: {
+                'bookings': ConflictStrategy.fieldLevel,
+                'payments': ConflictStrategy.lastWriteWins,
+                'rooms': ConflictStrategy.fieldLevel,
+                'expenses': ConflictStrategy.lastWriteWins,
+                'debts': ConflictStrategy.fieldLevel,
+                'guests': ConflictStrategy.fieldLevel,
+                'employees': ConflictStrategy.fieldLevel,
+                'services': ConflictStrategy.lastWriteWins,
+              },
+            );
+
+            VectorClock? localVectorClock;
+            VectorClock? remoteVectorClock;
+            try {
+              final localVc = localRow['vector_clock'] as String?;
+              final remoteVc = remoteRow['vector_clock'] as String?;
+              if (localVc != null && localVc.isNotEmpty) {
+                localVectorClock = VectorClock.fromJson(localVc);
+              }
+              if (remoteVc != null && remoteVc.isNotEmpty) {
+                remoteVectorClock = VectorClock.fromJson(remoteVc);
+              }
+            } catch (_) {}
+
+            final context = ConflictContext(
+              table: table,
+              uuid: key,
+              localData: localRow,
+              remoteData: remoteRow,
+              localVectorClock: localVectorClock,
+              remoteVectorClock: remoteVectorClock,
+              localTimestamp: localUpdatedTs,
+              remoteTimestamp: remoteUpdatedTs,
+              localDeviceId: deviceId,
+              remoteDeviceId: remoteDeviceId,
+              localDevicePriority: _devicePriority,
+              remoteDevicePriority: remotePriority,
+            );
+
+            final resolution = conflictResolver.resolve(context);
+            winner = resolution.mergedData ?? resolution.winner;
+            
+            final isLocalWinner = winner == localRow || 
+                (resolution.mergedData != null && resolution.strategy == ConflictStrategy.fieldLevel);
+            
+            operation = isLocalWinner ? 'conflict-local' : 'conflict-remote';
+            
+            conflicts.add(SyncConflictModel(
+              table: table,
+              uuid: key,
+              localPayload: localRow,
+              remotePayload: remoteRow,
+              resolution: resolution.needsManualReview ? 'pending' : (isLocalWinner ? 'local-merged' : 'remote'),
+            ));
+
+            debugPrint('🔀 تعارض [$table/$key]: استراتيجية ${resolution.strategy.name}');
+          }
+        }
+      }
+
+      mergedList.add(winner);
+      if (operation != 'noop' && !operation.startsWith('remote')) {
+        operations.add(SyncOperation(
+          table: table,
+          uuid: key,
+          operation: operation,
+          payload: winner,
+          timestamp: _extractUpdatedAt(winner) ?? nowIso,
+        ));
+      }
+    }
+
+    return mergedList;
   }
 
   Future<void> _markQueueStatus(List<int> ids, String status) async {
