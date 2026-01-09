@@ -524,15 +524,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('💤 App inactive');
   }
 
-  void notifyDataChange({
+  Future<void> notifyDataChange({
     required String table,
     required String operation,
     int count = 1,
     Map<String, dynamic>? recordData,
-  }) {
+  }) async {
     if (!_isRunning) return;
     
-    // يجب تغيير توقيع الدالة إلى `Future<void> notifyDataChange(...) async`
     await UnifiedLockManager.instance.runWithLock(
       category: LockCategory.mainSync,
       holder: 'AutoSyncEngine.notifyDataChange',
@@ -546,7 +545,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     
     _log('💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)');
     
-    _coordinator!.notifyLocalChange(
+    await _coordinator!.notifyLocalChange(
       table: table,
       operation: operation,
       count: count,
