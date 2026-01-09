@@ -47,14 +47,7 @@ enum _SyncStartResult {
   alreadySyncing,
 }
 
-sealed class _PerformSyncStartResult {}
-class _PerformSyncOk extends _PerformSyncStartResult {}
-class _PerformSyncNotInitialized extends _PerformSyncStartResult {}
-class _PerformSyncNotSignedIn extends _PerformSyncStartResult {}
-class _PerformSyncAlreadyInProgress extends _PerformSyncStartResult {
-  final int elapsedSeconds;
-  _PerformSyncAlreadyInProgress(this.elapsedSeconds);
-}
+
 
 class SyncResult {
   final bool success;
