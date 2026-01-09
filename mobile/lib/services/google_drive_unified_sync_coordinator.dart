@@ -10,11 +10,10 @@ import 'google_drive_delta_sync.dart';
 import 'google_drive_logger.dart';
 import 'local_db.dart';
 import 'data_usage_manager.dart';
-import 'sync_locks.dart';
+import 'sync_core/unified_lock_manager.dart';
 import 'sync_constants.dart';
 import 'sync_performance_optimizer.dart';
 import 'logging/log_models.dart';
-import 'sync_locks.dart';
 import 'sync_core/retry_strategy.dart';
 
 enum SyncTrigger {
@@ -326,17 +325,15 @@ class GoogleDriveUnifiedSyncCoordinator {
   void notifyLocalChange({String? table, String? operation, int count = 1}) {
     if (!_isInitialized) return;
     
-    SyncLocks.mainSyncLock.synchronized(() {
-      final now = DateTime.now();
-      
-      if (!_hasPendingChanges) {
-        _firstChangeTime = now;
-        _log('💾 Save action detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
-      }
-      
-      _hasPendingChanges = true;
-      _pendingChangesCount += count;
-    });
+    final now = DateTime.now();
+    
+    if (!_hasPendingChanges) {
+      _firstChangeTime = now;
+      _log('💾 Save action detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
+    }
+    
+    _hasPendingChanges = true;
+    _pendingChangesCount += count;
     
     _debounceTimer?.cancel();
     
@@ -404,32 +401,54 @@ class GoogleDriveUnifiedSyncCoordinator {
     required SyncTrigger trigger,
     SyncMode mode = SyncMode.smart,
   }) async {
-    final canStartResult = await SyncLocks.mainSyncLock.synchronized(() async {
-      if (!_isInitialized) return _PerformSyncNotInitialized();
-      if (!(_backupService?.isSignedIn ?? false)) return _PerformSyncNotSignedIn();
-      
-      if (_isSyncing) {
-        if (_syncStartTime != null) {
-          final elapsed = DateTime.now().difference(_syncStartTime!);
-          if (elapsed > _syncTimeout) {
-            _log('⚠️ Sync timeout detected (${elapsed.inSeconds}s) - resetting state');
-            _isSyncing = false;
-            _syncStartTime = null;
-            _currentPhase = SyncPhase.idle;
-          } else {
-            return _PerformSyncAlreadyInProgress(elapsed.inSeconds);
-          }
-        } else {
-          _log('⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'GoogleDriveUnifiedSyncCoordinator.performSync',
+      priority: LockPriority.high,
+    );
+    
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
+      return SyncResult.failure(
+        message: 'Failed to acquire lock: ${lockResult.failureReason}',
+        phase: SyncPhase.idle,
+      );
+    }
+    
+    _PerformSyncResult canStartResult;
+    if (!_isInitialized) {
+      canStartResult = _PerformSyncNotInitialized();
+    } else if (!(_backupService?.isSignedIn ?? false)) {
+      canStartResult = _PerformSyncNotSignedIn();
+    } else if (_isSyncing) {
+      if (_syncStartTime != null) {
+        final elapsed = DateTime.now().difference(_syncStartTime!);
+        if (elapsed > _syncTimeout) {
+          _log('⚠️ Sync timeout detected (${elapsed.inSeconds}s) - resetting state');
           _isSyncing = false;
+          _syncStartTime = null;
+          _currentPhase = SyncPhase.idle;
+        } else {
+          canStartResult = _PerformSyncAlreadyInProgress(elapsed.inSeconds);
+          UnifiedLockManager.instance.release(
+            category: LockCategory.mainSync,
+            holder: 'GoogleDriveUnifiedSyncCoordinator.performSync',
+          );
         }
+      } else {
+        _log('⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
+        _isSyncing = false;
       }
-      
+    }
+    
+    if (!_isSyncing) {
       _isSyncing = true;
       _syncStartTime = DateTime.now();
       _currentPhase = SyncPhase.authenticating;
-      return _PerformSyncOk();
-    });
+      canStartResult = _PerformSyncOk();
+    } else if (canStartResult is! _PerformSyncAlreadyInProgress) {
+      canStartResult = _PerformSyncOk();
+    }
     
     switch (canStartResult) {
       case _PerformSyncNotInitialized():
@@ -556,11 +575,13 @@ class GoogleDriveUnifiedSyncCoordinator {
       return result;
       
     } finally {
-      await SyncLocks.mainSyncLock.synchronized(() async {
-        _isSyncing = false;
-        _syncStartTime = null;
-        _currentPhase = SyncPhase.idle;
-      });
+      _isSyncing = false;
+      _syncStartTime = null;
+      _currentPhase = SyncPhase.idle;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'GoogleDriveUnifiedSyncCoordinator.performSync',
+      );
     }
   }
 

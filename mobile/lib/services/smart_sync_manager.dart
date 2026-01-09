@@ -13,7 +13,7 @@ import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
-import 'sync_locks.dart';
+import 'sync_core/unified_lock_manager.dart';
 import 'sync_config.dart';
 import 'sync_constants.dart';
 
@@ -206,15 +206,26 @@ class SmartSyncManager {
 
   /// التحقق من وجود نسخ احتياطية جديدة
   Future<void> _performSyncCheck() async {
-    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
-      if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
-        return false;
-      }
-      _isSyncing = true;
-      return true;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'SmartSyncManager._performSyncCheck',
+      priority: LockPriority.normal,
+    );
     
-    if (!canStart) return;
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
+      return;
+    }
+    
+    if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartSyncManager._performSyncCheck',
+      );
+      return;
+    }
+    
+    _isSyncing = true;
 
     try {
       _log('🔍 فحص وجود نسخ احتياطية جديدة...');
@@ -254,9 +265,11 @@ class SmartSyncManager {
     } catch (e) {
       _log('❌ خطأ في فحص المزامنة: $e');
     } finally {
-      await SyncLocks.smartSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartSyncManager._performSyncCheck',
+      );
     }
   }
 
@@ -726,30 +739,49 @@ class SmartSyncManager {
   Future<bool> pushLocalChanges() async {
     int retries = 0;
     while (retries < 10) {
-      final isSyncing = await SyncLocks.smartSyncLock.synchronized(() => _isSyncing);
-      if (!isSyncing) break;
+      if (!_isSyncing) break;
       await Future.delayed(SyncConstants.shortPollingDelay);
       retries++;
     }
     
-    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
-      if (_isSyncing) {
-        _log('⚠️ تخطي الرفع - المزامنة جارية لفترة طويلة');
-        return false;
-      }
-      if (_backupService == null || !_backupService!.isSignedIn) {
-        return false;
-      }
-      _isSyncing = true;
-      return true;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'SmartSyncManager.pushLocalChanges',
+      priority: LockPriority.high,
+    );
     
-    if (!canStart) {
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
       return await _attemptSilentSignInAndRetry(
         'رفع التغييرات',
         pushLocalChanges,
       ) ?? false;
     }
+    
+    if (_isSyncing) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartSyncManager.pushLocalChanges',
+      );
+      _log('⚠️ تخطي الرفع - المزامنة جارية لفترة طويلة');
+      return await _attemptSilentSignInAndRetry(
+        'رفع التغييرات',
+        pushLocalChanges,
+      ) ?? false;
+    }
+    
+    if (_backupService == null || !_backupService!.isSignedIn) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartSyncManager.pushLocalChanges',
+      );
+      return await _attemptSilentSignInAndRetry(
+        'رفع التغييرات',
+        pushLocalChanges,
+      ) ?? false;
+    }
+    
+    _isSyncing = true;
 
     try {
       _log('📤 رفع التغييرات المحلية إلى Google Drive...');
@@ -801,33 +833,55 @@ class SmartSyncManager {
       _log('❌ خطأ في رفع التغييرات: $e');
       return false;
     } finally {
-      await SyncLocks.smartSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartSyncManager.pushLocalChanges',
+      );
     }
   }
 
   /// سحب التغييرات من Google Drive
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {
-    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
-      if (_backupService == null || !_backupService!.isSignedIn) {
-        return false;
-      }
-      if (_isSyncing) {
-        _log('⏸️ تخطي السحب - المزامنة جارية');
-        return false;
-      }
-      _isSyncing = true;
-      return true;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'SmartSyncManager.pullRemoteChanges',
+      priority: LockPriority.high,
+    );
     
-    if (!canStart) {
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
       return await _attemptSilentSignInAndRetry(
         'سحب التغييرات',
         pullRemoteChanges,
       ) ?? false;
     }
+    
+    if (_backupService == null || !_backupService!.isSignedIn) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartSyncManager.pullRemoteChanges',
+      );
+      return await _attemptSilentSignInAndRetry(
+        'سحب التغييرات',
+        pullRemoteChanges,
+      ) ?? false;
+    }
+    
+    if (_isSyncing) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartSyncManager.pullRemoteChanges',
+      );
+      _log('⏸️ تخطي السحب - المزامنة جارية');
+      return await _attemptSilentSignInAndRetry(
+        'سحب التغييرات',
+        pullRemoteChanges,
+      ) ?? false;
+    }
+    
+    _isSyncing = true;
 
     try {
       _log('📥 سحب التغييرات من Google Drive...');
@@ -894,9 +948,11 @@ class SmartSyncManager {
       _log('❌ خطأ في سحب التغييرات: $e');
       return false;
     } finally {
-      await SyncLocks.smartSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartSyncManager.pullRemoteChanges',
+      );
     }
   }
 

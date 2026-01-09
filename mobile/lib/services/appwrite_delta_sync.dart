@@ -11,7 +11,7 @@ import 'local_db.dart';
 import '../data/sync_models.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
-import 'sync_locks.dart';
+import 'sync_core/unified_lock_manager.dart';
 import 'booking_derived_fields_service.dart';
 
 class AppwriteDeltaSyncResult {
@@ -78,20 +78,31 @@ class AppwriteDeltaSync {
   }
 
   Future<AppwriteDeltaSyncResult> pushDeltaChanges() async {
-    final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
-      if (!isInitialized || _isSyncing) {
-        return false;
-      }
-      _isSyncing = true;
-      return true;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.deltaSync,
+      holder: 'AppwriteDeltaSync.pushDeltaChanges',
+      priority: LockPriority.high,
+    );
     
-    if (!canStart) {
+    if (!lockResult.acquired) {
+      return AppwriteDeltaSyncResult(
+        success: false,
+        message: 'فشل الحصول على القفل: ${lockResult.failureReason}',
+      );
+    }
+    
+    if (!isInitialized || _isSyncing) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'AppwriteDeltaSync.pushDeltaChanges',
+      );
       return AppwriteDeltaSyncResult(
         success: false,
         message: 'الخدمة غير جاهزة أو المزامنة جارية',
       );
     }
+    
+    _isSyncing = true;
 
     try {
       _logger.info('📤 بدء المزامنة التفاضلية إلى Appwrite...', tag: 'DELTA_SYNC');
@@ -142,9 +153,11 @@ class AppwriteDeltaSync {
       _logger.error('❌ خطأ في المزامنة التفاضلية: $e', tag: 'DELTA_SYNC');
       return AppwriteDeltaSyncResult(success: false, message: e.toString());
     } finally {
-      await SyncLocks.appwriteSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'AppwriteDeltaSync.pushDeltaChanges',
+      );
     }
   }
 
@@ -212,11 +225,31 @@ class AppwriteDeltaSync {
   }
 
   Future<AppwriteDeltaSyncResult> pullDeltaChanges() async {
-    final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
-      if (!isInitialized || _isSyncing) {
-        return false;
-      }
-      _isSyncing = true;
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.deltaSync,
+      holder: 'AppwriteDeltaSync.pullDeltaChanges',
+      priority: LockPriority.high,
+    );
+    
+    if (!lockResult.acquired) {
+      return AppwriteDeltaSyncResult(
+        success: false,
+        message: 'فشل الحصول على القفل: ${lockResult.failureReason}',
+      );
+    }
+    
+    if (!isInitialized || _isSyncing) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'AppwriteDeltaSync.pullDeltaChanges',
+      );
+      return AppwriteDeltaSyncResult(
+        success: false,
+        message: 'الخدمة غير جاهزة',
+      );
+    }
+    
+    _isSyncing = true;
       return true;
     });
     
@@ -264,9 +297,11 @@ class AppwriteDeltaSync {
       _logger.error('❌ خطأ في سحب التغييرات: $e', tag: 'DELTA_SYNC');
       return AppwriteDeltaSyncResult(success: false, message: e.toString());
     } finally {
-      await SyncLocks.appwriteSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'AppwriteDeltaSync.pullDeltaChanges',
+      );
     }
   }
 
