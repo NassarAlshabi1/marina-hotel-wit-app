@@ -4,6 +4,7 @@ import '../../services/smart_sync_manager.dart';
 import '../../services/sync_guardian.dart';
 import '../../providers/smart_sync_provider.dart';
 import '../../providers/repository_providers.dart';
+import 'sync_health_dashboard_screen.dart';
 
 class SmartSyncSettingsScreen extends ConsumerStatefulWidget {
   const SmartSyncSettingsScreen({super.key});
@@ -255,6 +256,11 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
           
           // أزرار الإجراءات
           _buildActionButtons(isEnabled, isSignedIn),
+          
+          const SizedBox(height: 20),
+          
+          // الوصول إلى لوحة مراقبة صحة المزامنة
+          _buildHealthDashboardButton(),
           
           const SizedBox(height: 20),
           
@@ -606,6 +612,24 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildHealthDashboardButton() {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.monitor_heart, color: Colors.blue, size: 28),
+        title: const Text(
+          'لوحة مراقبة صحة المزامنة',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: const Text('إحصائيات وتشخيص متقدم للنظام'),
+        trailing: const Icon(Icons.chevron_left),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SyncHealthDashboardScreen()),
+        ),
+      ),
     );
   }
 
