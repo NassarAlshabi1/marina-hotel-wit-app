@@ -250,15 +250,6 @@ class AppwriteDeltaSync {
     }
     
     _isSyncing = true;
-      return true;
-    });
-    
-    if (!canStart) {
-      return AppwriteDeltaSyncResult(
-        success: false,
-        message: 'الخدمة غير جاهزة',
-      );
-    }
 
     try {
       _logger.info('📥 فحص التغييرات من Appwrite...', tag: 'DELTA_SYNC');
