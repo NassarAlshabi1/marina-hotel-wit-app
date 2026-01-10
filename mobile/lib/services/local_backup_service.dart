@@ -419,14 +419,14 @@ class LocalBackupService {
     } else {
       metadata = BackupMetadata(
         appVersion: '0.0.0-unknown',
-        databaseVersion: AppDatabase().schemaVersion,
+        databaseVersion: DatabaseManager.instance.schemaVersion,
         backupTimestamp: DateTime.fromMillisecondsSinceEpoch(0),
         totalRecords: -1,
         deviceInfo: 'unknown',
         format: BackupFormat.json,
       );
     }
-    if (metadata.databaseVersion > AppDatabase().schemaVersion) {
+    if (metadata.databaseVersion > DatabaseManager.instance.schemaVersion) {
       throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
     }
 
@@ -519,7 +519,7 @@ class LocalBackupService {
     if (await metadataFile.exists()) {
       final metaContent = await metadataFile.readAsString();
       metadata = BackupMetadata.fromJson(jsonDecode(metaContent) as Map<String, dynamic>);
-      if (metadata.databaseVersion > AppDatabase().schemaVersion) {
+      if (metadata.databaseVersion > DatabaseManager.instance.schemaVersion) {
         throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
       }
     }
@@ -637,7 +637,7 @@ class LocalBackupService {
                   ? rawVersion.toInt()
                   : 0;
 
-          if (dbVersion > AppDatabase().schemaVersion) {
+          if (dbVersion > DatabaseManager.instance.schemaVersion) {
             throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
           }
 
