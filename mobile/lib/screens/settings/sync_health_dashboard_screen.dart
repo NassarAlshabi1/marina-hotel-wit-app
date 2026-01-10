@@ -51,7 +51,7 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    error.toString(),
+                    _getLocalizedErrorMessage(error),
                     style: Theme.of(context).textTheme.bodySmall,
                     textAlign: TextAlign.center,
                   ),
@@ -88,6 +88,23 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
         ),
       ),
     );
+  }
+
+  String _getLocalizedErrorMessage(Object error) {
+    final errorStr = error.toString().toLowerCase();
+    if (errorStr.contains('network') || errorStr.contains('socket') || errorStr.contains('connection')) {
+      return 'خطأ في الاتصال بالإنترنت. تأكد من اتصالك وحاول مرة أخرى.';
+    }
+    if (errorStr.contains('timeout')) {
+      return 'انتهت مهلة الاتصال. حاول مرة أخرى.';
+    }
+    if (errorStr.contains('unauthorized') || errorStr.contains('401')) {
+      return 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى.';
+    }
+    if (errorStr.contains('database') || errorStr.contains('drift')) {
+      return 'خطأ في قاعدة البيانات المحلية. حاول إعادة تشغيل التطبيق.';
+    }
+    return 'حدث خطأ غير متوقع. حاول مرة أخرى لاحقاً.';
   }
   
   Widget _buildOverallHealthCard(SyncDashboardData dashboard) {

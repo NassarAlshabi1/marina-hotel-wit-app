@@ -717,7 +717,9 @@ class SyncManager {
                 if (remoteVc != null && remoteVc.isNotEmpty) {
                   remoteVectorClock = VectorClock.fromJson(remoteVc);
                 }
-              } catch (_) {}
+              } catch (e) {
+                debugPrint('⚠️ فشل تحليل VectorClock [$table/$key]: $e');
+              }
 
               final context = ConflictContext(
                 table: table,
@@ -962,7 +964,9 @@ class SyncManager {
               if (remoteVc != null && remoteVc.isNotEmpty) {
                 remoteVectorClock = VectorClock.fromJson(remoteVc);
               }
-            } catch (_) {}
+            } catch (e) {
+              debugPrint('⚠️ فشل تحليل VectorClock [$table/$key]: $e');
+            }
 
             final context = ConflictContext(
               table: table,
