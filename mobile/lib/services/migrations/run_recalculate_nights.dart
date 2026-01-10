@@ -24,7 +24,7 @@ Future<void> main() async {
   print('');
   
   // إنشاء database connection
-  final db = AppDatabase();
+  final db = DatabaseManager.instance;
   
   try {
     // تشغيل الـ migration مع تقرير

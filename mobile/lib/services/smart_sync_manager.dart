@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../utils/debug_logs.dart';
 import 'daos/outbox_dao.dart';
@@ -32,6 +33,7 @@ class SmartSyncManager {
   
   SmartSyncManager._();
 
+  final Lock _syncStateLock = Lock();
   GoogleDriveBackupService? _backupService;
   Timer? _syncCheckTimer;
   Timer? _periodicSyncTimer;
@@ -225,7 +227,9 @@ class SmartSyncManager {
       return;
     }
     
-    _isSyncing = true;
+    await _syncStateLock.synchronized(() async {
+      _isSyncing = true;
+    });
 
     try {
       _log('🔍 فحص وجود نسخ احتياطية جديدة...');
@@ -265,7 +269,9 @@ class SmartSyncManager {
     } catch (e) {
       _log('❌ خطأ في فحص المزامنة: $e');
     } finally {
-      _isSyncing = false;
+      await _syncStateLock.synchronized(() async {
+        _isSyncing = false;
+      });
       UnifiedLockManager.instance.release(
         category: LockCategory.mainSync,
         holder: 'SmartSyncManager._performSyncCheck',
@@ -781,7 +787,9 @@ class SmartSyncManager {
       ) ?? false;
     }
     
-    _isSyncing = true;
+    await _syncStateLock.synchronized(() async {
+      _isSyncing = true;
+    });
 
     try {
       _log('📤 رفع التغييرات المحلية إلى Google Drive...');
@@ -833,7 +841,9 @@ class SmartSyncManager {
       _log('❌ خطأ في رفع التغييرات: $e');
       return false;
     } finally {
-      _isSyncing = false;
+      await _syncStateLock.synchronized(() async {
+        _isSyncing = false;
+      });
       UnifiedLockManager.instance.release(
         category: LockCategory.mainSync,
         holder: 'SmartSyncManager.pushLocalChanges',
@@ -881,7 +891,9 @@ class SmartSyncManager {
       ) ?? false;
     }
     
-    _isSyncing = true;
+    await _syncStateLock.synchronized(() async {
+      _isSyncing = true;
+    });
 
     try {
       _log('📥 سحب التغييرات من Google Drive...');
@@ -948,7 +960,9 @@ class SmartSyncManager {
       _log('❌ خطأ في سحب التغييرات: $e');
       return false;
     } finally {
-      _isSyncing = false;
+      await _syncStateLock.synchronized(() async {
+        _isSyncing = false;
+      });
       UnifiedLockManager.instance.release(
         category: LockCategory.mainSync,
         holder: 'SmartSyncManager.pullRemoteChanges',

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:synchronized/synchronized.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart';
@@ -63,6 +64,7 @@ class SyncGuardian {
   bool _priorityOverridden = false;
   bool _drainingPending = false;
   bool _pendingEvents = false;
+  final Lock _drainLock = Lock();
 
   int _failedAttempts = 0;
   DateTime? _lastSyncAt;
@@ -251,24 +253,42 @@ class SyncGuardian {
   }
 
   Future<void> _consumePending({required bool force}) async {
-    if (!_initialized || _manager == null || _drainingPending) {
+    if (!_initialized || _manager == null) {
       return;
     }
-    _drainingPending = true;
-    try {
-      await AutoSyncTask.consumePendingAndSync(_manager!, force: force);
-      _failedAttempts = 0;
-      _lastSyncAt = DateTime.now().toUtc();
-      _lastError = null;
-      await _refreshPendingFlag();
-    } catch (error) {
-      _failedAttempts += 1;
-      _lastError = error.toString();
-      await _refreshPendingFlag();
-    } finally {
-      _emitHealth();
-      _drainingPending = false;
-    }
+    
+    await _drainLock.synchronized(() async {
+      if (_drainingPending) {
+        debugPrint('[SyncGuardian] ⏸️ _consumePending already in progress - skipping');
+        return;
+      }
+      _drainingPending = true;
+      try {
+        await AutoSyncTask.consumePendingAndSync(_manager!, force: force)
+            .timeout(
+          const Duration(minutes: 5),
+          onTimeout: () {
+            debugPrint('[SyncGuardian] ⚠️ _consumePending timeout after 5 minutes');
+            throw TimeoutException('_consumePending timeout', const Duration(minutes: 5));
+          },
+        );
+        _failedAttempts = 0;
+        _lastSyncAt = DateTime.now().toUtc();
+        _lastError = null;
+        await _refreshPendingFlag();
+      } on TimeoutException catch (e) {
+        _failedAttempts += 1;
+        _lastError = 'Timeout: ${e.message}';
+        await _refreshPendingFlag();
+      } catch (error) {
+        _failedAttempts += 1;
+        _lastError = error.toString();
+        await _refreshPendingFlag();
+      } finally {
+        _emitHealth();
+        _drainingPending = false;
+      }
+    });
   }
 
   Future<void> _refreshPendingFlag() async {

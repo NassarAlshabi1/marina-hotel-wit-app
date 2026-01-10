@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:synchronized/synchronized.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_logs.dart';
@@ -123,6 +124,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   DateTime? _syncStartTime;
   
   SyncPhase _currentPhase = SyncPhase.idle;
+  final Lock _pendingChangesLock = Lock();
   
   static const Duration _syncTimeout = Duration(minutes: 5);
   final RetryStrategy _retryStrategy = RetryStrategy(config: RetryConfig.balanced);
@@ -245,10 +247,19 @@ class GoogleDriveUnifiedSyncCoordinator {
     // مراقبة تغييرات outbox للمزامنة التلقائية
     _outboxSubscription?.cancel();
     if (_pushEnabled && _database != null) {
-      _outboxSubscription = (_database!.select(_database!.outbox)).watch().listen((_) {
-        _log('📦 Detected change in outbox', level: LogLevel.debug);
-        notifyLocalChange();
-      });
+      _outboxSubscription = (_database!.select(_database!.outbox)).watch().listen(
+        (_) {
+          _log('📦 Detected change in outbox', level: LogLevel.debug);
+          notifyLocalChange();
+        },
+        onError: (error) {
+          _log('❌ Outbox watch error: $error', level: LogLevel.error);
+        },
+        onDone: () {
+          _log('⚠️ Outbox watch stream closed', level: LogLevel.warning);
+        },
+        cancelOnError: false,
+      );
       _log('✅ Started outbox monitoring for auto-sync');
     }
     
@@ -318,22 +329,17 @@ class GoogleDriveUnifiedSyncCoordinator {
   Future<void> notifyLocalChange({String? table, String? operation, int count = 1}) async {
     if (!_isInitialized) return;
     
-    await UnifiedLockManager.instance.runWithLock(
-      category: LockCategory.mainSync,
-      holder: 'GoogleDriveUnifiedSyncCoordinator.notifyLocalChange',
-      priority: LockPriority.low,
-      operation: () async {
-        final now = DateTime.now();
-        
-        if (!_hasPendingChanges) {
-          _firstChangeTime = now;
-          _log('💾 Save action detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
-        }
-        
-        _hasPendingChanges = true;
-        _pendingChangesCount += count;
-      },
-    );
+    await _pendingChangesLock.synchronized(() async {
+      final now = DateTime.now();
+      
+      if (!_hasPendingChanges) {
+        _firstChangeTime = now;
+        _log('💾 Save action detected: ${table ?? "unknown"} ($operation)', level: LogLevel.debug);
+      }
+      
+      _hasPendingChanges = true;
+      _pendingChangesCount += count;
+    });
     
     _debounceTimer?.cancel();
     

@@ -144,7 +144,10 @@ class SyncManager {
       ),
     );
 
-    unawaited(_drainQueue());
+    _drainQueue().catchError((error, stackTrace) {
+      debugPrint('❌ خطأ في _drainQueue: $error');
+      debugPrint('$stackTrace');
+    });
   }
 
   /// تشغيل مزامنة كاملة (رفع ثم سحب) مع حماية من تداخل الطلبات.
@@ -188,7 +191,10 @@ class SyncManager {
     _outboxWatchSub = OutboxDao(db).watchCount().listen((_) {
       _outboxDebounceTimer?.cancel();
       _outboxDebounceTimer = Timer(debounce, () {
-        unawaited(smartSync(force: false));
+        smartSync(force: false).catchError((error, stackTrace) {
+        debugPrint('❌ خطأ في smartSync: $error');
+        debugPrint('$stackTrace');
+      });
       });
     });
   }
@@ -240,7 +246,10 @@ class SyncManager {
       return;
     }
     _syncWorkerRunning = true;
-    unawaited(_runSyncQueue());
+    _runSyncQueue().catchError((error, stackTrace) {
+      debugPrint('❌ خطأ في _runSyncQueue: $error');
+      debugPrint('$stackTrace');
+    });
   }
 
   Future<void> _runSyncQueue() async {
