@@ -34,6 +34,7 @@ import 'services/google_drive_sync_service.dart';
 import 'services/local_db.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/sync_guardian.dart';
+import 'services/safe_database_operations.dart';
 import 'utils/auto_sync_preferences.dart';
 
 // AutoSync Engine imports
@@ -91,6 +92,10 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     debugPrint('🔧 Initializing Database...');
     final database = DatabaseManager.instance;
     debugPrint('✅ Database ready');
+    
+    debugPrint('🏥 Starting Database Health Monitoring...');
+    SafeDatabaseOperations.startHealthMonitoring();
+    debugPrint('✅ Health monitoring active');
     
     debugPrint('🎯 Initializing Unified Sync Coordinator...');
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;

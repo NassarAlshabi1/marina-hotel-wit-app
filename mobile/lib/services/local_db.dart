@@ -729,7 +729,7 @@ LazyDatabase _open() {
   return LazyDatabase(() async {
     final dbDir = await sqflite.getDatabasesPath();
     final file = File(p.join(dbDir, _dbFileName));
-    return NativeDatabase.createInBackground(file, logStatements: false);
+    return NativeDatabase(file, logStatements: false);
   });
 }
 
@@ -740,19 +740,66 @@ extension EmployeeX on Employee {
 /// Singleton manager for the Drift database to support clean close/reopen during file-based restores
 class DatabaseManager {
   static AppDatabase? _instance;
+  static bool _isClosing = false;
+  static bool _isClosed = false;
+  static final _lock = <String, dynamic>{};
 
-  static AppDatabase get instance => _instance ??= AppDatabase();
+  static AppDatabase get instance {
+    if (_isClosed) {
+      throw StateError('DatabaseManager has been closed. Call reopen() first.');
+    }
+    if (_isClosing) {
+      throw StateError('DatabaseManager is currently closing. Please wait.');
+    }
+    return _instance ??= AppDatabase();
+  }
+
+  static bool get isInitialized => _instance != null && !_isClosed && !_isClosing;
 
   static Future<void> close() async {
+    if (_isClosing || _isClosed) {
+      developer.log('Database is already closing or closed', name: 'DatabaseManager');
+      return;
+    }
+    
+    _isClosing = true;
     try {
-      await _instance?.close();
-    } catch (_) {}
-    _instance = null;
+      if (_instance != null) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        await _instance!.close();
+        developer.log('Database closed successfully', name: 'DatabaseManager');
+      }
+    } catch (e, stack) {
+      developer.log('Error closing database: $e', name: 'DatabaseManager', error: e, stackTrace: stack);
+    } finally {
+      _instance = null;
+      _isClosed = true;
+      _isClosing = false;
+    }
   }
 
   static Future<void> reopen() async {
+    if (_isClosing) {
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+    
     await close();
+    
+    await Future.delayed(const Duration(milliseconds: 50));
+    
+    _isClosed = false;
     _instance = AppDatabase();
+    
+    developer.log('Database reopened successfully', name: 'DatabaseManager');
+  }
+
+  static Future<T> withDatabase<T>(Future<T> Function(AppDatabase db) operation) async {
+    if (_isClosed || _isClosing) {
+      throw StateError('Cannot perform database operation: database is closed or closing');
+    }
+    
+    final db = instance;
+    return await operation(db);
   }
 }
 
