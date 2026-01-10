@@ -742,7 +742,6 @@ class DatabaseManager {
   static AppDatabase? _instance;
   static bool _isClosing = false;
   static bool _isClosed = false;
-  static final _lock = <String, dynamic>{};
 
   static AppDatabase get instance {
     if (_isClosed) {
