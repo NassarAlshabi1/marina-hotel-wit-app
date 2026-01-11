@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/smart_sync_manager.dart';
 import '../providers/smart_sync_provider.dart';
+import '../providers/backup_provider.dart';
 
 /// Widget لعرض حالة المزامنة في الوقت الفعلي
 class SmartSyncStatusWidget extends ConsumerWidget {
@@ -201,6 +202,11 @@ class SmartSyncDashboardCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(smartSyncStatusProvider);
+    
+    // التحقق من حالة تسجيل الدخول الفعلية عند بناء الويدجت
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(backupStatusProvider.notifier).refreshSignInStatus();
+    });
     
     return statusAsync.when(
       loading: () => const Card(child: ListTile(title: Text('تحميل حالة المزامنة...'))),
