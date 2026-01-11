@@ -46,7 +46,7 @@ class DatabaseHealthChecker {
       } else {
         _updateHealth(DatabaseHealth.healthy(responseTime));
       }
-    } catch (e, stack) {
+    } catch (e) {
       debugPrint('❌ Database health check failed: $e');
       _updateHealth(DatabaseHealth.error(e.toString()));
     }
