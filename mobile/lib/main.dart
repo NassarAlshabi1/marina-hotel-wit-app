@@ -35,6 +35,7 @@ import 'services/local_db.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/sync_guardian.dart';
 import 'services/safe_database_operations.dart';
+import 'services/database_sync_coordinator.dart';
 import 'utils/auto_sync_preferences.dart';
 
 // AutoSync Engine imports
@@ -92,6 +93,10 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     debugPrint('🔧 Initializing Database...');
     final database = DatabaseManager.instance;
     debugPrint('✅ Database ready');
+    
+    debugPrint('🔗 Initializing Database Sync Coordinator...');
+    DatabaseSyncCoordinator.initialize();
+    debugPrint('✅ Sync coordinator registered');
     
     debugPrint('🏥 Starting Database Health Monitoring...');
     SafeDatabaseOperations.startHealthMonitoring();
