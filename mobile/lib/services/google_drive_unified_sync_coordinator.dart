@@ -204,6 +204,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     // تسجيل callback لإعادة تشغيل المراقبة بعد إعادة فتح قاعدة البيانات
     DatabaseManager.registerReopenCallback(() {
       _log('🔔 Database reopened - restarting monitoring...');
+      _database = DatabaseManager.instance;
       if (backupService.isSignedIn && _pushEnabled) {
         _restartOutboxMonitoring();
       }

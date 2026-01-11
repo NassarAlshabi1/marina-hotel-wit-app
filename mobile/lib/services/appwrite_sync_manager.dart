@@ -75,6 +75,8 @@ class AppwriteSyncManager {
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
   
+  AppDatabase get _currentDatabase => DatabaseManager.instance;
+  
   Timer? _syncTimer;
   Timer? _debouncePushTimer;
   StreamSubscription? _outboxSubscription;
@@ -286,7 +288,7 @@ class AppwriteSyncManager {
       _debounceWindow = window;
     }
     _outboxSubscription?.cancel();
-    _outboxSubscription = (database.select(database.outbox)).watch().listen(
+    _outboxSubscription = (_currentDatabase.select(_currentDatabase.outbox)).watch().listen(
       (_) {
         _debouncePushTimer?.cancel();
         _debouncePushTimer = Timer(_debounceWindow, () async {
@@ -335,7 +337,7 @@ class AppwriteSyncManager {
     _outboxSubscription?.cancel();
     
     try {
-      _outboxSubscription = (database.select(database.outbox)).watch().listen(
+      _outboxSubscription = (_currentDatabase.select(_currentDatabase.outbox)).watch().listen(
         (_) {
           _debouncePushTimer?.cancel();
           _debouncePushTimer = Timer(_debounceWindow, () async {
