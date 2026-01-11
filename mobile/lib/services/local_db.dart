@@ -742,11 +742,11 @@ class DatabaseManager {
   static AppDatabase? _instance;
   static bool _isClosing = false;
   static bool _isClosed = false;
+  static final List<Function()> _onReopenCallbacks = [];
 
   static AppDatabase get instance {
     if (_isClosed) {
       developer.log('⚠️ Attempted to access closed database. Auto-reopening...', name: 'DatabaseManager');
-      // إعادة تعيين الأعلام وإنشاء instance جديدة
       _isClosed = false;
       _instance = null;
     }
@@ -758,6 +758,20 @@ class DatabaseManager {
 
   static bool get isInitialized => _instance != null && !_isClosed && !_isClosing;
 
+  /// تسجيل callback يتم استدعاؤه بعد إعادة فتح قاعدة البيانات
+  static void registerReopenCallback(Function() callback) {
+    if (!_onReopenCallbacks.contains(callback)) {
+      _onReopenCallbacks.add(callback);
+      developer.log('📝 Registered reopen callback (total: ${_onReopenCallbacks.length})', name: 'DatabaseManager');
+    }
+  }
+
+  /// إزالة callback
+  static void unregisterReopenCallback(Function() callback) {
+    _onReopenCallbacks.remove(callback);
+    developer.log('📝 Unregistered reopen callback (total: ${_onReopenCallbacks.length})', name: 'DatabaseManager');
+  }
+
   static Future<void> close() async {
     if (_isClosing || _isClosed) {
       developer.log('Database is already closing or closed', name: 'DatabaseManager');
@@ -765,18 +779,22 @@ class DatabaseManager {
     }
     
     _isClosing = true;
+    developer.log('🔒 Closing database...', name: 'DatabaseManager');
+    
     try {
       if (_instance != null) {
         await Future.delayed(const Duration(milliseconds: 100));
         await _instance!.close();
-        developer.log('Database closed successfully', name: 'DatabaseManager');
+        developer.log('✅ Database closed successfully', name: 'DatabaseManager');
       }
     } catch (e, stack) {
-      developer.log('Error closing database: $e', name: 'DatabaseManager', error: e, stackTrace: stack);
+      developer.log('❌ Error closing database: $e', name: 'DatabaseManager', error: e, stackTrace: stack);
     } finally {
       _instance = null;
       _isClosed = true;
       _isClosing = false;
+    }
+  }
     }
   }
 
@@ -810,6 +828,19 @@ class DatabaseManager {
       // إنشاء اتصال جديد
       _instance = AppDatabase();
       developer.log('✅ Database reopened successfully', name: 'DatabaseManager');
+      
+      // استدعاء جميع callbacks المسجلة
+      if (_onReopenCallbacks.isNotEmpty) {
+        developer.log('🔔 Notifying ${_onReopenCallbacks.length} reopen callbacks...', name: 'DatabaseManager');
+        for (final callback in _onReopenCallbacks) {
+          try {
+            callback();
+          } catch (e) {
+            developer.log('⚠️ Reopen callback error: $e', name: 'DatabaseManager');
+          }
+        }
+        developer.log('✅ All reopen callbacks notified', name: 'DatabaseManager');
+      }
     } catch (e, stack) {
       developer.log('❌ Failed to reopen database: $e', name: 'DatabaseManager', error: e, stackTrace: stack);
       // في حالة الفشل، تأكد من أن الأعلام صحيحة

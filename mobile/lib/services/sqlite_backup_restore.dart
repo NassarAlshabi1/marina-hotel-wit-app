@@ -137,8 +137,12 @@ class SqliteBackupRestore {
       // Ensure parent directory exists
       await dstFile.parent.create(recursive: true);
 
+      debugPrint('⚠️ إيقاف جميع عمليات المزامنة قبل إغلاق قاعدة البيانات...');
+      
       // Close any open connections to avoid file locking
       await DatabaseManager.close();
+      
+      debugPrint('📋 استبدال ملف قاعدة البيانات...');
 
       // Replace the database file
       if (await dstFile.exists()) {
@@ -146,6 +150,8 @@ class SqliteBackupRestore {
       }
       await srcFile.copy(dstPath);
 
+      debugPrint('🔄 إعادة فتح قاعدة البيانات...');
+      
       // Reopen the database so the app can continue working
       if (reopenCallback != null) {
         await reopenCallback();

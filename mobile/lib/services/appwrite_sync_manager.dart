@@ -95,6 +95,13 @@ class AppwriteSyncManager {
       await appwriteService.initialize();
       await _loadSettings();
       _enableDebouncedPush();
+      
+      // تسجيل callback لإعادة تشغيل المراقبة بعد إعادة فتح قاعدة البيانات
+      DatabaseManager.registerReopenCallback(() {
+        _logger.info('Database reopened - restarting outbox monitoring...', tag: 'SYNC');
+        _restartOutboxMonitoring();
+      });
+      
       _logger.info('Sync manager initialized', tag: 'SYNC');
     } catch (e, stackTrace) {
       _logger.error('Failed to initialize sync manager', 

@@ -189,6 +189,14 @@ class GoogleDriveUnifiedSyncCoordinator {
     _lastPullTime = _parseTimestamp(prefs.getString(_prefsLastPullKey));
     _lastFullBackupTime = _parseTimestamp(prefs.getString(_prefsLastFullBackupKey));
     
+    // تسجيل callback لإعادة تشغيل المراقبة بعد إعادة فتح قاعدة البيانات
+    DatabaseManager.registerReopenCallback(() {
+      _log('🔔 Database reopened - restarting monitoring...');
+      if (backupService.isSignedIn && _pushEnabled) {
+        _restartOutboxMonitoring();
+      }
+    });
+    
     if (backupService.isSignedIn) {
       await _startMonitoring();
     }

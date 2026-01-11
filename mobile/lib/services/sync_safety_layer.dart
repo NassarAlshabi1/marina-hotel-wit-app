@@ -319,9 +319,16 @@ class SyncSafetyLayer {
         return false;
       }
 
+      debugPrint('⚠️ إيقاف جميع عمليات المزامنة قبل استعادة قاعدة البيانات...');
+      
       await DatabaseManager.close();
+      
+      debugPrint('📋 استبدال ملف قاعدة البيانات...');
       await File(sqliteBackupPath).copy(dbPath);
+      
+      debugPrint('🔄 إعادة فتح قاعدة البيانات...');
       await DatabaseManager.reopen();
+      
       debugPrint('✅ تم استعادة ملف SQLite بنجاح وإعادة فتح قاعدة البيانات');
 
       await _appendLog({
