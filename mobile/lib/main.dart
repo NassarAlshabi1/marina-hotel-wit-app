@@ -80,14 +80,22 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     final backupService = GoogleDriveBackupService();
     
     try {
-      final account = await backupService.attemptSilentSignIn();
-      if (account != null) {
-        debugPrint('✅ Silent sign-in successful: ${account.email}');
+      // محاولة إعادة تفعيل الجلسة المحفوظة
+      final reactivated = await backupService.reactivateSession();
+      if (reactivated) {
+        final account = backupService.currentUser;
+        debugPrint('✅ Session reactivated successfully: ${account?.email}');
       } else {
-        debugPrint('ℹ️ No saved session - user must sign in manually');
+        // إذا فشلت إعادة التفعيل، محاولة silent sign-in
+        final account = await backupService.attemptSilentSignIn();
+        if (account != null) {
+          debugPrint('✅ Silent sign-in successful: ${account.email}');
+        } else {
+          debugPrint('ℹ️ No saved session - user must sign in manually');
+        }
       }
     } catch (e) {
-      debugPrint('⚠️ Silent sign-in failed: $e');
+      debugPrint('⚠️ Session restoration failed: $e');
     }
     
     debugPrint('🔧 Initializing Database...');

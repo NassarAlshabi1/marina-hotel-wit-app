@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -149,11 +150,19 @@ class GoogleDriveBackupService {
   static const String _prefsAutoBackupKey = 'auto_backup_enabled';
   static const String _prefsAutoBackupFrequencyKey = 'auto_backup_frequency';
   static const String _prefsAutoBackupTimeKey = 'auto_backup_time';
+  
+  // Session persistence keys
+  static const String _prefsGoogleEmailKey = 'google_drive_email';
+  static const String _prefsGoogleDisplayNameKey = 'google_drive_display_name';
+  static const String _prefsGooglePhotoUrlKey = 'google_drive_photo_url';
+  static const String _prefsGoogleLastSignInKey = 'google_drive_last_sign_in';
+  static const String _prefsGoogleSessionActiveKey = 'google_drive_session_active';
 
   GoogleSignIn? _googleSignIn;
   drive.DriveApi? _driveApi;
   String? _backupFolderId;
   final GoogleDriveLogger _logger = GoogleDriveLogger();
+  Timer? _sessionValidationTimer;
 
   GoogleDriveBackupService() {
     _initializeGoogleSignIn();
@@ -172,6 +181,9 @@ class GoogleDriveBackupService {
       // Without this, user may need to re-authenticate frequently
       forceCodeForRefreshToken: true,
     );
+    
+    // بدء مراقبة صلاحية الجلسة بشكل دوري
+    _startSessionValidationTimer();
   }
 
   Future<void> _ensureDriveClient() async {
@@ -233,8 +245,16 @@ class GoogleDriveBackupService {
 
         _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
         _log('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
+        
+        // حفظ معلومات الجلسة للاستمرارية
+        await _saveSessionInfo(account);
+        
+        // بدء مراقبة الجلسة للتحقق الدوري
+        _startSessionValidationTimer();
       } else {
         _log('⚠️ تم إلغاء تسجيل الدخول أو فشل');
+        await _clearSessionInfo();
+        _stopSessionValidationTimer();
       }
 
       return account;
@@ -265,9 +285,17 @@ class GoogleDriveBackupService {
         _driveApi = drive.DriveApi(client);
         
         _log('✅ تم استعادة جلسة Google Drive: ${account.email}');
+        
+        // تحديث معلومات الجلسة عند الاستعادة الناجحة
+        await _saveSessionInfo(account);
+        
+        // بدء مراقبة الجلسة
+        _startSessionValidationTimer();
+        
         return account;
       } else {
         _log('ℹ️ لا توجد جلسة محفوظة');
+        await _clearSessionInfo();
         return null;
       }
     } catch (e) {
@@ -300,9 +328,16 @@ class GoogleDriveBackupService {
 
   Future<void> signOut() async {
     try {
+      // إيقاف مراقبة الجلسة
+      _stopSessionValidationTimer();
+      
       await _googleSignIn?.signOut();
       _driveApi = null;
       _backupFolderId = null;
+      
+      // مسح معلومات الجلسة المحفوظة
+      await _clearSessionInfo();
+      
       _log('✅ تم تسجيل الخروج من Google Drive');
       _logger.info('تم تسجيل الخروج من Google Drive', tag: 'AUTH');
     } catch (e) {
@@ -315,6 +350,173 @@ class GoogleDriveBackupService {
   GoogleSignIn? get googleSignIn => _googleSignIn;
 
   bool get isSignedIn => _googleSignIn?.currentUser != null;
+  
+  /// حفظ معلومات الجلسة في SharedPreferences للاستمرارية
+  Future<void> _saveSessionInfo(GoogleSignInAccount account) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefsGoogleEmailKey, account.email);
+      await prefs.setString(_prefsGoogleDisplayNameKey, account.displayName ?? '');
+      await prefs.setString(_prefsGooglePhotoUrlKey, account.photoUrl ?? '');
+      await prefs.setString(_prefsGoogleLastSignInKey, DateTime.now().toIso8601String());
+      await prefs.setBool(_prefsGoogleSessionActiveKey, true);
+      
+      _log('💾 تم حفظ معلومات الجلسة: ${account.email}');
+      _logger.info('تم حفظ جلسة Google Drive: ${account.email}', tag: 'AUTH');
+    } catch (e) {
+      _log('⚠️ فشل حفظ معلومات الجلسة: $e');
+    }
+  }
+  
+  /// مسح معلومات الجلسة المحفوظة
+  Future<void> _clearSessionInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefsGoogleEmailKey);
+      await prefs.remove(_prefsGoogleDisplayNameKey);
+      await prefs.remove(_prefsGooglePhotoUrlKey);
+      await prefs.remove(_prefsGoogleLastSignInKey);
+      await prefs.setBool(_prefsGoogleSessionActiveKey, false);
+      
+      _log('🗑️ تم مسح معلومات الجلسة');
+    } catch (e) {
+      _log('⚠️ فشل مسح معلومات الجلسة: $e');
+    }
+  }
+  
+  /// الحصول على معلومات الجلسة المحفوظة
+  Future<Map<String, String?>> getSavedSessionInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'email': prefs.getString(_prefsGoogleEmailKey),
+      'displayName': prefs.getString(_prefsGoogleDisplayNameKey),
+      'photoUrl': prefs.getString(_prefsGooglePhotoUrlKey),
+      'lastSignIn': prefs.getString(_prefsGoogleLastSignInKey),
+      'isActive': (prefs.getBool(_prefsGoogleSessionActiveKey) ?? false).toString(),
+    };
+  }
+  
+  /// محاولة إعادة تفعيل الجلسة بناءً على المعلومات المحفوظة
+  /// يستخدم عند بدء التطبيق لضمان استمرارية الجلسة
+  Future<bool> reactivateSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasSession = prefs.getBool(_prefsGoogleSessionActiveKey) ?? false;
+      
+      if (!hasSession) {
+        _log('ℹ️ لا توجد جلسة محفوظة لإعادة تفعيلها');
+        return false;
+      }
+      
+      final savedEmail = prefs.getString(_prefsGoogleEmailKey);
+      _log('🔄 محاولة إعادة تفعيل جلسة: $savedEmail');
+      
+      // محاولة silent sign-in
+      final account = await attemptSilentSignIn();
+      
+      if (account != null) {
+        _log('✅ تم إعادة تفعيل الجلسة بنجاح: ${account.email}');
+        return true;
+      } else {
+        _log('⚠️ فشلت إعادة تفعيل الجلسة - الجلسة المحفوظة قد تكون منتهية');
+        await _clearSessionInfo();
+        return false;
+      }
+    } catch (e) {
+      _log('❌ خطأ في إعادة تفعيل الجلسة: $e');
+      await _clearSessionInfo();
+      return false;
+    }
+  }
+  
+  /// التحقق من صلاحية الجلسة الحالية
+  Future<bool> validateSession() async {
+    try {
+      if (!isSignedIn) {
+        _log('ℹ️ لا توجد جلسة نشطة للتحقق منها');
+        return false;
+      }
+      
+      final account = _googleSignIn?.currentUser;
+      if (account == null) {
+        await _clearSessionInfo();
+        return false;
+      }
+      
+      // محاولة الحصول على auth headers (يحدث التوكن تلقائياً)
+      final headers = await account.authHeaders;
+      
+      if (headers.isEmpty || !headers.containsKey('Authorization')) {
+        _log('⚠️ فشل الحصول على token صالح');
+        await _clearSessionInfo();
+        return false;
+      }
+      
+      // تحديث DriveApi بـ headers جديدة
+      _driveApi = drive.DriveApi(GoogleAuthClient(headers));
+      
+      // تحديث timestamp آخر تحقق ناجح
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefsGoogleLastSignInKey, DateTime.now().toIso8601String());
+      
+      _log('✅ الجلسة صالحة: ${account.email}');
+      return true;
+      
+    } catch (e) {
+      _log('❌ فشل التحقق من صلاحية الجلسة: $e');
+      await _clearSessionInfo();
+      return false;
+    }
+  }
+  
+  /// بدء مراقبة دورية لصلاحية الجلسة وتحديث التوكن
+  void _startSessionValidationTimer() {
+    _sessionValidationTimer?.cancel();
+    
+    if (!isSignedIn) {
+      _log('ℹ️ لا توجد جلسة نشطة - تخطي مراقبة الجلسة');
+      return;
+    }
+    
+    // التحقق من صلاحية الجلسة كل 30 دقيقة
+    _sessionValidationTimer = Timer.periodic(
+      const Duration(minutes: 30),
+      (_) async {
+        _log('🔄 التحقق الدوري من صلاحية الجلسة...');
+        
+        try {
+          final isValid = await validateSession();
+          
+          if (!isValid) {
+            _log('⚠️ الجلسة غير صالحة - محاولة استعادة...');
+            
+            // محاولة استعادة الجلسة
+            final account = await attemptSilentSignIn();
+            
+            if (account == null) {
+              _log('❌ فشلت استعادة الجلسة - المستخدم يحتاج لتسجيل دخول يدوي');
+              _sessionValidationTimer?.cancel();
+            } else {
+              _log('✅ تم استعادة الجلسة بنجاح');
+            }
+          } else {
+            _log('✅ الجلسة صالحة ومحدثة');
+          }
+        } catch (e) {
+          _log('⚠️ خطأ في التحقق الدوري من الجلسة: $e');
+        }
+      },
+    );
+    
+    _log('⏰ بدأت مراقبة الجلسة (كل 30 دقيقة)');
+  }
+  
+  /// إيقاف مراقبة الجلسة
+  void _stopSessionValidationTimer() {
+    _sessionValidationTimer?.cancel();
+    _sessionValidationTimer = null;
+    _log('⏹️ توقفت مراقبة الجلسة');
+  }
 
   Future<String> getOrCreateBackupFolder() async {
     if (_backupFolderId != null) {
