@@ -52,10 +52,13 @@ jobs:
       - name: Install dependencies
         run: dart pub get
 
-      # Uncomment this step to verify the use of 'dart format' on each commit.
+      # This step verifies the use of 'dart format' on each commit.
       - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed .
-        continue-on-error: true
+        run: |
+          if ! dart format --output=none --set-exit-if-changed .; then
+            echo "::error::Some files need formatting. Run 'dart format .' locally and commit the changes."
+            exit 1
+          fi
 
       # Consider passing '--fatal-infos' for slightly stricter analysis.
       - name: Analyze project source
