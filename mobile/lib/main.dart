@@ -94,10 +94,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     final database = DatabaseManager.instance;
     debugPrint('✅ Database ready');
     
-    debugPrint('🔗 Initializing Database Sync Coordinator...');
-    DatabaseSyncCoordinator.initialize();
-    debugPrint('✅ Sync coordinator registered');
-    
     debugPrint('🏥 Starting Database Health Monitoring...');
     SafeDatabaseOperations.startHealthMonitoring();
     debugPrint('✅ Health monitoring active');
@@ -157,6 +153,27 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     _setupEngineMonitoring(autoSyncEngine);
     
     debugPrint('✅ Auto Sync Engine started');
+    
+    debugPrint('🔗 Registering Database Sync Callbacks...');
+    DatabaseSyncCoordinator.initialize();
+    
+    // Register stop callbacks
+    DatabaseSyncCoordinator.registerStopCallback(() async {
+      await autoSyncEngine.stop();
+    });
+    DatabaseSyncCoordinator.registerStopCallback(() async {
+      await guardian.stop();
+    });
+    
+    // Register restart callbacks
+    DatabaseSyncCoordinator.registerRestartCallback(() async {
+      await autoSyncEngine.restart();
+    });
+    DatabaseSyncCoordinator.registerRestartCallback(() async {
+      await guardian.restart();
+    });
+    
+    debugPrint('✅ Sync callbacks registered');
     
     debugPrint('═══════════════════════════════════════════════════════');
     debugPrint('✅ Fully Automated Sync System Ready!');

@@ -1,16 +1,17 @@
 import 'dart:developer' as developer;
 
 import 'local_db.dart';
-import 'google_drive_auto_sync_engine.dart';
-import 'sync_guardian.dart';
-import 'realtime_sync_notifier.dart';
 
 /// Coordinator for managing sync operations lifecycle with database
 /// 
 /// This class coordinates stopping and restarting sync services
 /// when database needs to be closed/reopened (e.g., during restore)
+/// 
+/// It uses a callback pattern to avoid circular dependencies
 class DatabaseSyncCoordinator {
   static bool _initialized = false;
+  static final List<Future<void> Function()> _stopCallbacks = [];
+  static final List<Future<void> Function()> _restartCallbacks = [];
 
   /// Initialize the coordinator and register callbacks with DatabaseManager
   static void initialize() {
@@ -27,37 +28,32 @@ class DatabaseSyncCoordinator {
     developer.log('✅ DatabaseSyncCoordinator initialized', name: 'DatabaseSyncCoordinator');
   }
 
+  /// Register a service's stop callback
+  static void registerStopCallback(Future<void> Function() callback) {
+    _stopCallbacks.add(callback);
+    developer.log('📝 Registered stop callback (total: ${_stopCallbacks.length})', name: 'DatabaseSyncCoordinator');
+  }
+
+  /// Register a service's restart callback
+  static void registerRestartCallback(Future<void> Function() callback) {
+    _restartCallbacks.add(callback);
+    developer.log('📝 Registered restart callback (total: ${_restartCallbacks.length})', name: 'DatabaseSyncCoordinator');
+  }
+
   /// Stop all sync services
   static Future<void> _stopAllSyncServices() async {
     developer.log('⏸️ Stopping all sync services...', name: 'DatabaseSyncCoordinator');
     
     final errors = <String>[];
     
-    // Stop Auto Sync Engine
-    try {
-      await GoogleDriveAutoSyncEngine.instance?.stop();
-      developer.log('  ✓ Stopped GoogleDriveAutoSyncEngine', name: 'DatabaseSyncCoordinator');
-    } catch (e) {
-      errors.add('GoogleDriveAutoSyncEngine: $e');
-      developer.log('  ⚠️ Error stopping GoogleDriveAutoSyncEngine: $e', name: 'DatabaseSyncCoordinator');
-    }
-    
-    // Stop Sync Guardian
-    try {
-      await SyncGuardian.instance.stop();
-      developer.log('  ✓ Stopped SyncGuardian', name: 'DatabaseSyncCoordinator');
-    } catch (e) {
-      errors.add('SyncGuardian: $e');
-      developer.log('  ⚠️ Error stopping SyncGuardian: $e', name: 'DatabaseSyncCoordinator');
-    }
-    
-    // Stop Realtime Sync
-    try {
-      RealtimeSyncNotifier.instance?.stopListening();
-      developer.log('  ✓ Stopped RealtimeSyncNotifier', name: 'DatabaseSyncCoordinator');
-    } catch (e) {
-      errors.add('RealtimeSyncNotifier: $e');
-      developer.log('  ⚠️ Error stopping RealtimeSyncNotifier: $e', name: 'DatabaseSyncCoordinator');
+    for (var i = 0; i < _stopCallbacks.length; i++) {
+      try {
+        await _stopCallbacks[i]();
+        developer.log('  ✓ Stopped service ${i + 1}/${_stopCallbacks.length}', name: 'DatabaseSyncCoordinator');
+      } catch (e) {
+        errors.add('Service $i: $e');
+        developer.log('  ⚠️ Error stopping service $i: $e', name: 'DatabaseSyncCoordinator');
+      }
     }
     
     if (errors.isEmpty) {
@@ -73,31 +69,14 @@ class DatabaseSyncCoordinator {
     
     final errors = <String>[];
     
-    // Restart Auto Sync Engine
-    try {
-      await GoogleDriveAutoSyncEngine.instance?.restart();
-      developer.log('  ✓ Restarted GoogleDriveAutoSyncEngine', name: 'DatabaseSyncCoordinator');
-    } catch (e) {
-      errors.add('GoogleDriveAutoSyncEngine: $e');
-      developer.log('  ⚠️ Error restarting GoogleDriveAutoSyncEngine: $e', name: 'DatabaseSyncCoordinator');
-    }
-    
-    // Restart Sync Guardian
-    try {
-      await SyncGuardian.instance.restart();
-      developer.log('  ✓ Restarted SyncGuardian', name: 'DatabaseSyncCoordinator');
-    } catch (e) {
-      errors.add('SyncGuardian: $e');
-      developer.log('  ⚠️ Error restarting SyncGuardian: $e', name: 'DatabaseSyncCoordinator');
-    }
-    
-    // Restart Realtime Sync
-    try {
-      RealtimeSyncNotifier.instance?.startListening();
-      developer.log('  ✓ Restarted RealtimeSyncNotifier', name: 'DatabaseSyncCoordinator');
-    } catch (e) {
-      errors.add('RealtimeSyncNotifier: $e');
-      developer.log('  ⚠️ Error restarting RealtimeSyncNotifier: $e', name: 'DatabaseSyncCoordinator');
+    for (var i = 0; i < _restartCallbacks.length; i++) {
+      try {
+        await _restartCallbacks[i]();
+        developer.log('  ✓ Restarted service ${i + 1}/${_restartCallbacks.length}', name: 'DatabaseSyncCoordinator');
+      } catch (e) {
+        errors.add('Service $i: $e');
+        developer.log('  ⚠️ Error restarting service $i: $e', name: 'DatabaseSyncCoordinator');
+      }
     }
     
     if (errors.isEmpty) {
