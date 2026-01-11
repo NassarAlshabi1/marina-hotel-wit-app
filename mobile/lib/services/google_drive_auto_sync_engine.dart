@@ -748,6 +748,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('🔄 Failed attempts reset');
   }
 
+  /// إعادة تشغيل Auto Sync Engine
+  Future<void> restart() async {
+    _log('🔄 إعادة تشغيل Auto Sync Engine...');
+    await stop();
+    await start();
+    _log('✅ Auto Sync Engine أعيد تشغيله');
+  }
+
   void dispose() {
     stop();
     _stateController.close();

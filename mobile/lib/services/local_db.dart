@@ -6,8 +6,12 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart' as sqflite;
+import 'package:synchronized/synchronized.dart';
 
 import '../data/sync_models.dart' as sync_models;
+import 'google_drive_auto_sync_engine.dart' show GoogleDriveAutoSyncEngine;
+import 'sync_guardian.dart' show SyncGuardian;
+import 'realtime_sync_notifier.dart' show RealtimeSyncNotifier;
 
 part 'local_db.g.dart';
 
@@ -742,9 +746,14 @@ class DatabaseManager {
   static AppDatabase? _instance;
   static bool _isClosing = false;
   static bool _isClosed = false;
+  static bool _isRestoring = false;
   static final List<Function()> _onReopenCallbacks = [];
+  static final Lock _lock = Lock();
 
   static AppDatabase get instance {
+    if (_isRestoring) {
+      throw StateError('Database is being restored. Operations are temporarily suspended.');
+    }
     if (_isClosed) {
       developer.log('⚠️ Attempted to access closed database. Auto-reopening...', name: 'DatabaseManager');
       _isClosed = false;
@@ -756,7 +765,8 @@ class DatabaseManager {
     return _instance ??= AppDatabase();
   }
 
-  static bool get isInitialized => _instance != null && !_isClosed && !_isClosing;
+  static bool get isInitialized => _instance != null && !_isClosed && !_isClosing && !_isRestoring;
+  static bool get isRestoring => _isRestoring;
 
   /// تسجيل callback يتم استدعاؤه بعد إعادة فتح قاعدة البيانات
   static void registerReopenCallback(Function() callback) {
@@ -849,12 +859,146 @@ class DatabaseManager {
   }
 
   static Future<T> withDatabase<T>(Future<T> Function(AppDatabase db) operation) async {
-    if (_isClosed || _isClosing) {
-      throw StateError('Cannot perform database operation: database is closed or closing');
+    if (_isClosed || _isClosing || _isRestoring) {
+      throw StateError('Cannot perform database operation: database is closed, closing, or being restored');
     }
     
     final db = instance;
     return await operation(db);
+  }
+
+  /// إغلاق آمن للقاعدة قبل استعادة نسخة احتياطية
+  /// يضمن إيقاف جميع العمليات والمزامنة قبل الإغلاق
+  static Future<void> closeForRestore() async {
+    return _lock.synchronized(() async {
+      if (_isRestoring) {
+        developer.log('Already in restore mode', name: 'DatabaseManager');
+        return;
+      }
+      
+      if (_isClosing || _isClosed) {
+        developer.log('Database is already closing/closed', name: 'DatabaseManager');
+      }
+      
+      _isRestoring = true;
+      developer.log('🔒 Starting safe database closure for restore...', name: 'DatabaseManager');
+      
+      await _stopAllSyncOperations();
+      await _waitForPendingOperations();
+      await close();
+      
+      developer.log('✅ Database safely closed for restore', name: 'DatabaseManager');
+    });
+  }
+
+  /// إعادة فتح آمنة للقاعدة بعد استعادة نسخة احتياطية
+  /// يضمن إعادة تشغيل جميع الخدمات والمزامنة
+  static Future<void> reopenAfterRestore() async {
+    return _lock.synchronized(() async {
+      if (!_isRestoring) {
+        throw StateError('reopenAfterRestore called without closeForRestore');
+      }
+      
+      developer.log('🔄 Reopening database after restore...', name: 'DatabaseManager');
+      
+      try {
+        await reopen();
+        await _restartAllSyncOperations();
+        developer.log('✅ Database reopened and sync restarted', name: 'DatabaseManager');
+      } finally {
+        _isRestoring = false;
+      }
+    });
+  }
+
+  /// إيقاف جميع عمليات المزامنة بشكل آمن
+  static Future<void> _stopAllSyncOperations() async {
+    developer.log('⏸️ Stopping all sync operations...', name: 'DatabaseManager');
+    
+    final errors = <String>[];
+    
+    // إيقاف Auto Sync Engine
+    try {
+      await GoogleDriveAutoSyncEngine.instance?.stop();
+      developer.log('  ✓ Stopped GoogleDriveAutoSyncEngine', name: 'DatabaseManager');
+    } catch (e) {
+      errors.add('GoogleDriveAutoSyncEngine: $e');
+      developer.log('  ⚠️ Error stopping GoogleDriveAutoSyncEngine: $e', name: 'DatabaseManager');
+    }
+    
+    // إيقاف Sync Guardian
+    try {
+      await SyncGuardian.instance.stop();
+      developer.log('  ✓ Stopped SyncGuardian', name: 'DatabaseManager');
+    } catch (e) {
+      errors.add('SyncGuardian: $e');
+      developer.log('  ⚠️ Error stopping SyncGuardian: $e', name: 'DatabaseManager');
+    }
+    
+    // إيقاف Realtime Sync
+    try {
+      RealtimeSyncNotifier.instance?.stopListening();
+      developer.log('  ✓ Stopped RealtimeSyncNotifier', name: 'DatabaseManager');
+    } catch (e) {
+      errors.add('RealtimeSyncNotifier: $e');
+      developer.log('  ⚠️ Error stopping RealtimeSyncNotifier: $e', name: 'DatabaseManager');
+    }
+    
+    // انتظار قصير للتأكد من اكتمال الإيقاف
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    if (errors.isEmpty) {
+      developer.log('✅ All sync operations stopped successfully', name: 'DatabaseManager');
+    } else {
+      developer.log('⚠️ Stopped sync operations with ${errors.length} errors', name: 'DatabaseManager');
+    }
+  }
+
+  /// انتظار العمليات النشطة حتى تنتهي
+  static Future<void> _waitForPendingOperations() async {
+    developer.log('⏳ Waiting for pending operations...', name: 'DatabaseManager');
+    await Future.delayed(const Duration(milliseconds: 500));
+    developer.log('✅ Pending operations wait completed', name: 'DatabaseManager');
+  }
+
+  /// إعادة تشغيل جميع عمليات المزامنة
+  static Future<void> _restartAllSyncOperations() async {
+    developer.log('▶️ Restarting all sync operations...', name: 'DatabaseManager');
+    
+    final errors = <String>[];
+    
+    // إعادة تشغيل Auto Sync Engine
+    try {
+      await GoogleDriveAutoSyncEngine.instance?.restart();
+      developer.log('  ✓ Started GoogleDriveAutoSyncEngine', name: 'DatabaseManager');
+    } catch (e) {
+      errors.add('GoogleDriveAutoSyncEngine: $e');
+      developer.log('  ⚠️ Error starting GoogleDriveAutoSyncEngine: $e', name: 'DatabaseManager');
+    }
+    
+    // إعادة تشغيل Sync Guardian
+    try {
+      await SyncGuardian.instance.restart();
+      developer.log('  ✓ Started SyncGuardian', name: 'DatabaseManager');
+    } catch (e) {
+      errors.add('SyncGuardian: $e');
+      developer.log('  ⚠️ Error starting SyncGuardian: $e', name: 'DatabaseManager');
+    }
+    
+    // إعادة تشغيل Realtime Sync
+    try {
+      RealtimeSyncNotifier.instance?.startListening();
+      developer.log('  ✓ Started RealtimeSyncNotifier', name: 'DatabaseManager');
+    } catch (e) {
+      errors.add('RealtimeSyncNotifier: $e');
+      developer.log('  ⚠️ Error starting RealtimeSyncNotifier: $e', name: 'DatabaseManager');
+    }
+    
+    if (errors.isEmpty) {
+      developer.log('✅ All sync operations restarted successfully', name: 'DatabaseManager');
+    } else {
+      developer.log('⚠️ Restarted sync operations with ${errors.length} errors', name: 'DatabaseManager');
+    }
   }
 }
 

@@ -137,10 +137,10 @@ class SqliteBackupRestore {
       // Ensure parent directory exists
       await dstFile.parent.create(recursive: true);
 
-      debugPrint('⚠️ إيقاف جميع عمليات المزامنة قبل إغلاق قاعدة البيانات...');
+      debugPrint('🔒 إيقاف وإغلاق قاعدة البيانات بشكل آمن...');
       
-      // Close any open connections to avoid file locking
-      await DatabaseManager.close();
+      // Close database safely with sync operations stopped
+      await DatabaseManager.closeForRestore();
       
       debugPrint('📋 استبدال ملف قاعدة البيانات...');
 
@@ -150,18 +150,28 @@ class SqliteBackupRestore {
       }
       await srcFile.copy(dstPath);
 
-      debugPrint('🔄 إعادة فتح قاعدة البيانات...');
+      debugPrint('🔄 إعادة فتح قاعدة البيانات وتشغيل المزامنة...');
       
-      // Reopen the database so the app can continue working
+      // Reopen database and restart sync operations
       if (reopenCallback != null) {
         await reopenCallback();
       } else {
-        await DatabaseManager.reopen();
+        await DatabaseManager.reopenAfterRestore();
       }
 
-      debugPrint('✅ SQLite database restored from: $sourcePath');
+      debugPrint('✅ SQLite database restored successfully');
     } catch (e, st) {
       debugPrint('❌ Failed to restore database: $e\n$st');
+      
+      // في حالة الفشل، محاولة إعادة الفتح
+      try {
+        debugPrint('🔄 Attempting to reopen database after failed restore...');
+        await DatabaseManager.reopenAfterRestore();
+        debugPrint('✅ Database reopened after failed restore');
+      } catch (e2) {
+        debugPrint('❌ Failed to reopen after failed restore: $e2');
+      }
+      
       rethrow;
     }
   }

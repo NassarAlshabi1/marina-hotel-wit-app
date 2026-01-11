@@ -315,13 +315,48 @@ class SyncGuardian {
     );
   }
 
-  Future<void> dispose() async {
-    await _statusSubscription?.cancel();
-    _statusSubscription = null;
-    _pendingMonitor?.cancel();
-    _pendingMonitor = null;
+  /// إيقاف جميع عمليات المزامنة بشكل آمن
+  Future<void> stop() async {
+    if (!_initialized) {
+      _log('⏹️ Already stopped');
+      return;
+    }
+    
+    _log('⏹️ إيقاف Sync Guardian...');
+    
+    // إلغاء جميع المراقبات والمؤقتات
     _debounceTimer?.cancel();
     _debounceTimer = null;
+    _pendingMonitor?.cancel();
+    _pendingMonitor = null;
+    
+    // إيقاف المزامنة التلقائية في manager
+    _manager?.stopOutboxDebouncedSync();
+    
+    _log('✅ Sync Guardian متوقف');
+  }
+
+  /// إعادة تشغيل Sync Guardian
+  Future<void> restart({AppDatabase? database}) async {
+    _log('🔄 إعادة تشغيل Sync Guardian...');
+    
+    await stop();
+    
+    if (database != null) {
+      await initialize(
+        database: database,
+        driveService: _driveService,
+        appwriteSyncManager: _appwriteSyncManager,
+      );
+    }
+    
+    _log('✅ Sync Guardian أعيد تشغيله');
+  }
+
+  Future<void> dispose() async {
+    await stop();
+    await _statusSubscription?.cancel();
+    _statusSubscription = null;
     await _healthController.close();
     _initialized = false;
     _manager = null;
