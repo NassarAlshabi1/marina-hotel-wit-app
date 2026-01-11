@@ -1,0 +1,259 @@
+name: Scheduled Flutter Fix
+
+on:
+  # يعمل تلقائياً كل أسبوع يوم الأحد الساعة 2 صباحاً UTC
+  schedule:
+    - cron: '0 2 * * 0'
+  
+  # يمكن تشغيله يدوياً
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Target branch (default: main)'
+        required: false
+        default: 'main'
+        type: string
+      create_pr:
+        description: 'Create PR with fixes?'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  scheduled-flutter-fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.target_branch || 'main' }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.3'
+          cache: true
+
+      - name: Detect Flutter projects
+        id: detect
+        run: |
+          echo "Detecting all Flutter/Dart projects..."
+          PROJECTS=$(find . -name "pubspec.yaml" -not -path "*/.*" -not -path "*/build/*" | sed 's|/pubspec.yaml||' | tr '\n' ' ')
+          echo "projects=$PROJECTS" >> $GITHUB_OUTPUT
+          echo "Found projects: $PROJECTS"
+          
+          # عدد المشاريع
+          PROJECT_COUNT=$(echo "$PROJECTS" | wc -w)
+          echo "project_count=$PROJECT_COUNT" >> $GITHUB_OUTPUT
+          echo "Total projects: $PROJECT_COUNT"
+
+      - name: Get dependencies for all projects
+        run: |
+          for PROJECT in ${{ steps.detect.outputs.projects }}; do
+            if [ -f "$PROJECT/pubspec.yaml" ]; then
+              echo "📦 Getting dependencies for $PROJECT..."
+              cd "$PROJECT"
+              flutter pub get || dart pub get || true
+              cd - > /dev/null
+            fi
+          done
+
+      - name: Run dart fix (dry run) on all projects
+        id: check
+        run: |
+          echo "## Flutter Fix Report" > /tmp/fix_report.txt
+          echo "" >> /tmp/fix_report.txt
+          echo "Scan Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> /tmp/fix_report.txt
+          echo "" >> /tmp/fix_report.txt
+          
+          TOTAL_FIXES=0
+          PROJECTS_WITH_FIXES=""
+          
+          for PROJECT in ${{ steps.detect.outputs.projects }}; do
+            if [ -f "$PROJECT/pubspec.yaml" ]; then
+              echo "🔍 Scanning $PROJECT..." | tee -a /tmp/fix_report.txt
+              cd "$PROJECT"
+              
+              FIXES_OUTPUT=$(dart fix --dry-run 2>&1 || true)
+              
+              if echo "$FIXES_OUTPUT" | grep -q "proposed fixes"; then
+                PROJECT_FIXES=$(echo "$FIXES_OUTPUT" | grep -oP '^\d+(?= proposed fixes)' | head -1)
+                TOTAL_FIXES=$((TOTAL_FIXES + PROJECT_FIXES))
+                PROJECTS_WITH_FIXES="${PROJECTS_WITH_FIXES}${PROJECT} "
+                
+                echo "  ✅ $PROJECT_FIXES fixes available" | tee -a /tmp/fix_report.txt
+                echo "$FIXES_OUTPUT" | grep -A 20 "proposed fixes" >> /tmp/fix_report.txt
+                echo "" >> /tmp/fix_report.txt
+              else
+                echo "  ✨ No issues found" | tee -a /tmp/fix_report.txt
+              fi
+              
+              cd - > /dev/null
+            fi
+          done
+          
+          echo "" >> /tmp/fix_report.txt
+          echo "========================================" >> /tmp/fix_report.txt
+          echo "Total fixes across all projects: $TOTAL_FIXES" >> /tmp/fix_report.txt
+          echo "========================================" >> /tmp/fix_report.txt
+          
+          if [ $TOTAL_FIXES -gt 0 ]; then
+            echo "fixes_available=true" >> $GITHUB_OUTPUT
+            echo "fixes_count=$TOTAL_FIXES" >> $GITHUB_OUTPUT
+            echo "projects_with_fixes=$PROJECTS_WITH_FIXES" >> $GITHUB_OUTPUT
+          else
+            echo "fixes_available=false" >> $GITHUB_OUTPUT
+            echo "fixes_count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Apply fixes to all projects
+        if: steps.check.outputs.fixes_available == 'true'
+        run: |
+          echo "Applying fixes to all projects..."
+          for PROJECT in ${{ steps.check.outputs.projects_with_fixes }}; do
+            if [ -f "$PROJECT/pubspec.yaml" ]; then
+              echo "🔧 Fixing $PROJECT..."
+              cd "$PROJECT"
+              dart fix --apply
+              cd - > /dev/null
+            fi
+          done
+
+      - name: Create fix branch and PR
+        if: |
+          steps.check.outputs.fixes_available == 'true' &&
+          (github.event.inputs.create_pr != 'false')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # إنشاء اسم فرع فريد
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          BRANCH_NAME="auto-fix/flutter-fixes-${TIMESTAMP}"
+          
+          # إعداد Git
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # إنشاء فرع جديد
+          git checkout -b "$BRANCH_NAME"
+          
+          # إضافة وcommit التغييرات
+          for PROJECT in ${{ steps.detect.outputs.projects }}; do
+            git add "$PROJECT/" || true
+          done
+          
+          COMMIT_MSG="chore(auto): apply scheduled Flutter fixes to all projects
+
+🔧 Applied ${{ steps.check.outputs.fixes_count }} automatic fixes across ${{ steps.detect.outputs.project_count }} Flutter/Dart projects
+
+This PR was automatically created by the scheduled Flutter fix workflow.
+
+Projects affected:
+${{ steps.check.outputs.projects_with_fixes }}
+
+Changes include:
+- Removed unused imports
+- Fixed unnecessary casts
+- Applied other automatic lint fixes
+
+Please review and merge if appropriate."
+          
+          git commit -m "$COMMIT_MSG"
+          
+          # Push الفرع الجديد
+          git push origin "$BRANCH_NAME"
+          
+          # إنشاء Pull Request
+          BASE_BRANCH="${{ github.event.inputs.target_branch || 'main' }}"
+          
+          PR_BODY="## 🤖 Automated Flutter Fixes
+
+هذا PR تم إنشاؤه تلقائياً بواسطة الفحص الدوري الأسبوعي.
+
+### 📊 الإحصائيات
+- **إجمالي المشاريع:** ${{ steps.detect.outputs.project_count }}
+- **عدد الإصلاحات:** ${{ steps.check.outputs.fixes_count }}
+- **الفرع المستهدف:** \`${BASE_BRANCH}\`
+- **التاريخ:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+### 📁 المشاريع المتأثرة
+\`\`\`
+${{ steps.check.outputs.projects_with_fixes }}
+\`\`\`
+
+### 🔧 تقرير الإصلاحات
+<details>
+<summary>انقر لعرض التفاصيل الكاملة</summary>
+
+\`\`\`
+$(cat /tmp/fix_report.txt)
+\`\`\`
+
+</details>
+
+### ✅ الخطوات التالية
+1. ✓ مراجعة التغييرات في كل مشروع
+2. ✓ التأكد من أن الاختبارات تمر
+3. ✓ دمج PR إذا كانت التغييرات مناسبة
+
+---
+*تم الإنشاء تلقائياً بواسطة [Scheduled Flutter Fix Workflow](https://github.com/${{ github.repository }}/actions/workflows/scheduled-flutter-fix.yml)*"
+          
+          gh pr create \
+            --base "$BASE_BRANCH" \
+            --head "$BRANCH_NAME" \
+            --title "🔧 Automated Flutter Fixes - $(date +%Y-%m-%d)" \
+            --body "$PR_BODY" \
+            --label "automated,maintenance,flutter-fix"
+
+      - name: Commit directly (no PR)
+        if: |
+          steps.check.outputs.fixes_available == 'true' &&
+          github.event.inputs.create_pr == 'false'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          for PROJECT in ${{ steps.detect.outputs.projects }}; do
+            git add "$PROJECT/" || true
+          done
+          
+          git commit -m "chore: apply automatic flutter fixes [${{ steps.check.outputs.fixes_count }} fixes across ${{ steps.detect.outputs.project_count }} projects]"
+          git push
+
+      - name: Job Summary
+        if: always()
+        run: |
+          echo "# 🔧 Scheduled Flutter Fix Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Target Branch:** ${{ github.event.inputs.target_branch || 'main' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Projects:** ${{ steps.detect.outputs.project_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ steps.check.outputs.fixes_available }}" == "true" ]]; then
+            echo "## ✅ Fixes Applied" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Count:** ${{ steps.check.outputs.fixes_count }} issue(s)" >> $GITHUB_STEP_SUMMARY
+            echo "**Projects with fixes:** ${{ steps.check.outputs.projects_with_fixes }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Full Report" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            cat /tmp/fix_report.txt >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ No Issues Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "جميع المشاريع نظيفة! لا توجد إصلاحات تلقائية مطلوبة." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Scanned Projects" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.detect.outputs.projects }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
