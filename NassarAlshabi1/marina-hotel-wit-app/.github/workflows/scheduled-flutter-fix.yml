@@ -130,7 +130,7 @@ jobs:
           steps.check.outputs.fixes_available == 'true' &&
           (github.event.inputs.create_pr != 'false')
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # إنشاء اسم فرع فريد
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
