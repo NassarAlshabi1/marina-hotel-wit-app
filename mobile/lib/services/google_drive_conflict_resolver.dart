@@ -455,9 +455,18 @@ class GoogleDriveConflictResolver {
 
        for (final localUuid in localRecords.keys) {
          if (!remoteRecords.containsKey(localUuid) && !mergedUuids.contains(localUuid)) {
-           // This record exists locally but not remotely, and wasn't added by resolution.
+           final localRecord = localRecords[localUuid]!;
+           
+           // Check if this is a deleted record - don't resurrect it
+           final deletedAt = localRecord['deleted_at'] ?? localRecord['deletedAt'];
+           if (deletedAt != null) {
+             // This record is deleted locally, skip it
+             continue;
+           }
+           
+           // This record exists locally but not remotely, and is not deleted.
            // It's a new local record -> Add it.
-           mutableMergedList.add(localRecords[localUuid]);
+           mutableMergedList.add(localRecord);
          }
        }
        merged[tableName] = mutableMergedList;

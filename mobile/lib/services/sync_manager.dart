@@ -886,6 +886,14 @@ class SyncManager {
       final localRow = localMap[key];
 
       if (remoteRow == null && localRow != null) {
+        // Check if this is a deleted record - don't resurrect it
+        final deletedAt = localRow['deleted_at'] ?? localRow['deletedAt'];
+        if (deletedAt != null) {
+          // This record is deleted locally, skip it
+          continue;
+        }
+        
+        // This is a new local record that doesn't exist remotely
         mergedList.add(localRow);
         operations.add(SyncOperation(
           table: table,
@@ -898,6 +906,14 @@ class SyncManager {
       }
 
       if (remoteRow != null && localRow == null) {
+        // Check if this is a deleted record from remote - don't add it
+        final deletedAt = remoteRow['deleted_at'] ?? remoteRow['deletedAt'];
+        if (deletedAt != null) {
+          // This record is deleted remotely, skip it
+          continue;
+        }
+        
+        // This is a new remote record that doesn't exist locally
         mergedList.add(remoteRow);
         continue;
       }

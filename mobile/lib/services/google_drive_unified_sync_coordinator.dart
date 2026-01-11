@@ -49,6 +49,18 @@ enum _SyncStartResult {
   alreadySyncing,
 }
 
+sealed class _PerformSyncResult {}
+
+class _PerformSyncOk extends _PerformSyncResult {}
+
+class _PerformSyncNotInitialized extends _PerformSyncResult {}
+
+class _PerformSyncNotSignedIn extends _PerformSyncResult {}
+
+class _PerformSyncAlreadyInProgress extends _PerformSyncResult {
+  final int elapsedSeconds;
+  _PerformSyncAlreadyInProgress(this.elapsedSeconds);
+}
 
 
 class SyncResult {
@@ -995,17 +1007,4 @@ class GoogleDriveUnifiedSyncCoordinator {
     _syncResultController.close();
     _log('🛑 Unified Sync Coordinator disposed');
   }
-}
-
-sealed class _PerformSyncResult {}
-
-class _PerformSyncOk extends _PerformSyncResult {}
-
-class _PerformSyncNotInitialized extends _PerformSyncResult {}
-
-class _PerformSyncNotSignedIn extends _PerformSyncResult {}
-
-class _PerformSyncAlreadyInProgress extends _PerformSyncResult {
-  final int elapsedSeconds;
-  _PerformSyncAlreadyInProgress(this.elapsedSeconds);
 }
