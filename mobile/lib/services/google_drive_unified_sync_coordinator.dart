@@ -255,9 +255,21 @@ class GoogleDriveUnifiedSyncCoordinator {
         },
         onError: (error) {
           _log('❌ Outbox watch error: $error', level: LogLevel.error);
+          // إعادة فتح الـ stream بعد 5 ثوانٍ من حدوث خطأ
+          Future.delayed(const Duration(seconds: 5), () {
+            if (_pushEnabled && _database != null) {
+              _restartOutboxMonitoring();
+            }
+          });
         },
         onDone: () {
           _log('⚠️ Outbox watch stream closed', level: LogLevel.warning);
+          // إعادة فتح الـ stream بعد 3 ثوانٍ من إغلاقه
+          Future.delayed(const Duration(seconds: 3), () {
+            if (_pushEnabled && _database != null && _backupService?.isSignedIn == true) {
+              _restartOutboxMonitoring();
+            }
+          });
         },
         cancelOnError: false,
       );
@@ -274,6 +286,45 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     
     _scheduleFullBackup();
+  }
+
+  void _restartOutboxMonitoring() {
+    if (!_isInitialized || !(_backupService?.isSignedIn ?? false) || !_pushEnabled || _database == null) {
+      _log('⚠️ Cannot restart outbox monitoring: conditions not met');
+      return;
+    }
+    
+    _log('🔄 Restarting outbox monitoring...');
+    _outboxSubscription?.cancel();
+    
+    try {
+      _outboxSubscription = (_database!.select(_database!.outbox)).watch().listen(
+        (_) {
+          _log('📦 Detected change in outbox', level: LogLevel.debug);
+          notifyLocalChange();
+        },
+        onError: (error) {
+          _log('❌ Outbox watch error: $error', level: LogLevel.error);
+          Future.delayed(const Duration(seconds: 5), () {
+            if (_pushEnabled && _database != null) {
+              _restartOutboxMonitoring();
+            }
+          });
+        },
+        onDone: () {
+          _log('⚠️ Outbox watch stream closed', level: LogLevel.warning);
+          Future.delayed(const Duration(seconds: 3), () {
+            if (_pushEnabled && _database != null && _backupService?.isSignedIn == true) {
+              _restartOutboxMonitoring();
+            }
+          });
+        },
+        cancelOnError: false,
+      );
+      _log('✅ Outbox monitoring restarted successfully');
+    } catch (e) {
+      _log('❌ Failed to restart outbox monitoring: $e', level: LogLevel.error);
+    }
   }
 
   void _stopMonitoring() {
