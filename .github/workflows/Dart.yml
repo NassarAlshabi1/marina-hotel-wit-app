@@ -10,7 +10,7 @@ on:
   push:
     paths:
       - '**/*.dart'
-      - '**/pubspec.yaml'
+    
       - '**/analysis_options.yaml'
   
   # يعمل على جميع pull requests
