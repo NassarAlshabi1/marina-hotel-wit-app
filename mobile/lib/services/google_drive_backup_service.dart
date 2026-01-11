@@ -705,7 +705,7 @@ class GoogleDriveBackupService {
       }
       _logger.info('بدء استعادة نسخة بتاريخ ${metadata.backupTimestamp.toIso8601String()} تحتوي ${metadata.totalRecords} سجل', tag: 'RESTORE');
 
-      if (metadata.databaseVersion > 3) {
+      if (metadata.databaseVersion > DatabaseManager.instance.schemaVersion) {
         throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
       }
 
