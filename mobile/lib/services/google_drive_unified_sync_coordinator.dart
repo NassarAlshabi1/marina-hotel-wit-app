@@ -480,6 +480,15 @@ class GoogleDriveUnifiedSyncCoordinator {
     required SyncTrigger trigger,
     SyncMode mode = SyncMode.smart,
   }) async {
+    // Defensive check: Never sync during database restore
+    if (DatabaseManager.isRestoring) {
+      _log('⏸️ Sync blocked: database is being restored', level: LogLevel.warning);
+      return SyncResult.failure(
+        message: 'Sync skipped: database restore in progress',
+        phase: SyncPhase.idle,
+      );
+    }
+    
     final lockResult = await UnifiedLockManager.instance.acquire(
       category: LockCategory.mainSync,
       holder: 'GoogleDriveUnifiedSyncCoordinator.performSync',
@@ -814,6 +823,12 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   /// فحص واستعادة النسخ الاحتياطية الكاملة (مع حل النزاع)
+  /// 
+  /// ⚠️ ARCHITECTURAL NOTE: Full database restore CANNOT be performed during active sync
+  /// because it requires closing the database, stopping all sync operations, and restarting.
+  /// 
+  /// This method now DETECTS newer backups and SCHEDULES them for deferred restore,
+  /// allowing the user to be prompted to restore at an appropriate time.
   Future<void> _performScanAndRestoreFullBackup() async {
     _log('🔍 Checking for full backups from other devices...');
     try {
@@ -836,10 +851,6 @@ class GoogleDriveUnifiedSyncCoordinator {
       }
 
       // Check timestamp locally
-      // Assuming we have persisted last restored timestamp somewhere
-      // reusing _lastFullBackupTime logic but for *remote* timestamp?
-      // Actually we should store the last *applied* remote timestamp separate from last *pushed*
-      // For now, let's use a new preference key
       final prefs = await SharedPreferences.getInstance();
       final lastRestoredTsStr = prefs.getString('gd_last_restored_full_ts');
       final lastRestoredTs = _parseTimestamp(lastRestoredTsStr);
@@ -849,76 +860,37 @@ class GoogleDriveUnifiedSyncCoordinator {
          return;
       }
       
-      _log('🆕 New full backup found from $backupDeviceId. Starting restore & conflict resolution...');
+      _log('🆕 New full backup found from $backupDeviceId.');
+      _log('⚠️ Full restore requires stopping all operations and cannot be done during sync.');
+      _log('💡 Flagging backup for deferred restore...');
       
-      // 3. Download
-      final remoteData = await _backupService!.downloadBackup(latestBackup.fileId);
+      // Store pending restore info for user prompt
+      // The UI should detect this flag and prompt the user to restore
+      await prefs.setString('pending_restore_backup_id', latestBackup.fileId);
+      await prefs.setString('pending_restore_device_id', backupDeviceId);
+      await prefs.setString('pending_restore_timestamp', latestBackup.createdTime.toIso8601String());
+      await prefs.setBool('pending_restore_available', true);
       
-      // 4. Export Local for diffing
-      final localData = await _backupService!.exportDatabaseToJson();
+      _log('✅ Backup flagged for deferred restore.');
+      _log('ℹ️ User will be prompted to restore at next app launch or manually.');
       
-      // 5. Detect Conflicts
-      final resolver = GoogleDriveConflictResolver.instance;
-      // Ensure initialized
-      // resolver.initialize(_logger); // Logger is optional
-      
-      final conflicts = await resolver.detectConflicts(
-        localData: localData,
-        remoteData: remoteData,
-      );
-      
-      if (conflicts.isNotEmpty) {
-        _log('⚠️ Found ${conflicts.length} conflicts. Resolving...');
-        List<ConflictResolutionResult> resolutions = [];
-        for (final conflict in conflicts) {
-           resolutions.add(await resolver.resolveConflict(conflict));
-        }
-        
-        // 6. Merge
-        final mergedData = await resolver.mergeRecords(
-          localData: localData,
-          remoteData: remoteData,
-          resolutions: resolutions,
-        );
-        
-        // 7. Apply (Destructive Restore of Merged Data)
-        await _backupService!.restoreFromBackup(mergedData);
-        _log('✅ Full backup restore with conflict resolution completed.');
-      } else {
-        // No conflicts? Just restore directly if simple overwrite is safe? 
-        // Or merging might still be needed if local has NEW records not in remote?
-        // Wait, "Conflicts" usually means SAME ID modified in both.
-        // What about exclusive records?
-        // restoreFromBackup wipes DB. So we MUST merge "exclusive local records" into remoteData before restoring.
-        // ConflictResolver.detectConflicts only finds collisions. 
-        // We need a proper MERGE of non-conflicting data too!
-        
-        // LIMITATION: The current ConflictResolver logic focuses on collisions.
-        // It does not seem to handle "Union" of non-colliding sets in `mergeRecords`.
-        // `mergeRecords` takes `remoteData` as base and applies resolutions.
-        // If `localData` has a unique record ID 999 not in `remoteData`, `mergeRecords` (as implemented) 
-        // does NOT add it to `merged`.
-        
-        // CRITICAL FIX: I must ensure `mergeRecords` in `GoogleDriveConflictResolver` performs a UNION.
-        // I should update `GoogleDriveConflictResolver` again to handle this, OR handle it here.
-        // Generally, Merge should be Union.
-        
-        // For now, to avoid data loss, I will skip full restore if conflicts are empty BUT logic requires better merge.
-        // Actually, let's fix `GoogleDriveConflictResolver`.
-        
-        // To avoid scope creep in this edit, I will assume `mergeRecords` needs to be smarter.
-        // I will defer the commit of this file until I fix `mergeRecords` in the Resolver.
-        
-        // Wait, I already edited `GoogleDriveConflictResolver`. Can I edit it again efficiently?
-        // Yes.
-      }
-      
-      // 8. Update Timestamp
-      await prefs.setString('gd_last_restored_full_ts', latestBackup.createdTime.toIso8601String());
+      // REMOVED UNSAFE CODE:
+      // The following code was UNSAFE and could cause data corruption:
+      // - await _backupService!.restoreFromBackup(mergedData);
+      // 
+      // Full restore MUST use this flow:
+      // 1. User initiates restore from UI
+      // 2. UI calls DatabaseManager.closeForRestore()
+      // 3. Sync operations stop
+      // 4. Database closes
+      // 5. Restore operations execute
+      // 6. DatabaseManager.reopenAfterRestore()
+      // 7. Sync operations restart
+      //
+      // See backup_provider.dart for the correct implementation pattern.
 
     } catch (e) {
-      _log('❌ Error in full backup restore: $e', level: LogLevel.error);
-      // Don't rethrow to avoid crashing the whole sync loop?
+      _log('❌ Error checking for full backups: $e', level: LogLevel.error);
     }
   }
 

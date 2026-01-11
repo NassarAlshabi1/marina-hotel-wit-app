@@ -681,7 +681,32 @@ class GoogleDriveBackupService {
     });
   }
 
+  /// Restore database from backup data
+  /// 
+  /// ⚠️ CRITICAL: This method performs destructive operations on the database
+  /// and MUST ONLY be called within a proper restore lifecycle:
+  /// 
+  /// ```dart
+  /// await DatabaseManager.closeForRestore();
+  /// try {
+  ///   await backupService.restoreFromBackup(backupData);
+  /// } finally {
+  ///   await DatabaseManager.reopenAfterRestore();
+  /// }
+  /// ```
+  /// 
+  /// DO NOT call this method during normal app operation or active sync!
+  /// Calling this during sync will cause data corruption and crashes.
   Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
+    // Safety check: This method should ideally only be called during restore mode
+    // However, for backward compatibility, we log a warning instead of throwing
+    if (!DatabaseManager.isRestoring) {
+      _log('⚠️ WARNING: restoreFromBackup called outside of restore mode!', level: LogLevel.warning);
+      _log('⚠️ This should be wrapped in DatabaseManager.closeForRestore() / reopenAfterRestore()', level: LogLevel.warning);
+      // Consider throwing in future versions:
+      // throw StateError('restoreFromBackup must only be called during restore mode. Call DatabaseManager.closeForRestore() first.');
+    }
+    
     try {
       final db = DatabaseManager.instance;
 

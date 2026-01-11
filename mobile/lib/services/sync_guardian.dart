@@ -161,6 +161,12 @@ class SyncGuardian {
       return;
     }
     
+    // Defensive check: Never sync during database restore
+    if (DatabaseManager.isRestoring) {
+      _log('⏸️ Foreground sync blocked: database is being restored');
+      return;
+    }
+    
     _log('📱 التطبيق في المقدمة');
     
     // Pull ذكي: فقط إذا مضى أكثر من 2 دقيقة (بدلاً من 5)
@@ -258,6 +264,12 @@ class SyncGuardian {
 
   Future<void> _consumePending({required bool force}) async {
     if (!_initialized || _manager == null) {
+      return;
+    }
+    
+    // Defensive check: Never sync during database restore
+    if (DatabaseManager.isRestoring) {
+      _log('⏸️ Sync blocked: database is being restored');
       return;
     }
     

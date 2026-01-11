@@ -403,6 +403,17 @@ class AppwriteSyncManager {
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
   Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+    // Defensive check: Never sync during database restore
+    if (DatabaseManager.isRestoring) {
+      _logger.warning('Sync blocked: database is being restored', tag: 'SYNC');
+      return SyncResult(
+        status: SyncStatus.failed,
+        errorMessage: 'Sync skipped: database restore in progress',
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+    }
+    
     if (!await _mutex.acquire()) {
       _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
       return SyncResult(
