@@ -293,11 +293,21 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       
       if (account != null) {
         await setSkippedDriveLogin(false);
-        // جلب قائمة النسخ المتاحة
-        final backups = await _backupService.listBackupFiles();
         
-        // إشعار مديري المزامنة بتغير حالة تسجيل الدخول
-        await _notifySyncManagers(true);
+        // جلب قائمة النسخ المتاحة (مع معالجة الأخطاء)
+        List<DriveBackupFile> backups = [];
+        try {
+          backups = await _backupService.listBackupFiles();
+        } catch (e) {
+          debugPrint('⚠️ خطأ في جلب قائمة النسخ الاحتياطية: $e');
+        }
+        
+        // إشعار مديري المزامنة بتغير حالة تسجيل الدخول (مع معالجة الأخطاء)
+        try {
+          await _notifySyncManagers(true);
+        } catch (e) {
+          debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+        }
         
         state = state.copyWith(
           status: BackupStatus.success,
@@ -305,6 +315,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           signedInAccount: account,
           availableBackups: backups,
         );
+        
+        // مسح الرسالة تلقائياً بعد 3 ثوانٍ
+        Future.delayed(const Duration(seconds: 3), () {
+          if (state.message == 'تم تسجيل الدخول بنجاح') {
+            clearMessage();
+          }
+        });
       } else {
         state = state.copyWith(
           status: BackupStatus.error,

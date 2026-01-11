@@ -97,7 +97,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
       final smartEnabled = await smartSyncManager.isEnabled();
-      final isGoogleDriveSignedIn = smartSyncManager.isDriveSignedIn;
+      final isGoogleDriveSignedIn = ref.read(smartSyncGoogleDriveSignInStatusProvider);
       final appwriteEnabled = await _isAppwriteSyncEnabled();
 
       if (!smartEnabled && !appwriteEnabled) {
@@ -509,8 +509,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
                   if (!_isUploading)
                     Consumer(
                       builder: (context, ref, _) {
-                        final smartSyncManager = ref.read(smartSyncManagerProvider);
-                        final isGoogleDriveSignedIn = smartSyncManager.isDriveSignedIn;
+                        final isGoogleDriveSignedIn = ref.watch(smartSyncGoogleDriveSignInStatusProvider);
                         
                         if (!hasChanges && _lastUploadTime != null) {
                           return Text(
