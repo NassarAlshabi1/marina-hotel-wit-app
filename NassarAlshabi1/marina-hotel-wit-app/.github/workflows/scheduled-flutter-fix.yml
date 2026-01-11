@@ -106,7 +106,9 @@ jobs:
           if [ $TOTAL_FIXES -gt 0 ]; then
             echo "fixes_available=true" >> $GITHUB_OUTPUT
             echo "fixes_count=$TOTAL_FIXES" >> $GITHUB_OUTPUT
-            echo "projects_with_fixes=$PROJECTS_WITH_FIXES" >> $GITHUB_OUTPUT
+            echo -e "projects_with_fixes<<EOF" >> $GITHUB_OUTPUT
+            echo "$PROJECTS_WITH_FIXES"            >> $GITHUB_OUTPUT
+            echo "EOF"                            >> $GITHUB_OUTPUT
           else
             echo "fixes_available=false" >> $GITHUB_OUTPUT
             echo "fixes_count=0" >> $GITHUB_OUTPUT
