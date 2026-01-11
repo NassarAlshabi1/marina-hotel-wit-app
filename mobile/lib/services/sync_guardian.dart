@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/sync_models.dart';
 import '../tasks/auto_sync_task.dart';
 import 'google_drive_sync_service.dart';
+import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
 import 'sync_manager.dart';

@@ -76,6 +76,7 @@ class DeltaSyncService {
         for (final config in configs) {
           try {
             final rows = await config.fetchAll();
+            final typedRows = rows.cast<Map<String, dynamic>>();
             final existingMirror = previousMirror[config.entity] ?? {};
             final hasMirror = previousMirror.containsKey(config.entity);
             if (!hasMirror) {
@@ -83,7 +84,7 @@ class DeltaSyncService {
               debugPrint('⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط');
             }
             
-            await _processConfigRows(config, rows, existingMirror, normalizedSince, nowTs, changes, snapshot, fallbackTables);
+            await _processConfigRows(config, typedRows, existingMirror, normalizedSince, nowTs, changes, snapshot, fallbackTables);
           } catch (e) {
             debugPrint('⚠️ خطأ في معالجة ${config.entity}: $e');
             fallbackTables.add(config.entity);
