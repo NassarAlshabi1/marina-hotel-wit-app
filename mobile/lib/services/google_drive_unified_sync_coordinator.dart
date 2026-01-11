@@ -266,6 +266,9 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
+    // تحديث database instance للتأكد من استخدام أحدث اتصال
+    _database = DatabaseManager.instance;
+    
     // مراقبة تغييرات outbox للمزامنة التلقائية
     _outboxSubscription?.cancel();
     if (_pushEnabled && _database != null) {
@@ -310,13 +313,27 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   void _restartOutboxMonitoring() {
-    if (!_isInitialized || !(_backupService?.isSignedIn ?? false) || !_pushEnabled || _database == null) {
+    if (!_isInitialized || !(_backupService?.isSignedIn ?? false) || !_pushEnabled) {
       _log('⚠️ Cannot restart outbox monitoring: conditions not met');
       return;
     }
     
     _log('🔄 Restarting outbox monitoring...');
     _outboxSubscription?.cancel();
+    
+    // تحديث database instance قبل استخدامها - إصلاح "Can't re-open a database"
+    // هذا ضروري لأن _database قد تكون تشير إلى instance مغلقة
+    try {
+      _database = DatabaseManager.instance;
+    } catch (e) {
+      _log('❌ Cannot get database instance: $e', level: LogLevel.error);
+      return;
+    }
+    
+    if (_database == null) {
+      _log('⚠️ Database instance is null - cannot restart monitoring');
+      return;
+    }
     
     try {
       _outboxSubscription = (_database!.select(_database!.outbox)).watch().listen(
