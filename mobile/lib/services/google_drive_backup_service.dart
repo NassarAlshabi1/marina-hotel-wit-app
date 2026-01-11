@@ -701,8 +701,8 @@ class GoogleDriveBackupService {
     // Safety check: This method should ideally only be called during restore mode
     // However, for backward compatibility, we log a warning instead of throwing
     if (!DatabaseManager.isRestoring) {
-      _log('⚠️ WARNING: restoreFromBackup called outside of restore mode!', level: LogLevel.warning);
-      _log('⚠️ This should be wrapped in DatabaseManager.closeForRestore() / reopenAfterRestore()', level: LogLevel.warning);
+      _log('⚠️ WARNING: restoreFromBackup called outside of restore mode!');
+      _log('⚠️ This should be wrapped in DatabaseManager.closeForRestore() / reopenAfterRestore()');
       // Consider throwing in future versions:
       // throw StateError('restoreFromBackup must only be called during restore mode. Call DatabaseManager.closeForRestore() first.');
     }

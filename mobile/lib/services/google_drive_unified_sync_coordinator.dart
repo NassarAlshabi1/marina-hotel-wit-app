@@ -867,7 +867,9 @@ class GoogleDriveUnifiedSyncCoordinator {
       // Store pending restore info for user prompt
       // The UI should detect this flag and prompt the user to restore
       await prefs.setString('pending_restore_backup_id', latestBackup.fileId);
-      await prefs.setString('pending_restore_device_id', backupDeviceId);
+      if (backupDeviceId != null) {
+        await prefs.setString('pending_restore_device_id', backupDeviceId);
+      }
       await prefs.setString('pending_restore_timestamp', latestBackup.createdTime.toIso8601String());
       await prefs.setBool('pending_restore_available', true);
       
