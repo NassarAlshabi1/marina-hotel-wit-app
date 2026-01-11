@@ -9,7 +9,7 @@ class SyncHealthDashboardScreen extends ConsumerStatefulWidget {
   const SyncHealthDashboardScreen({super.key});
   
   @override
-  ConsumerState<SyncHealthDashboardScreen> createState() => _SyncHealthDashboardScreenState;
+  ConsumerState<SyncHealthDashboardScreen> createState() => _SyncHealthDashboardScreenState();
 }
 
 class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardScreen> {
