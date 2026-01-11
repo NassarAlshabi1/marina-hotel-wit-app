@@ -162,7 +162,12 @@ class GoogleDriveSyncService {
     GoogleSignIn? googleSignIn,
     drive.DriveApi? driveApi,
     int shardSizeBytes = _kDefaultShardBytes,
-  })  : _googleSignIn = googleSignIn ?? GoogleSignIn(scopes: const [drive.DriveApi.driveAppdataScope]),
+  })  : _googleSignIn = googleSignIn ?? GoogleSignIn(
+          scopes: const [drive.DriveApi.driveAppdataScope],
+          // Web OAuth 2.0 Client ID for cross-device sync
+          serverClientId: '256666337807-561s7dakv86m3kugsalv8opa8idkjmd0.apps.googleusercontent.com',
+          forceCodeForRefreshToken: true,
+        ),
         _driveApi = driveApi,
         _shardSizeBytes = shardSizeBytes;
 

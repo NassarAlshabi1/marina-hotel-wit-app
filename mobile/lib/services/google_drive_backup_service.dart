@@ -162,6 +162,15 @@ class GoogleDriveBackupService {
   void _initializeGoogleSignIn() {
     _googleSignIn = GoogleSignIn(
       scopes: _scopes,
+      // Web OAuth 2.0 Client ID from google-services.json (client_type: 3)
+      // This enables:
+      // 1. Cross-device sync - same data accessible from multiple devices
+      // 2. Server-side token verification
+      // 3. Long-lived refresh tokens for persistent sessions
+      serverClientId: '256666337807-561s7dakv86m3kugsalv8opa8idkjmd0.apps.googleusercontent.com',
+      // Forces retrieval of refresh token for long-term access
+      // Without this, user may need to re-authenticate frequently
+      forceCodeForRefreshToken: true,
     );
   }
 
