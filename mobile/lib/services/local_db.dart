@@ -745,7 +745,10 @@ class DatabaseManager {
 
   static AppDatabase get instance {
     if (_isClosed) {
-      throw StateError('DatabaseManager has been closed. Call reopen() first.');
+      developer.log('⚠️ Attempted to access closed database. Auto-reopening...', name: 'DatabaseManager');
+      // إعادة تعيين الأعلام وإنشاء instance جديدة
+      _isClosed = false;
+      _instance = null;
     }
     if (_isClosing) {
       throw StateError('DatabaseManager is currently closing. Please wait.');
@@ -778,18 +781,42 @@ class DatabaseManager {
   }
 
   static Future<void> reopen() async {
+    developer.log('🔄 Attempting to reopen database...', name: 'DatabaseManager');
+    
     if (_isClosing) {
+      developer.log('⏳ Waiting for database to finish closing...', name: 'DatabaseManager');
       await Future.delayed(const Duration(milliseconds: 200));
     }
     
-    await close();
+    // إغلاق الاتصال الحالي إذا كان موجوداً
+    if (_instance != null && !_isClosed) {
+      try {
+        developer.log('🔒 Closing existing database connection...', name: 'DatabaseManager');
+        await close();
+      } catch (e) {
+        developer.log('⚠️ Error closing existing connection: $e', name: 'DatabaseManager');
+      }
+    }
     
-    await Future.delayed(const Duration(milliseconds: 50));
+    // انتظار قصير للتأكد من اكتمال الإغلاق
+    await Future.delayed(const Duration(milliseconds: 100));
     
+    // إعادة تعيين الأعلام قبل إنشاء instance جديدة
     _isClosed = false;
-    _instance = AppDatabase();
+    _isClosing = false;
+    _instance = null;
     
-    developer.log('Database reopened successfully', name: 'DatabaseManager');
+    try {
+      // إنشاء اتصال جديد
+      _instance = AppDatabase();
+      developer.log('✅ Database reopened successfully', name: 'DatabaseManager');
+    } catch (e, stack) {
+      developer.log('❌ Failed to reopen database: $e', name: 'DatabaseManager', error: e, stackTrace: stack);
+      // في حالة الفشل، تأكد من أن الأعلام صحيحة
+      _isClosed = true;
+      _instance = null;
+      rethrow;
+    }
   }
 
   static Future<T> withDatabase<T>(Future<T> Function(AppDatabase db) operation) async {

@@ -50,9 +50,13 @@ class SafeDatabaseOperations {
       debugPrint('❌ Error in $opName: $e');
       debugPrint(stack.toString());
       
-      if (e.toString().contains('connection was closed') || 
-          e.toString().contains('isolate channel')) {
-        debugPrint('⚠️ Database connection error detected. This may require app restart.');
+      // معالجة أخطاء قاعدة البيانات الشائعة
+      final errorStr = e.toString();
+      if (errorStr.contains('connection was closed') || 
+          errorStr.contains('isolate channel') ||
+          errorStr.contains('Can\'t re-open a database') ||
+          errorStr.contains('DatabaseManager has been closed')) {
+        debugPrint('⚠️ Database connection error detected. Attempting to reopen...');
         
         try {
           await DatabaseManager.reopen();
@@ -97,9 +101,15 @@ class SafeDatabaseOperations {
         
         try {
           if (!DatabaseManager.isInitialized) {
-            controller.addError(StateError('Database not initialized for $opName'));
-            controller.close();
-            return;
+            debugPrint('⚠️ Database not initialized for $opName. Attempting to initialize...');
+            try {
+              // محاولة الحصول على instance لتهيئة قاعدة البيانات
+              final _ = DatabaseManager.instance;
+            } catch (e) {
+              controller.addError(StateError('Failed to initialize database for $opName: $e'));
+              controller.close();
+              return;
+            }
           }
           
           final db = DatabaseManager.instance;
@@ -112,8 +122,11 @@ class SafeDatabaseOperations {
               }
             },
             onError: (error, stackTrace) {
-              if (error.toString().contains('connection was closed') ||
-                  error.toString().contains('isolate channel')) {
+              final errorStr = error.toString();
+              if (errorStr.contains('connection was closed') ||
+                  errorStr.contains('isolate channel') ||
+                  errorStr.contains('Can\'t re-open a database') ||
+                  errorStr.contains('DatabaseManager has been closed')) {
                 debugPrint('⚠️ Database stream error: $error. Attempting to recover...');
                 
                 subscription?.cancel();
