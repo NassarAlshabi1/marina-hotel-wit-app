@@ -795,8 +795,6 @@ class DatabaseManager {
       _isClosing = false;
     }
   }
-    }
-  }
 
   static Future<void> reopen() async {
     developer.log('🔄 Attempting to reopen database...', name: 'DatabaseManager');
