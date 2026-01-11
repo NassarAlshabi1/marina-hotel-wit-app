@@ -333,9 +333,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       return;
     }
     if (state == AppLifecycleState.resumed) {
-      unawaited(AppSessionManager.onAppOpen());
-      unawaited(GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground());
-      unawaited(SyncGuardian.instance.onAppForeground());
+      AppSessionManager.onAppOpen().catchError((e, s) => debugPrint('Error in onAppOpen: $e\n$s'));
+      GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground().catchError((e, s) => debugPrint('Error in GDrive onAppForeground: $e\n$s'));
+      SyncGuardian.instance.onAppForeground().catchError((e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'));
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
