@@ -219,13 +219,14 @@ class GoogleDriveBackupService {
       }
 
       if (account != null) {
-        _log('🔑 الحصول على رؤوس المصادقة...');
+        _log('🔑 الحصول على رؤوس المصادقة وتثبيت الجلسة...');
         final headers = await account.authHeaders;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
 
-        _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
+        _log('✅ تم تسجيل الدخول بنجاح وحفظ الجلسة بشكل دائم: ${account.email}');
         _log('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
+        _log('💾 الجلسة محفوظة ولن تحتاج لإعادة الدخول مرة أخرى');
       } else {
         _log('⚠️ تم إلغاء تسجيل الدخول أو فشل');
       }

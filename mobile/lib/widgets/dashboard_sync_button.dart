@@ -8,6 +8,7 @@ import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/smart_sync_provider.dart';
 import '../services/daos/outbox_dao.dart';
+import '../screens/settings/google_drive_backup_screen.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -136,8 +137,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
                 label: 'تسجيل الدخول',
                 textColor: Colors.white,
                 onPressed: () {
-                  // التوجه إلى إعدادات Google Drive
-                  Navigator.pushNamed(context, '/settings');
+                  // التوجه إلى شاشة Google Drive مباشرة
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const GoogleDriveBackupScreen()),
+                  );
                 },
               ),
             ),
@@ -323,8 +327,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
   @override
   Widget build(BuildContext context) {
+    final isGoogleDriveSignedIn = ref.watch(smartSyncGoogleDriveSignInStatusProvider);
     final hasChanges = _pendingChangesCount > 0;
-    final isEnabled = hasChanges || _isUploading;
+    // تمكين الزر إذا كان هناك تغييرات أو إذا كان غير متصل (للسماح بالضغط لتسجيل الدخول)
+    final isEnabled = hasChanges || _isUploading || !isGoogleDriveSignedIn;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -336,6 +342,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       buttonIcon = Icons.cloud_upload;
       buttonText = 'جاري الرفع...';
       tooltipMessage = 'جاري رفع التغييرات إلى السحابة';
+    } else if (!isGoogleDriveSignedIn) {
+      buttonColor = hasChanges ? Colors.orange : Colors.grey; 
+      buttonIcon = Icons.cloud_off;
+      buttonText = hasChanges ? 'مطلوب دخول' : 'غير متصل';
+      tooltipMessage = 'يجب تسجيل الدخول للمزامنة';
     } else if (hasChanges) {
       buttonColor = Colors.purple;
       buttonIcon = Icons.cloud_upload;
@@ -371,8 +382,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: [
                     BoxShadow(
-                      color: buttonColor.withOpacity(hasChanges ? 0.4 : 0.2),
-                      blurRadius: hasChanges ? 8 : 4,
+                      color: buttonColor.withOpacity(hasChanges || !isGoogleDriveSignedIn ? 0.4 : 0.2),
+                      blurRadius: hasChanges || !isGoogleDriveSignedIn ? 8 : 4,
                       offset: const Offset(0, 2),
                     ),
                   ],
@@ -381,7 +392,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
                   color: Colors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
-                    onTap: _isUploading || !isEnabled ? null : () => _uploadChanges(context),
+                    onTap: _isUploading ? null : () {
+                      if (!isGoogleDriveSignedIn) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const GoogleDriveBackupScreen()),
+                        );
+                      } else if (hasChanges) {
+                        _uploadChanges(context);
+                      }
+                    },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       child: Row(
