@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -156,11 +157,13 @@ class BackupState {
 class BackupStatusNotifier extends StateNotifier<BackupState> {
   BackupStatusNotifier(this._backupService, this._localBackupService, this._fileService) : super(BackupState()) {
     _initialize();
+    _startPeriodicSessionCheck();
   }
 
   final GoogleDriveBackupService _backupService;
   final LocalBackupService _localBackupService;
   final FileManagementService _fileService;
+  Timer? _sessionCheckTimer;
 
   Future<void> _initialize() async {
     try {
@@ -1229,6 +1232,62 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'خطأ في تنظيف الملفات المؤقتة: ${e.toString()}',
       );
     }
+  }
+  
+  /// بدء التحقق الدوري من جلسة Google Drive
+  void _startPeriodicSessionCheck() {
+    // التحقق من الجلسة كل 5 دقائق
+    _sessionCheckTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) async {
+        try {
+          // فقط إذا كانت هناك جلسة نشطة
+          if (!state.isSignedIn) {
+            return;
+          }
+          
+          debugPrint('🔍 التحقق الدوري من جلسة Google Drive...');
+          
+          // التحقق من صلاحية الجلسة
+          final isValid = await _backupService.validateSession();
+          
+          if (!isValid) {
+            debugPrint('⚠️ الجلسة غير صالحة - محاولة إعادة التفعيل...');
+            
+            // محاولة إعادة تفعيل الجلسة
+            final account = await _backupService.attemptSilentSignIn();
+            
+            if (account == null) {
+              debugPrint('❌ فشلت إعادة تفعيل الجلسة');
+              // تحديث الحالة لإظهار أن الجلسة انتهت
+              state = state.copyWith(
+                signedInAccount: null,
+                availableBackups: [],
+              );
+              await _notifySyncManagers(false);
+            } else {
+              debugPrint('✅ تم إعادة تفعيل الجلسة بنجاح: ${account.email}');
+              // تحديث الحالة مع الحساب المستعاد
+              state = state.copyWith(
+                signedInAccount: account,
+              );
+            }
+          } else {
+            debugPrint('✅ الجلسة صالحة');
+          }
+        } catch (e) {
+          debugPrint('⚠️ خطأ في التحقق الدوري من الجلسة: $e');
+        }
+      },
+    );
+    
+    debugPrint('⏰ بدأ التحقق الدوري من جلسة Google Drive (كل 5 دقائق)');
+  }
+  
+  @override
+  void dispose() {
+    _sessionCheckTimer?.cancel();
+    super.dispose();
   }
 }
 
