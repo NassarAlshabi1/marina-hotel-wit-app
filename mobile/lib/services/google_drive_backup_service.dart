@@ -182,6 +182,18 @@ class GoogleDriveBackupService {
       forceCodeForRefreshToken: true,
     );
     
+    // الاستماع لتغيرات حالة تسجيل الدخول
+    _googleSignIn?.onCurrentUserChanged.listen((GoogleSignInAccount? account) {
+      _log('🔔 حالة تسجيل الدخول تغيرت: ${account?.email ?? "تم تسجيل الخروج"}');
+      if (account != null) {
+        _saveSessionInfo(account);
+        _startSessionValidationTimer();
+      } else {
+        _clearSessionInfo();
+        _stopSessionValidationTimer();
+      }
+    });
+    
     // بدء مراقبة صلاحية الجلسة بشكل دوري
     _startSessionValidationTimer();
   }
@@ -276,15 +288,41 @@ class GoogleDriveBackupService {
       }
       
       _log('🔄 محاولة استعادة جلسة Google Drive...');
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently(suppressErrors: true);
+      
+      // محاولة الحصول على المستخدم الحالي أولاً (أسرع)
+      GoogleSignInAccount? account = _googleSignIn!.currentUser;
+      
+      if (account == null) {
+        // إذا لم يكن هناك مستخدم حالي، محاولة signInSilently
+        _log('🔄 لا يوجد مستخدم حالي، محاولة signInSilently...');
+        account = await _googleSignIn!.signInSilently(suppressErrors: false);
+      }
       
       if (account != null) {
         _log('🔑 الحصول على رؤوس المصادقة...');
-        final headers = await account.authHeaders;
-        final client = GoogleAuthClient(headers);
-        _driveApi = drive.DriveApi(client);
+        try {
+          final headers = await account.authHeaders;
+          
+          if (headers.isEmpty || !headers.containsKey('Authorization')) {
+            _log('⚠️ headers فارغة، محاولة إعادة المصادقة...');
+            await _googleSignIn!.signOut();
+            account = await _googleSignIn!.signInSilently(suppressErrors: false);
+            if (account == null) {
+              throw Exception('فشلت إعادة المصادقة');
+            }
+            final newHeaders = await account.authHeaders;
+            _driveApi = drive.DriveApi(GoogleAuthClient(newHeaders));
+          } else {
+            _driveApi = drive.DriveApi(GoogleAuthClient(headers));
+          }
+        } catch (e) {
+          _log('❌ خطأ في الحصول على authHeaders: $e');
+          await _clearSessionInfo();
+          return null;
+        }
         
         _log('✅ تم استعادة جلسة Google Drive: ${account.email}');
+        _logger.info('تم استعادة جلسة Google Drive: ${account.email}', tag: 'AUTH');
         
         // تحديث معلومات الجلسة عند الاستعادة الناجحة
         await _saveSessionInfo(account);
@@ -300,6 +338,7 @@ class GoogleDriveBackupService {
       }
     } catch (e) {
       _log('⚠️ فشلت استعادة الجلسة: $e');
+      await _clearSessionInfo();
       return null;
     }
   }
@@ -409,21 +448,55 @@ class GoogleDriveBackupService {
       }
       
       final savedEmail = prefs.getString(_prefsGoogleEmailKey);
+      final lastSignInStr = prefs.getString(_prefsGoogleLastSignInKey);
+      
+      if (savedEmail == null) {
+        _log('⚠️ لا يوجد بريد إلكتروني محفوظ');
+        await _clearSessionInfo();
+        return false;
+      }
+      
       _log('🔄 محاولة إعادة تفعيل جلسة: $savedEmail');
+      
+      // التحقق من تاريخ آخر تسجيل دخول
+      if (lastSignInStr != null) {
+        try {
+          final lastSignIn = DateTime.parse(lastSignInStr);
+          final daysSinceSignIn = DateTime.now().difference(lastSignIn).inDays;
+          _log('📅 آخر تسجيل دخول كان منذ $daysSinceSignIn يوم');
+          
+          // إذا مر أكثر من 60 يوم، قد تكون الجلسة منتهية
+          if (daysSinceSignIn > 60) {
+            _log('⚠️ الجلسة قديمة جداً (${daysSinceSignIn} يوم) - قد تحتاج إعادة تسجيل دخول');
+          }
+        } catch (e) {
+          _log('⚠️ خطأ في تحليل تاريخ آخر تسجيل دخول: $e');
+        }
+      }
       
       // محاولة silent sign-in
       final account = await attemptSilentSignIn();
       
       if (account != null) {
-        _log('✅ تم إعادة تفعيل الجلسة بنجاح: ${account.email}');
-        return true;
+        // التأكد من أن الحساب المستعاد هو نفسه الحساب المحفوظ
+        if (account.email == savedEmail) {
+          _log('✅ تم إعادة تفعيل الجلسة بنجاح: ${account.email}');
+          _logger.info('تم إعادة تفعيل جلسة Google Drive بنجاح: ${account.email}', tag: 'AUTH');
+          return true;
+        } else {
+          _log('⚠️ الحساب المستعاد ($account.email) لا يطابق الحساب المحفوظ ($savedEmail)');
+          await _clearSessionInfo();
+          return false;
+        }
       } else {
         _log('⚠️ فشلت إعادة تفعيل الجلسة - الجلسة المحفوظة قد تكون منتهية');
+        _logger.warning('فشلت إعادة تفعيل الجلسة - يحتاج المستخدم لتسجيل دخول يدوي', tag: 'AUTH');
         await _clearSessionInfo();
         return false;
       }
     } catch (e) {
       _log('❌ خطأ في إعادة تفعيل الجلسة: $e');
+      _logger.error('خطأ في إعادة تفعيل الجلسة', error: e, tag: 'AUTH');
       await _clearSessionInfo();
       return false;
     }
@@ -478,9 +551,9 @@ class GoogleDriveBackupService {
       return;
     }
     
-    // التحقق من صلاحية الجلسة كل 30 دقيقة
+    // التحقق من صلاحية الجلسة كل 15 دقيقة (أكثر تكراراً لضمان تحديث الـ tokens)
     _sessionValidationTimer = Timer.periodic(
-      const Duration(minutes: 30),
+      const Duration(minutes: 15),
       (_) async {
         _log('🔄 التحقق الدوري من صلاحية الجلسة...');
         
@@ -495,9 +568,11 @@ class GoogleDriveBackupService {
             
             if (account == null) {
               _log('❌ فشلت استعادة الجلسة - المستخدم يحتاج لتسجيل دخول يدوي');
+              _logger.warning('فشلت استعادة الجلسة - يحتاج المستخدم لتسجيل دخول يدوي', tag: 'AUTH');
               _sessionValidationTimer?.cancel();
             } else {
               _log('✅ تم استعادة الجلسة بنجاح');
+              _logger.info('تم استعادة الجلسة تلقائياً: ${account.email}', tag: 'AUTH');
             }
           } else {
             _log('✅ الجلسة صالحة ومحدثة');
@@ -508,7 +583,8 @@ class GoogleDriveBackupService {
       },
     );
     
-    _log('⏰ بدأت مراقبة الجلسة (كل 30 دقيقة)');
+    _log('⏰ بدأت مراقبة الجلسة (كل 15 دقيقة)');
+    _logger.info('بدأت مراقبة جلسة Google Drive (كل 15 دقيقة)', tag: 'AUTH');
   }
   
   /// إيقاف مراقبة الجلسة
