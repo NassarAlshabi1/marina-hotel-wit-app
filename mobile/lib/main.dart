@@ -80,22 +80,15 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     final backupService = GoogleDriveBackupService();
     
     try {
-      // محاولة إعادة تفعيل الجلسة المحفوظة
-      final reactivated = await backupService.reactivateSession();
-      if (reactivated) {
-        final account = backupService.currentUser;
-        debugPrint('✅ Session reactivated successfully: ${account?.email}');
+      // محاولة استعادة الجلسة بشكل صامت
+      final account = await backupService.attemptSilentSignIn();
+      if (account != null) {
+        debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
       } else {
-        // إذا فشلت إعادة التفعيل، محاولة silent sign-in
-        final account = await backupService.attemptSilentSignIn();
-        if (account != null) {
-          debugPrint('✅ Silent sign-in successful: ${account.email}');
-        } else {
-          debugPrint('ℹ️ No saved session - user must sign in manually');
-        }
+        debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
       }
     } catch (e) {
-      debugPrint('⚠️ Session restoration failed: $e');
+      debugPrint('⚠️ فشلت استعادة الجلسة: $e');
     }
     
     debugPrint('🔧 Initializing Database...');
@@ -363,45 +356,15 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       return;
     }
     if (state == AppLifecycleState.resumed) {
-      debugPrint('📱 التطبيق عاد للواجهة - التحقق من الجلسات...');
+      debugPrint('📱 التطبيق عاد للواجهة...');
       AppSessionManager.onAppOpen().catchError((e, s) => debugPrint('Error in onAppOpen: $e\n$s'));
       GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground().catchError((e, s) => debugPrint('Error in GDrive onAppForeground: $e\n$s'));
       SyncGuardian.instance.onAppForeground().catchError((e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'));
-      
-      // التحقق من جلسة Google Drive وإعادة تفعيلها إذا لزم الأمر
-      _checkAndRestoreGoogleDriveSession();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
       unawaited(AppSessionManager.onAppCloseOrBackground());
-    }
-  }
-  
-  Future<void> _checkAndRestoreGoogleDriveSession() async {
-    try {
-      debugPrint('🔐 التحقق من جلسة Google Drive...');
-      final backupService = GoogleDriveBackupService();
-      
-      // التحقق من صلاحية الجلسة الحالية
-      if (backupService.isSignedIn) {
-        final isValid = await backupService.validateSession();
-        if (isValid) {
-          debugPrint('✅ جلسة Google Drive صالحة');
-          return;
-        }
-        debugPrint('⚠️ جلسة Google Drive غير صالحة - محاولة إعادة التفعيل...');
-      }
-      
-      // محاولة إعادة تفعيل الجلسة
-      final reactivated = await backupService.reactivateSession();
-      if (reactivated) {
-        debugPrint('✅ تم إعادة تفعيل جلسة Google Drive بنجاح');
-      } else {
-        debugPrint('ℹ️ لم يتم إعادة تفعيل الجلسة - قد يحتاج المستخدم لتسجيل الدخول يدوياً');
-      }
-    } catch (e) {
-      debugPrint('⚠️ خطأ في التحقق من جلسة Google Drive: $e');
     }
   }
 
