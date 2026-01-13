@@ -20,7 +20,6 @@ class GoogleDriveSignInManager {
     _client ??= GoogleSignIn(
       scopes: kGoogleDriveScopes,
       serverClientId: kGoogleDriveServerClientId,
-      forceCodeForRefreshToken: true,
     );
     return _client!;
   }

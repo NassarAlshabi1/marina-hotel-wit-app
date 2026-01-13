@@ -168,7 +168,7 @@ class GoogleDriveBackupService {
     GoogleSignInAccount? account = _googleSignIn?.currentUser;
     if (account == null) {
       try {
-        account = await _googleSignIn?.signInSilently();
+        account = await _googleSignIn?.signInSilently(suppressErrors: true);
       } catch (e) {
         _log('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
       }
@@ -204,7 +204,7 @@ class GoogleDriveBackupService {
       }
 
       _log('🔄 محاولة تسجيل الدخول الصامت...');
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
+      GoogleSignInAccount? account = await _googleSignIn!.signInSilently(suppressErrors: true);
 
       if (account == null) {
         _log('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
@@ -241,7 +241,7 @@ class GoogleDriveBackupService {
       }
       
       _log('🔄 محاولة استعادة جلسة Google Drive...');
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently(suppressErrors: false);
+      GoogleSignInAccount? account = await _googleSignIn!.signInSilently(suppressErrors: true);
       
       if (account != null) {
         _log('🔑 الحصول على رؤوس المصادقة...');
