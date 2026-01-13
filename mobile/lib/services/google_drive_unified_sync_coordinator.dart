@@ -521,8 +521,18 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     
     try {
-      _PerformSyncResult canStartResult;
-    
+      return await _performSyncLocked(trigger, mode);
+    } finally {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'GoogleDriveUnifiedSyncCoordinator.performSync',
+      );
+    }
+  }
+
+  Future<SyncResult> _performSyncLocked(SyncTrigger trigger, SyncMode mode) async {
+    _PerformSyncResult canStartResult;
+  
     if (!_isInitialized) {
       canStartResult = _PerformSyncNotInitialized();
     } else if (!(_backupService?.isSignedIn ?? false)) {
@@ -695,11 +705,6 @@ class GoogleDriveUnifiedSyncCoordinator {
       _syncStartTime = null;
       _currentPhase = SyncPhase.idle;
     }
-  } finally {
-    UnifiedLockManager.instance.release(
-      category: LockCategory.mainSync,
-      holder: 'GoogleDriveUnifiedSyncCoordinator.performSync',
-    );
   }
 
   Future<SyncResult> performSyncWithRetry({
