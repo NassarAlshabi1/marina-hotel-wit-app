@@ -520,7 +520,8 @@ class GoogleDriveUnifiedSyncCoordinator {
       );
     }
     
-    _PerformSyncResult canStartResult;
+    try {
+      _PerformSyncResult canStartResult;
     
     if (!_isInitialized) {
       canStartResult = _PerformSyncNotInitialized();
@@ -537,10 +538,6 @@ class GoogleDriveUnifiedSyncCoordinator {
           canStartResult = _PerformSyncOk();
         } else {
           canStartResult = _PerformSyncAlreadyInProgress(elapsed.inSeconds);
-          UnifiedLockManager.instance.release(
-            category: LockCategory.mainSync,
-            holder: 'GoogleDriveUnifiedSyncCoordinator.performSync',
-          );
         }
       } else {
         _log('⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
@@ -697,11 +694,12 @@ class GoogleDriveUnifiedSyncCoordinator {
       _isSyncing = false;
       _syncStartTime = null;
       _currentPhase = SyncPhase.idle;
-      UnifiedLockManager.instance.release(
-        category: LockCategory.mainSync,
-        holder: 'GoogleDriveUnifiedSyncCoordinator.performSync',
-      );
     }
+  } finally {
+    UnifiedLockManager.instance.release(
+      category: LockCategory.mainSync,
+      holder: 'GoogleDriveUnifiedSyncCoordinator.performSync',
+    );
   }
 
   Future<SyncResult> performSyncWithRetry({
