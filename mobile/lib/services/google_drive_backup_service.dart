@@ -16,6 +16,7 @@ import 'local_db.dart';
 import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
 import 'google_drive_logger.dart';
+import 'google_drive_sign_in_manager.dart';
 import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
 
 enum BackupFormat { json, sqlite }
@@ -118,10 +119,6 @@ class GoogleAuthClient extends http.BaseClient {
 class GoogleDriveBackupService {
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
-  static const List<String> _scopes = [
-    drive.DriveApi.driveFileScope,
-    drive.DriveApi.driveAppdataScope,
-  ];
 
   /// تحويل رموز خطأ Google Sign-In إلى رسائل عربية واضحة
   static String _getArabicErrorMessage(Object error) {
@@ -160,11 +157,7 @@ class GoogleDriveBackupService {
   }
 
   void _initializeGoogleSignIn() {
-    _googleSignIn = GoogleSignIn(
-      scopes: _scopes,
-      serverClientId: '256666337807-561s7dakv86m3kugsalv8opa8idkjmd0.apps.googleusercontent.com',
-      forceCodeForRefreshToken: true,
-    );
+    _googleSignIn = GoogleDriveSignInManager.instance.client;
   }
 
   Future<void> _ensureDriveClient() async {
@@ -225,7 +218,7 @@ class GoogleDriveBackupService {
         _driveApi = drive.DriveApi(client);
 
         _log('✅ تم تسجيل الدخول بنجاح وحفظ الجلسة بشكل دائم: ${account.email}');
-        _log('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
+        _log('🔧 النطاقات المطلوبة: ${kGoogleDriveScopes.join(', ')}');
         _log('💾 الجلسة محفوظة ولن تحتاج لإعادة الدخول مرة أخرى');
       } else {
         _log('⚠️ تم إلغاء تسجيل الدخول أو فشل');
