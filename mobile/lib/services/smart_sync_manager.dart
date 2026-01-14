@@ -54,8 +54,8 @@ class SmartSyncManager {
     await _initializeDeviceId();
     await _loadSettings();
     
-    // إصلاح حرج: تهيئة coordinator قبل استخدامه
-    await GoogleDriveUnifiedSyncCoordinator.instance.initialize(backupService);
+    // ملاحظة: coordinator يتم تهيئته بالفعل في main.dart مع جميع المعاملات
+    // لذلك لا نحتاج لتهيئته هنا مرة أخرى لتجنب التعارض
     
     _isLoggedIn = backupService.isSignedIn;
 
