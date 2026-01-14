@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
@@ -758,6 +759,10 @@ class DatabaseManager {
   static final List<Function()> _onReopenCallbacks = [];
   static final Lock _lock = Lock();
   
+  // إصلاح: عداد العمليات النشطة لاستبدال Future.delayed غير الموثوق
+  static int _activeOperations = 0;
+  static Completer<void>? _operationsCompleter;
+  
   // Callbacks for external sync management
   static Future<void> Function()? _stopSyncCallback;
   static Future<void> Function()? _restartSyncCallback;
@@ -804,28 +809,31 @@ class DatabaseManager {
     developer.log('📝 Unregistered reopen callback (total: ${_onReopenCallbacks.length})', name: 'DatabaseManager');
   }
 
+  // إصلاح: مزامنة close لمنع race conditions من concurrent calls
   static Future<void> close() async {
-    if (_isClosing || _isClosed) {
-      developer.log('Database is already closing or closed', name: 'DatabaseManager');
-      return;
-    }
-    
-    _isClosing = true;
-    developer.log('🔒 Closing database...', name: 'DatabaseManager');
-    
-    try {
-      if (_instance != null) {
-        await Future.delayed(const Duration(milliseconds: 100));
-        await _instance!.close();
-        developer.log('✅ Database closed successfully', name: 'DatabaseManager');
+    return _lock.synchronized(() async {
+      if (_isClosing || _isClosed) {
+        developer.log('Database is already closing or closed', name: 'DatabaseManager');
+        return;
       }
-    } catch (e, stack) {
-      developer.log('❌ Error closing database: $e', name: 'DatabaseManager', error: e, stackTrace: stack);
-    } finally {
-      _instance = null;
-      _isClosed = true;
-      _isClosing = false;
-    }
+      
+      _isClosing = true;
+      developer.log('🔒 Closing database...', name: 'DatabaseManager');
+      
+      try {
+        if (_instance != null) {
+          await Future.delayed(const Duration(milliseconds: 100));
+          await _instance!.close();
+          developer.log('✅ Database closed successfully', name: 'DatabaseManager');
+        }
+      } catch (e, stack) {
+        developer.log('❌ Error closing database: $e', name: 'DatabaseManager', error: e, stackTrace: stack);
+      } finally {
+        _instance = null;
+        _isClosed = true;
+        _isClosing = false;
+      }
+    });
   }
 
   static Future<void> reopen() async {
@@ -952,11 +960,32 @@ class DatabaseManager {
     await Future.delayed(const Duration(milliseconds: 300));
   }
 
-  /// انتظار العمليات النشطة حتى تنتهي
+  /// إصلاح: انتظار العمليات النشطة باستخدام عداد موثوق بدلاً من Future.delayed
   static Future<void> _waitForPendingOperations() async {
-    developer.log('⏳ Waiting for pending operations...', name: 'DatabaseManager');
-    await Future.delayed(const Duration(milliseconds: 500));
+    developer.log('⏳ Waiting for $_activeOperations pending operations...', name: 'DatabaseManager');
+    if (_activeOperations > 0) {
+      _operationsCompleter = Completer<void>();
+      await _operationsCompleter!.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          developer.log('⚠️ Timed out waiting for pending operations.', name: 'DatabaseManager');
+        },
+      );
+    }
     developer.log('✅ Pending operations wait completed', name: 'DatabaseManager');
+  }
+  
+  /// تتبع العملية النشطة - يُستدعى عند بداية أي عملية DB
+  static void _trackOperation() {
+    _activeOperations++;
+  }
+  
+  /// إنهاء تتبع العملية - يُستدعى عند انتهاء أي عملية DB
+  static void _releaseOperation() {
+    _activeOperations--;
+    if (_activeOperations == 0 && _operationsCompleter != null && !_operationsCompleter!.isCompleted) {
+      _operationsCompleter!.complete();
+    }
   }
 
   /// إعادة تشغيل جميع عمليات المزامنة

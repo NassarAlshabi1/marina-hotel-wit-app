@@ -95,7 +95,8 @@ class SyncScheduler {
       _isRunning = false;
       debugPrint('🛑 SyncScheduler: توقفت الجدولة');
     } finally {
-      UnifiedLockManager.instance.release(
+      // إصلاح: await على release لضمان إطلاق القفل بشكل صحيح
+      await UnifiedLockManager.instance.release(
         category: LockCategory.mainSync,
         holder: 'SyncScheduler.stop',
       );

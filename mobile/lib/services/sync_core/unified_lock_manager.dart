@@ -277,8 +277,10 @@ class UnifiedLockManager {
       debugPrint('🔒⏱️ [UnifiedLockManager] Lock held for ${heldDuration.inSeconds}s: $holder on ${category.name}');
     }
     
-    lock.notifyAvailable();
+    // إصلاح race condition: إعادة تعيين الحالة قبل إشعار المنتظرين
+    // هذا يمنع المنتظرين من رؤية حالة قفل غير صحيحة عند الاستيقاظ
     lock.reset();
+    lock.notifyAvailable();
   }
   
   Future<T?> runWithLock<T>({

@@ -317,7 +317,8 @@ class SyncQueueService {
       }
     } finally {
       _isProcessing = false;
-      UnifiedLockManager.instance.release(
+      // إصلاح: await على release لضمان إطلاق القفل قبل إرسال التحديثات
+      await UnifiedLockManager.instance.release(
         category: LockCategory.queueProcessing,
         holder: 'SyncQueueService.processQueue',
       );

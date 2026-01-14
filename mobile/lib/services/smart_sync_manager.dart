@@ -53,6 +53,10 @@ class SmartSyncManager {
     _backupService = backupService;
     await _initializeDeviceId();
     await _loadSettings();
+    
+    // إصلاح حرج: تهيئة coordinator قبل استخدامه
+    await GoogleDriveUnifiedSyncCoordinator.instance.initialize(backupService);
+    
     _isLoggedIn = backupService.isSignedIn;
 
     _log('🔄 مدير المزامنة الذكي: تم تهيئة الغلاف بنجاح (Logic moved to Coordinator)');

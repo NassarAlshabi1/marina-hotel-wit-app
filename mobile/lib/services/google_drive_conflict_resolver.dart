@@ -538,7 +538,13 @@ class GoogleDriveConflictResolver {
   VectorClock? _extractVectorClock(Map<String, dynamic> record) {
     final vcStr = record['vector_clock'] as String?;
     if (vcStr != null) {
-      return VectorClock.fromJson(vcStr);
+      // إصلاح: إضافة try-catch لمعالجة أخطاء parsing بدون إيقاف عملية حل التعارضات
+      try {
+        return VectorClock.fromJson(vcStr);
+      } catch (e) {
+        _log('⚠️ Failed to parse VectorClock: $e');
+        return null;
+      }
     }
     return null;
   }

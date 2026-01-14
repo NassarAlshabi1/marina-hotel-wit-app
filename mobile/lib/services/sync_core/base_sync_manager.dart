@@ -182,7 +182,8 @@ abstract class BaseSyncManager {
       rethrow;
     } finally {
       _isSyncing = false;
-      UnifiedLockManager.instance.release(
+      // إصلاح: await على release لضمان إطلاق القفل بشكل صحيح
+      await UnifiedLockManager.instance.release(
         category: LockCategory.mainSync,
         holder: 'BaseSyncManager._performSync',
       );
