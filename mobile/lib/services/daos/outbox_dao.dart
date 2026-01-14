@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../local_db.dart';
 import '../sync_guardian.dart';
@@ -107,10 +108,32 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       return resultId;
     });
 
-    unawaited(SyncGuardian.instance.notifyLocalChange(table: entity, operation: op));
-    GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
-    AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
+    _notifyAllSyncEngines(entity, op);
     return id;
+  }
+
+  void _notifyAllSyncEngines(String entity, String op) {
+    Future.microtask(() async {
+      try {
+        await SyncGuardian.instance.notifyLocalChange(table: entity, operation: op);
+      } catch (e, s) {
+        debugPrint('Error notifying SyncGuardian: $e\n$s');
+      }
+    });
+    Future.microtask(() async {
+      try {
+        await GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
+      } catch (e, s) {
+        debugPrint('Error notifying GoogleDriveUnifiedSyncCoordinator: $e\n$s');
+      }
+    });
+    Future.microtask(() async {
+      try {
+        await AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
+      } catch (e, s) {
+        debugPrint('Error notifying AutoSyncEngine: $e\n$s');
+      }
+    });
   }
 
   Future<List<OutboxData>> takeBatch(int limit) {

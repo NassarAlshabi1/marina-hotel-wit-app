@@ -7,9 +7,12 @@ import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_logger.dart';
+import 'services/google_drive_sync_service.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
+import 'services/sync_guardian.dart';
+import 'utils/auto_sync_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,7 +77,15 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     await conflictResolver.setConflictThreshold(30);
     debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
     
-    debugPrint('🤖 [6/6] Initializing & Starting Auto Sync Engine...');
+    debugPrint('🛡️ Initializing SyncGuardian...');
+    final guardian = SyncGuardian.instance;
+    await guardian.initialize(
+      database: database,
+      driveService: GoogleDriveSyncService(),
+    );
+    debugPrint('✅ SyncGuardian initialized');
+    
+    debugPrint('🤖 Initializing & Starting Auto Sync Engine...');
     final autoSyncEngine = AutoSyncEngine.instance;
     
     await autoSyncEngine.initialize(
@@ -118,18 +129,40 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   debugPrint('⚙️ Configuring Auto Sync Engine...');
   
+  const engineDebounceKey = 'auto_sync_engine_debounce';
+  const legacyDebounceKey = 'auto_sync_debounce';
+  const enginePullIntervalKey = 'auto_sync_engine_pull_interval';
+  const legacyPullIntervalKey = 'auto_sync_pull_interval';
+  const engineRetryKey = 'auto_sync_engine_retry_enabled';
+  const legacyRetryKey = 'auto_sync_retry_enabled';
+  
   final prefs = await SharedPreferences.getInstance();
   
-  final debounceSeconds = prefs.getInt('auto_sync_debounce') ?? 5;
-  await engine.setDebounceSeconds(debounceSeconds);
+  final debounceSeconds = await migrateAutoSyncPreference<int>(
+    prefs: prefs,
+    newKey: engineDebounceKey,
+    legacyKey: legacyDebounceKey,
+    defaultValue: 5,
+    apply: (value) => engine.setDebounceSeconds(value),
+  );
   debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
   
-  final pullInterval = prefs.getInt('auto_sync_pull_interval') ?? 2;
-  await engine.setPullInterval(pullInterval);
+  final pullInterval = await migrateAutoSyncPreference<int>(
+    prefs: prefs,
+    newKey: enginePullIntervalKey,
+    legacyKey: legacyPullIntervalKey,
+    defaultValue: 2,
+    apply: (value) => engine.setPullInterval(value),
+  );
   debugPrint('   ⏰ Pull interval: ${pullInterval}min');
   
-  final retryEnabled = prefs.getBool('auto_sync_retry_enabled') ?? true;
-  await engine.setRetryEnabled(retryEnabled);
+  final retryEnabled = await migrateAutoSyncPreference<bool>(
+    prefs: prefs,
+    newKey: engineRetryKey,
+    legacyKey: legacyRetryKey,
+    defaultValue: true,
+    apply: (value) => engine.setRetryEnabled(value),
+  );
   debugPrint('   🔁 Auto-retry: $retryEnabled');
   
   final conflictStrategy = prefs.getString('conflict_strategy') ?? 'newerWins';
