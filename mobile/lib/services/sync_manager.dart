@@ -772,13 +772,15 @@ class SyncManager {
       mergedTables[table] = mergedList;
     }
 
+    // إصلاح: لا نستخدم checksum/size القديم من remote snapshot
+    // بعد الدمج، البيانات تغيرت فيجب حساب قيم جديدة عند الرفع
     final metadata = SyncMetadata(
       version: remoteSnapshot.metadata.version,
       lastUpdatedAt: nowIso,
       devicePriority: _devicePriority,
-      snapshotSize: remoteSnapshot.metadata.snapshotSize,
+      snapshotSize: 0,  // سيُحسب عند الرفع
       lastSyncId: syncId,
-      checksum: remoteSnapshot.metadata.checksum,
+      checksum: '',  // سيُحسب عند الرفع
       lastDeviceId: deviceId,
     );
 

@@ -364,7 +364,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
-      AppSessionManager.onAppCloseOrBackground().catchError((e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'));
+      // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
+      Future.microtask(() => AppSessionManager.onAppCloseOrBackground())
+          .catchError((e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'));
     }
   }
 

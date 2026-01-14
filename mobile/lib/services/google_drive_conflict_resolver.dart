@@ -527,9 +527,16 @@ class GoogleDriveConflictResolver {
   HybridLogicalClock? _extractHybridLogicalClock(Map<String, dynamic> record) {
     final hlcStr = record['hlc'] as String?;
     if (hlcStr != null) {
-      // Default device ID is not strictly needed for parsing if included in string, 
-      // but we need a fallback.
-      return HybridLogicalClock.fromJson(hlcStr, _extractDeviceId(record) ?? 'unknown');
+      // إصلاح: إضافة try-catch لمعالجة أخطاء parsing بدون إيقاف عملية حل التعارضات
+      try {
+        return HybridLogicalClock.fromJson(
+          hlcStr,
+          _extractDeviceId(record) ?? 'unknown',
+        );
+      } catch (e) {
+        _log('⚠️ Failed to parse HLC: $e');
+        return null;
+      }
     }
     return null;
   }

@@ -149,6 +149,30 @@ class UnifiedLockManager {
       return result;
     }
     
+    // إصلاح Race Condition: فحص متزامن سريع قبل await لتجنب تسرب القفل
+    // عندما يكون القفل متاحاً، نحصل عليه فوراً بدون yield للـ event loop
+    if (!lock.isLocked) {
+      lock.isLocked = true;
+      lock.currentHolder = holder;
+      lock.acquiredAt = DateTime.now();
+
+      final waitTime = DateTime.now().difference(startTime);
+
+      _addEvent(_LockEvent(
+        timestamp: DateTime.now(),
+        category: category,
+        holder: holder,
+        action: 'acquire',
+        duration: waitTime,
+      ));
+
+      return LockAcquisitionResult(
+        acquired: true,
+        holder: holder,
+        waitTime: waitTime,
+      );
+    }
+    
     lock.waitingCount++;
     lock.waitingHolders.add(holder);
     
@@ -173,6 +197,17 @@ class UnifiedLockManager {
         
         throw TimeoutException('Lock acquisition timeout');
       });
+      
+      // إعادة فحص حالة القفل بعد await لتجنب Race Condition
+      // قد يكون caller آخر قد حصل على القفل أثناء انتظارنا
+      if (lock.isLocked) {
+        return LockAcquisitionResult(
+          acquired: false,
+          holder: lock.currentHolder,
+          waitTime: DateTime.now().difference(startTime),
+          failureReason: 'Lock still held after wait',
+        );
+      }
       
       lock.isLocked = true;
       lock.currentHolder = holder;

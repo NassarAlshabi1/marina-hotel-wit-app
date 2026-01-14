@@ -141,6 +141,11 @@ class GoogleDriveUnifiedSyncCoordinator {
   
   static const Duration _syncTimeout = Duration(minutes: 5);
   final RetryStrategy _retryStrategy = RetryStrategy(config: RetryConfig.balanced);
+  
+  // إصلاح: متغيرات للتحكم في إعادة محاولة مراقبة outbox
+  int _outboxRetryCount = 0;
+  static const int _maxOutboxRetries = 5;
+  static const Duration _initialRetryDelay = Duration(seconds: 3);
   final _syncResultController = StreamController<SyncResult>.broadcast();
   
   bool _pushEnabled = true;
@@ -279,8 +284,19 @@ class GoogleDriveUnifiedSyncCoordinator {
         },
         onError: (error) {
           _log('❌ Outbox watch error: $error', level: LogLevel.error);
-          // إعادة فتح الـ stream بعد 5 ثوانٍ من حدوث خطأ
-          Future.delayed(const Duration(seconds: 5), () {
+          _outboxRetryCount++;
+          
+          // إصلاح: حد أقصى لإعادة المحاولة مع exponential backoff
+          if (_outboxRetryCount > _maxOutboxRetries) {
+            _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
+            return;
+          }
+          
+          // Exponential backoff
+          final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
+          _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
+          
+          Future.delayed(delay, () {
             if (_pushEnabled && _database != null) {
               _restartOutboxMonitoring();
             }
@@ -288,8 +304,17 @@ class GoogleDriveUnifiedSyncCoordinator {
         },
         onDone: () {
           _log('⚠️ Outbox watch stream closed', level: LogLevel.warning);
-          // إعادة فتح الـ stream بعد 3 ثوانٍ من إغلاقه
-          Future.delayed(const Duration(seconds: 3), () {
+          _outboxRetryCount++;
+          
+          if (_outboxRetryCount > _maxOutboxRetries) {
+            _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
+            return;
+          }
+          
+          final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
+          _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
+          
+          Future.delayed(delay, () {
             if (_pushEnabled && _database != null && _backupService?.isSignedIn == true) {
               _restartOutboxMonitoring();
             }
@@ -318,6 +343,9 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
+    // إعادة تعيين عداد إعادة المحاولة عند النجاح
+    _outboxRetryCount = 0;
+    
     _log('🔄 Restarting outbox monitoring...');
     _outboxSubscription?.cancel();
     
@@ -343,7 +371,17 @@ class GoogleDriveUnifiedSyncCoordinator {
         },
         onError: (error) {
           _log('❌ Outbox watch error: $error', level: LogLevel.error);
-          Future.delayed(const Duration(seconds: 5), () {
+          _outboxRetryCount++;
+          
+          if (_outboxRetryCount > _maxOutboxRetries) {
+            _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
+            return;
+          }
+          
+          final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
+          _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
+          
+          Future.delayed(delay, () {
             if (_pushEnabled && _database != null) {
               _restartOutboxMonitoring();
             }
@@ -351,7 +389,17 @@ class GoogleDriveUnifiedSyncCoordinator {
         },
         onDone: () {
           _log('⚠️ Outbox watch stream closed', level: LogLevel.warning);
-          Future.delayed(const Duration(seconds: 3), () {
+          _outboxRetryCount++;
+          
+          if (_outboxRetryCount > _maxOutboxRetries) {
+            _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
+            return;
+          }
+          
+          final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
+          _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
+          
+          Future.delayed(delay, () {
             if (_pushEnabled && _database != null && _backupService?.isSignedIn == true) {
               _restartOutboxMonitoring();
             }

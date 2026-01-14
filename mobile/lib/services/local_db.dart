@@ -695,6 +695,17 @@ class AppDatabase extends _$AppDatabase {
           return;
         }
         
+        // حماية إضافية: لا تحذف الجدول إذا كان merged[key] == null
+        // هذا يمنع حذف البيانات المحلية عند ورود snapshot تالفة أو غير مكتملة
+        if (merged[key] == null) {
+          developer.log(
+            'applyMergedDataBatched: "$key" is null in snapshot; skipping table replace to avoid wiping local data.',
+            name: 'AppDatabase',
+            level: 900,
+          );
+          return;
+        }
+        
         await delete(table).go();
         
         for (var i = 0; i < rows.length; i += batchSize) {
