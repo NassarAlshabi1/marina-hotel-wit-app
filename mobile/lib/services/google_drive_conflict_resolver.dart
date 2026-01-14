@@ -432,13 +432,7 @@ class GoogleDriveConflictResolver {
     
     // 2. Perform Union: Add Exclusive Local Records (Non-Conflicting)
     final tables = [
-      'bookings', 
-      'payments', 
-      'expenses', 
-      'rooms',
-      'debts',
-      'employees',
-      // Add other tables as needed from synchronization scope
+    final tables = SyncConstants.allTablesInOrder;
     ];
 
     for (final tableName in tables) {
