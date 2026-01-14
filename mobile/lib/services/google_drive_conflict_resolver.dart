@@ -529,7 +529,7 @@ class GoogleDriveConflictResolver {
     if (hlcStr != null) {
       // Default device ID is not strictly needed for parsing if included in string, 
       // but we need a fallback.
-      return HybridLogicalClock.fromJson(hlcStr, 'unknown');
+      return HybridLogicalClock.fromJson(hlcStr, _extractDeviceId(record) ?? 'unknown');
     }
     return null;
   }
