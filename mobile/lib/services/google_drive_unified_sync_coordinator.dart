@@ -277,51 +277,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     // مراقبة تغييرات outbox للمزامنة التلقائية
     _outboxSubscription?.cancel();
     if (_pushEnabled && _database != null) {
-      _outboxSubscription = (_database!.select(_database!.outbox)).watch().listen(
-        (_) {
-          _log('📦 Detected change in outbox', level: LogLevel.debug);
-          notifyLocalChange();
-        },
-        onError: (error) {
-          _log('❌ Outbox watch error: $error', level: LogLevel.error);
-          _outboxRetryCount++;
-          
-          // إصلاح: حد أقصى لإعادة المحاولة مع exponential backoff
-          if (_outboxRetryCount > _maxOutboxRetries) {
-            _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
-            return;
-          }
-          
-          // Exponential backoff
-          final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
-          _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
-          
-          Future.delayed(delay, () {
-            if (_pushEnabled && _database != null) {
-              _restartOutboxMonitoring();
-            }
-          });
-        },
-        onDone: () {
-          _log('⚠️ Outbox watch stream closed', level: LogLevel.warning);
-          _outboxRetryCount++;
-          
-          if (_outboxRetryCount > _maxOutboxRetries) {
-            _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
-            return;
-          }
-          
-          final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
-          _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
-          
-          Future.delayed(delay, () {
-            if (_pushEnabled && _database != null && _backupService?.isSignedIn == true) {
-              _restartOutboxMonitoring();
-            }
-          });
-        },
-        cancelOnError: false,
-      );
+      _outboxSubscription = _createOutboxListener();
       _log('✅ Started outbox monitoring for auto-sync');
     }
     
@@ -364,53 +320,58 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     
     try {
-      _outboxSubscription = (_database!.select(_database!.outbox)).watch().listen(
-        (_) {
-          _log('📦 Detected change in outbox', level: LogLevel.debug);
-          notifyLocalChange();
-        },
-        onError: (error) {
-          _log('❌ Outbox watch error: $error', level: LogLevel.error);
-          _outboxRetryCount++;
-          
-          if (_outboxRetryCount > _maxOutboxRetries) {
-            _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
-            return;
-          }
-          
-          final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
-          _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
-          
-          Future.delayed(delay, () {
-            if (_pushEnabled && _database != null) {
-              _restartOutboxMonitoring();
-            }
-          });
-        },
-        onDone: () {
-          _log('⚠️ Outbox watch stream closed', level: LogLevel.warning);
-          _outboxRetryCount++;
-          
-          if (_outboxRetryCount > _maxOutboxRetries) {
-            _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
-            return;
-          }
-          
-          final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
-          _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
-          
-          Future.delayed(delay, () {
-            if (_pushEnabled && _database != null && _backupService?.isSignedIn == true) {
-              _restartOutboxMonitoring();
-            }
-          });
-        },
-        cancelOnError: false,
-      );
+      _outboxSubscription = _createOutboxListener();
       _log('✅ Outbox monitoring restarted successfully');
     } catch (e) {
       _log('❌ Failed to restart outbox monitoring: $e', level: LogLevel.error);
     }
+  }
+  
+  /// إنشاء listener مشترك لمراقبة outbox - إزالة تكرار الكود (DRY)
+  StreamSubscription<List<OutboxEntry>> _createOutboxListener() {
+    return (_database!.select(_database!.outbox)).watch().listen(
+      (_) {
+        _log('📦 Detected change in outbox', level: LogLevel.debug);
+        notifyLocalChange();
+      },
+      onError: (error) {
+        _log('❌ Outbox watch error: $error', level: LogLevel.error);
+        _outboxRetryCount++;
+        
+        if (_outboxRetryCount > _maxOutboxRetries) {
+          _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
+          return;
+        }
+        
+        final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
+        _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
+        
+        Future.delayed(delay, () {
+          if (_pushEnabled && _database != null) {
+            _restartOutboxMonitoring();
+          }
+        });
+      },
+      onDone: () {
+        _log('⚠️ Outbox watch stream closed', level: LogLevel.warning);
+        _outboxRetryCount++;
+        
+        if (_outboxRetryCount > _maxOutboxRetries) {
+          _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
+          return;
+        }
+        
+        final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
+        _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
+        
+        Future.delayed(delay, () {
+          if (_pushEnabled && _database != null && _backupService?.isSignedIn == true) {
+            _restartOutboxMonitoring();
+          }
+        });
+      },
+      cancelOnError: false,
+    );
   }
 
   void _stopMonitoring() {

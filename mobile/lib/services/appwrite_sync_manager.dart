@@ -287,7 +287,25 @@ class AppwriteSyncManager {
       _debounceWindow = window;
     }
     _outboxSubscription?.cancel();
-    _outboxSubscription = (_currentDatabase.select(_currentDatabase.outbox)).watch().listen(
+    _outboxSubscription = _createOutboxListener();
+    _logger.info('Debounced push enabled (window: ${_debounceWindow.inSeconds}s)', tag: 'SYNC');
+  }
+
+  void _restartOutboxMonitoring() {
+    _logger.info('Restarting outbox monitoring...', tag: 'SYNC');
+    _outboxSubscription?.cancel();
+    
+    try {
+      _outboxSubscription = _createOutboxListener();
+      _logger.info('Outbox monitoring restarted successfully', tag: 'SYNC');
+    } catch (e, stackTrace) {
+      _logger.error('Failed to restart outbox monitoring', error: e, stackTrace: stackTrace, tag: 'SYNC');
+    }
+  }
+  
+  /// إنشاء listener مشترك لمراقبة outbox - إزالة تكرار الكود (DRY)
+  StreamSubscription<List<OutboxEntry>> _createOutboxListener() {
+    return (_currentDatabase.select(_currentDatabase.outbox)).watch().listen(
       (_) {
         _debouncePushTimer?.cancel();
         _debouncePushTimer = Timer(_debounceWindow, () async {
@@ -314,71 +332,18 @@ class AppwriteSyncManager {
       },
       onError: (e, stackTrace) {
         _logger.error('Outbox watch stream failed', error: e, stackTrace: stackTrace, tag: 'SYNC');
-        // إعادة فتح الـ stream بعد 5 ثوانٍ من حدوث خطأ
         Future.delayed(const Duration(seconds: 5), () {
           _restartOutboxMonitoring();
         });
       },
       onDone: () {
         _logger.warning('Outbox watch stream closed', tag: 'SYNC');
-        // إعادة فتح الـ stream بعد 3 ثوانٍ من إغلاقه
         Future.delayed(const Duration(seconds: 3), () {
           _restartOutboxMonitoring();
         });
       },
       cancelOnError: false,
     );
-    _logger.info('Debounced push enabled (window: ${_debounceWindow.inSeconds}s)', tag: 'SYNC');
-  }
-
-  void _restartOutboxMonitoring() {
-    _logger.info('Restarting outbox monitoring...', tag: 'SYNC');
-    _outboxSubscription?.cancel();
-    
-    try {
-      _outboxSubscription = (_currentDatabase.select(_currentDatabase.outbox)).watch().listen(
-        (_) {
-          _debouncePushTimer?.cancel();
-          _debouncePushTimer = Timer(_debounceWindow, () async {
-            _logger.debug('Debounced push triggered', tag: 'SYNC');
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-              if (!enabled) {
-                _logger.debug('Debounced push skipped (disabled)', tag: 'SYNC');
-                return;
-              }
-
-              final result = await sync(push: true, pull: false);
-              if (result.status != SyncStatus.success) {
-                _logger.warning(
-                  'Debounced push sync failed: ${result.errorMessage ?? ''}',
-                  tag: 'SYNC',
-                );
-              }
-            } catch (e, stackTrace) {
-              _logger.error('Debounced push failed', error: e, stackTrace: stackTrace, tag: 'SYNC');
-            }
-          });
-        },
-        onError: (e, stackTrace) {
-          _logger.error('Outbox watch stream failed', error: e, stackTrace: stackTrace, tag: 'SYNC');
-          Future.delayed(const Duration(seconds: 5), () {
-            _restartOutboxMonitoring();
-          });
-        },
-        onDone: () {
-          _logger.warning('Outbox watch stream closed', tag: 'SYNC');
-          Future.delayed(const Duration(seconds: 3), () {
-            _restartOutboxMonitoring();
-          });
-        },
-        cancelOnError: false,
-      );
-      _logger.info('Outbox monitoring restarted successfully', tag: 'SYNC');
-    } catch (e, stackTrace) {
-      _logger.error('Failed to restart outbox monitoring', error: e, stackTrace: stackTrace, tag: 'SYNC');
-    }
   }
 
   /// تنظيف الموارد
