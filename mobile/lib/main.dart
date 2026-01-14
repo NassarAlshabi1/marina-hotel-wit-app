@@ -30,8 +30,13 @@ import 'services/seed.dart';
 import 'services/app_session_manager.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_logger.dart';
+import 'services/google_drive_sync_service.dart';
 import 'services/local_db.dart';
 import 'services/smart_sync_manager.dart';
+import 'services/sync_guardian.dart';
+import 'services/safe_database_operations.dart';
+import 'services/database_sync_coordinator.dart';
+import 'utils/auto_sync_preferences.dart';
 
 // AutoSync Engine imports
 import 'services/central_sync_coordinator.dart';
@@ -63,7 +68,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
   debugPrint('═══════════════════════════════════════════════════════');
   
   try {
-    debugPrint('📝 [1/6] Initializing Google Drive Logger...');
+    debugPrint('📝 Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
     await driveLogger.initialize(
       minLevel: LogLevel.debug,
@@ -72,18 +77,19 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     );
     debugPrint('✅ Logger initialized');
     
-    debugPrint('🔐 [2/6] Initializing Google Drive Backup Service...');
+    debugPrint('🔐 Initializing Google Drive Backup Service...');
     final backupService = GoogleDriveBackupService();
     
     try {
+      // محاولة استعادة الجلسة بشكل صامت
       final account = await backupService.attemptSilentSignIn();
       if (account != null) {
-        debugPrint('✅ Silent sign-in successful: ${account.email}');
+        debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
       } else {
-        debugPrint('ℹ️ No saved session - user must sign in manually');
+        debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
       }
     } catch (e) {
-      debugPrint('⚠️ Silent sign-in failed: $e');
+      debugPrint('⚠️ فشلت استعادة الجلسة: $e');
     }
     
     debugPrint('🔧 [3/7] Initializing Database...');
@@ -142,6 +148,27 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     
     debugPrint('✅ Auto Sync Engine started');
     
+    debugPrint('🔗 Registering Database Sync Callbacks...');
+    DatabaseSyncCoordinator.initialize();
+    
+    // Register stop callbacks
+    DatabaseSyncCoordinator.registerStopCallback(() async {
+      await autoSyncEngine.stop();
+    });
+    DatabaseSyncCoordinator.registerStopCallback(() async {
+      await guardian.stop();
+    });
+    
+    // Register restart callbacks
+    DatabaseSyncCoordinator.registerRestartCallback(() async {
+      await autoSyncEngine.restart();
+    });
+    DatabaseSyncCoordinator.registerRestartCallback(() async {
+      await guardian.restart();
+    });
+    
+    debugPrint('✅ Sync callbacks registered');
+    
     debugPrint('═══════════════════════════════════════════════════════');
     debugPrint('✅ Fully Automated Sync System Ready!');
     debugPrint('═══════════════════════════════════════════════════════');
@@ -165,18 +192,40 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   debugPrint('⚙️ Configuring Auto Sync Engine...');
   
+  const engineDebounceKey = 'auto_sync_engine_debounce';
+  const legacyDebounceKey = 'auto_sync_debounce';
+  const enginePullIntervalKey = 'auto_sync_engine_pull_interval';
+  const legacyPullIntervalKey = 'auto_sync_pull_interval';
+  const engineRetryKey = 'auto_sync_engine_retry_enabled';
+  const legacyRetryKey = 'auto_sync_retry_enabled';
+  
   final prefs = await SharedPreferences.getInstance();
   
-  final debounceSeconds = prefs.getInt('auto_sync_debounce') ?? 5;
-  await engine.setDebounceSeconds(debounceSeconds);
+  final debounceSeconds = await migrateAutoSyncPreference<int>(
+    prefs: prefs,
+    newKey: engineDebounceKey,
+    legacyKey: legacyDebounceKey,
+    defaultValue: 5,
+    apply: (value) => engine.setDebounceSeconds(value),
+  );
   debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
   
-  final pullInterval = prefs.getInt('auto_sync_pull_interval') ?? 2;
-  await engine.setPullInterval(pullInterval);
+  final pullInterval = await migrateAutoSyncPreference<int>(
+    prefs: prefs,
+    newKey: enginePullIntervalKey,
+    legacyKey: legacyPullIntervalKey,
+    defaultValue: 2,
+    apply: (value) => engine.setPullInterval(value),
+  );
   debugPrint('   ⏰ Pull interval: ${pullInterval}min');
   
-  final retryEnabled = prefs.getBool('auto_sync_retry_enabled') ?? true;
-  await engine.setRetryEnabled(retryEnabled);
+  final retryEnabled = await migrateAutoSyncPreference<bool>(
+    prefs: prefs,
+    newKey: engineRetryKey,
+    legacyKey: legacyRetryKey,
+    defaultValue: true,
+    apply: (value) => engine.setRetryEnabled(value),
+  );
   debugPrint('   🔁 Auto-retry: $retryEnabled');
   
   final conflictStrategy = prefs.getString('conflict_strategy') ?? 'newerWins';
@@ -300,12 +349,17 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       return;
     }
     if (state == AppLifecycleState.resumed) {
-      unawaited(AppSessionManager.onAppOpen());
-      unawaited(GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground());
+      debugPrint('📱 التطبيق عاد للواجهة...');
+      AppSessionManager.onAppOpen().catchError((e, s) => debugPrint('Error in onAppOpen: $e\n$s'));
+      GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground().catchError((e, s) => debugPrint('Error in GDrive onAppForeground: $e\n$s'));
+      SyncGuardian.instance.onAppForeground().catchError((e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'));
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
-      unawaited(AppSessionManager.onAppCloseOrBackground());
+      debugPrint('📱 التطبيق في الخلفية...');
+      // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
+      Future.microtask(() => AppSessionManager.onAppCloseOrBackground())
+          .catchError((e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'));
     }
   }
 

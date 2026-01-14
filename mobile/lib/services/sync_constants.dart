@@ -42,4 +42,13 @@ class SyncConstants {
 
   static const int googleDriveDefaultShardBytes = 4 * 1024 * 1024;
   static const int estimatedBytesPerDeltaChange = 500;
+
+  static const Duration driveApiTimeout = Duration(seconds: 60);
+  static const Duration driveDownloadTimeout = Duration(seconds: 120);
+  static const Duration driveUploadTimeout = Duration(seconds: 180);
+  static const Duration syncOperationTimeout = Duration(minutes: 5);
+
+  static const int maxRetryAttempts = 5;
+  static const Duration initialRetryDelay = Duration(seconds: 2);
+  static const Duration maxRetryDelay = Duration(minutes: 2);
 }

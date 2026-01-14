@@ -398,7 +398,7 @@ class AutoBackupManager {
       final smartSync = SmartSyncManager.instance;
       if (await smartSync.isEnabled()) {
         debugPrint('🔔 إشعار مدير المزامنة الذكية بالنسخة الجديدة...');
-        await smartSync.onLocalBackupUploaded();
+        await smartSync.forceSyncNow();
       }
     } catch (e) {
       debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
