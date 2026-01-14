@@ -73,6 +73,13 @@ class AppwriteSyncManager {
       : outboxDao = OutboxDao(database);
 
   final _logger = AppwriteLogger();
+  bool _isInitialized = false;
+  
+  /// التأكد من تهيئة المدير قبل الاستخدام
+  Future<void> _ensureSyncManagerInitialized() async {
+    if (_isInitialized) return;
+    await initialize();
+  }
   final _errorHandler = AppwriteErrorHandler();
   
   Timer? _syncTimer;
@@ -91,10 +98,16 @@ class AppwriteSyncManager {
 
   /// تهيئة المزامنة
   Future<void> initialize() async {
+    if (_isInitialized) {
+      _logger.debug('Sync manager already initialized, skipping', tag: 'SYNC');
+      return;
+    }
+    
     try {
       await appwriteService.initialize();
       await _loadSettings();
       _enableDebouncedPush();
+      _isInitialized = true;
       _logger.info('Sync manager initialized', tag: 'SYNC');
     } catch (e, stackTrace) {
       _logger.error('Failed to initialize sync manager', 
@@ -102,6 +115,7 @@ class AppwriteSyncManager {
         stackTrace: stackTrace, 
         tag: 'SYNC'
       );
+      rethrow;
     }
   }
 
@@ -1539,6 +1553,9 @@ class AppwriteSyncManager {
 
   /// رفع التغييرات المحلية إلى Appwrite فوراً
   Future<bool> pushLocalChanges() async {
+    // التأكد من التهيئة أولاً
+    await _ensureSyncManagerInitialized();
+    
     // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
     int retries = 0;
     while (_currentStatus == SyncStatus.syncing && retries < 10) {
@@ -1574,6 +1591,9 @@ class AppwriteSyncManager {
   /// سحب التغييرات من Appwrite
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {
+    // التأكد من التهيئة أولاً
+    await _ensureSyncManagerInitialized();
+    
     if (_currentStatus == SyncStatus.syncing) {
       _logger.warning('⏸️ تخطي السحب - المزامنة جارية', tag: 'SYNC');
       return false;
