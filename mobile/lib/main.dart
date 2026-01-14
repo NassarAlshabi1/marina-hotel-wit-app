@@ -34,6 +34,7 @@ import 'services/local_db.dart';
 import 'services/smart_sync_manager.dart';
 
 // AutoSync Engine imports
+import 'services/central_sync_coordinator.dart';
 import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
@@ -85,11 +86,15 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       debugPrint('⚠️ Silent sign-in failed: $e');
     }
     
-    debugPrint('🔧 [3/6] Initializing Database...');
+    debugPrint('🔧 [3/7] Initializing Database...');
     final database = DatabaseManager.instance;
     debugPrint('✅ Database ready');
     
-    debugPrint('🎯 [4/6] Initializing Unified Sync Coordinator...');
+    debugPrint('🎯 [4/7] Initializing Central Sync Coordinator...');
+    final centralCoordinator = CentralSyncCoordinator.instance;
+    debugPrint('✅ Central Sync Coordinator ready');
+    
+    debugPrint('🎯 [5/7] Initializing Unified Sync Coordinator...');
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
     await coordinator.initialize(
       backupService: backupService,
@@ -98,7 +103,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     );
     debugPrint('✅ Coordinator initialized');
     
-    debugPrint('🤝 [5/6] Initializing Conflict Resolver...');
+    debugPrint('🤝 [6/7] Initializing Conflict Resolver...');
     final conflictResolver = GoogleDriveConflictResolver.instance;
     conflictResolver.initialize(driveLogger);
     
@@ -106,12 +111,12 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     await conflictResolver.setConflictThreshold(30);
     debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
     
-    debugPrint('🧠 [6/7] Initializing SmartSyncManager...');
+    debugPrint('🧠 [7/8] Initializing SmartSyncManager...');
     final smartSync = SmartSyncManager.instance;
     await smartSync.initialize(backupService);
     debugPrint('✅ SmartSyncManager initialized');
     
-    debugPrint('🤖 [7/7] Initializing & Starting Auto Sync Engine...');
+    debugPrint('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
     final autoSyncEngine = AutoSyncEngine.instance;
     
     await autoSyncEngine.initialize(

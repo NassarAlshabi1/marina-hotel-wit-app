@@ -30,7 +30,9 @@ class ApiService {
           try {
             final req = await _retryRequest(e.requestOptions);
             return handler.resolve(req);
-          } catch (_) {}
+          } catch (retryError) {
+            debugPrint('⚠️ Retry request failed: $retryError');
+          }
         }
         handler.next(e);
       },

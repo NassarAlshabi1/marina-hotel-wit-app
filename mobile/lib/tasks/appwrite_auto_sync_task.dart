@@ -4,7 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
-import '../services/appwrite_sync_manager.dart';
+import '../services/central_sync_coordinator.dart';
 
 const _kImmediateWorkName = 'appwrite_auto_sync_now';
 const _kPeriodicWorkName = 'appwrite_auto_sync_periodic';
@@ -14,10 +14,32 @@ const _kDebounceWindow = Duration(seconds: 8);
 @pragma('vm:entry-point')
 void appwriteAutoSyncCallbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
-    WidgetsFlutterBinding.ensureInitialized();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kPendingFlagKey, true);
-    return true;
+    try {
+      WidgetsFlutterBinding.ensureInitialized();
+      
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      
+      if (!enabled) {
+        return true;
+      }
+      
+      final success = await CentralSyncCoordinator.instance.syncNow(
+        push: true,
+        pull: true,
+        reason: 'appwrite_background_task',
+      );
+      
+      if (success) {
+        await prefs.setBool(_kPendingFlagKey, false);
+      } else {
+        await prefs.setBool(_kPendingFlagKey, true);
+      }
+      
+      return success;
+    } catch (e) {
+      return false;
+    }
   });
 }
 

@@ -327,6 +327,9 @@ class Outbox extends Table {
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
   TextColumn get idempotencyKey => text().nullable()();
+  TextColumn get processingStatus => text().withDefault(const Constant('pending'))();
+  DateTimeColumn get processingStartedAt => dateTime().nullable()();
+  TextColumn get processingWorker => text().nullable()();
 }
 
 class SyncState extends Table {
@@ -421,7 +424,7 @@ class AppDatabase extends _$AppDatabase {
   static AppDatabase forTesting(QueryExecutor executor) => AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -554,6 +557,14 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 17) {
             await m.addColumn(outbox, outbox.idempotencyKey);
+          }
+          if (from < 18) {
+            await m.addColumn(outbox, outbox.processingStatus);
+            await m.addColumn(outbox, outbox.processingStartedAt);
+            await m.addColumn(outbox, outbox.processingWorker);
+            await m.database.customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_outbox_processing_status ON outbox(processing_status)'
+            );
           }
         },
       );

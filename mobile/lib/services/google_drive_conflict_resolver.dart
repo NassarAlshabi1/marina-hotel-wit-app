@@ -434,7 +434,9 @@ class GoogleDriveConflictResolver {
     for (final entry in history.take(limit)) {
       try {
         decoded.add(jsonDecode(entry));
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ Failed to decode conflict history entry: $e');
+      }
     }
     
     return decoded;

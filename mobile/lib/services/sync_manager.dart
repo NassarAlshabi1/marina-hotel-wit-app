@@ -702,7 +702,9 @@ class SyncManager {
                 if (remoteVc != null && remoteVc.isNotEmpty) {
                   remoteVectorClock = VectorClock.fromJson(remoteVc);
                 }
-              } catch (_) {}
+              } catch (e) {
+                debugPrint('⚠️ Failed to parse VectorClock: $e');
+              }
 
               final context = ConflictContext(
                 table: table,

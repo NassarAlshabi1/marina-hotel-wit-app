@@ -6,9 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
-import '../services/google_drive_sync_service.dart';
-import '../services/local_db.dart';
-import '../services/sync_manager.dart';
+import '../services/central_sync_coordinator.dart';
 
 const _kImmediateWorkName = 'marina_auto_sync_now';
 const _kPeriodicWorkName = 'marina_auto_sync_periodic';
@@ -18,19 +16,30 @@ const _kDebounceWindow = Duration(seconds: 1);
 @pragma('vm:entry-point')
 void autoSyncCallbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
-    WidgetsFlutterBinding.ensureInitialized();
-    DartPluginRegistrant.ensureInitialized();
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kPendingFlagKey, true);
-
     try {
-      final db = DatabaseManager.instance;
-      final driveService = GoogleDriveSyncService();
-      final manager = SyncManager(db: db, driveService: driveService);
-      await manager.initSyncService(allowInteractiveSignIn: false);
-      await manager.smartSync(force: false);
-      await prefs.setBool(_kPendingFlagKey, false);
+      WidgetsFlutterBinding.ensureInitialized();
+      DartPluginRegistrant.ensureInitialized();
+
+      final prefs = await SharedPreferences.getInstance();
+      final googleDriveEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+      
+      if (!googleDriveEnabled) {
+        return true;
+      }
+
+      final success = await CentralSyncCoordinator.instance.syncNow(
+        push: true,
+        pull: true,
+        reason: 'google_drive_background_task',
+      );
+      
+      if (success) {
+        await prefs.setBool(_kPendingFlagKey, false);
+      } else {
+        await prefs.setBool(_kPendingFlagKey, true);
+      }
+      
+      return success;
     } catch (error, stackTrace) {
       developer.log(
         'Auto-sync background task failed',
@@ -39,10 +48,8 @@ void autoSyncCallbackDispatcher() {
         stackTrace: stackTrace,
         level: 1000,
       );
-      await prefs.setBool(_kPendingFlagKey, true);
+      return false;
     }
-
-    return true;
   });
 }
 

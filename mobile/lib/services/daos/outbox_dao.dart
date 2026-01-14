@@ -3,9 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../local_db.dart';
-import '../sync_guardian.dart';
-import '../google_drive_unified_sync_coordinator.dart';
-import '../google_drive_auto_sync_engine.dart';
+import '../central_sync_coordinator.dart';
 
 part 'outbox_dao.g.dart';
 
@@ -107,17 +105,37 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       return resultId;
     });
 
-    unawaited(SyncGuardian.instance.notifyLocalChange(table: entity, operation: op));
-    GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
-    AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
+    CentralSyncCoordinator.instance.notifyLocalChange(
+      table: entity,
+      operation: op,
+    );
     return id;
   }
 
-  Future<List<OutboxData>> takeBatch(int limit) {
-    return (select(outbox)
-          ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
-          ..limit(limit))
-        .get();
+  Future<List<OutboxData>> takeBatch(int limit, {String? workerId}) async {
+    final worker = workerId ?? const Uuid().v4();
+    
+    return transaction(() async {
+      final entries = await (select(outbox)
+            ..where((t) => t.processingStatus.equals('pending'))
+            ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
+            ..limit(limit))
+          .get();
+      
+      if (entries.isEmpty) {
+        return [];
+      }
+      
+      final ids = entries.map((e) => e.id).toList();
+      
+      await (update(outbox)..where((t) => t.id.isIn(ids))).write(OutboxCompanion(
+        processingStatus: const Value('processing'),
+        processingStartedAt: Value(DateTime.now()),
+        processingWorker: Value(worker),
+      ));
+      
+      return entries;
+    });
   }
 
   Future<void> removeById(int id) => (delete(outbox)..where((t) => t.id.equals(id))).go();
@@ -131,4 +149,51 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   
   Future<void> setError(int id, String message, int attempts) =>
       (update(outbox)..where((t) => t.id.equals(id))).write(OutboxCompanion(lastError: Value(message), attempts: Value(attempts)));
+
+  Future<void> markCompleted(List<int> ids) async {
+    if (ids.isEmpty) return;
+    await (update(outbox)..where((t) => t.id.isIn(ids))).write(const OutboxCompanion(
+      processingStatus: Value('completed'),
+      processingStartedAt: Value.absent(),
+      processingWorker: Value.absent(),
+    ));
+  }
+
+  Future<void> markFailed(List<int> ids) async {
+    if (ids.isEmpty) return;
+    await (update(outbox)..where((t) => t.id.isIn(ids))).write(const OutboxCompanion(
+      processingStatus: Value('failed'),
+    ));
+  }
+
+  Future<void> retryFailed() async {
+    await (update(outbox)..where((t) => t.processingStatus.equals('failed'))).write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      processingStartedAt: Value.absent(),
+      processingWorker: Value.absent(),
+      attempts: Value(0),
+    ));
+  }
+
+  Future<int> cleanupStuckEntries({Duration timeout = const Duration(minutes: 5)}) async {
+    final thresholdTime = DateTime.now().subtract(timeout);
+    
+    return await (update(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('processing') & t.processingStartedAt.isSmallerThanValue(thresholdTime)))
+        .write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      processingStartedAt: Value.absent(),
+      processingWorker: Value.absent(),
+    ));
+  }
+
+  Future<int> cleanupCompleted({Duration olderThan = const Duration(days: 7)}) async {
+    final thresholdTime = DateTime.now().subtract(olderThan);
+    
+    return await (delete(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('completed') & t.processingStartedAt.isSmallerThanValue(thresholdTime)))
+        .go();
+  }
 }

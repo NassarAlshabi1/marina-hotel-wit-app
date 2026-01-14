@@ -626,7 +626,9 @@ class AppwriteSyncManager {
                 return detailValue.toInt();
               }
             }
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('⚠️ Failed to decode details JSON: $e');
+          }
         }
 
         return 0;
@@ -764,7 +766,9 @@ class AppwriteSyncManager {
         if (rn != null && rn.isNotEmpty) {
           roomNumbers.add(rn);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ Failed to extract room number from document: $e');
+      }
     }
 
     if (roomNumbers.isEmpty) {

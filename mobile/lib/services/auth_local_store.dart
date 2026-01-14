@@ -60,7 +60,9 @@ class AuthLocalStore {
           return MapEntry(key.toString(), <String, dynamic>{});
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('⚠️ Failed to load custom accounts: $e');
+    }
     return {};
   }
 
@@ -275,7 +277,9 @@ class AuthLocalStore {
         if (decoded is Map) {
           map = decoded.map((k, v) => MapEntry(k.toString(), v));
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ Failed to decode permissions map: $e');
+      }
     }
     map[username] = permissions;
     await prefs.setString(_kPermissionsMap, jsonEncode(map));
@@ -298,7 +302,9 @@ class AuthLocalStore {
             names.add(k.toString());
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ Failed to decode permission names: $e');
+      }
     }
     final list = names.toList();
     list.sort();
