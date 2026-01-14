@@ -5,12 +5,21 @@ import 'package:drift/drift.dart' as d;
 import 'delta_sync_service.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
+import 'sync_constants.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
+import 'sync_locks.dart';
 
 enum SyncFileType {
   fullBackup,
   deltaSync,
+}
+
+enum _DeltaSyncStartResult {
+  ok,
+  notInitialized,
+  alreadySyncing,
+  notSignedIn,
 }
 
 class GoogleDriveDeltaSync {
@@ -23,7 +32,9 @@ class GoogleDriveDeltaSync {
   String? _deviceId;
   bool _isSyncing = false;
 
-  static const _prefsLastDeltaSyncKey = 'gd_last_delta_sync';
+  static const _prefsLegacyLastDeltaSyncKey = 'gd_last_delta_sync';
+  static const _prefsLastPushTsKey = 'gd_last_push_ts';
+  static const _prefsLastPullTsKey = 'gd_last_pull_ts';
   static const _prefsDeviceIdKey = 'gd_delta_device_id';
   
   static const fullBackupPrefix = 'marina_backup_full_';
@@ -51,19 +62,27 @@ class GoogleDriveDeltaSync {
   String? get deviceId => _deviceId;
 
   Future<DeltaSyncResult> pushDeltaChanges() async {
-    if (!isInitialized || _isSyncing) {
+    final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
+      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
+      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
+      if (_driveService?.isSignedIn != true) return _DeltaSyncStartResult.notSignedIn;
+      
+      _isSyncing = true;
+      return _DeltaSyncStartResult.ok;
+    });
+    
+    if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
       return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة أو المزامنة جارية');
     }
 
-    if (_driveService?.isSignedIn != true) {
+    if (canStart == _DeltaSyncStartResult.notSignedIn) {
       return DeltaSyncResult(success: false, message: 'غير مسجل الدخول في Google Drive');
     }
 
     try {
-      _isSyncing = true;
       debugPrint('📤 بدء المزامنة التفاضلية إلى Google Drive...');
 
-      final lastSyncTs = await _getLastDeltaSyncTimestamp();
+      final lastSyncTs = await _getLastPushTimestamp();
       final computation = await _deltaSyncService!.compute(since: lastSyncTs);
 
       if (computation.changes.isEmpty) {
@@ -76,7 +95,7 @@ class GoogleDriveDeltaSync {
       
       await _uploadDeltaFile(fileName, deltaPayload);
       await _deltaSyncService!.persistMirror(computation);
-      await _updateLastDeltaSyncTimestamp();
+      await _updateLastPushTimestamp();
 
       debugPrint('✅ تم رفع ${computation.changes.length} تغيير إلى Google Drive');
       
@@ -85,25 +104,37 @@ class GoogleDriveDeltaSync {
         message: 'تم رفع التغييرات بنجاح',
         changesCount: computation.changes.length,
       );
-    } catch (e) {
-      debugPrint('❌ خطأ في المزامنة التفاضلية: $e');
-      return DeltaSyncResult(success: false, message: e.toString());
+    } catch (e, stackTrace) {
+      final errorMessage = 'خطأ في رفع التغييرات: $e';
+      debugPrint('❌ $errorMessage');
+      debugPrint('🔍 Stack trace: $stackTrace');
+      return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
-      _isSyncing = false;
+      await SyncLocks.deltaSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 
   Future<DeltaSyncResult> pullDeltaChanges() async {
-    if (!isInitialized || _isSyncing) {
+    final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
+      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
+      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
+      if (_driveService?.isSignedIn != true) return _DeltaSyncStartResult.notSignedIn;
+      
+      _isSyncing = true;
+      return _DeltaSyncStartResult.ok;
+    });
+    
+    if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
       return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة');
     }
 
-    if (_driveService?.isSignedIn != true) {
+    if (canStart == _DeltaSyncStartResult.notSignedIn) {
       return DeltaSyncResult(success: false, message: 'غير مسجل الدخول');
     }
 
     try {
-      _isSyncing = true;
       debugPrint('📥 فحص التغييرات من Google Drive...');
 
       final deltaFiles = await _listDeltaSyncFiles();
@@ -114,7 +145,7 @@ class GoogleDriveDeltaSync {
       deltaFiles.sort((a, b) => a.createdTime.compareTo(b.createdTime));
       
       int appliedChanges = 0;
-      final lastPullTs = await _getLastDeltaSyncTimestamp();
+      final lastPullTs = await _getLastPullTimestamp();
 
       for (final file in deltaFiles) {
         if (file.createdTime.millisecondsSinceEpoch <= lastPullTs) continue;
@@ -130,7 +161,7 @@ class GoogleDriveDeltaSync {
       }
 
       if (appliedChanges > 0) {
-        await _updateLastDeltaSyncTimestamp();
+        await _updateLastPullTimestamp();
       }
 
       return DeltaSyncResult(
@@ -138,11 +169,15 @@ class GoogleDriveDeltaSync {
         message: 'تم تطبيق $appliedChanges تغيير',
         changesCount: appliedChanges,
       );
-    } catch (e) {
-      debugPrint('❌ خطأ في سحب التغييرات: $e');
-      return DeltaSyncResult(success: false, message: e.toString());
+    } catch (e, stackTrace) {
+      final errorMessage = 'خطأ في سحب التغييرات: $e';
+      debugPrint('❌ $errorMessage');
+      debugPrint('🔍 Stack trace: $stackTrace');
+      return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
-      _isSyncing = false;
+      await SyncLocks.deltaSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 
@@ -198,20 +233,59 @@ class GoogleDriveDeltaSync {
     final changes = deltaData['changes'] as List<dynamic>?;
     if (changes == null || changes.isEmpty) return 0;
 
-    int applied = 0;
-    for (final change in changes) {
-      try {
+    return await _database!.transaction(() async {
+      final sortedChanges = _sortChangesByDependency(changes);
+      int applied = 0;
+      
+      for (final change in sortedChanges) {
         final entity = change['entity'] as String;
         final op = change['op'] as String;
         final data = change['data'] as Map<String, dynamic>;
         
         await _applyChange(entity, op, data);
         applied++;
-      } catch (e) {
-        debugPrint('⚠️ خطأ في تطبيق تغيير: $e');
+      }
+      
+      debugPrint('✅ تم تطبيق $applied تغيير بنجاح داخل transaction واحدة');
+      return applied;
+    });
+  }
+
+  List<Map<String, dynamic>> _sortChangesByDependency(List<dynamic> changes) {
+    final changesList = List<Map<String, dynamic>>.from(
+      changes.map((c) => Map<String, dynamic>.from(c as Map))
+    );
+
+    final deletes = <Map<String, dynamic>>[];
+    final nonDeletes = <Map<String, dynamic>>[];
+
+    for (final change in changesList) {
+      final op = change['op'] as String;
+      if (op == 'delete') {
+        deletes.add(change);
+      } else {
+        nonDeletes.add(change);
       }
     }
-    return applied;
+
+    nonDeletes.sort((a, b) {
+      final aOrder = _getTableOrderIndex(a['entity'] as String);
+      final bOrder = _getTableOrderIndex(b['entity'] as String);
+      return aOrder.compareTo(bOrder);
+    });
+
+    deletes.sort((a, b) {
+      final aOrder = _getTableOrderIndex(a['entity'] as String);
+      final bOrder = _getTableOrderIndex(b['entity'] as String);
+      return bOrder.compareTo(aOrder);
+    });
+
+    return [...nonDeletes, ...deletes];
+  }
+
+  int _getTableOrderIndex(String entity) {
+    final index = SyncConstants.tableOrder.indexOf(entity);
+    return index == -1 ? 999 : index;
   }
 
   Future<void> _applyChange(String entity, String operation, Map<String, dynamic> data) async {
@@ -320,6 +394,39 @@ class GoogleDriveDeltaSync {
       await (db.delete(db.payments)..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
+
+    final serverBookingId = _asInt(data['server_booking_id']) ?? _asInt(data['serverBookingId']);
+    final incomingBookingUuid = _asString(data['booking_uuid_cache']) ??
+        _asString(data['bookingUuidCache']) ??
+        _asString(data['booking_uuid']) ??
+        _asString(data['bookingUuid']);
+
+    String? bookingUuidCache;
+    int? resolvedBookingLocalId;
+
+    if (incomingBookingUuid != null && incomingBookingUuid.isNotEmpty) {
+      bookingUuidCache = incomingBookingUuid;
+      final booking = await (db.select(db.bookings)..where((b) => b.localUuid.equals(incomingBookingUuid))).getSingleOrNull();
+      resolvedBookingLocalId = booking?.id;
+    }
+
+    if (resolvedBookingLocalId == null && serverBookingId != null) {
+      final booking = await (db.select(db.bookings)..where((b) => b.serverBookingId.equals(serverBookingId))).getSingleOrNull();
+      resolvedBookingLocalId = booking?.id;
+      bookingUuidCache = bookingUuidCache ?? booking?.localUuid;
+    }
+
+    dynamic pendingRaw = data['is_pending_balance'] ?? data['isPendingBalance'];
+    bool? isPendingBalance;
+    if (pendingRaw is bool) {
+      isPendingBalance = pendingRaw;
+    } else if (pendingRaw is num) {
+      isPendingBalance = pendingRaw != 0;
+    } else if (pendingRaw is String && pendingRaw.isNotEmpty) {
+      final v = pendingRaw.toLowerCase();
+      isPendingBalance = v == '1' || v == 'true' || v == 'yes';
+    }
+
     final companion = PaymentsCompanion(
       localUuid: d.Value(localUuid),
       serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
@@ -330,14 +437,18 @@ class GoogleDriveDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('google_drive_delta'),
       serverPaymentId: _nullableValue<int>(_asInt(data['server_payment_id']) ?? _asInt(data['serverPaymentId'])),
-      bookingLocalId: _nullableValue<int>(_asInt(data['booking_local_id']) ?? _asInt(data['bookingLocalId'])),
-      serverBookingId: _nullableValue<int>(_asInt(data['server_booking_id']) ?? _asInt(data['serverBookingId'])),
+      serverBookingId: _nullableValue<int>(serverBookingId),
+      bookingLocalId: resolvedBookingLocalId != null ? d.Value(resolvedBookingLocalId) : const d.Value.absent(),
+      bookingUuidCache: bookingUuidCache != null && bookingUuidCache.isNotEmpty ? d.Value(bookingUuidCache) : const d.Value.absent(),
       roomNumber: _nullableValue<String>(_asString(data['room_number']) ?? _asString(data['roomNumber'])),
       amount: d.Value(_asDouble(data['amount'])),
       paymentDate: d.Value(_asString(data['payment_date']) ?? _asString(data['paymentDate']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
       paymentMethod: d.Value(_asString(data['payment_method']) ?? _asString(data['paymentMethod']) ?? ''),
       revenueType: d.Value(_asString(data['revenue_type']) ?? _asString(data['revenueType']) ?? ''),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotel_day_key']) ?? _asString(data['hotelDayKey'])),
+      isPendingBalance: isPendingBalance != null ? d.Value(isPendingBalance) : const d.Value.absent(),
+      linkedDebtUuid: _nullableValue<String>(_asString(data['linked_debt_uuid']) ?? _asString(data['linkedDebtUuid'])),
       cashTransactionLocalId: _nullableValue<int>(_asInt(data['cash_transaction_local_id']) ?? _asInt(data['cashTransactionLocalId'])),
       cashTransactionServerId: _nullableValue<int>(_asInt(data['cash_transaction_server_id']) ?? _asInt(data['cashTransactionServerId'])),
       referenceNumber: _nullableValue<String>(_asString(data['reference_number']) ?? _asString(data['referenceNumber'])),
@@ -531,14 +642,38 @@ class GoogleDriveDeltaSync {
     return result.isEmpty ? null : result;
   }
 
-  Future<int> _getLastDeltaSyncTimestamp() async {
+  Future<int> _getLastPushTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
+    final cached = prefs.getInt(_prefsLastPushTsKey);
+    if (cached != null) return cached;
+    final legacy = prefs.getInt(_prefsLegacyLastDeltaSyncKey);
+    if (legacy != null) {
+      await prefs.setInt(_prefsLastPushTsKey, legacy);
+      return legacy;
+    }
+    return 0;
   }
 
-  Future<void> _updateLastDeltaSyncTimestamp() async {
+  Future<int> _getLastPullTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsLastDeltaSyncKey, Time.nowEpoch());
+    final cached = prefs.getInt(_prefsLastPullTsKey);
+    if (cached != null) return cached;
+    final legacy = prefs.getInt(_prefsLegacyLastDeltaSyncKey);
+    if (legacy != null) {
+      await prefs.setInt(_prefsLastPullTsKey, legacy);
+      return legacy;
+    }
+    return 0;
+  }
+
+  Future<void> _updateLastPushTimestamp() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsLastPushTsKey, Time.nowEpoch());
+  }
+
+  Future<void> _updateLastPullTimestamp() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsLastPullTsKey, Time.nowEpoch());
   }
 
   Future<void> cleanupOldDeltaFiles({int keepCount = 10}) async {
@@ -561,14 +696,24 @@ class GoogleDriveDeltaSync {
   }
 
   Future<Map<String, dynamic>> getStatus() async {
-    final lastSync = await _getLastDeltaSyncTimestamp();
+    final lastPush = await _getLastPushTimestamp();
+    final lastPull = await _getLastPullTimestamp();
+    final lastActivity = lastPush > lastPull ? lastPush : lastPull;
     return {
       'initialized': isInitialized,
       'is_syncing': _isSyncing,
       'device_id': _deviceId,
-      'last_sync_epoch': lastSync,
-      'last_sync_time': lastSync > 0 
-          ? DateTime.fromMillisecondsSinceEpoch(lastSync * 1000).toIso8601String()
+      'last_push_epoch': lastPush,
+      'last_pull_epoch': lastPull,
+      'last_push_time': lastPush > 0
+          ? DateTime.fromMillisecondsSinceEpoch(lastPush * 1000).toIso8601String()
+          : null,
+      'last_pull_time': lastPull > 0
+          ? DateTime.fromMillisecondsSinceEpoch(lastPull * 1000).toIso8601String()
+          : null,
+      'last_sync_epoch': lastActivity,
+      'last_sync_time': lastActivity > 0
+          ? DateTime.fromMillisecondsSinceEpoch(lastActivity * 1000).toIso8601String()
           : null,
       'signed_in': _driveService?.isSignedIn ?? false,
     };

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../sync_locks.dart';
 
 /// مسؤول عن جدولة المزامنة فقط - لا يعرف تفاصيل المزامنة
 /// 
@@ -32,9 +33,13 @@ class SyncScheduler {
 
   /// بدء الجدولة
   Future<void> start() async {
-    if (_isRunning) return;
+    final canStart = await SyncLocks.schedulerLock.synchronized(() async {
+      if (_isRunning) return false;
+      _isRunning = true;
+      return true;
+    });
     
-    _isRunning = true;
+    if (!canStart) return;
     
     _quickCheckTimer = Timer.periodic(quickCheckInterval, (_) async {
       if (isEnabled()) {
@@ -53,11 +58,13 @@ class SyncScheduler {
 
   /// إيقاف الجدولة
   Future<void> stop() async {
-    _quickCheckTimer?.cancel();
-    _fullSyncTimer?.cancel();
-    _quickCheckTimer = null;
-    _fullSyncTimer = null;
-    _isRunning = false;
+    await SyncLocks.schedulerLock.synchronized(() async {
+      _quickCheckTimer?.cancel();
+      _fullSyncTimer?.cancel();
+      _quickCheckTimer = null;
+      _fullSyncTimer = null;
+      _isRunning = false;
+    });
     debugPrint('🛑 SyncScheduler: توقفت الجدولة');
   }
 

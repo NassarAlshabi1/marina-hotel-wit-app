@@ -9,6 +9,7 @@ import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_logger.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/local_db.dart';
+import 'services/logging/log_models.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

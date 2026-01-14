@@ -8,8 +8,10 @@ import 'appwrite_service.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'local_db.dart';
+import '../data/sync_models.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
+import 'sync_locks.dart';
 
 class AppwriteDeltaSyncResult {
   final bool success;
@@ -75,7 +77,15 @@ class AppwriteDeltaSync {
   }
 
   Future<AppwriteDeltaSyncResult> pushDeltaChanges() async {
-    if (!isInitialized || _isSyncing) {
+    final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
+      if (!isInitialized || _isSyncing) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) {
       return AppwriteDeltaSyncResult(
         success: false,
         message: 'الخدمة غير جاهزة أو المزامنة جارية',
@@ -83,7 +93,6 @@ class AppwriteDeltaSync {
     }
 
     try {
-      _isSyncing = true;
       _logger.info('📤 بدء المزامنة التفاضلية إلى Appwrite...', tag: 'DELTA_SYNC');
 
       final lastSyncTs = await _getLastDeltaSyncTimestamp();
@@ -98,36 +107,72 @@ class AppwriteDeltaSync {
         );
       }
 
-      int pushedCount = 0;
-      bool hasFailures = false;
+      final failedChanges = <DeltaSyncChange>[];
+      final successfulChanges = <DeltaSyncChange>[];
+
       for (final change in computation.changes) {
         try {
           await _pushSingleChange(change);
-          pushedCount++;
+          successfulChanges.add(change);
         } catch (e) {
-          hasFailures = true;
+          failedChanges.add(change);
           _logger.warning('فشل رفع تغيير: ${change.entity}/${change.localUuid} - $e', tag: 'DELTA_SYNC');
         }
       }
 
-      if (!hasFailures) {
-        await _deltaSyncService!.persistMirror(computation);
+      if (successfulChanges.isNotEmpty) {
+        await _persistSuccessfulChanges(computation, successfulChanges);
         await _updateLastDeltaSyncTimestamp();
       }
 
-      _logger.info('✅ تم رفع $pushedCount تغيير إلى Appwrite', tag: 'DELTA_SYNC');
+      final hasFailures = failedChanges.isNotEmpty;
+      final message = hasFailures
+          ? 'تم رفع ${successfulChanges.length} تغيير وفشل ${failedChanges.length}'
+          : 'تم رفع ${successfulChanges.length} تغيير بنجاح';
+
+      _logger.info('✅ $message', tag: 'DELTA_SYNC');
 
       return AppwriteDeltaSyncResult(
-        success: true,
-        message: 'تم رفع التغييرات بنجاح',
-        pushedCount: pushedCount,
+        success: !hasFailures,
+        message: message,
+        pushedCount: successfulChanges.length,
       );
     } catch (e) {
       _logger.error('❌ خطأ في المزامنة التفاضلية: $e', tag: 'DELTA_SYNC');
       return AppwriteDeltaSyncResult(success: false, message: e.toString());
     } finally {
-      _isSyncing = false;
+      await SyncLocks.appwriteSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
+  }
+
+  Future<void> _persistSuccessfulChanges(
+    DeltaSyncComputation computation,
+    List<DeltaSyncChange> successfulChanges,
+  ) async {
+    final successfulUuids = successfulChanges.map((c) => c.localUuid).toSet();
+    final allChangeUuids = computation.changes.map((c) => c.localUuid).toSet();
+    final filteredSnapshot = <String, Map<String, MirrorRow>>{};
+
+    for (final entry in computation.mirrorSnapshot.entries) {
+      final filteredRows = <String, MirrorRow>{};
+      for (final rowEntry in entry.value.entries) {
+        if (successfulUuids.contains(rowEntry.key) ||
+            !allChangeUuids.contains(rowEntry.key)) {
+          filteredRows[rowEntry.key] = rowEntry.value;
+        }
+      }
+      filteredSnapshot[entry.key] = filteredRows;
+    }
+
+    final filteredComputation = DeltaSyncComputation(
+      changes: successfulChanges,
+      mirrorSnapshot: filteredSnapshot,
+      fallbackTables: computation.fallbackTables,
+    );
+
+    await _deltaSyncService!.persistMirror(filteredComputation);
   }
 
   Future<void> _pushSingleChange(DeltaSyncChange change) async {
@@ -166,7 +211,15 @@ class AppwriteDeltaSync {
   }
 
   Future<AppwriteDeltaSyncResult> pullDeltaChanges() async {
-    if (!isInitialized || _isSyncing) {
+    final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
+      if (!isInitialized || _isSyncing) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) {
       return AppwriteDeltaSyncResult(
         success: false,
         message: 'الخدمة غير جاهزة',
@@ -174,7 +227,6 @@ class AppwriteDeltaSync {
     }
 
     try {
-      _isSyncing = true;
       _logger.info('📥 فحص التغييرات من Appwrite...', tag: 'DELTA_SYNC');
 
       final lastPullTs = await _getLastDeltaSyncTimestamp();
@@ -208,7 +260,9 @@ class AppwriteDeltaSync {
       _logger.error('❌ خطأ في سحب التغييرات: $e', tag: 'DELTA_SYNC');
       return AppwriteDeltaSyncResult(success: false, message: e.toString());
     } finally {
-      _isSyncing = false;
+      await SyncLocks.appwriteSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 

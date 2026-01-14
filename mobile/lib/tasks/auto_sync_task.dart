@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:developer' as developer;
+import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../services/google_drive_sync_service.dart';
+import '../services/local_db.dart';
 import '../services/sync_manager.dart';
 
 const _kImmediateWorkName = 'marina_auto_sync_now';
@@ -15,8 +19,29 @@ const _kDebounceWindow = Duration(seconds: 1);
 void autoSyncCallbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
     WidgetsFlutterBinding.ensureInitialized();
+    DartPluginRegistrant.ensureInitialized();
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kPendingFlagKey, true);
+
+    try {
+      final db = DatabaseManager.instance;
+      final driveService = GoogleDriveSyncService();
+      final manager = SyncManager(db: db, driveService: driveService);
+      await manager.initSyncService(allowInteractiveSignIn: false);
+      await manager.smartSync(force: false);
+      await prefs.setBool(_kPendingFlagKey, false);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Auto-sync background task failed',
+        name: 'AutoSyncTask',
+        error: error is Exception ? error.runtimeType.toString() : error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      await prefs.setBool(_kPendingFlagKey, true);
+    }
+
     return true;
   });
 }
@@ -70,6 +95,7 @@ class AutoSyncTask {
       frequency: frequency,
       initialDelay: frequency,
       existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+      constraints: Constraints(networkType: NetworkType.connected),
       inputData: const <String, dynamic>{},
     );
   }

@@ -171,11 +171,17 @@ class GoogleDriveSyncService {
 
   bool _encryptionEnabled = false;
   String? _encryptionKey;
+  bool _allowInteractiveSignIn = true;
 
   GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
 
   /// تهيئة الخدمة وخيار التشفير AES-256
-  Future<void> init({bool enableEncryption = false, String? encryptionKey}) async {
+  Future<void> init({
+    bool enableEncryption = false,
+    String? encryptionKey,
+    bool allowInteractiveSignIn = true,
+  }) async {
+    _allowInteractiveSignIn = allowInteractiveSignIn;
     _encryptionEnabled = enableEncryption;
     if (_encryptionEnabled) {
       if (encryptionKey == null || encryptionKey.isEmpty) {
@@ -251,6 +257,34 @@ class GoogleDriveSyncService {
       shards: index.shards,
       driveVersion: index.version,
     );
+  }
+
+  /// قراءة آخر وقت تعديل لملف الـ snapshot في Google Drive دون تنزيل المحتوى.
+  Future<DateTime?> getLatestSnapshotModifiedTime() async {
+    try {
+      final api = await _ensureDriveApi();
+      final indexList = await api.files.list(
+        spaces: 'appDataFolder',
+        q: "name='$_kIndexFileName' and trashed=false",
+        $fields: 'files(id,modifiedTime)',
+      );
+      final indexFile = (indexList.files ?? []).isNotEmpty ? indexList.files!.first : null;
+      if (indexFile?.modifiedTime != null) {
+        return indexFile!.modifiedTime;
+      }
+
+      final snapList = await api.files.list(
+        spaces: 'appDataFolder',
+        q: "name='$_kPrimarySnapshotName' and trashed=false",
+        $fields: 'files(id,modifiedTime)',
+        orderBy: 'modifiedTime desc',
+      );
+      final snapFile = (snapList.files ?? []).isNotEmpty ? snapList.files!.first : null;
+      return snapFile?.modifiedTime;
+    } catch (error) {
+      debugPrint('⚠️ تعذر قراءة modifiedTime من Google Drive: $error');
+      return null;
+    }
   }
 
   /// رفع لقطة كاملة مع التحقق من الإصدار وتجزئة الملفات
@@ -355,10 +389,14 @@ class GoogleDriveSyncService {
     if (_driveApi != null) {
       return _driveApi!;
     }
-    final account = await _googleSignIn.signInSilently(suppressErrors: true) ?? await _googleSignIn.signIn();
+
+    final account = await _googleSignIn.signInSilently(suppressErrors: true) ??
+        (_allowInteractiveSignIn ? await _googleSignIn.signIn() : null);
+
     if (account == null) {
       throw StateError('لم يتم تسجيل الدخول إلى Google Drive.');
     }
+
     final headers = await account.authHeaders;
     _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
     return _driveApi!;

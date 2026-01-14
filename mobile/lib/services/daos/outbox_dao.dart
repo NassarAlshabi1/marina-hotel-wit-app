@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 import '../local_db.dart';
 import '../sync_guardian.dart';
+import '../google_drive_unified_sync_coordinator.dart';
+import '../google_drive_auto_sync_engine.dart';
 
 part 'outbox_dao.g.dart';
+
+const _uuid = Uuid();
 
 @DriftAccessor(tables: [Outbox])
 class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
@@ -44,6 +49,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
         .getSingleOrNull();
     final data = jsonEncode(payload);
+    final idempotencyKey = existing?.idempotencyKey ?? _uuid.v4();
     final result = existing != null
         ? await (update(outbox)..where((t) => t.id.equals(existing.id))).write(OutboxCompanion(
             payload: Value(data),
@@ -51,6 +57,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             clientTs: Value(clientTs),
             attempts: const Value(0),
             lastError: const Value.absent(),
+            idempotencyKey: Value(idempotencyKey),
           ))
         : await into(outbox).insert(OutboxCompanion(
             entity: Value(entity),
@@ -59,9 +66,12 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             serverId: Value(serverId),
             payload: Value(data),
             clientTs: Value(clientTs),
+            idempotencyKey: Value(idempotencyKey),
           ));
 
     unawaited(SyncGuardian.instance.notifyLocalChange(table: entity, operation: op));
+    GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
+    AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
     return result;
   }
 

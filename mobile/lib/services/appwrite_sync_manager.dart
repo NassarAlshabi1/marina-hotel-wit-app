@@ -16,6 +16,8 @@ import 'appwrite_models.dart';
 import 'appwrite_config.dart';
 import 'local_db.dart';
 import 'daos/outbox_dao.dart';
+import 'sync_mutex.dart';
+import 'sync_enums.dart';
 
 /// حالة المزامنة
 enum SyncStatus {
@@ -57,6 +59,7 @@ class AppwriteSyncManager {
   final AppwriteService appwriteService;
   final AppDatabase database;
   final OutboxDao outboxDao;
+  final SyncMutex _mutex = SyncMutex();
   
   factory AppwriteSyncManager({required AppwriteService appwriteService, required AppDatabase database}) {
     _instance ??= AppwriteSyncManager._internal(appwriteService: appwriteService, database: database);
@@ -169,9 +172,25 @@ class AppwriteSyncManager {
       _deviceLocalUuid ??= IdGen.uuid();
       _deviceCreatedAtEpoch ??= nowEpoch;
 
-      if (_currentDeviceId != null) {
-        _deviceVersion = (_deviceVersion ?? 1) + 1;
+      final result = await _mutex.runExclusive(() async {
+        final existingDoc = await appwriteService.getDocument(
+          collectionId: AppwriteConfig.devicesCollectionId,
+          documentId: _currentDeviceId!,
+        );
+        int currentRemoteVersion = 0;
+        if (existingDoc != null) {
+          currentRemoteVersion = _asInt(existingDoc.data['version'], fallback: 0);
+        }
+        if (_deviceVersion == null || _deviceVersion! <= currentRemoteVersion) {
+          _deviceVersion = currentRemoteVersion + 1;
+        }
+      });
+      
+      if (result == null) {
+        _logger.warning('Failed to acquire mutex for device registration', tag: 'SYNC');
+      }
 
+      if (_currentDeviceId != null) {
         await appwriteService.updateDocument(
           collectionId: AppwriteConfig.devicesCollectionId,
           documentId: _currentDeviceId!,
@@ -180,7 +199,7 @@ class AppwriteSyncManager {
             'deviceModel': finalDeviceModel,
             'osVersion': finalOsVersion,
             'deviceType': deviceType,
-            'status': 'active',
+            'status': DeviceStatus.active.value,
             'localUuid': _deviceLocalUuid,
             'lastSeen': nowIso,
             'lastActive': nowEpoch,
@@ -204,7 +223,7 @@ class AppwriteSyncManager {
           'deviceModel': finalDeviceModel,
           'osVersion': finalOsVersion,
           'deviceType': deviceType,
-          'status': 'active',
+          'status': DeviceStatus.active.value,
           'localUuid': _deviceLocalUuid,
           'lastSeen': nowIso,
           'lastActive': nowEpoch,
@@ -281,8 +300,19 @@ class AppwriteSyncManager {
 
   /// تنفيذ المزامنة
   Future<SyncResult> sync() async {
+    if (!await _mutex.acquire()) {
+      _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
+      return SyncResult(
+        status: SyncStatus.failed,
+        errorMessage: 'Sync mutex timeout',
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+    }
+    
     if (_currentStatus == SyncStatus.syncing) {
       _logger.warning('Sync already in progress', tag: 'SYNC');
+      _mutex.release();
       return SyncResult(
         status: SyncStatus.failed,
         errorMessage: 'Sync already in progress',
@@ -323,7 +353,7 @@ class AppwriteSyncManager {
         'deviceId': _currentDeviceId ?? 'unknown',
         'syncType': 'full',
         'startTime': startTime.toIso8601String(),
-        'status': 'in_progress',
+        'status': SyncLogStatus.inProgress.value,
         'action': 'sync_start',
         'details': '{"recordsPushed":0,"recordsPulled":0,"conflicts":0}',
         'timestamp': syncLogCreatedEpoch,
@@ -387,7 +417,7 @@ class AppwriteSyncManager {
           documentId: syncLogId,
           data: {
             'endTime': endTime.toIso8601String(),
-            'status': 'completed',
+            'status': SyncLogStatus.completed.value,
             'action': 'sync_complete',
             'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
             'updatedAt': endEpoch,
@@ -419,7 +449,7 @@ class AppwriteSyncManager {
             collectionId: AppwriteConfig.syncLogsCollectionId,
             documentId: syncLogId,
             data: {
-              'status': 'failed',
+              'status': SyncLogStatus.failed.value,
               'action': 'sync_failed',
               'errorMessage': errorMessage,
               'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
@@ -443,6 +473,7 @@ class AppwriteSyncManager {
 
     _currentStatus = finalStatus;
     _syncController.add(_currentStatus);
+    _mutex.release();
 
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
@@ -488,10 +519,10 @@ class AppwriteSyncManager {
       
       int totalSyncs = syncLogs.length;
       int successfulSyncs = syncLogs.where((log) => 
-        log.data['status'] == 'completed'
+        log.data['status'] == SyncLogStatus.completed.value
       ).length;
       int failedSyncs = syncLogs.where((log) => 
-        log.data['status'] == 'failed'
+        log.data['status'] == SyncLogStatus.failed.value
       ).length;
       
       int totalRecordsPushed = syncLogs.fold<int>(0, (sum, log) => 
@@ -507,7 +538,7 @@ class AppwriteSyncManager {
       Map<String, dynamic>? lastFailed;
       for (final log in syncLogs) {
         final data = Map<String, dynamic>.from(log.data);
-        if ((data['status'] ?? '') == 'failed') {
+        if ((data['status'] ?? '') == SyncLogStatus.failed.value) {
           lastFailed = data;
           break;
         }
@@ -973,6 +1004,13 @@ class AppwriteSyncManager {
     }
   }
 
+  Map<String, dynamic> _addIdempotencyKey(Map<String, dynamic> payload, OutboxData entry) {
+    if (entry.idempotencyKey != null) {
+      payload['_idempotencyKey'] = entry.idempotencyKey;
+    }
+    return payload;
+  }
+
   Future<bool> _processRoomEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
       await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
@@ -984,7 +1022,7 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _roomToRemote(room);
-    await appwriteService.upsertRoom(room.localUuid, payload);
+    await appwriteService.upsertRoom(room.localUuid, _addIdempotencyKey(payload, entry));
     return true;
   }
 
@@ -999,7 +1037,7 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _bookingToRemote(booking);
-    await appwriteService.upsertBooking(booking.localUuid, payload);
+    await appwriteService.upsertBooking(booking.localUuid, _addIdempotencyKey(payload, entry));
     return true;
   }
 
@@ -1014,7 +1052,7 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _expenseToRemote(expense);
-    await appwriteService.upsertExpense(expense.localUuid, payload);
+    await appwriteService.upsertExpense(expense.localUuid, _addIdempotencyKey(payload, entry));
     return true;
   }
 
@@ -1029,7 +1067,7 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _paymentToRemote(payment);
-    await appwriteService.upsertPayment(payment.localUuid, payload);
+    await appwriteService.upsertPayment(payment.localUuid, _addIdempotencyKey(payload, entry));
     return true;
   }
 
@@ -1044,7 +1082,7 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _debtToRemote(debt);
-    await appwriteService.upsertDebt(debt.localUuid, payload);
+    await appwriteService.upsertDebt(debt.localUuid, _addIdempotencyKey(payload, entry));
     return true;
   }
 

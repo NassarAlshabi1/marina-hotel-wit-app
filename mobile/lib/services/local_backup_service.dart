@@ -339,7 +339,10 @@ class LocalBackupService {
             final content = await file.readAsString();
             final jsonData = jsonDecode(content) as Map<String, dynamic>;
             if (jsonData.containsKey('metadata')) {
-              metadata = BackupMetadata.fromJson(jsonData['metadata']);
+              final metadataSource = jsonData['metadata'];
+              if (metadataSource is Map) {
+                metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
+              }
             }
           } else {
             final metadataFile = File(_metadataFilePath(file.path));
@@ -409,7 +412,11 @@ class LocalBackupService {
       throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
     }
 
-    final metadata = BackupMetadata.fromJson(backupData['metadata']);
+    final metadataSource = backupData['metadata'];
+    if (metadataSource is! Map) {
+      throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
+    }
+    final metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
     if (metadata.databaseVersion > AppDatabase().schemaVersion) {
       throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
     }
@@ -417,14 +424,19 @@ class LocalBackupService {
     debugPrint('🔄 بدء استعادة البيانات من نسخة JSON...');
     final db = getDatabase();
 
-    await db.delete(db.rooms).go();
-    await db.delete(db.bookings).go();
-    await db.delete(db.bookingNotes).go();
-    await db.delete(db.employees).go();
-    await db.delete(db.expenses).go();
-    await db.delete(db.cashTransactions).go();
-    await db.delete(db.payments).go();
-    await db.delete(db.syncState).go();
+    await db.customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      await db.delete(db.rooms).go();
+      await db.delete(db.bookings).go();
+      await db.delete(db.bookingNotes).go();
+      await db.delete(db.employees).go();
+      await db.delete(db.expenses).go();
+      await db.delete(db.cashTransactions).go();
+      await db.delete(db.payments).go();
+      await db.delete(db.syncState).go();
+    } finally {
+      await db.customStatement('PRAGMA foreign_keys = ON');
+    }
 
     Future<void> insertList<T>(String key, Future<void> Function(Map<String, dynamic> json) insert) async {
       if (!backupData.containsKey(key)) {

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/debug_logs.dart';
 import '../utils/time.dart';
 import 'google_drive_logger.dart';
+import 'logging/log_models.dart';
 
 enum ConflictResolutionStrategy {
   newerWins,
@@ -109,7 +110,7 @@ class GoogleDriveConflictResolver {
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('ConflictResolver', message);
     debugPrint('[ConflictResolver] $message');
-    _logger?.log(level, message, tag: 'CONFLICT');
+    _logger?.log(message, level: level, tag: 'CONFLICT');
   }
 
   void initialize(GoogleDriveLogger? logger) {
@@ -442,10 +443,13 @@ class GoogleDriveConflictResolver {
   Future<Map<String, dynamic>> getConflictStatistics() async {
     final history = await getConflictHistory(limit: 100);
     
-    final stats = {
+    final byTable = <String, int>{};
+    final byStrategy = <String, int>{};
+
+    final Map<String, dynamic> stats = {
       'total_conflicts': history.length,
-      'by_table': <String, int>{},
-      'by_strategy': <String, int>{},
+      'by_table': byTable,
+      'by_strategy': byStrategy,
       'avg_time_diff_seconds': 0.0,
       'manual_reviews_needed': 0,
     };
@@ -455,12 +459,12 @@ class GoogleDriveConflictResolver {
     for (final entry in history) {
       final table = entry['table'] as String?;
       if (table != null) {
-        stats['by_table']![table] = (stats['by_table']![table] ?? 0) + 1;
+        byTable[table] = (byTable[table] ?? 0) + 1;
       }
-      
+
       final strategy = entry['strategy'] as String?;
       if (strategy != null) {
-        stats['by_strategy']![strategy] = (stats['by_strategy']![strategy] ?? 0) + 1;
+        byStrategy[strategy] = (byStrategy[strategy] ?? 0) + 1;
       }
       
       final timeDiff = entry['time_diff_seconds'] as int? ?? 0;

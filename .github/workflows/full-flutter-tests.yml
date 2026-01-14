@@ -11,13 +11,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      sqlite:
-        image: nouchka/sqlite3
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="exit 0"
+    # Removed sqlite service: SQLite is file-based and does not require a network service container.
 
     steps:
       - name: Checkout code
@@ -26,7 +20,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: stable
+          channel: stable
+          cache: true
 
       - name: Enable Flutter integration tests
         run: flutter config --enable-web

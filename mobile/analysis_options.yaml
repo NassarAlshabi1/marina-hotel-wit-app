@@ -10,6 +10,9 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  exclude:
+    - lib/services/repositories/automated_repositories_examples.dart
+    - lib/services/repositories/bookings_repository_unified_example.dart
   errors:
     deprecated_member_use: ignore
     prefer_const_constructors: ignore

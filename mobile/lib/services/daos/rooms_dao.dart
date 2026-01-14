@@ -38,59 +38,95 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin {
   Stream<Room?> watchByNumber(String roomNumber) => (select(rooms)..where((t) => t.roomNumber.equals(roomNumber))).watchSingleOrNull();
 
   Future<String> insertOne(RoomsCompanion data, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
-    final comp = data.copyWith(
-      localUuid: Value(uu),
-      createdAt: Value(now),
-      updatedAt: Value(now),
-      lastModified: Value(now),
-      origin: Value(originIsServer ? 'server' : 'local'),
-    );
-    await into(rooms).insert(comp);
-    if (!originIsServer) {
-      await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: uu, serverId: null, payload: _payloadFromRoom(comp), clientTs: now);
-    }
-    return comp.roomNumber.value;
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+      final comp = data.copyWith(
+        localUuid: Value(uu),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        origin: Value(originIsServer ? 'server' : 'local'),
+      );
+      await into(rooms).insert(comp);
+      if (!originIsServer) {
+        await outboxDao.merge(
+          entity: 'rooms',
+          op: 'create',
+          localUuid: uu,
+          serverId: null,
+          payload: _payloadFromRoom(comp),
+          clientTs: now,
+        );
+      }
+      return comp.roomNumber.value;
+    });
   }
 
   Future<int> updateById(int id, RoomsCompanion data, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final existing = await getById(id);
-    if (existing == null) return 0;
-    final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
-    final rows = await (update(rooms)..where((t) => t.id.equals(id))).write(comp);
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'rooms', op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, payload: _payloadFromRoom(comp, base: existing), clientTs: now);
-    }
-    return rows;
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) return 0;
+      final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
+      final rows = await (update(rooms)..where((t) => t.id.equals(id))).write(comp);
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'rooms',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: _payloadFromRoom(comp, base: existing),
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Future<int> updateByNumber(String roomNumber, RoomsCompanion data, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final existing = await getByNumber(roomNumber);
-    if (existing == null) return 0;
-    final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
-    final rows = await (update(rooms)..where((t) => t.roomNumber.equals(roomNumber))).write(comp);
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'rooms', op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, payload: _payloadFromRoom(comp, base: existing), clientTs: now);
-    }
-    return rows;
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getByNumber(roomNumber);
+      if (existing == null) return 0;
+      final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
+      final rows = await (update(rooms)..where((t) => t.roomNumber.equals(roomNumber))).write(comp);
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'rooms',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: _payloadFromRoom(comp, base: existing),
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Future<int> softDelete(String roomNumber, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final existing = await getByNumber(roomNumber);
-    if (existing == null) return 0;
-    final rows = await (update(rooms)..where((t) => t.roomNumber.equals(roomNumber))).write(RoomsCompanion(
-      deletedAt: Value(now),
-      updatedAt: Value(now),
-      lastModified: Value(now),
-    ));
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'rooms', op: 'delete', localUuid: existing.localUuid, serverId: existing.serverId, payload: {'room_number': roomNumber}, clientTs: now);
-    }
-    return rows;
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getByNumber(roomNumber);
+      if (existing == null) return 0;
+      final rows = await (update(rooms)..where((t) => t.roomNumber.equals(roomNumber))).write(RoomsCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'rooms',
+          op: 'delete',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: {'room_number': roomNumber},
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Map<String, dynamic> _payloadFromRoom(RoomsCompanion comp, {Room? base}) {

@@ -143,8 +143,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
     final description = TextEditingController(text: existing?.description ?? '');
-    final amount = TextEditingController(text: existing?.amount.toString() ?? '');
-    final date = TextEditingController(text: existing?.date ?? Time.nowDateString());
+    final amount = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.amount) : '');
+    final date = TextEditingController(text: existing?.date ?? Time.hotelDayKey());
 
     String dialogSalaryAction = _salaryWithdrawAction;
     selectedType = existing?.expenseType ?? 'اخرى';
@@ -178,7 +178,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     TextField(
                       controller: amount,
                       decoration: const InputDecoration(labelText: 'المبلغ'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -211,6 +211,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       if (availableEmployees.isEmpty)
                         const Text('لا يوجد موظفين مسجلين حالياً.'),
                       if (availableEmployees.isNotEmpty) ...[
+                        DropdownButtonFormField<int>(
+                          value: selectedEmployeeId,
+                          decoration: const InputDecoration(labelText: 'اسم الموظف'),
+                          items: availableEmployees
+                              .map((employee) => DropdownMenuItem<int>(
+                                    value: employee.id,
+                                    child: Text(employee.name),
+                                  ))
+                              .toList(),
+                          onChanged: (value) => setState(() => selectedEmployeeId = value),
+                        ),
+                        const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           value: dialogSalaryAction,
                           decoration: const InputDecoration(labelText: 'نوع المعاملة'),
@@ -227,20 +239,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             setState(() => dialogSalaryAction = value);
                           },
                         ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<int>(
-                          value: selectedEmployeeId,
-                          decoration: const InputDecoration(labelText: 'الموظف'),
-                          items: availableEmployees
-                              .map((employee) => DropdownMenuItem<int>(
-                                    value: employee.id,
-                                    child: Text(employee.name),
-                                  ))
-                              .toList(),
-                          onChanged: (value) => setState(() => selectedEmployeeId = value),
-                        ),
                       ],
                     ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: amount,
+                      decoration: const InputDecoration(labelText: 'المبلغ'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: description,
+                      decoration: const InputDecoration(labelText: 'الوصف'),
+                    ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: date,
@@ -283,9 +294,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     final repo = ref.read(expensesRepoProvider);
     final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
-    final parsedAmount = double.tryParse(amount.text.replaceAll(',', '').trim()) ?? 0;
+    final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedDate = date.text.trim().isEmpty ? Time.nowDateString() : date.text.trim();
+    final trimmedDate = date.text.trim().isEmpty ? Time.hotelDayKey() : date.text.trim();
     final isSalaryExpense = selectedType == _salaryType;
     final savedType = isSalaryExpense
         ? _deriveSalaryExpenseType(dialogSalaryAction)

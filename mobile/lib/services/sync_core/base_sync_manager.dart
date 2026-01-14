@@ -10,6 +10,7 @@ import '../google_drive_delta_sync.dart';
 import '../sync_notification_manager.dart';
 import '../sync_performance_optimizer.dart';
 import '../data_usage_manager.dart';
+import '../sync_locks.dart';
 
 import 'sync_scheduler.dart';
 import 'conflict_resolver.dart';
@@ -134,9 +135,15 @@ abstract class BaseSyncManager {
 
   /// تنفيذ مزامنة واحدة - المنطق الأساسي
   Future<void> _performSync() async {
-    if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
-      return;
-    }
+    final canStart = await SyncLocks.baseSyncLock.synchronized(() async {
+      if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+    
+    if (!canStart) return;
     
     final optimizer = SyncPerformanceOptimizer.instance;
     
@@ -151,7 +158,6 @@ abstract class BaseSyncManager {
       return;
     }
     
-    _isSyncing = true;
     _metrics.startSync();
     
     try {
@@ -164,7 +170,9 @@ abstract class BaseSyncManager {
       debugPrintStack(stackTrace: stack);
       rethrow;
     } finally {
-      _isSyncing = false;
+      await SyncLocks.baseSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
 

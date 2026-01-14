@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
 import '../utils/time.dart';
+import '../utils/status_utils.dart';
 import 'api_service.dart';
 import 'local_db.dart';
 import 'daos/outbox_dao.dart';
@@ -15,7 +16,10 @@ import 'daos/payments_dao.dart';
 import '../providers/repository_providers.dart';
 import 'sync_performance_optimizer.dart';
 import 'delta_sync_service.dart';
+import 'repositories/rooms_repository.dart';
 import 'package:flutter/material.dart';
+import 'sync_mutex.dart';
+import 'sync_config.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
@@ -41,6 +45,7 @@ class SyncService {
   final PaymentsDao paymentsDao;
   final DeltaSyncService deltaSyncService;
   final SyncPerformanceOptimizer _performanceOptimizer;
+  final SyncMutex _syncMutex = SyncMutex();
 
   final _status = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get statusStream => _status.stream;
@@ -67,10 +72,14 @@ class SyncService {
     _status.close();
   }
 
-  /// تشغيل المزامنة مع تحسين الأداء
+  /// تشغيل المزامنة مع تحسين الأداء وحماية من التشغيل المتزامن
   Future<void> runSync() async {
+    if (!await _syncMutex.acquire(timeout: SyncConfig.syncMutexTimeout)) {
+      debugPrint('⏸️ المزامنة جارية بالفعل، تخطي المحاولة الجديدة');
+      return;
+    }
+    
     try {
-      // التحقق من إمكانية بدء المزامنة
       if (await _performanceOptimizer.shouldSkipSync()) {
         debugPrint('⏭️ تم تخطي المزامنة حسب إعدادات محسن الأداء');
         return;
@@ -81,17 +90,17 @@ class SyncService {
       _status.add(SyncStatus.pulling);
       await _pull();
       
-      // تسجيل مزامنة ناجحة
       _performanceOptimizer.recordSyncAttempt(success: true);
       _status.add(SyncStatus.idle);
       
       debugPrint('✅ تم إنجاز المزامنة بنجاح');
     } catch (e) {
-      // تسجيل مزامنة فاشلة
       _performanceOptimizer.recordSyncAttempt(success: false);
       _status.add(SyncStatus.error);
       debugPrint('❌ فشل في المزامنة: $e');
       rethrow;
+    } finally {
+      _syncMutex.release();
     }
   }
 
@@ -105,10 +114,22 @@ class SyncService {
     final payload = computation.toPayload();
     try {
       final response = await ApiService.I.syncPush(payload).timeout(timeout);
-      if (response['success'] == true) {
-        final results = List<Map<String, dynamic>>.from(response['data']['results']);
+      if (response['success'] != true) {
+        return;
+      }
+
+      final results = List<Map<String, dynamic>>.from(response['data']['results']);
+      await db.transaction(() async {
         var allSucceeded = true;
-        for (var index = 0; index < results.length && index < computation.changes.length; index++) {
+
+        for (var index = 0; index < computation.changes.length; index++) {
+          if (index >= results.length) {
+            allSucceeded = false;
+            final missingChange = computation.changes[index];
+            debugPrint('❌ Missing push result for ${missingChange.entity}/${missingChange.localUuid}');
+            break;
+          }
+
           final result = results[index];
           final change = computation.changes[index];
           if (result['success'] == true) {
@@ -118,19 +139,26 @@ class SyncService {
             debugPrint('❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}');
           }
         }
-        if (allSucceeded) {
-          await deltaSyncService.persistMirror(computation);
-          final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
-          final now = Time.nowEpoch();
-          await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
-            id: const d.Value(1),
-            lastServerTs: d.Value(state?.lastServerTs ?? 0),
-            lastPullTs: d.Value(state?.lastPullTs ?? 0),
-            lastPushTs: d.Value(now),
-            isSyncing: const d.Value(0),
-          ));
+
+        if (!allSucceeded) {
+          throw StateError('Push response contained failures');
         }
-      }
+
+        await deltaSyncService.persistMirror(
+          computation,
+          useExistingTransaction: true,
+        );
+
+        final now = Time.nowEpoch();
+        final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
+        await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
+          id: const d.Value(1),
+          lastServerTs: d.Value(state?.lastServerTs ?? 0),
+          lastPullTs: d.Value(state?.lastPullTs ?? 0),
+          lastPushTs: d.Value(now),
+          isSyncing: const d.Value(0),
+        ));
+      });
     } catch (e) {
       debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
       rethrow;
@@ -138,28 +166,53 @@ class SyncService {
   }
 
   Future<void> _pull() async {
+    final pullSettings = _performanceOptimizer.getCurrentPerformanceSettings();
+    final pullTimeoutSeconds = (() {
+      final custom = pullSettings['pullTimeout'];
+      if (custom is int && custom > 0) {
+        return custom;
+      }
+      final fallback = pullSettings['timeout'];
+      if (fallback is int && fallback > 0) {
+        return fallback;
+      }
+      return 30;
+    })();
+
     final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
     final since = state?.lastServerTs ?? 0;
-    final res = await ApiService.I.syncPull(since);
+    final res = await ApiService.I.syncPull(since).timeout(Duration(seconds: pullTimeoutSeconds));
     if (res['success'] != true) return;
     final data = List<Map<String, dynamic>>.from(res['data']['data']);
-    int maxTs = since;
-    for (final it in data) {
-      final entity = it['entity'] as String;
-      final op = it['op'] as String;
-      final serverId = it['server_id'];
-      final serverTs = (it['server_ts'] as num).toInt();
-      final item = Map<String, dynamic>.from(it['data']);
-      await _applyIncoming(entity, op, serverId, serverTs, item);
-      if (serverTs > maxTs) maxTs = serverTs;
-    }
-    final now = Time.nowEpoch();
-    await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
-      id: const d.Value(1),
-      lastServerTs: d.Value(maxTs),
-      lastPullTs: d.Value(now),
-      isSyncing: const d.Value(0),
-    ));
+    
+    await db.transaction(() async {
+      int maxTs = since;
+      for (final it in data) {
+        final entity = it['entity'] as String;
+        final op = it['op'] as String;
+        final serverId = it['server_id'];
+        final serverTs = (it['server_ts'] as num).toInt();
+        final item = Map<String, dynamic>.from(it['data']);
+        
+        try {
+          await _applyIncoming(entity, op, serverId, serverTs, item);
+          if (serverTs > maxTs) maxTs = serverTs;
+        } catch (e) {
+          debugPrint('❌ Failed to apply incoming change for $entity: $e');
+          rethrow;
+        }
+      }
+      
+      final now = Time.nowEpoch();
+      await (db.into(db.syncState)).insertOnConflictUpdate(SyncStateCompanion(
+        id: const d.Value(1),
+        lastServerTs: d.Value(maxTs),
+        lastPullTs: d.Value(now),
+        isSyncing: const d.Value(0),
+      ));
+    });
+    
+    await RoomsRepository(db).refreshAllRoomOccupancy();
   }
 
   Future<void> _applyServerId(String entity, String localUuid, dynamic serverId) async {
@@ -642,6 +695,7 @@ class SyncService {
       await (db.update(db.hotelDayLedger)..where((t) => t.id.equals(existing.id))).write(companion);
     }
   }
+
 }
 
 int? _asInt(dynamic value) {
@@ -675,6 +729,22 @@ bool? _asBool(dynamic value) {
 String? _asString(dynamic value) {
   if (value == null) return null;
   return value.toString();
+}
+
+DateTime? _parseTimestamp(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  if (value is int) {
+    const int millisecondsThreshold = 1000000000000;
+    if (value > millisecondsThreshold) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+  }
+  if (value is String) {
+    return DateTime.tryParse(value);
+  }
+  return null;
 }
 
 int _normalizeTimestampField(dynamic value, {int? fallback}) {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -325,6 +326,7 @@ class Outbox extends Table {
   IntColumn get clientTs => integer()();
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
+  TextColumn get idempotencyKey => text().nullable()();
 }
 
 class SyncState extends Table {
@@ -419,10 +421,13 @@ class AppDatabase extends _$AppDatabase {
   static AppDatabase forTesting(QueryExecutor executor) => AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        beforeOpen: (details) async {
+          await customStatement('PRAGMA foreign_keys = ON');
+        },
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(bookings, bookings.guestIdType);
@@ -547,6 +552,9 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(salaryCycles);
             await m.createTable(salaryPayments);
           }
+          if (from < 17) {
+            await m.addColumn(outbox, outbox.idempotencyKey);
+          }
         },
       );
 
@@ -592,62 +600,60 @@ class AppDatabase extends _$AppDatabase {
 
   /// تطبيق البيانات المدمجة على قاعدة البيانات المحلية داخل معاملة واحدة
   Future<void> applyMergedData(Map<String, dynamic> merged) async {
+    if (merged.isEmpty) {
+      developer.log(
+        'applyMergedData: merged snapshot is empty. Skipping apply to avoid wiping local data.',
+        name: 'AppDatabase',
+        level: 900,
+      );
+      return;
+    }
+
+    List<Map<String, dynamic>>? asListIfPresent(String key) {
+      if (!merged.containsKey(key)) {
+        return null;
+      }
+      final value = merged[key];
+      if (value == null) {
+        return <Map<String, dynamic>>[];
+      }
+      if (value is! List) {
+        throw StateError('Invalid snapshot table type for $key: ${value.runtimeType}');
+      }
+      return value.map((row) => Map<String, dynamic>.from(row as Map)).toList();
+    }
+
     await transaction(() async {
-      Future<void> replaceTable<T extends Insertable<dynamic>>(TableInfo<Table, dynamic> table, List<T> rows) async {
-        await delete(table).go();
-        if (rows.isEmpty) {
+      Future<void> replaceTableIfNonEmpty<T extends Insertable<dynamic>>(
+        TableInfo<Table, dynamic> table,
+        String key,
+        T Function(Map<String, dynamic> json) fromJson,
+      ) async {
+        final rows = asListIfPresent(key);
+        if (rows == null) {
           return;
         }
+        await delete(table).go();
         await batch((batch) {
-          batch.insertAll(table, rows, mode: InsertMode.insertOrReplace);
+          batch.insertAll(table, rows.map(fromJson).toList(), mode: InsertMode.insertOrReplace);
         });
       }
 
-      List<Map<String, dynamic>> asList(String key) {
-        return (merged[key] as List<dynamic>? ?? [])
-            .map((row) => Map<String, dynamic>.from(row as Map))
-            .toList();
-      }
-
-      await replaceTable<Room>(rooms, asList('rooms').map((row) => Room.fromJson(row)).toList());
-      await replaceTable<Booking>(bookings, asList('bookings').map((row) => Booking.fromJson(row)).toList());
-      await replaceTable<BookingNote>(bookingNotes, asList('booking_notes').map((row) => BookingNote.fromJson(row)).toList());
-      await replaceTable<Employee>(employees, asList('employees').map((row) => Employee.fromJson(row)).toList());
-      await replaceTable<Expense>(expenses, asList('expenses').map((row) => Expense.fromJson(row)).toList());
-      await replaceTable<CashTransaction>(
-        cashTransactions,
-        asList('cash_transactions').map((row) => CashTransaction.fromJson(row)).toList(),
-      );
-      await replaceTable<Payment>(payments, asList('payments').map((row) => Payment.fromJson(row)).toList());
-      await replaceTable<Debt>(debts, asList('debts').map((row) => Debt.fromJson(row)).toList());
-      await replaceTable<BookingNight>(
-        bookingNights,
-        asList('booking_nights').map((row) => BookingNight.fromJson(row)).toList(),
-      );
-      await replaceTable<HotelDayLedgerEntry>(
-        hotelDayLedger,
-        asList('hotel_day_ledger').map((row) => HotelDayLedgerEntry.fromJson(row)).toList(),
-      );
-      await replaceTable<AutoFixRun>(
-        autoFixRuns,
-        asList('auto_fix_runs').map((row) => AutoFixRun.fromJson(row)).toList(),
-      );
-      await replaceTable<IntegrityViolation>(
-        integrityViolations,
-        asList('integrity_violations').map((row) => IntegrityViolation.fromJson(row)).toList(),
-      );
-      await replaceTable<AppSession>(
-        appSessions,
-        asList('app_sessions').map((row) => AppSession.fromJson(row)).toList(),
-      );
-      await replaceTable<SalaryCycle>(
-        salaryCycles,
-        asList('salary_cycles').map((row) => SalaryCycle.fromJson(row)).toList(),
-      );
-      await replaceTable<SalaryPayment>(
-        salaryPayments,
-        asList('salary_payments').map((row) => SalaryPayment.fromJson(row)).toList(),
-      );
+      await replaceTableIfNonEmpty<Room>(rooms, 'rooms', (row) => Room.fromJson(row));
+      await replaceTableIfNonEmpty<Booking>(bookings, 'bookings', (row) => Booking.fromJson(row));
+      await replaceTableIfNonEmpty<BookingNote>(bookingNotes, 'booking_notes', (row) => BookingNote.fromJson(row));
+      await replaceTableIfNonEmpty<Employee>(employees, 'employees', (row) => Employee.fromJson(row));
+      await replaceTableIfNonEmpty<Expense>(expenses, 'expenses', (row) => Expense.fromJson(row));
+      await replaceTableIfNonEmpty<CashTransaction>(cashTransactions, 'cash_transactions', (row) => CashTransaction.fromJson(row));
+      await replaceTableIfNonEmpty<Payment>(payments, 'payments', (row) => Payment.fromJson(row));
+      await replaceTableIfNonEmpty<Debt>(debts, 'debts', (row) => Debt.fromJson(row));
+      await replaceTableIfNonEmpty<BookingNight>(bookingNights, 'booking_nights', (row) => BookingNight.fromJson(row));
+      await replaceTableIfNonEmpty<HotelDayLedgerEntry>(hotelDayLedger, 'hotel_day_ledger', (row) => HotelDayLedgerEntry.fromJson(row));
+      await replaceTableIfNonEmpty<AutoFixRun>(autoFixRuns, 'auto_fix_runs', (row) => AutoFixRun.fromJson(row));
+      await replaceTableIfNonEmpty<IntegrityViolation>(integrityViolations, 'integrity_violations', (row) => IntegrityViolation.fromJson(row));
+      await replaceTableIfNonEmpty<AppSession>(appSessions, 'app_sessions', (row) => AppSession.fromJson(row));
+      await replaceTableIfNonEmpty<SalaryCycle>(salaryCycles, 'salary_cycles', (row) => SalaryCycle.fromJson(row));
+      await replaceTableIfNonEmpty<SalaryPayment>(salaryPayments, 'salary_payments', (row) => SalaryPayment.fromJson(row));
     });
   }
 }

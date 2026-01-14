@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart' as sqflite;
 
 import 'local_db.dart';
+import 'sync_constants.dart';
 
 class SyncSafetySnapshot {
   SyncSafetySnapshot({
@@ -52,6 +54,22 @@ class SyncSafetyLayer {
     final file = File(p.join(dir.path, fileName));
 
     final tables = await db.getAllTablesAsJson();
+
+    try {
+      final dbPath = await _getDatabasePath();
+      if (dbPath != null) {
+        final dbBackupPath = p.join(
+          dir.path,
+          'db_${syncId.replaceAll(':', '_')}_${phase}_${timestamp.microsecondsSinceEpoch}.sqlite',
+        );
+        await File(dbPath).copy(dbBackupPath);
+        tables['sqliteBackupPath'] = dbBackupPath;
+        debugPrint('✅ تم نسخ ملف SQLite إلى: $dbBackupPath');
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في نسخ ملف SQLite: $e');
+    }
+
     final payload = <String, dynamic>{
       'syncId': syncId,
       'phase': phase,
@@ -117,7 +135,7 @@ class SyncSafetyLayer {
     await _cleanupSnapshot(snapshot);
   }
 
-  Future<void> rollbackSnapshot({
+  Future<bool> rollbackSnapshot({
     required AppDatabase db,
     required SyncSafetySnapshot snapshot,
     required Object error,
@@ -125,34 +143,50 @@ class SyncSafetyLayer {
     final file = File(snapshot.filePath);
     final rollbackAt = DateTime.now().toUtc();
 
-    if (await file.exists()) {
-      try {
-        final content = await file.readAsString();
-        final decoded = jsonDecode(content) as Map<String, dynamic>;
-        final tables = Map<String, dynamic>.from(decoded['tables'] as Map);
-        await db.applyMergedData(tables);
-      } catch (rollbackError, stack) {
-        debugPrint('❌ CRITICAL: Failed to rollback snapshot ${snapshot.filePath}. Error: $rollbackError');
-        await _appendLog({
-          'event': 'rollback-error',
-          'syncId': snapshot.syncId,
-          'phase': snapshot.phase,
-          'timestamp': rollbackAt.toIso8601String(),
-          'error': rollbackError.toString(),
-          'stack': stack.toString(),
-        });
-      }
+    if (!await file.exists()) {
+      debugPrint('❌ ملف النسخة الاحتياطية غير موجود: ${snapshot.filePath}');
+      _activeSnapshots.remove(snapshot.key);
+      return false;
     }
 
-    await _appendLog({
-      'event': 'rollback',
-      'syncId': snapshot.syncId,
-      'phase': snapshot.phase,
-      'timestamp': rollbackAt.toIso8601String(),
-      'error': error.toString(),
-    });
+    try {
+      final content = await file.readAsString();
+      final decoded = jsonDecode(content) as Map<String, dynamic>;
+      final tables = Map<String, dynamic>.from(decoded['tables'] as Map);
 
-    _activeSnapshots.remove(snapshot.key);
+      await db.transaction(() async {
+        await _clearAllTables(db);
+
+        for (final tableName in SyncConstants.allTablesInOrder) {
+          if (tables.containsKey(tableName)) {
+            await _restoreTable(db, tableName, tables[tableName]);
+          }
+        }
+      });
+
+      await _appendLog({
+        'event': 'rollback-success',
+        'syncId': snapshot.syncId,
+        'phase': snapshot.phase,
+        'timestamp': rollbackAt.toIso8601String(),
+      });
+
+      debugPrint('✅ تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية');
+      _activeSnapshots.remove(snapshot.key);
+      return true;
+    } catch (rollbackError, stack) {
+      debugPrint('❌ CRITICAL: Rollback failed - attempting SQLite file restore');
+      await _appendLog({
+        'event': 'rollback-error',
+        'syncId': snapshot.syncId,
+        'phase': snapshot.phase,
+        'timestamp': rollbackAt.toIso8601String(),
+        'error': rollbackError.toString(),
+        'stack': stack.toString(),
+      });
+
+      return await _attemptFileRestore(db, file.path);
+    }
   }
 
   Future<void> _cleanupSnapshot(SyncSafetySnapshot snapshot) async {
@@ -212,5 +246,110 @@ class SyncSafetyLayer {
       ')',
     );
     _auditTableEnsured = true;
+  }
+
+  Future<void> _clearAllTables(AppDatabase db) async {
+    await db.customStatement('PRAGMA foreign_keys = OFF');
+    
+    try {
+      for (final table in SyncConstants.allTablesInReverseOrder) {
+        try {
+          await db.customStatement('DELETE FROM $table');
+        } on Exception catch (e) {
+          if (e.toString().contains('no such table')) {
+            debugPrint('ℹ️ الجدول غير موجود، تخطي الحذف: $table');
+          } else {
+            rethrow;
+          }
+        }
+      }
+    } finally {
+      await db.customStatement('PRAGMA foreign_keys = ON');
+    }
+  }
+
+  Future<void> _restoreTable(
+    AppDatabase db,
+    String tableName,
+    dynamic tableData,
+  ) async {
+    if (tableData == null) return;
+    
+    final rows = (tableData as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+
+    if (rows.isEmpty) return;
+
+    await db.batch((batch) {
+      for (final row in rows) {
+        final columns = row.keys.toList();
+        final values = row.values.toList();
+        final placeholders = List.filled(values.length, '?').join(', ');
+        final columnNames = columns.join(', ');
+
+        batch.customStatement(
+          'INSERT OR REPLACE INTO $tableName ($columnNames) VALUES ($placeholders)',
+          values,
+        );
+      }
+    });
+    debugPrint('✅ تم استعادة ${rows.length} سجل من $tableName');
+  }
+
+  Future<bool> _attemptFileRestore(AppDatabase db, String snapshotPath) async {
+    try {
+      final content = await File(snapshotPath).readAsString();
+      final decoded = jsonDecode(content) as Map<String, dynamic>;
+      final tables = Map<String, dynamic>.from(decoded['tables'] as Map);
+      final sqliteBackupPath = tables['sqliteBackupPath'] as String?;
+
+      if (sqliteBackupPath == null || !await File(sqliteBackupPath).exists()) {
+        debugPrint('❌ لا توجد نسخة احتياطية من ملف SQLite');
+        return false;
+      }
+
+      final dbPath = await _getDatabasePath();
+      if (dbPath == null) {
+        debugPrint('❌ لم يتم العثور على مسار قاعدة البيانات');
+        return false;
+      }
+
+      await DatabaseManager.close();
+      await File(sqliteBackupPath).copy(dbPath);
+      await DatabaseManager.reopen();
+      debugPrint('✅ تم استعادة ملف SQLite بنجاح وإعادة فتح قاعدة البيانات');
+
+      await _appendLog({
+        'event': 'file-restore-success',
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
+        'source': sqliteBackupPath,
+        'target': dbPath,
+      });
+
+      return true;
+    } catch (e, stack) {
+      debugPrint('❌ فشلت استعادة ملف SQLite: $e');
+      await _appendLog({
+        'event': 'file-restore-error',
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
+        'error': e.toString(),
+        'stack': stack.toString(),
+      });
+      return false;
+    }
+  }
+
+  Future<String?> _getDatabasePath() async {
+    try {
+      final dbDir = await sqflite.getDatabasesPath();
+      final dbPath = p.join(dbDir, 'marina_hotel.db');
+      if (await File(dbPath).exists()) {
+        return dbPath;
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في الحصول على مسار قاعدة البيانات: $e');
+    }
+    return null;
   }
 }

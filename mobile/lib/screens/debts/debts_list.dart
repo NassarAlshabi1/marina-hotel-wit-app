@@ -4,6 +4,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 import 'create_debt_from_booking.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../services/screen_sync_controller.dart';
@@ -141,7 +142,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   const SizedBox(width: 8),
                   Expanded(child: _buildStatCard('معلق', pendingDebts.toString(), Colors.orange)),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildStatCard('القيمة الإجمالية', '${totalAmount.toStringAsFixed(0)}', Colors.red)),
+                  Expanded(child: _buildStatCard('القيمة الإجمالية', CurrencyFormatter.formatAmount(totalAmount), Colors.red)),
                 ],
               ),
             );
@@ -334,8 +335,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('إجمالي المبلغ', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                      Text('${debt.totalAmount.toStringAsFixed(0)}', 
-                           style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(CurrencyFormatter.formatAmount(debt.totalAmount),
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -344,8 +345,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('المدفوع', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                      Text('${debt.paidAmount.toStringAsFixed(0)}', 
-                           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+                      Text(CurrencyFormatter.formatAmount(debt.paidAmount),
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700)),
                     ],
                   ),
                 ),
@@ -354,8 +355,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('المتبقي', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                      Text('${debt.remainingAmount.toStringAsFixed(0)}', 
-                           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700)),
+                      Text(CurrencyFormatter.formatAmount(debt.remainingAmount),
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700)),
                     ],
                   ),
                 ),
@@ -595,19 +596,19 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     final guestNameCtrl = TextEditingController(text: existing?.guestName ?? '');
     final checkinCtrl = TextEditingController(text: Time.safeIsoToDateString(existing?.checkinDate));
     final checkoutCtrl = TextEditingController(text: Time.safeIsoToDateString(existing?.checkoutDate));
-    final totalCtrl = TextEditingController(text: existing != null ? existing.totalAmount.toStringAsFixed(0) : '0');
-    final paidCtrl = TextEditingController(text: existing != null ? existing.paidAmount.toStringAsFixed(0) : '0');
-    final remainingCtrl = TextEditingController(text: existing != null ? existing.remainingAmount.toStringAsFixed(0) : '0');
+    final totalCtrl = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.totalAmount) : '0');
+    final paidCtrl = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.paidAmount) : '0');
+    final remainingCtrl = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.remainingAmount) : '0');
     final debtReasonCtrl = TextEditingController(text: existing?.debtReason ?? 'عدم سداد قيمة أيام إضافية');
     final pledgeCtrl = TextEditingController(text: existing?.pledge ?? '');
     final pledgeTypeCtrl = TextEditingController(text: existing?.pledgeType ?? '');
     final noteCtrl = TextEditingController(text: existing?.note ?? '');
 
     void recalculate() {
-      final total = double.tryParse(totalCtrl.text.replaceAll(',', '')) ?? 0;
-      final paid = double.tryParse(paidCtrl.text.replaceAll(',', '')) ?? 0;
-      final remaining = (total - paid).clamp(0, double.infinity);
-      remainingCtrl.text = remaining.toStringAsFixed(0);
+      final total = CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
+      final paid = CurrencyFormatter.parseAmount(paidCtrl.text) ?? 0;
+      final remaining = (total - paid).clamp(0.0, double.infinity).toDouble();
+      remainingCtrl.text = CurrencyFormatter.formatAmount(remaining);
     }
 
     totalCtrl.addListener(recalculate);
@@ -772,8 +773,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
     final checkinDate = checkinCtrl.text.trim().isEmpty ? Time.nowDateString() : checkinCtrl.text.trim();
     final checkoutDate = checkoutCtrl.text.trim().isEmpty ? Time.nowDateString() : checkoutCtrl.text.trim();
-    final totalAmount = double.tryParse(totalCtrl.text.replaceAll(',', '')) ?? 0;
-    final paidAmount = double.tryParse(paidCtrl.text.replaceAll(',', '')) ?? 0;
+    final totalAmount = CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
+    final paidAmount = CurrencyFormatter.parseAmount(paidCtrl.text) ?? 0;
     final debtReason = debtReasonCtrl.text.trim();
     final pledge = pledgeCtrl.text.trim().isEmpty ? null : pledgeCtrl.text.trim();
     final pledgeType = pledgeTypeCtrl.text.trim().isEmpty ? null : pledgeTypeCtrl.text.trim();

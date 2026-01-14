@@ -1,25 +1,57 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../data/sync_models.dart';
+import 'daos/outbox_dao.dart';
+import 'delta_sync_service.dart';
 import 'google_drive_sync_service.dart';
 import 'local_db.dart';
 import 'sync_safety_layer.dart';
+import 'sync_mutex.dart';
+import 'sync_enums.dart';
+import 'sync_config.dart';
+import 'conflict_resolver.dart';
+import 'vector_clock.dart';
 
 /// واجهة اختيارية لإرسال إشعارات FCM عند اكتمال الرفع
 abstract class SyncTriggerDispatcher {
   Future<void> sendTrigger({required String syncId, required String sourceDeviceId});
 }
 
+class _SyncJob {
+  _SyncJob(this.work) : completer = Completer<void>();
+
+  final Future<void> Function() work;
+  final Completer<void> completer;
+}
+
 /// مدير المزامنة الرئيسي المسؤول عن دمج البيانات ورفعها إلى Google Drive
 class SyncManager {
+  static SyncManager? _instance;
+
+  static SyncManager get instance {
+    final instance = _instance;
+    if (instance == null) {
+      throw StateError('SyncManager singleton is not configured');
+    }
+    return instance;
+  }
+
+  static void configureSingleton(SyncManager manager) {
+    _instance ??= manager;
+  }
+
   SyncManager({
     required this.db,
     required this.driveService,
@@ -33,10 +65,29 @@ class SyncManager {
   final SyncAuditDao _auditDao;
   final StreamController<SyncStatus> _statusController;
   final SyncSafetyLayer _safetyLayer = SyncSafetyLayer.instance;
+  final SyncMutex _drainMutex = SyncMutex();
+
+  static const String _prefsLastDriveSyncEpochKey = 'drive_auto_sync_last_epoch';
 
   bool _isInitialized = false;
   bool _isDrainingQueue = false;
   bool _pullInProgress = false;
+
+  final Queue<_SyncJob> _syncJobs = Queue<_SyncJob>();
+  bool _syncWorkerRunning = false;
+
+  void _addSyncJob(_SyncJob job) {
+    if (_syncJobs.length >= SyncConfig.maxQueueSize) {
+      debugPrint('⚠️ طابور المزامنة ممتلئ، حذف أقدم عملية');
+      final dropped = _syncJobs.removeFirst();
+      dropped.completer.completeError(StateError('Sync job dropped due to queue overflow'));
+    }
+    _syncJobs.add(job);
+  }
+
+  StreamSubscription<int>? _outboxWatchSub;
+  Timer? _outboxDebounceTimer;
+
   String? _deviceId;
   int _devicePriority = 100;
   String? _lastUploadedChecksum;
@@ -46,11 +97,19 @@ class SyncManager {
   Stream<SyncStatus> onSyncStatus() => _statusController.stream;
 
   /// تهيئة الخدمة مع خيار التشفير قبل أي مزامنة
-  Future<void> initSyncService({bool enableEncryption = false, String? encryptionKey}) async {
+  Future<void> initSyncService({
+    bool enableEncryption = false,
+    String? encryptionKey,
+    bool allowInteractiveSignIn = true,
+  }) async {
     if (_isInitialized) {
       return;
     }
-    await driveService.init(enableEncryption: enableEncryption, encryptionKey: encryptionKey);
+    await driveService.init(
+      enableEncryption: enableEncryption,
+      encryptionKey: encryptionKey,
+      allowInteractiveSignIn: allowInteractiveSignIn,
+    );
     _deviceId = await _resolveDeviceId();
     await _loadSyncHistory();
     _isInitialized = true;
@@ -79,7 +138,7 @@ class SyncManager {
         payload: drift.Value(payload),
         updatedAt: drift.Value(updatedAt),
         deviceId: drift.Value(deviceId),
-        status: const drift.Value('pending'),
+        status: drift.Value(SyncQueueStatus.pending.value),
         createdAt: drift.Value(nowIso),
       ),
     );
@@ -87,11 +146,114 @@ class SyncManager {
     unawaited(_drainQueue());
   }
 
-  /// تشغيل مزامنة كاملة (رفع ثم سحب)
+  /// تشغيل مزامنة كاملة (رفع ثم سحب) مع حماية من تداخل الطلبات.
   Future<void> syncAllTables({bool force = false}) async {
+    return smartSync(force: force);
+  }
+
+  /// مزامنة ذكية (Upload/Download) مع قفل لمنع تشغيل مزامنتين بالتوازي.
+  /// - يتحقق من الاتصال أولاً
+  /// - يتخطى الرفع إذا كان Outbox فارغاً
+  /// - يتخطى السحب إذا لم يتغير ملف Drive منذ آخر مزامنة ناجحة
+  Future<void> smartSync({bool force = false}) async {
     await _ensureReady();
-    await _drainQueue(force: force);
-    await pullAndMerge(force: force);
+    return _withSyncLock(() async {
+      final online = await _hasConnectivity();
+      if (!online) {
+        _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا يوجد اتصال - تم تخطي المزامنة'));
+        return;
+      }
+
+      final outboxCount = await OutboxDao(db).count();
+      final shouldUpload = force || outboxCount > 0;
+      if (shouldUpload) {
+        await _drainQueue(force: true);
+      }
+
+      final shouldPull = force || await _shouldPullByRemoteModifiedTime();
+      if (shouldPull) {
+        await pullAndMerge(force: force);
+      }
+
+      await _persistLastDriveSyncTime();
+    });
+  }
+
+  /// تشغيل مزامنة تلقائية في الواجهة الأمامية عند تغيّر Outbox مع Debounce.
+  void startOutboxDebouncedSync({Duration debounce = const Duration(seconds: 30)}) {
+    if (_outboxWatchSub != null) {
+      return;
+    }
+    _outboxWatchSub = OutboxDao(db).watchCount().listen((_) {
+      _outboxDebounceTimer?.cancel();
+      _outboxDebounceTimer = Timer(debounce, () {
+        unawaited(smartSync(force: false));
+      });
+    });
+  }
+
+  Future<void> stopOutboxDebouncedSync() async {
+    await _outboxWatchSub?.cancel();
+    _outboxWatchSub = null;
+    _outboxDebounceTimer?.cancel();
+    _outboxDebounceTimer = null;
+  }
+
+  Future<bool> _hasConnectivity() async {
+    final results = await Connectivity().checkConnectivity();
+    return results.any((r) => r != ConnectivityResult.none);
+  }
+
+  Future<bool> _shouldPullByRemoteModifiedTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastEpoch = prefs.getInt(_prefsLastDriveSyncEpochKey);
+    final remoteModified = await driveService.getLatestSnapshotModifiedTime();
+    if (remoteModified == null) {
+      return false;
+    }
+    if (lastEpoch == null) {
+      return true;
+    }
+    return remoteModified.toUtc().millisecondsSinceEpoch > lastEpoch;
+  }
+
+  Future<void> _persistLastDriveSyncTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsLastDriveSyncEpochKey, DateTime.now().toUtc().millisecondsSinceEpoch);
+  }
+
+  Future<void> _withSyncLock(Future<void> Function() work) {
+    final job = _SyncJob(work);
+    _addSyncJob(job);
+    _startSyncWorkerIfNeeded();
+    return job.completer.future;
+  }
+
+  void _startSyncWorkerIfNeeded() {
+    if (_syncWorkerRunning) {
+      return;
+    }
+    _syncWorkerRunning = true;
+    unawaited(_runSyncQueue());
+  }
+
+  Future<void> _runSyncQueue() async {
+    try {
+      while (_syncJobs.isNotEmpty) {
+        final job = _syncJobs.removeFirst();
+        try {
+          await job.work();
+          job.completer.complete();
+        } catch (error, stack) {
+          job.completer.completeError(error, stack);
+        }
+      }
+    } finally {
+      _syncWorkerRunning = false;
+      if (_syncJobs.isNotEmpty) {
+        _startSyncWorkerIfNeeded();
+      }
+    }
   }
 
   /// سحب آخر نسخة من Google Drive ودمجها مع قاعدة البيانات المحلية
@@ -193,6 +355,82 @@ class SyncManager {
     return localChecksum == remote.metadata.checksum;
   }
 
+  /// حساب checksum باستخدام stream لتجنب memory issues
+  Future<String> _computeStreamChecksum() async {
+    final output = AccumulatorSink<Digest>();
+    final input = sha256.startChunkedConversion(output);
+    
+    final tableOrder = [
+      'rooms',
+      'bookings',
+      'booking_notes',
+      'guests',
+      'payments',
+      'employees',
+      'services',
+      'settings',
+      'expenses',
+      'cash_transactions',
+      'debts',
+    ];
+
+    for (final table in tableOrder) {
+      await for (final batch in _streamTableRows(table, batchSize: 100)) {
+        final batchJson = jsonEncode(batch);
+        input.add(utf8.encode(batchJson));
+      }
+    }
+
+    input.close();
+    return output.events.single.toString();
+  }
+
+  /// stream صفوف الجدول على دفعات لتجنب تحميل كل البيانات في الذاكرة
+  Stream<List<Map<String, dynamic>>> _streamTableRows(
+    String table,
+    {int batchSize = 100}
+  ) async* {
+    // Whitelist validation for security
+    const allowedTables = {
+      'rooms',
+      'bookings',
+      'booking_notes',
+      'guests',
+      'payments',
+      'employees',
+      'services',
+      'settings',
+      'expenses',
+      'cash_transactions',
+      'debts',
+    };
+    
+    if (!allowedTables.contains(table)) {
+      debugPrint('⚠️ Invalid table name: $table');
+      return;
+    }
+    
+    int offset = 0;
+    while (true) {
+      try {
+        final batch = await db.customSelect(
+          'SELECT * FROM $table ORDER BY local_uuid LIMIT ? OFFSET ?',
+          variables: [drift.Variable.withInt(batchSize), drift.Variable.withInt(offset)],
+        ).get();
+        
+        if (batch.isEmpty) break;
+        
+        final mappedBatch = batch.map((row) => Map<String, dynamic>.from(row.data)).toList();
+        
+        yield mappedBatch;
+        offset += batchSize;
+      } catch (e) {
+        debugPrint('⚠️ Error streaming table $table at offset $offset: $e');
+        break;
+      }
+    }
+  }
+
   Future<void> _persistSyncHistory(String syncId) async {
     final prefs = await SharedPreferences.getInstance();
     final prefix = await _historyPrefix();
@@ -226,6 +464,10 @@ class SyncManager {
   }
 
   Future<void> _drainQueue({bool force = false}) async {
+    if (!await _drainMutex.acquire()) {
+      debugPrint('⏸️ طابور المزامنة مشغول - تخطي');
+      return;
+    }
     await _ensureReady();
     if (_isDrainingQueue) {
       return;
@@ -253,7 +495,7 @@ class SyncManager {
       final remoteSnapshot = remoteResult?.snapshot ?? _emptySnapshot();
 
       if (!force && remoteResult != null && remoteResult.metadata.lastDeviceId == deviceId && compareChecksum(remoteResult.snapshot, localTables)) {
-        await _markQueueStatus(pending.map((e) => e.id).toList(), 'synced');
+        await _markQueueStatus(pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
         _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'لا توجد تغييرات جديدة للرفع'));
         return;
       }
@@ -274,7 +516,7 @@ class SyncManager {
       );
 
       await db.applyMergedData(mergeResult.mergedSnapshot.tables);
-      await _markQueueStatus(pending.map((e) => e.id).toList(), 'synced');
+      await _markQueueStatus(pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
 
       await _auditDao.insertSyncLog(
         syncId: syncId,
@@ -328,7 +570,7 @@ class SyncManager {
       rethrow;
     } finally {
       _isDrainingQueue = false;
-      _statusController.add(SyncStatus(phase: SyncPhase.idle, message: 'طابور المزامنة فارغ'));
+      _drainMutex.release();
     }
   }
 
@@ -430,27 +672,65 @@ class SyncManager {
               winner = remoteRow;
               operation = 'noop';
             } else {
-              if (_devicePriority >= remotePriority) {
-                winner = localRow;
-                operation = 'conflict-local';
-                conflicts.add(SyncConflictModel(
-                  table: table,
-                  uuid: key,
-                  localPayload: localRow,
-                  remotePayload: remoteRow,
-                  resolution: 'local',
-                ));
-              } else {
-                winner = remoteRow;
-                operation = 'conflict-remote';
-                conflicts.add(SyncConflictModel(
-                  table: table,
-                  uuid: key,
-                  localPayload: localRow,
-                  remotePayload: remoteRow,
-                  resolution: 'remote',
-                ));
-              }
+              final conflictResolver = EnhancedConflictResolver(
+                defaultStrategy: ConflictStrategy.fieldLevel,
+                tableStrategies: {
+                  'bookings': ConflictStrategy.fieldLevel,
+                  'payments': ConflictStrategy.lastWriteWins,
+                  'rooms': ConflictStrategy.fieldLevel,
+                  'expenses': ConflictStrategy.lastWriteWins,
+                  'debts': ConflictStrategy.fieldLevel,
+                  'guests': ConflictStrategy.fieldLevel,
+                  'employees': ConflictStrategy.fieldLevel,
+                  'services': ConflictStrategy.lastWriteWins,
+                },
+              );
+
+              VectorClock? localVectorClock;
+              VectorClock? remoteVectorClock;
+              try {
+                final localVc = localRow['vector_clock'] as String?;
+                final remoteVc = remoteRow['vector_clock'] as String?;
+                if (localVc != null && localVc.isNotEmpty) {
+                  localVectorClock = VectorClock.fromJson(localVc);
+                }
+                if (remoteVc != null && remoteVc.isNotEmpty) {
+                  remoteVectorClock = VectorClock.fromJson(remoteVc);
+                }
+              } catch (_) {}
+
+              final context = ConflictContext(
+                table: table,
+                uuid: key,
+                localData: localRow,
+                remoteData: remoteRow,
+                localVectorClock: localVectorClock,
+                remoteVectorClock: remoteVectorClock,
+                localTimestamp: localUpdatedTs,
+                remoteTimestamp: remoteUpdatedTs,
+                localDeviceId: deviceId,
+                remoteDeviceId: remoteSnapshot.metadata.lastDeviceId,
+                localDevicePriority: _devicePriority,
+                remoteDevicePriority: remotePriority,
+              );
+
+              final resolution = conflictResolver.resolve(context);
+              winner = resolution.mergedData ?? resolution.winner;
+              
+              final isLocalWinner = winner == localRow || 
+                  (resolution.mergedData != null && resolution.strategy == ConflictStrategy.fieldLevel);
+              
+              operation = isLocalWinner ? 'conflict-local' : 'conflict-remote';
+              
+              conflicts.add(SyncConflictModel(
+                table: table,
+                uuid: key,
+                localPayload: localRow,
+                remotePayload: remoteRow,
+                resolution: resolution.needsManualReview ? 'pending' : (isLocalWinner ? 'local-merged' : 'remote'),
+              ));
+
+              debugPrint('🔀 تعارض [$table/$key]: استراتيجية ${resolution.strategy.name}');
             }
           }
         }
@@ -591,5 +871,26 @@ class SyncManager {
       return null;
     }
     return DateTime.tryParse(value)?.toUtc();
+  }
+}
+
+/// A [Sink] that accumulates all data added to it in a list.
+class AccumulatorSink<T> implements Sink<T> {
+  bool _isClosed = false;
+  final List<T> _events = [];
+
+  List<T> get events => List.unmodifiable(_events);
+
+  @override
+  void add(T data) {
+    if (_isClosed) {
+      throw StateError('Cannot add to a closed sink.');
+    }
+    _events.add(data);
+  }
+
+  @override
+  void close() {
+    _isClosed = true;
   }
 }
