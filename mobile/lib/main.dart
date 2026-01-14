@@ -364,7 +364,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
-      unawaited(AppSessionManager.onAppCloseOrBackground());
+      AppSessionManager.onAppCloseOrBackground().catchError((e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'));
     }
   }
 
