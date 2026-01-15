@@ -3,7 +3,7 @@ name: Auto-stub missing symbols
 on:
   pull_request:
   push:
-    branches: ['**']
+    branches: [capy/S]
 
 jobs:
   stub:
