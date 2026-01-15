@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'connectivity_service.dart';
 import 'sync_mutex.dart';
 import 'sync_core/circuit_breaker.dart';
-import 'local_db.dart';
+
 import 'daos/outbox_dao.dart';
 
 enum SyncPriority { critical, high, normal, low, background }
