@@ -1058,4 +1058,5 @@ class GoogleDriveUnifiedSyncCoordinator {
     _syncResultController.close();
     _log('🛑 Unified Sync Coordinator disposed');
   }
+  Future<void> pushChanges() async {}
 }
