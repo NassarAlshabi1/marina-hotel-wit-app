@@ -8,17 +8,17 @@ import '../../models/shift_note_adapter.dart';
 /// يستخدم جدول BookingNotes مع bookingId = -1 للملاحظات العامة
 class ShiftNotesRepository {
   ShiftNotesRepository(this.db) : dao = BookingNotesDao(db, OutboxDao(db));
-  
+
   final AppDatabase db;
   final BookingNotesDao dao;
 
   /// مراقبة جميع الملاحظات العامة
   Stream<List<ShiftNote>> watchAll() {
-    return dao.list(bookingId: ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID)
+    return dao
+        .list(bookingId: ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID)
         .asStream()
-        .map((bookingNotes) => bookingNotes
-            .map(ShiftNoteAdapter.fromBookingNote)
-            .toList());
+        .map((bookingNotes) =>
+            bookingNotes.map(ShiftNoteAdapter.fromBookingNote).toList());
   }
 
   /// جلب جميع الملاحظات العامة النشطة
@@ -48,7 +48,9 @@ class ShiftNotesRepository {
   /// جلب الملاحظات عالية الأولوية
   Future<List<ShiftNote>> listHighPriority() async {
     final allNotes = await listAllActive();
-    return allNotes.where((note) => note.priority == NotePriority.high).toList();
+    return allNotes
+        .where((note) => note.priority == NotePriority.high)
+        .toList();
   }
 
   /// إنشاء ملاحظة جديدة
@@ -59,8 +61,9 @@ class ShiftNotesRepository {
         bookingId: d.Value(ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID),
         noteText: d.Value(data['note_text']),
         alertType: d.Value(data['alert_type']),
-        alertUntil: data['alert_until'] != null ? 
-            d.Value(data['alert_until']) : const d.Value.absent(),
+        alertUntil: data['alert_until'] != null
+            ? d.Value(data['alert_until'])
+            : const d.Value.absent(),
         isActive: d.Value(data['is_active']),
       ),
     );
@@ -77,8 +80,9 @@ class ShiftNotesRepository {
       BookingNotesCompanion(
         noteText: d.Value(data['note_text']),
         alertType: d.Value(data['alert_type']),
-        alertUntil: data['alert_until'] != null ? 
-            d.Value(data['alert_until']) : const d.Value.absent(),
+        alertUntil: data['alert_until'] != null
+            ? d.Value(data['alert_until'])
+            : const d.Value.absent(),
         isActive: d.Value(data['is_active']),
       ),
     );
@@ -128,7 +132,8 @@ class ShiftNotesRepository {
     if (id == null) return null;
 
     final bookingNote = await dao.getById(id);
-    if (bookingNote == null || bookingNote.bookingId != ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID) {
+    if (bookingNote == null ||
+        bookingNote.bookingId != ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID) {
       return null;
     }
 

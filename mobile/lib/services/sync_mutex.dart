@@ -33,17 +33,17 @@ class SyncMutex {
   bool get isLocked => _locked;
   String? get lockHolder => _lockHolder;
   DateTime? get lockAcquiredAt => _lockAcquiredAt;
-  Duration? get lockDuration => _lockAcquiredAt != null 
-      ? DateTime.now().difference(_lockAcquiredAt!) 
+  Duration? get lockDuration => _lockAcquiredAt != null
+      ? DateTime.now().difference(_lockAcquiredAt!)
       : null;
 
   Map<String, dynamic> get stats => {
-    'isLocked': _locked,
-    'lockHolder': _lockHolder,
-    'lockDuration': lockDuration?.inMilliseconds,
-    'totalAcquisitions': _totalAcquisitions,
-    'totalTimeouts': _totalTimeouts,
-  };
+        'isLocked': _locked,
+        'lockHolder': _lockHolder,
+        'lockDuration': lockDuration?.inMilliseconds,
+        'totalAcquisitions': _totalAcquisitions,
+        'totalTimeouts': _totalTimeouts,
+      };
 
   Future<bool> acquire({Duration? timeout, String? holder}) async {
     final response = await acquireWithRetry(
@@ -74,9 +74,10 @@ class SyncMutex {
         _lockHolder = holder;
         _lockAcquiredAt = DateTime.now();
         _totalAcquisitions++;
-        
-        debugPrint('🔒 [Mutex] قفل مكتسب${holder != null ? " بواسطة $holder" : ""} (محاولة $attempts)');
-        
+
+        debugPrint(
+            '🔒 [Mutex] قفل مكتسب${holder != null ? " بواسطة $holder" : ""} (محاولة $attempts)');
+
         return MutexAcquireResponse(
           result: MutexAcquireResult.acquired,
           attempts: attempts,
@@ -87,10 +88,11 @@ class SyncMutex {
       if (attempts < maxRetries) {
         final jitter = Random().nextInt(100);
         final delayWithJitter = currentDelay + Duration(milliseconds: jitter);
-        
-        debugPrint('⏳ [Mutex] انتظار ${delayWithJitter.inMilliseconds}ms قبل المحاولة ${attempts + 1}/$maxRetries');
+
+        debugPrint(
+            '⏳ [Mutex] انتظار ${delayWithJitter.inMilliseconds}ms قبل المحاولة ${attempts + 1}/$maxRetries');
         await Future.delayed(delayWithJitter);
-        
+
         currentDelay = Duration(
           milliseconds: min(
             (currentDelay.inMilliseconds * backoffMultiplier).round(),
@@ -102,7 +104,7 @@ class SyncMutex {
 
     _totalTimeouts++;
     debugPrint('⚠️ [Mutex] فشل الحصول على القفل بعد $attempts محاولات');
-    
+
     return MutexAcquireResponse(
       result: MutexAcquireResult.maxRetriesExceeded,
       attempts: attempts,
@@ -140,13 +142,14 @@ class SyncMutex {
     if (_locked) {
       final holder = _lockHolder;
       final duration = lockDuration;
-      
+
       _locked = false;
       _lockHolder = null;
       _lockAcquiredAt = null;
       _completer!.complete();
-      
-      debugPrint('🔓 [Mutex] قفل محرر${holder != null ? " من $holder" : ""}${duration != null ? " (${duration.inMilliseconds}ms)" : ""}');
+
+      debugPrint(
+          '🔓 [Mutex] قفل محرر${holder != null ? " من $holder" : ""}${duration != null ? " (${duration.inMilliseconds}ms)" : ""}');
     }
   }
 
@@ -209,7 +212,8 @@ class SyncMutex {
 
   void forceRelease() {
     if (_locked) {
-      debugPrint('⚠️ [Mutex] تحرير قسري للقفل${_lockHolder != null ? " من $_lockHolder" : ""}');
+      debugPrint(
+          '⚠️ [Mutex] تحرير قسري للقفل${_lockHolder != null ? " من $_lockHolder" : ""}');
       _locked = false;
       _lockHolder = null;
       _lockAcquiredAt = null;

@@ -181,7 +181,8 @@ class SyncSafetyLayer {
       _activeSnapshots.remove(snapshot.key);
       return true;
     } catch (rollbackError, stack) {
-      debugPrint('❌ CRITICAL: Rollback failed - attempting SQLite file restore');
+      debugPrint(
+          '❌ CRITICAL: Rollback failed - attempting SQLite file restore');
       await _appendLog({
         'event': 'rollback-error',
         'syncId': snapshot.syncId,
@@ -228,7 +229,8 @@ class SyncSafetyLayer {
   Future<void> _appendLog(Map<String, dynamic> payload) async {
     try {
       final file = await _logFile();
-      await file.writeAsString('${jsonEncode(payload)}\n', mode: FileMode.append, flush: true);
+      await file.writeAsString('${jsonEncode(payload)}\n',
+          mode: FileMode.append, flush: true);
     } catch (_) {
       // تجاهل أخطاء السجل حتى لا تؤثر على سير المزامنة
     }
@@ -258,7 +260,7 @@ class SyncSafetyLayer {
     // ملاحظة: FOREIGN KEYS يتم تعطيلها هنا ولكن لا يتم إعادة تشغيلها
     // لأن الاستعادة ستحدث مباشرة بعد الحذف في نفس transaction
     await db.customStatement('PRAGMA foreign_keys = OFF');
-    
+
     for (final table in SyncConstants.allTablesInReverseOrder) {
       try {
         await db.customStatement('DELETE FROM $table');
@@ -278,7 +280,7 @@ class SyncSafetyLayer {
     dynamic tableData,
   ) async {
     if (tableData == null) return;
-    
+
     final rows = (tableData as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList();
@@ -320,15 +322,15 @@ class SyncSafetyLayer {
       }
 
       debugPrint('🔒 إيقاف جميع العمليات وإغلاق القاعدة بشكل آمن...');
-      
+
       await DatabaseManager.closeForRestore();
-      
+
       debugPrint('📋 استبدال ملف قاعدة البيانات...');
       await File(sqliteBackupPath).copy(dbPath);
-      
+
       debugPrint('🔄 إعادة فتح قاعدة البيانات وتشغيل المزامنة...');
       await DatabaseManager.reopenAfterRestore();
-      
+
       debugPrint('✅ تم استعادة ملف SQLite بنجاح');
 
       await _appendLog({
@@ -347,7 +349,7 @@ class SyncSafetyLayer {
         'error': e.toString(),
         'stack': stack.toString(),
       });
-      
+
       // محاولة إعادة الفتح حتى في حالة الفشل
       try {
         debugPrint('🔄 محاولة إعادة فتح القاعدة بعد الفشل...');
@@ -356,7 +358,7 @@ class SyncSafetyLayer {
       } catch (e2) {
         debugPrint('❌ فشلت إعادة الفتح بعد الفشل: $e2');
       }
-      
+
       return false;
     }
   }

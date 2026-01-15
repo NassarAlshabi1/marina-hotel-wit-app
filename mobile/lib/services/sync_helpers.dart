@@ -1,6 +1,5 @@
 import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 import 'appwrite_logger.dart';
@@ -37,7 +36,8 @@ class SyncFieldsHelper {
       final parsedDouble = double.tryParse(value);
       if (parsedDouble != null) return parsedDouble.toInt();
       final parsedDate = DateTime.tryParse(value);
-      if (parsedDate != null) return parsedDate.toUtc().millisecondsSinceEpoch ~/ 1000;
+      if (parsedDate != null)
+        return parsedDate.toUtc().millisecondsSinceEpoch ~/ 1000;
     }
     return fallback ?? Time.nowEpoch();
   }
@@ -106,7 +106,8 @@ class SyncResult {
   bool get hasErrors => errors.isNotEmpty;
 
   @override
-  String toString() => 'SyncResult(processed: $processed, skipped: $skipped, failed: $failed)';
+  String toString() =>
+      'SyncResult(processed: $processed, skipped: $skipped, failed: $failed)';
 }
 
 class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
@@ -171,9 +172,9 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
         }
 
         await database.into(table).insert(
-          companion,
-          mode: d.InsertMode.insertOrReplace,
-        );
+              companion,
+              mode: d.InsertMode.insertOrReplace,
+            );
         processed++;
       } catch (e) {
         failed++;
@@ -303,7 +304,8 @@ class SyncProcessorFactory {
   }
 }
 
-RoomsCompanion mapRoom(Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
+RoomsCompanion mapRoom(
+    Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
   final roomNumber = h.asString(data['roomNumber']);
   if (roomNumber == null || roomNumber.isEmpty) {
     throw ArgumentError('roomNumber is required');
@@ -326,7 +328,8 @@ RoomsCompanion mapRoom(Map<String, dynamic> data, String localUuid, SyncFieldsHe
   );
 }
 
-EmployeesCompanion mapEmployee(Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
+EmployeesCompanion mapEmployee(
+    Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
   final name = h.asString(data['name']);
   if (name == null || name.isEmpty) {
     throw ArgumentError('name is required');
@@ -350,7 +353,8 @@ EmployeesCompanion mapEmployee(Map<String, dynamic> data, String localUuid, Sync
   );
 }
 
-ExpensesCompanion mapExpense(Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
+ExpensesCompanion mapExpense(
+    Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
   final expenseType = h.asString(data['expenseType']);
   if (expenseType == null || expenseType.isEmpty) {
     throw ArgumentError('expenseType is required');
@@ -370,7 +374,8 @@ ExpensesCompanion mapExpense(Map<String, dynamic> data, String localUuid, SyncFi
     description: d.Value(h.asStringRequired(data['description'])),
     amount: d.Value(h.asDouble(data['amount'])),
     date: d.Value(h.asStringRequired(data['date'])),
-    cashTransactionId: h.nullableValue(h.asIntNullable(data['cashTransactionId'])),
+    cashTransactionId:
+        h.nullableValue(h.asIntNullable(data['cashTransactionId'])),
   );
 }
 

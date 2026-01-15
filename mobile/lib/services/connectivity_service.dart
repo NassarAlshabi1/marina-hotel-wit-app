@@ -29,7 +29,8 @@ class ConnectionStatus {
         timestamp: DateTime.now(),
       );
 
-  factory ConnectionStatus.fromConnectivityResult(List<ConnectivityResult> results) {
+  factory ConnectionStatus.fromConnectivityResult(
+      List<ConnectivityResult> results) {
     final isOnline = results.any((r) => r != ConnectivityResult.none);
     ConnectionType type = ConnectionType.none;
 
@@ -56,7 +57,8 @@ class ConnectionStatus {
 
   bool get isWifi => type == ConnectionType.wifi;
   bool get isMobile => type == ConnectionType.mobile;
-  bool get isHighSpeed => type == ConnectionType.wifi || type == ConnectionType.ethernet;
+  bool get isHighSpeed =>
+      type == ConnectionType.wifi || type == ConnectionType.ethernet;
 
   @override
   String toString() => 'ConnectionStatus(isOnline: $isOnline, type: $type)';
@@ -64,7 +66,8 @@ class ConnectionStatus {
 
 class ConnectivityService {
   static ConnectivityService? _instance;
-  static ConnectivityService get instance => _instance ??= ConnectivityService._();
+  static ConnectivityService get instance =>
+      _instance ??= ConnectivityService._();
 
   ConnectivityService._();
 

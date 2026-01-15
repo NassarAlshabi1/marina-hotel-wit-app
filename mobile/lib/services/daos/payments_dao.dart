@@ -7,29 +7,45 @@ import 'outbox_dao.dart';
 part 'payments_dao.g.dart';
 
 @DriftAccessor(tables: [Payments])
-class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin {
+class PaymentsDao extends DatabaseAccessor<AppDatabase>
+    with _$PaymentsDaoMixin {
   PaymentsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<Payment>> list({int? bookingLocalId, String? from, String? to, String? revenueType, bool includeDeleted = false}) async {
+  Future<List<Payment>> list(
+      {int? bookingLocalId,
+      String? from,
+      String? to,
+      String? revenueType,
+      bool includeDeleted = false}) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (bookingLocalId != null) q.where((t) => t.bookingLocalId.equals(bookingLocalId));
-    if (revenueType != null && revenueType.isNotEmpty) q.where((t) => t.revenueType.equals(revenueType));
-    if (from != null && to != null) q.where((t) => t.paymentDate.isBiggerOrEqualValue(from) & t.paymentDate.isSmallerOrEqualValue(to));
-    q.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
+    if (bookingLocalId != null)
+      q.where((t) => t.bookingLocalId.equals(bookingLocalId));
+    if (revenueType != null && revenueType.isNotEmpty)
+      q.where((t) => t.revenueType.equals(revenueType));
+    if (from != null && to != null)
+      q.where((t) =>
+          t.paymentDate.isBiggerOrEqualValue(from) &
+          t.paymentDate.isSmallerOrEqualValue(to));
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)
+    ]);
     return q.get();
   }
 
-  Stream<List<Payment>> watchList({int? bookingLocalId, bool includeDeleted = false}) {
+  Stream<List<Payment>> watchList(
+      {int? bookingLocalId, bool includeDeleted = false}) {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (bookingLocalId != null) q.where((t) => t.bookingLocalId.equals(bookingLocalId));
+    if (bookingLocalId != null)
+      q.where((t) => t.bookingLocalId.equals(bookingLocalId));
     return q.watch();
   }
 
   /// جلب المدفوعات لتاريخ محدد
-  Future<List<Payment>> listByDate(String date, {bool includeDeleted = false}) async {
+  Future<List<Payment>> listByDate(String date,
+      {bool includeDeleted = false}) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     q.where((t) => t.paymentDate.like('$date%'));
@@ -61,10 +77,13 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
     return q.get();
   }
 
-  Future<Payment?> getById(int id) => (select(payments)..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<Payment?> watchById(int id) => (select(payments)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<Payment?> getById(int id) =>
+      (select(payments)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<Payment?> watchById(int id) =>
+      (select(payments)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
-  Future<int> insertOne(PaymentsCompanion data, {bool originIsServer = false}) async {
+  Future<int> insertOne(PaymentsCompanion data,
+      {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -74,7 +93,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
-        serverId: data.serverPaymentId.present ? Value(data.serverPaymentId.value) : const Value.absent(),
+        serverId: data.serverPaymentId.present
+            ? Value(data.serverPaymentId.value)
+            : const Value.absent(),
       );
       final id = await into(payments).insert(comp);
       if (!originIsServer) {
@@ -91,13 +112,16 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
     });
   }
 
-  Future<int> updateById(int id, PaymentsCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateById(int id, PaymentsCompanion data,
+      {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
-      final rows = await (update(payments)..where((t) => t.id.equals(id))).write(comp);
+      final comp =
+          data.copyWith(updatedAt: Value(now), lastModified: Value(now));
+      final rows =
+          await (update(payments)..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'payments',
@@ -117,7 +141,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows = await (update(payments)..where((t) => t.id.equals(id))).write(PaymentsCompanion(
+      final rows = await (update(payments)..where((t) => t.id.equals(id)))
+          .write(PaymentsCompanion(
         deletedAt: Value(now),
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -138,18 +163,24 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
 
   Map<String, dynamic> _payloadFrom(PaymentsCompanion comp, {Payment? base}) {
     final m = <String, dynamic>{};
-    if (comp.serverPaymentId.present) m['payment_id'] = comp.serverPaymentId.value;
-    if (comp.bookingLocalId.present) m['booking_local_id'] = comp.bookingLocalId.value;
-    if (comp.serverBookingId.present) m['booking_id'] = comp.serverBookingId.value;
+    if (comp.serverPaymentId.present)
+      m['payment_id'] = comp.serverPaymentId.value;
+    if (comp.bookingLocalId.present)
+      m['booking_local_id'] = comp.bookingLocalId.value;
+    if (comp.serverBookingId.present)
+      m['booking_id'] = comp.serverBookingId.value;
     if (comp.roomNumber.present) m['room_number'] = comp.roomNumber.value;
     if (comp.amount.present) m['amount'] = comp.amount.value;
     if (comp.paymentDate.present) m['payment_date'] = comp.paymentDate.value;
     if (comp.notes.present) m['notes'] = comp.notes.value;
-    if (comp.paymentMethod.present) m['payment_method'] = comp.paymentMethod.value;
+    if (comp.paymentMethod.present)
+      m['payment_method'] = comp.paymentMethod.value;
     if (comp.revenueType.present) m['revenue_type'] = comp.revenueType.value;
     if (comp.hotelDayKey.present) m['hotel_day_key'] = comp.hotelDayKey.value;
-    if (comp.cashTransactionLocalId.present) m['cash_transaction_local_id'] = comp.cashTransactionLocalId.value;
-    if (comp.cashTransactionServerId.present) m['cash_transaction_id'] = comp.cashTransactionServerId.value;
+    if (comp.cashTransactionLocalId.present)
+      m['cash_transaction_local_id'] = comp.cashTransactionLocalId.value;
+    if (comp.cashTransactionServerId.present)
+      m['cash_transaction_id'] = comp.cashTransactionServerId.value;
     return m;
   }
 
@@ -162,7 +193,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
   }
 
   /// استيراد المدفوعات من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+  Future<void> importFromJson(List<Map<String, dynamic>> data,
+      {bool clearExisting = false}) async {
     if (clearExisting) {
       await delete(payments).go();
     }

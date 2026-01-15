@@ -15,22 +15,36 @@ import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
-  '101', '102', '103', '104',
-  '201', '202', '203', '204',
-  '301', '302', '303', '304',
-  '401', '402', '403', '404',
-  '501', '502', '503', '504',
+  '101',
+  '102',
+  '103',
+  '104',
+  '201',
+  '202',
+  '203',
+  '204',
+  '301',
+  '302',
+  '303',
+  '304',
+  '401',
+  '402',
+  '403',
+  '404',
+  '501',
+  '502',
+  '503',
+  '504',
 ];
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
-  
+
   @override
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -38,34 +52,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // Header with sync button
           Row(
-            children: [
-              const Text(
+            children: const [
+              Text(
                 'لوحة التحكم - نظام إدارة الفندق',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const Spacer(),
-              const DashboardSyncButton(),
+              Spacer(),
+              DashboardSyncButton(),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Smart Sync Status Card
           const SmartSyncDashboardCard(),
-          
+
           const SizedBox(height: 16),
-          
+
           // Statistics Cards - بطاقات أصغر مع إحصائيات مفيدة أكثر
           _buildStatisticsCards(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Rooms Status Section
           Consumer(
             builder: (context, ref, _) {
@@ -111,8 +124,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               data: (rooms) {
                 final totalRooms = rooms.length;
-                final occupiedRooms = rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
-                final occupancyRate = totalRooms > 0 ? ((occupiedRooms / totalRooms) * 100).round() : 0;
+                final occupiedRooms = rooms
+                    .where((r) => StatusUtils.isRoomOccupied(r.status))
+                    .length;
+                final occupancyRate = totalRooms > 0
+                    ? ((occupiedRooms / totalRooms) * 100).round()
+                    : 0;
                 return _StatCard(
                   title: 'نسبة الإشغال',
                   value: '$occupancyRate%',
@@ -173,7 +190,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 color: Colors.red,
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
+                  MaterialPageRoute(
+                      builder: (_) => const ExpensesReportScreen()),
                 ),
               ),
             );
@@ -197,7 +215,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 color: Colors.blue,
               ),
               data: (rooms) {
-                final occupiedRooms = rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
+                final occupiedRooms = rooms
+                    .where((r) => StatusUtils.isRoomOccupied(r.status))
+                    .length;
                 return _StatCard(
                   title: 'الغرف المحجوزة',
                   value: occupiedRooms.toString(),
@@ -211,9 +231,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ],
     );
   }
-  
+
   Widget _buildRoomsStatusSection(BuildContext context, List<Room> rooms) {
-    final Map<String, Room> roomsMap = {for (final room in rooms) room.roomNumber: room};
+    final Map<String, Room> roomsMap = {
+      for (final room in rooms) room.roomNumber: room
+    };
 
     return Card(
       child: Padding(
@@ -234,21 +256,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               runSpacing: 8,
               children: _dashboardRoomNumbers.map((roomNumber) {
                 final room = roomsMap[roomNumber];
-                final bool isOccupied = room != null && StatusUtils.isRoomOccupied(room.status);
-                final bool isAvailable = room != null && StatusUtils.isRoomAvailable(room.status);
-                final bool isNewRoom = roomNumber == '503' || roomNumber == '504';
+                final bool isOccupied =
+                    room != null && StatusUtils.isRoomOccupied(room.status);
+                final bool isAvailable =
+                    room != null && StatusUtils.isRoomAvailable(room.status);
+                final bool isNewRoom =
+                    roomNumber == '503' || roomNumber == '504';
                 final Color backgroundColor = isOccupied
                     ? Colors.red.shade600
-                    : (isAvailable 
-                        ? Colors.green.shade600 
-                        : (isNewRoom 
-                            ? Colors.blue.shade400  // لون أزرق للغرف الجديدة
+                    : (isAvailable
+                        ? Colors.green.shade600
+                        : (isNewRoom
+                            ? Colors.blue.shade400 // لون أزرق للغرف الجديدة
                             : Colors.grey.shade500));
-                final bool useDarkText = backgroundColor.computeLuminance() > 0.5;
-                final Color foregroundColor = useDarkText ? Colors.black : Colors.white;
-                final String tooltipText = room != null 
-                    ? room.status 
-                    : (roomNumber == '503' || roomNumber == '504') 
+                final bool useDarkText =
+                    backgroundColor.computeLuminance() > 0.5;
+                final Color foregroundColor =
+                    useDarkText ? Colors.black : Colors.white;
+                final String tooltipText = room != null
+                    ? room.status
+                    : (roomNumber == '503' || roomNumber == '504')
                         ? 'غرفة جديدة - قيد التجهيز'
                         : 'غير مسجل في النظام';
 
@@ -257,12 +284,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   child: SizedBox(
                     width: 60, // تصغير الأزرار
                     child: ElevatedButton(
-                      onPressed: () => _handleRoomTap(context, roomNumber, room),
+                      onPressed: () =>
+                          _handleRoomTap(context, roomNumber, room),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: backgroundColor,
                         foregroundColor: foregroundColor,
                         minimumSize: const Size(60, 40), // تصغير الحجم
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                         textStyle: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14, // تصغير الخط
@@ -279,15 +308,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
   }
-  
+
   /// التعامل مع الضغط على أزرار الغرف
-  void _handleRoomTap(BuildContext context, String roomNumber, Room? room) async {
+  void _handleRoomTap(
+      BuildContext context, String roomNumber, Room? room) async {
     if (roomNumber == '503' || roomNumber == '504') {
       _showNewRoomDialog(context, roomNumber);
     } else if (room != null) {
       final isAvailable = StatusUtils.isRoomAvailable(room.status);
       final isOccupied = StatusUtils.isRoomOccupied(room.status);
-      
+
       if (isAvailable) {
         _navigateToNewBooking(context, roomNumber);
       } else if (isOccupied) {
@@ -304,7 +334,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       );
     }
   }
-  
+
   /// الانتقال إلى شاشة حجز جديد مع رقم الغرفة المحدد
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
     Navigator.of(context).push(
@@ -315,15 +345,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
   }
-  
+
   /// الانتقال إلى شاشة إضافة دفعة للغرفة المحجوزة
-  Future<void> _navigateToPaymentForRoom(BuildContext context, String roomNumber) async {
+  Future<void> _navigateToPaymentForRoom(
+      BuildContext context, String roomNumber) async {
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      
+
       // البحث عن الحجز النشط للغرفة
-      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
-      
+      final activeBooking =
+          await bookingsRepo.getActiveBookingForRoom(roomNumber);
+
       if (activeBooking == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -335,7 +367,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         }
         return;
       }
-      
+
       // الانتقال لشاشة إضافة دفعة
       if (context.mounted) {
         Navigator.of(context).push(
@@ -357,7 +389,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
     }
   }
-  
+
   /// الانتقال إلى قائمة الحجوزات لغرفة محددة
   void _navigateToBookingsForRoom(BuildContext context, String roomNumber) {
     Navigator.of(context).push(
@@ -366,7 +398,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
   }
-  
+
   /// إظهار حوار للغرف الجديدة 503 و 504
   void _showNewRoomDialog(BuildContext context, String roomNumber) {
     showDialog(
@@ -421,13 +453,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
   }
-  
+
   /// إظهار تفاصيل الغرف الموجودة
   void _showRoomDetailsDialog(BuildContext context, Room room) {
     final isOccupied = StatusUtils.isRoomOccupied(room.status);
     final statusColor = isOccupied ? Colors.red : Colors.green;
     final statusIcon = isOccupied ? Icons.person : Icons.person_outline;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -488,7 +520,7 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback? onTap;
-  
+
   const _StatCard({
     required this.title,
     required this.value,
@@ -540,7 +572,7 @@ class _LoadingStatCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color color;
-  
+
   const _LoadingStatCard({
     required this.title,
     required this.icon,

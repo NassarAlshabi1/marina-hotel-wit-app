@@ -48,7 +48,8 @@ class EnhancedPdfHelper {
     final nights = booking.calculatedNights;
     final baseItems = [
       InvoiceItem(
-        description: 'إقامة ${nights} ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
+        description:
+            'إقامة ${nights} ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
         quantity: nights,
         unitPrice: roomPrice,
       ),
@@ -60,7 +61,8 @@ class EnhancedPdfHelper {
     }
 
     final invoice = EnhancedInvoice(
-      invoiceNumber: 'INV-${booking.id}-${DateTime.now().millisecondsSinceEpoch}',
+      invoiceNumber:
+          'INV-${booking.id}-${DateTime.now().millisecondsSinceEpoch}',
       guestName: booking.guestName,
       guestPhone: booking.guestPhone,
       roomNumber: booking.roomNumber,
@@ -174,13 +176,15 @@ class EnhancedPdfHelper {
     String? categoryFilter,
     required String generatedBy,
   }) async {
-    final reportItems = expenses.map((expense) => ExpenseReportItem(
-      description: expense.description,
-      category: expense.expenseType,
-      amount: expense.amount,
-      date: DateTime.parse(expense.date),
-      notes: null,
-    )).toList();
+    final reportItems = expenses
+        .map((expense) => ExpenseReportItem(
+              description: expense.description,
+              category: expense.expenseType,
+              amount: expense.amount,
+              date: DateTime.parse(expense.date),
+              notes: null,
+            ))
+        .toList();
 
     final report = EnhancedExpensesReport(
       expenses: reportItems,
@@ -211,7 +215,8 @@ class EnhancedPdfHelper {
     final totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
     final netProfit = totalRevenue - totalExpenses;
     final totalBookings = bookings.length;
-    final checkedInGuests = bookings.where((b) => b.status == 'checked_in').length;
+    final checkedInGuests =
+        bookings.where((b) => b.status == 'checked_in').length;
 
     pdf.addPage(
       pw.MultiPage(
@@ -329,25 +334,33 @@ class EnhancedPdfHelper {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('إجمالي الحجوزات:', style: PdfTextStyles.bodyBold(fonts.bold)),
-                  pw.Text('$totalBookings حجز', style: PdfTextStyles.body(fonts.regular)),
+                  pw.Text('إجمالي الحجوزات:',
+                      style: PdfTextStyles.bodyBold(fonts.bold)),
+                  pw.Text('$totalBookings حجز',
+                      style: PdfTextStyles.body(fonts.regular)),
                 ],
               ),
               pw.SizedBox(height: 6),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('النزلاء الحاليون:', style: PdfTextStyles.bodyBold(fonts.bold)),
-                  pw.Text('$checkedInGuests نزيل', style: PdfTextStyles.body(fonts.regular)),
+                  pw.Text('النزلاء الحاليون:',
+                      style: PdfTextStyles.bodyBold(fonts.bold)),
+                  pw.Text('$checkedInGuests نزيل',
+                      style: PdfTextStyles.body(fonts.regular)),
                 ],
               ),
               pw.SizedBox(height: 6),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('متوسط الإيراد لكل حجز:', style: PdfTextStyles.bodyBold(fonts.bold)),
+                  pw.Text('متوسط الإيراد لكل حجز:',
+                      style: PdfTextStyles.bodyBold(fonts.bold)),
                   pw.Text(
-                    totalBookings > 0 ? EnhancedPdfUtils.formatCurrency(totalRevenue / totalBookings) : '0',
+                    totalBookings > 0
+                        ? EnhancedPdfUtils.formatCurrency(
+                            totalRevenue / totalBookings)
+                        : '0',
                     style: PdfTextStyles.body(fonts.regular),
                   ),
                 ],
@@ -365,7 +378,8 @@ class EnhancedPdfHelper {
 
     await Printing.sharePdf(
       bytes: await pdf.save(),
-      filename: 'hotel-summary-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
+      filename:
+          'hotel-summary-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
     );
   }
 }

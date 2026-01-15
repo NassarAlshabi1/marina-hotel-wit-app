@@ -5,9 +5,9 @@ import '../providers/auth_provider.dart';
 class AdminSidebar extends ConsumerWidget {
   final String currentRoute;
   final Function(String) onRouteSelected;
-  
+
   const AdminSidebar({
-    super.key, 
+    super.key,
     required this.currentRoute,
     required this.onRouteSelected,
   });
@@ -75,7 +75,7 @@ class AdminSidebar extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
-                
+
                 // User info section
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -106,7 +106,9 @@ class AdminSidebar extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              auth.currentUser?.userType == 'admin' ? 'مدير النظام' : 'موظف',
+                              auth.currentUser?.userType == 'admin'
+                                  ? 'مدير النظام'
+                                  : 'موظف',
                               style: TextStyle(
                                 color: inactiveColor,
                                 fontSize: 12,
@@ -121,7 +123,7 @@ class AdminSidebar extends ConsumerWidget {
               ],
             ),
           ),
-          
+
           // Menu Items - exactly matching PHP sidebar
           Expanded(
             child: ListView(
@@ -255,7 +257,7 @@ class AdminSidebar extends ConsumerWidget {
                 } catch (e) {
                   // تجاهل الأخطاء
                 }
-                
+
                 await ref.read(authProvider.notifier).logout();
               },
               context: context,

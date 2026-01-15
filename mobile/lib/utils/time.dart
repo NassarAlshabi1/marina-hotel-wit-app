@@ -23,7 +23,8 @@ class Time {
     final raw = isoString.trim();
     final normalized = raw.contains('T') ? raw : raw.replaceFirst(' ', 'T');
     try {
-      return hotelDayKey(now: DateTime.parse(normalized), cutoffHour: cutoffHour);
+      return hotelDayKey(
+          now: DateTime.parse(normalized), cutoffHour: cutoffHour);
     } catch (_) {
       return hotelDayKey(cutoffHour: cutoffHour);
     }
@@ -76,7 +77,8 @@ class Time {
     }
   }
 
-  static int nightsWithCutoff(DateTime checkin, {DateTime? checkout, int cutoffHour = 14}) {
+  static int nightsWithCutoff(DateTime checkin,
+      {DateTime? checkout, int cutoffHour = 14}) {
     final end = checkout ?? DateTime.now();
 
     var effectiveEnd = end;

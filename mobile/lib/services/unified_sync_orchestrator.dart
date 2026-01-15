@@ -6,7 +6,8 @@ import 'smart_sync_manager.dart';
 import 'local_db.dart';
 
 class UnifiedSyncState {
-  final String phase; // idle | pushing | pulling | snapshotting | reconciling | completing | error
+  final String
+      phase; // idle | pushing | pulling | snapshotting | reconciling | completing | error
   final String message;
   final DateTime timestamp;
   final String? checksum; // shared checksum after reconcile
@@ -86,19 +87,31 @@ class UnifiedSyncOrchestrator {
     _appwriteSub = appwrite.syncStatusStream.listen((status) async {
       switch (status) {
         case SyncStatus.syncing:
-          _emit(_state.copyWith(phase: 'pushing', message: 'مزامنة الدلتا مع Appwrite', timestamp: DateTime.now()));
+          _emit(_state.copyWith(
+              phase: 'pushing',
+              message: 'مزامنة الدلتا مع Appwrite',
+              timestamp: DateTime.now()));
           break;
         case SyncStatus.success:
-          _emit(_state.copyWith(phase: 'pulling', message: 'سحب التغييرات وإنهاء الدمج', timestamp: DateTime.now(), lastPushAt: DateTime.now()));
+          _emit(_state.copyWith(
+              phase: 'pulling',
+              message: 'سحب التغييرات وإنهاء الدمج',
+              timestamp: DateTime.now(),
+              lastPushAt: DateTime.now()));
           // After a successful delta, consider snapshot if needed
           await _snapshotIfNeeded();
           break;
         case SyncStatus.failed:
-          _emit(_state.copyWith(phase: 'error', message: 'فشل مزامنة Appwrite', timestamp: DateTime.now(), lastError: 'Appwrite sync failed'));
+          _emit(_state.copyWith(
+              phase: 'error',
+              message: 'فشل مزامنة Appwrite',
+              timestamp: DateTime.now(),
+              lastError: 'Appwrite sync failed'));
           break;
         case SyncStatus.idle:
         case SyncStatus.partial:
-          _emit(_state.copyWith(phase: 'idle', message: 'جاهز', timestamp: DateTime.now()));
+          _emit(_state.copyWith(
+              phase: 'idle', message: 'جاهز', timestamp: DateTime.now()));
           break;
       }
     });
@@ -110,14 +123,23 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> syncAll({bool forceSnapshot = false}) async {
-    _emit(_state.copyWith(phase: 'pushing', message: 'مزامنة Appwrite (دلتا)', timestamp: DateTime.now()));
+    _emit(_state.copyWith(
+        phase: 'pushing',
+        message: 'مزامنة Appwrite (دلتا)',
+        timestamp: DateTime.now()));
     await appwrite.sync();
     await _snapshotIfNeeded(force: forceSnapshot);
-    _emit(_state.copyWith(phase: 'completing', message: 'اكتملت الدورة', timestamp: DateTime.now()));
+    _emit(_state.copyWith(
+        phase: 'completing',
+        message: 'اكتملت الدورة',
+        timestamp: DateTime.now()));
   }
 
   Future<void> pushDelta() async {
-    _emit(_state.copyWith(phase: 'pushing', message: 'مزامنة Appwrite (دلتا)', timestamp: DateTime.now()));
+    _emit(_state.copyWith(
+        phase: 'pushing',
+        message: 'مزامنة Appwrite (دلتا)',
+        timestamp: DateTime.now()));
     await appwrite.sync();
   }
 
@@ -136,7 +158,10 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> _takeSnapshot() async {
-    _emit(_state.copyWith(phase: 'snapshotting', message: 'إنشاء Snapshot على Google Drive', timestamp: DateTime.now()));
+    _emit(_state.copyWith(
+        phase: 'snapshotting',
+        message: 'إنشاء Snapshot على Google Drive',
+        timestamp: DateTime.now()));
     // SmartSyncManager سيهتم بإنشاء اللقطة ورفعها
     await smart.forceSyncNow();
     // بعد الرفع، احسب checksum موحد من الجداول المحلية لتظهر في الحالة

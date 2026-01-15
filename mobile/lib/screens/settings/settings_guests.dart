@@ -12,7 +12,8 @@ class SettingsGuestsScreen extends ConsumerStatefulWidget {
   const SettingsGuestsScreen({super.key});
 
   @override
-  ConsumerState<SettingsGuestsScreen> createState() => _SettingsGuestsScreenState();
+  ConsumerState<SettingsGuestsScreen> createState() =>
+      _SettingsGuestsScreenState();
 }
 
 class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
@@ -58,7 +59,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   SizedBox(height: 16),
                   Text('لا يوجد ضيوف مسجلين', style: TextStyle(fontSize: 18)),
                   SizedBox(height: 8),
-                  Text('سيتم عرض الضيوف عند إضافة حجوزات', style: TextStyle(color: Colors.grey)),
+                  Text('سيتم عرض الضيوف عند إضافة حجوزات',
+                      style: TextStyle(color: Colors.grey)),
                 ],
               ),
             );
@@ -68,12 +70,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             children: [
               // شريط البحث
               _buildSearchBar(),
-              
+
               // إحصائيات الضيوف
               _buildGuestStats(guests),
-              
+
               const SizedBox(height: 16),
-              
+
               // قائمة الضيوف
               Expanded(
                 child: ListView.builder(
@@ -123,7 +125,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         if (existing.email.isEmpty && email.isNotEmpty) {
           existing.email = email;
         }
-        if (existing.nationality.isEmpty && booking.guestNationality.isNotEmpty) {
+        if (existing.nationality.isEmpty &&
+            booking.guestNationality.isNotEmpty) {
           existing.nationality = booking.guestNationality;
         }
         if (existing.idType.isEmpty && idType.isNotEmpty) {
@@ -149,12 +152,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
 
     return guestMap.values.toList()
-      ..sort((a, b) => b.bookings.first.checkinDate.compareTo(a.bookings.first.checkinDate));
+      ..sort((a, b) =>
+          b.bookings.first.checkinDate.compareTo(a.bookings.first.checkinDate));
   }
 
   List<GuestInfo> _filterGuests(List<GuestInfo> guests) {
     if (_searchQuery.isEmpty) return guests;
-    
+
     return guests.where((guest) {
       return guest.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           guest.phone.contains(_searchQuery) ||
@@ -172,15 +176,15 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         decoration: InputDecoration(
           hintText: 'البحث في الضيوف (الاسم، الهاتف، البريد، الجنسية)',
           prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchQuery.isNotEmpty 
-            ? IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() => _searchQuery = '');
-                },
-              )
-            : null,
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
+                )
+              : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -191,10 +195,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   Widget _buildGuestStats(List<GuestInfo> guests) {
     final totalGuests = guests.length;
-    final activeGuests = guests.where((g) => 
-      g.bookings.any((b) => StatusUtils.isActiveBooking(b.status))).length;
+    final activeGuests = guests
+        .where(
+            (g) => g.bookings.any((b) => StatusUtils.isActiveBooking(b.status)))
+        .length;
     final repeatGuests = guests.where((g) => g.bookings.length > 1).length;
-    final totalBookings = guests.fold<int>(0, (sum, g) => sum + g.bookings.length);
+    final totalBookings =
+        guests.fold<int>(0, (sum, g) => sum + g.bookings.length);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -224,17 +231,25 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildStatChip('إجمالي الضيوف', totalGuests, Colors.purple)),
+              Expanded(
+                  child: _buildStatChip(
+                      'إجمالي الضيوف', totalGuests, Colors.purple)),
               const SizedBox(width: 8),
-              Expanded(child: _buildStatChip('ضيوف نشطون', activeGuests, Colors.green)),
+              Expanded(
+                  child:
+                      _buildStatChip('ضيوف نشطون', activeGuests, Colors.green)),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _buildStatChip('ضيوف متكررون', repeatGuests, Colors.blue)),
+              Expanded(
+                  child: _buildStatChip(
+                      'ضيوف متكررون', repeatGuests, Colors.blue)),
               const SizedBox(width: 8),
-              Expanded(child: _buildStatChip('إجمالي الحجوزات', totalBookings, Colors.orange)),
+              Expanded(
+                  child: _buildStatChip(
+                      'إجمالي الحجوزات', totalBookings, Colors.orange)),
             ],
           ),
         ],
@@ -274,9 +289,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   Widget _buildGuestCard(BuildContext context, GuestInfo guest) {
-    final activeBookings = guest.bookings.where((b) => StatusUtils.isActiveBooking(b.status)).length;
+    final activeBookings = guest.bookings
+        .where((b) => StatusUtils.isActiveBooking(b.status))
+        .length;
     final lastVisit = guest.bookings.first.checkinDate;
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -289,7 +306,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: activeBookings > 0 ? Colors.green : Colors.blue,
+                  backgroundColor:
+                      activeBookings > 0 ? Colors.green : Colors.blue,
                   child: Text(
                     guest.name.isNotEmpty ? guest.name[0].toUpperCase() : '؟',
                     style: const TextStyle(
@@ -322,7 +340,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 ),
                 if (guest.bookings.length > 1)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.blue.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -330,12 +349,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.star, size: 12, color: Colors.blue),
-                        const SizedBox(width: 2),
+                      children: const [
+                        Icon(Icons.star, size: 12, color: Colors.blue),
+                        SizedBox(width: 2),
                         Text(
                           'ضيف متكرر',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
@@ -352,9 +371,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // تفاصيل الاتصال
             Row(
               children: [
@@ -367,26 +386,29 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   ),
               ],
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // إحصائيات الحجوزات
             Row(
               children: [
                 Expanded(
-                  child: _buildDetailRow('إجمالي الحجوزات', guest.bookings.length.toString(), Icons.book),
+                  child: _buildDetailRow('إجمالي الحجوزات',
+                      guest.bookings.length.toString(), Icons.book),
                 ),
                 Expanded(
-                  child: _buildDetailRow('حجوزات نشطة', activeBookings.toString(), Icons.event_available),
+                  child: _buildDetailRow('حجوزات نشطة',
+                      activeBookings.toString(), Icons.event_available),
                 ),
                 Expanded(
-                  child: _buildDetailRow('آخر زيارة', _formatDate(lastVisit), Icons.calendar_today),
+                  child: _buildDetailRow('آخر زيارة', _formatDate(lastVisit),
+                      Icons.calendar_today),
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // أزرار العمليات
             Row(
               children: [
@@ -413,7 +435,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _deleteGuest(context, guest),
-                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                    icon: const Icon(Icons.delete_outline,
+                        size: 16, color: Colors.red),
                     label: const Text('حذف الضيف وجميع البيانات'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
@@ -444,7 +467,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               ),
               Text(
                 value,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                style:
+                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -482,7 +506,10 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: StatusUtils.isActiveBooking(booking.status) ? Colors.green : Colors.blue,
+                      backgroundColor:
+                          StatusUtils.isActiveBooking(booking.status)
+                              ? Colors.green
+                              : Colors.blue,
                       child: Text((index + 1).toString()),
                     ),
                     title: Text('غرفة ${booking.roomNumber}'),
@@ -527,11 +554,19 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               if (guest.email.isNotEmpty) _buildInfoRow('البريد:', guest.email),
               _buildInfoRow('الجنسية:', guest.nationality),
               const Divider(),
-              _buildInfoRow('إجمالي الحجوزات:', guest.bookings.length.toString()),
-              _buildInfoRow('الحجوزات النشطة:', guest.bookings.where((b) => StatusUtils.isActiveBooking(b.status)).length.toString()),
-              _buildInfoRow('آخر زيارة:', _formatDate(guest.bookings.first.checkinDate)),
+              _buildInfoRow(
+                  'إجمالي الحجوزات:', guest.bookings.length.toString()),
+              _buildInfoRow(
+                  'الحجوزات النشطة:',
+                  guest.bookings
+                      .where((b) => StatusUtils.isActiveBooking(b.status))
+                      .length
+                      .toString()),
+              _buildInfoRow(
+                  'آخر زيارة:', _formatDate(guest.bookings.first.checkinDate)),
               if (guest.bookings.length > 1)
-                _buildInfoRow('أول زيارة:', _formatDate(guest.bookings.last.checkinDate)),
+                _buildInfoRow(
+                    'أول زيارة:', _formatDate(guest.bookings.last.checkinDate)),
             ],
           ),
           actions: [
@@ -559,17 +594,25 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   Future<void> _deleteGuest(BuildContext context, GuestInfo guest) async {
-    final active = guest.bookings.where((b) => StatusUtils.isActiveBooking(b.status)).length;
+    final active = guest.bookings
+        .where((b) => StatusUtils.isActiveBooking(b.status))
+        .length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: const Text('تأكيد حذف الضيف وكل البيانات المرتبطة'),
-          content: Text('سيتم حذف جميع الحجوزات (${guest.bookings.length}) وكل ما يتعلق بها من مدفوعات وملاحظات وديون لهذا الضيف. ${active > 0 ? '\n\nتحذير: هناك حجوزات نشطة سيتم حذفها أيضاً.' : ''}\n\nهل تريد المتابعة؟'),
+          content: Text(
+              'سيتم حذف جميع الحجوزات (${guest.bookings.length}) وكل ما يتعلق بها من مدفوعات وملاحظات وديون لهذا الضيف. ${active > 0 ? '\n\nتحذير: هناك حجوزات نشطة سيتم حذفها أيضاً.' : ''}\n\nهل تريد المتابعة؟'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف'), style: ElevatedButton.styleFrom(backgroundColor: Colors.red)),
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('إلغاء')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('حذف')),
           ],
         ),
       ),
@@ -601,7 +644,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           await paymentsRepo.delete(p.id);
         }
         // حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
-        final relatedCash = await cashRepo.listByReference(referenceType: 'booking', referenceId: bookingId);
+        final relatedCash = await cashRepo.listByReference(
+            referenceType: 'booking', referenceId: bookingId);
         for (final tx in relatedCash) {
           await cashRepo.delete(tx.id);
         }
@@ -622,10 +666,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('تم حذف الضيف وجميع البيانات المرتبطة')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحذف: $e'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('فشل الحذف: $e'), backgroundColor: Colors.red));
     }
   }
 

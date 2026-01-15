@@ -8,12 +8,13 @@ final smartSyncManagerProvider = Provider<SmartSyncManager>((ref) {
 });
 
 /// Provider لحالة المزامنة الذكية
-final smartSyncStatusProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+final smartSyncStatusProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final manager = ref.watch(smartSyncManagerProvider);
-  
+
   // استمع لتغييرات حالة تسجيل الدخول في Google Drive
   ref.watch(smartSyncGoogleDriveSignInStatusProvider);
-  
+
   return await manager.getStatus();
 });
 
@@ -27,9 +28,9 @@ final smartSyncGoogleDriveSignInStatusProvider = Provider<bool>((ref) {
 final smartSyncInitProvider = FutureProvider<void>((ref) async {
   final manager = ref.watch(smartSyncManagerProvider);
   final backupService = ref.watch(googleDriveBackupServiceProvider);
-  
+
   // انتظار تهيئة BackupProvider أولاً
   await Future.delayed(const Duration(milliseconds: 500));
-  
+
   await manager.initialize(backupService);
 });

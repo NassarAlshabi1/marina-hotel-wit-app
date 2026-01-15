@@ -7,25 +7,27 @@ import '../../components/app_scaffold.dart';
 import '../../providers/backup_provider.dart';
 import '../../services/google_drive_backup_service.dart';
 import '../../services/local_backup_service.dart';
-import '../../services/file_management_service.dart';
 import '../../utils/theme.dart';
 
 class ComprehensiveBackupScreen extends ConsumerStatefulWidget {
   const ComprehensiveBackupScreen({super.key});
 
   @override
-  ConsumerState<ComprehensiveBackupScreen> createState() => _ComprehensiveBackupScreenState();
+  ConsumerState<ComprehensiveBackupScreen> createState() =>
+      _ComprehensiveBackupScreenState();
 }
 
-class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupScreen> 
+class _ComprehensiveBackupScreenState
+    extends ConsumerState<ComprehensiveBackupScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this); // زيادة عدد التبويبات
-    
+    _tabController =
+        TabController(length: 4, vsync: this); // زيادة عدد التبويبات
+
     // تحديث البيانات عند دخول الشاشة
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(backupStatusProvider.notifier).updateDatabaseSize();
@@ -143,7 +145,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
           ),
           if (state.status != BackupStatus.error)
             IconButton(
-              onPressed: () => ref.read(backupStatusProvider.notifier).clearMessage(),
+              onPressed: () =>
+                  ref.read(backupStatusProvider.notifier).clearMessage(),
               icon: Icon(Icons.close, color: color, size: 20),
             ),
         ],
@@ -171,7 +174,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
 
   Widget _buildSystemOverviewCard(BackupState state) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    final sizeInMB = state.databaseSizeBytes != null 
+    final sizeInMB = state.databaseSizeBytes != null
         ? (state.databaseSizeBytes! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
 
@@ -188,13 +191,12 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'معلومات النظام',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            
             Row(
               children: [
                 Expanded(
@@ -216,7 +218,6 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               ],
             ),
             const SizedBox(height: 12),
-            
             Row(
               children: [
                 Expanded(
@@ -246,18 +247,18 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
   String _getLastBackupDisplay(BackupState state) {
     final driveTime = state.lastBackupTime;
     final localTime = state.lastLocalBackupTime;
-    
+
     if (driveTime == null && localTime == null) {
       return 'لا توجد';
     }
-    
+
     DateTime? latest;
     if (driveTime != null && localTime != null) {
       latest = driveTime.isAfter(localTime) ? driveTime : localTime;
     } else {
       latest = driveTime ?? localTime;
     }
-    
+
     final diff = DateTime.now().difference(latest!);
     if (diff.inDays > 0) {
       return '${diff.inDays} أيام';
@@ -268,7 +269,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     }
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.all(12),
@@ -313,8 +315,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'الأعمال السريعة',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
@@ -325,7 +327,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               LinearProgressIndicator(
                 value: state.progress,
                 backgroundColor: Colors.grey[300],
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
               ),
               const SizedBox(height: 8),
               Text(
@@ -339,7 +342,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).createComprehensiveBackup(),
+                    onPressed: state.isWorking
+                        ? null
+                        : () => ref
+                            .read(backupStatusProvider.notifier)
+                            .createComprehensiveBackup(),
                     icon: const Icon(Icons.backup),
                     label: const Text('نسخة شاملة'),
                     style: ElevatedButton.styleFrom(
@@ -351,7 +358,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).exportToDownloads(),
+                    onPressed: state.isWorking
+                        ? null
+                        : () => ref
+                            .read(backupStatusProvider.notifier)
+                            .exportToDownloads(),
                     icon: const Icon(Icons.download),
                     label: const Text('تصدير'),
                     style: ElevatedButton.styleFrom(
@@ -367,7 +378,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).importBackupFromFile(),
+                    onPressed: state.isWorking
+                        ? null
+                        : () => ref
+                            .read(backupStatusProvider.notifier)
+                            .importBackupFromFile(),
                     icon: const Icon(Icons.upload_file),
                     label: const Text('استيراد ملف'),
                     style: ElevatedButton.styleFrom(
@@ -379,7 +394,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).cleanOldLocalBackups(),
+                    onPressed: state.isWorking
+                        ? null
+                        : () => ref
+                            .read(backupStatusProvider.notifier)
+                            .cleanOldLocalBackups(),
                     icon: const Icon(Icons.cleaning_services),
                     label: const Text('تنظيف'),
                     style: ElevatedButton.styleFrom(
@@ -410,51 +429,58 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'النسخ التلقائي',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-
             SwitchListTile(
               title: const Text('تفعيل النسخ التلقائي'),
-              subtitle: Text('التكرار: ${_getFrequencyDisplayName(state.autoSettings.frequency)} في ${state.autoSettings.time}'),
+              subtitle: Text(
+                  'التكرار: ${_getFrequencyDisplayName(state.autoSettings.frequency)} في ${state.autoSettings.time}'),
               value: state.autoSettings.isEnabled,
               onChanged: (value) => _updateAutoBackupEnabled(value),
             ),
-
             if (state.autoSettings.isEnabled) ...[
               const Divider(),
-              
               CheckboxListTile(
                 title: const Text('Google Drive'),
-                subtitle: state.isSignedIn ? Text('متصل: ${state.signedInAccount?.email}') : const Text('غير متصل'),
+                subtitle: state.isSignedIn
+                    ? Text('متصل: ${state.signedInAccount?.email}')
+                    : const Text('غير متصل'),
                 value: state.autoSettings.enableGoogleDriveBackup,
-                onChanged: state.isSignedIn ? (value) => _updateAutoBackupType(
-                  enableDrive: value ?? false,
-                  enableLocal: state.autoSettings.enableLocalBackup,
-                ) : null,
+                onChanged: state.isSignedIn
+                    ? (value) => _updateAutoBackupType(
+                          enableDrive: value ?? false,
+                          enableLocal: state.autoSettings.enableLocalBackup,
+                        )
+                    : null,
               ),
-              
               CheckboxListTile(
                 title: const Text('التخزين المحلي'),
-                subtitle: state.hasStoragePermission ? const Text('مُتاح') : const Text('يتطلب أذونات'),
+                subtitle: state.hasStoragePermission
+                    ? const Text('مُتاح')
+                    : const Text('يتطلب أذونات'),
                 value: state.autoSettings.enableLocalBackup,
-                onChanged: state.hasStoragePermission ? (value) => _updateAutoBackupType(
-                  enableDrive: state.autoSettings.enableGoogleDriveBackup,
-                  enableLocal: value ?? false,
-                ) : null,
+                onChanged: state.hasStoragePermission
+                    ? (value) => _updateAutoBackupType(
+                          enableDrive:
+                              state.autoSettings.enableGoogleDriveBackup,
+                          enableLocal: value ?? false,
+                        )
+                    : null,
               ),
-              
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _showFrequencySelection(state.autoSettings),
+                      onPressed: () =>
+                          _showFrequencySelection(state.autoSettings),
                       icon: const Icon(Icons.repeat),
-                      label: Text(_getFrequencyDisplayName(state.autoSettings.frequency)),
+                      label: Text(_getFrequencyDisplayName(
+                          state.autoSettings.frequency)),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -478,7 +504,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                     .map(
                       (format) => DropdownMenuItem(
                         value: format,
-                        child: Text(format == BackupFormat.sqlite ? 'SQLite' : 'JSON'),
+                        child: Text(
+                            format == BackupFormat.sqlite ? 'SQLite' : 'JSON'),
                       ),
                     )
                     .toList(),
@@ -545,17 +572,17 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'Google Drive',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
             if (state.isSignedIn) ...[
               Row(
                 children: [
-                  const Icon(Icons.account_circle, color: Colors.green, size: 20),
+                  const Icon(Icons.account_circle,
+                      color: Colors.green, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -569,7 +596,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signOut(),
+                  onPressed: state.isWorking
+                      ? null
+                      : () => ref.read(backupStatusProvider.notifier).signOut(),
                   icon: const Icon(Icons.logout),
                   label: const Text('قطع الاتصال'),
                   style: ElevatedButton.styleFrom(
@@ -587,15 +616,21 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signInToDrive(),
-                  icon: state.status == BackupStatus.signIn 
+                  onPressed: state.isWorking
+                      ? null
+                      : () => ref
+                          .read(backupStatusProvider.notifier)
+                          .signInToDrive(),
+                  icon: state.status == BackupStatus.signIn
                       ? const SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.login),
-                  label: Text(state.status == BackupStatus.signIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'),
+                  label: Text(state.status == BackupStatus.signIn
+                      ? 'جاري تسجيل الدخول...'
+                      : 'تسجيل الدخول'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
                     foregroundColor: Colors.white,
@@ -613,13 +648,17 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     final folderInfo = state.backupFolderInfo;
     final totalSizeMB = folderInfo?['total_size_mb'] ?? '0.00';
     final path = folderInfo?['path']?.toString() ?? '';
-    final visiblePathSegments = path.isEmpty ? <String>[] : path.split('/').where((segment) => segment.isNotEmpty).toList();
+    final visiblePathSegments = path.isEmpty
+        ? <String>[]
+        : path.split('/').where((segment) => segment.isNotEmpty).toList();
     final displayPath = visiblePathSegments.isEmpty
         ? 'غير معروف'
         : (visiblePathSegments.length > 3
-            ? visiblePathSegments.sublist(visiblePathSegments.length - 3).join('/')
+            ? visiblePathSegments
+                .sublist(visiblePathSegments.length - 3)
+                .join('/')
             : visiblePathSegments.join('/'));
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -630,20 +669,20 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               children: [
                 Icon(
                   Icons.phone_android,
-                  color: state.hasStoragePermission ? Colors.orange : Colors.grey,
+                  color:
+                      state.hasStoragePermission ? Colors.orange : Colors.grey,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   'التخزين المحلي',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
             if (state.hasStoragePermission) ...[
               Row(
                 children: [
@@ -652,7 +691,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                   Expanded(
                     child: Text(
                       'المسار: $displayPath',
-                      style: const TextStyle(color: Colors.orange, fontSize: 12),
+                      style:
+                          const TextStyle(color: Colors.orange, fontSize: 12),
                     ),
                   ),
                 ],
@@ -669,7 +709,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).checkStoragePermissions(),
+                  onPressed: state.isWorking
+                      ? null
+                      : () => ref
+                          .read(backupStatusProvider.notifier)
+                          .checkStoragePermissions(),
                   icon: const Icon(Icons.refresh),
                   label: const Text('تحديث المعلومات'),
                   style: ElevatedButton.styleFrom(
@@ -687,7 +731,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).checkStoragePermissions(),
+                  onPressed: state.isWorking
+                      ? null
+                      : () => ref
+                          .read(backupStatusProvider.notifier)
+                          .checkStoragePermissions(),
                   icon: state.status == BackupStatus.checkingPermissions
                       ? const SizedBox(
                           width: 16,
@@ -695,7 +743,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.security),
-                  label: Text(state.status == BackupStatus.checkingPermissions ? 'جاري التحقق...' : 'طلب الأذونات'),
+                  label: Text(state.status == BackupStatus.checkingPermissions
+                      ? 'جاري التحقق...'
+                      : 'طلب الأذونات'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,
@@ -723,23 +773,24 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'النسخ السحابي',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
             const Text(
               'إنشاء نسخة احتياطية ورفعها إلى Google Drive',
               style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 16),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).createBackup(),
+                onPressed: state.isWorking
+                    ? null
+                    : () =>
+                        ref.read(backupStatusProvider.notifier).createBackup(),
                 icon: const Icon(Icons.cloud_upload),
                 label: const Text('رفع إلى Google Drive'),
                 style: ElevatedButton.styleFrom(
@@ -768,13 +819,12 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'النسخ المحلي',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
             const Text(
               'حفظ نسخة احتياطية في ذاكرة الجهاز',
               style: TextStyle(color: Colors.grey),
@@ -785,13 +835,14 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 16),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: state.isWorking
                     ? null
-                    : () => ref.read(backupStatusProvider.notifier).createLocalBackup(),
+                    : () => ref
+                        .read(backupStatusProvider.notifier)
+                        .createLocalBackup(),
                 icon: const Icon(Icons.save),
                 label: const Text('حفظ محلياً'),
                 style: ElevatedButton.styleFrom(
@@ -815,18 +866,18 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
           children: [
             Row(
               children: [
-                const Icon(Icons.cloud_download, color: Colors.indigo, size: 24),
+                const Icon(Icons.cloud_download,
+                    color: Colors.indigo, size: 24),
                 const SizedBox(width: 12),
                 Text(
                   'استعادة من Google Drive',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-
             if (state.availableBackups.isEmpty) ...[
               const Text(
                 'لا توجد نسخ احتياطية في Google Drive',
@@ -868,13 +919,12 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'استعادة من النسخ المحلية',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-
             if (state.localBackups.isEmpty) ...[
               const Text(
                 'لا توجد نسخ احتياطية محلية',
@@ -916,18 +966,21 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'إدارة الملفات',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).importBackupFromFile(),
+                    onPressed: state.isWorking
+                        ? null
+                        : () => ref
+                            .read(backupStatusProvider.notifier)
+                            .importBackupFromFile(),
                     icon: const Icon(Icons.file_upload),
                     label: const Text('استيراد ملف'),
                   ),
@@ -935,7 +988,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).exportToDownloads(),
+                    onPressed: state.isWorking
+                        ? null
+                        : () => ref
+                            .read(backupStatusProvider.notifier)
+                            .exportToDownloads(),
                     icon: const Icon(Icons.file_download),
                     label: const Text('تصدير'),
                   ),
@@ -946,7 +1003,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: state.localBackups.isEmpty ? null : () => ref.read(backupStatusProvider.notifier).cleanOldLocalBackups(keepCount: 5),
+                onPressed: state.localBackups.isEmpty
+                    ? null
+                    : () => ref
+                        .read(backupStatusProvider.notifier)
+                        .cleanOldLocalBackups(keepCount: 5),
                 icon: const Icon(Icons.cleaning_services),
                 label: Text('تنظيف النسخ القديمة (الاحتفاظ بـ 5)'),
                 style: OutlinedButton.styleFrom(
@@ -962,12 +1023,14 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
 
   Widget _buildDriveBackupItem(DriveBackupFile backup, bool isWorking) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    final sizeInMB = backup.size != null 
+    final sizeInMB = backup.size != null
         ? (backup.size! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
-    final recordsCount = int.tryParse(backup.metadata?['records_count']?.toString() ?? '') ?? 0;
+    final recordsCount =
+        int.tryParse(backup.metadata?['records_count']?.toString() ?? '') ?? 0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
-    final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
+    final formatLabel =
+        backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     return ListTile(
       leading: const Icon(Icons.cloud, color: Colors.blue),
@@ -979,7 +1042,10 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
         'حجم: $sizeInMB ميجابايت\nالسجلات: $recordsLabel\nالتنسيق: $formatLabel',
       ),
       trailing: IconButton(
-        onPressed: isWorking ? null : () => _showRestoreConfirmation(backup.fileId, BackupType.googleDrive),
+        onPressed: isWorking
+            ? null
+            : () =>
+                _showRestoreConfirmation(backup.fileId, BackupType.googleDrive),
         icon: const Icon(Icons.cloud_download, color: Colors.indigo),
         tooltip: 'استعادة',
       ),
@@ -992,8 +1058,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     final sizeInMB = (backup.sizeBytes / (1024 * 1024)).toStringAsFixed(2);
     // Access totalRecords from BackupMetadata
     final localRecords = backup.metadata?.totalRecords;
-    final recordsLabel = localRecords != null && localRecords > 0 ? localRecords.toString() : '---';
-    final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
+    final recordsLabel = localRecords != null && localRecords > 0
+        ? localRecords.toString()
+        : '---';
+    final formatLabel =
+        backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     return ListTile(
       leading: const Icon(Icons.phone_android, color: Colors.orange),
@@ -1051,7 +1120,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
         _showRestoreConfirmation(backup.filePath, BackupType.local);
         break;
       case 'share':
-        ref.read(backupStatusProvider.notifier).shareLocalBackup(backup.filePath);
+        ref
+            .read(backupStatusProvider.notifier)
+            .shareLocalBackup(backup.filePath);
         break;
       case 'delete':
         _showDeleteConfirmation(backup);
@@ -1061,7 +1132,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
 
   void _showDeleteConfirmation(LocalBackupFile backup) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1073,7 +1144,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
             const Text('هل أنت متأكد من حذف هذه النسخة الاحتياطية؟'),
             const SizedBox(height: 8),
             Text('التاريخ: ${dateFormatter.format(backup.createdTime)}'),
-            const Text('⚠️ لا يمكن التراجع عن هذا الإجراء', 
+            const Text('⚠️ لا يمكن التراجع عن هذا الإجراء',
                 style: TextStyle(color: Colors.red)),
           ],
         ),
@@ -1085,7 +1156,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              ref.read(backupStatusProvider.notifier).deleteLocalBackup(backup.filePath);
+              ref
+                  .read(backupStatusProvider.notifier)
+                  .deleteLocalBackup(backup.filePath);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('حذف', style: TextStyle(color: Colors.white)),
@@ -1097,7 +1170,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
 
   void _showRestoreConfirmation(String identifier, BackupType type) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    
+
     String title, description, location;
     DateTime createdTime;
     int? recordsCount;
@@ -1105,12 +1178,15 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
 
     if (type == BackupType.googleDrive) {
       try {
-        backup = ref.read(availableBackupsProvider).firstWhere((b) => b.fileId == identifier);
+        backup = ref
+            .read(availableBackupsProvider)
+            .firstWhere((b) => b.fileId == identifier);
       } on StateError {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('❌ لم يتم العثور على النسخة الاحتياطية. قد تكون تم حذفها أو تحديث القائمة.'),
+              content: Text(
+                  '❌ لم يتم العثور على النسخة الاحتياطية. قد تكون تم حذفها أو تحديث القائمة.'),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 4),
             ),
@@ -1122,15 +1198,19 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       description = 'سيتم تنزيل النسخة من Google Drive واستعادة البيانات';
       location = 'Google Drive';
       createdTime = backup.createdTime;
-      recordsCount = int.tryParse(backup.metadata?['records_count']?.toString() ?? '0');
+      recordsCount =
+          int.tryParse(backup.metadata?['records_count']?.toString() ?? '0');
     } else {
       try {
-        backup = ref.read(localBackupsProvider).firstWhere((b) => b.filePath == identifier);
+        backup = ref
+            .read(localBackupsProvider)
+            .firstWhere((b) => b.filePath == identifier);
       } on StateError {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('❌ لم يتم العثور على النسخة الاحتياطية المحلية. قد تكون تم حذفها من التخزين.'),
+              content: Text(
+                  '❌ لم يتم العثور على النسخة الاحتياطية المحلية. قد تكون تم حذفها من التخزين.'),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 4),
             ),
@@ -1144,7 +1224,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       createdTime = backup.createdTime;
       recordsCount = backup.metadata?.totalRecords;
     }
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1155,7 +1235,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
           children: [
             const Text(
               '⚠️ سيتم استبدال جميع البيانات الحالية بالنسخة المختارة:',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
             ),
             const SizedBox(height: 12),
             Text('المصدر: $location'),
@@ -1179,9 +1260,13 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
             onPressed: () {
               Navigator.of(context).pop();
               if (type == BackupType.googleDrive) {
-                ref.read(backupStatusProvider.notifier).restoreFromBackup(identifier);
+                ref
+                    .read(backupStatusProvider.notifier)
+                    .restoreFromBackup(identifier);
               } else {
-                ref.read(backupStatusProvider.notifier).restoreFromLocalBackup(identifier);
+                ref
+                    .read(backupStatusProvider.notifier)
+                    .restoreFromLocalBackup(identifier);
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
@@ -1194,30 +1279,35 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
 
   String _getFrequencyDisplayName(String frequency) {
     switch (frequency) {
-      case 'daily': return 'يومياً';
-      case 'weekly': return 'أسبوعياً';
-      case 'monthly': return 'شهرياً';
-      default: return frequency;
+      case 'daily':
+        return 'يومياً';
+      case 'weekly':
+        return 'أسبوعياً';
+      case 'monthly':
+        return 'شهرياً';
+      default:
+        return frequency;
     }
   }
 
   void _updateAutoBackupEnabled(bool enabled) {
     final currentSettings = ref.read(backupStatusProvider).autoSettings;
     ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
-      currentSettings.copyWith(isEnabled: enabled),
-    );
+          currentSettings.copyWith(isEnabled: enabled),
+        );
   }
 
   void _updateBackupFormat(BackupFormat format) {
     final currentSettings = ref.read(backupStatusProvider).autoSettings;
     ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
-      currentSettings.copyWith(backupFormat: format),
-    );
+          currentSettings.copyWith(backupFormat: format),
+        );
   }
 
-  void _updateAutoBackupType({required bool enableDrive, required bool enableLocal}) {
+  void _updateAutoBackupType(
+      {required bool enableDrive, required bool enableLocal}) {
     final currentSettings = ref.read(backupStatusProvider).autoSettings;
-    
+
     BackupType type = BackupType.both;
     if (enableDrive && !enableLocal) {
       type = BackupType.googleDrive;
@@ -1226,12 +1316,12 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     }
 
     ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
-      currentSettings.copyWith(
-        enableGoogleDriveBackup: enableDrive,
-        enableLocalBackup: enableLocal,
-        backupType: type,
-      ),
-    );
+          currentSettings.copyWith(
+            enableGoogleDriveBackup: enableDrive,
+            enableLocalBackup: enableLocal,
+            backupType: type,
+          ),
+        );
   }
 
   void _showFrequencySelection(AutoBackupSettings currentSettings) {
@@ -1257,7 +1347,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     );
   }
 
-  Widget _buildFrequencyOption(String value, String label, AutoBackupSettings currentSettings) {
+  Widget _buildFrequencyOption(
+      String value, String label, AutoBackupSettings currentSettings) {
     return RadioListTile<String>(
       title: Text(label),
       value: value,
@@ -1266,25 +1357,26 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
         if (selectedValue != null) {
           Navigator.of(context).pop();
           ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
-            currentSettings.copyWith(frequency: selectedValue),
-          );
+                currentSettings.copyWith(frequency: selectedValue),
+              );
         }
       },
     );
   }
 
   void _showTimeSelection(AutoBackupSettings currentSettings) {
-    TimeOfDay _safeParseTime(String value) {
+    TimeOfDay safeParseTime(String value) {
       final parts = value.split(':');
       if (parts.length != 2) return TimeOfDay.now();
       final hour = int.tryParse(parts[0]);
       final minute = int.tryParse(parts[1]);
       if (hour == null || minute == null) return TimeOfDay.now();
-      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return TimeOfDay.now();
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59)
+        return TimeOfDay.now();
       return TimeOfDay(hour: hour, minute: minute);
     }
 
-    final currentTime = _safeParseTime(currentSettings.time);
+    final currentTime = safeParseTime(currentSettings.time);
 
     showTimePicker(
       context: context,
@@ -1298,10 +1390,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       },
     ).then((selectedTime) {
       if (selectedTime != null) {
-        final timeString = '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
+        final timeString =
+            '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
         ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
-          currentSettings.copyWith(time: timeString),
-        );
+              currentSettings.copyWith(time: timeString),
+            );
       }
     });
   }
@@ -1350,24 +1443,26 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'التصدير المتقدم',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
             const Text(
               'تصدير البيانات بتنسيقات مختلفة للتحليل والمشاركة',
               style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 16),
-
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).exportToCSV(),
+                    onPressed: state.isWorking
+                        ? null
+                        : () => ref
+                            .read(backupStatusProvider.notifier)
+                            .exportToCSV(),
                     icon: const Icon(Icons.table_chart),
                     label: const Text('تصدير CSV'),
                   ),
@@ -1375,7 +1470,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).createReadableReport(),
+                    onPressed: state.isWorking
+                        ? null
+                        : () => ref
+                            .read(backupStatusProvider.notifier)
+                            .createReadableReport(),
                     icon: const Icon(Icons.description),
                     label: const Text('تقرير شامل'),
                   ),
@@ -1386,7 +1485,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).exportToDownloads(),
+                onPressed: state.isWorking
+                    ? null
+                    : () => ref
+                        .read(backupStatusProvider.notifier)
+                        .exportToDownloads(),
                 icon: const Icon(Icons.download),
                 label: const Text('تصدير إلى مجلد Downloads'),
                 style: OutlinedButton.styleFrom(
@@ -1401,7 +1504,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
   }
 
   Widget _buildImportAndMergeCard(BackupState state) {
-    final jsonBackups = state.localBackups.where((b) => b.format == BackupFormat.json).toList();
+    final jsonBackups =
+        state.localBackups.where((b) => b.format == BackupFormat.json).toList();
     final canMerge = jsonBackups.length >= 2;
 
     return Card(
@@ -1417,24 +1521,26 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'الاستيراد والدمج',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
             const Text(
               'استيراد ملفات نسخ احتياطية من مصادر خارجية ودمج نسخ متعددة',
               style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 16),
-
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).importBackupFromFile(),
+                    onPressed: state.isWorking
+                        ? null
+                        : () => ref
+                            .read(backupStatusProvider.notifier)
+                            .importBackupFromFile(),
                     icon: const Icon(Icons.file_upload),
                     label: const Text('استيراد ملف'),
                     style: ElevatedButton.styleFrom(
@@ -1446,7 +1552,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: !canMerge ? null : () => _showMergeDialog(jsonBackups),
+                    onPressed:
+                        !canMerge ? null : () => _showMergeDialog(jsonBackups),
                     icon: const Icon(Icons.merge),
                     label: const Text('دمج نسخ'),
                   ),
@@ -1473,13 +1580,12 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'إدارة الملفات المتقدمة',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-
             if (state.backupFolderInfo != null) ...[
               Text(
                 'مجلد النسخ: ${state.backupFolderInfo!['backups_count']} ملف (${state.backupFolderInfo!['total_size_mb']} ميجابايت)',
@@ -1487,12 +1593,13 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               ),
               const SizedBox(height: 12),
             ],
-
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: state.isWorking || state.localBackups.isEmpty ? null : () => _showShareMultipleDialog(state),
+                    onPressed: state.isWorking || state.localBackups.isEmpty
+                        ? null
+                        : () => _showShareMultipleDialog(state),
                     icon: const Icon(Icons.share),
                     label: const Text('مشاركة متعددة'),
                   ),
@@ -1500,7 +1607,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).cleanupTempFiles(),
+                    onPressed: state.isWorking
+                        ? null
+                        : () => ref
+                            .read(backupStatusProvider.notifier)
+                            .cleanupTempFiles(),
                     icon: const Icon(Icons.cleaning_services),
                     label: const Text('تنظيف مؤقت'),
                   ),
@@ -1511,7 +1622,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: state.isWorking || state.localBackups.length < 6 ? null : () => ref.read(backupStatusProvider.notifier).cleanOldLocalBackups(keepCount: 5),
+                onPressed: state.isWorking || state.localBackups.length < 6
+                    ? null
+                    : () => ref
+                        .read(backupStatusProvider.notifier)
+                        .cleanOldLocalBackups(keepCount: 5),
                 icon: const Icon(Icons.auto_delete),
                 label: const Text('حذف النسخ القديمة (الاحتفاظ بـ 5)'),
                 style: OutlinedButton.styleFrom(
@@ -1539,13 +1654,12 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 Text(
                   'إحصائيات وتحليل',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Expanded(
@@ -1588,11 +1702,14 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               ],
             ),
             const SizedBox(height: 16),
-            
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).analyzeBackupFiles(),
+                onPressed: state.isWorking
+                    ? null
+                    : () => ref
+                        .read(backupStatusProvider.notifier)
+                        .analyzeBackupFiles(),
                 icon: const Icon(Icons.analytics),
                 label: const Text('تحليل مفصل للملفات'),
               ),
@@ -1603,7 +1720,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     );
   }
 
-  Widget _buildAnalyticItem(String title, String value, IconData icon, Color color) {
+  Widget _buildAnalyticItem(
+      String title, String value, IconData icon, Color color) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.all(8),
@@ -1657,11 +1775,15 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
             onPressed: () {
               Navigator.of(dialogContext).pop();
               final paths = jsonBackups.map((b) => b.filePath).toList();
-              final mergedName = 'merged_backup_${DateTime.now().millisecondsSinceEpoch}.json';
-              ref.read(backupStatusProvider.notifier).mergeBackups(paths, mergedName);
+              final mergedName =
+                  'merged_backup_${DateTime.now().millisecondsSinceEpoch}.json';
+              ref
+                  .read(backupStatusProvider.notifier)
+                  .mergeBackups(paths, mergedName);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('جارٍ دمج ${jsonBackups.length} نسخة احتياطية...'),
+                  content:
+                      Text('جارٍ دمج ${jsonBackups.length} نسخة احتياطية...'),
                   duration: const Duration(seconds: 3),
                 ),
               );
@@ -1676,13 +1798,13 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
 
   void _showShareMultipleDialog(BackupState state) {
     final selectedBackups = <String>{};
-    
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('مشاركة نسخ متعددة'),
-          content: Container(
+          content: SizedBox(
             width: double.maxFinite,
             height: 300,
             child: Column(
@@ -1694,11 +1816,13 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                     itemCount: state.localBackups.length,
                     itemBuilder: (context, index) {
                       final backup = state.localBackups[index];
-                      final isSelected = selectedBackups.contains(backup.filePath);
-                      
+                      final isSelected =
+                          selectedBackups.contains(backup.filePath);
+
                       return CheckboxListTile(
                         title: Text(backup.fileName),
-                        subtitle: Text('${(backup.sizeBytes / (1024 * 1024)).toStringAsFixed(2)} ميجابايت'),
+                        subtitle: Text(
+                            '${(backup.sizeBytes / (1024 * 1024)).toStringAsFixed(2)} ميجابايت'),
                         value: isSelected,
                         onChanged: (value) {
                           setState(() {
@@ -1722,10 +1846,14 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: selectedBackups.isEmpty ? null : () {
-                Navigator.of(context).pop();
-                ref.read(backupStatusProvider.notifier).shareMultipleBackups(selectedBackups.toList());
-              },
+              onPressed: selectedBackups.isEmpty
+                  ? null
+                  : () {
+                      Navigator.of(context).pop();
+                      ref
+                          .read(backupStatusProvider.notifier)
+                          .shareMultipleBackups(selectedBackups.toList());
+                    },
               child: Text('مشاركة (${selectedBackups.length})'),
             ),
           ],

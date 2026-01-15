@@ -10,17 +10,18 @@ import 'package:printing/printing.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
-import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
   const IncomeExpenseReportScreen({super.key});
 
   @override
-  ConsumerState<IncomeExpenseReportScreen> createState() => _IncomeExpenseReportScreenState();
+  ConsumerState<IncomeExpenseReportScreen> createState() =>
+      _IncomeExpenseReportScreenState();
 }
 
-class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportScreen> {
+class _IncomeExpenseReportScreenState
+    extends ConsumerState<IncomeExpenseReportScreen> {
   final DateFormat _dateFormat = DateFormat('yyyy/MM/dd');
   int _rangeMonths = 1;
   bool _detailedMode = false;
@@ -40,7 +41,8 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
   @override
   void initState() {
     super.initState();
-    _fromDate = DateTime(_toDate.year, _toDate.month, _toDate.day).subtract(Duration(days: 30));
+    _fromDate = DateTime(_toDate.year, _toDate.month, _toDate.day)
+        .subtract(Duration(days: 30));
     unawaited(_fetchReport());
   }
 
@@ -50,7 +52,8 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
     try {
       final db = ref.read(coreProviders.dbProvider);
       _toDate = DateTime.now();
-      _fromDate = DateTime(_toDate.year, _toDate.month, _toDate.day).subtract(Duration(days: _rangeMonths * 30));
+      _fromDate = DateTime(_toDate.year, _toDate.month, _toDate.day)
+          .subtract(Duration(days: _rangeMonths * 30));
 
       final payments = await (db.select(db.payments)).get();
       final expenses = await (db.select(db.expenses)).get();
@@ -62,7 +65,9 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
         if (!_isWithinRange(date)) continue;
         incomeEntries.add(_IncomeEntry(
           date: date,
-          description: payment.revenueType?.isNotEmpty == true ? payment.revenueType! : 'مدفوعات نزيل',
+          description: payment.revenueType.isNotEmpty == true
+              ? payment.revenueType
+              : 'مدفوعات نزيل',
           amount: payment.amount,
         ));
         incomeTotal += payment.amount;
@@ -105,7 +110,8 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
   }
 
   DateTime _parseDate(String value) {
-    final normalized = value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized =
+        value.contains('T') ? value : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {
@@ -114,7 +120,8 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
   }
 
   bool _isWithinRange(DateTime date) {
-    final endOfDay = DateTime(_toDate.year, _toDate.month, _toDate.day, 23, 59, 59);
+    final endOfDay =
+        DateTime(_toDate.year, _toDate.month, _toDate.day, 23, 59, 59);
     return !date.isBefore(_fromDate) && !date.isAfter(endOfDay);
   }
 
@@ -137,9 +144,15 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
         ),
         child: pw.Column(
           children: [
-            pw.Text(title, style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: PdfColors.textDark)),
+            pw.Text(title,
+                style: pw.TextStyle(
+                    font: fonts.regular,
+                    fontSize: 11,
+                    color: PdfColors.textDark)),
             pw.SizedBox(height: 4),
-            pw.Text(value, style: pw.TextStyle(font: fonts.bold, fontSize: 16, color: color)),
+            pw.Text(value,
+                style:
+                    pw.TextStyle(font: fonts.bold, fontSize: 16, color: color)),
           ],
         ),
       );
@@ -166,12 +179,20 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
 
     final incomeRows = _detailedMode
         ? _incomeEntries
-            .map((e) => [_dateFormat.format(e.date), e.description, EnhancedPdfUtils.formatNumber(e.amount)])
+            .map((e) => [
+                  _dateFormat.format(e.date),
+                  e.description,
+                  EnhancedPdfUtils.formatNumber(e.amount)
+                ])
             .toList()
         : const <List<String>>[];
     final expenseRows = _detailedMode
         ? _expenseEntries
-            .map((e) => [_dateFormat.format(e.date), e.description.isNotEmpty ? e.description : e.type, EnhancedPdfUtils.formatNumber(e.amount)])
+            .map((e) => [
+                  _dateFormat.format(e.date),
+                  e.description.isNotEmpty ? e.description : e.type,
+                  EnhancedPdfUtils.formatNumber(e.amount)
+                ])
             .toList()
         : const <List<String>>[];
 
@@ -184,7 +205,8 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
         theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         footer: (context) => pw.Align(
           alignment: pw.Alignment.center,
-          child: pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}', style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+          child: pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}',
+              style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
         ),
         build: (context) => [
           pw.Container(
@@ -193,26 +215,50 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
             padding: const pw.EdgeInsets.all(20),
             child: pw.Column(
               children: [
-                pw.Text('تقرير الدخل والخرج', style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: PdfColors.textWhite)),
+                pw.Text('تقرير الدخل والخرج',
+                    style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 20,
+                        color: PdfColors.textWhite)),
                 pw.SizedBox(height: 8),
-                pw.Text('الفترة من $fromLabel إلى $toLabel', style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite)),
+                pw.Text('الفترة من $fromLabel إلى $toLabel',
+                    style: pw.TextStyle(
+                        font: fonts.regular,
+                        fontSize: 12,
+                        color: PdfColors.textWhite)),
               ],
             ),
           ),
           pw.SizedBox(height: 16),
           pw.Row(
             children: [
-              pw.Expanded(child: buildSummaryBox('إجمالي الدخل', EnhancedPdfUtils.formatNumber(_incomeTotal), PdfColors.success)),
+              pw.Expanded(
+                  child: buildSummaryBox(
+                      'إجمالي الدخل',
+                      EnhancedPdfUtils.formatNumber(_incomeTotal),
+                      PdfColors.success)),
               pw.SizedBox(width: 8),
-              pw.Expanded(child: buildSummaryBox('إجمالي المصروفات', EnhancedPdfUtils.formatNumber(_expenseTotal), PdfColors.danger)),
+              pw.Expanded(
+                  child: buildSummaryBox(
+                      'إجمالي المصروفات',
+                      EnhancedPdfUtils.formatNumber(_expenseTotal),
+                      PdfColors.danger)),
             ],
           ),
           pw.SizedBox(height: 8),
           pw.Row(
             children: [
-              pw.Expanded(child: buildSummaryBox('مصروفات الرواتب', EnhancedPdfUtils.formatNumber(_salaryTotal), PdfColors.warning)),
+              pw.Expanded(
+                  child: buildSummaryBox(
+                      'مصروفات الرواتب',
+                      EnhancedPdfUtils.formatNumber(_salaryTotal),
+                      PdfColors.warning)),
               pw.SizedBox(width: 8),
-              pw.Expanded(child: buildSummaryBox('صافي الربح/الخسارة', EnhancedPdfUtils.formatNumber(_net), _net >= 0 ? PdfColors.success : PdfColors.danger)),
+              pw.Expanded(
+                  child: buildSummaryBox(
+                      'صافي الربح/الخسارة',
+                      EnhancedPdfUtils.formatNumber(_net),
+                      _net >= 0 ? PdfColors.success : PdfColors.danger)),
             ],
           ),
           pw.SizedBox(height: 16),
@@ -222,7 +268,8 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
       ),
     );
 
-    final filename = 'تقرير-الدخل-والخرج-${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
+    final filename =
+        'تقرير-الدخل-والخرج-${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
     await Printing.sharePdf(bytes: await doc.save(), filename: filename);
   }
 
@@ -234,7 +281,9 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
         IconButton(
           icon: const Icon(Icons.picture_as_pdf),
           tooltip: 'تصدير PDF',
-          onPressed: (_incomeEntries.isEmpty && _expenseEntries.isEmpty) ? null : _exportPdf,
+          onPressed: (_incomeEntries.isEmpty && _expenseEntries.isEmpty)
+              ? null
+              : _exportPdf,
         ),
       ],
       body: Padding(
@@ -272,7 +321,9 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
                 ElevatedButton.icon(
                   onPressed: _loading ? null : _fetchReport,
                   icon: const Icon(Icons.refresh),
-                  label: _loading ? const Text('جارٍ التحميل...') : const Text('تحديث التقرير'),
+                  label: _loading
+                      ? const Text('جارٍ التحميل...')
+                      : const Text('تحديث التقرير'),
                 ),
               ],
             ),
@@ -303,7 +354,8 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('الفترة: ${DateFormat('yyyy-MM-dd').format(_fromDate)} - ${DateFormat('yyyy-MM-dd').format(_toDate)}',
+            Text(
+                'الفترة: ${DateFormat('yyyy-MM-dd').format(_fromDate)} - ${DateFormat('yyyy-MM-dd').format(_toDate)}',
                 style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Wrap(
@@ -332,7 +384,8 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text(NumberFormat('#,##0').format(value), style: TextStyle(color: color)),
+          Text(NumberFormat('#,##0').format(value),
+              style: TextStyle(color: color)),
         ],
       ),
     );
@@ -351,10 +404,12 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
                 trailing: Text(NumberFormat('#,##0').format(e.amount)),
               )),
           const SizedBox(height: 16),
-          Text('تفاصيل المصروفات', style: Theme.of(context).textTheme.titleMedium),
+          Text('تفاصيل المصروفات',
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           ..._expenseEntries.map((e) => ListTile(
-                leading: Icon(Icons.arrow_upward, color: e.isSalary ? Colors.orange : Colors.red),
+                leading: Icon(Icons.arrow_upward,
+                    color: e.isSalary ? Colors.orange : Colors.red),
                 title: Text(e.description.isNotEmpty ? e.description : e.type),
                 subtitle: Text(_dateFormat.format(e.date)),
                 trailing: Text(NumberFormat('#,##0').format(e.amount)),
@@ -377,7 +432,8 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
 }
 
 class _IncomeEntry {
-  _IncomeEntry({required this.date, required this.description, required this.amount});
+  _IncomeEntry(
+      {required this.date, required this.description, required this.amount});
 
   final DateTime date;
   final String description;

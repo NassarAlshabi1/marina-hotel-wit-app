@@ -7,38 +7,62 @@ import 'outbox_dao.dart';
 part 'bookings_dao.g.dart';
 
 @DriftAccessor(tables: [Bookings])
-class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin {
+class BookingsDao extends DatabaseAccessor<AppDatabase>
+    with _$BookingsDaoMixin {
   BookingsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<Booking>> list({String? search, String? roomNumber, String? status, String? from, String? to, bool includeDeleted = false, int? limit, int? offset}) async {
+  Future<List<Booking>> list(
+      {String? search,
+      String? roomNumber,
+      String? status,
+      String? from,
+      String? to,
+      bool includeDeleted = false,
+      int? limit,
+      int? offset}) async {
     final q = select(bookings);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (roomNumber != null && roomNumber.isNotEmpty) q.where((t) => t.roomNumber.equals(roomNumber));
-    if (status != null && status.isNotEmpty) q.where((t) => t.status.equals(status));
-    if (from != null && to != null) q.where((t) => t.checkinDate.isBiggerOrEqualValue(from) & t.checkinDate.isSmallerOrEqualValue(to));
+    if (roomNumber != null && roomNumber.isNotEmpty)
+      q.where((t) => t.roomNumber.equals(roomNumber));
+    if (status != null && status.isNotEmpty)
+      q.where((t) => t.status.equals(status));
+    if (from != null && to != null)
+      q.where((t) =>
+          t.checkinDate.isBiggerOrEqualValue(from) &
+          t.checkinDate.isSmallerOrEqualValue(to));
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.guestName.like(s) | t.guestPhone.like(s));
     }
-    q.orderBy([(t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)]);
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)
+    ]);
     if (limit != null) q.limit(limit, offset: offset ?? 0);
     return q.get();
   }
 
-  Stream<List<Booking>> watchList({String? roomNumber, String? status, bool includeDeleted = false}) {
+  Stream<List<Booking>> watchList(
+      {String? roomNumber, String? status, bool includeDeleted = false}) {
     final q = select(bookings);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (roomNumber != null && roomNumber.isNotEmpty) q.where((t) => t.roomNumber.equals(roomNumber));
-    if (status != null && status.isNotEmpty) q.where((t) => t.status.equals(status));
-    q.orderBy([(t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)]);
+    if (roomNumber != null && roomNumber.isNotEmpty)
+      q.where((t) => t.roomNumber.equals(roomNumber));
+    if (status != null && status.isNotEmpty)
+      q.where((t) => t.status.equals(status));
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)
+    ]);
     return q.watch();
   }
 
-  Future<Booking?> getById(int id) => (select(bookings)..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<Booking?> watchById(int id) => (select(bookings)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<Booking?> getById(int id) =>
+      (select(bookings)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<Booking?> watchById(int id) =>
+      (select(bookings)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
-  Future<int> insertOne(BookingsCompanion data, {bool originIsServer = false}) async {
+  Future<int> insertOne(BookingsCompanion data,
+      {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -64,13 +88,16 @@ class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin 
     });
   }
 
-  Future<int> updateById(int id, BookingsCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateById(int id, BookingsCompanion data,
+      {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
-      final rows = await (update(bookings)..where((t) => t.id.equals(id))).write(comp);
+      final comp =
+          data.copyWith(updatedAt: Value(now), lastModified: Value(now));
+      final rows =
+          await (update(bookings)..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'bookings',
@@ -90,7 +117,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin 
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows = await (update(bookings)..where((t) => t.id.equals(id))).write(BookingsCompanion(
+      final rows = await (update(bookings)..where((t) => t.id.equals(id)))
+          .write(BookingsCompanion(
         deletedAt: Value(now),
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -109,7 +137,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin 
     });
   }
 
-  Future<int> deleteById(int id, {bool originIsServer = false}) => softDelete(id, originIsServer: originIsServer);
+  Future<int> deleteById(int id, {bool originIsServer = false}) =>
+      softDelete(id, originIsServer: originIsServer);
 
   Future<List<Booking>> getAll({bool includeDeleted = false}) {
     final query = select(bookings);
@@ -119,15 +148,18 @@ class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin 
     return query.get();
   }
 
-  Future<List<Booking>> getByRoomNumber(String roomNumber, {bool includeDeleted = false}) {
-    final query = select(bookings)..where((t) => t.roomNumber.equals(roomNumber));
+  Future<List<Booking>> getByRoomNumber(String roomNumber,
+      {bool includeDeleted = false}) {
+    final query = select(bookings)
+      ..where((t) => t.roomNumber.equals(roomNumber));
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
     return query.get();
   }
 
-  Future<List<Booking>> getByStatus(String status, {bool includeDeleted = false}) {
+  Future<List<Booking>> getByStatus(String status,
+      {bool includeDeleted = false}) {
     final query = select(bookings)..where((t) => t.status.equals(status));
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
@@ -137,24 +169,32 @@ class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin 
 
   Map<String, dynamic> _payloadFrom(BookingsCompanion comp, {Booking? base}) {
     final m = <String, dynamic>{};
-    if (comp.serverBookingId.present) m['booking_id'] = comp.serverBookingId.value;
+    if (comp.serverBookingId.present)
+      m['booking_id'] = comp.serverBookingId.value;
     if (comp.roomNumber.present) m['room_number'] = comp.roomNumber.value;
     if (comp.guestName.present) m['guest_name'] = comp.guestName.value;
     if (comp.guestPhone.present) m['guest_phone'] = comp.guestPhone.value;
     if (comp.guestIdType.present) m['guest_id_type'] = comp.guestIdType.value;
-    if (comp.guestIdNumber.present) m['guest_id_number'] = comp.guestIdNumber.value;
-    if (comp.guestIdIssueDate.present) m['guest_id_issue_date'] = comp.guestIdIssueDate.value;
-    if (comp.guestIdIssuePlace.present) m['guest_id_issue_place'] = comp.guestIdIssuePlace.value;
-    if (comp.guestNationality.present) m['guest_nationality'] = comp.guestNationality.value;
+    if (comp.guestIdNumber.present)
+      m['guest_id_number'] = comp.guestIdNumber.value;
+    if (comp.guestIdIssueDate.present)
+      m['guest_id_issue_date'] = comp.guestIdIssueDate.value;
+    if (comp.guestIdIssuePlace.present)
+      m['guest_id_issue_place'] = comp.guestIdIssuePlace.value;
+    if (comp.guestNationality.present)
+      m['guest_nationality'] = comp.guestNationality.value;
     if (comp.guestEmail.present) m['guest_email'] = comp.guestEmail.value;
     if (comp.guestAddress.present) m['guest_address'] = comp.guestAddress.value;
     if (comp.checkinDate.present) m['checkin_date'] = comp.checkinDate.value;
     if (comp.checkoutDate.present) m['checkout_date'] = comp.checkoutDate.value;
-    if (comp.actualCheckout.present) m['actual_checkout'] = comp.actualCheckout.value;
+    if (comp.actualCheckout.present)
+      m['actual_checkout'] = comp.actualCheckout.value;
     if (comp.status.present) m['status'] = comp.status.value;
     if (comp.notes.present) m['notes'] = comp.notes.value;
-    if (comp.expectedNights.present) m['expected_nights'] = comp.expectedNights.value;
-    if (comp.calculatedNights.present) m['calculated_nights'] = comp.calculatedNights.value;
+    if (comp.expectedNights.present)
+      m['expected_nights'] = comp.expectedNights.value;
+    if (comp.calculatedNights.present)
+      m['calculated_nights'] = comp.calculatedNights.value;
     return m;
   }
 
@@ -167,7 +207,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase> with _$BookingsDaoMixin 
   }
 
   /// استيراد الحجوزات من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+  Future<void> importFromJson(List<Map<String, dynamic>> data,
+      {bool clearExisting = false}) async {
     if (clearExisting) {
       await delete(bookings).go();
     }

@@ -8,7 +8,6 @@ import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/screen_sync_controller.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -19,7 +18,6 @@ class ExpensesListScreen extends ConsumerStatefulWidget {
 
 class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     with SyncOnExitMixin {
-  
   @override
   String get screenId => 'expenses_list';
   int? _selectedEmployeeId;
@@ -27,8 +25,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   static const String _salaryType = 'رواتب';
   static const String _salaryWithdrawAction = 'سحب من الراتب';
   static const String _salaryDeductionAction = 'خصم من الراتب';
-  static const List<String> _salaryActions = [_salaryWithdrawAction, _salaryDeductionAction];
-  static const List<String> availableTypes = ['رواتب', 'ديزل', 'صيانة', 'فواتير كهرباء ومياه', 'مستلزمات', 'مساعدة محتاج', 'اخرى'];
+  static const List<String> _salaryActions = [
+    _salaryWithdrawAction,
+    _salaryDeductionAction
+  ];
+  static const List<String> availableTypes = [
+    'رواتب',
+    'ديزل',
+    'صيانة',
+    'فواتير كهرباء ومياه',
+    'مستلزمات',
+    'مساعدة محتاج',
+    'اخرى'
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -37,61 +46,74 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     return wrapWithSyncOnExit(
       child: AppScaffold(
-      title: 'المصروفات',
-      actions: [
-        IconButton(
-          onPressed: () => ref.read(syncServiceProvider).runSync(),
-          icon: const Icon(Icons.sync),
-        ),
-        IconButton(
-          onPressed: () => _edit(employees: employeesAsync.value),
-          icon: const Icon(Icons.add),
-        ),
-      ],
-      body: employeesAsync.when(
-        data: (employees) {
-          final employeeNames = {for (final emp in employees) emp.id: emp.name};
-          return Column(
-            children: [
-              _buildEmployeeFilter(employees),
-              Expanded(
-                child: StreamBuilder<List<Expense>>(
-                  stream: repo.watchAll(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return const Center(child: Text('حدث خطأ أثناء تحميل المصروفات.'));
-                    }
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    var expenses = snapshot.data!;
-                    if (_selectedEmployeeId != null) {
-                      expenses = expenses.where((expense) => expense.relatedId == _selectedEmployeeId).toList();
-                    }
-                    if (expenses.isEmpty) {
-                      return const Center(child: Text('لا توجد مصروفات مطابقة للعرض.'));
-                    }
-                    return ListView.builder(
-                      itemCount: expenses.length,
-                      itemBuilder: (context, index) {
-                        final expense = expenses[index];
-                        final employeeName = expense.relatedId != null ? employeeNames[expense.relatedId] : null;
-                        return ListTile(
-                          title: Text(expense.description),
-                          subtitle: Text('${expense.expenseType} • ${employeeName ?? 'بدون موظف'} • ${Time.safeIsoToDateString(expense.date)}'),
-                          trailing: Text(CurrencyFormatter.formatAmount(expense.amount)),
-                          onTap: () => _edit(existing: expense, employees: employees),
-                        );
-                      },
-                    );
-                  },
+        title: 'المصروفات',
+        actions: [
+          IconButton(
+            onPressed: () => ref.read(syncServiceProvider).runSync(),
+            icon: const Icon(Icons.sync),
+          ),
+          IconButton(
+            onPressed: () => _edit(employees: employeesAsync.value),
+            icon: const Icon(Icons.add),
+          ),
+        ],
+        body: employeesAsync.when(
+          data: (employees) {
+            final employeeNames = {
+              for (final emp in employees) emp.id: emp.name
+            };
+            return Column(
+              children: [
+                _buildEmployeeFilter(employees),
+                Expanded(
+                  child: StreamBuilder<List<Expense>>(
+                    stream: repo.watchAll(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return const Center(
+                            child: Text('حدث خطأ أثناء تحميل المصروفات.'));
+                      }
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      var expenses = snapshot.data!;
+                      if (_selectedEmployeeId != null) {
+                        expenses = expenses
+                            .where((expense) =>
+                                expense.relatedId == _selectedEmployeeId)
+                            .toList();
+                      }
+                      if (expenses.isEmpty) {
+                        return const Center(
+                            child: Text('لا توجد مصروفات مطابقة للعرض.'));
+                      }
+                      return ListView.builder(
+                        itemCount: expenses.length,
+                        itemBuilder: (context, index) {
+                          final expense = expenses[index];
+                          final employeeName = expense.relatedId != null
+                              ? employeeNames[expense.relatedId]
+                              : null;
+                          return ListTile(
+                            title: Text(expense.description),
+                            subtitle: Text(
+                                '${expense.expenseType} • ${employeeName ?? 'بدون موظف'} • ${Time.safeIsoToDateString(expense.date)}'),
+                            trailing: Text(
+                                CurrencyFormatter.formatAmount(expense.amount)),
+                            onTap: () =>
+                                _edit(existing: expense, employees: employees),
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('تعذر تحميل الموظفين: $error')),
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) =>
+              Center(child: Text('تعذر تحميل الموظفين: $error')),
         ),
       ),
     );
@@ -110,7 +132,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 border: OutlineInputBorder(),
               ),
               items: [
-                const DropdownMenuItem<int?>(value: null, child: Text('جميع الموظفين')),
+                const DropdownMenuItem<int?>(
+                    value: null, child: Text('جميع الموظفين')),
                 ...employees.map(
                   (employee) => DropdownMenuItem<int?>(
                     value: employee.id,
@@ -142,9 +165,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
-    final description = TextEditingController(text: existing?.description ?? '');
-    final amount = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.amount) : '');
-    final date = TextEditingController(text: existing?.date ?? Time.hotelDayKey());
+    final description =
+        TextEditingController(text: existing?.description ?? '');
+    final amount = TextEditingController(
+        text: existing != null
+            ? CurrencyFormatter.formatAmount(existing.amount)
+            : '');
+    final date =
+        TextEditingController(text: existing?.date ?? Time.hotelDayKey());
 
     String dialogSalaryAction = _salaryWithdrawAction;
     selectedType = existing?.expenseType ?? 'اخرى';
@@ -154,7 +182,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       dialogSalaryAction = _mapExpenseTypeToSalaryAction(existing.expenseType);
     }
 
-    final availableEmployees = employees ?? await ref.read(employeesRepoProvider).watchAll().first;
+    final availableEmployees =
+        employees ?? await ref.read(employeesRepoProvider).watchAll().first;
     int? selectedEmployeeId = existing?.relatedId;
 
     final ok = await showDialog<bool>(
@@ -163,7 +192,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         textDirection: TextDirection.rtl,
         child: StatefulBuilder(
           builder: (ctx, setState) {
-            final dropdownTextStyle = Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontSize: 14);
+            final dropdownTextStyle =
+                Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontSize: 14);
             return AlertDialog(
               title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
               content: SingleChildScrollView(
@@ -183,7 +213,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: selectedType,
-                      decoration: const InputDecoration(labelText: 'نوع المصروف'),
+                      decoration:
+                          const InputDecoration(labelText: 'نوع المصروف'),
                       style: dropdownTextStyle,
                       items: availableTypes
                           .map((type) => DropdownMenuItem<String>(
@@ -197,7 +228,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           selectedType = value;
                           if (selectedType == _salaryType) {
                             if (availableEmployees.isNotEmpty) {
-                              selectedEmployeeId ??= availableEmployees.first.id;
+                              selectedEmployeeId ??=
+                                  availableEmployees.first.id;
                             }
                           } else {
                             selectedEmployeeId = null;
@@ -213,19 +245,22 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       if (availableEmployees.isNotEmpty) ...[
                         DropdownButtonFormField<int>(
                           value: selectedEmployeeId,
-                          decoration: const InputDecoration(labelText: 'اسم الموظف'),
+                          decoration:
+                              const InputDecoration(labelText: 'اسم الموظف'),
                           items: availableEmployees
                               .map((employee) => DropdownMenuItem<int>(
                                     value: employee.id,
                                     child: Text(employee.name),
                                   ))
                               .toList(),
-                          onChanged: (value) => setState(() => selectedEmployeeId = value),
+                          onChanged: (value) =>
+                              setState(() => selectedEmployeeId = value),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           value: dialogSalaryAction,
-                          decoration: const InputDecoration(labelText: 'نوع المعاملة'),
+                          decoration:
+                              const InputDecoration(labelText: 'نوع المعاملة'),
                           items: _salaryActions
                               .map(
                                 (action) => DropdownMenuItem<String>(
@@ -245,7 +280,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     TextField(
                       controller: amount,
                       decoration: const InputDecoration(labelText: 'المبلغ'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -255,20 +291,25 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     const SizedBox(height: 12),
                     TextField(
                       controller: date,
-                      decoration: const InputDecoration(labelText: 'التاريخ YYYY-MM-DD'),
+                      decoration: const InputDecoration(
+                          labelText: 'التاريخ YYYY-MM-DD'),
                     ),
                   ],
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('إلغاء')),
                 FilledButton(
                   onPressed: () {
                     // Validate salary expenses must have employee selected
-                    if (selectedType == _salaryType && selectedEmployeeId == null) {
+                    if (selectedType == _salaryType &&
+                        selectedEmployeeId == null) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
                         SnackBar(
-                          content: const Text('يجب اختيار موظف عند اختيار نوع المصروف "رواتب"'),
+                          content: const Text(
+                              'يجب اختيار موظف عند اختيار نوع المصروف "رواتب"'),
                           backgroundColor: Theme.of(ctx).colorScheme.error,
                         ),
                       );
@@ -296,7 +337,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
     final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedDate = date.text.trim().isEmpty ? Time.hotelDayKey() : date.text.trim();
+    final trimmedDate =
+        date.text.trim().isEmpty ? Time.hotelDayKey() : date.text.trim();
     final isSalaryExpense = selectedType == _salaryType;
     final savedType = isSalaryExpense
         ? _deriveSalaryExpenseType(dialogSalaryAction)
@@ -365,7 +407,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   bool _isSalaryAction(String? type) {
     if (type == null) return false;
     final normalized = type.trim();
-    return normalized == _salaryType || normalized == 'سحب راتب' || normalized == _salaryWithdrawAction || normalized == _salaryDeductionAction || normalized == 'خصم راتب';
+    return normalized == _salaryType ||
+        normalized == 'سحب راتب' ||
+        normalized == _salaryWithdrawAction ||
+        normalized == _salaryDeductionAction ||
+        normalized == 'خصم راتب';
   }
 
   String _mapExpenseTypeToSalaryAction(String type) {

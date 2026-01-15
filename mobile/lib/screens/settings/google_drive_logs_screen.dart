@@ -11,7 +11,8 @@ class GoogleDriveLogsScreen extends ConsumerStatefulWidget {
   const GoogleDriveLogsScreen({super.key});
 
   @override
-  ConsumerState<GoogleDriveLogsScreen> createState() => _GoogleDriveLogsScreenState();
+  ConsumerState<GoogleDriveLogsScreen> createState() =>
+      _GoogleDriveLogsScreenState();
 }
 
 class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
@@ -105,15 +106,20 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                     children: [
                       _buildFilterChip('الكل', null, logStats['total'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Debug', LogLevel.debug, logStats['debug'] ?? 0),
+                      _buildFilterChip(
+                          'Debug', LogLevel.debug, logStats['debug'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Info', LogLevel.info, logStats['info'] ?? 0),
+                      _buildFilterChip(
+                          'Info', LogLevel.info, logStats['info'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Warning', LogLevel.warning, logStats['warning'] ?? 0),
+                      _buildFilterChip('Warning', LogLevel.warning,
+                          logStats['warning'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Error', LogLevel.error, logStats['error'] ?? 0),
+                      _buildFilterChip(
+                          'Error', LogLevel.error, logStats['error'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Critical', LogLevel.critical, logStats['critical'] ?? 0),
+                      _buildFilterChip('Critical', LogLevel.critical,
+                          logStats['critical'] ?? 0),
                     ],
                   ),
                 ),
@@ -136,7 +142,8 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                 : ListView.separated(
                     padding: const EdgeInsets.all(8),
                     itemCount: filteredLogs.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1),
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final log = filteredLogs[filteredLogs.length - 1 - index];
                       return _buildLogEntry(log);
@@ -199,26 +206,33 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
               ),
               const SizedBox(height: 8),
               Text(log.message,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       color: color.withOpacity(0.1),
                     ),
                     child: Text(log.tag,
-                        style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold)),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: color,
+                            fontWeight: FontWeight.bold)),
                   ),
                   if (log.error != null) ...[
                     const SizedBox(width: 8),
-                    const Icon(Icons.error_outline, color: Colors.red, size: 16),
+                    const Icon(Icons.error_outline,
+                        color: Colors.red, size: 16),
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(log.error.toString(),
-                          style: const TextStyle(fontSize: 12, color: Colors.red)),
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.red)),
                     ),
                   ],
                 ],
@@ -320,18 +334,22 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
               ),
               if (log.error != null) ...[
                 const SizedBox(height: 12),
-                const Text('الخطأ:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('الخطأ:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(log.error.toString(), style: const TextStyle(color: Colors.red)),
+                Text(log.error.toString(),
+                    style: const TextStyle(color: Colors.red)),
               ],
               if (log.stackTrace != null) ...[
                 const SizedBox(height: 12),
-                const Text('Stack Trace:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Stack Trace:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 SizedBox(
                   height: 120,
                   child: SingleChildScrollView(
-                    child: Text(log.stackTrace.toString(), style: const TextStyle(fontSize: 12)),
+                    child: Text(log.stackTrace.toString(),
+                        style: const TextStyle(fontSize: 12)),
                   ),
                 ),
               ],

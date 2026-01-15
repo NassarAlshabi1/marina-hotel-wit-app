@@ -7,14 +7,21 @@ import 'outbox_dao.dart';
 part 'expenses_dao.g.dart';
 
 @DriftAccessor(tables: [Expenses])
-class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin {
+class ExpensesDao extends DatabaseAccessor<AppDatabase>
+    with _$ExpensesDaoMixin {
   ExpensesDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<Expense>> list({String? search, String? from, String? to, bool includeDeleted = false}) async {
+  Future<List<Expense>> list(
+      {String? search,
+      String? from,
+      String? to,
+      bool includeDeleted = false}) async {
     final q = select(expenses);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (from != null && to != null) q.where((t) => t.date.isBiggerOrEqualValue(from) & t.date.isSmallerOrEqualValue(to));
+    if (from != null && to != null)
+      q.where((t) =>
+          t.date.isBiggerOrEqualValue(from) & t.date.isSmallerOrEqualValue(to));
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.description.like(s) | t.expenseType.like(s));
@@ -29,34 +36,43 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
   }
 
   /// جلب المصروفات لتاريخ محدد
-  Future<List<Expense>> listByDate(String date, {bool includeDeleted = false}) async {
+  Future<List<Expense>> listByDate(String date,
+      {bool includeDeleted = false}) async {
     final q = select(expenses);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     q.where((t) => t.date.like('$date%'));
     return q.get();
   }
 
-  Future<List<Expense>> listByHotelDayKey(String hotelDayKey, {bool includeDeleted = false}) async {
+  Future<List<Expense>> listByHotelDayKey(String hotelDayKey,
+      {bool includeDeleted = false}) async {
     final q = select(expenses);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
 
     final byKey = expenses.hotelDayKey.equals(hotelDayKey);
-    final byDateFallback = expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
+    final byDateFallback =
+        expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
 
     q.where((t) => byKey | byDateFallback);
     return q.get();
   }
 
-  Future<Expense?> getById(int id) => (select(expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<Expense?> watchById(int id) => (select(expenses)..where((t) => t.id.equals(id))).watchSingleOrNull();
-  Future<Expense?> getByLocalUuid(String localUuid) => (select(expenses)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  Future<Expense?> getById(int id) =>
+      (select(expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<Expense?> watchById(int id) =>
+      (select(expenses)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<Expense?> getByLocalUuid(String localUuid) =>
+      (select(expenses)..where((t) => t.localUuid.equals(localUuid)))
+          .getSingleOrNull();
   Future<Expense?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
     if (parsedServerId == null) return Future.value(null);
-    return (select(expenses)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+    return (select(expenses)..where((t) => t.serverId.equals(parsedServerId)))
+        .getSingleOrNull();
   }
 
-  Future<int> insertOne(ExpensesCompanion data, {bool originIsServer = false}) async {
+  Future<int> insertOne(ExpensesCompanion data,
+      {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -82,7 +98,8 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
     });
   }
 
-  Future<int> updateById(int id, ExpensesCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateById(int id, ExpensesCompanion data,
+      {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
@@ -92,7 +109,8 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
         lastModified: Value(now),
         version: Value(existing.version + 1),
       );
-      final rows = await (update(expenses)..where((t) => t.id.equals(id))).write(comp);
+      final rows =
+          await (update(expenses)..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'expenses',
@@ -107,7 +125,8 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
     });
   }
 
-  Future<int> updateByLocalUuid(String localUuid, ExpensesCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateByLocalUuid(String localUuid, ExpensesCompanion data,
+      {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByLocalUuid(localUuid);
@@ -117,7 +136,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
         lastModified: Value(now),
         version: Value(existing.version + 1),
       );
-      final rows = await (update(expenses)..where((t) => t.localUuid.equals(localUuid))).write(comp);
+      final rows = await (update(expenses)
+            ..where((t) => t.localUuid.equals(localUuid)))
+          .write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'expenses',
@@ -132,19 +153,24 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
     });
   }
 
-  Future<int> updateByServerId(String? serverId, ExpensesCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateByServerId(String? serverId, ExpensesCompanion data,
+      {bool originIsServer = false}) async {
     return db.transaction(() async {
       final parsedServerId = _parseServerId(serverId);
       if (parsedServerId == null) return 0;
       final now = Time.nowEpoch();
-      final existing = await (select(expenses)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+      final existing = await (select(expenses)
+            ..where((t) => t.serverId.equals(parsedServerId)))
+          .getSingleOrNull();
       if (existing == null) return 0;
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
         version: Value(existing.version + 1),
       );
-      final rows = await (update(expenses)..where((t) => t.serverId.equals(parsedServerId))).write(comp);
+      final rows = await (update(expenses)
+            ..where((t) => t.serverId.equals(parsedServerId)))
+          .write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'expenses',
@@ -168,7 +194,8 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows = await (update(expenses)..where((t) => t.id.equals(id))).write(ExpensesCompanion(
+      final rows = await (update(expenses)..where((t) => t.id.equals(id)))
+          .write(ExpensesCompanion(
         deletedAt: Value(now),
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -189,31 +216,31 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
 
   Map<String, dynamic> _payloadFrom(ExpensesCompanion comp, {Expense? base}) {
     final m = <String, dynamic>{};
-    
+
     if (comp.expenseType.present) {
       m['expense_type'] = comp.expenseType.value;
     } else if (base != null) {
       m['expense_type'] = base.expenseType;
     }
-    
+
     if (comp.relatedId.present) {
       m['related_id'] = comp.relatedId.value;
     } else if (base != null) {
       m['related_id'] = base.relatedId;
     }
-    
+
     if (comp.description.present) {
       m['description'] = comp.description.value;
     } else if (base != null) {
       m['description'] = base.description;
     }
-    
+
     if (comp.amount.present) {
       m['amount'] = comp.amount.value;
     } else if (base != null) {
       m['amount'] = base.amount;
     }
-    
+
     if (comp.date.present) {
       m['date'] = comp.date.value;
     } else if (base != null) {
@@ -223,19 +250,19 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
     if (comp.hotelDayKey.present) {
       m['hotel_day_key'] = comp.hotelDayKey.value;
     }
-    
+
     if (comp.cashTransactionId.present) {
       m['cash_transaction_id'] = comp.cashTransactionId.value;
     } else if (base != null) {
       m['cash_transaction_id'] = base.cashTransactionId;
     }
-    
+
     if (base != null) {
       m['local_uuid'] = base.localUuid;
       m['server_id'] = base.serverId;
       m['version'] = base.version + 1;
     }
-    
+
     return m;
   }
 
@@ -255,7 +282,8 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase> with _$ExpensesDaoMixin 
   }
 
   /// استيراد المصروفات من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+  Future<void> importFromJson(List<Map<String, dynamic>> data,
+      {bool clearExisting = false}) async {
     if (clearExisting) {
       await delete(expenses).go();
     }

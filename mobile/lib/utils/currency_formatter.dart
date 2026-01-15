@@ -15,7 +15,8 @@ class CurrencyFormatter {
   }
 
   /// تنسيق المبلغ بالفواصل الإنجليزية (للأنظمة التي لا تدعم الفواصل العربية)
-  static String formatCurrencyEnglish(double amount, {bool showDecimals = false}) {
+  static String formatCurrencyEnglish(double amount,
+      {bool showDecimals = false}) {
     return _intFormatter.format(amount.truncate());
   }
 

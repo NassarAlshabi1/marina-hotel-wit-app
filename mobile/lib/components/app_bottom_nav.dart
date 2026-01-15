@@ -13,7 +13,13 @@ class AppBottomNavShell extends StatefulWidget {
 
 class _AppBottomNavShellState extends State<AppBottomNavShell> {
   int _index = 0;
-  final _pages = const [DashboardScreen(), BookingsListScreen(), RoomsMainScreen(), ReportsScreen(), SettingsScreen()];
+  final _pages = const [
+    DashboardScreen(),
+    BookingsListScreen(),
+    RoomsMainScreen(),
+    ReportsScreen(),
+    SettingsScreen()
+  ];
   @override
   Widget build(BuildContext context) {
     return Directionality(

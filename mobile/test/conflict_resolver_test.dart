@@ -34,7 +34,8 @@ void main() {
   }
 
   test('lastWriteWins picks newer timestamp', () {
-    final resolver = EnhancedConflictResolver(defaultStrategy: ConflictStrategy.lastWriteWins);
+    final resolver = EnhancedConflictResolver(
+        defaultStrategy: ConflictStrategy.lastWriteWins);
 
     final local = {'status': 'local'};
     final remote = {'status': 'remote'};
@@ -52,7 +53,8 @@ void main() {
   });
 
   test('firstWriteWins picks older timestamp', () {
-    final resolver = EnhancedConflictResolver(defaultStrategy: ConflictStrategy.firstWriteWins);
+    final resolver = EnhancedConflictResolver(
+        defaultStrategy: ConflictStrategy.firstWriteWins);
 
     final local = {'status': 'local'};
     final remote = {'status': 'remote'};
@@ -70,7 +72,8 @@ void main() {
   });
 
   test('lastWriteWins falls back to device priority when timestamps equal', () {
-    final resolver = EnhancedConflictResolver(defaultStrategy: ConflictStrategy.lastWriteWins);
+    final resolver = EnhancedConflictResolver(
+        defaultStrategy: ConflictStrategy.lastWriteWins);
 
     final local = {'status': 'local'};
     final remote = {'status': 'remote'};
@@ -90,7 +93,8 @@ void main() {
   });
 
   test('vector clock before/after overrides strategy selection', () {
-    final resolver = EnhancedConflictResolver(defaultStrategy: ConflictStrategy.firstWriteWins);
+    final resolver = EnhancedConflictResolver(
+        defaultStrategy: ConflictStrategy.firstWriteWins);
 
     final local = {'status': 'local'};
     final remote = {'status': 'remote'};
@@ -122,8 +126,10 @@ void main() {
     expect(r2.winner, remote);
   });
 
-  test('concurrent vector clocks with small time diff uses field-level merge', () {
-    final resolver = EnhancedConflictResolver(defaultStrategy: ConflictStrategy.lastWriteWins);
+  test('concurrent vector clocks with small time diff uses field-level merge',
+      () {
+    final resolver = EnhancedConflictResolver(
+        defaultStrategy: ConflictStrategy.lastWriteWins);
 
     final local = {
       'status': 'local',
