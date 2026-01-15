@@ -54,8 +54,15 @@ class CentralSyncCoordinator {
     if (_lastSyncTime != null) {
       final elapsed = DateTime.now().difference(_lastSyncTime!);
       if (elapsed < syncCooldown) {
-        debugPrint('⏸️ Sync في cooldown ($elapsed < $syncCooldown)');
-        return false;
+        final remaining = syncCooldown - elapsed;
+        debugPrint('⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining');
+
+        _debounceTimer?.cancel();
+        _debounceTimer = Timer(remaining, () async {
+          await _performSync(push: push, pull: pull, reason: 'cooldown_delayed:$reason');
+        });
+
+        return true; // sync is queued
       }
     }
     
