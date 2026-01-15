@@ -1062,4 +1062,5 @@ class GoogleDriveUnifiedSyncCoordinator {
   Future<void> pushChanges() async {}
   Future<void> pullChanges() async {}
   Future<void> pullChanges() async {}
+  Future<void> pullChanges() async {}
 }
