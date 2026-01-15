@@ -3,13 +3,14 @@ name: Remove sync_locks.dart automatically
 on:
   pull_request:
   push:
-    branches: ['**']
+    branches: [capy/S]
 
 jobs:
   cleanup:
     runs-on: ubuntu-latest
     permissions:
-      contents: write          # ليتمكّن من الدفع
+      contents: write          # allow the bot to push commits
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,17 +19,16 @@ jobs:
 
       - name: Delete sync_locks.dart file if it exists
         run: |
-          # 1. حذف الملف نفسه
+          # 1. remove the file itself
           rm -f mobile/lib/services/sync_locks.dart
 
-          # 2. حذف كل أسطر الاستيراد
-          grep -rIl "sync_locks\.dart" mobile/lib mobile/test \
-            | xargs -r sed -i '\|import.*sync_locks\.dart|;d'
+          # 2. delete any import line that references it
+          grep -rIl "sync_locks\.dart" mobile/lib mobile/test | \
+            xargs -r sed -i '/import.*sync_locks\.dart/d'
 
-          # 3. إزالة أي استخدامات فارغة (اختياري)
-          #    هنا نحذف أسطر تبدأ بـ SyncLockManager فقط كمثال
-          grep -rIl "SyncLockManager" mobile/lib mobile/test \
-            | xargs -r sed -i '\|SyncLockManager|;d'
+          # 3. (optional) delete any line that uses SyncLockManager
+          grep -rIl "SyncLockManager" mobile/lib mobile/test | \
+            xargs -r sed -i '/SyncLockManager/d'
 
       - name: Commit & push changes
         uses: stefanzweifel/git-auto-commit-action@v5
