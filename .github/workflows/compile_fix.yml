@@ -3,7 +3,7 @@ name: Compile-fix for release
 on:
   pull_request:
   push:
-    branches: [capy/S]          # or ['**'] for every branch
+    branches: [capy/S]
 
 jobs:
   fix:
@@ -16,53 +16,45 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # ----------------------------------------------------------
-      # 1️⃣  Create missing classes
-      # ----------------------------------------------------------
+      # 1️⃣ SyncManager stub
       - name: Create SyncManager stub
         run: |
-          cat > mobile/lib/services/sync_manager.dart <<'EOF'
-import 'dart:async';
+          cat > mobile/lib/services/sync_manager.dart << 'EOF'
+          import 'dart:async';
 
-/// TODO real implementation
-class SyncManager {
-  Future<void> consumePendingAndSync() async {}
-}
-EOF
+          /// TODO real implementation
+          class SyncManager {
+            Future<void> consumePendingAndSync() async {}
+          }
+          EOF
 
+      # 2️⃣ SyncConstants stub
       - name: Create SyncConstants stub
         run: |
-          cat > mobile/lib/services/sync_constants.dart <<'EOF'
-/// TODO real constants
-class SyncConstants {
-  static const List<String> allTablesInOrder = [];
-}
-EOF
+          cat > mobile/lib/services/sync_constants.dart << 'EOF'
+          /// TODO real constants
+          class SyncConstants {
+            static const List<String> allTablesInOrder = [];
+          }
+          EOF
 
-      # ----------------------------------------------------------
-      # 2️⃣  Add missing method inside existing class
-      # ----------------------------------------------------------
-      - name: Add pullChanges() stub
+      # 3️⃣ Add pullChanges() method
+      - name: Add pullChanges stub
         run: |
-          # insert before last closing brace
           sed -i '$i\  Future<void> pullChanges() async {}' \
             mobile/lib/services/google_drive_unified_sync_coordinator.dart
 
-      # ----------------------------------------------------------
-      # 3️⃣  Inject missing Flutter import
-      # ----------------------------------------------------------
+      # 4️⃣ Inject debugPrint import
       - name: Add debugPrint import
         run: |
           for f in mobile/lib/services/api_service.dart \
                    mobile/lib/services/auth_local_store.dart; do
-            # add after last import line
-            sed -i '/^import.*dart:async;/a import '\''package:flutter/foundation.dart'\'';' "$f"
+            sed -i '/^import.*dart:async;/a import '"'package:flutter/foundation.dart'"';" "$f"
           done
 
-      # ----------------------------------------------------------
-      # 4️⃣  Commit & push if changed
-      # ----------------------------------------------------------
+      # 5️⃣ Commit if changed
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'chore: auto-stub compile errors (CI green)'
           file_pattern: '*.dart'
+          
