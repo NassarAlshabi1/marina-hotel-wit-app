@@ -2,15 +2,15 @@ name: Auto-stub missing symbols
 
 on:
   pull_request:
+    branches: [capy/S]   # ← فقط عند فتح PR إليه
   push:
-    branches: [capy/S]
+    branches: [capy/S]   # ← فقط عند دفع commit إليه
 
 jobs:
   stub:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,14 +43,12 @@ jobs:
       # 3. pushChanges stub
       - name: Add missing method
         run: |
-          # insert before last closing brace
           sed -i '$i\  Future<void> pushChanges() async {}' \
             mobile/lib/services/google_drive_unified_sync_coordinator.dart
 
       # 4. guardian global stub
       - name: Add guardian dummy
         run: |
-          # just before void main()
           sed -i '/^void main()/i\
           final _GuardianStub guardian = _GuardianStub();\
           class _GuardianStub {\
