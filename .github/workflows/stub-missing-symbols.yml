@@ -1,5 +1,5 @@
 name: Auto-stub missing symbols
- 
+
 on:
   pull_request:
   push:
@@ -16,51 +16,53 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 1. --------------  SyncManager  --------------
+      # 1. SyncManager stub
       - name: Create SyncManager stub
         run: |
-          cat > mobile/lib/services/sync_manager.dart <<'EOF'
-import 'dart:async';
+          cat > mobile/lib/services/sync_manager.dart << 'EOF'
+          import 'dart:async';
 
-/// TODO  real implementation
-class SyncManager {
-  Future<void> consumePendingAndSync() async {}
-}
-EOF
+          /// TODO  real implementation
+          class SyncManager {
+            Future<void> consumePendingAndSync() async {}
+          }
+          EOF
 
-      # 2. --------------  AppwriteSyncManager  --------------
+      # 2. AppwriteSyncManager stub
       - name: Create AppwriteSyncManager stub
         run: |
-          cat > mobile/lib/services/appwrite_sync_manager.dart <<'EOF'
-import 'dart:async';
+          cat > mobile/lib/services/appwrite_sync_manager.dart << 'EOF'
+          import 'dart:async';
 
-/// TODO  real implementation
-class AppwriteSyncManager {
-  Future<void> consumePendingAndSync() async {}
-}
-EOF
+          /// TODO  real implementation
+          class AppwriteSyncManager {
+            Future<void> consumePendingAndSync() async {}
+          }
+          EOF
 
-      # 3. --------------  pushChanges method  --------------
-      - name: Add missing method to GoogleDriveUnifiedSyncCoordinator
+      # 3. pushChanges stub
+      - name: Add missing method
         run: |
-          # insert stub method before the last closing brace
-          sed -i '/^}/i\
-            Future<void> pushChanges() async {}' mobile/lib/services/google_drive_unified_sync_coordinator.dart
+          # insert before last closing brace
+          sed -i '$i\  Future<void> pushChanges() async {}' \
+            mobile/lib/services/google_drive_unified_sync_coordinator.dart
 
-      # 4. --------------  guardian global  --------------
-      - name: Add dummy guardian in main.dart
+      # 4. guardian global stub
+      - name: Add guardian dummy
         run: |
-          # declare it just before main()
+          # just before void main()
           sed -i '/^void main()/i\
-final _GuardianStub guardian = _GuardianStub();\
-class _GuardianStub {\
-  Future<void> stop() async {}\
-  Future<void> restart() async {}\
-}' mobile/lib/main.dart
+          final _GuardianStub guardian = _GuardianStub();\
+          class _GuardianStub {\
+            Future<void> stop() async {}\
+            Future<void> restart() async {}\
+          }\
+          ' mobile/lib/main.dart
 
-      # 5. --------------  commit if anything changed  --------------
+      # 5. commit if changed
       - name: Commit & push stubs
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'chore: auto-stub missing symbols (CI green)'
           file_pattern: '*.dart'
+          
