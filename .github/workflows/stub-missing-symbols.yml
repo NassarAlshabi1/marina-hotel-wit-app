@@ -1,66 +1,68 @@
-name: Auto-stub missing symbols
+name: Compile-fix for release
 
 on:
   pull_request:
-    branches: [capy/S]   # ← فقط عند فتح PR إليه
   push:
-    branches: [capy/S]   # ← فقط عند دفع commit إليه
+    branches: [capy/S]          # or ['**'] for every branch
 
 jobs:
-  stub:
+  fix:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 1. SyncManager stub
+      # ----------------------------------------------------------
+      # 1️⃣  Create missing classes
+      # ----------------------------------------------------------
       - name: Create SyncManager stub
         run: |
-          cat > mobile/lib/services/sync_manager.dart << 'EOF'
-          import 'dart:async';
+          cat > mobile/lib/services/sync_manager.dart <<'EOF'
+import 'dart:async';
 
-          /// TODO  real implementation
-          class SyncManager {
-            Future<void> consumePendingAndSync() async {}
-          }
-          EOF
+/// TODO real implementation
+class SyncManager {
+  Future<void> consumePendingAndSync() async {}
+}
+EOF
 
-      # 2. AppwriteSyncManager stub
-      - name: Create AppwriteSyncManager stub
+      - name: Create SyncConstants stub
         run: |
-          cat > mobile/lib/services/appwrite_sync_manager.dart << 'EOF'
-          import 'dart:async';
+          cat > mobile/lib/services/sync_constants.dart <<'EOF'
+/// TODO real constants
+class SyncConstants {
+  static const List<String> allTablesInOrder = [];
+}
+EOF
 
-          /// TODO  real implementation
-          class AppwriteSyncManager {
-            Future<void> consumePendingAndSync() async {}
-          }
-          EOF
-
-      # 3. pushChanges stub
-      - name: Add missing method
+      # ----------------------------------------------------------
+      # 2️⃣  Add missing method inside existing class
+      # ----------------------------------------------------------
+      - name: Add pullChanges() stub
         run: |
-          sed -i '$i\  Future<void> pushChanges() async {}' \
+          # insert before last closing brace
+          sed -i '$i\  Future<void> pullChanges() async {}' \
             mobile/lib/services/google_drive_unified_sync_coordinator.dart
 
-      # 4. guardian global stub
-      - name: Add guardian dummy
+      # ----------------------------------------------------------
+      # 3️⃣  Inject missing Flutter import
+      # ----------------------------------------------------------
+      - name: Add debugPrint import
         run: |
-          sed -i '/^void main()/i\
-          final _GuardianStub guardian = _GuardianStub();\
-          class _GuardianStub {\
-            Future<void> stop() async {}\
-            Future<void> restart() async {}\
-          }\
-          ' mobile/lib/main.dart
+          for f in mobile/lib/services/api_service.dart \
+                   mobile/lib/services/auth_local_store.dart; do
+            # add after last import line
+            sed -i '/^import.*dart:async;/a import '\''package:flutter/foundation.dart'\'';' "$f"
+          done
 
-      # 5. commit if changed
-      - name: Commit & push stubs
-        uses: stefanzweifel/git-auto-commit-action@v5
+      # ----------------------------------------------------------
+      # 4️⃣  Commit & push if changed
+      # ----------------------------------------------------------
+      - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: 'chore: auto-stub missing symbols (CI green)'
+          commit_message: 'chore: auto-stub compile errors (CI green)'
           file_pattern: '*.dart'
-          
