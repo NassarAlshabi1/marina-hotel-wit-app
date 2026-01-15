@@ -47,9 +47,9 @@ jobs:
       # 4️⃣ Inject debugPrint import
       - name: Add debugPrint import
         run: |
-          for f in mobile/lib/services/api_service.dart \
-                   mobile/lib/services/auth_local_store.dart; do
-            sed -i '/^import.*dart:async;/a import '"'package:flutter/foundation.dart'"';" "$f"
+          files="mobile/lib/services/api_service.dart mobile/lib/services/auth_local_store.dart"
+          for f in $files; do
+            sed -i "/^import.*dart:async;/a import 'package:flutter/foundation.dart';" "$f"
           done
 
       # 5️⃣ Commit if changed
