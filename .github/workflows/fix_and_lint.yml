@@ -3,7 +3,7 @@ name: Auto-fix & analyse
 on:
   pull_request:
   push:
-    branches: ['**']
+    branches: [capy/S]
 
 jobs:
   lint:
