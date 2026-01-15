@@ -1,5 +1,5 @@
 name: Auto-stub missing symbols
-
+ 
 on:
   pull_request:
   push:
