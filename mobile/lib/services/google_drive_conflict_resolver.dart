@@ -431,8 +431,7 @@ class GoogleDriveConflictResolver {
     }
     
     // 2. Perform Union: Add Exclusive Local Records (Non-Conflicting)
-    final tables = [ SyncConstants.allTablesInOrder
-    ];
+    final tables = [SyncConstants.allTablesInOrder];
 
     for (final tableName in tables) {
        final localRecords = _getRecordsMap(localData[tableName]);
