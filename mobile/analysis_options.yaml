@@ -7,74 +7,38 @@ analyzer:
   errors:
     deprecated_member_use: ignore
     prefer_const_constructors: ignore
-    prefer_const_declarations: ignore
-    prefer_interpolation_to_compose_strings: ignore
-    unnecessary_brace_in_string_interps: ignore
-    unnecessary_string_interpolations: ignore
-    use_build_context_synchronously: ignore
-    constant_identifier_names: ignore
-    prefer_is_empty: ignore
 
 metrics:
-  # ============================================================================
-  # 📊 مقاييس DCM الموسّعة مع الحدود والشرح
-  # ============================================================================
-  
-  # 🌀 Cyclomatic Complexity (تعقيد الدالة)
-  # عدد المسارات المستقلة في الكود - كل if/while/&& يزيد التعقيد
+  # تعقيد الدالة (عدد المسارات)
   cyclomatic-complexity:
-    threshold: 10  # افتراضي: 20 | فشل CI إذا > 10
-    effort: 15m    # الوقت المطلوب لإصلاح المشكلة
+    threshold: 10
   
-  # 📏 عدد البارامترات
-  # عدد المدخلات للدالة - كثرتها تزيد صعوبة الصيانة
+  # عدد البارامترات
   number-of-arguments:
-    threshold: 5   # الحد الأقصى 5 بارامترات
-    effort: 10m
+    threshold: 5
   
-  # 📦 الـ Nesting (التداخل)
-  # أقصى مستوى تداخل (if داخل if داخل if...)
+  # التداخل
   maximum-nesting:
-    threshold: 4   # لا تتجاوز 4 مستويات
-    effort: 12m
+    threshold: 4
   
-  # 🎯 طول الدالة (عدد الأسطر)
+  # طول الدالة
   lines-of-code:
-    threshold: 50  # الدالة لا تتجاوز 50 سطر
-    effort: 20m
+    threshold: 50
   
-  # 🔗 عدد المتغيرات المحلية
+  # المتغيرات المحلية
   number-of-locals:
-    threshold: 12  # أقصى 12 متغير محلي
-    effort: 8m
+    threshold: 12
   
-  # 🧩 حجم الدالة (عدد العناصر داخلها)
+  # العبارات
   number-of-statements:
-    threshold: 25  # أقصى 25 statement
-    effort: 15m
+    threshold: 25
   
-  # 🔄 التكرار في الكود
-  # يكتشف الكود المتكرر داخل الدالة
+  # التكرار
   repetitive-code:
-    threshold: 20  # نسبة التكرار
-    effort: 25m
-  
-  # 📈 تعقيد الحالة (switch/case)
-  number-of-branches:
-    threshold: 8   # أقصى 8 حالات
-    effort: 18m
-  
-  # ⚡ تعقيد الحسابات
-  cognitive-complexity:
-    threshold: 12  # مقياس أحدث من Cyclomatic
-    effort: 20m
+    threshold: 20
 
 linter:
   rules:
     avoid_print: true
     prefer_single_quotes: true
-    prefer_const_constructors: true
-    prefer_const_literals_to_create_immutables: true
-    avoid_dynamic_calls: true
-    avoid_function_literals_in_foreach_calls: true
     prefer_final_locals: true
