@@ -12,12 +12,14 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 
 import '../data/sync_models.dart';
+import 'google_drive_sign_in_manager.dart';
+import 'sync_constants.dart';
 
 const _kPrimarySnapshotName = 'sync_data.json.gz';
 const _kIndexFileName = 'sync_index.json';
 const _kDeltaPrefix = 'delta_';
 const _kShardExtension = '.json.gz';
-const _kDefaultShardBytes = 4 * 1024 * 1024; // 4MB لكل جزء
+const _kDefaultShardBytes = SyncConstants.googleDriveDefaultShardBytes;
 
 /// نتيجة التحميل من Google Drive بعد فك الضغط والتشفير
 class DriveSyncDownloadResult {
@@ -161,7 +163,7 @@ class GoogleDriveSyncService {
     GoogleSignIn? googleSignIn,
     drive.DriveApi? driveApi,
     int shardSizeBytes = _kDefaultShardBytes,
-  })  : _googleSignIn = googleSignIn ?? GoogleSignIn(scopes: const [drive.DriveApi.driveAppdataScope]),
+  })  : _googleSignIn = googleSignIn ?? GoogleDriveSignInManager.instance.client,
         _driveApi = driveApi,
         _shardSizeBytes = shardSizeBytes;
 
@@ -566,7 +568,9 @@ class GoogleDriveSyncService {
   }
 
   Future<Uint8List> _downloadFileBytes(drive.DriveApi api, String fileId) async {
-    final media = await api.files.get(fileId, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
+    final media = await api.files
+        .get(fileId, downloadOptions: drive.DownloadOptions.fullMedia)
+        .timeout(SyncConstants.driveDownloadTimeout) as drive.Media;
     final builder = BytesBuilder(copy: false);
     await for (final chunk in media.stream) {
       builder.add(chunk);

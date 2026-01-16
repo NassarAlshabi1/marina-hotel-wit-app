@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../screens/notes/notes_screen.dart';
 import '../providers/repository_providers.dart';
-import '../services/sync_service.dart';
+import 'widgets/sync_action_button.dart';
 
 
 class AppScaffold extends ConsumerWidget {
@@ -63,13 +63,7 @@ class AppScaffold extends ConsumerWidget {
                 ],
               ),
             ),
-            IconButton(
-              onPressed: () async {
-                await ref.read(syncServiceProvider).runSync();
-              },
-              tooltip: 'مزامنة يدوية (احتياطية)',
-              icon: const Icon(Icons.sync),
-            ),
+            const SyncActionButton(),
             if (actions != null) ...actions!,
           ],
         ),

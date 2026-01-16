@@ -2,18 +2,21 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:synchronized/synchronized.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_logs.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
 import 'google_drive_logger.dart';
+import 'google_drive_conflict_resolver.dart'; // Added import
 import 'local_db.dart';
 import 'data_usage_manager.dart';
-import 'sync_locks.dart';
+import 'sync_core/unified_lock_manager.dart';
+import 'sync_constants.dart';
 import 'sync_performance_optimizer.dart';
 import 'logging/log_models.dart';
-import 'sync_locks.dart';
+import 'sync_core/retry_strategy.dart';
 
 enum SyncTrigger {
   manual,
@@ -46,14 +49,19 @@ enum _SyncStartResult {
   alreadySyncing,
 }
 
-sealed class _PerformSyncStartResult {}
-class _PerformSyncOk extends _PerformSyncStartResult {}
-class _PerformSyncNotInitialized extends _PerformSyncStartResult {}
-class _PerformSyncNotSignedIn extends _PerformSyncStartResult {}
-class _PerformSyncAlreadyInProgress extends _PerformSyncStartResult {
+sealed class _PerformSyncResult {}
+
+class _PerformSyncOk extends _PerformSyncResult {}
+
+class _PerformSyncNotInitialized extends _PerformSyncResult {}
+
+class _PerformSyncNotSignedIn extends _PerformSyncResult {}
+
+class _PerformSyncAlreadyInProgress extends _PerformSyncResult {
   final int elapsedSeconds;
   _PerformSyncAlreadyInProgress(this.elapsedSeconds);
 }
+
 
 class SyncResult {
   final bool success;
@@ -129,8 +137,15 @@ class GoogleDriveUnifiedSyncCoordinator {
   DateTime? _syncStartTime;
   
   SyncPhase _currentPhase = SyncPhase.idle;
+  final Lock _pendingChangesLock = Lock();
   
-  static const Duration _syncTimeout = Duration(minutes: 2);
+  static const Duration _syncTimeout = Duration(minutes: 5);
+  final RetryStrategy _retryStrategy = RetryStrategy(config: RetryConfig.balanced);
+  
+  // إصلاح: متغيرات للتحكم في إعادة محاولة مراقبة outbox
+  int _outboxRetryCount = 0;
+  static const int _maxOutboxRetries = 5;
+  static const Duration _initialRetryDelay = Duration(seconds: 3);
   final _syncResultController = StreamController<SyncResult>.broadcast();
   
   bool _pushEnabled = true;
@@ -191,6 +206,15 @@ class GoogleDriveUnifiedSyncCoordinator {
     _lastPullTime = _parseTimestamp(prefs.getString(_prefsLastPullKey));
     _lastFullBackupTime = _parseTimestamp(prefs.getString(_prefsLastFullBackupKey));
     
+    // تسجيل callback لإعادة تشغيل المراقبة بعد إعادة فتح قاعدة البيانات
+    DatabaseManager.registerReopenCallback(() {
+      _log('🔔 Database reopened - restarting monitoring...');
+      _database = DatabaseManager.instance;
+      if (backupService.isSignedIn && _pushEnabled) {
+        _restartOutboxMonitoring();
+      }
+    });
+    
     if (backupService.isSignedIn) {
       await _startMonitoring();
     }
@@ -233,7 +257,8 @@ class GoogleDriveUnifiedSyncCoordinator {
     
     if (isSignedIn) {
       await _startMonitoring();
-      await performSync(trigger: SyncTrigger.manual, mode: SyncMode.smart);
+      // عند تسجيل الدخول، نسحب التغييرات فقط بدون إنشاء نسخة احتياطية جديدة
+      await performSync(trigger: SyncTrigger.manual, mode: SyncMode.deltaOnly);
     } else {
       _stopMonitoring();
       _hasPendingChanges = false;
@@ -246,13 +271,13 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
     
+    // تحديث database instance للتأكد من استخدام أحدث اتصال
+    _database = DatabaseManager.instance;
+    
     // مراقبة تغييرات outbox للمزامنة التلقائية
     _outboxSubscription?.cancel();
     if (_pushEnabled && _database != null) {
-      _outboxSubscription = (_database!.select(_database!.outbox)).watch().listen((_) {
-        _log('📦 Detected change in outbox', level: LogLevel.debug);
-        notifyLocalChange();
-      });
+      _outboxSubscription = _createOutboxListener();
       _log('✅ Started outbox monitoring for auto-sync');
     }
     
@@ -266,6 +291,87 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     
     _scheduleFullBackup();
+  }
+
+  void _restartOutboxMonitoring() {
+    if (!_isInitialized || !(_backupService?.isSignedIn ?? false) || !_pushEnabled) {
+      _log('⚠️ Cannot restart outbox monitoring: conditions not met');
+      return;
+    }
+    
+    // إعادة تعيين عداد إعادة المحاولة عند النجاح
+    _outboxRetryCount = 0;
+    
+    _log('🔄 Restarting outbox monitoring...');
+    _outboxSubscription?.cancel();
+    
+    // تحديث database instance قبل استخدامها - إصلاح "Can't re-open a database"
+    // هذا ضروري لأن _database قد تكون تشير إلى instance مغلقة
+    try {
+      _database = DatabaseManager.instance;
+    } catch (e) {
+      _log('❌ Cannot get database instance: $e', level: LogLevel.error);
+      return;
+    }
+    
+    if (_database == null) {
+      _log('⚠️ Database instance is null - cannot restart monitoring');
+      return;
+    }
+    
+    try {
+      _outboxSubscription = _createOutboxListener();
+      _log('✅ Outbox monitoring restarted successfully');
+    } catch (e) {
+      _log('❌ Failed to restart outbox monitoring: $e', level: LogLevel.error);
+    }
+  }
+  
+  /// إنشاء listener مشترك لمراقبة outbox - إزالة تكرار الكود (DRY)
+  StreamSubscription<List<OutboxEntry>> _createOutboxListener() {
+    return (_database!.select(_database!.outbox)).watch().listen(
+      (_) {
+        _log('📦 Detected change in outbox', level: LogLevel.debug);
+        notifyLocalChange();
+      },
+      onError: (error) {
+        _log('❌ Outbox watch error: $error', level: LogLevel.error);
+        _outboxRetryCount++;
+        
+        if (_outboxRetryCount > _maxOutboxRetries) {
+          _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
+          return;
+        }
+        
+        final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
+        _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
+        
+        Future.delayed(delay, () {
+          if (_pushEnabled && _database != null) {
+            _restartOutboxMonitoring();
+          }
+        });
+      },
+      onDone: () {
+        _log('⚠️ Outbox watch stream closed', level: LogLevel.warning);
+        _outboxRetryCount++;
+        
+        if (_outboxRetryCount > _maxOutboxRetries) {
+          _log('🛑 Max outbox retries reached ($_maxOutboxRetries). Stopping auto-retry.', level: LogLevel.error);
+          return;
+        }
+        
+        final delay = _initialRetryDelay * (1 << (_outboxRetryCount - 1));
+        _log('🔄 Retry #$_outboxRetryCount in ${delay.inSeconds}s');
+        
+        Future.delayed(delay, () {
+          if (_pushEnabled && _database != null && _backupService?.isSignedIn == true) {
+            _restartOutboxMonitoring();
+          }
+        });
+      },
+      cancelOnError: false,
+    );
   }
 
   void _stopMonitoring() {
@@ -319,10 +425,10 @@ class GoogleDriveUnifiedSyncCoordinator {
   /// - شبه فوري: يشعر المستخدم بالمزامنة الفورية
   /// - ذكي: لا يزعج المستخدم بمزامنات متعددة
   /// - فعال: يوفر البطارية والبيانات
-  void notifyLocalChange({String? table, String? operation, int count = 1}) {
+  Future<void> notifyLocalChange({String? table, String? operation, int count = 1}) async {
     if (!_isInitialized) return;
     
-    SyncLocks.mainSyncLock.synchronized(() {
+    await _pendingChangesLock.synchronized(() async {
       final now = DateTime.now();
       
       if (!_hasPendingChanges) {
@@ -382,7 +488,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       }
     }
     
-    Future.delayed(const Duration(milliseconds: 500), () async {
+    Future.delayed(SyncConstants.appForegroundDelay, () async {
       await performSync(trigger: SyncTrigger.appForeground, mode: SyncMode.smart);
     });
   }
@@ -400,32 +506,72 @@ class GoogleDriveUnifiedSyncCoordinator {
     required SyncTrigger trigger,
     SyncMode mode = SyncMode.smart,
   }) async {
-    final canStartResult = await SyncLocks.mainSyncLock.synchronized(() async {
-      if (!_isInitialized) return _PerformSyncNotInitialized();
-      if (!(_backupService?.isSignedIn ?? false)) return _PerformSyncNotSignedIn();
-      
-      if (_isSyncing) {
-        if (_syncStartTime != null) {
-          final elapsed = DateTime.now().difference(_syncStartTime!);
-          if (elapsed > _syncTimeout) {
-            _log('⚠️ Sync timeout detected (${elapsed.inSeconds}s) - resetting state');
-            _isSyncing = false;
-            _syncStartTime = null;
-            _currentPhase = SyncPhase.idle;
-          } else {
-            return _PerformSyncAlreadyInProgress(elapsed.inSeconds);
-          }
-        } else {
-          _log('⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
+    // Defensive check: Never sync during database restore
+    if (DatabaseManager.isRestoring) {
+      _log('⏸️ Sync blocked: database is being restored', level: LogLevel.warning);
+      return SyncResult.failure(
+        message: 'Sync skipped: database restore in progress',
+        phase: SyncPhase.idle,
+      );
+    }
+    
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'GoogleDriveUnifiedSyncCoordinator.performSync',
+      priority: LockPriority.high,
+    );
+    
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
+      return SyncResult.failure(
+        message: 'Failed to acquire lock: ${lockResult.failureReason}',
+        phase: SyncPhase.idle,
+      );
+    }
+    
+    try {
+      return await _performSyncLocked(trigger, mode);
+    } finally {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'GoogleDriveUnifiedSyncCoordinator.performSync',
+      );
+    }
+  }
+
+  Future<SyncResult> _performSyncLocked(SyncTrigger trigger, SyncMode mode) async {
+    _PerformSyncResult canStartResult;
+  
+    if (!_isInitialized) {
+      canStartResult = _PerformSyncNotInitialized();
+    } else if (!(_backupService?.isSignedIn ?? false)) {
+      canStartResult = _PerformSyncNotSignedIn();
+    } else if (_isSyncing) {
+      if (_syncStartTime != null) {
+        final elapsed = DateTime.now().difference(_syncStartTime!);
+        if (elapsed > _syncTimeout) {
+          _log('⚠️ Sync timeout detected (${elapsed.inSeconds}s) - resetting state');
           _isSyncing = false;
+          _syncStartTime = null;
+          _currentPhase = SyncPhase.idle;
+          canStartResult = _PerformSyncOk();
+        } else {
+          canStartResult = _PerformSyncAlreadyInProgress(elapsed.inSeconds);
         }
+      } else {
+        _log('⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
+        _isSyncing = false;
+        canStartResult = _PerformSyncOk();
       }
-      
+    } else {
+      canStartResult = _PerformSyncOk();
+    }
+    
+    if (canStartResult is _PerformSyncOk && !_isSyncing) {
       _isSyncing = true;
       _syncStartTime = DateTime.now();
       _currentPhase = SyncPhase.authenticating;
-      return _PerformSyncOk();
-    });
+    }
     
     switch (canStartResult) {
       case _PerformSyncNotInitialized():
@@ -503,7 +649,19 @@ class GoogleDriveUnifiedSyncCoordinator {
         if (trigger == SyncTrigger.appForeground || 
             trigger == SyncTrigger.periodic || 
             trigger == SyncTrigger.manual) {
-          pulled = await _performDeltaPull();
+          
+          if (effectiveMode == SyncMode.smart) {
+             // Smart Sync: Try Delta first, then check Full Backup if needed
+             pulled = await _performDeltaPull();
+             
+             // Check for full backup if delta yielded nothing or periodically
+             // Or if this is a manual sync or app foreground where we want to be sure
+             if ((pulled ?? 0) == 0) {
+                await _performScanAndRestoreFullBackup();
+             }
+          } else {
+             pulled = await _performDeltaPull();
+          }
         }
       }
       
@@ -552,12 +710,32 @@ class GoogleDriveUnifiedSyncCoordinator {
       return result;
       
     } finally {
-      await SyncLocks.mainSyncLock.synchronized(() async {
-        _isSyncing = false;
-        _syncStartTime = null;
-        _currentPhase = SyncPhase.idle;
-      });
+      _isSyncing = false;
+      _syncStartTime = null;
+      _currentPhase = SyncPhase.idle;
     }
+  }
+
+  Future<SyncResult> performSyncWithRetry({
+    required SyncTrigger trigger,
+    SyncMode mode = SyncMode.smart,
+  }) async {
+    return _retryStrategy.execute<SyncResult>(
+      operation: () => performSync(trigger: trigger, mode: mode),
+      shouldRetry: (error) {
+        final errorStr = error.toString().toLowerCase();
+        if (errorStr.contains('unauthorized') || errorStr.contains('401')) {
+          return false;
+        }
+        if (errorStr.contains('quotaexceeded') || errorStr.contains('storage')) {
+          return false;
+        }
+        return true;
+      },
+      onRetry: (attempt, error) {
+        _log('🔄 إعادة محاولة المزامنة ($attempt): $error');
+      },
+    );
   }
 
   SyncMode _determineEffectiveMode(SyncMode requestedMode, SyncTrigger trigger) {
@@ -599,7 +777,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * 500) / 1024 / 1024,
+            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) / 1024 / 1024,
           );
         }
         
@@ -630,7 +808,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * 500) / 1024 / 1024,
+            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) / 1024 / 1024,
           );
         }
         
@@ -670,6 +848,80 @@ class GoogleDriveUnifiedSyncCoordinator {
     } catch (e) {
       _log('❌ Full backup error: $e');
       rethrow;
+    }
+  }
+
+  /// فحص واستعادة النسخ الاحتياطية الكاملة (مع حل النزاع)
+  /// 
+  /// ⚠️ ARCHITECTURAL NOTE: Full database restore CANNOT be performed during active sync
+  /// because it requires closing the database, stopping all sync operations, and restarting.
+  /// 
+  /// This method now DETECTS newer backups and SCHEDULES them for deferred restore,
+  /// allowing the user to be prompted to restore at an appropriate time.
+  Future<void> _performScanAndRestoreFullBackup() async {
+    _log('🔍 Checking for full backups from other devices...');
+    try {
+      // 1. List backups
+      final backupFiles = await _backupService!.listBackupFiles(limit: 5);
+      if (backupFiles.isEmpty) return;
+
+      // 2. Filter for newer backups from OTHER devices
+      // Sorting is crucial: newest first
+      backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+      final latestBackup = backupFiles.first;
+
+      final myDeviceId = _deltaSync?.deviceId;
+      final backupDeviceId = latestBackup.appProperties['device_id'];
+      
+      // Ignore my own backups
+      if (backupDeviceId == myDeviceId) {
+        _log('✓ Latest backup is from this device. No restore needed.');
+        return;
+      }
+
+      // Check timestamp locally
+      final prefs = await SharedPreferences.getInstance();
+      final lastRestoredTsStr = prefs.getString('gd_last_restored_full_ts');
+      final lastRestoredTs = _parseTimestamp(lastRestoredTsStr);
+
+      if (lastRestoredTs != null && latestBackup.createdTime.isBefore(lastRestoredTs)) {
+         _log('✓ Latest remote backup is older than last restored one.');
+         return;
+      }
+      
+      _log('🆕 New full backup found from $backupDeviceId.');
+      _log('⚠️ Full restore requires stopping all operations and cannot be done during sync.');
+      _log('💡 Flagging backup for deferred restore...');
+      
+      // Store pending restore info for user prompt
+      // The UI should detect this flag and prompt the user to restore
+      await prefs.setString('pending_restore_backup_id', latestBackup.fileId);
+      if (backupDeviceId != null) {
+        await prefs.setString('pending_restore_device_id', backupDeviceId);
+      }
+      await prefs.setString('pending_restore_timestamp', latestBackup.createdTime.toIso8601String());
+      await prefs.setBool('pending_restore_available', true);
+      
+      _log('✅ Backup flagged for deferred restore.');
+      _log('ℹ️ User will be prompted to restore at next app launch or manually.');
+      
+      // REMOVED UNSAFE CODE:
+      // The following code was UNSAFE and could cause data corruption:
+      // - await _backupService!.restoreFromBackup(mergedData);
+      // 
+      // Full restore MUST use this flow:
+      // 1. User initiates restore from UI
+      // 2. UI calls DatabaseManager.closeForRestore()
+      // 3. Sync operations stop
+      // 4. Database closes
+      // 5. Restore operations execute
+      // 6. DatabaseManager.reopenAfterRestore()
+      // 7. Sync operations restart
+      //
+      // See backup_provider.dart for the correct implementation pattern.
+
+    } catch (e) {
+      _log('❌ Error checking for full backups: $e', level: LogLevel.error);
     }
   }
 

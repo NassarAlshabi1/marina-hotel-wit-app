@@ -3,7 +3,6 @@ import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
-import '../daos/rooms_dao.dart';
 import '../auto_backup_manager.dart';
 
 class BookingsRepository {
@@ -160,7 +159,7 @@ class BookingsRepository {
   
   /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
-    final allBookings = await (db.select(db.bookings)
+    return await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
           ..where((b) => b.status.equals('محجوزة'))
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])

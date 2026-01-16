@@ -10,6 +10,7 @@ import '../services/repositories/debts_repository.dart';
 import '../services/repositories/notes_repository.dart';
 import '../services/repositories/simple_notes_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
+import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/auth_local_store.dart';
 import '../services/sync_guardian.dart';
@@ -41,6 +42,7 @@ final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref
 final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>((ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)));
 final simpleNotesRepoProvider = Provider<SimpleNotesRepository>((ref) => SimpleNotesRepository(ref.read(databaseProvider)));
 final shiftNotesRepoProvider = Provider<ShiftNotesRepository>((ref) => ShiftNotesRepository(ref.read(databaseProvider)));
+final blacklistRepoProvider = Provider<BlacklistRepository>((ref) => BlacklistRepository(ref.read(databaseProvider)));
 final whatsappServiceProvider = Provider<WhatsAppService>(
   (ref) => WhatsAppService(
     baseUrl: 'https://7103.api.greenapi.com',

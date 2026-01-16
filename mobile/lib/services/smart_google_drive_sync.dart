@@ -8,7 +8,8 @@ import 'local_db.dart';
 import '../utils/debug_logs.dart';
 import 'sync_performance_optimizer.dart';
 import 'data_usage_manager.dart';
-import 'sync_locks.dart';
+import 'sync_core/unified_lock_manager.dart';
+import 'sync_constants.dart';
 
 /// مدير مزامنة Google Drive الذكي المبسط
 /// 
@@ -131,15 +132,26 @@ class SmartGoogleDriveSync {
 
   /// رفع التغييرات المحلية (Delta Sync)
   Future<bool> pushLocalChanges() async {
-    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
-      if (_isSyncing || !_isEnabled || _driveService?.isSignedIn != true) {
-        return false;
-      }
-      _isSyncing = true;
-      return true;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'SmartGoogleDriveSync.pushLocalChanges',
+      priority: LockPriority.high,
+    );
     
-    if (!canStart) return false;
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
+      return false;
+    }
+    
+    if (_isSyncing || !_isEnabled || _driveService?.isSignedIn != true) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartGoogleDriveSync.pushLocalChanges',
+      );
+      return false;
+    }
+    
+    _isSyncing = true;
     
     try {
       _log('📤 بدء رفع التغييرات...');
@@ -159,7 +171,7 @@ class SmartGoogleDriveSync {
         // تحديث استهلاك البيانات
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * 500) / 1024 / 1024,
+            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) / 1024 / 1024,
           );
         }
         
@@ -172,23 +184,36 @@ class SmartGoogleDriveSync {
       _log('❌ خطأ في رفع التغييرات: $e');
       return false;
     } finally {
-      await SyncLocks.smartSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartGoogleDriveSync.pushLocalChanges',
+      );
     }
   }
 
   /// سحب التغييرات من الأجهزة الأخرى
   Future<bool> pullRemoteChanges() async {
-    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
-      if (_isSyncing || !_isEnabled || _driveService?.isSignedIn != true) {
-        return false;
-      }
-      _isSyncing = true;
-      return true;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'SmartGoogleDriveSync.pullRemoteChanges',
+      priority: LockPriority.high,
+    );
     
-    if (!canStart) return false;
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
+      return false;
+    }
+    
+    if (_isSyncing || !_isEnabled || _driveService?.isSignedIn != true) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartGoogleDriveSync.pullRemoteChanges',
+      );
+      return false;
+    }
+    
+    _isSyncing = true;
     
     try {
       _log('📥 بدء سحب التحديثات...');
@@ -201,7 +226,7 @@ class SmartGoogleDriveSync {
         
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * 500) / 1024 / 1024,
+            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) / 1024 / 1024,
           );
         }
         
@@ -214,23 +239,36 @@ class SmartGoogleDriveSync {
       _log('❌ خطأ في سحب التحديثات: $e');
       return false;
     } finally {
-      await SyncLocks.smartSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartGoogleDriveSync.pullRemoteChanges',
+      );
     }
   }
 
   /// عمل نسخة احتياطية كاملة
   Future<bool> createFullBackup() async {
-    final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
-      if (_isSyncing || _driveService?.isSignedIn != true) {
-        return false;
-      }
-      _isSyncing = true;
-      return true;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'SmartGoogleDriveSync.createFullBackup',
+      priority: LockPriority.normal,
+    );
     
-    if (!canStart) return false;
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
+      return false;
+    }
+    
+    if (_isSyncing || _driveService?.isSignedIn != true) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartGoogleDriveSync.createFullBackup',
+      );
+      return false;
+    }
+    
+    _isSyncing = true;
     
     try {
       _log('💾 بدء النسخ الاحتياطي الكامل...');
@@ -257,9 +295,11 @@ class SmartGoogleDriveSync {
       _log('❌ خطأ في النسخ الاحتياطي: $e');
       return false;
     } finally {
-      await SyncLocks.smartSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SmartGoogleDriveSync.createFullBackup',
+      );
     }
   }
 

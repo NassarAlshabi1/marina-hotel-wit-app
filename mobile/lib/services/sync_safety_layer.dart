@@ -154,15 +154,21 @@ class SyncSafetyLayer {
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       final tables = Map<String, dynamic>.from(decoded['tables'] as Map);
 
-      await db.transaction(() async {
-        await _clearAllTables(db);
+      try {
+        await db.transaction(() async {
+          await _clearAllTables(db);
 
-        for (final tableName in SyncConstants.allTablesInOrder) {
-          if (tables.containsKey(tableName)) {
-            await _restoreTable(db, tableName, tables[tableName]);
+          for (final tableName in SyncConstants.allTablesInOrder) {
+            if (tables.containsKey(tableName)) {
+              await _restoreTable(db, tableName, tables[tableName]);
+            }
           }
-        }
-      });
+        });
+      } finally {
+        // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الحذف والاستعادة
+        await db.customStatement('PRAGMA foreign_keys = ON');
+        debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+      }
 
       await _appendLog({
         'event': 'rollback-success',
@@ -249,22 +255,20 @@ class SyncSafetyLayer {
   }
 
   Future<void> _clearAllTables(AppDatabase db) async {
+    // ملاحظة: FOREIGN KEYS يتم تعطيلها هنا ولكن لا يتم إعادة تشغيلها
+    // لأن الاستعادة ستحدث مباشرة بعد الحذف في نفس transaction
     await db.customStatement('PRAGMA foreign_keys = OFF');
     
-    try {
-      for (final table in SyncConstants.allTablesInReverseOrder) {
-        try {
-          await db.customStatement('DELETE FROM $table');
-        } on Exception catch (e) {
-          if (e.toString().contains('no such table')) {
-            debugPrint('ℹ️ الجدول غير موجود، تخطي الحذف: $table');
-          } else {
-            rethrow;
-          }
+    for (final table in SyncConstants.allTablesInReverseOrder) {
+      try {
+        await db.customStatement('DELETE FROM $table');
+      } on Exception catch (e) {
+        if (e.toString().contains('no such table')) {
+          debugPrint('ℹ️ الجدول غير موجود، تخطي الحذف: $table');
+        } else {
+          rethrow;
         }
       }
-    } finally {
-      await db.customStatement('PRAGMA foreign_keys = ON');
     }
   }
 
@@ -315,10 +319,17 @@ class SyncSafetyLayer {
         return false;
       }
 
-      await DatabaseManager.close();
+      debugPrint('🔒 إيقاف جميع العمليات وإغلاق القاعدة بشكل آمن...');
+      
+      await DatabaseManager.closeForRestore();
+      
+      debugPrint('📋 استبدال ملف قاعدة البيانات...');
       await File(sqliteBackupPath).copy(dbPath);
-      await DatabaseManager.reopen();
-      debugPrint('✅ تم استعادة ملف SQLite بنجاح وإعادة فتح قاعدة البيانات');
+      
+      debugPrint('🔄 إعادة فتح قاعدة البيانات وتشغيل المزامنة...');
+      await DatabaseManager.reopenAfterRestore();
+      
+      debugPrint('✅ تم استعادة ملف SQLite بنجاح');
 
       await _appendLog({
         'event': 'file-restore-success',
@@ -336,6 +347,16 @@ class SyncSafetyLayer {
         'error': e.toString(),
         'stack': stack.toString(),
       });
+      
+      // محاولة إعادة الفتح حتى في حالة الفشل
+      try {
+        debugPrint('🔄 محاولة إعادة فتح القاعدة بعد الفشل...');
+        await DatabaseManager.reopenAfterRestore();
+        debugPrint('✅ تم إعادة فتح القاعدة بعد الفشل');
+      } catch (e2) {
+        debugPrint('❌ فشلت إعادة الفتح بعد الفشل: $e2');
+      }
+      
       return false;
     }
   }

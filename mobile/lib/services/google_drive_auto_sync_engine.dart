@@ -12,10 +12,10 @@ import 'google_drive_conflict_resolver.dart';
 import 'google_drive_delta_sync.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
-import 'sync_locks.dart';
+import 'sync_core/unified_lock_manager.dart';
+import 'sync_constants.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
-import 'sync_locks.dart';
 
 class RetryConfig {
   final int maxRetries;
@@ -186,13 +186,31 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> start() async {
-    final canStart = await SyncLocks.autoEngineLock.synchronized(() async {
-      if (!_isInitialized) return _StartResult.notInitialized;
-      if (_isRunning) return _StartResult.alreadyRunning;
-      
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'GoogleDriveAutoSyncEngine.start',
+      priority: LockPriority.high,
+    );
+    
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
+      return;
+    }
+    
+    _StartResult canStart;
+    if (!_isInitialized) {
+      canStart = _StartResult.notInitialized;
+    } else if (_isRunning) {
+      canStart = _StartResult.alreadyRunning;
+    } else {
       _isRunning = true;
-      return _StartResult.ok;
-    });
+      canStart = _StartResult.ok;
+    }
+    
+    UnifiedLockManager.instance.release(
+      category: LockCategory.mainSync,
+      holder: 'GoogleDriveAutoSyncEngine.start',
+    );
     
     if (canStart == _StartResult.notInitialized) {
       _log('❌ Cannot start - engine not initialized');
@@ -209,7 +227,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
     
     _setupConnectivityListener();
     _setupSyncResultListener();
-    _setupDataStreamListener();
     _startHealthCheck();
     
     if (_isSignedIn && _hasNetworkConnection) {
@@ -223,18 +240,29 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('   ❤️ Health checks: ACTIVE');
   }
 
-  void stop() {
-    SyncLocks.autoEngineLock.synchronized(() {
+  Future<void> stop() async {
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'GoogleDriveAutoSyncEngine.stop',
+      priority: LockPriority.critical,
+    );
+    
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
+      return;
+    }
+    
+    try {
       if (!_isRunning) return;
       
       _log('🛑 Stopping Auto Sync Engine...');
       
       _isRunning = false;
       
-      _connectivitySubscription?.cancel();
+      await _connectivitySubscription?.cancel();
       _connectivitySubscription = null;
       
-      _syncResultSubscription?.cancel();
+      await _syncResultSubscription?.cancel();
       _syncResultSubscription = null;
       
       _retryTimer?.cancel();
@@ -247,7 +275,12 @@ class AutoSyncEngine with WidgetsBindingObserver {
       
       _emitState();
       _log('✅ Auto Sync Engine stopped');
-    });
+    } finally {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'GoogleDriveAutoSyncEngine.stop',
+      );
+    }
   }
 
   void _setupConnectivityListener() {
@@ -285,39 +318,39 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('📊 Setting up sync result listener...');
     
     _syncResultSubscription = _coordinator!.syncResults.listen(
-      (result) {
+      (result) async {
         if (result.success) {
           _lastSuccessfulSync = result.timestamp;
           _failedAttempts = 0;
           _nextRetryAt = null;
           _lastError = null;
-          
+      
           if (result.pushedChanges != null && result.pushedChanges! > 0) {
             _pendingChangesCount = max(0, _pendingChangesCount - result.pushedChanges!);
           }
-          
+      
           _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
         } else {
           _failedAttempts++;
           _lastError = result.error ?? result.message;
-          
-          final errorDetails = result.error != null 
-              ? '${result.message} - ${result.error}' 
+      
+          final errorDetails = result.error != null
+              ? '${result.message} - ${result.error}'
               : result.message;
-          
-          _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails', 
+      
+          _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails',
                level: LogLevel.error);
-          
-          final prefs = SharedPreferences.getInstance();
-          prefs.then((p) async {
-            final retryEnabled = p.getBool(_prefsRetryEnabledKey) ?? true;
-            if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
-              await _scheduleRetry();
-            } else if (_failedAttempts >= _retryConfig.maxRetries) {
-              _log('🚫 Max retries reached - stopping automatic retries', 
-                   level: LogLevel.warning);
-            }
-          });
+      
+          final p = await SharedPreferences.getInstance();
+          final retryEnabled = p.getBool(_prefsRetryEnabledKey) ?? true;
+          if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
+            _scheduleRetry();
+          } else if (_failedAttempts >= _retryConfig.maxRetries) {
+            _log(
+              '🚫 Max retries reached - stopping automatic retries',
+              level: LogLevel.warning,
+            );
+          }
         }
         
         _emitState();
@@ -328,15 +361,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     );
   }
 
-  void _setupDataStreamListener() {
-    _log('💾 Setting up data stream listener...');
-    
-    _coordinator!.syncResults.listen((result) {
-      if (result.success && result.pushedChanges != null && result.pushedChanges! > 0) {
-        _log('📤 Data changes detected and pushed: ${result.pushedChanges}');
-      }
-    });
-  }
+  // This method can be removed entirely.
 
   void _startHealthCheck() {
     _log('❤️ Starting health check monitor...');
@@ -349,8 +374,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> _performHealthCheck() async {
-    final shouldRun = await SyncLocks.autoEngineLock.synchronized(() => _isRunning);
-    if (!shouldRun) return;
+    if (!_isRunning) return;
     
     _log('❤️ Performing health check...');
     
@@ -468,7 +492,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
       }
     }
     
-    Future.delayed(const Duration(milliseconds: 500), () async {
+    Future.delayed(SyncConstants.appForegroundDelay, () async {
       try {
         await _coordinator!.onAppForeground();
       } catch (e) {
@@ -500,23 +524,28 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('💤 App inactive');
   }
 
-  void notifyDataChange({
+  Future<void> notifyDataChange({
     required String table,
     required String operation,
     int count = 1,
     Map<String, dynamic>? recordData,
-  }) {
+  }) async {
     if (!_isRunning) return;
     
-    SyncLocks.autoEngineLock.synchronized(() {
-      _pendingChangesCount += count;
-    });
+    await UnifiedLockManager.instance.runWithLock(
+      category: LockCategory.mainSync,
+      holder: 'AutoSyncEngine.notifyDataChange',
+      priority: LockPriority.low,
+      operation: () async {
+        _pendingChangesCount += count;
+      },
+    );
     
     _emitState();
     
     _log('💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)');
     
-    _coordinator!.notifyLocalChange(
+    await _coordinator!.notifyLocalChange(
       table: table,
       operation: operation,
       count: count,
@@ -570,13 +599,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> _performInitialSync() async {
-    _log('🎬 Performing initial sync...');
+    _log('🎬 Performing initial sync (pull only - no backup creation)...');
     
     await Future.delayed(const Duration(seconds: 2));
     
+    // عند تسجيل الدخول، نسحب التغييرات فقط بدون إنشاء نسخة احتياطية جديدة
     await _coordinator!.performSync(
       trigger: SyncTrigger.appForeground,
-      mode: SyncMode.smart,
+      mode: SyncMode.deltaOnly,
     );
   }
 
@@ -716,6 +746,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _retryTimer?.cancel();
     _emitState();
     _log('🔄 Failed attempts reset');
+  }
+
+  /// إعادة تشغيل Auto Sync Engine
+  Future<void> restart() async {
+    _log('🔄 إعادة تشغيل Auto Sync Engine...');
+    await stop();
+    await start();
+    _log('✅ Auto Sync Engine أعيد تشغيله');
   }
 
   void dispose() {

@@ -2,12 +2,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'smart_sync_manager.dart';
-import 'sync_queue_service.dart';
+import 'sync_queue_service.dart' hide RetryConfig;
 import 'sync_core/sync_error_handler.dart';
 import 'sync_core/retry_strategy.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_core/sync_validator.dart';
-import 'sync_locks.dart';
+import 'sync_core/unified_lock_manager.dart';
 
 class ScreenSyncController {
   final String screenId;
@@ -70,18 +70,27 @@ class ScreenSyncController {
       return true;
     }
     
-    final canStart = await SyncLocks.screenSyncLock.synchronized(() async {
-      if (_isSyncing) {
-        return false;
-      }
-      _isSyncing = true;
-      return true;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.screenSync,
+      holder: 'ScreenSyncController.$screenId',
+      priority: LockPriority.normal,
+    );
     
-    if (!canStart) {
+    if (!lockResult.acquired) {
+      debugPrint('⏳ [$screenId] فشل الحصول على القفل: ${lockResult.failureReason}');
+      return false;
+    }
+    
+    if (_isSyncing) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.screenSync,
+        holder: 'ScreenSyncController.$screenId',
+      );
       debugPrint('⏳ [$screenId] المزامنة جارية بالفعل');
       return false;
     }
+    
+    _isSyncing = true;
     
     cancelTimer();
     _emitStatus(SyncStatus.syncing);
@@ -161,9 +170,11 @@ class ScreenSyncController {
       await _addToQueue();
       return false;
     } finally {
-      await SyncLocks.screenSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.screenSync,
+        holder: 'ScreenSyncController.$screenId',
+      );
     }
   }
   

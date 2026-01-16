@@ -409,23 +409,34 @@ class LocalBackupService {
     final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
 
     if (!backupData.containsKey('metadata')) {
-      throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
+      debugPrint('⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية - إنشاء metadata افتراضية');
     }
 
+    BackupMetadata metadata;
     final metadataSource = backupData['metadata'];
-    if (metadataSource is! Map) {
-      throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
+    if (metadataSource is Map) {
+      metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
+    } else {
+      metadata = BackupMetadata(
+        appVersion: '0.0.0-unknown',
+        databaseVersion: DatabaseManager.instance.schemaVersion,
+        backupTimestamp: DateTime.fromMillisecondsSinceEpoch(0),
+        totalRecords: -1,
+        deviceInfo: 'unknown',
+        format: BackupFormat.json,
+      );
     }
-    final metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
-    if (metadata.databaseVersion > AppDatabase().schemaVersion) {
+    if (metadata.databaseVersion > DatabaseManager.instance.schemaVersion) {
       throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
     }
 
     debugPrint('🔄 بدء استعادة البيانات من نسخة JSON...');
     final db = getDatabase();
 
+    // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
     await db.customStatement('PRAGMA foreign_keys = OFF');
     try {
+      // حذف جميع الجداول
       await db.delete(db.rooms).go();
       await db.delete(db.bookings).go();
       await db.delete(db.bookingNotes).go();
@@ -434,9 +445,6 @@ class LocalBackupService {
       await db.delete(db.cashTransactions).go();
       await db.delete(db.payments).go();
       await db.delete(db.syncState).go();
-    } finally {
-      await db.customStatement('PRAGMA foreign_keys = ON');
-    }
 
     Future<void> insertList<T>(String key, Future<void> Function(Map<String, dynamic> json) insert) async {
       if (!backupData.containsKey(key)) {
@@ -493,6 +501,11 @@ class LocalBackupService {
     }
 
     debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON');
+    } finally {
+      // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الاستعادة بالكامل
+      await db.customStatement('PRAGMA foreign_keys = ON');
+      debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+    }
   }
 
   Future<void> _restoreFromSqliteBackup(String filePath) async {
@@ -506,7 +519,7 @@ class LocalBackupService {
     if (await metadataFile.exists()) {
       final metaContent = await metadataFile.readAsString();
       metadata = BackupMetadata.fromJson(jsonDecode(metaContent) as Map<String, dynamic>);
-      if (metadata.databaseVersion > AppDatabase().schemaVersion) {
+      if (metadata.databaseVersion > DatabaseManager.instance.schemaVersion) {
         throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
       }
     }
@@ -624,7 +637,7 @@ class LocalBackupService {
                   ? rawVersion.toInt()
                   : 0;
 
-          if (dbVersion > AppDatabase().schemaVersion) {
+          if (dbVersion > DatabaseManager.instance.schemaVersion) {
             throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
           }
 
