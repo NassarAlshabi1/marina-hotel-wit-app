@@ -1,0 +1,44 @@
+include: package:dcm/configs/recommended.yaml
+
+analyzer:
+  exclude:
+    - lib/services/repositories/automated_repositories_examples.dart
+    - lib/services/repositories/bookings_repository_unified_example.dart
+  errors:
+    deprecated_member_use: ignore
+    prefer_const_constructors: ignore
+
+metrics:
+  # تعقيد الدالة (عدد المسارات)
+  cyclomatic-complexity:
+    threshold: 10
+  
+  # عدد البارامترات
+  number-of-arguments:
+    threshold: 5
+  
+  # التداخل
+  maximum-nesting:
+    threshold: 4
+  
+  # طول الدالة
+  lines-of-code:
+    threshold: 50
+  
+  # المتغيرات المحلية
+  number-of-locals:
+    threshold: 12
+  
+  # العبارات
+  number-of-statements:
+    threshold: 25
+  
+  # التكرار
+  repetitive-code:
+    threshold: 20
+
+linter:
+  rules:
+    avoid_print: true
+    prefer_single_quotes: true
+    prefer_final_locals: true
