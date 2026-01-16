@@ -1,11 +1,13 @@
-name: CI
-permissions:
-  contents: read
-  pull-requests: write
-
+name: CI with DCM Fix
 on:
   push:
+    paths-ignore:
+      - '.github/workflows/ci.yml'  # منع infinite loop
   pull_request:
+
+permissions:
+  contents: write  # ✅ مهم للـ git push
+  pull-requests: write
 
 jobs:
   lint-test:
@@ -15,40 +17,40 @@ jobs:
         working-directory: mobile
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
       
       - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
+      
+      - name: Install DCM
+        run: dart pub global activate dcm
       
       - name: Install dependencies
         run: flutter pub get
       
+      - name: 🔧 DCM Auto Fix & Push
+        run: |
+          dcm fix --type=lints lib/
+          dcm format lib/ --line-length=100
+          
+          if git diff --staged | grep .; then
+            git config user.name "DCM Auto Fix"
+            git config user.email "actions@github.com"
+            git add .
+            git commit -m "chore: auto fix lints with DCM [skip ci]"
+            git push
+            echo "✅ Fixes pushed to PR!"
+          else
+            echo "ℹ️ No fixes needed"
+          fi
+        continue-on-error: true
+      
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
       
-      # ✅ تحليل يتجاهل INFO + WARNINGS تماماً
-      - name: Flutter Analyze (Errors Only)
-        run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
+      - name: Flutter Analyze
+        run: flutter analyze --no-pub --no-fatal-infos
       
-      # ✅ DCM مع تجاهل warnings
-      - name: DCM Analysis
-        run: |
-          dart pub global activate dcm
-          dcm analyze lib test --no-fail-after-lint --reporter=console
-        continue-on-error: true
-      
-      # ✅ Format (يتوقف فقط عند تغييرات حقيقية)
-      - name: Format check
-        run: dart format --set-exit-if-changed .
-        continue-on-error: true
-      
-      # ✅ Tests
-      - name: Run tests
-        run: flutter test --coverage
-      
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: mobile/coverage
+      - name: Test
+        run: flutter test
