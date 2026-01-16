@@ -1,36 +1,119 @@
 name: CI
 permissions:
   contents: read
+  pull-requests: write
 
 on:
   push:
+    branches: [ main, develop ]
   pull_request:
+    branches: [ main, develop ]
 
 jobs:
   lint-test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
     steps:
+      # تحميل الكود
       - uses: actions/checkout@v4
+      
+      # تثبيت Flutter
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          channel: 'stable'
+          cache: true
+      
+      # تثبيت التبعيات
       - name: Install dependencies
         run: flutter pub get
-        working-directory: mobile
+      
+      # توليد الكود
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
-        working-directory: mobile
+      
+      # تحليل الكود الأساسي
       - name: Analyze
         run: flutter analyze --no-pub
-        working-directory: mobile
+      
+      # تحليل متقدم (بديل مستقر لـ DCM)
+      - name: Very Good Analysis
+        uses: VeryGoodOpenSource/very_good_analysis@v2
+      
+      # فحص التنسيق
       - name: Format check
         run: dart format --set-exit-if-changed .
-        working-directory: mobile
+      
+      # تشغيل الاختبارات مع التغطية
       - name: Run tests with coverage
         run: flutter test --coverage
-        working-directory: mobile
+      
+      # رفع تقرير التغطية
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: mobile/coverage
+      
+      # إضافي: فحص التبعيات القديمة
+      - name: Check outdated packages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: flutter pub outdated
+      
+  build-android:
+    needs: lint-test  # يعمل فقط بعد نجاح lint-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: mobile
+      
+      - name: Build APK
+        run: flutter build apk --release --split-per-abi
+        working-directory: mobile
+      
+      # رفع ملف APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: |
+            mobile/build/app/outputs/flutter-apk/app-*.apk
+
+  build-ios:
+    needs: lint-test
+    runs-on: macos-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'  # iOS فقط على main
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: mobile
+      
+      - name: Build iOS
+        run: flutter build ipa
+        working-directory: mobile
+        env:
+          # إضافة secrets للتوقيع هنا
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: mobile/build/ios/ipa/*.ipa
