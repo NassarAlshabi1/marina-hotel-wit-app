@@ -5,9 +5,7 @@ permissions:
 
 on:
   push:
-    branches: [ main, develop ]
   pull_request:
-    branches: [ main, develop ]
 
 jobs:
   lint-test:
@@ -16,104 +14,54 @@ jobs:
       run:
         working-directory: mobile
     steps:
-      # تحميل الكود
       - uses: actions/checkout@v4
       
-      # تثبيت Flutter
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
       
-      # تثبيت التبعيات
       - name: Install dependencies
         run: flutter pub get
       
-      # توليد الكود
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
       
-      # تحليل الكود الأساسي
-      - name: Analyze
+      # تحليل أساسي
+      - name: Flutter Analyze
         run: flutter analyze --no-pub
       
-      # تحليل متقدم (بديل مستقر لـ DCM)
-      - name: Very Good Analysis
-        uses: VeryGoodOpenSource/very_good_analysis@v2
+      # DCM Analyze (يعمل بدون Action خارجي)
+      - name: Install DCM
+        run: dart pub global activate dcm
+      
+      - name: DCM Analyze
+        run: |
+          dcm analyze lib test \
+            --cyclomatic-complexity 10 \
+            --number-of-arguments 5 \
+            --maximum-nesting 4 \
+            --fatal-warnings
+        continue-on-error: false
       
       # فحص التنسيق
-      - name: Format check
+      - name: DCM Format
+        run: |
+          dcm format lib test \
+            --line-length 100 \
+            --fatal-found
+        continue-on-error: false
+      
+      # Flutter Format (احتياطي)
+      - name: Dart Format
         run: dart format --set-exit-if-changed .
       
-      # تشغيل الاختبارات مع التغطية
-      - name: Run tests with coverage
+      # اختبارات مع التغطية
+      - name: Run tests
         run: flutter test --coverage
       
-      # رفع تقرير التغطية
-      - name: Upload coverage artifact
+      - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: mobile/coverage
-      
-      # إضافي: فحص التبعيات القديمة
-      - name: Check outdated packages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: flutter pub outdated
-      
-  build-android:
-    needs: lint-test  # يعمل فقط بعد نجاح lint-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-      
-      - name: Install dependencies
-        run: flutter pub get
-        working-directory: mobile
-      
-      - name: Build APK
-        run: flutter build apk --release --split-per-abi
-        working-directory: mobile
-      
-      # رفع ملف APK
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: |
-            mobile/build/app/outputs/flutter-apk/app-*.apk
-
-  build-ios:
-    needs: lint-test
-    runs-on: macos-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'  # iOS فقط على main
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-      
-      - name: Install dependencies
-        run: flutter pub get
-        working-directory: mobile
-      
-      - name: Build iOS
-        run: flutter build ipa
-        working-directory: mobile
-        env:
-          # إضافة secrets للتوقيع هنا
-          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-      
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-ipa
-          path: mobile/build/ios/ipa/*.ipa
