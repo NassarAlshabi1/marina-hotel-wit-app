@@ -1,6 +1,7 @@
 name: CI
 permissions:
   contents: read
+  pull-requests: write  # مطلوب للتعليقات على PR
 
 on:
   push:
@@ -23,6 +24,15 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-pub
         working-directory: mobile
+      - name: DCM Analysis  # الخطوة الجديدة
+        uses: dart-code-checker/dart-code-metrics-action@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          relative_path: mobile
+          fatal_warnings: true
+          folders: |
+            lib/
+            test/
       - name: Format check
         run: dart format --set-exit-if-changed .
         working-directory: mobile
