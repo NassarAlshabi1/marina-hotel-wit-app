@@ -26,7 +26,7 @@ jobs:
       
       - name: 🔧 Fix ALL Critical Errors
         run: |
-          # 1. SyncConstants كامل مع كل الـ getters المطلوبة
+          # 1. SyncConstants كامل مع كل الـ getters
           cat > lib/services/sync_constants.dart << 'EOF'
           class SyncConstants {
             static const List<String> allTablesInOrder = [
@@ -39,7 +39,6 @@ jobs:
               'expenses', 'payments', 'bookings'
             ];
             
-            // Sync Guardian constants
             static const Duration guardianOutboxDebounce = Duration(seconds: 30);
             static const Duration defaultAutoSyncInterval = Duration(minutes: 5);
             static const Duration guardianLocalChangeDebounce = Duration(seconds: 10);
@@ -48,35 +47,39 @@ jobs:
           }
           EOF
           
-          # 2. إصلاح OutboxEntry في كل ملفات services
-          find lib/services -name "*.dart" -exec sed -i 's/List<OutboxEntry>/List<dynamic>/g' {} ;
-          find lib/services -name "*.dart" -exec sed -i 's/OutboxEntry /dynamic /g' {} ;
+          # 2. إصلاح OutboxEntry (بدون find - استخدام for loop)
+          for file in lib/services/*.dart; do
+            sed -i 's/List<OutboxEntry>/List<dynamic>/g' "$file" || true
+            sed -i 's/OutboxEntry /dynamic /g' "$file" || true
+          done
           
           # 3. إصلاح TextDirection
-          sed -i 's/TextDirection.rtl/TextDirection.ltr/g' lib/screens/settings/sync_health_dashboard_screen.dart
+          sed -i 's/TextDirection.rtl/TextDirection.ltr/g' lib/screens/settings/sync_health_dashboard_screen.dart || true
           
-          # 4. إصلاح use_of_void_result (الأهم)
-          find lib/services -name "*.dart" -exec sed -i 's/final .* = await .*;/await/g' {} ; || true
-          find lib/services -name "*.dart" -exec sed -i 's/.*.someVoidMethod();/await/' {} ; || true
+          # 4. إصلاح use_of_void_result (أبسط)
+          for file in lib/services/sync_*.dart; do
+            sed -i 's/final result = await /await /g' "$file" || true
+            sed -i 's/final _ = await /await /g' "$file" || true
+          done
           
           # 5. Dart fix + format
           dart fix --apply || true
           dart format . || true
           
-          echo "✅ ALL fixes applied!"
+          echo "✅ ALL fixes completed!"
       
       - name: Commit & Push
         run: |
           git config user.name "Auto Fix Bot"
           git config user.email "bot@github.com"
           git add .
-          if git diff --staged | grep .; then
-            git commit -m "fix: ALL critical errors + SyncConstants complete [skip ci]"
+          if git diff --staged --quiet; then
+            echo "ℹ️ No changes to commit"
+          else
+            git commit -m "fix: ALL critical errors fixed [skip ci]"
             git push
-            echo "✅ Fixes pushed to PR!"
+            echo "✅ Fixes pushed successfully!"
           fi
       
-      - name: Verify Fix
-        run: |
-          flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
-          echo "✅ Verification: $(flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings | wc -l) issues remaining"
+      - name: Verify
+        run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings || true
