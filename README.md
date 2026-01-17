@@ -1,5 +1,6 @@
 # 🏨 Marina Hotel - نظام إدارة الفنادق المتكامل
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/9d444b41efa0413fb954fa017ab814ad)](https://app.codacy.com/gh/NassarAlshabi1/marina-hotel-wit-app?utm_source=github.com&utm_medium=referral&utm_content=NassarAlshabi1/marina-hotel-wit-app&utm_campaign=Badge_Grade)
 [![Build Status](https://github.com/Nassaralshabi/marina-hotel-wit-app/actions/workflows/build_apk.yml/badge.svg)](https://github.com/Nassaralshabi/marina-hotel-wit-app/actions)
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.24.3-blue.svg)](https://flutter.dev/)
 [![Dart Version](https://img.shields.io/badge/Dart-3.4.0-blue.svg)](https://dart.dev/)
