@@ -191,7 +191,7 @@ class SyncMutex {
     }
 
     try {
-      final result = await action();
+      await action();
       return MutexRunResult<T>(
         success: true,
         value: result,

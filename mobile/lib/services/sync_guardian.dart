@@ -189,9 +189,8 @@ class SyncGuardian {
     Future.delayed(SyncConstants.appForegroundDelay, () async {
       // سحب التغييرات من Google Drive في الخلفية
       try {
-        final result = await GoogleDriveUnifiedSyncCoordinator.instance
-            .performSync(
-                trigger: SyncTrigger.appForeground, mode: SyncMode.smart);
+        await GoogleDriveUnifiedSyncCoordinator.instance.performSync(
+            trigger: SyncTrigger.appForeground, mode: SyncMode.smart);
         if (result.success && (result.pulledChanges ?? 0) > 0) {
           _log('✅ تم سحب تغييرات جديدة من Google Drive');
         }

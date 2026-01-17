@@ -141,7 +141,7 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
     final errors = <String>[];
 
     if (useBatch) {
-      final result = await _syncWithBatch(
+      await _syncWithBatch(
         documents: documents,
         mapper: mapper,
         validator: validator,

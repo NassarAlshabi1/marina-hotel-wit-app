@@ -418,7 +418,7 @@ class SyncOrchestrator {
           continue;
         }
 
-        final result = await executeTask(task);
+        await executeTask(task);
 
         if (result.success) {
           _taskQueue.removeAt(0);
@@ -498,7 +498,7 @@ class SyncOrchestrator {
 
     for (final table in tables) {
       try {
-        final result = await _database
+        await _database
             .customSelect(
               'SELECT COUNT(*) as count FROM $table WHERE deleted_at IS NULL',
             )
