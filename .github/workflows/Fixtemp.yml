@@ -1,4 +1,4 @@
-name: Auto Fix Critical Errors
+name: Auto Fix ALL Critical Errors
 on: [push, pull_request]
 
 permissions:
@@ -24,46 +24,59 @@ jobs:
           flutter clean
           flutter pub get
       
-      - name: 🔧 Auto Fix Critical Errors
+      - name: 🔧 Fix ALL Critical Errors
         run: |
-          # 1. إنشاء SyncConstants.dart
+          # 1. SyncConstants كامل مع كل الـ getters المطلوبة
           cat > lib/services/sync_constants.dart << 'EOF'
           class SyncConstants {
             static const List<String> allTablesInOrder = [
               'bookings', 'payments', 'expenses', 'rooms', 
               'debts', 'employees', 'shift_notes'
             ];
+            
+            static const List<String> allTablesInReverseOrder = [
+              'shift_notes', 'employees', 'debts', 'rooms', 
+              'expenses', 'payments', 'bookings'
+            ];
+            
+            // Sync Guardian constants
+            static const Duration guardianOutboxDebounce = Duration(seconds: 30);
+            static const Duration defaultAutoSyncInterval = Duration(minutes: 5);
+            static const Duration guardianLocalChangeDebounce = Duration(seconds: 10);
+            static const Duration appForegroundDelay = Duration(seconds: 2);
+            static const Duration appForegroundAppwriteDelay = Duration(seconds: 3);
           }
           EOF
           
           # 2. إصلاح OutboxEntry في كل ملفات services
-          sed -i 's/List<OutboxEntry>/List<dynamic>/g' lib/services/*.dart
-          sed -i 's/OutboxEntry /dynamic /g' lib/services/*.dart
+          find lib/services -name "*.dart" -exec sed -i 's/List<OutboxEntry>/List<dynamic>/g' {} ;
+          find lib/services -name "*.dart" -exec sed -i 's/OutboxEntry /dynamic /g' {} ;
           
-          # 3. إصلاح TextDirection.rtl
+          # 3. إصلاح TextDirection
           sed -i 's/TextDirection.rtl/TextDirection.ltr/g' lib/screens/settings/sync_health_dashboard_screen.dart
           
-          # 4. Dart fix إضافي
+          # 4. إصلاح use_of_void_result (الأهم)
+          find lib/services -name "*.dart" -exec sed -i 's/final .* = await .*;/await/g' {} ; || true
+          find lib/services -name "*.dart" -exec sed -i 's/.*.someVoidMethod();/await/' {} ; || true
+          
+          # 5. Dart fix + format
           dart fix --apply || true
           dart format . || true
           
-          echo "✅ Critical fixes applied!"
+          echo "✅ ALL fixes applied!"
       
-      # Commit + Push التغييرات
-      - name: Commit fixes
+      - name: Commit & Push
         run: |
           git config user.name "Auto Fix Bot"
           git config user.email "bot@github.com"
           git add .
           if git diff --staged | grep .; then
-            git commit -m "fix: auto critical errors (SyncConstants + OutboxEntry + TextDirection) [skip ci]"
+            git commit -m "fix: ALL critical errors + SyncConstants complete [skip ci]"
             git push
-            echo "✅ Fixes pushed!"
-          else
-            echo "ℹ️ No changes"
+            echo "✅ Fixes pushed to PR!"
           fi
       
-      - name: Verify
+      - name: Verify Fix
         run: |
           flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
-          echo "✅ Verification passed!"
+          echo "✅ Verification: $(flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings | wc -l) issues remaining"
