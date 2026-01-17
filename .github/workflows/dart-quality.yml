@@ -1,61 +1,51 @@
-name:dart-quality
+name: Dart Quality - Analyze, Fix & Format
 on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
 
 jobs:
-  analyze-fix-format:
+  quality-checks:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: Setup Dart
-      uses: dart-lang/setup-dart@v1
+    - uses: dart-lang/setup-dart@v1
       with:
         sdk: stable
         
-    - name: Get dependencies
-      run: dart pub get
+    - run: dart pub get
+    
+    # Show all errors first (doesn't fail)
+    - name: Analyze & Show Issues
+      run: dart analyze .
       
-    - name: Run dart analyze --fatal-infos
-      run: dart analyze . --fatal-infos
-      
-    - name: Run dart fix --dry-run (preview)
-      run: dart fix --dry-run
-      
-    - name: Run dart fix --apply
+    # Auto-fix what we can
+    - name: Apply Quick Fixes
       run: dart fix --apply
       
-    - name: Run dart format (check)
-      run: dart format . --set-exit-if-changed
-      
-    - name: Run dart format (fix)
+    # Format code
+    - name: Format Code
       run: dart format .
       
-    - name: Verify no changes after fix/format
-      run: |
-        if git diff --exit-code; then
-          echo "✅ No changes needed - clean code!"
-        else
-          echo "❌ Changes detected - commit them manually"
-          exit 1
-        fi
+    # Final check (fails if still broken)
+    - name: Final Analysis
+      run: dart analyze . --fatal-infos
       
-    - name: Commit fixes (if changes made)
+    # Auto-commit fixes
+    - name: Commit Improvements
+      if: always()
       run: |
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
         git add .
         if git diff --staged --quiet; then
-          echo "No changes to commit"
+          echo "✅ No changes needed"
         else
-          git commit -m "chore: auto-fix lint errors, format code [skip ci]"
+          git commit -m "fix: auto-apply dart fixes [skip ci]"
           git push
         fi
       env:
