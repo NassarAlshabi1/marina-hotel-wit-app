@@ -4,7 +4,6 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../models/shift_note_adapter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/screen_sync_controller.dart';
 
 /// شاشة الملاحظات البسيطة
 class NotesScreen extends ConsumerStatefulWidget {
@@ -14,9 +13,8 @@ class NotesScreen extends ConsumerStatefulWidget {
   ConsumerState<NotesScreen> createState() => _NotesScreenState();
 }
 
-class _NotesScreenState extends ConsumerState<NotesScreen> 
+class _NotesScreenState extends ConsumerState<NotesScreen>
     with SingleTickerProviderStateMixin, SyncOnExitMixin {
-  
   @override
   String get screenId => 'notes_screen';
   late TabController _tabController;
@@ -37,31 +35,31 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   Widget build(BuildContext context) {
     return wrapWithSyncOnExit(
       child: AppScaffold(
-      title: 'الملاحظات والتنبيهات',
-      actions: [
-        IconButton(
-          onPressed: _addNote,
-          icon: const Icon(Icons.add),
-          tooltip: 'إضافة ملاحظة',
-        ),
-      ],
-      body: Column(
-        children: [
-          // أشرطة التبويب
-          _buildTabs(),
-          
-          // قائمة الملاحظات
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildAllNotesTab(),
-                _buildUnreadNotesTab(),
-                _buildHighPriorityNotesTab(),
-              ],
-            ),
+        title: 'الملاحظات والتنبيهات',
+        actions: [
+          IconButton(
+            onPressed: _addNote,
+            icon: const Icon(Icons.add),
+            tooltip: 'إضافة ملاحظة',
           ),
         ],
+        body: Column(
+          children: [
+            // أشرطة التبويب
+            _buildTabs(),
+
+            // قائمة الملاحظات
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildAllNotesTab(),
+                  _buildUnreadNotesTab(),
+                  _buildHighPriorityNotesTab(),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -157,8 +155,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   }
 
   Widget _buildNoteCard(ShiftNote note) {
-    final priorityColor = note.priority == 'high' ? Colors.red :
-                         note.priority == 'medium' ? Colors.orange : Colors.green;
+    final priorityColor = note.priority == 'high'
+        ? Colors.red
+        : note.priority == 'medium'
+            ? Colors.orange
+            : Colors.green;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -224,7 +225,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
 
   void _handleNoteAction(String action, ShiftNote note) async {
     final repo = ref.read(simpleNotesRepoProvider);
-    
+
     switch (action) {
       case 'read':
         await repo.markAsRead(note.id);
@@ -277,7 +278,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     final titleController = TextEditingController(text: note?.title ?? '');
     final contentController = TextEditingController(text: note?.content ?? '');
     String priority = note?.priority.name ?? 'medium';
-    String shiftType = note?.shiftType.name ?? 'all';
+    final String shiftType = note?.shiftType.name ?? 'all';
 
     showDialog(
       context: context,
@@ -347,10 +348,10 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     );
   }
 
-  void _saveNote(ShiftNote? note, String title, String content, 
-                String priority, String shiftType) async {
+  void _saveNote(ShiftNote? note, String title, String content, String priority,
+      String shiftType) async {
     final repo = ref.read(simpleNotesRepoProvider);
-    
+
     if (note == null) {
       // إضافة جديدة
       await repo.addNote(
@@ -369,7 +370,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         shiftType: shiftType,
       );
     }
-    
+
     markDataChanged();
     _refreshData();
   }

@@ -10,7 +10,8 @@ class SyncActionButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(syncStatusProvider);
     final status = statusAsync.asData?.value;
-    final isSyncing = status == SyncStatus.pushing || status == SyncStatus.pulling;
+    final isSyncing =
+        status == SyncStatus.pushing || status == SyncStatus.pulling;
     final hasError = status == SyncStatus.error;
 
     final tooltip = isSyncing

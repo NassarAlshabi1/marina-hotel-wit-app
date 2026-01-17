@@ -90,7 +90,8 @@ class CircuitBreaker {
 
     if (_state == CircuitState.halfOpen) {
       _successCount++;
-      debugPrint('✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}');
+      debugPrint(
+          '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}');
 
       if (_successCount >= config.successThreshold) {
         _transitionTo(CircuitState.closed);
@@ -104,7 +105,8 @@ class CircuitBreaker {
     _lastFailureTime = DateTime.now();
     _successCount = 0;
 
-    debugPrint('⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}');
+    debugPrint(
+        '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}');
 
     if (_state == CircuitState.halfOpen) {
       _transitionTo(CircuitState.open);
@@ -191,7 +193,8 @@ class CircuitBreakerTimeoutException implements Exception {
   final String message;
   final TimeoutException originalException;
 
-  CircuitBreakerTimeoutException(this.message, {required this.originalException});
+  CircuitBreakerTimeoutException(this.message,
+      {required this.originalException});
 
   @override
   String toString() => message;

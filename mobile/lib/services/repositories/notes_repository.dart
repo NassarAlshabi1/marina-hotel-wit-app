@@ -11,7 +11,8 @@ class NotesRepository {
   final OutboxDao outbox;
   final BookingNotesDao dao;
 
-  Stream<List<BookingNote>> watchByBooking(int bookingId) => dao.watchByBooking(bookingId);
+  Stream<List<BookingNote>> watchByBooking(int bookingId) =>
+      dao.watchByBooking(bookingId);
   Future<List<BookingNote>> listAllActive() => dao.list();
 
   Future<int> create({
@@ -26,13 +27,15 @@ class NotesRepository {
         bookingId: d.Value(bookingId),
         noteText: d.Value(noteText),
         alertType: d.Value(alertType),
-        alertUntil: alertUntil != null ? d.Value(alertUntil) : const d.Value.absent(),
+        alertUntil:
+            alertUntil != null ? d.Value(alertUntil) : const d.Value.absent(),
         isActive: d.Value(isActive ? 1 : 0),
       ),
     );
   }
 
-  Future<int> update(int id, {
+  Future<int> update(
+    int id, {
     String? noteText,
     String? alertType,
     String? alertUntil,
@@ -42,9 +45,13 @@ class NotesRepository {
       id,
       BookingNotesCompanion(
         noteText: noteText != null ? d.Value(noteText) : const d.Value.absent(),
-        alertType: alertType != null ? d.Value(alertType) : const d.Value.absent(),
-        alertUntil: alertUntil != null ? d.Value(alertUntil) : const d.Value.absent(),
-        isActive: isActive != null ? d.Value(isActive ? 1 : 0) : const d.Value.absent(),
+        alertType:
+            alertType != null ? d.Value(alertType) : const d.Value.absent(),
+        alertUntil:
+            alertUntil != null ? d.Value(alertUntil) : const d.Value.absent(),
+        isActive: isActive != null
+            ? d.Value(isActive ? 1 : 0)
+            : const d.Value.absent(),
       ),
     );
   }
@@ -57,7 +64,7 @@ class NotesRepository {
   Future<Map<String, dynamic>> exportData() async {
     final notesData = await dao.exportToJson();
     final recordCount = await dao.getRecordCount();
-    
+
     return {
       'data': notesData,
       'count': recordCount,
@@ -69,7 +76,7 @@ class NotesRepository {
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data']), 
+        List<Map<String, dynamic>>.from(data['data']),
         clearExisting: false,
       );
     }

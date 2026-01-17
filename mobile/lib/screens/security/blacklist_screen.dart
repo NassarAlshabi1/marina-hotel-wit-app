@@ -30,17 +30,25 @@ class BlacklistScreen extends ConsumerWidget {
               return Card(
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: e.active ? Colors.red.shade100 : Colors.grey.shade300,
-                    child: Icon(Icons.gavel, color: e.active ? Colors.red : Colors.grey),
+                    backgroundColor:
+                        e.active ? Colors.red.shade100 : Colors.grey.shade300,
+                    child: Icon(Icons.gavel,
+                        color: e.active ? Colors.red : Colors.grey),
                   ),
-                  title: Text('${e.name}${e.nationality != null && e.nationality!.isNotEmpty ? ' • ${e.nationality}' : ''}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(
+                      '${e.name}${e.nationality != null && e.nationality!.isNotEmpty ? ' • ${e.nationality}' : ''}',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (e.nationality != null && e.nationality!.isNotEmpty) Text('الجنسية: ${e.nationality!}'),
-                      if (e.reason != null && e.reason!.isNotEmpty) Text('سبب: ${e.reason!}'),
-                      if (e.nationalId != null && e.nationalId!.isNotEmpty) Text('الهوية: ${e.nationalId!}'),
-                      if (e.phone != null && e.phone!.isNotEmpty) Text('الهاتف: ${e.phone!}'),
+                      if (e.nationality != null && e.nationality!.isNotEmpty)
+                        Text('الجنسية: ${e.nationality!}'),
+                      if (e.reason != null && e.reason!.isNotEmpty)
+                        Text('سبب: ${e.reason!}'),
+                      if (e.nationalId != null && e.nationalId!.isNotEmpty)
+                        Text('الهوية: ${e.nationalId!}'),
+                      if (e.phone != null && e.phone!.isNotEmpty)
+                        Text('الهاتف: ${e.phone!}'),
                     ],
                   ),
                   trailing: PopupMenuButton<String>(
@@ -55,7 +63,9 @@ class BlacklistScreen extends ConsumerWidget {
                       }
                     },
                     itemBuilder: (context) => [
-                      PopupMenuItem(value: 'toggle', child: Text(e.active ? 'تعطيل' : 'تفعيل')),
+                      PopupMenuItem(
+                          value: 'toggle',
+                          child: Text(e.active ? 'تعطيل' : 'تفعيل')),
                       const PopupMenuItem(value: 'delete', child: Text('حذف')),
                     ],
                   ),
@@ -93,8 +103,10 @@ class BlacklistScreen extends ConsumerWidget {
               children: [
                 TextFormField(
                   controller: name,
-                  decoration: const InputDecoration(labelText: 'الاسم الكامل *'),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'مطلوب' : null,
+                  decoration:
+                      const InputDecoration(labelText: 'الاسم الكامل *'),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'مطلوب' : null,
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -128,22 +140,24 @@ class BlacklistScreen extends ConsumerWidget {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء')),
           ElevatedButton(
-onPressed: () async {
-  if (!formKey.currentState!.validate()) return;
-  // من الأفضل تخزين الـ navigator قبل الفجوة غير المتزامنة
-  final navigator = Navigator.of(context);
-  await repo.addEntry(
-    name: name.text,
-    nationality: nationality.text,
-    nationalId: nationalId.text,
-    phone: phone.text,
-    reason: reason.text,
-    notes: notes.text,
-  );
-  navigator.pop();
-},
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              // من الأفضل تخزين الـ navigator قبل الفجوة غير المتزامنة
+              final navigator = Navigator.of(context);
+              await repo.addEntry(
+                name: name.text,
+                nationality: nationality.text,
+                nationalId: nationalId.text,
+                phone: phone.text,
+                reason: reason.text,
+                notes: notes.text,
+              );
+              navigator.pop();
+            },
             child: const Text('حفظ'),
           ),
         ],
@@ -165,7 +179,10 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 12),
           const Text('لا توجد أسماء في القائمة السوداء'),
           const SizedBox(height: 8),
-          ElevatedButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: const Text('إضافة اسم')),
+          ElevatedButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add),
+              label: const Text('إضافة اسم')),
         ],
       ),
     );

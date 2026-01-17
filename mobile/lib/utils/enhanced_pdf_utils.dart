@@ -110,7 +110,8 @@ class ArabicPdfFonts {
 /// أدوات PDF محسنة مع تصاميم احترافية
 class EnhancedPdfUtils {
   static Future<ArabicPdfFonts> loadArabicFonts() async {
-    final regularData = await rootBundle.load('assets/fonts/Tajawal-Regular.ttf');
+    final regularData =
+        await rootBundle.load('assets/fonts/Tajawal-Regular.ttf');
     final boldData = await rootBundle.load('assets/fonts/Tajawal-Bold.ttf');
     final lightData = regularData;
 
@@ -178,8 +179,8 @@ class EnhancedPdfUtils {
                 ),
                 pw.SizedBox(height: 8),
                 pw.Container(
-                  padding:
-                      const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
                   decoration: pw.BoxDecoration(
                     color: PdfColors.secondary,
                   ),
@@ -348,7 +349,8 @@ class EnhancedPdfUtils {
         children: [
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding:
+                const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: pw.BoxDecoration(
               color: borderColor ?? PdfColors.primary,
             ),
@@ -401,14 +403,16 @@ class EnhancedPdfUtils {
             decoration: pw.BoxDecoration(
               color: headerColor ?? PdfColors.primary,
             ),
-            children: headers.map((header) => pw.Padding(
-                  padding: const pw.EdgeInsets.all(12),
-                  child: pw.Text(
-                    header,
-                    style: headerStyle,
-                    textAlign: pw.TextAlign.center,
-                  ),
-                )).toList(),
+            children: headers
+                .map((header) => pw.Padding(
+                      padding: const pw.EdgeInsets.all(12),
+                      child: pw.Text(
+                        header,
+                        style: headerStyle,
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ))
+                .toList(),
           ),
           ...data.asMap().entries.map((entry) {
             final index = entry.key;
@@ -421,14 +425,16 @@ class EnhancedPdfUtils {
                     ? (alternateRowColor ?? PdfColors.backgroundLight)
                     : null,
               ),
-              children: row.map((cell) => pw.Padding(
-                    padding: const pw.EdgeInsets.all(10),
-                    child: pw.Text(
-                      cell,
-                      style: cellStyle,
-                      textAlign: pw.TextAlign.center,
-                    ),
-                  )).toList(),
+              children: row
+                  .map((cell) => pw.Padding(
+                        padding: const pw.EdgeInsets.all(10),
+                        child: pw.Text(
+                          cell,
+                          style: cellStyle,
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      ))
+                  .toList(),
             );
           }).toList(),
         ],
@@ -512,12 +518,28 @@ class EnhancedPdfUtils {
   /// تنسيق التاريخ والوقت
   static String formatDateTime(DateTime dateTime) {
     const List<String> arabicMonths = [
-      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر'
     ];
 
     const List<String> arabicDays = [
-      'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'
+      'الاثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت',
+      'الأحد'
     ];
 
     final day = arabicDays[dateTime.weekday - 1];
@@ -534,9 +556,9 @@ class EnhancedPdfUtils {
   /// تنسيق الأرقام بالفواصل
   static String formatNumber(double number) {
     return number.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match match) => '${match[1]},',
-    );
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match match) => '${match[1]},',
+        );
   }
 
   /// بناء مربع نائب لـ QR Code

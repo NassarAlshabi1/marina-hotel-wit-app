@@ -38,12 +38,13 @@ class AppwriteLogger {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final logsDir = Directory('${directory.path}/appwrite_logs');
-      
+
       if (!await logsDir.exists()) {
         await logsDir.create(recursive: true);
       }
 
-      final fileName = 'appwrite_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
+      final fileName =
+          'appwrite_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
     } catch (e) {
       debugPrint('Error initializing log file: $e');
@@ -125,16 +126,28 @@ class AppwriteLogger {
     log(message, level: LogLevel.info, tag: tag);
   }
 
-  void warning(String message, {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
-    log(message, level: LogLevel.warning, tag: tag, error: error, stackTrace: stackTrace);
+  void warning(String message,
+      {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
+    log(message,
+        level: LogLevel.warning,
+        tag: tag,
+        error: error,
+        stackTrace: stackTrace);
   }
 
-  void error(String message, {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
-    log(message, level: LogLevel.error, tag: tag, error: error, stackTrace: stackTrace);
+  void error(String message,
+      {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
+    log(message,
+        level: LogLevel.error, tag: tag, error: error, stackTrace: stackTrace);
   }
 
-  void critical(String message, {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
-    log(message, level: LogLevel.critical, tag: tag, error: error, stackTrace: stackTrace);
+  void critical(String message,
+      {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
+    log(message,
+        level: LogLevel.critical,
+        tag: tag,
+        error: error,
+        stackTrace: stackTrace);
   }
 
   /// الحصول على جميع السجلات
@@ -166,7 +179,8 @@ class AppwriteLogger {
   Future<File?> exportLogs() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'appwrite_logs_export_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
+      final fileName =
+          'appwrite_logs_export_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
       final file = File('${directory.path}/$fileName');
 
       final buffer = StringBuffer();

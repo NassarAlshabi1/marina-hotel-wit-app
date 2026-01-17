@@ -8,10 +8,12 @@ class WhatsAppSettingsScreen extends ConsumerStatefulWidget {
   const WhatsAppSettingsScreen({super.key});
 
   @override
-  ConsumerState<WhatsAppSettingsScreen> createState() => _WhatsAppSettingsScreenState();
+  ConsumerState<WhatsAppSettingsScreen> createState() =>
+      _WhatsAppSettingsScreenState();
 }
 
-class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen> {
+class _WhatsAppSettingsScreenState
+    extends ConsumerState<WhatsAppSettingsScreen> {
   final _templateController = TextEditingController();
   bool _isLoading = true;
 
@@ -24,7 +26,8 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _templateController.text = prefs.getString('whatsapp_template') ?? whatsappPaymentTemplate;
+      _templateController.text =
+          prefs.getString('whatsapp_template') ?? whatsappPaymentTemplate;
       _isLoading = false;
     });
   }
@@ -36,7 +39,9 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     if (mounted) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ إعدادات الرسالة بنجاح'), backgroundColor: Colors.green),
+        const SnackBar(
+            content: Text('تم حفظ إعدادات الرسالة بنجاح'),
+            backgroundColor: Colors.green),
       );
     }
   }
@@ -72,15 +77,18 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
                         children: [
                           Text(
                             'المتغيرات المتاحة:',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                           SizedBox(height: 8),
                           Text('{name} : اسم الضيف'),
                           Text('{amount} : المبلغ المدفوع'),
                           Text('{room} : رقم الغرفة'),
                           Text('{remaining} : المبلغ المتبقي'),
-                          Text('{extra_nights} : تفاصيل الليالي الإضافية (إن وجد)'),
-                          Text('{new_checkout} : تاريخ المغادرة الجديد (إن وجد)'),
+                          Text(
+                              '{extra_nights} : تفاصيل الليالي الإضافية (إن وجد)'),
+                          Text(
+                              '{new_checkout} : تاريخ المغادرة الجديد (إن وجد)'),
                         ],
                       ),
                     ),
@@ -116,8 +124,10 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
                           icon: const Icon(Icons.save),
                           label: const Text('حفظ التغييرات'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).colorScheme.primary,
-                            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
+                            foregroundColor:
+                                Theme.of(context).colorScheme.onPrimary,
                           ),
                         ),
                       ),

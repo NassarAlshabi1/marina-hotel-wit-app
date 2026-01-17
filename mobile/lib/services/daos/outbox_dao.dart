@@ -39,7 +39,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<int> clearStale({int attemptsThreshold = 3}) async {
-    return (delete(outbox)..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold))).go();
+    return (delete(outbox)
+          ..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold)))
+        .go();
   }
 
   Future<int> merge({
@@ -51,7 +53,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     required int clientTs,
   }) async {
     final data = jsonEncode(payload);
-    
+
     final id = await transaction(() async {
       final existing = await (select(outbox)
             ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
@@ -64,7 +66,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           variables: [Variable<int>(existing.id)],
           readsFrom: {outbox},
         ).getSingleOrNull();
-        idempotencyKey = result?.data['idempotency_key'] as String? ?? _uuid.v4();
+        idempotencyKey =
+            result?.data['idempotency_key'] as String? ?? _uuid.v4();
       } else {
         idempotencyKey = _uuid.v4();
       }
@@ -115,21 +118,24 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   void _notifyAllSyncEngines(String entity, String op) {
     Future.microtask(() async {
       try {
-        await SyncGuardian.instance.notifyLocalChange(table: entity, operation: op);
+        await SyncGuardian.instance
+            .notifyLocalChange(table: entity, operation: op);
       } catch (e, s) {
         debugPrint('Error notifying SyncGuardian: $e\n$s');
       }
     });
     Future.microtask(() async {
       try {
-        await GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
+        await GoogleDriveUnifiedSyncCoordinator.instance
+            .notifyLocalChange(table: entity, operation: op);
       } catch (e, s) {
         debugPrint('Error notifying GoogleDriveUnifiedSyncCoordinator: $e\n$s');
       }
     });
     Future.microtask(() async {
       try {
-        await AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
+        await AutoSyncEngine.instance
+            .notifyDataChange(table: entity, operation: op);
       } catch (e, s) {
         debugPrint('Error notifying AutoSyncEngine: $e\n$s');
       }
@@ -143,7 +149,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         .get();
   }
 
-  Future<void> removeById(int id) => (delete(outbox)..where((t) => t.id.equals(id))).go();
+  Future<void> removeById(int id) =>
+      (delete(outbox)..where((t) => t.id.equals(id))).go();
 
   Future<void> removeByIds(List<int> ids) {
     if (ids.isEmpty) {
@@ -151,7 +158,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     }
     return (delete(outbox)..where((t) => t.id.isIn(ids))).go();
   }
-  
+
   Future<void> setError(int id, String message, int attempts) =>
-      (update(outbox)..where((t) => t.id.equals(id))).write(OutboxCompanion(lastError: Value(message), attempts: Value(attempts)));
+      (update(outbox)..where((t) => t.id.equals(id))).write(OutboxCompanion(
+          lastError: Value(message), attempts: Value(attempts)));
 }

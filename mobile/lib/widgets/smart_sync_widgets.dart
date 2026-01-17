@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/smart_sync_manager.dart';
 import '../providers/smart_sync_provider.dart';
 import '../providers/backup_provider.dart';
 
@@ -12,7 +11,7 @@ class SmartSyncStatusWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(smartSyncStatusProvider);
-    
+
     return statusAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (error, stack) => const SizedBox.shrink(),
@@ -20,17 +19,19 @@ class SmartSyncStatusWidget extends ConsumerWidget {
         final isEnabled = status['enabled'] as bool;
         final isSyncing = status['is_syncing'] as bool;
         final isSignedIn = status['signed_in'] as bool;
-        
+
         if (!isEnabled || !isSignedIn) {
           return const SizedBox.shrink();
         }
-        
+
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           margin: const EdgeInsets.all(8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: isSyncing ? Colors.blue.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+            color: isSyncing
+                ? Colors.blue.withOpacity(0.1)
+                : Colors.green.withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSyncing ? Colors.blue : Colors.green,
@@ -80,26 +81,29 @@ class SmartSyncNotificationListener extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<SmartSyncNotificationListener> createState() => _SmartSyncNotificationListenerState();
+  ConsumerState<SmartSyncNotificationListener> createState() =>
+      _SmartSyncNotificationListenerState();
 }
 
-class _SmartSyncNotificationListenerState extends ConsumerState<SmartSyncNotificationListener> {
+class _SmartSyncNotificationListenerState
+    extends ConsumerState<SmartSyncNotificationListener> {
   DateTime? _lastSyncTime;
-  
+
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<Map<String, dynamic>>>(smartSyncStatusProvider, (previous, next) {
+    ref.listen<AsyncValue<Map<String, dynamic>>>(smartSyncStatusProvider,
+        (previous, next) {
       if (next.hasValue) {
         final status = next.value!;
         final lastSyncString = status['last_sync_check'] as String?;
-        
+
         if (lastSyncString != null) {
           final lastSync = DateTime.parse(lastSyncString);
-          
+
           // إذا كانت هناك مزامنة جديدة
           if (_lastSyncTime == null || lastSync.isAfter(_lastSyncTime!)) {
             _lastSyncTime = lastSync;
-            
+
             // عرض إشعار نجاح المزامنة
             if (mounted && _lastSyncTime != null) {
               _showSyncNotification(context, 'تمت مزامنة البيانات من جهاز آخر');
@@ -108,7 +112,7 @@ class _SmartSyncNotificationListenerState extends ConsumerState<SmartSyncNotific
         }
       }
     });
-    
+
     return widget.child;
   }
 
@@ -139,7 +143,7 @@ class SmartSyncFloatingButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(smartSyncStatusProvider);
-    
+
     return statusAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (error, stack) => const SizedBox.shrink(),
@@ -147,47 +151,49 @@ class SmartSyncFloatingButton extends ConsumerWidget {
         final isEnabled = status['enabled'] as bool;
         final isSyncing = status['is_syncing'] as bool;
         final isSignedIn = status['signed_in'] as bool;
-        
+
         if (!isEnabled || !isSignedIn) {
           return const SizedBox.shrink();
         }
-        
+
         return FloatingActionButton.small(
-          onPressed: isSyncing ? null : () async {
-            try {
-              final manager = ref.read(smartSyncManagerProvider);
-              await manager.forceSyncNow();
-              
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('🔄 بدأت المزامنة اليدوية...'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-            } catch (e) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('❌ خطأ في المزامنة: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            }
-          },
+          onPressed: isSyncing
+              ? null
+              : () async {
+                  try {
+                    final manager = ref.read(smartSyncManagerProvider);
+                    await manager.forceSyncNow();
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('🔄 بدأت المزامنة اليدوية...'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('❌ خطأ في المزامنة: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
           backgroundColor: isSyncing ? Colors.grey : Colors.blue,
-          child: isSyncing 
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : const Icon(Icons.sync, size: 20),
+          child: isSyncing
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.sync, size: 20),
           tooltip: isSyncing ? 'مزامنة جارية...' : 'مزامنة يدوية',
         );
       },
@@ -202,10 +208,12 @@ class SmartSyncDashboardCard extends ConsumerStatefulWidget {
   const SmartSyncDashboardCard({super.key});
 
   @override
-  ConsumerState<SmartSyncDashboardCard> createState() => _SmartSyncDashboardCardState();
+  ConsumerState<SmartSyncDashboardCard> createState() =>
+      _SmartSyncDashboardCardState();
 }
 
-class _SmartSyncDashboardCardState extends ConsumerState<SmartSyncDashboardCard> {
+class _SmartSyncDashboardCardState
+    extends ConsumerState<SmartSyncDashboardCard> {
   @override
   void initState() {
     super.initState();
@@ -218,9 +226,10 @@ class _SmartSyncDashboardCardState extends ConsumerState<SmartSyncDashboardCard>
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(smartSyncStatusProvider);
-    
+
     return statusAsync.when(
-      loading: () => const Card(child: ListTile(title: Text('تحميل حالة المزامنة...'))),
+      loading: () =>
+          const Card(child: ListTile(title: Text('تحميل حالة المزامنة...'))),
       error: (error, stack) => const SizedBox.shrink(),
       data: (status) {
         final isEnabled = status['enabled'] as bool;
@@ -228,9 +237,9 @@ class _SmartSyncDashboardCardState extends ConsumerState<SmartSyncDashboardCard>
         final syncInterval = status['sync_interval_minutes'] as int;
         final lastSync = status['last_sync_check'] as String?;
         final isSignedIn = status['signed_in'] as bool;
-        
+
         if (!isSignedIn) return const SizedBox.shrink();
-        
+
         return Card(
           child: ListTile(
             leading: CircleAvatar(
@@ -248,23 +257,26 @@ class _SmartSyncDashboardCardState extends ConsumerState<SmartSyncDashboardCard>
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isEnabled ? 'مُفعلة - فحص كل $syncInterval دقائق' : 'معطلة'),
+                Text(isEnabled
+                    ? 'مُفعلة - فحص كل $syncInterval دقائق'
+                    : 'معطلة'),
                 if (isSyncing)
-                  const Text('🔄 جارِ المزامنة...', style: TextStyle(color: Colors.blue)),
+                  const Text('🔄 جارِ المزامنة...',
+                      style: TextStyle(color: Colors.blue)),
                 if (lastSync != null && !isSyncing)
                   Text('آخر فحص: ${_formatLastSync(DateTime.parse(lastSync))}'),
               ],
             ),
-            trailing: isEnabled && !isSyncing 
-              ? IconButton(
-                  icon: const Icon(Icons.sync_alt),
-                  onPressed: () async {
-                    final manager = ref.read(smartSyncManagerProvider);
-                    await manager.forceSyncNow();
-                  },
-                  tooltip: 'مزامنة الآن',
-                )
-              : null,
+            trailing: isEnabled && !isSyncing
+                ? IconButton(
+                    icon: const Icon(Icons.sync_alt),
+                    onPressed: () async {
+                      final manager = ref.read(smartSyncManagerProvider);
+                      await manager.forceSyncNow();
+                    },
+                    tooltip: 'مزامنة الآن',
+                  )
+                : null,
             onTap: () {
               Navigator.pushNamed(context, '/smart-sync-settings');
             },
@@ -277,7 +289,7 @@ class _SmartSyncDashboardCardState extends ConsumerState<SmartSyncDashboardCard>
   String _formatLastSync(DateTime lastSync) {
     final now = DateTime.now();
     final difference = now.difference(lastSync);
-    
+
     if (difference.inMinutes < 1) {
       return 'الآن';
     } else if (difference.inMinutes < 60) {

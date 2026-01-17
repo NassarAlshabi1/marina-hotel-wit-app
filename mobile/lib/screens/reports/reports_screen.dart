@@ -17,16 +17,22 @@ class ReportsScreen extends ConsumerWidget {
     final db = ref.watch(coreProviders.dbProvider);
     return AppScaffold(
       title: 'التقارير',
-      actions: [IconButton(onPressed: () => ref.read(coreProviders.syncProvider).runSync(), icon: const Icon(Icons.sync))],
+      actions: [
+        IconButton(
+            onPressed: () => ref.read(coreProviders.syncProvider).runSync(),
+            icon: const Icon(Icons.sync))
+      ],
       body: FutureBuilder(
         future: _prepareData(db),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
           final d = snapshot.data!;
           return ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              const Text('التقارير التفصيلية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('التقارير التفصيلية',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 12),
               LayoutBuilder(
                 builder: (context, constraints) {
@@ -37,7 +43,8 @@ class ReportsScreen extends ConsumerWidget {
                       color: Colors.green,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const PaymentsReportScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const PaymentsReportScreen()),
                       ),
                     ),
                     _ReportShortcut(
@@ -46,7 +53,8 @@ class ReportsScreen extends ConsumerWidget {
                       color: Colors.purple,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const DebtsReportScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const DebtsReportScreen()),
                       ),
                     ),
                     _ReportShortcut(
@@ -55,7 +63,8 @@ class ReportsScreen extends ConsumerWidget {
                       color: Colors.orange,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const ExpensesReportScreen()),
                       ),
                     ),
                     _ReportShortcut(
@@ -64,7 +73,9 @@ class ReportsScreen extends ConsumerWidget {
                       color: Colors.blue,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const SalaryWithdrawalsReportScreen()),
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const SalaryWithdrawalsReportScreen()),
                       ),
                     ),
                     _ReportShortcut(
@@ -73,7 +84,8 @@ class ReportsScreen extends ConsumerWidget {
                       color: Colors.teal,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const IncomeExpenseReportScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const IncomeExpenseReportScreen()),
                       ),
                     ),
                   ];
@@ -85,7 +97,8 @@ class ReportsScreen extends ConsumerWidget {
                   final rows = <Widget>[];
                   for (int i = 0; i < shortcuts.length; i += 2) {
                     final first = shortcuts[i];
-                    final second = i + 1 < shortcuts.length ? shortcuts[i + 1] : null;
+                    final second =
+                        i + 1 < shortcuts.length ? shortcuts[i + 1] : null;
                     rows.add(
                       Row(
                         children: [
@@ -107,14 +120,23 @@ class ReportsScreen extends ConsumerWidget {
                 },
               ),
               const SizedBox(height: 24),
-              const Text('الإشغال اليومي (آخر 7 أيام)', style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 200, child: BarChart(BarChartData(barGroups: d['dailyOcc']))),
+              const Text('الإشغال اليومي (آخر 7 أيام)',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(
+                  height: 200,
+                  child: BarChart(BarChartData(barGroups: d['dailyOcc']))),
               const SizedBox(height: 16),
-              const Text('الإيرادات مقابل المصروفات (الشهر)', style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 200, child: BarChart(BarChartData(barGroups: d['revExp']))),
+              const Text('الإيرادات مقابل المصروفات (الشهر)',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(
+                  height: 200,
+                  child: BarChart(BarChartData(barGroups: d['revExp']))),
               const SizedBox(height: 16),
-              const Text('أعلى الغرف إشغالاً', style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 200, child: BarChart(BarChartData(barGroups: d['topRooms']))),
+              const Text('أعلى الغرف إشغالاً',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(
+                  height: 200,
+                  child: BarChart(BarChartData(barGroups: d['topRooms']))),
             ],
           );
         },
@@ -128,9 +150,11 @@ class ReportsScreen extends ConsumerWidget {
 
     // dummy last 7 days occupancy by current status
     final daily = List.generate(7, (i) {
-      final busy = rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
+      final busy =
+          rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
       final occ = (busy * 100 / total).round();
-      return BarChartGroupData(x: i, barRods: [BarChartRodData(toY: occ.toDouble())]);
+      return BarChartGroupData(
+          x: i, barRods: [BarChartRodData(toY: occ.toDouble())]);
     });
 
     // month revenue vs expense: placeholder from local

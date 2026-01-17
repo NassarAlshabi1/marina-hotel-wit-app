@@ -2,7 +2,8 @@
 /// يعيد تصدير المزودات الأساسية للاستخدام في أجزاء التطبيق المختلفة
 
 export '../providers/repository_providers.dart'
-    show databaseProvider,
+    show
+        databaseProvider,
         roomsRepoProvider,
         bookingsRepoProvider,
         paymentsRepoProvider,

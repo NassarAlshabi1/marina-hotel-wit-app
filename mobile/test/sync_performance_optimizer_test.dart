@@ -24,7 +24,7 @@ void main() {
       // اختبار أن الدالة أصبحت async وترجع Future<bool>
       final result = optimizer.shouldSkipSync();
       expect(result, isA<Future<bool>>());
-      
+
       final actualResult = await result;
       expect(actualResult, isA<bool>());
     });
@@ -32,10 +32,11 @@ void main() {
     test('should handle empty connectivity results', () {
       // اختبار معالجة قائمة فارغة من نتائج الاتصال
       const List<ConnectivityResult> emptyResults = [];
-      
+
       // يجب ألا ترمي خطأ عند تمرير قائمة فارغة
-      expect(() => optimizer._updateConnectivityStatus(emptyResults), returnsNormally);
-      
+      expect(() => optimizer._updateConnectivityStatus(emptyResults),
+          returnsNormally);
+
       // بعد معالجة قائمة فارغة، يجب أن يكون isOnWiFi = false
       expect(optimizer.isOnWiFi, false);
     });
@@ -47,18 +48,20 @@ void main() {
         ConnectivityResult.wifi,
         ConnectivityResult.bluetooth,
       ];
-      
+
       optimizer._updateConnectivityStatus(mixedResults);
-      
+
       // يجب أن يفضل WiFi على Mobile
       expect(optimizer.isOnWiFi, true);
     });
 
     test('should handle single mobile connection', () {
-      const List<ConnectivityResult> mobileResults = [ConnectivityResult.mobile];
-      
+      const List<ConnectivityResult> mobileResults = [
+        ConnectivityResult.mobile
+      ];
+
       optimizer._updateConnectivityStatus(mobileResults);
-      
+
       expect(optimizer.isOnWiFi, false);
     });
 
@@ -68,23 +71,23 @@ void main() {
         // WiFi موجود - يجب أن يكون true
         ([ConnectivityResult.wifi], true),
         ([ConnectivityResult.wifi, ConnectivityResult.mobile], true),
-        
-        // Ethernet موجود (نعامله مثل WiFi) - يجب أن يكون true  
+
+        // Ethernet موجود (نعامله مثل WiFi) - يجب أن يكون true
         ([ConnectivityResult.ethernet], true),
         ([ConnectivityResult.ethernet, ConnectivityResult.mobile], true),
-        
+
         // Mobile فقط - يجب أن يكون false
         ([ConnectivityResult.mobile], false),
-        
+
         // VPN فقط - يجب أن يكون false (قد يكون بطيء)
         ([ConnectivityResult.vpn], false),
-        
+
         // Bluetooth فقط - يجب أن يكون false (بطيء)
         ([ConnectivityResult.bluetooth], false),
-        
+
         // Other فقط - يجب أن يكون false (غير محدد)
         ([ConnectivityResult.other], false),
-        
+
         // None - يجب أن يكون false (لا يوجد اتصال)
         ([ConnectivityResult.none], false),
       ];
@@ -92,7 +95,7 @@ void main() {
       for (final testCase in testCases) {
         final results = testCase.$1;
         final expectedIsOnWiFi = testCase.$2;
-        
+
         optimizer._updateConnectivityStatus(results);
         expect(
           optimizer.isOnWiFi,
@@ -106,17 +109,19 @@ void main() {
       // اختبار إعدادات الأداء لـ WiFi
       const List<ConnectivityResult> wifiResults = [ConnectivityResult.wifi];
       optimizer._updateConnectivityStatus(wifiResults);
-      
+
       final wifiSettings = optimizer.getCurrentPerformanceSettings();
       expect(wifiSettings['batchSize'], 100);
       expect(wifiSettings['timeout'], 30);
       expect(wifiSettings['retryAttempts'], 3);
       expect(wifiSettings['syncInterval'], 60);
-      
+
       // اختبار إعدادات الأداء للـ Mobile Data
-      const List<ConnectivityResult> mobileResults = [ConnectivityResult.mobile];
+      const List<ConnectivityResult> mobileResults = [
+        ConnectivityResult.mobile
+      ];
       optimizer._updateConnectivityStatus(mobileResults);
-      
+
       final mobileSettings = optimizer.getCurrentPerformanceSettings();
       expect(mobileSettings['batchSize'], 50);
       expect(mobileSettings['timeout'], 15);
@@ -129,14 +134,14 @@ void main() {
       optimizer.recordSyncAttempt(success: true);
       expect(optimizer.syncAttempts, 0); // يجب إعادة تعيين العداد
       expect(optimizer.lastSyncTime, isNotNull);
-      
+
       // اختبار تسجيل المحاولات الفاشلة
       optimizer.recordSyncAttempt(success: false);
       expect(optimizer.syncAttempts, 1);
-      
+
       optimizer.recordSyncAttempt(success: false);
       expect(optimizer.syncAttempts, 2);
-      
+
       // اختبار إعادة تعيين العداد بعد نجاح
       optimizer.recordSyncAttempt(success: true);
       expect(optimizer.syncAttempts, 0);
@@ -147,7 +152,7 @@ void main() {
       optimizer.recordSyncAttempt(success: false);
       optimizer.recordSyncAttempt(success: false);
       expect(optimizer.syncAttempts, 2);
-      
+
       // إعادة تعيين العداد
       optimizer.resetSyncAttempts();
       expect(optimizer.syncAttempts, 0);
@@ -157,9 +162,9 @@ void main() {
       const List<ConnectivityResult> wifiResults = [ConnectivityResult.wifi];
       optimizer._updateConnectivityStatus(wifiResults);
       optimizer.recordSyncAttempt(success: false);
-      
+
       final stats = optimizer.getPerformanceStats();
-      
+
       expect(stats, isA<Map<String, dynamic>>());
       expect(stats['isOnWiFi'], true);
       expect(stats['syncAttempts'], 1);
@@ -175,17 +180,17 @@ extension SyncPerformanceOptimizerTestExtension on SyncPerformanceOptimizer {
     // استدعاء الدالة الخاصة للاختبار
     // في الاستخدام الفعلي، هذه الدالة تُستدعى داخلياً
     // ولكن للاختبار نحتاج للوصول إليها
-    
+
     // نسخ منطق الدالة للاختبار
     final wasOnWiFi = isOnWiFi;
-    
+
     if (results.isEmpty) {
       // معالجة القائمة الفارغة
       return;
     }
-    
+
     bool newIsOnWiFi = false;
-    
+
     if (results.contains(ConnectivityResult.wifi)) {
       newIsOnWiFi = true;
     } else if (results.contains(ConnectivityResult.ethernet)) {
@@ -201,7 +206,7 @@ extension SyncPerformanceOptimizerTestExtension on SyncPerformanceOptimizer {
     } else {
       newIsOnWiFi = false;
     }
-    
+
     // محاكاة تحديث الحالة الداخلية
     // في الاستخدام الفعلي، هذا يحدث داخل الكلاس
   }

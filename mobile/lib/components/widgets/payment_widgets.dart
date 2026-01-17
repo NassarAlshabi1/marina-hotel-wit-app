@@ -74,10 +74,10 @@ class PaymentSummaryWidget extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               if (!compact) ...[
                 SizedBox(height: 12),
-                
+
                 // شريط التقدم
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
@@ -88,17 +88,23 @@ class PaymentSummaryWidget extends StatelessWidget {
                     valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                   ),
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // ملخص المبالغ
                 Row(
                   children: [
-                    Expanded(child: _buildAmountChip('الإجمالي', summary.totalAmount, Colors.blue)),
+                    Expanded(
+                        child: _buildAmountChip(
+                            'الإجمالي', summary.totalAmount, Colors.blue)),
                     const SizedBox(width: 8),
-                    Expanded(child: _buildAmountChip('المدفوع', summary.paidAmount, Colors.green)),
+                    Expanded(
+                        child: _buildAmountChip(
+                            'المدفوع', summary.paidAmount, Colors.green)),
                     const SizedBox(width: 8),
-                    Expanded(child: _buildAmountChip('المتبقي', summary.remainingAmount, Colors.red)),
+                    Expanded(
+                        child: _buildAmountChip(
+                            'المتبقي', summary.remainingAmount, Colors.red)),
                   ],
                 ),
               ],
@@ -175,7 +181,8 @@ class PaymentCard extends StatelessWidget {
                   CircleAvatar(
                     radius: 18,
                     backgroundColor: payment.method.color.withOpacity(0.15),
-                    child: Icon(payment.method.icon, color: payment.method.color, size: 18),
+                    child: Icon(payment.method.icon,
+                        color: payment.method.color, size: 18),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -210,9 +217,9 @@ class PaymentCard extends StatelessWidget {
                   PaymentStatusBadge(status: payment.status),
                 ],
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // تفاصيل إضافية
               Row(
                 children: [
@@ -232,8 +239,9 @@ class PaymentCard extends StatelessWidget {
                   ),
                 ],
               ),
-              
-              if (payment.referenceNumber != null || payment.cardLastFourDigits != null) ...[
+
+              if (payment.referenceNumber != null ||
+                  payment.cardLastFourDigits != null) ...[
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -245,7 +253,8 @@ class PaymentCard extends StatelessWidget {
                           Icons.confirmation_number,
                         ),
                       ),
-                    if (payment.referenceNumber != null && payment.cardLastFourDigits != null)
+                    if (payment.referenceNumber != null &&
+                        payment.cardLastFourDigits != null)
                       const SizedBox(width: 6),
                     if (payment.cardLastFourDigits != null)
                       Expanded(
@@ -258,7 +267,7 @@ class PaymentCard extends StatelessWidget {
                   ],
                 ),
               ],
-              
+
               if (payment.notes != null && payment.notes!.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Container(
@@ -287,7 +296,7 @@ class PaymentCard extends StatelessWidget {
                   ),
                 ),
               ],
-              
+
               // أزرار العمليات
               if (actions != null && actions!.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -315,7 +324,8 @@ class PaymentCard extends StatelessWidget {
               ),
               Text(
                 value,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                style:
+                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -428,9 +438,11 @@ class PaymentStatsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
-    final completedPayments = payments.where((p) => p.status == PaymentStatus.completed).length;
-    final pendingPayments = payments.where((p) => p.status == PaymentStatus.pending).length;
-    
+    final completedPayments =
+        payments.where((p) => p.status == PaymentStatus.completed).length;
+    final pendingPayments =
+        payments.where((p) => p.status == PaymentStatus.pending).length;
+
     final methodStats = <PaymentMethod, int>{};
     for (final payment in payments) {
       methodStats[payment.method] = (methodStats[payment.method] ?? 0) + 1;
@@ -447,20 +459,35 @@ class PaymentStatsWidget extends StatelessWidget {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            
+
             // إحصائيات عامة
             Row(
               children: [
-                Expanded(child: _buildStatItem('إجمالي المدفوعات', payments.length.toString(), Icons.payment, Colors.blue)),
+                Expanded(
+                    child: _buildStatItem(
+                        'إجمالي المدفوعات',
+                        payments.length.toString(),
+                        Icons.payment,
+                        Colors.blue)),
                 const SizedBox(width: 8),
-                Expanded(child: _buildStatItem('مكتملة', completedPayments.toString(), Icons.check_circle, Colors.green)),
+                Expanded(
+                    child: _buildStatItem(
+                        'مكتملة',
+                        completedPayments.toString(),
+                        Icons.check_circle,
+                        Colors.green)),
                 const SizedBox(width: 8),
-                Expanded(child: _buildStatItem('في الانتظار', pendingPayments.toString(), Icons.hourglass_empty, Colors.orange)),
+                Expanded(
+                    child: _buildStatItem(
+                        'في الانتظار',
+                        pendingPayments.toString(),
+                        Icons.hourglass_empty,
+                        Colors.orange)),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // المبلغ الإجمالي
             Container(
               width: double.infinity,
@@ -486,7 +513,7 @@ class PaymentStatsWidget extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             if (methodStats.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
@@ -499,11 +526,13 @@ class PaymentStatsWidget extends StatelessWidget {
                 runSpacing: 4,
                 children: methodStats.entries.map((entry) {
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: entry.key.color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: entry.key.color.withOpacity(0.3)),
+                      border:
+                          Border.all(color: entry.key.color.withOpacity(0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -530,7 +559,8 @@ class PaymentStatsWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+      String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -600,13 +630,14 @@ class PaymentMethodSelector extends StatelessWidget {
           itemBuilder: (context, index) {
             final method = availableMethods[index];
             final isSelected = selectedMethod == method;
-            
+
             return GestureDetector(
               onTap: () => onMethodSelected(method),
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isSelected ? method.color : method.color.withOpacity(0.1),
+                  color:
+                      isSelected ? method.color : method.color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: method.color,
@@ -674,13 +705,18 @@ class InvoiceSummaryWidget extends StatelessWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            
+
             // تفاصيل الحساب
             _buildInvoiceRow('عدد الليالي', '$nights ليلة'),
-            _buildInvoiceRow('سعر الليلة', CurrencyFormatter.formatAmount(roomRate)),
+            _buildInvoiceRow(
+                'سعر الليلة', CurrencyFormatter.formatAmount(roomRate)),
             const Divider(),
-            _buildInvoiceRow('المبلغ الإجمالي', CurrencyFormatter.formatAmount(totalAmount), isBold: true),
-            _buildInvoiceRow('المدفوع', CurrencyFormatter.formatAmount(paidAmount), color: Colors.green),
+            _buildInvoiceRow(
+                'المبلغ الإجمالي', CurrencyFormatter.formatAmount(totalAmount),
+                isBold: true),
+            _buildInvoiceRow(
+                'المدفوع', CurrencyFormatter.formatAmount(paidAmount),
+                color: Colors.green),
             _buildInvoiceRow(
               'المتبقي',
               CurrencyFormatter.formatAmount(remainingAmount),
@@ -693,7 +729,8 @@ class InvoiceSummaryWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildInvoiceRow(String label, String value, {Color? color, bool isBold = false}) {
+  Widget _buildInvoiceRow(String label, String value,
+      {Color? color, bool isBold = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(

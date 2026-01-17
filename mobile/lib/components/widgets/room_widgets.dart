@@ -165,7 +165,9 @@ class FloorHeader extends StatelessWidget {
             if (isCollapsible) ...[
               const SizedBox(width: 8),
               Icon(
-                isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                isExpanded
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down,
                 color: Theme.of(context).primaryColor,
               ),
             ],
@@ -332,7 +334,7 @@ class _FloorSectionState extends State<FloorSection>
       parent: _animationController,
       curve: Curves.easeInOut,
     );
-    
+
     if (_isExpanded) {
       _animationController.forward();
     }
@@ -357,7 +359,8 @@ class _FloorSectionState extends State<FloorSection>
 
   @override
   Widget build(BuildContext context) {
-    final availableCount = widget.rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).length;
+    final availableCount =
+        widget.rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).length;
     final occupiedCount = widget.rooms.length - availableCount;
 
     return Card(
@@ -436,7 +439,8 @@ class RoomDetailsDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildDetailRow('النوع', room.type),
-            _buildDetailRow('السعر', CurrencyFormatter.formatAmount(room.price)),
+            _buildDetailRow(
+                'السعر', CurrencyFormatter.formatAmount(room.price)),
             _buildDetailRow('الحالة', room.status),
             if (room.imageUrl != null && room.imageUrl!.isNotEmpty) ...[
               const SizedBox(height: 12),

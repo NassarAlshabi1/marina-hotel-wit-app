@@ -40,41 +40,42 @@ class SyncEvent {
     String? message,
     Map<String, dynamic>? metadata,
     String? errorStack,
-  }) => SyncEvent._(
-    id: _generateId(),
-    timestamp: DateTime.now(),
-    type: type,
-    message: message,
-    metadata: metadata,
-    errorStack: errorStack,
-  );
+  }) =>
+      SyncEvent._(
+        id: _generateId(),
+        timestamp: DateTime.now(),
+        type: type,
+        message: message,
+        metadata: metadata,
+        errorStack: errorStack,
+      );
 
   static String _generateId() {
     return const Uuid().v4();
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'type': type.name,
-    'timestamp': timestamp.toIso8601String(),
-    'message': message,
-    'metadata': metadata,
-    'errorStack': errorStack,
-  };
+        'id': id,
+        'type': type.name,
+        'timestamp': timestamp.toIso8601String(),
+        'message': message,
+        'metadata': metadata,
+        'errorStack': errorStack,
+      };
 
   factory SyncEvent.fromJson(Map<String, dynamic> json) => SyncEvent._(
-    id: json['id'] as String,
-    timestamp: DateTime.parse(json['timestamp'] as String),
-    type: SyncEventType.values.firstWhere(
-      (e) => e.name == json['type'],
-      orElse: () => SyncEventType.failed,
-    ),
-    message: json['message'] as String?,
-    metadata: json['metadata'] != null 
-        ? Map<String, dynamic>.from(json['metadata']) 
-        : null,
-    errorStack: json['errorStack'] as String?,
-  );
+        id: json['id'] as String,
+        timestamp: DateTime.parse(json['timestamp'] as String),
+        type: SyncEventType.values.firstWhere(
+          (e) => e.name == json['type'],
+          orElse: () => SyncEventType.failed,
+        ),
+        message: json['message'] as String?,
+        metadata: json['metadata'] != null
+            ? Map<String, dynamic>.from(json['metadata'])
+            : null,
+        errorStack: json['errorStack'] as String?,
+      );
 }
 
 /// إحصائيات الأداء الحية
@@ -106,7 +107,7 @@ class SyncPerformanceStats {
   });
 
   bool get isHealthy => successRate > 0.8 && recentErrors.length < 5;
-  
+
   String get healthStatus {
     if (successRate > 0.95) return '🟢 ممتاز';
     if (successRate > 0.8) return '🟡 جيد';
@@ -133,20 +134,23 @@ class SyncAlert {
 
   String get icon {
     switch (level) {
-      case SyncAlertLevel.info: return 'ℹ️';
-      case SyncAlertLevel.warning: return '⚠️';
-      case SyncAlertLevel.critical: return '🚨';
+      case SyncAlertLevel.info:
+        return 'ℹ️';
+      case SyncAlertLevel.warning:
+        return '⚠️';
+      case SyncAlertLevel.critical:
+        return '🚨';
     }
   }
 }
 
 /// نظام المراقبة الشامل للمزامنة
-/// 
+///
 /// الاستخدام:
 /// ```dart
 /// final monitor = SyncMonitoringSystem.instance;
 /// await monitor.initialize();
-/// 
+///
 /// // في كود المزامنة
 /// monitor.recordSyncStart();
 /// try {
@@ -155,7 +159,7 @@ class SyncAlert {
 /// } catch (e) {
 ///   monitor.recordSyncFailure(error: e);
 /// }
-/// 
+///
 /// // الاستماع للإحصائيات
 /// monitor.statsStream.listen((stats) {
 ///   print('معدل النجاح: ${stats.successRate}');
@@ -163,8 +167,9 @@ class SyncAlert {
 /// ```
 class SyncMonitoringSystem {
   static SyncMonitoringSystem? _instance;
-  static SyncMonitoringSystem get instance => _instance ??= SyncMonitoringSystem._();
-  
+  static SyncMonitoringSystem get instance =>
+      _instance ??= SyncMonitoringSystem._();
+
   SyncMonitoringSystem._();
 
   final List<SyncEvent> _events = [];
@@ -193,13 +198,13 @@ class SyncMonitoringSystem {
   /// تسجيل بداية المزامنة
   void recordSyncStart({Map<String, dynamic>? metadata}) {
     _currentSyncStartTime = DateTime.now();
-    
+
     final event = SyncEvent(
       type: SyncEventType.started,
       message: 'بدأت المزامنة',
       metadata: metadata,
     );
-    
+
     _addEvent(event);
     _updateStats();
   }
@@ -211,7 +216,7 @@ class SyncMonitoringSystem {
     Map<String, dynamic>? metadata,
   }) {
     final duration = _getSyncDuration();
-    
+
     final event = SyncEvent(
       type: SyncEventType.completed,
       message: 'اكتملت المزامنة بنجاح في ${duration.inSeconds}ث',
@@ -222,7 +227,7 @@ class SyncMonitoringSystem {
         'conflicts_resolved': conflictsResolved,
       },
     );
-    
+
     _addEvent(event);
     _updateStats();
     _checkForAlerts();
@@ -235,7 +240,7 @@ class SyncMonitoringSystem {
     Map<String, dynamic>? metadata,
   }) {
     final duration = _getSyncDuration();
-    
+
     final event = SyncEvent(
       type: SyncEventType.failed,
       message: 'فشلت المزامنة: ${error.toString()}',
@@ -245,7 +250,7 @@ class SyncMonitoringSystem {
       },
       errorStack: stackTrace?.toString(),
     );
-    
+
     _addEvent(event);
     _updateStats();
     _checkForAlerts();
@@ -264,7 +269,7 @@ class SyncMonitoringSystem {
       message: 'تضارب في $table/$uuid - الحل: $resolution',
       metadata: metadata,
     );
-    
+
     _addEvent(event);
   }
 
@@ -279,18 +284,18 @@ class SyncMonitoringSystem {
       message: 'إعادة محاولة $attemptNumber/$maxAttempts',
       metadata: metadata,
     );
-    
+
     _addEvent(event);
   }
 
   /// إضافة حدث للسجل
   void _addEvent(SyncEvent event) {
     _events.add(event);
-    
+
     if (_events.length > _maxEventsInMemory) {
       _events.removeRange(0, _events.length - _maxEventsInMemory);
     }
-    
+
     _persistEvent(event);
   }
 
@@ -310,12 +315,16 @@ class SyncMonitoringSystem {
 
   /// حساب الإحصائيات
   SyncPerformanceStats _calculateStats() {
-    final completed = _events.where((e) => e.type == SyncEventType.completed).toList();
-    final failed = _events.where((e) => e.type == SyncEventType.failed).toList();
-    final conflicts = _events.where((e) => e.type == SyncEventType.conflict).toList();
+    final completed =
+        _events.where((e) => e.type == SyncEventType.completed).toList();
+    final failed =
+        _events.where((e) => e.type == SyncEventType.failed).toList();
+    final conflicts =
+        _events.where((e) => e.type == SyncEventType.conflict).toList();
 
     final totalAttempts = completed.length + failed.length;
-    final successRate = totalAttempts > 0 ? completed.length / totalAttempts : 0.0;
+    final successRate =
+        totalAttempts > 0 ? completed.length / totalAttempts : 0.0;
 
     final durations = completed
         .where((e) => e.metadata?['duration_seconds'] != null)
@@ -326,8 +335,7 @@ class SyncMonitoringSystem {
         ? Duration.zero
         : durations.reduce((a, b) => a + b) ~/ durations.length;
 
-    final recentErrors = failed
-        .reversed
+    final recentErrors = failed.reversed
         .take(_maxRecentErrors)
         .map((e) => e.message ?? 'خطأ غير معروف')
         .toList();
@@ -337,11 +345,13 @@ class SyncMonitoringSystem {
       successfulSyncs: completed.length,
       failedSyncs: failed.length,
       conflictsDetected: conflicts.length,
-      conflictsResolved: conflicts.where((e) => e.metadata?['resolved'] == true).length,
+      conflictsResolved:
+          conflicts.where((e) => e.metadata?['resolved'] == true).length,
       successRate: successRate,
       averageTime: averageTime,
       lastSyncDuration: durations.isNotEmpty ? durations.last : null,
-      lastSuccessfulSync: completed.isNotEmpty ? completed.last.timestamp : null,
+      lastSuccessfulSync:
+          completed.isNotEmpty ? completed.last.timestamp : null,
       lastFailedSync: failed.isNotEmpty ? failed.last.timestamp : null,
       recentErrors: recentErrors,
     );
@@ -358,24 +368,27 @@ class SyncMonitoringSystem {
   /// إجراء الفحص الصحي
   void _performHealthCheck() {
     final stats = _calculateStats();
-    
+
     if (!stats.isHealthy) {
       _alertController.add(
         SyncAlert(
           level: SyncAlertLevel.warning,
-          message: 'معدل نجاح المزامنة منخفض: ${(stats.successRate * 100).toStringAsFixed(1)}%',
+          message:
+              'معدل نجاح المزامنة منخفض: ${(stats.successRate * 100).toStringAsFixed(1)}%',
           stats: stats,
         ),
       );
     }
 
     if (stats.lastSuccessfulSync != null) {
-      final timeSinceLastSync = DateTime.now().difference(stats.lastSuccessfulSync!);
+      final timeSinceLastSync =
+          DateTime.now().difference(stats.lastSuccessfulSync!);
       if (timeSinceLastSync > const Duration(hours: 2)) {
         _alertController.add(
           SyncAlert(
             level: SyncAlertLevel.warning,
-            message: 'لم تحدث مزامنة ناجحة منذ ${timeSinceLastSync.inHours} ساعة',
+            message:
+                'لم تحدث مزامنة ناجحة منذ ${timeSinceLastSync.inHours} ساعة',
             stats: stats,
           ),
         );
@@ -387,7 +400,7 @@ class SyncMonitoringSystem {
   void _checkConsecutiveFailures() {
     final recentEvents = _events.reversed.take(5).toList();
     final allFailed = recentEvents.every((e) => e.type == SyncEventType.failed);
-    
+
     if (allFailed && recentEvents.length >= 5) {
       _alertController.add(
         SyncAlert(
@@ -402,17 +415,18 @@ class SyncMonitoringSystem {
   /// فحص التنبيهات بناءً على الإحصائيات الحالية
   void _checkForAlerts() {
     final stats = _calculateStats();
-    
+
     if (stats.successRate < 0.5 && stats.totalAttempts >= 3) {
       _alertController.add(
         SyncAlert(
           level: SyncAlertLevel.critical,
-          message: 'معدل نجاح المزامنة منخفض جداً: ${(stats.successRate * 100).toStringAsFixed(1)}%',
+          message:
+              'معدل نجاح المزامنة منخفض جداً: ${(stats.successRate * 100).toStringAsFixed(1)}%',
           stats: stats,
         ),
       );
     }
-    
+
     if (stats.recentErrors.length >= 3) {
       _alertController.add(
         SyncAlert(
@@ -428,14 +442,15 @@ class SyncMonitoringSystem {
   Future<void> _persistEvent(SyncEvent event) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final key = 'sync_events_${DateTime.now().toIso8601String().split('T')[0]}';
+      final key =
+          'sync_events_${DateTime.now().toIso8601String().split('T')[0]}';
       final existing = prefs.getStringList(key) ?? [];
       existing.add(jsonEncode(event.toJson()));
-      
+
       if (existing.length > 100) {
         existing.removeRange(0, existing.length - 100);
       }
-      
+
       await prefs.setStringList(key, existing);
     } catch (e) {
       debugPrint('⚠️ SyncMonitoringSystem: فشل حفظ الحدث: $e');
@@ -449,12 +464,12 @@ class SyncMonitoringSystem {
       final today = DateTime.now().toIso8601String().split('T')[0];
       final key = 'sync_events_$today';
       final jsonList = prefs.getStringList(key) ?? [];
-      
+
       for (final jsonStr in jsonList) {
         final event = SyncEvent.fromJson(jsonDecode(jsonStr));
         _events.add(event);
       }
-      
+
       debugPrint('📊 SyncMonitoringSystem: تم تحميل ${_events.length} حدث');
     } catch (e) {
       debugPrint('⚠️ SyncMonitoringSystem: فشل تحميل البيانات: $e');
@@ -469,19 +484,20 @@ class SyncMonitoringSystem {
       final eventKeys = allKeys.where((k) => k.startsWith('sync_events_'));
       final now = DateTime.now();
       int removedCount = 0;
-      
+
       for (final key in eventKeys) {
         final dateStr = key.replaceFirst('sync_events_', '');
         final date = DateTime.tryParse(dateStr);
-        
+
         if (date != null && now.difference(date).inDays > keepDays) {
           await prefs.remove(key);
           removedCount++;
         }
       }
-      
+
       if (removedCount > 0) {
-        debugPrint('🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)');
+        debugPrint(
+            '🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)');
       }
     } catch (e) {
       debugPrint('⚠️ SyncMonitoringSystem: فشل تنظيف السجلات القديمة: $e');
@@ -491,7 +507,7 @@ class SyncMonitoringSystem {
   /// تصدير التقرير
   Future<String> exportReport() async {
     final stats = _calculateStats();
-    
+
     final report = '''
 📊 تقرير نظام المزامنة
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -526,10 +542,11 @@ ${stats.recentErrors.isEmpty ? '  لا توجد أخطاء' : stats.recentErrors
   }
 
   /// مسح البيانات القديمة
-  Future<void> clearOldData({Duration olderThan = const Duration(days: 7)}) async {
+  Future<void> clearOldData(
+      {Duration olderThan = const Duration(days: 7)}) async {
     final cutoffDate = DateTime.now().subtract(olderThan);
     _events.removeWhere((e) => e.timestamp.isBefore(cutoffDate));
-    
+
     debugPrint('🗑️ SyncMonitoringSystem: تم مسح الأحداث الأقدم من $olderThan');
   }
 

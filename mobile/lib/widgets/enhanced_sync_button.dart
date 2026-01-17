@@ -6,7 +6,6 @@ import '../services/sync_error_recovery.dart';
 import '../services/connectivity_service.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
-import '../providers/smart_sync_provider.dart';
 
 class EnhancedSyncButton extends ConsumerStatefulWidget {
   final bool showHealthIndicator;
@@ -64,13 +63,15 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       }
     });
 
-    _healthSubscription = SyncOrchestrator.instance.healthStream.listen((health) {
+    _healthSubscription =
+        SyncOrchestrator.instance.healthStream.listen((health) {
       if (mounted) {
         setState(() => _health = health);
       }
     });
 
-    _connectivitySubscription = ConnectivityService.instance.statusStream.listen((status) {
+    _connectivitySubscription =
+        ConnectivityService.instance.statusStream.listen((status) {
       if (mounted) {
         setState(() => _isOnline = status.isOnline);
       }
@@ -293,7 +294,8 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 ListTile(
                   leading: Icon(Icons.history, color: Colors.red),
                   title: Text('سجل الأخطاء'),
-                  subtitle: Text('${SyncErrorRecovery.instance.recentErrors.length} خطأ'),
+                  subtitle: Text(
+                      '${SyncErrorRecovery.instance.recentErrors.length} خطأ'),
                   onTap: () {
                     Navigator.pop(context);
                     _showErrorLog();
@@ -333,8 +335,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
               Icon(healthIcon, color: healthColor, size: 20),
               SizedBox(width: 8),
               Text(
-                health.isHealthy ? 'النظام يعمل بشكل صحيح' : 'يوجد مشاكل في النظام',
-                style: TextStyle(fontWeight: FontWeight.bold, color: healthColor),
+                health.isHealthy
+                    ? 'النظام يعمل بشكل صحيح'
+                    : 'يوجد مشاكل في النظام',
+                style:
+                    TextStyle(fontWeight: FontWeight.bold, color: healthColor),
               ),
             ],
           ),
@@ -342,7 +347,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildStatChip('نجاح', '${(health.successRate * 100).toStringAsFixed(0)}%', Colors.green),
+              _buildStatChip(
+                  'نجاح',
+                  '${(health.successRate * 100).toStringAsFixed(0)}%',
+                  Colors.green),
               _buildStatChip('معلق', '${health.pendingTasks}', Colors.orange),
               _buildStatChip('Outbox', '${health.outboxCount}', Colors.blue),
             ],
@@ -364,7 +372,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         children: [
           Text(label, style: TextStyle(fontSize: 10, color: color)),
           SizedBox(width: 4),
-          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );
@@ -466,15 +476,18 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: checks.map((check) => ListTile(
-                leading: Icon(Icons.table_chart, color: Colors.blue),
-                title: Text(check.tableName),
-                subtitle: Text('${check.recordCount} سجل'),
-                trailing: Text(
-                  check.checksum.substring(0, 8),
-                  style: TextStyle(fontFamily: 'monospace', fontSize: 10),
-                ),
-              )).toList(),
+              children: checks
+                  .map((check) => ListTile(
+                        leading: Icon(Icons.table_chart, color: Colors.blue),
+                        title: Text(check.tableName),
+                        subtitle: Text('${check.recordCount} سجل'),
+                        trailing: Text(
+                          check.checksum.substring(0, 8),
+                          style:
+                              TextStyle(fontFamily: 'monospace', fontSize: 10),
+                        ),
+                      ))
+                  .toList(),
             ),
           ),
           actions: [
@@ -488,7 +501,8 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     } catch (e) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ خطأ في الفحص: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('❌ خطأ في الفحص: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -630,7 +644,8 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                         _isSyncing
                             ? RotationTransition(
                                 turns: _animationController,
-                                child: Icon(buttonIcon, size: 20, color: Colors.white),
+                                child: Icon(buttonIcon,
+                                    size: 20, color: Colors.white),
                               )
                             : Icon(buttonIcon, size: 20, color: Colors.white),
                         SizedBox(width: 8),

@@ -45,9 +45,11 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.people_outline, size: 64, color: Colors.grey),
+                  const Icon(Icons.people_outline,
+                      size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
-                  const Text('لا يوجد موظفين مسجلين', style: TextStyle(fontSize: 18)),
+                  const Text('لا يوجد موظفين مسجلين',
+                      style: TextStyle(fontSize: 18)),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     onPressed: () => _showAddEmployeeDialog(context, ref),
@@ -64,7 +66,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               // إحصائيات الموظفين
               _buildEmployeeStats(employees),
               const SizedBox(height: 16),
-              
+
               // قائمة الموظفين
               Expanded(
                 child: ListView.builder(
@@ -118,11 +120,16 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildStatChip('إجمالي', employees.length, Colors.blue)),
+              Expanded(
+                  child:
+                      _buildStatChip('إجمالي', employees.length, Colors.blue)),
               const SizedBox(width: 8),
-              Expanded(child: _buildStatChip('نشط', activeEmployees, Colors.green)),
+              Expanded(
+                  child: _buildStatChip('نشط', activeEmployees, Colors.green)),
               const SizedBox(width: 8),
-              Expanded(child: _buildStatChip('غير نشط', inactiveEmployees, Colors.red)),
+              Expanded(
+                  child:
+                      _buildStatChip('غير نشط', inactiveEmployees, Colors.red)),
             ],
           ),
           const SizedBox(height: 12),
@@ -184,9 +191,10 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmployeeCard(BuildContext context, WidgetRef ref, Employee employee) {
+  Widget _buildEmployeeCard(
+      BuildContext context, WidgetRef ref, Employee employee) {
     final isActive = employee.status == 'نشط';
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -229,9 +237,12 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isActive ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                    color: isActive
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isActive ? Colors.green : Colors.red,
@@ -249,42 +260,48 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // تفاصيل إضافية
             Row(
               children: [
                 Expanded(
-                  child: _buildDetailRow('الراتب', CurrencyFormatter.formatAmount(employee.salary), Icons.attach_money),
+                  child: _buildDetailRow(
+                      'الراتب',
+                      CurrencyFormatter.formatAmount(employee.salary),
+                      Icons.attach_money),
                 ),
                 Expanded(
                   child: _buildDetailRow('الهاتف', employee.phone, Icons.phone),
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             Row(
               children: [
                 Expanded(
-                  child: _buildDetailRow('تاريخ التوظيف', employee.hireDate, Icons.calendar_today),
+                  child: _buildDetailRow(
+                      'تاريخ التوظيف', employee.hireDate, Icons.calendar_today),
                 ),
                 Expanded(
-                  child: _buildDetailRow('رقم الموظف', employee.localUuid, Icons.badge),
+                  child: _buildDetailRow(
+                      'رقم الموظف', employee.localUuid, Icons.badge),
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // أزرار العمليات
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _showEditEmployeeDialog(context, ref, employee),
+                    onPressed: () =>
+                        _showEditEmployeeDialog(context, ref, employee),
                     icon: const Icon(Icons.edit, size: 16),
                     label: const Text('تعديل'),
                   ),
@@ -292,7 +309,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _showSalaryWithdrawalDialog(context, ref, employee),
+                    onPressed: () =>
+                        _showSalaryWithdrawalDialog(context, ref, employee),
                     icon: const Icon(Icons.money_off, size: 16),
                     label: const Text('سحب راتب'),
                     style: ElevatedButton.styleFrom(
@@ -303,10 +321,12 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton(
-                  onPressed: () => _toggleEmployeeStatus(context, ref, employee),
+                  onPressed: () =>
+                      _toggleEmployeeStatus(context, ref, employee),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: isActive ? Colors.red : Colors.green,
-                    side: BorderSide(color: isActive ? Colors.red : Colors.green),
+                    side:
+                        BorderSide(color: isActive ? Colors.red : Colors.green),
                   ),
                   child: Text(isActive ? 'إيقاف' : 'تفعيل'),
                 ),
@@ -333,7 +353,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               ),
               Text(
                 value,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -348,16 +369,21 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     _showEmployeeDialog(context, ref, null);
   }
 
-  void _showEditEmployeeDialog(BuildContext context, WidgetRef ref, Employee employee) {
+  void _showEditEmployeeDialog(
+      BuildContext context, WidgetRef ref, Employee employee) {
     _showEmployeeDialog(context, ref, employee);
   }
 
-  void _showEmployeeDialog(BuildContext context, WidgetRef ref, Employee? employee) {
+  void _showEmployeeDialog(
+      BuildContext context, WidgetRef ref, Employee? employee) {
     final nameController = TextEditingController(text: employee?.name ?? '');
-    final positionController = TextEditingController(text: employee?.position ?? '');
-    final salaryController = TextEditingController(text: employee?.salary.toString() ?? '');
+    final positionController =
+        TextEditingController(text: employee?.position ?? '');
+    final salaryController =
+        TextEditingController(text: employee?.salary.toString() ?? '');
     final phoneController = TextEditingController(text: employee?.phone ?? '');
-    final hireDateController = TextEditingController(text: employee?.hireDate ?? DateTime.now().toString().split(' ')[0]);
+    final hireDateController = TextEditingController(
+        text: employee?.hireDate ?? DateTime.now().toString().split(' ')[0]);
     String status = employee?.status ?? 'نشط';
 
     showDialog(
@@ -365,7 +391,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          title: Text(employee == null ? 'إضافة موظف جديد' : 'تعديل بيانات الموظف'),
+          title: Text(
+              employee == null ? 'إضافة موظف جديد' : 'تعديل بيانات الموظف'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -391,7 +418,6 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   decoration: const InputDecoration(
                     labelText: 'الراتب*',
                     border: OutlineInputBorder(),
-                    
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -448,8 +474,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nameController.text.trim().isEmpty || 
-                    positionController.text.trim().isEmpty || 
+                if (nameController.text.trim().isEmpty ||
+                    positionController.text.trim().isEmpty ||
                     salaryController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('يرجى تعبئة الحقول المطلوبة')),
@@ -482,7 +508,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(employee == null ? 'تم إضافة الموظف بنجاح' : 'تم تحديث بيانات الموظف'),
+                      content: Text(employee == null
+                          ? 'تم إضافة الموظف بنجاح'
+                          : 'تم تحديث بيانات الموظف'),
                     ),
                   );
                 } catch (e) {
@@ -499,7 +527,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
   }
 
-  void _showSalaryWithdrawalDialog(BuildContext context, WidgetRef ref, Employee employee) {
+  void _showSalaryWithdrawalDialog(
+      BuildContext context, WidgetRef ref, Employee employee) {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
 
@@ -512,14 +541,14 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('الراتب الأساسي: ${CurrencyFormatter.formatAmount(employee.salary)}'),
+              Text(
+                  'الراتب الأساسي: ${CurrencyFormatter.formatAmount(employee.salary)}'),
               const SizedBox(height: 12),
               TextField(
                 controller: amountController,
                 decoration: const InputDecoration(
                   labelText: 'المبلغ المسحوب*',
                   border: OutlineInputBorder(),
-                  
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -544,7 +573,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 // TODO: تنفيذ عملية سحب الراتب
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('تم تسجيل سحب الراتب (قيد التطوير)')),
+                  const SnackBar(
+                      content: Text('تم تسجيل سحب الراتب (قيد التطوير)')),
                 );
               },
               child: const Text('تسجيل السحب'),
@@ -555,9 +585,10 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
   }
 
-  void _toggleEmployeeStatus(BuildContext context, WidgetRef ref, Employee employee) async {
+  void _toggleEmployeeStatus(
+      BuildContext context, WidgetRef ref, Employee employee) async {
     final newStatus = employee.status == 'نشط' ? 'غير نشط' : 'نشط';
-    
+
     try {
       final repo = ref.read(employeesRepoProvider);
       await repo.updateByLocalUuid(
@@ -569,9 +600,11 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         hireDate: employee.hireDate,
         status: newStatus,
       );
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف')),
+        SnackBar(
+            content:
+                Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

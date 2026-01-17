@@ -56,7 +56,7 @@ class SyncTask {
   }) : createdAt = createdAt ?? DateTime.now();
 
   bool get canRetry => attempts < maxRetries;
-  
+
   Duration get nextRetryDelay {
     final baseDelay = Duration(seconds: 5);
     return baseDelay * (1 << attempts.clamp(0, 5));
@@ -85,24 +85,26 @@ class SyncTaskResult {
     int conflicts = 0,
     required Duration duration,
     Map<String, dynamic>? metadata,
-  }) => SyncTaskResult(
-    success: true,
-    recordsProcessed: recordsProcessed,
-    conflicts: conflicts,
-    duration: duration,
-    metadata: metadata,
-  );
+  }) =>
+      SyncTaskResult(
+        success: true,
+        recordsProcessed: recordsProcessed,
+        conflicts: conflicts,
+        duration: duration,
+        metadata: metadata,
+      );
 
   factory SyncTaskResult.failure({
     required String error,
     required Duration duration,
     Map<String, dynamic>? metadata,
-  }) => SyncTaskResult(
-    success: false,
-    duration: duration,
-    error: error,
-    metadata: metadata,
-  );
+  }) =>
+      SyncTaskResult(
+        success: false,
+        duration: duration,
+        error: error,
+        metadata: metadata,
+      );
 }
 
 class SyncHealth {
@@ -129,16 +131,16 @@ class SyncHealth {
   });
 
   Map<String, dynamic> toJson() => {
-    'isHealthy': isHealthy,
-    'successRate': successRate,
-    'consecutiveFailures': consecutiveFailures,
-    'avgSyncDurationMs': avgSyncDuration.inMilliseconds,
-    'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
-    'lastFailedSync': lastFailedSync?.toIso8601String(),
-    'pendingTasks': pendingTasks,
-    'outboxCount': outboxCount,
-    'circuitStates': circuitStates.map((k, v) => MapEntry(k, v.name)),
-  };
+        'isHealthy': isHealthy,
+        'successRate': successRate,
+        'consecutiveFailures': consecutiveFailures,
+        'avgSyncDurationMs': avgSyncDuration.inMilliseconds,
+        'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
+        'lastFailedSync': lastFailedSync?.toIso8601String(),
+        'pendingTasks': pendingTasks,
+        'outboxCount': outboxCount,
+        'circuitStates': circuitStates.map((k, v) => MapEntry(k, v.name)),
+      };
 }
 
 class SyncMetricsData {
@@ -154,10 +156,11 @@ class SyncMetricsData {
   final List<Duration> recentDurations = [];
 
   double get successRate => totalSyncs > 0 ? successfulSyncs / totalSyncs : 0;
-  
+
   Duration get avgDuration {
     if (recentDurations.isEmpty) return Duration.zero;
-    final total = recentDurations.fold<int>(0, (sum, d) => sum + d.inMilliseconds);
+    final total =
+        recentDurations.fold<int>(0, (sum, d) => sum + d.inMilliseconds);
     return Duration(milliseconds: total ~/ recentDurations.length);
   }
 
@@ -189,17 +192,17 @@ class SyncMetricsData {
   }
 
   Map<String, dynamic> toJson() => {
-    'totalSyncs': totalSyncs,
-    'successfulSyncs': successfulSyncs,
-    'failedSyncs': failedSyncs,
-    'successRate': successRate,
-    'totalRecordsProcessed': totalRecordsProcessed,
-    'totalConflicts': totalConflicts,
-    'avgDurationMs': avgDuration.inMilliseconds,
-    'consecutiveFailures': consecutiveFailures,
-    'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
-    'lastFailedSync': lastFailedSync?.toIso8601String(),
-  };
+        'totalSyncs': totalSyncs,
+        'successfulSyncs': successfulSyncs,
+        'failedSyncs': failedSyncs,
+        'successRate': successRate,
+        'totalRecordsProcessed': totalRecordsProcessed,
+        'totalConflicts': totalConflicts,
+        'avgDurationMs': avgDuration.inMilliseconds,
+        'consecutiveFailures': consecutiveFailures,
+        'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
+        'lastFailedSync': lastFailedSync?.toIso8601String(),
+      };
 }
 
 class DataIntegrityCheck {
@@ -216,11 +219,11 @@ class DataIntegrityCheck {
   });
 
   Map<String, dynamic> toJson() => {
-    'tableName': tableName,
-    'checksum': checksum,
-    'recordCount': recordCount,
-    'timestamp': timestamp.toIso8601String(),
-  };
+        'tableName': tableName,
+        'checksum': checksum,
+        'recordCount': recordCount,
+        'timestamp': timestamp.toIso8601String(),
+      };
 }
 
 class SyncOrchestrator {
@@ -231,17 +234,17 @@ class SyncOrchestrator {
 
   late AppDatabase _database;
   late OutboxDao _outboxDao;
-  
+
   final _mutex = SyncMutex();
   final _metrics = SyncMetricsData();
   final _taskQueue = <SyncTask>[];
   final _circuitBreakers = <String, CircuitBreaker>{};
-  
+
   OrchestratorState _state = OrchestratorState.idle;
   Timer? _healthCheckTimer;
   Timer? _taskProcessorTimer;
   StreamSubscription? _connectivitySubscription;
-  
+
   final _stateController = StreamController<OrchestratorState>.broadcast();
   final _healthController = StreamController<SyncHealth>.broadcast();
   final _metricsController = StreamController<SyncMetricsData>.broadcast();
@@ -249,17 +252,18 @@ class SyncOrchestrator {
   Stream<OrchestratorState> get stateStream => _stateController.stream;
   Stream<SyncHealth> get healthStream => _healthController.stream;
   Stream<SyncMetricsData> get metricsStream => _metricsController.stream;
-  
+
   OrchestratorState get state => _state;
   SyncMetricsData get metrics => _metrics;
 
   Future<void> initialize(AppDatabase database) async {
-    if (_state != OrchestratorState.idle && _state != OrchestratorState.disposed) {
+    if (_state != OrchestratorState.idle &&
+        _state != OrchestratorState.disposed) {
       return;
     }
 
     _setState(OrchestratorState.initializing);
-    
+
     _database = database;
     _outboxDao = OutboxDao(database);
 
@@ -284,8 +288,9 @@ class SyncOrchestrator {
     );
 
     await ConnectivityService.instance.initialize();
-    
-    _connectivitySubscription = ConnectivityService.instance.statusStream.listen((status) {
+
+    _connectivitySubscription =
+        ConnectivityService.instance.statusStream.listen((status) {
       if (status.isOnline && _state == OrchestratorState.paused) {
         _setState(OrchestratorState.idle);
         _processTasks();
@@ -305,7 +310,7 @@ class SyncOrchestrator {
     );
 
     await _loadPersistedMetrics();
-    
+
     _setState(OrchestratorState.idle);
     debugPrint('✅ [Orchestrator] تم التهيئة بنجاح');
   }
@@ -323,9 +328,10 @@ class SyncOrchestrator {
     }
 
     _taskQueue.sort((a, b) => a.priority.index.compareTo(b.priority.index));
-    
-    debugPrint('📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})');
-    
+
+    debugPrint(
+        '📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})');
+
     if (_state == OrchestratorState.idle) {
       _processTasks();
     }
@@ -354,9 +360,10 @@ class SyncOrchestrator {
       }
 
       SyncTaskResult result;
-      
+
       if (circuitBreaker != null) {
-        result = await circuitBreaker.execute(() => task.execute().timeout(task.timeout));
+        result = await circuitBreaker
+            .execute(() => task.execute().timeout(task.timeout));
       } else {
         result = await task.execute().timeout(task.timeout);
       }
@@ -364,8 +371,10 @@ class SyncOrchestrator {
       final duration = DateTime.now().difference(startTime);
 
       if (result.success) {
-        _metrics.recordSuccess(duration, result.recordsProcessed, result.conflicts);
-        debugPrint('✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms');
+        _metrics.recordSuccess(
+            duration, result.recordsProcessed, result.conflicts);
+        debugPrint(
+            '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms');
       } else {
         _metrics.recordFailure(duration);
         debugPrint('❌ [Orchestrator] ${task.name}: ${result.error}');
@@ -418,7 +427,8 @@ class SyncOrchestrator {
           _taskQueue.add(task);
         } else {
           _taskQueue.removeAt(0);
-          debugPrint('🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}');
+          debugPrint(
+              '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}');
         }
       }
 
@@ -430,10 +440,10 @@ class SyncOrchestrator {
 
   Future<SyncHealth> getHealth() async {
     final outboxCount = await _outboxDao.count();
-    
+
     return SyncHealth(
-      isHealthy: _metrics.consecutiveFailures < 3 && 
-                 _circuitBreakers.values.every((cb) => cb.state != CircuitState.open),
+      isHealthy: _metrics.consecutiveFailures < 3 &&
+          _circuitBreakers.values.every((cb) => cb.state != CircuitState.open),
       successRate: _metrics.successRate,
       consecutiveFailures: _metrics.consecutiveFailures,
       avgSyncDuration: _metrics.avgDuration,
@@ -451,7 +461,7 @@ class SyncOrchestrator {
 
     if (!health.isHealthy) {
       debugPrint('⚠️ [Orchestrator] صحة النظام: غير صحي');
-      
+
       if (_metrics.consecutiveFailures >= 5) {
         _setState(OrchestratorState.recovering);
         await _attemptRecovery();
@@ -477,20 +487,31 @@ class SyncOrchestrator {
 
   Future<List<DataIntegrityCheck>> verifyDataIntegrity() async {
     final checks = <DataIntegrityCheck>[];
-    final tables = ['rooms', 'bookings', 'employees', 'expenses', 'payments', 'debts'];
+    final tables = [
+      'rooms',
+      'bookings',
+      'employees',
+      'expenses',
+      'payments',
+      'debts'
+    ];
 
     for (final table in tables) {
       try {
-        final result = await _database.customSelect(
-          'SELECT COUNT(*) as count FROM $table WHERE deleted_at IS NULL',
-        ).getSingle();
-        
+        final result = await _database
+            .customSelect(
+              'SELECT COUNT(*) as count FROM $table WHERE deleted_at IS NULL',
+            )
+            .getSingle();
+
         final count = result.data['count'] as int? ?? 0;
-        
-        final dataResult = await _database.customSelect(
-          'SELECT * FROM $table WHERE deleted_at IS NULL ORDER BY local_uuid LIMIT 1000',
-        ).get();
-        
+
+        final dataResult = await _database
+            .customSelect(
+              'SELECT * FROM $table WHERE deleted_at IS NULL ORDER BY local_uuid LIMIT 1000',
+            )
+            .get();
+
         final dataString = dataResult.map((r) => jsonEncode(r.data)).join();
         final checksum = md5.convert(utf8.encode(dataString)).toString();
 
@@ -528,7 +549,8 @@ class SyncOrchestrator {
   Future<void> _persistMetrics() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('sync_orchestrator_metrics', jsonEncode(_metrics.toJson()));
+      await prefs.setString(
+          'sync_orchestrator_metrics', jsonEncode(_metrics.toJson()));
     } catch (e) {
       debugPrint('⚠️ [Orchestrator] خطأ في حفظ المقاييس: $e');
     }
@@ -542,7 +564,8 @@ class SyncOrchestrator {
   }
 
   void pause() {
-    if (_state == OrchestratorState.syncing || _state == OrchestratorState.idle) {
+    if (_state == OrchestratorState.syncing ||
+        _state == OrchestratorState.idle) {
       _setState(OrchestratorState.paused);
     }
   }

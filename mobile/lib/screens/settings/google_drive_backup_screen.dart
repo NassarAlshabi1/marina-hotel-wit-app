@@ -13,10 +13,12 @@ class GoogleDriveBackupScreen extends ConsumerStatefulWidget {
   const GoogleDriveBackupScreen({super.key});
 
   @override
-  ConsumerState<GoogleDriveBackupScreen> createState() => _GoogleDriveBackupScreenState();
+  ConsumerState<GoogleDriveBackupScreen> createState() =>
+      _GoogleDriveBackupScreenState();
 }
 
-class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScreen> {
+class _GoogleDriveBackupScreenState
+    extends ConsumerState<GoogleDriveBackupScreen> {
   @override
   void initState() {
     super.initState();
@@ -35,14 +37,16 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
       actions: [
         IconButton(
           onPressed: () {
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GoogleDriveLogsScreen()));
+            Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const GoogleDriveLogsScreen()));
           },
           icon: const Icon(Icons.article_outlined),
           tooltip: 'سجلات Google Drive',
         ),
         if (backupState.isSignedIn)
           IconButton(
-            onPressed: () => ref.read(backupStatusProvider.notifier).refreshBackupsList(),
+            onPressed: () =>
+                ref.read(backupStatusProvider.notifier).refreshBackupsList(),
             icon: const Icon(Icons.refresh),
             tooltip: 'تحديث قائمة النسخ',
           ),
@@ -123,7 +127,8 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
             ),
             if (state.status != BackupStatus.error)
               IconButton(
-                onPressed: () => ref.read(backupStatusProvider.notifier).clearMessage(),
+                onPressed: () =>
+                    ref.read(backupStatusProvider.notifier).clearMessage(),
                 icon: Icon(Icons.close, color: color, size: 20),
               ),
           ],
@@ -150,13 +155,12 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
                 Text(
                   'Google Drive',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
             if (state.isSignedIn) ...[
               Row(
                 children: [
@@ -174,7 +178,9 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signOut(),
+                  onPressed: state.isWorking
+                      ? null
+                      : () => ref.read(backupStatusProvider.notifier).signOut(),
                   icon: const Icon(Icons.logout),
                   label: const Text('قطع الاتصال'),
                   style: ElevatedButton.styleFrom(
@@ -192,15 +198,21 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signInToDrive(),
-                  icon: state.status == BackupStatus.signIn 
+                  onPressed: state.isWorking
+                      ? null
+                      : () => ref
+                          .read(backupStatusProvider.notifier)
+                          .signInToDrive(),
+                  icon: state.status == BackupStatus.signIn
                       ? const SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.login),
-                  label: Text(state.status == BackupStatus.signIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'),
+                  label: Text(state.status == BackupStatus.signIn
+                      ? 'جاري تسجيل الدخول...'
+                      : 'تسجيل الدخول'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
                     foregroundColor: Colors.white,
@@ -216,7 +228,7 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
 
   Widget _buildSystemInfoCard(BackupState state) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    final sizeInMB = state.databaseSizeBytes != null 
+    final sizeInMB = state.databaseSizeBytes != null
         ? (state.databaseSizeBytes! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
 
@@ -233,18 +245,17 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
                 Text(
                   'معلومات النظام',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
             _buildInfoRow('حجم البيانات', '$sizeInMB ميجابايت', Icons.storage),
             const SizedBox(height: 8),
             _buildInfoRow(
               'آخر نسخة احتياطية',
-              state.lastBackupTime != null 
+              state.lastBackupTime != null
                   ? dateFormatter.format(state.lastBackupTime!)
                   : 'لا توجد نسخ سابقة',
               Icons.history,
@@ -294,13 +305,12 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
                 Text(
                   'إنشاء نسخة احتياطية',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
             const Text(
               'إنشاء نسخة احتياطية فورية من جميع بيانات التطبيق ورفعها إلى Google Drive',
               style: TextStyle(color: Colors.grey),
@@ -311,8 +321,8 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
               style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 16),
-
-            if (state.status == BackupStatus.uploading && state.progress != null) ...[
+            if (state.status == BackupStatus.uploading &&
+                state.progress != null) ...[
               LinearProgressIndicator(
                 value: state.progress,
                 backgroundColor: Colors.grey[300],
@@ -325,11 +335,13 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
               ),
               const SizedBox(height: 12),
             ],
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).createBackup(),
+                onPressed: state.isWorking
+                    ? null
+                    : () =>
+                        ref.read(backupStatusProvider.notifier).createBackup(),
                 icon: state.status == BackupStatus.uploading
                     ? const SizedBox(
                         width: 16,
@@ -337,7 +349,9 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.cloud_upload),
-                label: Text(state.status == BackupStatus.uploading ? 'جاري الرفع...' : 'إنشاء نسخة احتياطية الآن'),
+                label: Text(state.status == BackupStatus.uploading
+                    ? 'جاري الرفع...'
+                    : 'إنشاء نسخة احتياطية الآن'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -364,14 +378,14 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
                 Text(
                   'استعادة النسخ الاحتياطية',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-
-            if (state.status == BackupStatus.downloading || state.status == BackupStatus.restoring) ...[
+            if (state.status == BackupStatus.downloading ||
+                state.status == BackupStatus.restoring) ...[
               LinearProgressIndicator(
                 value: state.progress,
                 backgroundColor: Colors.grey[300],
@@ -379,14 +393,13 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
               ),
               const SizedBox(height: 8),
               Text(
-                state.progress != null 
+                state.progress != null
                     ? '${(state.progress! * 100).round()}% - ${state.message ?? "جاري الاستعادة..."}'
-                    : state.message ?? "جاري الاستعادة...",
+                    : state.message ?? 'جاري الاستعادة...',
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 12),
             ],
-
             if (state.availableBackups.isEmpty) ...[
               const Text(
                 'لا توجد نسخ احتياطية متاحة',
@@ -398,7 +411,6 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              
               Container(
                 height: 200,
                 decoration: BoxDecoration(
@@ -422,12 +434,15 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
 
   Widget _buildBackupItem(DriveBackupFile backup, bool isWorking) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    final sizeInMB = backup.size != null 
+    final sizeInMB = backup.size != null
         ? (backup.size! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
-    final recordsCount = (backup.metadata?['total_records'] as int?) ?? int.tryParse(backup.appProperties['records_count'] ?? '') ?? 0;
+    final recordsCount = (backup.metadata?['total_records'] as int?) ??
+        int.tryParse(backup.appProperties['records_count'] ?? '') ??
+        0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
-    final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
+    final formatLabel =
+        backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     return ListTile(
       leading: const Icon(Icons.backup, color: Colors.blue),
@@ -449,10 +464,14 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
 
   void _showRestoreConfirmation(DriveBackupFile backup) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    final recordsCount = (backup.metadata?['total_records'] as int?) ?? int.tryParse(backup.appProperties['records_count'] ?? '') ?? 0;
-    final recordsLabel = recordsCount > 0 ? recordsCount.toString() : 'غير معروف';
-    final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
-    
+    final recordsCount = (backup.metadata?['total_records'] as int?) ??
+        int.tryParse(backup.appProperties['records_count'] ?? '') ??
+        0;
+    final recordsLabel =
+        recordsCount > 0 ? recordsCount.toString() : 'غير معروف';
+    final formatLabel =
+        backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -463,7 +482,8 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
           children: [
             const Text(
               '⚠️ سيتم استبدال جميع البيانات الحالية بالنسخة المختارة:',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
             ),
             const SizedBox(height: 12),
             Text('التاريخ: ${dateFormatter.format(backup.createdTime)}'),
@@ -484,7 +504,9 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              ref.read(backupStatusProvider.notifier).restoreFromBackup(backup.fileId);
+              ref
+                  .read(backupStatusProvider.notifier)
+                  .restoreFromBackup(backup.fileId);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             child: const Text('استعادة', style: TextStyle(color: Colors.white)),
@@ -508,26 +530,26 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
                 Text(
                   'النسخ التلقائي',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-
             SwitchListTile(
               title: const Text('تفعيل النسخ التلقائي'),
-              subtitle: const Text('إنشاء نسخ احتياطية تلقائية حسب الجدولة المحددة'),
+              subtitle:
+                  const Text('إنشاء نسخ احتياطية تلقائية حسب الجدولة المحددة'),
               value: state.autoSettings.isEnabled,
               onChanged: (value) => _updateAutoBackupEnabled(value),
             ),
-
             if (state.autoSettings.isEnabled) ...[
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.repeat),
                 title: const Text('التكرار'),
-                subtitle: Text(_getFrequencyDisplayName(state.autoSettings.frequency)),
+                subtitle: Text(
+                    _getFrequencyDisplayName(state.autoSettings.frequency)),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _showFrequencySelection(state.autoSettings),
               ),
@@ -547,18 +569,22 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
 
   String _getFrequencyDisplayName(String frequency) {
     switch (frequency) {
-      case 'daily': return 'يومياً';
-      case 'weekly': return 'أسبوعياً';
-      case 'monthly': return 'شهرياً';
-      default: return frequency;
+      case 'daily':
+        return 'يومياً';
+      case 'weekly':
+        return 'أسبوعياً';
+      case 'monthly':
+        return 'شهرياً';
+      default:
+        return frequency;
     }
   }
 
   void _updateAutoBackupEnabled(bool enabled) {
     final currentSettings = ref.read(backupStatusProvider).autoSettings;
     ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
-      currentSettings.copyWith(isEnabled: enabled),
-    );
+          currentSettings.copyWith(isEnabled: enabled),
+        );
   }
 
   void _showFrequencySelection(AutoBackupSettings currentSettings) {
@@ -584,7 +610,8 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
     );
   }
 
-  Widget _buildFrequencyOption(String value, String label, AutoBackupSettings currentSettings) {
+  Widget _buildFrequencyOption(
+      String value, String label, AutoBackupSettings currentSettings) {
     return RadioListTile<String>(
       title: Text(label),
       value: value,
@@ -593,8 +620,8 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
         if (selectedValue != null) {
           Navigator.of(context).pop();
           ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
-            currentSettings.copyWith(frequency: selectedValue),
-          );
+                currentSettings.copyWith(frequency: selectedValue),
+              );
         }
       },
     );
@@ -618,10 +645,11 @@ class _GoogleDriveBackupScreenState extends ConsumerState<GoogleDriveBackupScree
       },
     ).then((selectedTime) {
       if (selectedTime != null) {
-        final timeString = '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
+        final timeString =
+            '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
         ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
-          currentSettings.copyWith(time: timeString),
-        );
+              currentSettings.copyWith(time: timeString),
+            );
       }
     });
   }

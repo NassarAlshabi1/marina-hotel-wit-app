@@ -24,14 +24,15 @@ class RetryConfig {
   });
 
   Duration calculateDelay(int attempts) {
-    final exponentialDelay = initialDelay.inMilliseconds * pow(multiplier, attempts.clamp(0, 8));
+    final exponentialDelay =
+        initialDelay.inMilliseconds * pow(multiplier, attempts.clamp(0, 8));
     final cappedDelay = min(exponentialDelay.toInt(), maxDelay.inMilliseconds);
-    
+
     if (useJitter) {
       final jitter = Random().nextInt((cappedDelay * 0.2).toInt());
       return Duration(milliseconds: cappedDelay + jitter);
     }
-    
+
     return Duration(milliseconds: cappedDelay);
   }
 
@@ -58,29 +59,31 @@ class SyncQueueItem {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'screenId': screenId,
-    'data': data,
-    'createdAt': createdAt.toIso8601String(),
-    'attempts': attempts,
-    'lastAttempt': lastAttempt?.toIso8601String(),
-    'lastError': lastError,
-  };
+        'id': id,
+        'screenId': screenId,
+        'data': data,
+        'createdAt': createdAt.toIso8601String(),
+        'attempts': attempts,
+        'lastAttempt': lastAttempt?.toIso8601String(),
+        'lastError': lastError,
+      };
 
   factory SyncQueueItem.fromJson(Map<String, dynamic> json) => SyncQueueItem(
-    id: json['id'],
-    screenId: json['screenId'],
-    data: Map<String, dynamic>.from(json['data']),
-    createdAt: DateTime.parse(json['createdAt']),
-    attempts: json['attempts'] ?? 0,
-    lastAttempt: json['lastAttempt'] != null ? DateTime.tryParse(json['lastAttempt']) : null,
-    lastError: json['lastError'],
-  );
+        id: json['id'],
+        screenId: json['screenId'],
+        data: Map<String, dynamic>.from(json['data']),
+        createdAt: DateTime.parse(json['createdAt']),
+        attempts: json['attempts'] ?? 0,
+        lastAttempt: json['lastAttempt'] != null
+            ? DateTime.tryParse(json['lastAttempt'])
+            : null,
+        lastError: json['lastError'],
+      );
 
   bool shouldRetryNow(RetryConfig config) {
     if (!config.shouldRetry(attempts)) return false;
     if (lastAttempt == null) return true;
-    
+
     final nextRetryDelay = config.calculateDelay(attempts);
     final timeSinceLastAttempt = DateTime.now().difference(lastAttempt!);
     return timeSinceLastAttempt >= nextRetryDelay;
@@ -89,7 +92,7 @@ class SyncQueueItem {
   Duration? nextRetryIn(RetryConfig config) {
     if (!config.shouldRetry(attempts)) return null;
     if (lastAttempt == null) return Duration.zero;
-    
+
     final nextRetryDelay = config.calculateDelay(attempts);
     final timeSinceLastAttempt = DateTime.now().difference(lastAttempt!);
     final remaining = nextRetryDelay - timeSinceLastAttempt;
@@ -115,13 +118,13 @@ class QueueStats {
   });
 
   Map<String, dynamic> toJson() => {
-    'totalItems': totalItems,
-    'pendingItems': pendingItems,
-    'retriableItems': retriableItems,
-    'failedItems': failedItems,
-    'oldestItem': oldestItem?.toIso8601String(),
-    'lastProcessed': lastProcessed?.toIso8601String(),
-  };
+        'totalItems': totalItems,
+        'pendingItems': pendingItems,
+        'retriableItems': retriableItems,
+        'failedItems': failedItems,
+        'oldestItem': oldestItem?.toIso8601String(),
+        'lastProcessed': lastProcessed?.toIso8601String(),
+      };
 }
 
 class SyncQueueService {
@@ -144,7 +147,7 @@ class SyncQueueService {
 
   final _queueController = StreamController<int>.broadcast();
   final _statsController = StreamController<QueueStats>.broadcast();
-  
+
   Stream<int> get queueCountStream => _queueController.stream;
   Stream<QueueStats> get statsStream => _statsController.stream;
 
@@ -154,7 +157,8 @@ class SyncQueueService {
 
     await ConnectivityService.instance.initialize();
 
-    _connectivitySubscription = ConnectivityService.instance.statusStream.listen((status) {
+    _connectivitySubscription =
+        ConnectivityService.instance.statusStream.listen((status) {
       if (status.isOnline) {
         debugPrint('🌐 [SyncQueue] الإنترنت متصل - معالجة الطابور...');
         processQueue();
@@ -165,17 +169,20 @@ class SyncQueueService {
     _startSmartTimer();
     await processQueue();
 
-    debugPrint('✅ [SyncQueue] تم تهيئة خدمة طابور المزامنة مع Exponential Backoff');
+    debugPrint(
+        '✅ [SyncQueue] تم تهيئة خدمة طابور المزامنة مع Exponential Backoff');
   }
 
   void _startSmartTimer() {
     _processingTimer?.cancel();
     _processingTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
       final items = await getQueueItems();
-      final retriable = items.where((item) => item.shouldRetryNow(_retryConfig)).toList();
-      
+      final retriable =
+          items.where((item) => item.shouldRetryNow(_retryConfig)).toList();
+
       if (retriable.isNotEmpty) {
-        debugPrint('⏰ [SyncQueue] ${retriable.length} عنصر جاهز لإعادة المحاولة');
+        debugPrint(
+            '⏰ [SyncQueue] ${retriable.length} عنصر جاهز لإعادة المحاولة');
         processQueue();
       }
     });
@@ -205,14 +212,17 @@ class SyncQueueService {
   Future<List<SyncQueueItem>> getQueueItems() async {
     final prefs = await SharedPreferences.getInstance();
     final queueJson = prefs.getStringList(_queueKey) ?? [];
-    return queueJson.map((json) {
-      try {
-        return SyncQueueItem.fromJson(jsonDecode(json));
-      } catch (e) {
-        debugPrint('⚠️ [SyncQueue] خطأ في قراءة عنصر: $e');
-        return null;
-      }
-    }).whereType<SyncQueueItem>().toList();
+    return queueJson
+        .map((json) {
+          try {
+            return SyncQueueItem.fromJson(jsonDecode(json));
+          } catch (e) {
+            debugPrint('⚠️ [SyncQueue] خطأ في قراءة عنصر: $e');
+            return null;
+          }
+        })
+        .whereType<SyncQueueItem>()
+        .toList();
   }
 
   Future<void> removeFromQueue(String itemId) async {
@@ -255,12 +265,13 @@ class SyncQueueService {
       holder: 'SyncQueueService.processQueue',
       priority: LockPriority.normal,
     );
-    
+
     if (!lockResult.acquired) {
-      debugPrint('❌ [SyncQueue] فشل الحصول على القفل: ${lockResult.failureReason}');
+      debugPrint(
+          '❌ [SyncQueue] فشل الحصول على القفل: ${lockResult.failureReason}');
       return;
     }
-    
+
     if (_isProcessing) {
       UnifiedLockManager.instance.release(
         category: LockCategory.queueProcessing,
@@ -268,7 +279,7 @@ class SyncQueueService {
       );
       return;
     }
-    
+
     _isProcessing = true;
 
     try {
@@ -284,16 +295,20 @@ class SyncQueueService {
       }
 
       final items = await getQueueItems();
-      final retriableItems = items.where((item) => item.shouldRetryNow(_retryConfig)).toList();
+      final retriableItems =
+          items.where((item) => item.shouldRetryNow(_retryConfig)).toList();
 
       if (retriableItems.isEmpty) {
-        final pendingCount = items.where((item) => _retryConfig.shouldRetry(item.attempts)).length;
+        final pendingCount = items
+            .where((item) => _retryConfig.shouldRetry(item.attempts))
+            .length;
         if (pendingCount > 0) {
           final nextRetry = items
               .map((item) => item.nextRetryIn(_retryConfig))
               .whereType<Duration>()
               .reduce((a, b) => a < b ? a : b);
-          debugPrint('⏳ [SyncQueue] $pendingCount عنصر في الانتظار، التالي بعد ${nextRetry.inSeconds}s');
+          debugPrint(
+              '⏳ [SyncQueue] $pendingCount عنصر في الانتظار، التالي بعد ${nextRetry.inSeconds}s');
         }
         return;
       }
@@ -308,7 +323,8 @@ class SyncQueueService {
             await removeFromQueue(item.id);
           }
           _lastProcessed = DateTime.now();
-          debugPrint('✅ [SyncQueue] تم رفع ${retriableItems.length} عنصر بنجاح');
+          debugPrint(
+              '✅ [SyncQueue] تم رفع ${retriableItems.length} عنصر بنجاح');
         } else {
           await _handleFailure(retriableItems, 'Sync returned false');
         }
@@ -336,9 +352,11 @@ class SyncQueueService {
 
       final nextDelay = _retryConfig.calculateDelay(item.attempts);
       if (_retryConfig.shouldRetry(item.attempts)) {
-        debugPrint('⚠️ [SyncQueue] ${item.id}: محاولة ${item.attempts}، التالية بعد ${nextDelay.inSeconds}s');
+        debugPrint(
+            '⚠️ [SyncQueue] ${item.id}: محاولة ${item.attempts}، التالية بعد ${nextDelay.inSeconds}s');
       } else {
-        debugPrint('❌ [SyncQueue] ${item.id}: تجاوز الحد الأقصى للمحاولات (${item.attempts})');
+        debugPrint(
+            '❌ [SyncQueue] ${item.id}: تجاوز الحد الأقصى للمحاولات (${item.attempts})');
       }
     }
   }
@@ -352,9 +370,12 @@ class SyncQueueService {
     final items = await getQueueItems();
     final now = DateTime.now();
 
-    final pendingItems = items.where((item) => _retryConfig.shouldRetry(item.attempts)).length;
-    final retriableItems = items.where((item) => item.shouldRetryNow(_retryConfig)).length;
-    final failedItems = items.where((item) => !_retryConfig.shouldRetry(item.attempts)).length;
+    final pendingItems =
+        items.where((item) => _retryConfig.shouldRetry(item.attempts)).length;
+    final retriableItems =
+        items.where((item) => item.shouldRetryNow(_retryConfig)).length;
+    final failedItems =
+        items.where((item) => !_retryConfig.shouldRetry(item.attempts)).length;
     final oldestItem = items.isNotEmpty
         ? items.map((e) => e.createdAt).reduce((a, b) => a.isBefore(b) ? a : b)
         : null;

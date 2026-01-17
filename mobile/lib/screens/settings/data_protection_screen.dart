@@ -8,14 +8,14 @@ import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/alarm_backup.dart';
 import '../../services/auto_backup_manager.dart';
 import '../../services/smart_sync_manager.dart';
-import '../../services/appwrite_sync_manager.dart';
 import 'appwrite_settings_screen.dart';
 
 class DataProtectionScreen extends ConsumerStatefulWidget {
   const DataProtectionScreen({super.key});
 
   @override
-  ConsumerState<DataProtectionScreen> createState() => _DataProtectionScreenState();
+  ConsumerState<DataProtectionScreen> createState() =>
+      _DataProtectionScreenState();
 }
 
 class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
@@ -60,7 +60,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     setState(() {
       _maxBackupsController.text = maxBackups.toString();
       _retentionDaysController.text = retentionDays.toString();
-      _scheduledTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+      _scheduledTime =
+          TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
       _scheduledEnabled = scheduled;
     });
   }
@@ -75,12 +76,14 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       await manager.setRetentionDays(retentionDays);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ إعدادات النسخ الاحتياطي')), 
+        const SnackBar(content: Text('تم حفظ إعدادات النسخ الاحتياطي')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل حفظ الإعدادات: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('فشل حفظ الإعدادات: $e'),
+            backgroundColor: Colors.red),
       );
     } finally {
       if (!mounted) return;
@@ -96,12 +99,16 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ref.invalidate(autoBackupStatusProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(enabled ? 'تم تفعيل النسخ التلقائي' : 'تم إيقاف النسخ التلقائي')), 
+        SnackBar(
+            content: Text(enabled
+                ? 'تم تفعيل النسخ التلقائي'
+                : 'تم إيقاف النسخ التلقائي')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل تغيير الحالة: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('فشل تغيير الحالة: $e'), backgroundColor: Colors.red),
       );
     } finally {
       if (!mounted) return;
@@ -115,7 +122,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       await AutoBackupManager.instance.cleanupNow();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تنظيف النسخ القديمة')), 
+        const SnackBar(content: Text('تم تنظيف النسخ القديمة')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -134,19 +141,24 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('scheduled_backup_enabled', enabled);
       if (enabled) {
-        await AlarmBackup.scheduleDailyAlarm(_scheduledTime.hour, _scheduledTime.minute);
+        await AlarmBackup.scheduleDailyAlarm(
+            _scheduledTime.hour, _scheduledTime.minute);
       } else {
         await AlarmBackup.cancelAlarm();
       }
       if (!mounted) return;
       setState(() => _scheduledEnabled = enabled);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(enabled ? 'تم تفعيل النسخ المجدول' : 'تم إيقاف النسخ المجدول')), 
+        SnackBar(
+            content: Text(
+                enabled ? 'تم تفعيل النسخ المجدول' : 'تم إيقاف النسخ المجدول')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر تحديث الجدولة: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('تعذر تحديث الجدولة: $e'),
+            backgroundColor: Colors.red),
       );
     } finally {
       if (!mounted) return;
@@ -158,17 +170,20 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     final picked = await showTimePicker(
       context: context,
       initialTime: _scheduledTime,
-      builder: (context, child) => Directionality(textDirection: TextDirection.rtl, child: child!),
+      builder: (context, child) =>
+          Directionality(textDirection: TextDirection.rtl, child: child!),
     );
     if (picked == null || picked == _scheduledTime) return;
     setState(() => _scheduledTime = picked);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auto_backup_time', '${picked.hour}:${picked.minute}');
+    await prefs.setString(
+        'auto_backup_time', '${picked.hour}:${picked.minute}');
     if (_scheduledEnabled) {
       await AlarmBackup.rescheduleDaily(picked.hour, picked.minute);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم تحديث وقت النسخ إلى ${picked.format(context)}')), 
+        SnackBar(
+            content: Text('تم تحديث وقت النسخ إلى ${picked.format(context)}')),
       );
     }
   }
@@ -180,12 +195,15 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ref.invalidate(smartSyncStatusProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(enabled ? 'تم تفعيل المزامنة' : 'تم إيقاف المزامنة')), 
+        SnackBar(
+            content: Text(enabled ? 'تم تفعيل المزامنة' : 'تم إيقاف المزامنة')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ في تغيير حالة المزامنة: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('خطأ في تغيير حالة المزامنة: $e'),
+            backgroundColor: Colors.red),
       );
     } finally {
       if (!mounted) return;
@@ -200,12 +218,14 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ref.invalidate(smartSyncStatusProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم ضبط الفحص على كل $minutes دقيقة')), 
+        SnackBar(content: Text('تم ضبط الفحص على كل $minutes دقيقة')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر تعديل الفترة: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('تعذر تعديل الفترة: $e'),
+            backgroundColor: Colors.red),
       );
     } finally {
       if (!mounted) return;
@@ -220,12 +240,14 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ref.invalidate(smartSyncStatusProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تحديث استراتيجية حل التضارب')), 
+        const SnackBar(content: Text('تم تحديث استراتيجية حل التضارب')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر تحديث الاستراتيجية: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('تعذر تحديث الاستراتيجية: $e'),
+            backgroundColor: Colors.red),
       );
     } finally {
       if (!mounted) return;
@@ -240,12 +262,14 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ref.invalidate(smartSyncStatusProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تمت المزامنة اليدوية')), 
+        const SnackBar(content: Text('تمت المزامنة اليدوية')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشلت المزامنة اليدوية: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('فشلت المزامنة اليدوية: $e'),
+            backgroundColor: Colors.red),
       );
     } finally {
       if (!mounted) return;
@@ -261,13 +285,15 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ref.invalidate(autoBackupStatusProvider);
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('تم إنشاء النسخة الاحتياطية الشاملة')), 
+        const SnackBar(content: Text('تم إنشاء النسخة الاحتياطية الشاملة')),
       );
       await _runAppwriteSync(triggeredByBackup: true);
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('تعذر إنشاء النسخة الاحتياطية: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('تعذر إنشاء النسخة الاحتياطية: $e'),
+            backgroundColor: Colors.red),
       );
     } finally {
       if (!mounted) return;
@@ -288,13 +314,15 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ? 'تمت مزامنة Appwrite بعد النسخة الاحتياطية'
           : 'تمت مزامنة Appwrite بنجاح';
       messenger.showSnackBar(
-        SnackBar(content: Text('$label (رفع $pushed / استقبل $pulled)')), 
+        SnackBar(content: Text('$label (رفع $pushed / استقبل $pulled)')),
       );
       ref.invalidate(ap.syncStatsProvider);
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('فشلت مزامنة Appwrite: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('فشلت مزامنة Appwrite: $e'),
+            backgroundColor: Colors.red),
       );
     } finally {
       if (!mounted) return;
@@ -320,7 +348,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSummaryRow(autoBackupStatus, syncStatus, backupState, appwriteConnection, appwriteStats),
+            _buildSummaryRow(autoBackupStatus, syncStatus, backupState,
+                appwriteConnection, appwriteStats),
             const SizedBox(height: 24),
             _buildSectionTitle('مزامنة Appwrite السحابية', Icons.cloud_sync),
             const SizedBox(height: 12),
@@ -382,7 +411,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             ),
             SizedBox(
               width: cardWidth,
-              child: _buildAppwriteSummaryTile(appwriteConnection, appwriteStats),
+              child:
+                  _buildAppwriteSummaryTile(appwriteConnection, appwriteStats),
             ),
           ],
         );
@@ -420,12 +450,17 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+                Text(title,
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, color: color)),
                 const SizedBox(height: 8),
-                Text(active ? 'مفعل' : 'معطل', style: TextStyle(color: active ? Colors.green : Colors.red)),
+                Text(active ? 'مفعل' : 'معطل',
+                    style:
+                        TextStyle(color: active ? Colors.green : Colors.red)),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
-                  Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(subtitle,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 ],
               ],
             ),
@@ -435,14 +470,17 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     );
   }
 
-  Widget _buildAppwriteSummaryTile(ap.ConnectionState state, AsyncValue<Map<String, dynamic>> statsAsync) {
+  Widget _buildAppwriteSummaryTile(
+      ap.ConnectionState state, AsyncValue<Map<String, dynamic>> statsAsync) {
     return statsAsync.when(
       loading: () => _buildSummarySkeleton('Appwrite'),
       error: (error, stack) => _buildSummaryError('Appwrite'),
       data: (stats) {
         final subtitle = _formatOptionalDate(stats['lastSyncTime'] as String?);
         final successRate = stats['successRate'];
-        final rateText = successRate is num ? '${successRate.toStringAsFixed(0)}% نجاح' : null;
+        final rateText = successRate is num
+            ? '${successRate.toStringAsFixed(0)}% نجاح'
+            : null;
         return Card(
           elevation: 2,
           child: Padding(
@@ -452,20 +490,24 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               children: [
                 const Text(
                   'Appwrite',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.blueGrey),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   state.isConnected ? 'متصل' : 'غير متصل',
-                  style: TextStyle(color: state.isConnected ? Colors.green : Colors.red),
+                  style: TextStyle(
+                      color: state.isConnected ? Colors.green : Colors.red),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
-                  Text('آخر مزامنة: $subtitle', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text('آخر مزامنة: $subtitle',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 ],
                 if (rateText != null) ...[
                   const SizedBox(height: 4),
-                  Text(rateText, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(rateText,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 ],
               ],
             ),
@@ -509,7 +551,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     );
   }
 
-  Widget _buildAppwriteSection(ap.ConnectionState connectionState, AsyncValue<Map<String, dynamic>> statsAsync) {
+  Widget _buildAppwriteSection(ap.ConnectionState connectionState,
+      AsyncValue<Map<String, dynamic>> statsAsync) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -517,8 +560,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildStatusRow('الحالة', connectionState.isConnected ? 'متصل' : 'غير متصل'),
-              if (connectionState.errorMessage != null && connectionState.errorMessage!.isNotEmpty)
+              _buildStatusRow(
+                  'الحالة', connectionState.isConnected ? 'متصل' : 'غير متصل'),
+              if (connectionState.errorMessage != null &&
+                  connectionState.errorMessage!.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
@@ -529,18 +574,27 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               const SizedBox(height: 12),
               statsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, stack) => const Text('تعذر تحميل إحصائيات Appwrite', style: TextStyle(color: Colors.red)),
+                error: (error, stack) => const Text(
+                    'تعذر تحميل إحصائيات Appwrite',
+                    style: TextStyle(color: Colors.red)),
                 data: (stats) {
-                  final lastSyncLabel = _formatOptionalDate(stats['lastSyncTime'] as String?) ?? '---';
+                  final lastSyncLabel =
+                      _formatOptionalDate(stats['lastSyncTime'] as String?) ??
+                          '---';
                   final successRate = stats['successRate'];
-                  final successLabel = successRate is num ? '${successRate.toStringAsFixed(0)}%' : '---';
+                  final successLabel = successRate is num
+                      ? '${successRate.toStringAsFixed(0)}%'
+                      : '---';
                   return Column(
                     children: [
                       _buildStatusRow('آخر مزامنة', lastSyncLabel),
                       _buildStatusRow('نسبة النجاح', successLabel),
-                      _buildStatusRow('إجمالي المزامنات', '${stats['totalSyncs'] ?? 0}'),
-                      _buildStatusRow('سجلات مرفوعة', '${stats['totalRecordsPushed'] ?? 0}'),
-                      _buildStatusRow('سجلات مستقبلة', '${stats['totalRecordsPulled'] ?? 0}'),
+                      _buildStatusRow(
+                          'إجمالي المزامنات', '${stats['totalSyncs'] ?? 0}'),
+                      _buildStatusRow('سجلات مرفوعة',
+                          '${stats['totalRecordsPushed'] ?? 0}'),
+                      _buildStatusRow('سجلات مستقبلة',
+                          '${stats['totalRecordsPulled'] ?? 0}'),
                     ],
                   );
                 },
@@ -555,19 +609,31 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               child: ElevatedButton.icon(
                 onPressed: _appwriteBusy ? null : () => _runAppwriteSync(),
                 icon: _appwriteBusy
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.cloud_sync),
-                label: Text(_appwriteBusy ? 'جارٍ المزامنة...' : 'مزامنة Appwrite الآن'),
+                label: Text(_appwriteBusy
+                    ? 'جارٍ المزامنة...'
+                    : 'مزامنة Appwrite الآن'),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: connectionState.isChecking ? null : _checkAppwriteConnection,
+                onPressed: connectionState.isChecking
+                    ? null
+                    : _checkAppwriteConnection,
                 icon: connectionState.isChecking
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.refresh),
-                label: Text(connectionState.isChecking ? 'جارٍ الفحص...' : 'اختبار الاتصال'),
+                label: Text(connectionState.isChecking
+                    ? 'جارٍ الفحص...'
+                    : 'اختبار الاتصال'),
               ),
             ),
           ],
@@ -578,7 +644,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AppwriteSettingsScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const AppwriteSettingsScreen()),
               );
             },
             icon: const Icon(Icons.settings),
@@ -594,7 +661,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       children: [
         Icon(icon, color: Colors.blue),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -626,11 +694,20 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildStatusRow('الحالة', isEnabled ? (monitoringActive ? 'مفعلة ونشطة' : 'مفعلة لكن متوقفة') : 'معطلة'),
-              _buildStatusRow('تسجيل الدخول', isSignedIn ? 'متصل بـ Google Drive' : 'غير متصل'),
+              _buildStatusRow(
+                  'الحالة',
+                  isEnabled
+                      ? (monitoringActive ? 'مفعلة ونشطة' : 'مفعلة لكن متوقفة')
+                      : 'معطلة'),
+              _buildStatusRow('تسجيل الدخول',
+                  isSignedIn ? 'متصل بـ Google Drive' : 'غير متصل'),
               if (isSyncing) _buildStatusRow('النشاط الحالي', 'جارٍ المزامنة'),
-              if (lastSync != null) _buildStatusRow('آخر فحص', _formatDateTime(DateTime.parse(lastSync))),
-              if (deviceId != null) _buildStatusRow('معرف الجهاز', '${deviceId.substring(0, 8)}...'),
+              if (lastSync != null)
+                _buildStatusRow(
+                    'آخر فحص', _formatDateTime(DateTime.parse(lastSync))),
+              if (deviceId != null)
+                _buildStatusRow(
+                    'معرف الجهاز', '${deviceId.substring(0, 8)}...'),
             ],
           ),
         ),
@@ -640,14 +717,17 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             children: [
               SwitchListTile(
                 title: const Text('تفعيل المزامنة التلقائية بين الأجهزة'),
-                subtitle: Text(isEnabled ? 'التحقق جارٍ بشكل دوري' : 'لن يتم فحص النسخ الجديدة'),
+                subtitle: Text(isEnabled
+                    ? 'التحقق جارٍ بشكل دوري'
+                    : 'لن يتم فحص النسخ الجديدة'),
                 value: isEnabled,
                 onChanged: isSignedIn && !_syncBusy ? _toggleSmartSync : null,
               ),
               if (!isSignedIn)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 8),
-                  child: Text('يتطلب تسجيل الدخول في Google Drive', style: TextStyle(color: Colors.orange, fontSize: 12)),
+                  child: Text('يتطلب تسجيل الدخول في Google Drive',
+                      style: TextStyle(color: Colors.orange, fontSize: 12)),
                 ),
             ],
           ),
@@ -656,14 +736,21 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           const SizedBox(height: 12),
           _buildCard(
             DropdownButtonFormField<int>(
-              value: _intervalOptions.contains(syncInterval) ? syncInterval : _intervalOptions.first,
-              decoration: const InputDecoration(labelText: 'فترة الفحص بالدقائق', prefixIcon: Icon(Icons.timer)),
+              value: _intervalOptions.contains(syncInterval)
+                  ? syncInterval
+                  : _intervalOptions.first,
+              decoration: const InputDecoration(
+                  labelText: 'فترة الفحص بالدقائق',
+                  prefixIcon: Icon(Icons.timer)),
               items: _intervalOptions
-                  .map((minutes) => DropdownMenuItem(value: minutes, child: Text(_intervalLabel(minutes))))
+                  .map((minutes) => DropdownMenuItem(
+                      value: minutes, child: Text(_intervalLabel(minutes))))
                   .toList(),
-              onChanged: _syncBusy ? null : (value) {
-                if (value != null) _changeSyncInterval(value);
-              },
+              onChanged: _syncBusy
+                  ? null
+                  : (value) {
+                      if (value != null) _changeSyncInterval(value);
+                    },
             ),
           ),
           const SizedBox(height: 12),
@@ -672,13 +759,18 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               children: [
                 DropdownButtonFormField<ConflictResolution>(
                   value: resolution,
-                  decoration: const InputDecoration(labelText: 'استراتيجية حل التضارب', prefixIcon: Icon(Icons.merge_type)),
+                  decoration: const InputDecoration(
+                      labelText: 'استراتيجية حل التضارب',
+                      prefixIcon: Icon(Icons.merge_type)),
                   items: _conflictDescriptions.entries
-                      .map((entry) => DropdownMenuItem(value: entry.key, child: Text(entry.value)))
+                      .map((entry) => DropdownMenuItem(
+                          value: entry.key, child: Text(entry.value)))
                       .toList(),
-                  onChanged: _syncBusy ? null : (value) {
-                    if (value != null) _changeConflictResolution(value);
-                  },
+                  onChanged: _syncBusy
+                      ? null
+                      : (value) {
+                          if (value != null) _changeConflictResolution(value);
+                        },
                 ),
                 const SizedBox(height: 12),
                 Align(
@@ -698,7 +790,12 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: _syncBusy || !isSignedIn ? null : _manualSync,
-                icon: _syncBusy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.sync),
+                icon: _syncBusy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.sync),
                 label: const Text('مزامنة الآن'),
               ),
             ),
@@ -708,15 +805,18 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     );
   }
 
-  Widget _buildBackupSection(AsyncValue<Map<String, dynamic>> statusAsync, BackupState backupState) {
+  Widget _buildBackupSection(
+      AsyncValue<Map<String, dynamic>> statusAsync, BackupState backupState) {
     return statusAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => _buildErrorCard('تعذر تحميل إعدادات النسخ الاحتياطي'),
+      error: (error, stack) =>
+          _buildErrorCard('تعذر تحميل إعدادات النسخ الاحتياطي'),
       data: (status) => _buildBackupContent(status, backupState),
     );
   }
 
-  Widget _buildBackupContent(Map<String, dynamic> status, BackupState backupState) {
+  Widget _buildBackupContent(
+      Map<String, dynamic> status, BackupState backupState) {
     final isEnabled = status['enabled'] as bool;
     final isBackingUp = status['is_backing_up'] as bool;
     final isSignedIn = status['signed_in'] as bool;
@@ -731,8 +831,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       _retentionDaysController.text = retentionDays.toString();
     }
     final statusMessage = backupState.message;
-    final double? progress =
-        backupState.progress != null ? backupState.progress!.clamp(0.0, 1.0).toDouble() : null;
+    final double? progress = backupState.progress != null
+        ? backupState.progress!.clamp(0.0, 1.0).toDouble()
+        : null;
     final bool isErrorMessage = backupState.status == BackupStatus.error;
     final bool isSuccessMessage = backupState.status == BackupStatus.success;
     final lastLocalBackup = backupState.lastLocalBackupTime;
@@ -776,11 +877,18 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildStatusRow('الحالة', isEnabled ? 'مفعلة' : 'معطلة'),
-              _buildStatusRow('تسجيل الدخول', isSignedIn ? 'متصل بـ Google Drive' : 'غير متصل'),
-              if (isBackingUp) _buildStatusRow('النشاط الحالي', 'جارٍ إنشاء نسخة'),
-              if (pendingChanges > 0) _buildStatusRow('تغييرات معلقة', pendingChanges.toString()),
-              if (lastBackup != null) _buildStatusRow('آخر نسخة تلقائية', _formatDateTime(DateTime.parse(lastBackup))),
-              if (lastLocalBackup != null) _buildStatusRow('آخر نسخة محلية', _formatDateTime(lastLocalBackup)),
+              _buildStatusRow('تسجيل الدخول',
+                  isSignedIn ? 'متصل بـ Google Drive' : 'غير متصل'),
+              if (isBackingUp)
+                _buildStatusRow('النشاط الحالي', 'جارٍ إنشاء نسخة'),
+              if (pendingChanges > 0)
+                _buildStatusRow('تغييرات معلقة', pendingChanges.toString()),
+              if (lastBackup != null)
+                _buildStatusRow('آخر نسخة تلقائية',
+                    _formatDateTime(DateTime.parse(lastBackup))),
+              if (lastLocalBackup != null)
+                _buildStatusRow(
+                    'آخر نسخة محلية', _formatDateTime(lastLocalBackup)),
             ],
           ),
         ),
@@ -788,7 +896,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         _buildCard(
           SwitchListTile(
             title: const Text('تفعيل النسخ الاحتياطي التلقائي بعد التغييرات'),
-            subtitle: Text(isEnabled ? 'سيتم إنشاء نسخة بعد كل تعديل' : 'لن يتم إنشاء نسخ تلقائية'),
+            subtitle: Text(isEnabled
+                ? 'سيتم إنشاء نسخة بعد كل تعديل'
+                : 'لن يتم إنشاء نسخ تلقائية'),
             value: isEnabled,
             onChanged: !_backupBusy ? _toggleAutoBackup : null,
           ),
@@ -800,14 +910,18 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               TextFormField(
                 controller: _maxBackupsController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'عدد النسخ القصوى', suffixIcon: Icon(Icons.numbers)),
+                decoration: const InputDecoration(
+                    labelText: 'عدد النسخ القصوى',
+                    suffixIcon: Icon(Icons.numbers)),
                 enabled: !_backupBusy,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _retentionDaysController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'فترة الاحتفاظ بالأيام', suffixIcon: Icon(Icons.calendar_today)),
+                decoration: const InputDecoration(
+                    labelText: 'فترة الاحتفاظ بالأيام',
+                    suffixIcon: Icon(Icons.calendar_today)),
                 enabled: !_backupBusy,
               ),
             ],
@@ -819,7 +933,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             children: [
               SwitchListTile(
                 title: const Text('النسخ الاحتياطي المجدول يومياً'),
-                subtitle: Text(_scheduledEnabled ? 'وقت التنفيذ ${_scheduledTime.format(context)}' : 'غير مفعل'),
+                subtitle: Text(_scheduledEnabled
+                    ? 'وقت التنفيذ ${_scheduledTime.format(context)}'
+                    : 'غير مفعل'),
                 value: _scheduledEnabled,
                 onChanged: _backupBusy ? null : _toggleScheduledBackup,
               ),
@@ -840,7 +956,12 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: _backupBusy ? null : _saveBackupSettings,
-                icon: _backupBusy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save),
+                icon: _backupBusy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.save),
                 label: const Text('حفظ الإعدادات'),
               ),
             ),
@@ -860,15 +981,21 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           child: ElevatedButton.icon(
             onPressed: _backupBusy ? null : _runComprehensiveBackup,
             icon: _backupBusy
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.backup_table),
-            label: Text(_backupBusy ? 'جارٍ تجهيز النسخة...' : 'نسخة شاملة + مزامنة Appwrite'),
+            label: Text(_backupBusy
+                ? 'جارٍ تجهيز النسخة...'
+                : 'نسخة شاملة + مزامنة Appwrite'),
           ),
         ),
         if (!isSignedIn)
           const Padding(
             padding: EdgeInsets.only(top: 8),
-            child: Text('يتطلب تسجيل الدخول في Google Drive لتنفيذ الإجراءات', style: TextStyle(color: Colors.orange, fontSize: 12)),
+            child: Text('يتطلب تسجيل الدخول في Google Drive لتنفيذ الإجراءات',
+                style: TextStyle(color: Colors.orange, fontSize: 12)),
           ),
       ],
     );

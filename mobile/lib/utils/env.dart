@@ -4,6 +4,4 @@ class Env {
     defaultValue: 'http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1',
   );
   // TODO: Wire actual API v1 in next phase.
-
-
 }

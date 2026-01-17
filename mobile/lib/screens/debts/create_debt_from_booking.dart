@@ -10,10 +10,12 @@ class CreateDebtFromBookingScreen extends ConsumerStatefulWidget {
   const CreateDebtFromBookingScreen({super.key});
 
   @override
-  ConsumerState<CreateDebtFromBookingScreen> createState() => _CreateDebtFromBookingScreenState();
+  ConsumerState<CreateDebtFromBookingScreen> createState() =>
+      _CreateDebtFromBookingScreenState();
 }
 
-class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBookingScreen> {
+class _CreateDebtFromBookingScreenState
+    extends ConsumerState<CreateDebtFromBookingScreen> {
   Booking? _selectedBooking;
   bool _autoMode = true;
   bool _isAutoComputing = false;
@@ -142,10 +144,12 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('خطأ: $e')),
       data: (bookings) {
-        final eligibleBookings = bookings.where(_isDebtEligibleBooking).toList();
+        final eligibleBookings =
+            bookings.where(_isDebtEligibleBooking).toList();
 
         if (eligibleBookings.isEmpty) {
-          return const Center(child: Text('لا توجد حجوزات محجوزة أو مكتملة لإنشاء دين منها'));
+          return const Center(
+              child: Text('لا توجد حجوزات محجوزة أو مكتملة لإنشاء دين منها'));
         }
 
         return Column(
@@ -169,12 +173,14 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('غرفة ${booking.roomNumber}'),
-                          Text('${_formatDate(booking.checkinDate)} - ${_formatDate(booking.checkoutDate ?? '')}'),
+                          Text(
+                              '${_formatDate(booking.checkinDate)} - ${_formatDate(booking.checkoutDate ?? '')}'),
                           Text('الحالة: ${booking.status}'),
                         ],
                       ),
                       trailing: isSelected
-                          ? Icon(Icons.check_circle, color: Colors.blue.shade600)
+                          ? Icon(Icons.check_circle,
+                              color: Colors.blue.shade600)
                           : null,
                       onTap: () => _selectBooking(booking),
                     ),
@@ -219,11 +225,17 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildInfoChip(Icons.nightlight, 'الليالي', data.nights.toString()),
-                _buildInfoChip(Icons.attach_money, 'سعر الليلة', _formatCurrency(data.roomRate)),
-                _buildInfoChip(Icons.summarize, 'الإجمالي', _formatCurrency(data.total)),
-                _buildInfoChip(Icons.payments, 'المدفوع', _formatCurrency(data.paid)),
-                _buildInfoChip(Icons.warning, 'المتبقي', _formatCurrency(data.remaining), color: Colors.red.shade600),
+                _buildInfoChip(
+                    Icons.nightlight, 'الليالي', data.nights.toString()),
+                _buildInfoChip(Icons.attach_money, 'سعر الليلة',
+                    _formatCurrency(data.roomRate)),
+                _buildInfoChip(
+                    Icons.summarize, 'الإجمالي', _formatCurrency(data.total)),
+                _buildInfoChip(
+                    Icons.payments, 'المدفوع', _formatCurrency(data.paid)),
+                _buildInfoChip(
+                    Icons.warning, 'المتبقي', _formatCurrency(data.remaining),
+                    color: Colors.red.shade600),
               ],
             ),
             const SizedBox(height: 12),
@@ -236,12 +248,19 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _isAutoProcessing ? null : _createAutoDebtFromBooking,
+                    onPressed:
+                        _isAutoProcessing ? null : _createAutoDebtFromBooking,
                     icon: _isAutoProcessing
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.check),
-                    label: Text(_isAutoProcessing ? 'جاري الحفظ...' : 'حفظ وتحرير الغرفة'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade600),
+                    label: Text(_isAutoProcessing
+                        ? 'جاري الحفظ...'
+                        : 'حفظ وتحرير الغرفة'),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange.shade600),
                   ),
                 ),
               ],
@@ -252,7 +271,8 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String label, String value, {Color? color}) {
+  Widget _buildInfoChip(IconData icon, String label, String value,
+      {Color? color}) {
     return Chip(
       avatar: Icon(icon, size: 18, color: color ?? Colors.blue),
       label: Text('$label: $value'),
@@ -269,8 +289,11 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
           children: [
             TextFormField(
               controller: _manualGuestNameController,
-              decoration: const InputDecoration(labelText: 'اسم النزيل *', border: OutlineInputBorder()),
-              validator: (value) => value == null || value.trim().isEmpty ? 'أدخل اسم النزيل' : null,
+              decoration: const InputDecoration(
+                  labelText: 'اسم النزيل *', border: OutlineInputBorder()),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'أدخل اسم النزيل'
+                  : null,
             ),
             const SizedBox(height: 12),
             Row(
@@ -278,15 +301,21 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
                 Expanded(
                   child: TextFormField(
                     controller: _manualCheckinController,
-                    decoration: const InputDecoration(labelText: 'تاريخ الوصول *', border: OutlineInputBorder()),
-                    validator: (value) => value == null || value.trim().isEmpty ? 'أدخل تاريخ الوصول' : null,
+                    decoration: const InputDecoration(
+                        labelText: 'تاريخ الوصول *',
+                        border: OutlineInputBorder()),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'أدخل تاريخ الوصول'
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextFormField(
                     controller: _manualCheckoutController,
-                    decoration: const InputDecoration(labelText: 'تاريخ المغادرة', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        labelText: 'تاريخ المغادرة',
+                        border: OutlineInputBorder()),
                   ),
                 ),
               ],
@@ -298,8 +327,12 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
                   child: TextFormField(
                     controller: _manualTotalController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'إجمالي المبلغ *', border: OutlineInputBorder()),
-                    validator: (value) => value == null || value.trim().isEmpty ? 'أدخل المبلغ' : null,
+                    decoration: const InputDecoration(
+                        labelText: 'إجمالي المبلغ *',
+                        border: OutlineInputBorder()),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'أدخل المبلغ'
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -307,7 +340,9 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
                   child: TextFormField(
                     controller: _manualPaidController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'المبلغ المدفوع', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        labelText: 'المبلغ المدفوع',
+                        border: OutlineInputBorder()),
                   ),
                 ),
               ],
@@ -315,13 +350,15 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
             const SizedBox(height: 12),
             TextFormField(
               controller: _manualReasonController,
-              decoration: const InputDecoration(labelText: 'سبب الدين', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'سبب الدين', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _manualNoteController,
               maxLines: 3,
-              decoration: const InputDecoration(labelText: 'ملاحظات', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'ملاحظات', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 16),
             Row(
@@ -330,9 +367,14 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
                   child: ElevatedButton.icon(
                     onPressed: _isManualProcessing ? null : _saveManualDebt,
                     icon: _isManualProcessing
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.save),
-                    label: Text(_isManualProcessing ? 'جاري الحفظ...' : 'حفظ الدين اليدوي'),
+                    label: Text(_isManualProcessing
+                        ? 'جاري الحفظ...'
+                        : 'حفظ الدين اليدوي'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -363,7 +405,8 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
       final paymentsRepo = ref.read(paymentsRepoProvider);
       final room = await roomsRepo.watchByNumber(booking.roomNumber).first;
       final payments = await paymentsRepo.paymentsByBooking(booking.id).first;
-      final paidAmount = payments.fold<double>(0, (sum, payment) => sum + payment.amount);
+      final paidAmount =
+          payments.fold<double>(0, (sum, payment) => sum + payment.amount);
 
       final checkin = DateTime.tryParse(booking.checkinDate) ?? DateTime.now();
       final checkout = _resolveCheckoutForBooking(booking);
@@ -375,7 +418,9 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
       double roomRate = room?.price ?? 0;
       if (roomRate <= 0 && booking.expectedNights > 0) {
         // استخدم المدفوع كأساس لحساب السعر
-        final estimatedTotal = paidAmount > 0 ? paidAmount : (room?.price ?? 0) * booking.expectedNights;
+        final estimatedTotal = paidAmount > 0
+            ? paidAmount
+            : (room?.price ?? 0) * booking.expectedNights;
         roomRate = estimatedTotal / booking.expectedNights;
       }
       if (roomRate <= 0) {
@@ -402,7 +447,9 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
         _autoDebtData = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر حساب بيانات الحجز: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('تعذر حساب بيانات الحجز: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -452,7 +499,8 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
           paidAmount: data.paid,
           paymentDate: dateOnly,
           isSettled: false,
-          note: 'تم الإنشاء تلقائياً من شاشة الديون (غرفة ${booking.roomNumber})',
+          note:
+              'تم الإنشاء تلقائياً من شاشة الديون (غرفة ${booking.roomNumber})',
         );
       }
 
@@ -471,7 +519,8 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تم إنشاء الدين (${_formatCurrency(data.remaining)}) وتحرير الغرفة ${booking.roomNumber}'),
+          content: Text(
+              'تم إنشاء الدين (${_formatCurrency(data.remaining)}) وتحرير الغرفة ${booking.roomNumber}'),
           backgroundColor: Colors.orange.shade700,
         ),
       );
@@ -482,7 +531,8 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل حفظ الدين: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('فشل حفظ الدين: $e'), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -496,7 +546,8 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
       return;
     }
 
-    final total = CurrencyFormatter.parseAmount(_manualTotalController.text) ?? 0;
+    final total =
+        CurrencyFormatter.parseAmount(_manualTotalController.text) ?? 0;
     final paid = CurrencyFormatter.parseAmount(_manualPaidController.text) ?? 0;
     final checkout = _manualCheckoutController.text.trim().isEmpty
         ? _manualCheckinController.text.trim()
@@ -516,18 +567,24 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
         paidAmount: paid,
         paymentDate: Time.nowDateString(),
         isSettled: paid >= total,
-        note: _manualNoteController.text.trim().isEmpty ? null : _manualNoteController.text.trim(),
+        note: _manualNoteController.text.trim().isEmpty
+            ? null
+            : _manualNoteController.text.trim(),
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ الدين اليدوي بنجاح'), backgroundColor: Colors.green),
+        const SnackBar(
+            content: Text('تم حفظ الدين اليدوي بنجاح'),
+            backgroundColor: Colors.green),
       );
       _resetManualForm();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل حفظ الدين اليدوي: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('فشل حفظ الدين اليدوي: $e'),
+            backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -564,7 +621,10 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
     if (allowedStatuses.contains(normalized)) {
       return true;
     }
-    return normalized.contains('محجوز') || normalized.contains('مكتمل') || normalized.contains('checked') || normalized.contains('completed');
+    return normalized.contains('محجوز') ||
+        normalized.contains('مكتمل') ||
+        normalized.contains('checked') ||
+        normalized.contains('completed');
   }
 
   String _formatDate(String value) {

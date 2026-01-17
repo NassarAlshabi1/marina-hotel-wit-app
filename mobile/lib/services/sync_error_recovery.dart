@@ -43,16 +43,16 @@ class SyncError {
   }) : timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'operation': operation,
-    'table': table,
-    'recordId': recordId,
-    'message': message,
-    'severity': severity.name,
-    'isRetriable': isRetriable,
-    'timestamp': timestamp.toIso8601String(),
-    'retryCount': retryCount,
-  };
+        'id': id,
+        'operation': operation,
+        'table': table,
+        'recordId': recordId,
+        'message': message,
+        'severity': severity.name,
+        'isRetriable': isRetriable,
+        'timestamp': timestamp.toIso8601String(),
+        'retryCount': retryCount,
+      };
 }
 
 class RecoveryResult {
@@ -133,14 +133,13 @@ class SyncErrorRecovery {
   ErrorSeverity _classifyError(dynamic exception) {
     final message = exception.toString().toLowerCase();
 
-    if (message.contains('network') || 
+    if (message.contains('network') ||
         message.contains('connection') ||
         message.contains('timeout')) {
       return ErrorSeverity.low;
     }
 
-    if (message.contains('conflict') ||
-        message.contains('version')) {
+    if (message.contains('conflict') || message.contains('version')) {
       return ErrorSeverity.medium;
     }
 
@@ -288,12 +287,13 @@ class SyncErrorRecovery {
   }) async {
     try {
       final snapshot = await database.getAllTablesAsJson();
-      
+
       final rollbackPoint = RollbackPoint(
         id: id,
         description: description,
         timestamp: DateTime.now(),
-        snapshot: snapshot.map((k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v as List))),
+        snapshot: snapshot.map(
+            (k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v as List))),
       );
 
       _rollbackPoints.insert(0, rollbackPoint);
@@ -307,7 +307,8 @@ class SyncErrorRecovery {
     }
   }
 
-  Future<bool> restoreFromRollbackPoint(String pointId, AppDatabase database) async {
+  Future<bool> restoreFromRollbackPoint(
+      String pointId, AppDatabase database) async {
     final point = _rollbackPoints.firstWhere(
       (p) => p.id == pointId,
       orElse: () => throw Exception('نقطة الاستعادة غير موجودة'),
@@ -323,7 +324,8 @@ class SyncErrorRecovery {
     }
   }
 
-  List<RollbackPoint> get availableRollbackPoints => List.unmodifiable(_rollbackPoints);
+  List<RollbackPoint> get availableRollbackPoints =>
+      List.unmodifiable(_rollbackPoints);
 
   Map<ErrorSeverity, int> getErrorSummary() {
     final summary = <ErrorSeverity, int>{};

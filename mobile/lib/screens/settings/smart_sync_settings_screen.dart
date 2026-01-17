@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/smart_sync_manager.dart';
 import '../../services/sync_guardian.dart';
-import '../../providers/smart_sync_provider.dart';
 import '../../providers/repository_providers.dart';
 import 'sync_health_dashboard_screen.dart';
 
@@ -10,12 +9,14 @@ class SmartSyncSettingsScreen extends ConsumerStatefulWidget {
   const SmartSyncSettingsScreen({super.key});
 
   @override
-  ConsumerState<SmartSyncSettingsScreen> createState() => _SmartSyncSettingsScreenState();
+  ConsumerState<SmartSyncSettingsScreen> createState() =>
+      _SmartSyncSettingsScreenState();
 }
 
-class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScreen> {
+class _SmartSyncSettingsScreenState
+    extends ConsumerState<SmartSyncSettingsScreen> {
   bool _isLoading = false;
-  
+
   final List<int> _intervalOptions = [1, 2, 5, 10, 15, 30, 60]; // بالدقائق
   final Map<ConflictResolution, String> _conflictResolutionLabels = {
     ConflictResolution.newerWins: 'الأحدث يفوز (موصى به)',
@@ -25,16 +26,18 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
 
   Future<void> _toggleSync(bool enabled) async {
     setState(() => _isLoading = true);
-    
+
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setEnabled(enabled);
-      
+
       ref.invalidate(smartSyncStatusProvider);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(enabled ? '✅ تم تفعيل المزامنة التلقائية' : '⏸️ تم إيقاف المزامنة التلقائية'),
+          content: Text(enabled
+              ? '✅ تم تفعيل المزامنة التلقائية'
+              : '⏸️ تم إيقاف المزامنة التلقائية'),
           backgroundColor: enabled ? Colors.green : Colors.orange,
         ),
       );
@@ -46,19 +49,19 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         ),
       );
     }
-    
+
     setState(() => _isLoading = false);
   }
 
   Future<void> _changeSyncInterval(int minutes) async {
     setState(() => _isLoading = true);
-    
+
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setSyncInterval(minutes);
-      
+
       ref.invalidate(smartSyncStatusProvider);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('⏰ تم تغيير فترة المزامنة إلى $minutes دقائق'),
@@ -73,19 +76,19 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         ),
       );
     }
-    
+
     setState(() => _isLoading = false);
   }
 
   Future<void> _changeConflictResolution(ConflictResolution resolution) async {
     setState(() => _isLoading = true);
-    
+
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setConflictResolution(resolution);
-      
+
       ref.invalidate(smartSyncStatusProvider);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('🤝 تم تغيير استراتيجية حل التضارب'),
@@ -100,19 +103,19 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         ),
       );
     }
-    
+
     setState(() => _isLoading = false);
   }
 
   Future<void> _performManualSync() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.forceSyncNow();
-      
+
       ref.invalidate(smartSyncStatusProvider);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🔄 تمت المزامنة اليدوية بنجاح'),
@@ -127,7 +130,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         ),
       );
     }
-    
+
     setState(() => _isLoading = false);
   }
 
@@ -138,11 +141,15 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       await guardian.forceSync();
       ref.invalidate(syncHealthProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚡ تم تشغيل مزامنة WorkManager فوراً'), backgroundColor: Colors.green),
+        const SnackBar(
+            content: Text('⚡ تم تشغيل مزامنة WorkManager فوراً'),
+            backgroundColor: Colors.green),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ تعذر تشغيل مزامنة WorkManager: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('❌ تعذر تشغيل مزامنة WorkManager: $e'),
+            backgroundColor: Colors.red),
       );
     }
     setState(() => _isLoading = false);
@@ -156,13 +163,17 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       ref.invalidate(syncHealthProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(enabled ? '🏅 هذا الجهاز أصبح صاحب الأولوية' : '↩︎ تم العودة للأولوية الافتراضية'),
+          content: Text(enabled
+              ? '🏅 هذا الجهاز أصبح صاحب الأولوية'
+              : '↩︎ تم العودة للأولوية الافتراضية'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ تعذر تغيير أولوية الجهاز: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('❌ تعذر تغيير أولوية الجهاز: $e'),
+            backgroundColor: Colors.red),
       );
     }
     setState(() => _isLoading = false);
@@ -172,7 +183,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(smartSyncStatusProvider);
     final healthAsync = ref.watch(syncHealthProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('المزامنة التلقائية الذكية'),
@@ -216,7 +227,8 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
     );
   }
 
-  Widget _buildSettingsUI(Map<String, dynamic> status, SyncHealthSnapshot? health) {
+  Widget _buildSettingsUI(
+      Map<String, dynamic> status, SyncHealthSnapshot? health) {
     final isEnabled = status['enabled'] as bool;
     final isSyncing = status['is_syncing'] as bool;
     final syncInterval = status['sync_interval_minutes'] as int;
@@ -232,38 +244,39 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // معلومات الحالة
-          _buildStatusCard(isEnabled, isSyncing, lastSync, deviceId, isSignedIn, monitoringActive, health),
-          
+          _buildStatusCard(isEnabled, isSyncing, lastSync, deviceId, isSignedIn,
+              monitoringActive, health),
+
           const SizedBox(height: 20),
-          
+
           // إعدادات التفعيل
           _buildEnableCard(isEnabled, isSignedIn),
-          
+
           const SizedBox(height: 20),
-          
+
           // إعدادات الفترة الزمنية
           if (isEnabled) _buildIntervalCard(syncInterval),
-          
+
           if (isEnabled) const SizedBox(height: 20),
-          
+
           // إعدادات حل التضارب
           if (isEnabled) _buildConflictResolutionCard(conflictResolution),
-          
+
           const SizedBox(height: 20),
           _buildGuardianCard(health),
-          
+
           const SizedBox(height: 20),
-          
+
           // أزرار الإجراءات
           _buildActionButtons(isEnabled, isSignedIn),
-          
+
           const SizedBox(height: 20),
-          
+
           // الوصول إلى لوحة مراقبة صحة المزامنة
           _buildHealthDashboardButton(),
-          
+
           const SizedBox(height: 20),
-          
+
           // شرح النظام
           _buildExplanationCard(),
         ],
@@ -302,8 +315,12 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
             Row(
               children: [
                 Icon(
-                  isEnabled && monitoringActive ? Icons.sync : Icons.sync_disabled,
-                  color: isEnabled && monitoringActive ? Colors.green : Colors.grey,
+                  isEnabled && monitoringActive
+                      ? Icons.sync
+                      : Icons.sync_disabled,
+                  color: isEnabled && monitoringActive
+                      ? Colors.green
+                      : Colors.grey,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -313,8 +330,15 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
               ],
             ),
             const SizedBox(height: 12),
-            _buildStatusRow('الحالة', isEnabled ? (monitoringActive ? 'مُفعلة ونشطة ✅' : 'مُفعلة ولكن غير نشطة ⚠️') : 'معطلة ❌'),
-            _buildStatusRow('تسجيل الدخول', isSignedIn ? 'متصل بـ Google Drive ✅' : 'غير متصل ❌'),
+            _buildStatusRow(
+                'الحالة',
+                isEnabled
+                    ? (monitoringActive
+                        ? 'مُفعلة ونشطة ✅'
+                        : 'مُفعلة ولكن غير نشطة ⚠️')
+                    : 'معطلة ❌'),
+            _buildStatusRow('تسجيل الدخول',
+                isSignedIn ? 'متصل بـ Google Drive ✅' : 'غير متصل ❌'),
             if (isSyncing)
               _buildStatusRow('النشاط الحالي', 'جارِ المزامنة... 🔄'),
             if (combinedLastSync != null)
@@ -324,11 +348,16 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
             if (guardianStatus != null)
               _buildStatusRow('وضع الحارس', guardianStatus.phase.name),
             if (pendingEvents)
-              _buildStatusRow('أحداث في الانتظار', 'نعم - سيتم استهلاكها عند توفر التطبيق'),
+              _buildStatusRow(
+                  'أحداث في الانتظار', 'نعم - سيتم استهلاكها عند توفر التطبيق'),
             if (failedAttempts > 0)
               _buildStatusRow('محاولات فاشلة', failedAttempts.toString()),
             if (health != null)
-              _buildStatusRow('أولوية هذا الجهاز', health.priorityOverridden ? 'أولوية قصوى' : 'أولوية افتراضية'),
+              _buildStatusRow(
+                  'أولوية هذا الجهاز',
+                  health.priorityOverridden
+                      ? 'أولوية قصوى'
+                      : 'أولوية افتراضية'),
           ],
         ),
       ),
@@ -372,17 +401,21 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
             const SizedBox(height: 12),
             _buildStatusRow(
               'آخر استهلاك',
-              lastSync != null ? _formatDateTime(lastSync.toLocal()) : 'لم يبدأ بعد',
+              lastSync != null
+                  ? _formatDateTime(lastSync.toLocal())
+                  : 'لم يبدأ بعد',
             ),
             if (pending)
               const Padding(
                 padding: EdgeInsets.only(top: 8.0),
-                child: Text('🔄 توجد أحداث قيد الانتظار وسيتم معالجتها تلقائياً'),
+                child:
+                    Text('🔄 توجد أحداث قيد الانتظار وسيتم معالجتها تلقائياً'),
               ),
             if (failed > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
-                child: Text('⚠️ فشلت $failed محاولات أخيرة، سيتم إعادة المحاولة تلقائياً',
+                child: Text(
+                    '⚠️ فشلت $failed محاولات أخيرة، سيتم إعادة المحاولة تلقائياً',
                     style: const TextStyle(color: Colors.orange, fontSize: 12)),
               ),
             const SizedBox(height: 12),
@@ -401,8 +434,12 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
                     onPressed: _isLoading
                         ? null
                         : () => _togglePriorityOverride(!isPriority),
-                    icon: Icon(isPriority ? Icons.shield : Icons.shield_outlined, size: 16),
-                    label: Text(isPriority ? 'إلغاء أولوية هذا الجهاز' : 'اجعل هذا الجهاز أولوية'),
+                    icon: Icon(
+                        isPriority ? Icons.shield : Icons.shield_outlined,
+                        size: 16),
+                    label: Text(isPriority
+                        ? 'إلغاء أولوية هذا الجهاز'
+                        : 'اجعل هذا الجهاز أولوية'),
                   ),
                 ),
               ],
@@ -432,9 +469,9 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
             const SizedBox(height: 12),
             SwitchListTile(
               title: const Text('تفعيل المزامنة التلقائية بين الأجهزة'),
-              subtitle: Text(isEnabled 
-                ? 'مُفعلة - يتم فحص النسخ الجديدة باستمرار' 
-                : 'معطلة - لا يتم البحث عن نسخ جديدة'),
+              subtitle: Text(isEnabled
+                  ? 'مُفعلة - يتم فحص النسخ الجديدة باستمرار'
+                  : 'معطلة - لا يتم البحث عن نسخ جديدة'),
               value: isEnabled,
               onChanged: isSignedIn && !_isLoading ? _toggleSync : null,
             ),
@@ -468,20 +505,25 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 12),
-            
             DropdownButtonFormField<int>(
-              value: _intervalOptions.contains(currentInterval) ? currentInterval : _intervalOptions.first,
+              value: _intervalOptions.contains(currentInterval)
+                  ? currentInterval
+                  : _intervalOptions.first,
               decoration: const InputDecoration(
                 labelText: 'فترة الفحص (بالدقائق)',
                 prefixIcon: Icon(Icons.timer),
               ),
-              items: _intervalOptions.map((minutes) => DropdownMenuItem(
-                value: minutes,
-                child: Text(_getIntervalLabel(minutes)),
-              )).toList(),
-              onChanged: _isLoading ? null : (value) {
-                if (value != null) _changeSyncInterval(value);
-              },
+              items: _intervalOptions
+                  .map((minutes) => DropdownMenuItem(
+                        value: minutes,
+                        child: Text(_getIntervalLabel(minutes)),
+                      ))
+                  .toList(),
+              onChanged: _isLoading
+                  ? null
+                  : (value) {
+                      if (value != null) _changeSyncInterval(value);
+                    },
             ),
           ],
         ),
@@ -511,22 +553,24 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 12),
-            
             DropdownButtonFormField<ConflictResolution>(
               value: currentEnum,
               decoration: const InputDecoration(
                 labelText: 'استراتيجية حل التضارب',
                 prefixIcon: Icon(Icons.merge_type),
               ),
-              items: _conflictResolutionLabels.entries.map((entry) => DropdownMenuItem(
-                value: entry.key,
-                child: Text(entry.value),
-              )).toList(),
-              onChanged: _isLoading ? null : (value) {
-                if (value != null) _changeConflictResolution(value);
-              },
+              items: _conflictResolutionLabels.entries
+                  .map((entry) => DropdownMenuItem(
+                        value: entry.key,
+                        child: Text(entry.value),
+                      ))
+                  .toList(),
+              onChanged: _isLoading
+                  ? null
+                  : (value) {
+                      if (value != null) _changeConflictResolution(value);
+                    },
             ),
-            
             const SizedBox(height: 8),
             _buildConflictExplanation(currentEnum),
           ],
@@ -538,22 +582,25 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
   Widget _buildConflictExplanation(ConflictResolution resolution) {
     String explanation;
     Color color;
-    
+
     switch (resolution) {
       case ConflictResolution.newerWins:
-        explanation = '💡 البيانات الأحدث تاريخياً ستحل محل الأقدم. هذا الخيار آمن ومُوصى به.';
+        explanation =
+            '💡 البيانات الأحدث تاريخياً ستحل محل الأقدم. هذا الخيار آمن ومُوصى به.';
         color = Colors.green;
         break;
       case ConflictResolution.manualResolve:
-        explanation = '⚠️ سيتم إيقاف المزامنة التلقائية وطلب تدخلك لحل التضارب يدوياً.';
+        explanation =
+            '⚠️ سيتم إيقاف المزامنة التلقائية وطلب تدخلك لحل التضارب يدوياً.';
         color = Colors.orange;
         break;
       case ConflictResolution.devicePriority:
-        explanation = '📱 الجهاز الرئيسي له الأولوية. يتطلب تحديد الجهاز الرئيسي مسبقاً.';
+        explanation =
+            '📱 الجهاز الرئيسي له الأولوية. يتطلب تحديد الجهاز الرئيسي مسبقاً.';
         color = Colors.blue;
         break;
     }
-    
+
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -574,21 +621,23 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: (_isLoading || !isSignedIn || !isEnabled) ? null : _performManualSync,
-            icon: _isLoading ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ) : const Icon(Icons.sync),
+            onPressed: (_isLoading || !isSignedIn || !isEnabled)
+                ? null
+                : _performManualSync,
+            icon: _isLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
             label: const Text('مزامنة يدوية الآن'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
           ),
         ),
-        
         const SizedBox(height: 12),
-        
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
@@ -600,13 +649,12 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
             ),
           ),
         ),
-        
         if (!isSignedIn || !isEnabled) ...[
           const SizedBox(height: 8),
           Text(
-            !isSignedIn 
-              ? '⚠️ يجب تسجيل الدخول في Google Drive'
-              : '⚠️ يجب تفعيل المزامنة التلقائية',
+            !isSignedIn
+                ? '⚠️ يجب تسجيل الدخول في Google Drive'
+                : '⚠️ يجب تفعيل المزامنة التلقائية',
             style: const TextStyle(color: Colors.orange, fontSize: 12),
             textAlign: TextAlign.center,
           ),
@@ -651,7 +699,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
               ],
             ),
             const SizedBox(height: 12),
-            
             const Text(
               '🔄 1. يراقب التطبيق Google Drive بالفترة المحددة للبحث عن نسخ احتياطية جديدة',
               style: TextStyle(fontSize: 12),
@@ -671,9 +718,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
               '✅ 4. يشعرك بنجاح العملية ويحدث بيانات التطبيق فوراً',
               style: TextStyle(fontSize: 12),
             ),
-            
             const SizedBox(height: 12),
-            
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(

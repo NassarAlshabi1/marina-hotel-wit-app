@@ -26,7 +26,8 @@ String _convertNumberToArabicWords(int number) {
   return segments.join(' و ');
 }
 
-String _formatWithScale(int value, String singular, String dual, String plural) {
+String _formatWithScale(
+    int value, String singular, String dual, String plural) {
   if (value == 1) {
     return singular;
   }

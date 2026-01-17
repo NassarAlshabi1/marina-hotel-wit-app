@@ -31,11 +31,13 @@ class AppwriteAutoSyncTask {
   static Future<void> initialize({bool debug = false}) async {
     if (_initialized) return;
     WidgetsFlutterBinding.ensureInitialized();
-    await Workmanager().initialize(appwriteAutoSyncCallbackDispatcher, isInDebugMode: debug);
+    await Workmanager()
+        .initialize(appwriteAutoSyncCallbackDispatcher, isInDebugMode: debug);
     _initialized = true;
   }
 
-  static Future<void> scheduleImmediateSync({Duration delay = _kDebounceWindow}) async {
+  static Future<void> scheduleImmediateSync(
+      {Duration delay = _kDebounceWindow}) async {
     if (!_initialized) {
       throw StateError('AppwriteAutoSyncTask not initialized');
     }
@@ -85,7 +87,8 @@ class AppwriteAutoSyncTask {
     await Workmanager().cancelByUniqueName(_kPeriodicWorkName);
   }
 
-  static Future<void> consumePendingAndSync(AppwriteSyncManager manager, {bool force = false}) async {
+  static Future<void> consumePendingAndSync(AppwriteSyncManager manager,
+      {bool force = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final pending = prefs.getBool(_kPendingFlagKey) ?? false;
     if (!pending) return;

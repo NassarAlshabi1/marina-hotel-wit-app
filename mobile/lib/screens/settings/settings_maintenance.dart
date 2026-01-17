@@ -26,7 +26,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                       SizedBox(width: 8),
                       Text(
                         'معلومات النظام',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -36,16 +37,16 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // أدوات الصيانة
           const Text(
             'أدوات الصيانة',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          
+
           _buildMaintenanceCard(
             'تنظيف البيانات المؤقتة',
             'حذف الملفات المؤقتة وتحسين الأداء',
@@ -53,7 +54,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             Colors.blue,
             () => _showCleanupDialog(context),
           ),
-          
+
           _buildMaintenanceCard(
             'فحص قاعدة البيانات',
             'التحقق من سلامة البيانات وإصلاح الأخطاء',
@@ -61,7 +62,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             Colors.green,
             () => _showDatabaseCheckDialog(context),
           ),
-          
+
           _buildMaintenanceCard(
             'إعادة تعيين التزامن',
             'إعادة ضبط خدمة المزامنة مع الخادم',
@@ -69,7 +70,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             Colors.orange,
             () => _showResetSyncDialog(context, ref),
           ),
-          
+
           _buildMaintenanceCard(
             'تصدير البيانات',
             'إنشاء نسخة احتياطية من جميع البيانات',
@@ -77,7 +78,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             Colors.purple,
             () => _showExportDialog(context),
           ),
-          
+
           _buildMaintenanceCard(
             'استيراد البيانات',
             'استعادة البيانات من نسخة احتياطية',
@@ -85,16 +86,17 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             Colors.indigo,
             () => _showImportDialog(context),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // أدوات متقدمة
           const Text(
             'أدوات متقدمة',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
           ),
           const SizedBox(height: 12),
-          
+
           _buildMaintenanceCard(
             'إعادة تشغيل الخدمات',
             'إعادة تشغيل جميع خدمات التطبيق',
@@ -102,7 +104,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             Colors.red,
             () => _showRestartDialog(context),
           ),
-          
+
           _buildMaintenanceCard(
             'إعادة تعيين التطبيق',
             'حذف جميع البيانات المحلية وإعادة التهيئة',
@@ -110,9 +112,9 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             Colors.red,
             () => _showResetAppDialog(context),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // تحذير
           Container(
             padding: const EdgeInsets.all(16),
@@ -130,7 +132,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                     SizedBox(width: 8),
                     Text(
                       'تحذير مهم',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.red),
                     ),
                   ],
                 ),
@@ -169,7 +172,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             width: 160,
             child: Text(
               label,
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.grey),
             ),
           ),
           Expanded(child: Text(value)),
@@ -227,7 +231,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم تنظيف البيانات المؤقتة (قيد التطوير)')),
+                const SnackBar(
+                    content: Text('تم تنظيف البيانات المؤقتة (قيد التطوير)')),
               );
             },
             child: const Text('تنظيف'),
@@ -301,7 +306,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
               try {
                 await ref.read(syncServiceProvider).runSync();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('تم إعادة تعيين المزامنة بنجاح')),
+                  const SnackBar(
+                      content: Text('تم إعادة تعيين المزامنة بنجاح')),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -378,7 +384,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('اختيار ملف الاستيراد (قيد التطوير)')),
+                const SnackBar(
+                    content: Text('اختيار ملف الاستيراد (قيد التطوير)')),
               );
             },
             child: const Text('اختيار ملف'),
@@ -477,7 +484,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('إعادة تعيين التطبيق (قيد التطوير)')),
+                const SnackBar(
+                    content: Text('إعادة تعيين التطبيق (قيد التطوير)')),
               );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

@@ -28,7 +28,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   late final TextEditingController _addressController;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final _idNumberFormatter = FilteringTextInputFormatter.allow(RegExp(r'[0-9]'));
+  final _idNumberFormatter =
+      FilteringTextInputFormatter.allow(RegExp(r'[0-9]'));
 
   bool _saving = false;
   String _idType = 'بطاقة شخصية';
@@ -51,12 +52,16 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     _nameController = TextEditingController(text: widget.guest.name);
     _phoneController = TextEditingController(text: widget.guest.phone);
     _emailController = TextEditingController(text: widget.guest.email);
-    _nationalityController = TextEditingController(text: widget.guest.nationality);
+    _nationalityController =
+        TextEditingController(text: widget.guest.nationality);
     _idType = widget.guest.idType;
     _idNumberController = TextEditingController(text: widget.guest.idNumber);
-    _idIssueDateController = TextEditingController(text: widget.guest.idIssueDate ?? '');
-    _idIssuePlaceController = TextEditingController(text: widget.guest.idIssuePlace ?? '');
-    _addressController = TextEditingController(text: widget.guest.address ?? '');
+    _idIssueDateController =
+        TextEditingController(text: widget.guest.idIssueDate ?? '');
+    _idIssuePlaceController =
+        TextEditingController(text: widget.guest.idIssuePlace ?? '');
+    _addressController =
+        TextEditingController(text: widget.guest.address ?? '');
 
     for (final booking in widget.guest.bookings) {
       _roomSelections[booking.id] = booking.roomNumber;
@@ -283,7 +288,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.info_outline),
                   title: Text(widget.guest.name),
-                  subtitle: Text('عدد الحجوزات: ${widget.guest.bookings.length}'),
+                  subtitle:
+                      Text('عدد الحجوزات: ${widget.guest.bookings.length}'),
                 ),
               ),
               const SizedBox(height: 16),
@@ -298,7 +304,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         label: 'اسم الضيف',
                         icon: Icons.person,
                         validator: (value) =>
-                            value == null || value.trim().isEmpty ? 'الاسم مطلوب' : null,
+                            value == null || value.trim().isEmpty
+                                ? 'الاسم مطلوب'
+                                : null,
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
@@ -307,7 +315,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         icon: Icons.phone,
                         keyboardType: TextInputType.phone,
                         validator: (value) =>
-                            value == null || value.trim().isEmpty ? 'رقم الهاتف مطلوب' : null,
+                            value == null || value.trim().isEmpty
+                                ? 'رقم الهاتف مطلوب'
+                                : null,
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
@@ -330,7 +340,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         label: 'الجنسية',
                         icon: Icons.flag,
                         validator: (value) =>
-                            value == null || value.trim().isEmpty ? 'الجنسية مطلوبة' : null,
+                            value == null || value.trim().isEmpty
+                                ? 'الجنسية مطلوبة'
+                                : null,
                       ),
                     ],
                   ),
@@ -346,9 +358,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       DropdownButtonFormField<String>(
                         value: _idType,
                         items: _idTypes
-                            .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                            .map((t) =>
+                                DropdownMenuItem(value: t, child: Text(t)))
                             .toList(),
-                        onChanged: (value) => setState(() => _idType = value ?? _idType),
+                        onChanged: (value) =>
+                            setState(() => _idType = value ?? _idType),
                         decoration: const InputDecoration(
                           labelText: 'نوع الهوية',
                           prefixIcon: Icon(Icons.badge),
@@ -524,7 +538,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 final currentValue = _roomSelections[booking.id]!;
                 final items = <DropdownMenuItem<String>>[];
 
-                if (!availableRooms.any((room) => room.roomNumber == currentValue)) {
+                if (!availableRooms
+                    .any((room) => room.roomNumber == currentValue)) {
                   items.add(DropdownMenuItem(
                     value: currentValue,
                     child: Text('$currentValue (الحالي)'),
@@ -561,7 +576,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             : null,
                       ),
                       validator: (value) =>
-                          value == null || value.trim().isEmpty ? 'مطلوب' : null,
+                          value == null || value.trim().isEmpty
+                              ? 'مطلوب'
+                              : null,
                     ),
                     if (isChanged)
                       Padding(
@@ -574,7 +591,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.info_outline, size: 16, color: Colors.orange),
+                              const Icon(Icons.info_outline,
+                                  size: 16, color: Colors.orange),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(

@@ -16,7 +16,7 @@ class CacheEntry<T> {
   });
 
   bool get isExpired => DateTime.now().difference(timestamp) > ttl;
-  
+
   int get sizeInBytes {
     // تقدير حجم البيانات (تقريبي)
     if (data is List) {
@@ -48,8 +48,8 @@ class CacheStatistics {
     required this.misses,
   });
 
-  double get usagePercentage => 
-    maxSizeBytes > 0 ? (totalSizeBytes / maxSizeBytes) * 100 : 0;
+  double get usagePercentage =>
+      maxSizeBytes > 0 ? (totalSizeBytes / maxSizeBytes) * 100 : 0;
 
   String get totalSizeMB => (totalSizeBytes / (1024 * 1024)).toStringAsFixed(2);
   String get maxSizeMB => (maxSizeBytes / (1024 * 1024)).toStringAsFixed(2);
@@ -57,13 +57,14 @@ class CacheStatistics {
 
 /// مدير الذاكرة المؤقتة
 class AppwriteCacheManager {
-  static final AppwriteCacheManager _instance = AppwriteCacheManager._internal();
+  static final AppwriteCacheManager _instance =
+      AppwriteCacheManager._internal();
   factory AppwriteCacheManager() => _instance;
   AppwriteCacheManager._internal();
 
   final Map<String, CacheEntry> _cache = HashMap();
   Timer? _cleanupTimer;
-  
+
   int _hits = 0;
   int _misses = 0;
   int _maxSizeBytes = AppwriteConfig.maxCacheSizeMB * 1024 * 1024;
@@ -108,7 +109,7 @@ class AppwriteCacheManager {
     if (!_enabled) return null;
 
     final entry = _cache[key];
-    
+
     if (entry == null) {
       _misses++;
       return null;
@@ -127,15 +128,15 @@ class AppwriteCacheManager {
   /// التحقق من وجود مفتاح
   bool has(String key) {
     if (!_enabled) return false;
-    
+
     final entry = _cache[key];
     if (entry == null) return false;
-    
+
     if (entry.isExpired) {
       _cache.remove(key);
       return false;
     }
-    
+
     return true;
   }
 
@@ -154,29 +155,30 @@ class AppwriteCacheManager {
   /// مسح العناصر منتهية الصلاحية
   int clearExpired() {
     final expiredKeys = <String>[];
-    
+
     for (final entry in _cache.entries) {
       if (entry.value.isExpired) {
         expiredKeys.add(entry.key);
       }
     }
-    
+
     for (final key in expiredKeys) {
       _cache.remove(key);
     }
-    
+
     return expiredKeys.length;
   }
 
   /// مسح العناصر بناءً على نمط (pattern)
   int clearByPattern(String pattern) {
     final regex = RegExp(pattern);
-    final keysToRemove = _cache.keys.where((key) => regex.hasMatch(key)).toList();
-    
+    final keysToRemove =
+        _cache.keys.where((key) => regex.hasMatch(key)).toList();
+
     for (final key in keysToRemove) {
       _cache.remove(key);
     }
-    
+
     return keysToRemove.length;
   }
 
@@ -185,7 +187,8 @@ class AppwriteCacheManager {
     while (_getTotalSize() > _maxSizeBytes && _cache.isNotEmpty) {
       // إزالة أقدم عنصر
       final oldestKey = _cache.entries
-          .reduce((a, b) => a.value.timestamp.isBefore(b.value.timestamp) ? a : b)
+          .reduce(
+              (a, b) => a.value.timestamp.isBefore(b.value.timestamp) ? a : b)
           .key;
       _cache.remove(oldestKey);
     }

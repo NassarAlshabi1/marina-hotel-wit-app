@@ -49,14 +49,14 @@ import 'components/admin_layout.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   await _initializeFullyAutomatedSyncSystem();
-  
+
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
 }
@@ -65,7 +65,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
   debugPrint('═══════════════════════════════════════════════════════');
   debugPrint('🚀 Initializing Fully Automated Sync System');
   debugPrint('═══════════════════════════════════════════════════════');
-  
+
   try {
     debugPrint('📝 Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
@@ -75,10 +75,10 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       enableFile: false,
     );
     debugPrint('✅ Logger initialized');
-    
+
     debugPrint('🔐 Initializing Google Drive Backup Service...');
     final backupService = GoogleDriveBackupService();
-    
+
     try {
       // محاولة استعادة الجلسة بشكل صامت
       final account = await backupService.attemptSilentSignIn();
@@ -90,15 +90,15 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     } catch (e) {
       debugPrint('⚠️ فشلت استعادة الجلسة: $e');
     }
-    
+
     debugPrint('🔧 Initializing Database...');
     final database = DatabaseManager.instance;
     debugPrint('✅ Database ready');
-    
+
     debugPrint('🏥 Starting Database Health Monitoring...');
     SafeDatabaseOperations.startHealthMonitoring();
     debugPrint('✅ Health monitoring active');
-    
+
     debugPrint('🎯 Initializing Unified Sync Coordinator...');
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
     await coordinator.initialize(
@@ -107,20 +107,20 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       logger: driveLogger,
     );
     debugPrint('✅ Coordinator initialized');
-    
+
     debugPrint('🤝 Initializing Conflict Resolver...');
     final conflictResolver = GoogleDriveConflictResolver.instance;
     conflictResolver.initialize(driveLogger);
-    
+
     await conflictResolver.setStrategy(ConflictResolutionStrategy.newerWins);
     await conflictResolver.setConflictThreshold(30);
     debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
-    
+
     debugPrint('🧠 Initializing SmartSyncManager...');
     final smartSync = SmartSyncManager.instance;
     await smartSync.initialize(backupService);
     debugPrint('✅ SmartSyncManager initialized');
-    
+
     debugPrint('🛡️ Initializing SyncGuardian...');
     final guardian = SyncGuardian.instance;
     await guardian.initialize(
@@ -128,36 +128,36 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       driveService: GoogleDriveSyncService(),
     );
     debugPrint('✅ SyncGuardian initialized');
-    
+
     debugPrint('🤖 Initializing & Starting Auto Sync Engine...');
     final autoSyncEngine = AutoSyncEngine.instance;
-    
+
     await autoSyncEngine.initialize(
       backupService: backupService,
       database: database,
       logger: driveLogger,
     );
-    
+
     await _configureAutoSyncEngine(autoSyncEngine);
-    
+
     await autoSyncEngine.start();
-    
+
     if (backupService.isSignedIn) {
       debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
       await autoSyncEngine.onSignInChanged(true);
       await smartSync.onGoogleDriveSignInChanged(true);
       debugPrint('✅ تم إشعار جميع أنظمة المزامنة');
     }
-    
+
     await SyncQueueService.instance.initialize();
-    
+
     _setupEngineMonitoring(autoSyncEngine);
-    
+
     debugPrint('✅ Auto Sync Engine started');
-    
+
     debugPrint('🔗 Registering Database Sync Callbacks...');
     DatabaseSyncCoordinator.initialize();
-    
+
     // Register stop callbacks
     DatabaseSyncCoordinator.registerStopCallback(() async {
       await autoSyncEngine.stop();
@@ -165,7 +165,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     DatabaseSyncCoordinator.registerStopCallback(() async {
       await guardian.stop();
     });
-    
+
     // Register restart callbacks
     DatabaseSyncCoordinator.registerRestartCallback(() async {
       await autoSyncEngine.restart();
@@ -173,9 +173,9 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     DatabaseSyncCoordinator.registerRestartCallback(() async {
       await guardian.restart();
     });
-    
+
     debugPrint('✅ Sync callbacks registered');
-    
+
     debugPrint('═══════════════════════════════════════════════════════');
     debugPrint('✅ Fully Automated Sync System Ready!');
     debugPrint('═══════════════════════════════════════════════════════');
@@ -185,7 +185,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     debugPrint('❤️ Health checks: ACTIVE (every 5 minutes)');
     debugPrint('🔁 Auto-retry: ACTIVE (exponential backoff)');
     debugPrint('═══════════════════════════════════════════════════════');
-    
   } catch (e, stackTrace) {
     debugPrint('═══════════════════════════════════════════════════════');
     debugPrint('❌ CRITICAL ERROR in Sync System Initialization');
@@ -198,16 +197,16 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
 Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   debugPrint('⚙️ Configuring Auto Sync Engine...');
-  
+
   const engineDebounceKey = 'auto_sync_engine_debounce';
   const legacyDebounceKey = 'auto_sync_debounce';
   const enginePullIntervalKey = 'auto_sync_engine_pull_interval';
   const legacyPullIntervalKey = 'auto_sync_pull_interval';
   const engineRetryKey = 'auto_sync_engine_retry_enabled';
   const legacyRetryKey = 'auto_sync_retry_enabled';
-  
+
   final prefs = await SharedPreferences.getInstance();
-  
+
   final debounceSeconds = await migrateAutoSyncPreference<int>(
     prefs: prefs,
     newKey: engineDebounceKey,
@@ -216,7 +215,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     apply: (value) => engine.setDebounceSeconds(value),
   );
   debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
-  
+
   final pullInterval = await migrateAutoSyncPreference<int>(
     prefs: prefs,
     newKey: enginePullIntervalKey,
@@ -225,7 +224,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     apply: (value) => engine.setPullInterval(value),
   );
   debugPrint('   ⏰ Pull interval: ${pullInterval}min');
-  
+
   final retryEnabled = await migrateAutoSyncPreference<bool>(
     prefs: prefs,
     newKey: engineRetryKey,
@@ -234,7 +233,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     apply: (value) => engine.setRetryEnabled(value),
   );
   debugPrint('   🔁 Auto-retry: $retryEnabled');
-  
+
   final conflictStrategy = prefs.getString('conflict_strategy') ?? 'newerWins';
   final strategy = ConflictResolutionStrategy.values.firstWhere(
     (s) => s.name == conflictStrategy,
@@ -242,18 +241,18 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   );
   await engine.setConflictStrategy(strategy);
   debugPrint('   🤝 Conflict strategy: ${strategy.name}');
-  
+
   debugPrint('✅ Configuration complete');
 }
 
 void _setupEngineMonitoring(AutoSyncEngine engine) {
   debugPrint('📊 Setting up engine state monitoring...');
-  
+
   engine.stateStream.listen((state) {
     final statusIcon = state.isRunning ? '🟢' : '🔴';
     final networkIcon = state.hasNetworkConnection ? '🌐' : '📴';
     final authIcon = state.isSignedIn ? '🔐' : '🔓';
-    
+
     debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     debugPrint('📊 ENGINE STATE UPDATE');
     debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━====');
@@ -261,21 +260,23 @@ void _setupEngineMonitoring(AutoSyncEngine engine) {
     debugPrint('$networkIcon Network: ${state.hasNetworkConnection}');
     debugPrint('$authIcon Signed in: ${state.isSignedIn}');
     debugPrint('📦 Pending changes: ${state.pendingChangesCount}');
-    debugPrint('✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}');
+    debugPrint(
+        '✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}');
     debugPrint('❌ Failed attempts: ${state.failedAttempts}');
-    
+
     if (state.nextRetryAt != null) {
-      final secondsUntil = state.nextRetryAt!.difference(DateTime.now()).inSeconds;
+      final secondsUntil =
+          state.nextRetryAt!.difference(DateTime.now()).inSeconds;
       debugPrint('⏰ Next retry in: ${secondsUntil}s');
     }
-    
+
     if (state.lastError != null) {
       debugPrint('⚠️ Last error: ${state.lastError}');
     }
-    
+
     debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   });
-  
+
   debugPrint('✅ Monitoring setup complete');
 }
 
@@ -298,7 +299,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     ref.listen<AppDatabase>(
       databaseProvider,
       (previous, database) {
-        if (_sessionConfigured && previous != null && identical(previous, database)) {
+        if (_sessionConfigured &&
+            previous != null &&
+            identical(previous, database)) {
           return;
         }
         _enqueueDatabase(database);
@@ -327,7 +330,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
         AppSessionManager.configure(
           database: database,
-          deviceIdResolver: () async => GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
+          deviceIdResolver: () async =>
+              GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
         );
         await Seeder(database).seedIfEmpty();
         await AppSessionManager.onAppOpen();
@@ -357,16 +361,20 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.resumed) {
       debugPrint('📱 التطبيق عاد للواجهة...');
-      AppSessionManager.onAppOpen().catchError((e, s) => debugPrint('Error in onAppOpen: $e\n$s'));
-      GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground().catchError((e, s) => debugPrint('Error in GDrive onAppForeground: $e\n$s'));
-      SyncGuardian.instance.onAppForeground().catchError((e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'));
+      AppSessionManager.onAppOpen()
+          .catchError((e, s) => debugPrint('Error in onAppOpen: $e\n$s'));
+      GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground().catchError(
+          (e, s) => debugPrint('Error in GDrive onAppForeground: $e\n$s'));
+      SyncGuardian.instance.onAppForeground().catchError((e, s) =>
+          debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'));
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(() => AppSessionManager.onAppCloseOrBackground())
-          .catchError((e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'));
+          .catchError(
+              (e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'));
     }
   }
 
@@ -434,7 +442,7 @@ class HomeShell extends ConsumerStatefulWidget {
 
 class _HomeShellState extends ConsumerState<HomeShell> {
   String _currentRoute = '/dashboard';
-  
+
   final Map<String, Widget> _routes = {
     '/dashboard': const DashboardScreen(),
     '/rooms': const RoomsListScreen(),
@@ -449,7 +457,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/blacklist': const BlacklistScreen(),
     '/settings': const SettingsScreen(),
   };
-  
+
   bool _can(String key) {
     final auth = ref.read(authProvider);
     final u = auth.currentUser;
@@ -475,22 +483,26 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       onRouteSelected: _navigateToRoute,
     );
   }
-  
+
   List<Widget> _buildGlobalActions(BuildContext context) {
     final unreadCountAsync = ref.watch(simpleNotesUnreadCountProvider);
-    final unreadCount = unreadCountAsync.maybeWhen(data: (count) => count, orElse: () => 0);
+    final unreadCount =
+        unreadCountAsync.maybeWhen(data: (count) => count, orElse: () => 0);
     final hasUnread = unreadCount > 0;
 
     return [
       IconButton(
         onPressed: () {
-          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotesScreen()));
+          Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const NotesScreen()));
         },
         tooltip: 'التنبيهات',
         icon: Stack(
           clipBehavior: Clip.none,
           children: [
-            Icon(hasUnread ? Icons.notifications_active : Icons.notifications_none),
+            Icon(hasUnread
+                ? Icons.notifications_active
+                : Icons.notifications_none),
             if (hasUnread)
               Positioned(
                 right: -2,
@@ -521,7 +533,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       ),
     ];
   }
-  
+
   void _navigateToRoute(String route) {
     if (_routes.containsKey(route)) {
       setState(() {

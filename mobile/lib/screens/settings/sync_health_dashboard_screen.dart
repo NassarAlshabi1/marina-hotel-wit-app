@@ -7,12 +7,14 @@ import 'package:intl/intl.dart';
 
 class SyncHealthDashboardScreen extends ConsumerStatefulWidget {
   const SyncHealthDashboardScreen({super.key});
-  
+
   @override
-  ConsumerState<SyncHealthDashboardScreen> createState() => _SyncHealthDashboardScreenState();
+  ConsumerState<SyncHealthDashboardScreen> createState() =>
+      _SyncHealthDashboardScreenState();
 }
 
-class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardScreen> {
+class _SyncHealthDashboardScreenState
+    extends ConsumerState<SyncHealthDashboardScreen> {
   Future<void> _refreshAll() async {
     ref.invalidate(syncDashboardProvider);
   }
@@ -22,7 +24,7 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
     final dashboardAsync = ref.watch(syncDashboardProvider);
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: TextDirection.ltr,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('مراقبة صحة المزامنة'),
@@ -92,7 +94,9 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
 
   String _getLocalizedErrorMessage(Object error) {
     final errorStr = error.toString().toLowerCase();
-    if (errorStr.contains('network') || errorStr.contains('socket') || errorStr.contains('connection')) {
+    if (errorStr.contains('network') ||
+        errorStr.contains('socket') ||
+        errorStr.contains('connection')) {
       return 'خطأ في الاتصال بالإنترنت. تأكد من اتصالك وحاول مرة أخرى.';
     }
     if (errorStr.contains('timeout')) {
@@ -106,7 +110,7 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
     }
     return 'حدث خطأ غير متوقع. حاول مرة أخرى لاحقاً.';
   }
-  
+
   Widget _buildOverallHealthCard(SyncDashboardData dashboard) {
     final status = dashboard.healthMetrics.status;
     final color = _getStatusColor(status);
@@ -125,16 +129,16 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
             Text(
               'الحالة العامة',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.grey[700],
-              ),
+                    color: Colors.grey[700],
+                  ),
             ),
             const SizedBox(height: 4),
             Text(
               statusText,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             StatusIndicator(status: status),
@@ -143,7 +147,7 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
       ),
     );
   }
-  
+
   Widget _buildMetricsGrid(SyncDashboardData dashboard) {
     final metrics = dashboard.healthMetrics;
     final orchestratorMetrics = dashboard.orchestratorHealth;
@@ -156,8 +160,8 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
           child: Text(
             'المقاييس الرئيسية',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         ),
         GridView.count(
@@ -209,7 +213,7 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
       ],
     );
   }
-  
+
   Widget _buildCircuitBreakerStatus(SyncDashboardData dashboard) {
     final circuitStates = dashboard.orchestratorHealth.circuitStates;
 
@@ -221,8 +225,8 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
           child: Text(
             'حالة Circuit Breakers',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         ),
         Card(
@@ -241,7 +245,7 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
       ],
     );
   }
-  
+
   Widget _buildQueueStatus(SyncDashboardData dashboard) {
     final queueStats = dashboard.queueStats;
 
@@ -253,8 +257,8 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
           child: Text(
             'حالة طابور المزامنة',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         ),
         Card(
@@ -262,20 +266,34 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                _buildQueueRow('إجمالي العناصر', queueStats.totalItems.toString(), Icons.list),
+                _buildQueueRow('إجمالي العناصر',
+                    queueStats.totalItems.toString(), Icons.list),
                 const Divider(),
-                _buildQueueRow('في الانتظار', queueStats.pendingItems.toString(), Icons.pending, Colors.orange),
+                _buildQueueRow(
+                    'في الانتظار',
+                    queueStats.pendingItems.toString(),
+                    Icons.pending,
+                    Colors.orange),
                 const Divider(),
-                _buildQueueRow('جاهز للمحاولة', queueStats.retriableItems.toString(), Icons.refresh, Colors.blue),
+                _buildQueueRow(
+                    'جاهز للمحاولة',
+                    queueStats.retriableItems.toString(),
+                    Icons.refresh,
+                    Colors.blue),
                 const Divider(),
-                _buildQueueRow('فاشل', queueStats.failedItems.toString(), Icons.error, Colors.red),
+                _buildQueueRow('فاشل', queueStats.failedItems.toString(),
+                    Icons.error, Colors.red),
                 if (queueStats.oldestItem != null) ...[
                   const Divider(),
-                  _buildQueueRow('أقدم عنصر', _formatDateTime(queueStats.oldestItem!), Icons.calendar_today),
+                  _buildQueueRow(
+                      'أقدم عنصر',
+                      _formatDateTime(queueStats.oldestItem!),
+                      Icons.calendar_today),
                 ],
                 if (queueStats.lastProcessed != null) ...[
                   const Divider(),
-                  _buildQueueRow('آخر معالجة', _formatDateTime(queueStats.lastProcessed!), Icons.update),
+                  _buildQueueRow('آخر معالجة',
+                      _formatDateTime(queueStats.lastProcessed!), Icons.update),
                 ],
               ],
             ),
@@ -284,8 +302,9 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
       ],
     );
   }
-  
-  Widget _buildQueueRow(String label, String value, IconData icon, [Color? color]) {
+
+  Widget _buildQueueRow(String label, String value, IconData icon,
+      [Color? color]) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -312,7 +331,7 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
       ),
     );
   }
-  
+
   Widget _buildRecommendationsCard(SyncDashboardData dashboard) {
     final recommendations = dashboard.healthMetrics.recommendations;
 
@@ -328,8 +347,8 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
           child: Text(
             'التوصيات',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         ),
         Card(
@@ -353,29 +372,31 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
                   ],
                 ),
                 const SizedBox(height: 12),
-                ...recommendations.map((recommendation) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.arrow_left,
-                        size: 20,
-                        color: Colors.orange.shade700,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          recommendation,
-                          style: TextStyle(
-                            color: Colors.orange.shade900,
-                            fontSize: 13,
+                ...recommendations
+                    .map((recommendation) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.arrow_left,
+                                size: 20,
+                                color: Colors.orange.shade700,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  recommendation,
+                                  style: TextStyle(
+                                    color: Colors.orange.shade900,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )).toList(),
+                        ))
+                    .toList(),
               ],
             ),
           ),
@@ -435,10 +456,10 @@ class _SyncHealthDashboardScreenState extends ConsumerState<SyncHealthDashboardS
 
   String _formatLastSync(DateTime? dateTime) {
     if (dateTime == null) return 'لم يتم بعد';
-    
+
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inMinutes < 1) {
       return 'الآن';
     } else if (difference.inMinutes < 60) {
@@ -461,7 +482,7 @@ class MetricCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color? color;
-  
+
   const MetricCard({
     super.key,
     required this.title,
@@ -473,7 +494,7 @@ class MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardColor = color ?? Colors.blue;
-    
+
     return Card(
       elevation: 2,
       child: Padding(
@@ -512,7 +533,7 @@ class MetricCard extends StatelessWidget {
 
 class StatusIndicator extends StatelessWidget {
   final SyncHealthStatus status;
-  
+
   const StatusIndicator({
     super.key,
     required this.status,
@@ -530,7 +551,7 @@ class StatusIndicator extends StatelessWidget {
         return Colors.red.shade900;
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -581,7 +602,7 @@ class StatusIndicator extends StatelessWidget {
 class CircuitBreakerCard extends StatelessWidget {
   final String name;
   final CircuitState state;
-  
+
   const CircuitBreakerCard({
     super.key,
     required this.name,

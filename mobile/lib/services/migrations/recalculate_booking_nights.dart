@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 import '../local_db.dart';
 import '../booking_derived_fields_service.dart';
 
@@ -11,9 +10,9 @@ class RecalculateBookingNightsMigration {
 
   Future<void> execute() async {
     print('🔧 Starting booking nights recalculation migration...');
-    
+
     final derivedFieldsService = BookingDerivedFieldsService(db);
-    
+
     // الحصول على جميع الحجوزات النشطة (غير المحذوفة)
     final bookings = await (db.select(db.bookings)
           ..where((b) => b.deletedAt.isNull()))
@@ -32,10 +31,10 @@ class RecalculateBookingNightsMigration {
     for (final booking in bookings) {
       try {
         print('   Processing ${booking.guestName} (${booking.roomNumber})...');
-        
+
         // إعادة حساب جميع الحقول المشتقة بناءً على التواريخ
         await derivedFieldsService.refreshForBooking(booking);
-        
+
         successCount++;
       } catch (e) {
         print('   ❌ Error processing booking ${booking.id}: $e');
@@ -51,12 +50,12 @@ class RecalculateBookingNightsMigration {
 
   Future<RecalculationReport> executeWithReport() async {
     final report = RecalculationReport();
-    
+
     try {
       report.startTime = DateTime.now();
-      
+
       final derivedFieldsService = BookingDerivedFieldsService(db);
-      
+
       final bookings = await (db.select(db.bookings)
             ..where((b) => b.deletedAt.isNull()))
           .get();
@@ -75,15 +74,15 @@ class RecalculateBookingNightsMigration {
           final oldExpectedNights = booking.expectedNights;
           final oldCalculatedNights = booking.calculatedNights;
           final oldTotalDue = booking.totalDueCached;
-          
+
           // إعادة الحساب
           await derivedFieldsService.refreshForBooking(booking);
-          
+
           // الحصول على القيم الجديدة
           final updatedBooking = await (db.select(db.bookings)
                 ..where((b) => b.id.equals(booking.id)))
               .getSingleOrNull();
-          
+
           if (updatedBooking != null) {
             report.recalculatedBookings.add(BookingRecalculationDetails(
               bookingId: booking.id,
@@ -98,22 +97,22 @@ class RecalculateBookingNightsMigration {
               oldTotalDue: oldTotalDue,
               newTotalDue: updatedBooking.totalDueCached,
               changed: oldExpectedNights != updatedBooking.expectedNights ||
-                       oldCalculatedNights != updatedBooking.calculatedNights ||
-                       (oldTotalDue - updatedBooking.totalDueCached).abs() > 0.01,
+                  oldCalculatedNights != updatedBooking.calculatedNights ||
+                  (oldTotalDue - updatedBooking.totalDueCached).abs() > 0.01,
             ));
 
             report.bookingsRecalculated++;
           }
         } catch (e) {
-          report.errors.add('Failed to recalculate booking ${booking.id} (${booking.guestName}): $e');
+          report.errors.add(
+              'Failed to recalculate booking ${booking.id} (${booking.guestName}): $e');
         }
       }
 
       report.success = report.errors.isEmpty;
-      report.message = report.success 
+      report.message = report.success
           ? 'Successfully recalculated ${report.bookingsRecalculated} bookings'
           : 'Recalculated ${report.bookingsRecalculated} bookings with ${report.errors.length} errors';
-          
     } catch (e) {
       report.success = false;
       report.message = 'Migration failed: $e';
@@ -136,11 +135,12 @@ class RecalculationReport {
   List<BookingRecalculationDetails> recalculatedBookings = [];
   List<String> errors = [];
 
-  Duration? get duration => startTime != null && endTime != null 
-      ? endTime!.difference(startTime!) 
+  Duration? get duration => startTime != null && endTime != null
+      ? endTime!.difference(startTime!)
       : null;
 
-  int get changedBookingsCount => recalculatedBookings.where((b) => b.changed).length;
+  int get changedBookingsCount =>
+      recalculatedBookings.where((b) => b.changed).length;
 
   Map<String, dynamic> toJson() {
     return {
@@ -151,7 +151,8 @@ class RecalculationReport {
       'changedBookings': changedBookingsCount,
       'errors': errors,
       'duration': duration?.inMilliseconds,
-      'recalculatedBookings': recalculatedBookings.map((b) => b.toJson()).toList(),
+      'recalculatedBookings':
+          recalculatedBookings.map((b) => b.toJson()).toList(),
     };
   }
 
@@ -169,36 +170,42 @@ class RecalculationReport {
     if (duration != null) {
       buffer.writeln('Duration: ${duration!.inMilliseconds}ms');
     }
-    
+
     if (errors.isNotEmpty) {
       buffer.writeln('\n❌ Errors (${errors.length}):');
       for (var error in errors) {
         buffer.writeln('  • $error');
       }
     }
-    
-    final changedBookings = recalculatedBookings.where((b) => b.changed).toList();
+
+    final changedBookings =
+        recalculatedBookings.where((b) => b.changed).toList();
     if (changedBookings.isNotEmpty) {
       buffer.writeln('\n🔄 Changed Bookings (${changedBookings.length}):');
       for (var booking in changedBookings) {
-        buffer.writeln('  • ${booking.guestName} (Room ${booking.roomNumber}):');
+        buffer
+            .writeln('  • ${booking.guestName} (Room ${booking.roomNumber}):');
         if (booking.oldExpectedNights != booking.newExpectedNights) {
-          buffer.writeln('    expectedNights: ${booking.oldExpectedNights} → ${booking.newExpectedNights}');
+          buffer.writeln(
+              '    expectedNights: ${booking.oldExpectedNights} → ${booking.newExpectedNights}');
         }
         if (booking.oldCalculatedNights != booking.newCalculatedNights) {
-          buffer.writeln('    calculatedNights: ${booking.oldCalculatedNights} → ${booking.newCalculatedNights}');
+          buffer.writeln(
+              '    calculatedNights: ${booking.oldCalculatedNights} → ${booking.newCalculatedNights}');
         }
         if ((booking.oldTotalDue - booking.newTotalDue).abs() > 0.01) {
-          buffer.writeln('    totalDue: ${booking.oldTotalDue.toStringAsFixed(2)} → ${booking.newTotalDue.toStringAsFixed(2)}');
+          buffer.writeln(
+              '    totalDue: ${booking.oldTotalDue.toStringAsFixed(2)} → ${booking.newTotalDue.toStringAsFixed(2)}');
         }
       }
     }
-    
+
     final unchangedCount = recalculatedBookings.length - changedBookings.length;
     if (unchangedCount > 0) {
-      buffer.writeln('\n✅ Unchanged Bookings: $unchangedCount (already correct)');
+      buffer
+          .writeln('\n✅ Unchanged Bookings: $unchangedCount (already correct)');
     }
-    
+
     buffer.writeln('=' * 80);
     return buffer.toString();
   }

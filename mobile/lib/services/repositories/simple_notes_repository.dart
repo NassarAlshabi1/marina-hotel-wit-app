@@ -4,7 +4,7 @@ import '../../models/shift_note_adapter.dart' as adapter;
 
 class SimpleNotesRepository {
   SimpleNotesRepository(this.db) : dao = ShiftNotesDao(db);
-  
+
   final AppDatabase db;
   final ShiftNotesDao dao;
 
@@ -44,7 +44,8 @@ class SimpleNotesRepository {
   }
 
   // تحديث ملاحظة
-  Future<bool> updateNote(String id, {
+  Future<bool> updateNote(
+    String id, {
     String? title,
     String? content,
     String? priority,
@@ -67,7 +68,7 @@ class SimpleNotesRepository {
     final intId = int.tryParse(id) ?? 0;
     return dao.markAsRead(intId);
   }
-  
+
   Future<bool> markAsUnread(String id) {
     final intId = int.tryParse(id) ?? 0;
     return dao.markAsUnread(intId);
@@ -84,20 +85,28 @@ class SimpleNotesRepository {
 
   // مراقبة التغييرات
   Stream<List<adapter.ShiftNote>> watchAllNotes() {
-    return dao.watchAllNotes().map((dbNotes) => 
-        dbNotes.map(_convertToModel).toList());
+    return dao
+        .watchAllNotes()
+        .map((dbNotes) => dbNotes.map(_convertToModel).toList());
   }
-  
+
   Stream<int> watchUnreadCount() => dao.watchUnreadCount();
 
   // تحويل من نوع قاعدة البيانات إلى نوع النموذج
   adapter.ShiftNote _convertToModel(ShiftNote dbNote) {
-    final priority = dbNote.priority == 'high' ? adapter.NotePriority.high :
-                     dbNote.priority == 'medium' ? adapter.NotePriority.medium : adapter.NotePriority.low;
-    final shiftType = dbNote.shiftType == 'morning' ? adapter.ShiftType.morning :
-                      dbNote.shiftType == 'evening' ? adapter.ShiftType.evening :
-                      dbNote.shiftType == 'night' ? adapter.ShiftType.night : adapter.ShiftType.all;
-    
+    final priority = dbNote.priority == 'high'
+        ? adapter.NotePriority.high
+        : dbNote.priority == 'medium'
+            ? adapter.NotePriority.medium
+            : adapter.NotePriority.low;
+    final shiftType = dbNote.shiftType == 'morning'
+        ? adapter.ShiftType.morning
+        : dbNote.shiftType == 'evening'
+            ? adapter.ShiftType.evening
+            : dbNote.shiftType == 'night'
+                ? adapter.ShiftType.night
+                : adapter.ShiftType.all;
+
     return adapter.ShiftNote(
       id: dbNote.id.toString(),
       title: dbNote.title,
@@ -105,7 +114,9 @@ class SimpleNotesRepository {
       priority: priority,
       shiftType: shiftType,
       createdAt: DateTime.parse(dbNote.createdAt),
-      expiresAt: dbNote.expiresAt != null ? DateTime.tryParse(dbNote.expiresAt!) : null,
+      expiresAt: dbNote.expiresAt != null
+          ? DateTime.tryParse(dbNote.expiresAt!)
+          : null,
       isRead: dbNote.isRead == 1,
       createdBy: dbNote.createdBy,
     );

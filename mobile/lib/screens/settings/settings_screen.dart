@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
-import '../../widgets/smart_sync_widgets.dart';
 import '../../providers/theme_provider.dart';
 import '../../utils/status_utils.dart';
 import 'settings_employees.dart';
@@ -17,7 +16,6 @@ import 'appwrite_settings_screen.dart';
 import 'sync_debug_logs_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import '../security/blacklist_screen.dart';
-
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -42,10 +40,11 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // بطاقة الإحصائيات السريعة
-          _buildQuickStatsCard(context, roomsAsync, bookingsAsync, employeesAsync, usersCountAsync),
-          
+          _buildQuickStatsCard(context, roomsAsync, bookingsAsync,
+              employeesAsync, usersCountAsync),
+
           const SizedBox(height: 20),
-          
+
           // قسم إدارة البيانات
           _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
           _buildSettingsGrid(context, [
@@ -56,7 +55,8 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.blue,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsEmployeesScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const SettingsEmployeesScreen()),
               ),
             ),
             _SettingsItem(
@@ -66,7 +66,8 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.green,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsGuestsScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const SettingsGuestsScreen()),
               ),
             ),
             _SettingsItem(
@@ -76,7 +77,8 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.purple,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsUsersScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const SettingsUsersScreen()),
               ),
             ),
             _SettingsItem(
@@ -86,7 +88,8 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.orange,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsMaintenanceScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const SettingsMaintenanceScreen()),
               ),
             ),
             _SettingsItem(
@@ -96,7 +99,8 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.red,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const BlacklistScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const BlacklistScreen()),
               ),
             ),
           ]),
@@ -120,7 +124,8 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.cyan,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const DataProtectionScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const DataProtectionScreen()),
               ),
             ),
             _SettingsItem(
@@ -130,10 +135,11 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.deepPurple,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SyncPerformanceSettingsScreen()),
+                MaterialPageRoute(
+                    builder: (context) =>
+                        const SyncPerformanceSettingsScreen()),
               ),
             ),
-
             _SettingsItem(
               title: 'إعدادات Appwrite',
               subtitle: 'مزامنة سحابية وإعدادات متقدمة',
@@ -141,7 +147,8 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.blueAccent,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AppwriteSettingsScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const AppwriteSettingsScreen()),
               ),
             ),
             _SettingsItem(
@@ -151,7 +158,8 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.deepOrange,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SyncDebugLogsScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const SyncDebugLogsScreen()),
               ),
             ),
             _SettingsItem(
@@ -161,7 +169,8 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.green,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const WhatsAppSettingsScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const WhatsAppSettingsScreen()),
               ),
             ),
             _SettingsItem(
@@ -207,7 +216,8 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.dashboard, color: Theme.of(context).primaryColor, size: 28),
+                Icon(Icons.dashboard,
+                    color: Theme.of(context).primaryColor, size: 28),
                 const SizedBox(width: 12),
                 const Text(
                   'إحصائيات سريعة',
@@ -230,9 +240,11 @@ class SettingsScreen extends ConsumerWidget {
                   child: _buildStatItem(
                     'الحجوزات النشطة',
                     bookingsAsync.value
-                        ?.where((b) => StatusUtils.isActiveBooking(b.status))
-                        .length
-                        .toString() ?? '---',
+                            ?.where(
+                                (b) => StatusUtils.isActiveBooking(b.status))
+                            .length
+                            .toString() ??
+                        '---',
                     Icons.assignment,
                     Colors.green,
                   ),
@@ -261,7 +273,8 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatItem(String title, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+      String title, String value, IconData icon, Color color) {
     return Column(
       children: [
         Icon(icon, color: color, size: 32),
@@ -384,7 +397,8 @@ class SettingsScreen extends ConsumerWidget {
                   secondary: const Icon(Icons.dark_mode),
                   title: const Text('المظهر الداكن'),
                   value: isDark,
-                  onChanged: (v) => ref.read(themeSettingsProvider.notifier).setDarkMode(v),
+                  onChanged: (v) =>
+                      ref.read(themeSettingsProvider.notifier).setDarkMode(v),
                 ),
                 const ListTile(
                   leading: Icon(Icons.language),
@@ -421,7 +435,8 @@ class SettingsScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _infoRow('تسجيل Google Drive', backupState.isSignedIn ? 'متصل' : 'غير متصل'),
+                _infoRow('تسجيل Google Drive',
+                    backupState.isSignedIn ? 'متصل' : 'غير متصل'),
                 const SizedBox(height: 6),
                 _infoRow('عدد النسخ الاحتياطية', '$totalBackups'),
                 const SizedBox(height: 6),
@@ -429,9 +444,14 @@ class SettingsScreen extends ConsumerWidget {
                 const SizedBox(height: 6),
                 _infoRow('آخر نسخة محلية', lastLocal?.toString() ?? '—'),
                 const SizedBox(height: 6),
-                _infoRow('حجم قاعدة البيانات', dbSize != null ? '${(dbSize / (1024*1024)).toStringAsFixed(2)} MB' : '—'),
+                _infoRow(
+                    'حجم قاعدة البيانات',
+                    dbSize != null
+                        ? '${(dbSize / (1024 * 1024)).toStringAsFixed(2)} MB'
+                        : '—'),
                 const Divider(height: 16),
-                Text(backupState.message ?? '', style: const TextStyle(fontSize: 12)),
+                Text(backupState.message ?? '',
+                    style: const TextStyle(fontSize: 12)),
               ],
             ),
             actions: [
@@ -459,6 +479,7 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+
   Widget _infoRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -24,10 +24,10 @@ void main() {
 
   test('snapshot rollback restores data after simulated failure', () async {
     await db.into(db.shiftNotes).insert(ShiftNotesCompanion.insert(
-      title: 'ملاحظة اختبار',
-      content: 'قبل المزامنة',
-      createdAt: DateTime.now().toIso8601String(),
-    ));
+          title: 'ملاحظة اختبار',
+          content: 'قبل المزامنة',
+          createdAt: DateTime.now().toIso8601String(),
+        ));
 
     final snapshot = await SyncSafetyLayer.instance.captureSnapshot(
       db: db,
@@ -65,8 +65,11 @@ void main() {
       metadata: {'conflicts': 0},
     );
 
-    final result = await db.customSelect('SELECT COUNT(*) as count FROM sync_audit').getSingle();
-    final count = (result.data['count'] as int?) ?? (result.data['count'] as num).toInt();
+    final result = await db
+        .customSelect('SELECT COUNT(*) as count FROM sync_audit')
+        .getSingle();
+    final count =
+        (result.data['count'] as int?) ?? (result.data['count'] as num).toInt();
     expect(count, 1);
   });
 }

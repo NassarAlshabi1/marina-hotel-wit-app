@@ -73,7 +73,8 @@ class SyncErrorHandler {
     StackTrace? stackTrace,
     Map<String, dynamic>? context,
   }) {
-    final syncError = _classifyError(error, stackTrace: stackTrace, context: context);
+    final syncError =
+        _classifyError(error, stackTrace: stackTrace, context: context);
 
     _recordError(syncError);
     _emitError(syncError);
@@ -203,7 +204,8 @@ class SyncErrorHandler {
   }
 
   List<SyncError> getRecentErrors({int limit = 10}) {
-    final start = _errorHistory.length > limit ? _errorHistory.length - limit : 0;
+    final start =
+        _errorHistory.length > limit ? _errorHistory.length - limit : 0;
     return _errorHistory.sublist(start);
   }
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 
-
 class AdminLayout extends StatelessWidget {
   final Widget body;
   final String currentRoute;
@@ -11,7 +10,7 @@ class AdminLayout extends StatelessWidget {
   final Widget? floatingActionButton;
   final PreferredSizeWidget? appBar;
   final Function(String)? onRouteSelected;
-  
+
   const AdminLayout({
     super.key,
     required this.body,
@@ -26,7 +25,7 @@ class AdminLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 768;
-    
+
     if (isTablet) {
       // Desktop/Tablet layout with sidebar (like PHP admin)
       return Directionality(
@@ -35,14 +34,13 @@ class AdminLayout extends StatelessWidget {
           body: Row(
             children: [
               AdminSidebar(
-            currentRoute: currentRoute,
-            onRouteSelected: onRouteSelected ?? (route) {},
-          ),
+                currentRoute: currentRoute,
+                onRouteSelected: onRouteSelected ?? (route) {},
+              ),
               Expanded(
                 child: Column(
                   children: [
-                    if (title != null || actions != null)
-                      _buildTopBar(),
+                    if (title != null || actions != null) _buildTopBar(),
                     Expanded(
                       child: Container(
                         color: AppColors.backgroundColor,
@@ -64,9 +62,9 @@ class AdminLayout extends StatelessWidget {
         child: Scaffold(
           appBar: appBar ?? _buildMobileAppBar(context),
           drawer: AdminSidebar(
-        currentRoute: currentRoute,
-        onRouteSelected: onRouteSelected ?? (route) {},
-      ),
+            currentRoute: currentRoute,
+            onRouteSelected: onRouteSelected ?? (route) {},
+          ),
           body: Container(
             color: AppColors.backgroundColor,
             child: body,
@@ -106,7 +104,6 @@ class AdminLayout extends StatelessWidget {
                     )
                   : const SizedBox.shrink(),
             ),
-
             if (actions != null) ...actions!,
           ],
         ),
@@ -116,14 +113,11 @@ class AdminLayout extends StatelessWidget {
 
   PreferredSizeWidget _buildMobileAppBar(BuildContext context) {
     return AppBar(
-      title: title != null 
-        ? Text(title!) 
-        : const Text('فندق مارينا'),
+      title: title != null ? Text(title!) : const Text('فندق مارينا'),
       backgroundColor: AppColors.primaryColor,
       foregroundColor: Colors.white,
       elevation: 0,
       actions: [
-
         if (actions != null) ...actions!,
       ],
     );
@@ -138,7 +132,7 @@ class AdminCard extends StatelessWidget {
   final double? elevation;
   final String? title;
   final Widget? trailing;
-  
+
   const AdminCard({
     super.key,
     required this.child,
@@ -203,7 +197,7 @@ class StatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String? subtitle;
-  
+
   const StatCard({
     super.key,
     required this.title,
@@ -290,7 +284,7 @@ class AdminTable extends StatelessWidget {
   final List<List<Widget>> rows;
   final bool striped;
   final bool bordered;
-  
+
   const AdminTable({
     super.key,
     required this.headers,
@@ -325,11 +319,10 @@ class AdminTable extends StatelessWidget {
             .entries
             .map((entry) => DataRow(
                   color: striped && entry.key % 2 == 1
-                      ? WidgetStateProperty.all(AppColors.lightGray.withOpacity(0.3))
+                      ? WidgetStateProperty.all(
+                          AppColors.lightGray.withOpacity(0.3))
                       : null,
-                  cells: entry.value
-                      .map((cell) => DataCell(cell))
-                      .toList(),
+                  cells: entry.value.map((cell) => DataCell(cell)).toList(),
                 ))
             .toList(),
       ),
@@ -340,7 +333,7 @@ class AdminTable extends StatelessWidget {
 class StatusBadge extends StatelessWidget {
   final String text;
   final Color color;
-  
+
   const StatusBadge({
     super.key,
     required this.text,

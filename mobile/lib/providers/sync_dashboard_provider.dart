@@ -5,36 +5,37 @@ import '../services/sync_orchestrator.dart';
 import '../services/sync_queue_service.dart';
 import 'repository_providers.dart';
 
-final syncDashboardProvider = FutureProvider.autoDispose<SyncDashboardData>((ref) async {
+final syncDashboardProvider =
+    FutureProvider.autoDispose<SyncDashboardData>((ref) async {
   final guardian = ref.watch(syncGuardianProvider);
   final orchestrator = SyncOrchestrator.instance;
   final queueService = SyncQueueService.instance;
   final healthMonitor = SyncHealthMonitor.instance;
-  
+
   final results = await Future.wait([
     orchestrator.getHealth(),
     queueService.getStats(),
     healthMonitor.getHealthMetrics(),
   ]);
-  
+
   final orchestratorHealth = results[0] as SyncHealth;
   final queueStats = results[1] as QueueStats;
   final healthMetrics = results[2] as SyncHealthMetrics;
-  
+
   final guardianHealthSnapshot = await guardian.watchHealth().first.timeout(
-    const Duration(seconds: 2),
-    onTimeout: () => const SyncHealthSnapshot(
-      lastSyncAt: null,
-      failedAttempts: 0,
-      pendingEvents: false,
-      isInitialized: false,
-      lastError: null,
-      monitoringActive: false,
-      priorityOverridden: false,
-      status: null,
-    ),
-  );
-  
+        const Duration(seconds: 2),
+        onTimeout: () => const SyncHealthSnapshot(
+          lastSyncAt: null,
+          failedAttempts: 0,
+          pendingEvents: false,
+          isInitialized: false,
+          lastError: null,
+          monitoringActive: false,
+          priorityOverridden: false,
+          status: null,
+        ),
+      );
+
   return SyncDashboardData(
     guardianHealth: guardianHealthSnapshot,
     orchestratorHealth: orchestratorHealth,
@@ -50,7 +51,7 @@ class SyncDashboardData {
   final SyncMetricsData? orchestratorMetrics;
   final QueueStats queueStats;
   final SyncHealthMetrics healthMetrics;
-  
+
   const SyncDashboardData({
     required this.guardianHealth,
     required this.orchestratorHealth,
