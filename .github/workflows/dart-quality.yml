@@ -1,0 +1,62 @@
+name: Dart Analyze, Fix & Format
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  analyze-fix-format:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Setup Dart
+      uses: dart-lang/setup-dart@v1
+      with:
+        sdk: stable
+        
+    - name: Get dependencies
+      run: dart pub get
+      
+    - name: Run dart analyze --fatal-infos
+      run: dart analyze . --fatal-infos
+      
+    - name: Run dart fix --dry-run (preview)
+      run: dart fix --dry-run
+      
+    - name: Run dart fix --apply
+      run: dart fix --apply
+      
+    - name: Run dart format (check)
+      run: dart format . --set-exit-if-changed
+      
+    - name: Run dart format (fix)
+      run: dart format .
+      
+    - name: Verify no changes after fix/format
+      run: |
+        if git diff --exit-code; then
+          echo "✅ No changes needed - clean code!"
+        else
+          echo "❌ Changes detected - commit them manually"
+          exit 1
+        fi
+      
+    - name: Commit fixes (if changes made)
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add .
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "chore: auto-fix lint errors, format code [skip ci]"
+          git push
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
