@@ -593,6 +593,11 @@ class AppDatabase extends _$AppDatabase {
           if (from < 17) {
             await m.addColumn(outbox, outbox.idempotencyKey);
           }
+          if (from < 18) {
+            await m.addColumn(outbox, outbox.processingStatus);
+            await m.addColumn(outbox, outbox.processingStartedAt);
+            await m.addColumn(outbox, outbox.processingWorker);
+          }
         },
       );
 

@@ -43,12 +43,20 @@ class QueueStats {
   final int totalItems;
   final int pendingItems;
   final int processingItems;
+  final int retriableItems;
+  final int failedItems;
+  final DateTime? oldestItem;
+  final DateTime? lastProcessed;
   final DateTime? lastProcessedAt;
 
   const QueueStats({
     required this.totalItems,
     required this.pendingItems,
     required this.processingItems,
+    this.retriableItems = 0,
+    this.failedItems = 0,
+    this.oldestItem,
+    this.lastProcessed,
     this.lastProcessedAt,
   });
 }
