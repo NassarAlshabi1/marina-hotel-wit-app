@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../data/sync_models.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
+import 'safe_database_operations.dart';
 
 class DeltaSyncChange {
   DeltaSyncChange({
@@ -60,24 +61,63 @@ class DeltaSyncService {
   bool _mirrorTableReady = false;
 
   Future<DeltaSyncComputation> compute({int? since}) async {
-    final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
-    final baseSince = since ?? state?.lastPushTs ?? 0;
-    final normalizedSince = _normalizeTimestamp(baseSince);
-    final previousMirror = await _loadMirror();
-    final configs = _entityConfigs();
-    final nowTs = _normalizeTimestamp(Time.nowEpoch());
-    final changes = <DeltaSyncChange>[];
-    final snapshot = <String, Map<String, MirrorRow>>{};
-    final fallbackTables = <String>{};
+    return await SafeDatabaseOperations.execute(
+      operation: (db) async {
+        final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
+        final baseSince = since ?? state?.lastPushTs ?? 0;
+        final normalizedSince = _normalizeTimestamp(baseSince);
+        final previousMirror = await _loadMirrorSafe();
+        final configs = _entityConfigs();
+        final nowTs = _normalizeTimestamp(Time.nowEpoch());
+        final changes = <DeltaSyncChange>[];
+        final snapshot = <String, Map<String, MirrorRow>>{};
+        final fallbackTables = <String>{};
 
-    for (final config in configs) {
-      final rows = await config.fetchAll();
-      final existingMirror = previousMirror[config.entity] ?? {};
-      final hasMirror = previousMirror.containsKey(config.entity);
-      if (!hasMirror) {
-        fallbackTables.add(config.entity);
-        debugPrint('⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط');
-      }
+        for (final config in configs) {
+          try {
+            final rows = await config.fetchAll();
+            final typedRows = rows.cast<Map<String, dynamic>>();
+            final existingMirror = previousMirror[config.entity] ?? {};
+            final hasMirror = previousMirror.containsKey(config.entity);
+            if (!hasMirror) {
+              fallbackTables.add(config.entity);
+              debugPrint('⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط');
+            }
+            
+            await _processConfigRows(config, typedRows, existingMirror, normalizedSince, nowTs, changes, snapshot, fallbackTables);
+          } catch (e) {
+            debugPrint('⚠️ خطأ في معالجة ${config.entity}: $e');
+            fallbackTables.add(config.entity);
+          }
+        }
+
+        return DeltaSyncComputation(
+          changes: changes,
+          mirrorSnapshot: snapshot,
+          fallbackTables: fallbackTables,
+        );
+      },
+      operationName: 'delta_sync_compute',
+      throwOnError: false,
+      fallbackValue: DeltaSyncComputation(
+        changes: [],
+        mirrorSnapshot: {},
+        fallbackTables: {},
+      ),
+    );
+  }
+
+  Future<void> _processConfigRows(
+    _EntityConfig config,
+    List<Map<String, dynamic>> rows,
+    Map<String, MirrorRow> existingMirror,
+    int normalizedSince,
+    int nowTs,
+    List<DeltaSyncChange> changes,
+    Map<String, Map<String, MirrorRow>> snapshot,
+    Set<String> fallbackTables,
+  ) async {
+      final hasMirror = !fallbackTables.contains(config.entity);
       final tableSnapshot = <String, MirrorRow>{};
       final seen = <String>{};
 
@@ -170,31 +210,25 @@ class DeltaSyncService {
       }
 
       snapshot[config.entity] = tableSnapshot;
-    }
-
-    final computation = DeltaSyncComputation(
-      changes: changes,
-      mirrorSnapshot: snapshot,
-      fallbackTables: fallbackTables,
-    );
-
-    if (computation.changes.isEmpty && computation.mirrorSnapshot.isNotEmpty) {
-      await persistMirror(computation);
-    }
-
-    return computation;
   }
 
   Future<void> persistMirror(DeltaSyncComputation computation, {bool useExistingTransaction = false}) async {
     final snapshot = computation.mirrorSnapshot;
-    await _ensureMirrorTable();
-    if (useExistingTransaction) {
-      await _persistMirrorSnapshot(snapshot);
-    } else {
-      await db.transaction(() async {
-        await _persistMirrorSnapshot(snapshot);
-      });
-    }
+    
+    await SafeDatabaseOperations.execute(
+      operation: (db) async {
+        await _ensureMirrorTable();
+        if (useExistingTransaction) {
+          await _persistMirrorSnapshot(snapshot);
+        } else {
+          await db.transaction(() async {
+            await _persistMirrorSnapshot(snapshot);
+          });
+        }
+      },
+      operationName: 'persist_mirror',
+      throwOnError: true,
+    );
   }
 
   Future<void> _persistMirrorSnapshot(Map<String, Map<String, MirrorRow>> snapshot) async {
@@ -237,6 +271,15 @@ class DeltaSyncService {
           [uuid] = MirrorRow(localUuid: uuid, rowHash: row.read<String>('row_hash'), payload: payload, lastSeenAt: row.read<int>('last_seen_at'));
     }
     return result;
+  }
+
+  Future<Map<String, Map<String, MirrorRow>>> _loadMirrorSafe() async {
+    try {
+      return await _loadMirror();
+    } catch (e) {
+      debugPrint('⚠️ خطأ في تحميل المرآة: $e - استخدام مرآة فارغة');
+      return {};
+    }
   }
 
   /// التحقق من صحة Mirror ومقارنته مع قاعدة البيانات الفعلية

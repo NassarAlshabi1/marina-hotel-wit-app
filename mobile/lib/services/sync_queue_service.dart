@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'connectivity_service.dart';
 import 'google_drive_auto_sync_engine.dart';
 import 'smart_sync_manager.dart';
-import 'sync_locks.dart';
+import 'sync_core/unified_lock_manager.dart';
 
 class RetryConfig {
   final Duration initialDelay;
@@ -250,13 +250,26 @@ class SyncQueueService {
   }
 
   Future<void> processQueue() async {
-    final canStart = await SyncLocks.queueLock.synchronized(() async {
-      if (_isProcessing) return false;
-      _isProcessing = true;
-      return true;
-    });
-
-    if (!canStart) return;
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.queueProcessing,
+      holder: 'SyncQueueService.processQueue',
+      priority: LockPriority.normal,
+    );
+    
+    if (!lockResult.acquired) {
+      debugPrint('❌ [SyncQueue] فشل الحصول على القفل: ${lockResult.failureReason}');
+      return;
+    }
+    
+    if (_isProcessing) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.queueProcessing,
+        holder: 'SyncQueueService.processQueue',
+      );
+      return;
+    }
+    
+    _isProcessing = true;
 
     try {
       if (!ConnectivityService.instance.isOnline) {
@@ -303,9 +316,12 @@ class SyncQueueService {
         await _handleFailure(retriableItems, e.toString());
       }
     } finally {
-      await SyncLocks.queueLock.synchronized(() async {
-        _isProcessing = false;
-      });
+      _isProcessing = false;
+      // إصلاح: await على release لضمان إطلاق القفل قبل إرسال التحديثات
+      await UnifiedLockManager.instance.release(
+        category: LockCategory.queueProcessing,
+        holder: 'SyncQueueService.processQueue',
+      );
       _emitQueueCount();
       _emitStats();
     }

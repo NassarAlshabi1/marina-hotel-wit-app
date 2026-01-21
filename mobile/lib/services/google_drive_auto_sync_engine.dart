@@ -12,11 +12,10 @@ import 'google_drive_conflict_resolver.dart';
 import 'google_drive_delta_sync.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
-import 'sync_locks.dart';
+import 'sync_core/unified_lock_manager.dart';
 import 'sync_constants.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
-import 'sync_locks.dart';
 
 class RetryConfig {
   final int maxRetries;
@@ -187,13 +186,31 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> start() async {
-    final canStart = await SyncLocks.autoEngineLock.synchronized(() async {
-      if (!_isInitialized) return _StartResult.notInitialized;
-      if (_isRunning) return _StartResult.alreadyRunning;
-      
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'GoogleDriveAutoSyncEngine.start',
+      priority: LockPriority.high,
+    );
+    
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
+      return;
+    }
+    
+    _StartResult canStart;
+    if (!_isInitialized) {
+      canStart = _StartResult.notInitialized;
+    } else if (_isRunning) {
+      canStart = _StartResult.alreadyRunning;
+    } else {
       _isRunning = true;
-      return _StartResult.ok;
-    });
+      canStart = _StartResult.ok;
+    }
+    
+    UnifiedLockManager.instance.release(
+      category: LockCategory.mainSync,
+      holder: 'GoogleDriveAutoSyncEngine.start',
+    );
     
     if (canStart == _StartResult.notInitialized) {
       _log('❌ Cannot start - engine not initialized');
@@ -224,7 +241,18 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> stop() async {
-    await SyncLocks.autoEngineLock.synchronized(() async {
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'GoogleDriveAutoSyncEngine.stop',
+      priority: LockPriority.critical,
+    );
+    
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
+      return;
+    }
+    
+    try {
       if (!_isRunning) return;
       
       _log('🛑 Stopping Auto Sync Engine...');
@@ -247,7 +275,12 @@ class AutoSyncEngine with WidgetsBindingObserver {
       
       _emitState();
       _log('✅ Auto Sync Engine stopped');
-    });
+    } finally {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'GoogleDriveAutoSyncEngine.stop',
+      );
+    }
   }
 
   void _setupConnectivityListener() {
@@ -341,8 +374,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> _performHealthCheck() async {
-    final shouldRun = await SyncLocks.autoEngineLock.synchronized(() => _isRunning);
-    if (!shouldRun) return;
+    if (!_isRunning) return;
     
     _log('❤️ Performing health check...');
     
@@ -492,23 +524,28 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('💤 App inactive');
   }
 
-  void notifyDataChange({
+  Future<void> notifyDataChange({
     required String table,
     required String operation,
     int count = 1,
     Map<String, dynamic>? recordData,
-  }) {
+  }) async {
     if (!_isRunning) return;
     
-    SyncLocks.autoEngineLock.synchronized(() {
-      _pendingChangesCount += count;
-    });
+    await UnifiedLockManager.instance.runWithLock(
+      category: LockCategory.mainSync,
+      holder: 'AutoSyncEngine.notifyDataChange',
+      priority: LockPriority.low,
+      operation: () async {
+        _pendingChangesCount += count;
+      },
+    );
     
     _emitState();
     
     _log('💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)');
     
-    _coordinator!.notifyLocalChange(
+    await _coordinator!.notifyLocalChange(
       table: table,
       operation: operation,
       count: count,
@@ -709,6 +746,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _retryTimer?.cancel();
     _emitState();
     _log('🔄 Failed attempts reset');
+  }
+
+  /// إعادة تشغيل Auto Sync Engine
+  Future<void> restart() async {
+    _log('🔄 إعادة تشغيل Auto Sync Engine...');
+    await stop();
+    await start();
+    _log('✅ Auto Sync Engine أعيد تشغيله');
   }
 
   void dispose() {

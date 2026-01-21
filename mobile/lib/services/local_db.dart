@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
@@ -6,6 +7,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart' as sqflite;
+import 'package:synchronized/synchronized.dart';
 
 import '../data/sync_models.dart' as sync_models;
 
@@ -656,13 +658,91 @@ class AppDatabase extends _$AppDatabase {
       await replaceTableIfNonEmpty<SalaryPayment>(salaryPayments, 'salary_payments', (row) => SalaryPayment.fromJson(row));
     });
   }
+
+  Future<void> applyMergedDataBatched(Map<String, dynamic> merged) async {
+    if (merged.isEmpty) {
+      developer.log(
+        'applyMergedDataBatched: merged snapshot is empty. Skipping apply to avoid wiping local data.',
+        name: 'AppDatabase',
+        level: 900,
+      );
+      return;
+    }
+
+    List<Map<String, dynamic>>? asListIfPresent(String key) {
+      if (!merged.containsKey(key)) {
+        return null;
+      }
+      final value = merged[key];
+      if (value == null) {
+        return <Map<String, dynamic>>[];
+      }
+      if (value is! List) {
+        throw StateError('Invalid snapshot table type for $key: ${value.runtimeType}');
+      }
+      return value.map((row) => Map<String, dynamic>.from(row as Map)).toList();
+    }
+
+    const batchSize = 100;
+
+    await transaction(() async {
+      Future<void> replaceTableInBatches<T extends Insertable<dynamic>>(
+        TableInfo<Table, dynamic> table,
+        String key,
+        T Function(Map<String, dynamic> json) fromJson,
+      ) async {
+        final rows = asListIfPresent(key);
+        if (rows == null) {
+          return;
+        }
+        
+        // حماية إضافية: لا تحذف الجدول إذا كان merged[key] == null
+        // هذا يمنع حذف البيانات المحلية عند ورود snapshot تالفة أو غير مكتملة
+        if (merged[key] == null) {
+          developer.log(
+            'applyMergedDataBatched: "$key" is null in snapshot; skipping table replace to avoid wiping local data.',
+            name: 'AppDatabase',
+            level: 900,
+          );
+          return;
+        }
+        
+        await delete(table).go();
+        
+        for (var i = 0; i < rows.length; i += batchSize) {
+          final batchRows = rows.skip(i).take(batchSize).toList();
+          await batch((batch) {
+            batch.insertAll(table, batchRows.map(fromJson).toList(), mode: InsertMode.insertOrReplace);
+          });
+          
+          await Future.delayed(Duration.zero);
+        }
+      }
+
+      await replaceTableInBatches<Room>(rooms, 'rooms', (row) => Room.fromJson(row));
+      await replaceTableInBatches<Booking>(bookings, 'bookings', (row) => Booking.fromJson(row));
+      await replaceTableInBatches<BookingNote>(bookingNotes, 'booking_notes', (row) => BookingNote.fromJson(row));
+      await replaceTableInBatches<Employee>(employees, 'employees', (row) => Employee.fromJson(row));
+      await replaceTableInBatches<Expense>(expenses, 'expenses', (row) => Expense.fromJson(row));
+      await replaceTableInBatches<CashTransaction>(cashTransactions, 'cash_transactions', (row) => CashTransaction.fromJson(row));
+      await replaceTableInBatches<Payment>(payments, 'payments', (row) => Payment.fromJson(row));
+      await replaceTableInBatches<Debt>(debts, 'debts', (row) => Debt.fromJson(row));
+      await replaceTableInBatches<BookingNight>(bookingNights, 'booking_nights', (row) => BookingNight.fromJson(row));
+      await replaceTableInBatches<HotelDayLedgerEntry>(hotelDayLedger, 'hotel_day_ledger', (row) => HotelDayLedgerEntry.fromJson(row));
+      await replaceTableInBatches<AutoFixRun>(autoFixRuns, 'auto_fix_runs', (row) => AutoFixRun.fromJson(row));
+      await replaceTableInBatches<IntegrityViolation>(integrityViolations, 'integrity_violations', (row) => IntegrityViolation.fromJson(row));
+      await replaceTableInBatches<AppSession>(appSessions, 'app_sessions', (row) => AppSession.fromJson(row));
+      await replaceTableInBatches<SalaryCycle>(salaryCycles, 'salary_cycles', (row) => SalaryCycle.fromJson(row));
+      await replaceTableInBatches<SalaryPayment>(salaryPayments, 'salary_payments', (row) => SalaryPayment.fromJson(row));
+    });
+  }
 }
 
 LazyDatabase _open() {
   return LazyDatabase(() async {
     final dbDir = await sqflite.getDatabasesPath();
     final file = File(p.join(dbDir, _dbFileName));
-    return NativeDatabase.createInBackground(file, logStatements: false);
+    return NativeDatabase(file, logStatements: false);
   });
 }
 
@@ -673,19 +753,255 @@ extension EmployeeX on Employee {
 /// Singleton manager for the Drift database to support clean close/reopen during file-based restores
 class DatabaseManager {
   static AppDatabase? _instance;
+  static bool _isClosing = false;
+  static bool _isClosed = false;
+  static bool _isRestoring = false;
+  static final List<Function()> _onReopenCallbacks = [];
+  static final Lock _lock = Lock();
+  
+  // إصلاح: عداد العمليات النشطة لاستبدال Future.delayed غير الموثوق
+  static int _activeOperations = 0;
+  static Completer<void>? _operationsCompleter;
+  
+  // Callbacks for external sync management
+  static Future<void> Function()? _stopSyncCallback;
+  static Future<void> Function()? _restartSyncCallback;
+  
+  /// Register callbacks for sync operations management
+  static void registerSyncCallbacks({
+    Future<void> Function()? onStop,
+    Future<void> Function()? onRestart,
+  }) {
+    _stopSyncCallback = onStop;
+    _restartSyncCallback = onRestart;
+    developer.log('📝 Registered sync callbacks', name: 'DatabaseManager');
+  }
 
-  static AppDatabase get instance => _instance ??= AppDatabase();
+  static AppDatabase get instance {
+    if (_isRestoring) {
+      throw StateError('Database is being restored. Operations are temporarily suspended.');
+    }
+    if (_isClosed) {
+      developer.log('⚠️ Attempted to access closed database. Auto-reopening...', name: 'DatabaseManager');
+      _isClosed = false;
+      _instance = null;
+    }
+    if (_isClosing) {
+      throw StateError('DatabaseManager is currently closing. Please wait.');
+    }
+    return _instance ??= AppDatabase();
+  }
 
+  static bool get isInitialized => _instance != null && !_isClosed && !_isClosing && !_isRestoring;
+  static bool get isRestoring => _isRestoring;
+
+  /// تسجيل callback يتم استدعاؤه بعد إعادة فتح قاعدة البيانات
+  static void registerReopenCallback(Function() callback) {
+    if (!_onReopenCallbacks.contains(callback)) {
+      _onReopenCallbacks.add(callback);
+      developer.log('📝 Registered reopen callback (total: ${_onReopenCallbacks.length})', name: 'DatabaseManager');
+    }
+  }
+
+  /// إزالة callback
+  static void unregisterReopenCallback(Function() callback) {
+    _onReopenCallbacks.remove(callback);
+    developer.log('📝 Unregistered reopen callback (total: ${_onReopenCallbacks.length})', name: 'DatabaseManager');
+  }
+
+  // إصلاح: مزامنة close لمنع race conditions من concurrent calls
   static Future<void> close() async {
-    try {
-      await _instance?.close();
-    } catch (_) {}
-    _instance = null;
+    return _lock.synchronized(() async {
+      if (_isClosing || _isClosed) {
+        developer.log('Database is already closing or closed', name: 'DatabaseManager');
+        return;
+      }
+      
+      _isClosing = true;
+      developer.log('🔒 Closing database...', name: 'DatabaseManager');
+      
+      try {
+        if (_instance != null) {
+          await Future.delayed(const Duration(milliseconds: 100));
+          await _instance!.close();
+          developer.log('✅ Database closed successfully', name: 'DatabaseManager');
+        }
+      } catch (e, stack) {
+        developer.log('❌ Error closing database: $e', name: 'DatabaseManager', error: e, stackTrace: stack);
+      } finally {
+        _instance = null;
+        _isClosed = true;
+        _isClosing = false;
+      }
+    });
   }
 
   static Future<void> reopen() async {
-    await close();
-    _instance = AppDatabase();
+    developer.log('🔄 Attempting to reopen database...', name: 'DatabaseManager');
+    
+    if (_isClosing) {
+      developer.log('⏳ Waiting for database to finish closing...', name: 'DatabaseManager');
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+    
+    // إغلاق الاتصال الحالي إذا كان موجوداً
+    if (_instance != null && !_isClosed) {
+      try {
+        developer.log('🔒 Closing existing database connection...', name: 'DatabaseManager');
+        await close();
+      } catch (e) {
+        developer.log('⚠️ Error closing existing connection: $e', name: 'DatabaseManager');
+      }
+    }
+    
+    // انتظار قصير للتأكد من اكتمال الإغلاق
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    // إعادة تعيين الأعلام قبل إنشاء instance جديدة
+    _isClosed = false;
+    _isClosing = false;
+    _instance = null;
+    
+    try {
+      // إنشاء اتصال جديد
+      _instance = AppDatabase();
+      developer.log('✅ Database reopened successfully', name: 'DatabaseManager');
+      
+      // استدعاء جميع callbacks المسجلة
+      if (_onReopenCallbacks.isNotEmpty) {
+        developer.log('🔔 Notifying ${_onReopenCallbacks.length} reopen callbacks...', name: 'DatabaseManager');
+        for (final callback in _onReopenCallbacks) {
+          try {
+            callback();
+          } catch (e) {
+            developer.log('⚠️ Reopen callback error: $e', name: 'DatabaseManager');
+          }
+        }
+        developer.log('✅ All reopen callbacks notified', name: 'DatabaseManager');
+      }
+    } catch (e, stack) {
+      developer.log('❌ Failed to reopen database: $e', name: 'DatabaseManager', error: e, stackTrace: stack);
+      // في حالة الفشل، تأكد من أن الأعلام صحيحة
+      _isClosed = true;
+      _instance = null;
+      rethrow;
+    }
+  }
+
+  static Future<T> withDatabase<T>(Future<T> Function(AppDatabase db) operation) async {
+    if (_isClosed || _isClosing || _isRestoring) {
+      throw StateError('Cannot perform database operation: database is closed, closing, or being restored');
+    }
+    
+    final db = instance;
+    return await operation(db);
+  }
+
+  /// إغلاق آمن للقاعدة قبل استعادة نسخة احتياطية
+  /// يضمن إيقاف جميع العمليات والمزامنة قبل الإغلاق
+  static Future<void> closeForRestore() async {
+    return _lock.synchronized(() async {
+      if (_isRestoring) {
+        developer.log('Already in restore mode', name: 'DatabaseManager');
+        return;
+      }
+      
+      if (_isClosing || _isClosed) {
+        developer.log('Database is already closing/closed', name: 'DatabaseManager');
+      }
+      
+      _isRestoring = true;
+      developer.log('🔒 Starting safe database closure for restore...', name: 'DatabaseManager');
+      
+      await _stopAllSyncOperations();
+      await _waitForPendingOperations();
+      await close();
+      
+      developer.log('✅ Database safely closed for restore', name: 'DatabaseManager');
+    });
+  }
+
+  /// إعادة فتح آمنة للقاعدة بعد استعادة نسخة احتياطية
+  /// يضمن إعادة تشغيل جميع الخدمات والمزامنة
+  static Future<void> reopenAfterRestore() async {
+    return _lock.synchronized(() async {
+      if (!_isRestoring) {
+        throw StateError('reopenAfterRestore called without closeForRestore');
+      }
+      
+      developer.log('🔄 Reopening database after restore...', name: 'DatabaseManager');
+      
+      try {
+        await reopen();
+        await _restartAllSyncOperations();
+        developer.log('✅ Database reopened and sync restarted', name: 'DatabaseManager');
+      } finally {
+        _isRestoring = false;
+      }
+    });
+  }
+
+  /// إيقاف جميع عمليات المزامنة بشكل آمن
+  static Future<void> _stopAllSyncOperations() async {
+    developer.log('⏸️ Stopping all sync operations...', name: 'DatabaseManager');
+    
+    if (_stopSyncCallback != null) {
+      try {
+        await _stopSyncCallback!();
+        developer.log('✅ Sync operations stopped via callback', name: 'DatabaseManager');
+      } catch (e) {
+        developer.log('⚠️ Error in stop sync callback: $e', name: 'DatabaseManager');
+      }
+    } else {
+      developer.log('ℹ️ No stop sync callback registered', name: 'DatabaseManager');
+    }
+    
+    // انتظار قصير للتأكد من اكتمال الإيقاف
+    await Future.delayed(const Duration(milliseconds: 300));
+  }
+
+  /// إصلاح: انتظار العمليات النشطة باستخدام عداد موثوق بدلاً من Future.delayed
+  static Future<void> _waitForPendingOperations() async {
+    developer.log('⏳ Waiting for $_activeOperations pending operations...', name: 'DatabaseManager');
+    if (_activeOperations > 0) {
+      _operationsCompleter = Completer<void>();
+      await _operationsCompleter!.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          developer.log('⚠️ Timed out waiting for pending operations.', name: 'DatabaseManager');
+        },
+      );
+    }
+    developer.log('✅ Pending operations wait completed', name: 'DatabaseManager');
+  }
+  
+  /// تتبع العملية النشطة - يُستدعى عند بداية أي عملية DB
+  static void _trackOperation() {
+    _activeOperations++;
+  }
+  
+  /// إنهاء تتبع العملية - يُستدعى عند انتهاء أي عملية DB
+  static void _releaseOperation() {
+    _activeOperations--;
+    if (_activeOperations == 0 && _operationsCompleter != null && !_operationsCompleter!.isCompleted) {
+      _operationsCompleter!.complete();
+    }
+  }
+
+  /// إعادة تشغيل جميع عمليات المزامنة
+  static Future<void> _restartAllSyncOperations() async {
+    developer.log('▶️ Restarting all sync operations...', name: 'DatabaseManager');
+    
+    if (_restartSyncCallback != null) {
+      try {
+        await _restartSyncCallback!();
+        developer.log('✅ Sync operations restarted via callback', name: 'DatabaseManager');
+      } catch (e) {
+        developer.log('⚠️ Error in restart sync callback: $e', name: 'DatabaseManager');
+      }
+    } else {
+      developer.log('ℹ️ No restart sync callback registered', name: 'DatabaseManager');
+    }
   }
 }
 

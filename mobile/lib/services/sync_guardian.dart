@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:synchronized/synchronized.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart';
 import '../tasks/auto_sync_task.dart';
 import 'google_drive_sync_service.dart';
+import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
 import 'sync_manager.dart';
@@ -63,6 +65,7 @@ class SyncGuardian {
   bool _priorityOverridden = false;
   bool _drainingPending = false;
   bool _pendingEvents = false;
+  final Lock _drainLock = Lock();
 
   int _failedAttempts = 0;
   DateTime? _lastSyncAt;
@@ -158,6 +161,12 @@ class SyncGuardian {
       return;
     }
     
+    // Defensive check: Never sync during database restore
+    if (DatabaseManager.isRestoring) {
+      _log('⏸️ Foreground sync blocked: database is being restored');
+      return;
+    }
+    
     _log('📱 التطبيق في المقدمة');
     
     // Pull ذكي: فقط إذا مضى أكثر من 2 دقيقة (بدلاً من 5)
@@ -176,8 +185,11 @@ class SyncGuardian {
     Future.delayed(SyncConstants.appForegroundDelay, () async {
       // سحب التغييرات من Google Drive في الخلفية
       try {
-        final hasNewChanges = await SmartSyncManager.instance.pullRemoteChanges();
-        if (hasNewChanges) {
+        final result = await GoogleDriveUnifiedSyncCoordinator.instance.performSync(
+             trigger: SyncTrigger.appForeground,
+             mode: SyncMode.smart
+        );
+        if (result.success && (result.pulledChanges ?? 0) > 0) {
           _log('✅ تم سحب تغييرات جديدة من Google Drive');
         }
       } catch (e) {
@@ -251,24 +263,48 @@ class SyncGuardian {
   }
 
   Future<void> _consumePending({required bool force}) async {
-    if (!_initialized || _manager == null || _drainingPending) {
+    if (!_initialized || _manager == null) {
       return;
     }
-    _drainingPending = true;
-    try {
-      await AutoSyncTask.consumePendingAndSync(_manager!, force: force);
-      _failedAttempts = 0;
-      _lastSyncAt = DateTime.now().toUtc();
-      _lastError = null;
-      await _refreshPendingFlag();
-    } catch (error) {
-      _failedAttempts += 1;
-      _lastError = error.toString();
-      await _refreshPendingFlag();
-    } finally {
-      _emitHealth();
-      _drainingPending = false;
+    
+    // Defensive check: Never sync during database restore
+    if (DatabaseManager.isRestoring) {
+      _log('⏸️ Sync blocked: database is being restored');
+      return;
     }
+    
+    await _drainLock.synchronized(() async {
+      if (_drainingPending) {
+        debugPrint('[SyncGuardian] ⏸️ _consumePending already in progress - skipping');
+        return;
+      }
+      _drainingPending = true;
+      try {
+        await AutoSyncTask.consumePendingAndSync(_manager!, force: force)
+            .timeout(
+          const Duration(minutes: 5),
+          onTimeout: () {
+            debugPrint('[SyncGuardian] ⚠️ _consumePending timeout after 5 minutes');
+            throw TimeoutException('_consumePending timeout', const Duration(minutes: 5));
+          },
+        );
+        _failedAttempts = 0;
+        _lastSyncAt = DateTime.now().toUtc();
+        _lastError = null;
+        await _refreshPendingFlag();
+      } on TimeoutException catch (e) {
+        _failedAttempts += 1;
+        _lastError = 'Timeout: ${e.message}';
+        await _refreshPendingFlag();
+      } catch (error) {
+        _failedAttempts += 1;
+        _lastError = error.toString();
+        await _refreshPendingFlag();
+      } finally {
+        _emitHealth();
+        _drainingPending = false;
+      }
+    });
   }
 
   Future<void> _refreshPendingFlag() async {
@@ -291,13 +327,48 @@ class SyncGuardian {
     );
   }
 
-  Future<void> dispose() async {
-    await _statusSubscription?.cancel();
-    _statusSubscription = null;
-    _pendingMonitor?.cancel();
-    _pendingMonitor = null;
+  /// إيقاف جميع عمليات المزامنة بشكل آمن
+  Future<void> stop() async {
+    if (!_initialized) {
+      _log('⏹️ Already stopped');
+      return;
+    }
+    
+    _log('⏹️ إيقاف Sync Guardian...');
+    
+    // إلغاء جميع المراقبات والمؤقتات
     _debounceTimer?.cancel();
     _debounceTimer = null;
+    _pendingMonitor?.cancel();
+    _pendingMonitor = null;
+    
+    // إيقاف المزامنة التلقائية في manager
+    _manager?.stopOutboxDebouncedSync();
+    
+    _log('✅ Sync Guardian متوقف');
+  }
+
+  /// إعادة تشغيل Sync Guardian
+  Future<void> restart({AppDatabase? database}) async {
+    _log('🔄 إعادة تشغيل Sync Guardian...');
+    
+    await stop();
+    
+    if (database != null) {
+      await initialize(
+        database: database,
+        driveService: _driveService,
+        appwriteSyncManager: _appwriteSyncManager,
+      );
+    }
+    
+    _log('✅ Sync Guardian أعيد تشغيله');
+  }
+
+  Future<void> dispose() async {
+    await stop();
+    await _statusSubscription?.cancel();
+    _statusSubscription = null;
     await _healthController.close();
     _initialized = false;
     _manager = null;

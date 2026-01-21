@@ -34,6 +34,8 @@ import 'services/google_drive_sync_service.dart';
 import 'services/local_db.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/sync_guardian.dart';
+import 'services/safe_database_operations.dart';
+import 'services/database_sync_coordinator.dart';
 import 'utils/auto_sync_preferences.dart';
 
 // AutoSync Engine imports
@@ -78,19 +80,24 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     final backupService = GoogleDriveBackupService();
     
     try {
+      // محاولة استعادة الجلسة بشكل صامت
       final account = await backupService.attemptSilentSignIn();
       if (account != null) {
-        debugPrint('✅ Silent sign-in successful: ${account.email}');
+        debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
       } else {
-        debugPrint('ℹ️ No saved session - user must sign in manually');
+        debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
       }
     } catch (e) {
-      debugPrint('⚠️ Silent sign-in failed: $e');
+      debugPrint('⚠️ فشلت استعادة الجلسة: $e');
     }
     
     debugPrint('🔧 Initializing Database...');
     final database = DatabaseManager.instance;
     debugPrint('✅ Database ready');
+    
+    debugPrint('🏥 Starting Database Health Monitoring...');
+    SafeDatabaseOperations.startHealthMonitoring();
+    debugPrint('✅ Health monitoring active');
     
     debugPrint('🎯 Initializing Unified Sync Coordinator...');
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
@@ -147,6 +154,27 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     _setupEngineMonitoring(autoSyncEngine);
     
     debugPrint('✅ Auto Sync Engine started');
+    
+    debugPrint('🔗 Registering Database Sync Callbacks...');
+    DatabaseSyncCoordinator.initialize();
+    
+    // Register stop callbacks
+    DatabaseSyncCoordinator.registerStopCallback(() async {
+      await autoSyncEngine.stop();
+    });
+    DatabaseSyncCoordinator.registerStopCallback(() async {
+      await guardian.stop();
+    });
+    
+    // Register restart callbacks
+    DatabaseSyncCoordinator.registerRestartCallback(() async {
+      await autoSyncEngine.restart();
+    });
+    DatabaseSyncCoordinator.registerRestartCallback(() async {
+      await guardian.restart();
+    });
+    
+    debugPrint('✅ Sync callbacks registered');
     
     debugPrint('═══════════════════════════════════════════════════════');
     debugPrint('✅ Fully Automated Sync System Ready!');
@@ -328,13 +356,17 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       return;
     }
     if (state == AppLifecycleState.resumed) {
-      unawaited(AppSessionManager.onAppOpen());
-      unawaited(GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground());
-      unawaited(SyncGuardian.instance.onAppForeground());
+      debugPrint('📱 التطبيق عاد للواجهة...');
+      AppSessionManager.onAppOpen().catchError((e, s) => debugPrint('Error in onAppOpen: $e\n$s'));
+      GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground().catchError((e, s) => debugPrint('Error in GDrive onAppForeground: $e\n$s'));
+      SyncGuardian.instance.onAppForeground().catchError((e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'));
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
-      unawaited(AppSessionManager.onAppCloseOrBackground());
+      debugPrint('📱 التطبيق في الخلفية...');
+      // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
+      Future.microtask(() => AppSessionManager.onAppCloseOrBackground())
+          .catchError((e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'));
     }
   }
 

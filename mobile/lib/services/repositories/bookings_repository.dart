@@ -3,7 +3,6 @@ import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
-import '../daos/rooms_dao.dart';
 import '../auto_backup_manager.dart';
 
 class BookingsRepository {

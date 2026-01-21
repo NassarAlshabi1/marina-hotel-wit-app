@@ -608,7 +608,7 @@ class SyncService {
     final int lastModified = _normalizeTimestampField(data['last_modified'], fallback: updatedAt);
     final int createdEpoch = _normalizeTimestampField(data['created_at_epoch'], fallback: createdAt);
     final int lastModifiedEpoch = _normalizeTimestampField(data['last_modified_epoch'], fallback: lastModified);
-    final int? deletedAt = data.containsKey('deleted_at')
+    final int? deletedAt = data['deleted_at'] != null
         ? _normalizeTimestampField(data['deleted_at'], fallback: normalizedServerTs)
         : null;
     final String createdIso = _isoFromData(data['created_at_iso'], createdAt);

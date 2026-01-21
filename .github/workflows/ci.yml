@@ -1,6 +1,7 @@
 name: CI
 permissions:
   contents: read
+  pull-requests: write
 
 on:
   push:
@@ -9,27 +10,57 @@ on:
 jobs:
   lint-test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
     steps:
       - uses: actions/checkout@v4
+      
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          channel: 'stable'
+          cache: true
+      
       - name: Install dependencies
         run: flutter pub get
-        working-directory: mobile
+      
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
-        working-directory: mobile
-      - name: Analyze
+      
+      # تحليل أساسي
+      - name: Flutter Analyze
         run: flutter analyze --no-pub
-        working-directory: mobile
-      - name: Format check
+      
+      # DCM Analyze (يعمل بدون Action خارجي)
+      - name: Install DCM
+        run: dart pub global activate dcm
+      
+      - name: DCM Analyze
+        run: |
+          dcm analyze lib test \
+            --cyclomatic-complexity 10 \
+            --number-of-arguments 5 \
+            --maximum-nesting 4 \
+            --fatal-warnings
+        continue-on-error: false
+      
+      # فحص التنسيق
+      - name: DCM Format
+        run: |
+          dcm format lib test \
+            --line-length 100 \
+            --fatal-found
+        continue-on-error: false
+      
+      # Flutter Format (احتياطي)
+      - name: Dart Format
         run: dart format --set-exit-if-changed .
-        working-directory: mobile
-      - name: Run tests with coverage
+      
+      # اختبارات مع التغطية
+      - name: Run tests
         run: flutter test --coverage
-        working-directory: mobile
-      - name: Upload coverage artifact
+      
+      - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report

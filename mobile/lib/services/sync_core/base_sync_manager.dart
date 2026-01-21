@@ -10,7 +10,7 @@ import '../google_drive_delta_sync.dart';
 import '../sync_notification_manager.dart';
 import '../sync_performance_optimizer.dart';
 import '../data_usage_manager.dart';
-import '../sync_locks.dart';
+import 'unified_lock_manager.dart';
 
 import 'sync_scheduler.dart';
 import 'conflict_resolver.dart';
@@ -135,15 +135,26 @@ abstract class BaseSyncManager {
 
   /// تنفيذ مزامنة واحدة - المنطق الأساسي
   Future<void> _performSync() async {
-    final canStart = await SyncLocks.baseSyncLock.synchronized(() async {
-      if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
-        return false;
-      }
-      _isSyncing = true;
-      return true;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'BaseSyncManager._performSync',
+      priority: LockPriority.normal,
+    );
     
-    if (!canStart) return;
+    if (!lockResult.acquired) {
+      _log('❌ فشل الحصول على القفل: ${lockResult.failureReason}');
+      return;
+    }
+    
+    if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'BaseSyncManager._performSync',
+      );
+      return;
+    }
+    
+    _isSyncing = true;
     
     final optimizer = SyncPerformanceOptimizer.instance;
     
@@ -170,9 +181,12 @@ abstract class BaseSyncManager {
       debugPrintStack(stackTrace: stack);
       rethrow;
     } finally {
-      await SyncLocks.baseSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      // إصلاح: await على release لضمان إطلاق القفل بشكل صحيح
+      await UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'BaseSyncManager._performSync',
+      );
     }
   }
 

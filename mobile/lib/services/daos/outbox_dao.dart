@@ -120,16 +120,20 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         debugPrint('Error notifying SyncGuardian: $e\n$s');
       }
     });
-    try {
-      GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
-    } catch (e, s) {
-      debugPrint('Error notifying GoogleDriveUnifiedSyncCoordinator: $e\n$s');
-    }
-    try {
-      AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
-    } catch (e, s) {
-      debugPrint('Error notifying AutoSyncEngine: $e\n$s');
-    }
+    Future.microtask(() async {
+      try {
+        await GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(table: entity, operation: op);
+      } catch (e, s) {
+        debugPrint('Error notifying GoogleDriveUnifiedSyncCoordinator: $e\n$s');
+      }
+    });
+    Future.microtask(() async {
+      try {
+        await AutoSyncEngine.instance.notifyDataChange(table: entity, operation: op);
+      } catch (e, s) {
+        debugPrint('Error notifying AutoSyncEngine: $e\n$s');
+      }
+    });
   }
 
   Future<List<OutboxData>> takeBatch(int limit) {

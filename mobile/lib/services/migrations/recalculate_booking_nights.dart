@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 import '../local_db.dart';
 import '../booking_derived_fields_service.dart';
-import '../../utils/status_utils.dart';
 
 /// Migration لإعادة حساب عدد الليالي والحقول المشتقة لجميع الحجوزات
 /// بناءً على التواريخ الفعلية بدلاً من الاعتماد على القيم المحفوظة
