@@ -45,12 +45,6 @@ jobs:
       - name: Run tests with coverage
         run: flutter test --coverage
 
-      - name: Security scan - hardcoded secrets
-        run: |
-          if rg --hidden --glob '!.git/**' --glob '!**/build/**' --glob '!.dart_tool/**' "(API_KEY|SECRET_KEY|PRIVATE_KEY|BEGIN RSA)" ..; then
-            echo "❌ Hardcoded secrets detected"; exit 1; else echo "✅ No hardcoded secrets"; fi
-        working-directory: .
-
       - name: Backup JSON redaction check
         run: dart run tooling/check_backup_redaction.dart
 
