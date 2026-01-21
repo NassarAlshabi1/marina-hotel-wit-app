@@ -343,11 +343,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             ),
                             validator: _hasAdvancePayment
                                 ? (v) {
-                                    if (v == null || v.trim().isEmpty)
+                                    if (v == null || v.trim().isEmpty) {
                                       return 'مطلوب عند تحديد دفعة مقدمة';
+                                    }
                                     final amount = double.tryParse(v.trim());
-                                    if (amount == null || amount <= 0)
+                                    if (amount == null || amount <= 0) {
                                       return 'المبلغ يجب أن يكون أكبر من صفر';
+                                    }
                                     return null;
                                   }
                                 : null,

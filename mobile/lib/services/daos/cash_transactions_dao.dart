@@ -19,12 +19,14 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       bool includeDeleted = false}) async {
     final q = select(cashTransactions);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (type != null && type.isNotEmpty)
+    if (type != null && type.isNotEmpty) {
       q.where((t) => t.transactionType.equals(type));
-    if (from != null && to != null)
+    }
+    if (from != null && to != null) {
       q.where((t) =>
           t.transactionTime.isBiggerOrEqualValue(from) &
           t.transactionTime.isSmallerOrEqualValue(to));
+    }
     q.orderBy([
       (t) =>
           OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc)

@@ -145,10 +145,12 @@ final syncHealthProvider = Provider<String>((ref) {
       if (!state.isRunning) return '🔴 متوقف';
       if (!state.hasNetworkConnection) return '📴 بدون شبكة';
       if (!state.isSignedIn) return '🔓 غير مسجل';
-      if (state.failedAttempts > 0)
+      if (state.failedAttempts > 0) {
         return '⚠️ محاولات فاشلة: ${state.failedAttempts}';
-      if (state.pendingChangesCount > 0)
+      }
+      if (state.pendingChangesCount > 0) {
         return '⏳ معلق: ${state.pendingChangesCount}';
+      }
       return '🟢 جاهز';
     },
     loading: () => '⏳ جارٍ التحميل',

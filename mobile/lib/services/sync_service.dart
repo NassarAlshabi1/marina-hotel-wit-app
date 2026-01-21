@@ -416,17 +416,19 @@ class SyncService {
               await (db.select(db.bookings)
                     ..where((t) => t.serverBookingId.equals(sbid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await bookingsDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'booking_notes':
         final nid = data['note_id'] as int?;
         BookingNote? ln;
-        if (nid != null)
+        if (nid != null) {
           ln = await (db.select(db.bookingNotes)
                 ..where((t) => t.serverId.equals(nid)))
               .getSingleOrNull();
+        }
         if (ln != null) {
           if (serverTs >= ln.lastModified) {
             await notesDao.updateById(
@@ -461,17 +463,19 @@ class SyncService {
               await (db.select(db.bookingNotes)
                     ..where((t) => t.serverId.equals(nid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await notesDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'employees':
         final sid = data['id'] as int?;
         Employee? le;
-        if (sid != null)
+        if (sid != null) {
           le = await (db.select(db.employees)
                 ..where((t) => t.serverId.equals(sid)))
               .getSingleOrNull();
+        }
         if (le != null) {
           if (serverTs >= le.lastModified) {
             await employeesDao.updateById(
@@ -505,17 +509,19 @@ class SyncService {
               await (db.select(db.employees)
                     ..where((t) => t.serverId.equals(sid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await employeesDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'expenses':
         final xid = data['id'] as int?;
         Expense? lx;
-        if (xid != null)
+        if (xid != null) {
           lx = await (db.select(db.expenses)
                 ..where((t) => t.serverId.equals(xid)))
               .getSingleOrNull();
+        }
         if (lx != null) {
           if (serverTs >= lx.lastModified) {
             await expensesDao.updateById(
@@ -552,8 +558,9 @@ class SyncService {
               await (db.select(db.expenses)
                     ..where((t) => t.serverId.equals(xid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await expensesDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'cash_transactions':
@@ -605,8 +612,9 @@ class SyncService {
               await (db.select(db.cashTransactions)
                     ..where((t) => t.serverId.equals(cid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await cashDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'payments':
@@ -662,8 +670,9 @@ class SyncService {
               await (db.select(db.payments)
                     ..where((t) => t.serverPaymentId.equals(pid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await paymentsDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'booking_nights':
@@ -926,10 +935,12 @@ bool? _asBool(dynamic value) {
   if (value is num) return value != 0;
   if (value is String) {
     final normalized = value.toLowerCase();
-    if (normalized == 'true' || normalized == '1' || normalized == 'yes')
+    if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
       return true;
-    if (normalized == 'false' || normalized == '0' || normalized == 'no')
+    }
+    if (normalized == 'false' || normalized == '0' || normalized == 'no') {
       return false;
+    }
   }
   return null;
 }

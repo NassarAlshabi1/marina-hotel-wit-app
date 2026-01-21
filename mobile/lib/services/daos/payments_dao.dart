@@ -20,14 +20,17 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       bool includeDeleted = false}) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (bookingLocalId != null)
+    if (bookingLocalId != null) {
       q.where((t) => t.bookingLocalId.equals(bookingLocalId));
-    if (revenueType != null && revenueType.isNotEmpty)
+    }
+    if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));
-    if (from != null && to != null)
+    }
+    if (from != null && to != null) {
       q.where((t) =>
           t.paymentDate.isBiggerOrEqualValue(from) &
           t.paymentDate.isSmallerOrEqualValue(to));
+    }
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)
     ]);
@@ -38,8 +41,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       {int? bookingLocalId, bool includeDeleted = false}) {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (bookingLocalId != null)
+    if (bookingLocalId != null) {
       q.where((t) => t.bookingLocalId.equals(bookingLocalId));
+    }
     return q.watch();
   }
 
@@ -163,24 +167,30 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
 
   Map<String, dynamic> _payloadFrom(PaymentsCompanion comp, {Payment? base}) {
     final m = <String, dynamic>{};
-    if (comp.serverPaymentId.present)
+    if (comp.serverPaymentId.present) {
       m['payment_id'] = comp.serverPaymentId.value;
-    if (comp.bookingLocalId.present)
+    }
+    if (comp.bookingLocalId.present) {
       m['booking_local_id'] = comp.bookingLocalId.value;
-    if (comp.serverBookingId.present)
+    }
+    if (comp.serverBookingId.present) {
       m['booking_id'] = comp.serverBookingId.value;
+    }
     if (comp.roomNumber.present) m['room_number'] = comp.roomNumber.value;
     if (comp.amount.present) m['amount'] = comp.amount.value;
     if (comp.paymentDate.present) m['payment_date'] = comp.paymentDate.value;
     if (comp.notes.present) m['notes'] = comp.notes.value;
-    if (comp.paymentMethod.present)
+    if (comp.paymentMethod.present) {
       m['payment_method'] = comp.paymentMethod.value;
+    }
     if (comp.revenueType.present) m['revenue_type'] = comp.revenueType.value;
     if (comp.hotelDayKey.present) m['hotel_day_key'] = comp.hotelDayKey.value;
-    if (comp.cashTransactionLocalId.present)
+    if (comp.cashTransactionLocalId.present) {
       m['cash_transaction_local_id'] = comp.cashTransactionLocalId.value;
-    if (comp.cashTransactionServerId.present)
+    }
+    if (comp.cashTransactionServerId.present) {
       m['cash_transaction_id'] = comp.cashTransactionServerId.value;
+    }
     return m;
   }
 

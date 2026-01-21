@@ -118,8 +118,9 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
       recordData: {'id': id, 'guest_name': guestName},
     );
-    if (result > 0)
+    if (result > 0) {
       debugPrint('🗑️ تم حذف حجز ($id - $guestName) - سيتم النسخ التلقائي');
+    }
     return result;
   }
 
@@ -220,8 +221,9 @@ class AutoBackupDatabaseHelper {
       note,
       where: (t) => t.id.equals(id),
     );
-    if (result)
+    if (result) {
       debugPrint('✏️ تم تحديث ملاحظة حجز ($id) - سيتم النسخ التلقائي');
+    }
     return result;
   }
 

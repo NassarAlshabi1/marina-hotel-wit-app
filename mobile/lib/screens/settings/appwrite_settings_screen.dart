@@ -1164,7 +1164,7 @@ class _AppwriteSettingsScreenState
     );
 
     if (confirmed == true) {
-      await ref.read(ap.appwriteSyncManagerProvider).resetSyncState();
+      ref.read(ap.appwriteSyncManagerProvider).resetSyncState();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم إعادة تعيين المزامنة')),

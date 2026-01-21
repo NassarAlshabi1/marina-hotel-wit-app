@@ -62,9 +62,10 @@ class EmployeesRepository {
         status: status != null ? d.Value(status) : const d.Value.absent(),
       ),
     );
-    if (result > 0)
+    if (result > 0) {
       AutoBackupManager.instance
           .onDataChange('employees', 'UPDATE', recordData: {'id': id});
+    }
     return result;
   }
 
@@ -94,9 +95,10 @@ class EmployeesRepository {
 
   Future<int> delete(int id) async {
     final result = await dao.softDelete(id);
-    if (result > 0)
+    if (result > 0) {
       AutoBackupManager.instance
           .onDataChange('employees', 'DELETE', recordData: {'id': id});
+    }
     return result;
   }
 

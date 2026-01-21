@@ -36,8 +36,9 @@ class SyncFieldsHelper {
       final parsedDouble = double.tryParse(value);
       if (parsedDouble != null) return parsedDouble.toInt();
       final parsedDate = DateTime.tryParse(value);
-      if (parsedDate != null)
+      if (parsedDate != null) {
         return parsedDate.toUtc().millisecondsSinceEpoch ~/ 1000;
+      }
     }
     return fallback ?? Time.nowEpoch();
   }

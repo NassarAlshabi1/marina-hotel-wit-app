@@ -36,8 +36,9 @@ class AlarmBackup {
   static Future<void> scheduleDailyAlarm(int hour, int minute) async {
     final now = DateTime.now();
     var scheduled = DateTime(now.year, now.month, now.day, hour, minute);
-    if (scheduled.isBefore(now))
+    if (scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
+    }
 
     // استخدم oneShotAt مع exact و wakeup و allowWhileIdle
     await AndroidAlarmManager.oneShotAt(

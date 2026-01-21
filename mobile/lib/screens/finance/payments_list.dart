@@ -14,8 +14,9 @@ class PaymentsListScreen extends ConsumerWidget {
       body: StreamBuilder(
         stream: repo.watchAll(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
           final list = snapshot.data!;
           return ListView.builder(
             itemCount: list.length,

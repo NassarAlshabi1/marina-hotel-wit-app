@@ -98,9 +98,10 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                 final manager = ref.read(appwriteSyncManagerProvider);
                 await manager.sync();
                 ref.invalidate(syncStatsProvider);
-                if (context.mounted)
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('تمت إعادة المحاولة')));
+                }
               },
               icon: const Icon(Icons.refresh),
               label: const Text('إعادة محاولة'),
@@ -113,10 +114,11 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                 await dao.resetErrors();
                 await dao.clearStale(attemptsThreshold: 3);
                 ref.invalidate(syncStatsProvider);
-                if (context.mounted)
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text(
                           'تفريغ ذكي: تم تهيئة المحاولات وحذف العناصر القديمة')));
+                }
               },
               icon: const Icon(Icons.cleaning_services),
               label: const Text('تفريغ ذكي'),

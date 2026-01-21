@@ -19,9 +19,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       bool includeDeleted = false}) async {
     final q = select(expenses);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (from != null && to != null)
+    if (from != null && to != null) {
       q.where((t) =>
           t.date.isBiggerOrEqualValue(from) & t.date.isSmallerOrEqualValue(to));
+    }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.description.like(s) | t.expenseType.like(s));

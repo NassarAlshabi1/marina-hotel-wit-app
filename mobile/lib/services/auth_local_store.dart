@@ -210,8 +210,9 @@ class AuthLocalStore {
     try {
       final json = jsonDecode(raw);
       if (json is Map<String, dynamic>) return json;
-      if (json is Map)
+      if (json is Map) {
         return json.map((key, value) => MapEntry(key.toString(), value));
+      }
       return null;
     } catch (_) {
       return null;

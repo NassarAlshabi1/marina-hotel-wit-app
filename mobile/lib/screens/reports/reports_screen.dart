@@ -25,8 +25,9 @@ class ReportsScreen extends ConsumerWidget {
       body: FutureBuilder(
         future: _prepareData(db),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
           final d = snapshot.data!;
           return ListView(
             padding: const EdgeInsets.all(12),

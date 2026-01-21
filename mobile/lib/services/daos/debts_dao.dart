@@ -148,8 +148,9 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
 
   Map<String, dynamic> _payloadFrom(DebtsCompanion comp, {Debt? base}) {
     final m = <String, dynamic>{};
-    if (comp.bookingLocalId.present)
+    if (comp.bookingLocalId.present) {
       m['booking_local_id'] = comp.bookingLocalId.value;
+    }
     if (comp.guestName.present) m['guest_name'] = comp.guestName.value;
     if (comp.checkinDate.present) m['checkin_date'] = comp.checkinDate.value;
     if (comp.checkoutDate.present) m['checkout_date'] = comp.checkoutDate.value;
@@ -157,8 +158,9 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     if (comp.debtReason.present) m['debt_reason'] = comp.debtReason.value;
     if (comp.totalAmount.present) m['total_amount'] = comp.totalAmount.value;
     if (comp.paidAmount.present) m['paid_amount'] = comp.paidAmount.value;
-    if (comp.remainingAmount.present)
+    if (comp.remainingAmount.present) {
       m['remaining_amount'] = comp.remainingAmount.value;
+    }
     if (comp.paymentDate.present) m['payment_date'] = comp.paymentDate.value;
     if (comp.isSettled.present) m['is_settled'] = comp.isSettled.value;
     if (comp.pledge.present) m['pledge'] = comp.pledge.value;

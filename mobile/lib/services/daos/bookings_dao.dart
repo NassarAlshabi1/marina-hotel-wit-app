@@ -23,14 +23,17 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       int? offset}) async {
     final q = select(bookings);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (roomNumber != null && roomNumber.isNotEmpty)
+    if (roomNumber != null && roomNumber.isNotEmpty) {
       q.where((t) => t.roomNumber.equals(roomNumber));
-    if (status != null && status.isNotEmpty)
+    }
+    if (status != null && status.isNotEmpty) {
       q.where((t) => t.status.equals(status));
-    if (from != null && to != null)
+    }
+    if (from != null && to != null) {
       q.where((t) =>
           t.checkinDate.isBiggerOrEqualValue(from) &
           t.checkinDate.isSmallerOrEqualValue(to));
+    }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.guestName.like(s) | t.guestPhone.like(s));
@@ -46,10 +49,12 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       {String? roomNumber, String? status, bool includeDeleted = false}) {
     final q = select(bookings);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (roomNumber != null && roomNumber.isNotEmpty)
+    if (roomNumber != null && roomNumber.isNotEmpty) {
       q.where((t) => t.roomNumber.equals(roomNumber));
-    if (status != null && status.isNotEmpty)
+    }
+    if (status != null && status.isNotEmpty) {
       q.where((t) => t.status.equals(status));
+    }
     q.orderBy([
       (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)
     ]);
@@ -169,32 +174,40 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
 
   Map<String, dynamic> _payloadFrom(BookingsCompanion comp, {Booking? base}) {
     final m = <String, dynamic>{};
-    if (comp.serverBookingId.present)
+    if (comp.serverBookingId.present) {
       m['booking_id'] = comp.serverBookingId.value;
+    }
     if (comp.roomNumber.present) m['room_number'] = comp.roomNumber.value;
     if (comp.guestName.present) m['guest_name'] = comp.guestName.value;
     if (comp.guestPhone.present) m['guest_phone'] = comp.guestPhone.value;
     if (comp.guestIdType.present) m['guest_id_type'] = comp.guestIdType.value;
-    if (comp.guestIdNumber.present)
+    if (comp.guestIdNumber.present) {
       m['guest_id_number'] = comp.guestIdNumber.value;
-    if (comp.guestIdIssueDate.present)
+    }
+    if (comp.guestIdIssueDate.present) {
       m['guest_id_issue_date'] = comp.guestIdIssueDate.value;
-    if (comp.guestIdIssuePlace.present)
+    }
+    if (comp.guestIdIssuePlace.present) {
       m['guest_id_issue_place'] = comp.guestIdIssuePlace.value;
-    if (comp.guestNationality.present)
+    }
+    if (comp.guestNationality.present) {
       m['guest_nationality'] = comp.guestNationality.value;
+    }
     if (comp.guestEmail.present) m['guest_email'] = comp.guestEmail.value;
     if (comp.guestAddress.present) m['guest_address'] = comp.guestAddress.value;
     if (comp.checkinDate.present) m['checkin_date'] = comp.checkinDate.value;
     if (comp.checkoutDate.present) m['checkout_date'] = comp.checkoutDate.value;
-    if (comp.actualCheckout.present)
+    if (comp.actualCheckout.present) {
       m['actual_checkout'] = comp.actualCheckout.value;
+    }
     if (comp.status.present) m['status'] = comp.status.value;
     if (comp.notes.present) m['notes'] = comp.notes.value;
-    if (comp.expectedNights.present)
+    if (comp.expectedNights.present) {
       m['expected_nights'] = comp.expectedNights.value;
-    if (comp.calculatedNights.present)
+    }
+    if (comp.calculatedNights.present) {
       m['calculated_nights'] = comp.calculatedNights.value;
+    }
     return m;
   }
 
