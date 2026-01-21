@@ -24,12 +24,11 @@ enum ConflictResolution {
   devicePriority, // أولوية لجهاز معين
 }
 
-
 /// مدير المزامنة التلقائية الذكي بين الأجهزة المتعددة
 class SmartSyncManager {
   static SmartSyncManager? _instance;
   static SmartSyncManager get instance => _instance ??= SmartSyncManager._();
-  
+
   SmartSyncManager._();
 
   GoogleDriveBackupService? _backupService;
@@ -40,38 +39,41 @@ class SmartSyncManager {
   bool _isLoggedIn = false;
   String? _deviceId;
   int _silentSignInRetryCount = 0;
-  
+
   String? get deviceId => _deviceId;
   bool get isDriveSignedIn => _backupService?.isSignedIn ?? false;
-  
+
   void _log(String message) {
     DebugLogs.add('SmartSync', message);
     debugPrint(message);
   }
-  
+
   static const String _prefsEnabledKey = 'smart_sync_enabled';
   static const String _prefsIntervalKey = 'smart_sync_interval';
   static const String _prefsLastSyncKey = 'smart_sync_last_check';
   static const String _prefsDeviceIdKey = 'smart_sync_device_id';
-  static const String _prefsLastRemoteTimestampKey = 'smart_sync_last_remote_timestamp';
-  static const String _prefsConflictResolutionKey = 'smart_sync_conflict_resolution';
-  
-  static const int _defaultSyncIntervalMinutes = 2; // تغيير من 1 إلى 2 لتقليل الحمل
+  static const String _prefsLastRemoteTimestampKey =
+      'smart_sync_last_remote_timestamp';
+  static const String _prefsConflictResolutionKey =
+      'smart_sync_conflict_resolution';
+
+  static const int _defaultSyncIntervalMinutes =
+      2; // تغيير من 1 إلى 2 لتقليل الحمل
   static const int _periodicFullSyncHours = 24;
-  
+
   /// تهيئة مدير المزامنة
   Future<void> initialize(GoogleDriveBackupService backupService) async {
     _backupService = backupService;
     await _initializeDeviceId();
     await _loadSettings();
-    
+
     // تهيئة مُحسِّن الأداء
     await SyncPerformanceOptimizer.instance.initialize();
-    
+
     if (_isEnabled && _backupService?.isSignedIn == true) {
       await _startSyncMonitoring();
     }
-    
+
     _log('🔄 مدير المزامنة الذكي: تم التهيئة بنجاح');
   }
 
@@ -79,23 +81,24 @@ class SmartSyncManager {
   Future<void> _initializeDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
     _deviceId = prefs.getString(_prefsDeviceIdKey);
-    
+
     if (_deviceId == null) {
       final deviceInfo = DeviceInfoPlugin();
       String deviceIdentifier = 'unknown';
-      
+
       try {
         if (Platform.isAndroid) {
           final androidInfo = await deviceInfo.androidInfo;
           deviceIdentifier = androidInfo.id;
         } else if (Platform.isIOS) {
           final iosInfo = await deviceInfo.iosInfo;
-          deviceIdentifier = iosInfo.identifierForVendor ?? 'ios-${DateTime.now().millisecondsSinceEpoch}';
+          deviceIdentifier = iosInfo.identifierForVendor ??
+              'ios-${DateTime.now().millisecondsSinceEpoch}';
         }
       } catch (e) {
         deviceIdentifier = 'device-${DateTime.now().millisecondsSinceEpoch}';
       }
-      
+
       _deviceId = deviceIdentifier;
       await prefs.setString(_prefsDeviceIdKey, _deviceId!);
       _log('🆔 تم إنشاء معرف الجهاز الفريد تلقائياً: $_deviceId');
@@ -119,32 +122,32 @@ class SmartSyncManager {
   /// بدء مراقبة المزامنة التلقائية مع تحسين الأداء
   Future<void> _startSyncMonitoring() async {
     if (_syncCheckTimer?.isActive == true) return;
-    
+
     final baseInterval = await getSyncInterval();
     final optimizer = SyncPerformanceOptimizer.instance;
-    
+
     // حساب الفترة المُحسَّنة
     final optimizedInterval = await optimizer.isAdaptiveIntervalEnabled()
-      ? await optimizer.calculateOptimizedInterval(baseInterval)
-      : baseInterval;
-    
+        ? await optimizer.calculateOptimizedInterval(baseInterval)
+        : baseInterval;
+
     // مراقبة دورية للتحقق من النسخ الجديدة مع تحسين الأداء
     _syncCheckTimer = Timer.periodic(
       Duration(minutes: optimizedInterval),
       (timer) => _performOptimizedSyncCheck(),
     );
-    
+
     // مزامنة كاملة دورية
     _periodicSyncTimer = Timer.periodic(
       Duration(hours: _periodicFullSyncHours),
       (timer) => _performFullSync(),
     );
-    
+
     // تحقق فوري عند البدء (إذا لم تكن هناك قيود)
     if (!await optimizer.shouldSkipSync()) {
       _performOptimizedSyncCheck();
     }
-    
+
     _log('⏰ بدء مراقبة المزامنة المُحسَّنة كل $optimizedInterval دقائق');
   }
 
@@ -152,25 +155,24 @@ class SmartSyncManager {
   Future<void> _performOptimizedSyncCheck() async {
     final optimizer = SyncPerformanceOptimizer.instance;
     final dataManager = DataUsageManager.instance;
-    
+
     // تحقق من قيود الأداء
     if (await optimizer.shouldSkipSync()) {
       _log('⏸️ تم تخطي المزامنة لتوفير الطاقة');
       return;
     }
-    
+
     // تحقق من حد البيانات
     if (await dataManager.isLimitExceeded()) {
       _log('📊 تم تجاوز حد البيانات اليومي - تخطي المزامنة');
       return;
     }
-    
+
     try {
       await _performSyncCheck();
-      
+
       // تسجيل نجاح المزامنة
       optimizer.recordSyncSuccess();
-      
     } catch (e) {
       // تسجيل فشل المزامنة
       optimizer.recordSyncFailure();
@@ -190,11 +192,12 @@ class SmartSyncManager {
   /// استدعاء هذه الدالة عند تغير حالة تسجيل الدخول في Google Drive
   Future<void> onGoogleDriveSignInChanged(bool isSignedIn) async {
     _log('🔔 تغيرت حالة تسجيل الدخول Google Drive: $isSignedIn');
-    _log('🔍 Debug: _backupService?.isSignedIn = ${_backupService?.isSignedIn}');
+    _log(
+        '🔍 Debug: _backupService?.isSignedIn = ${_backupService?.isSignedIn}');
     _log('🔍 Debug: _isEnabled = $_isEnabled');
-    
+
     _isLoggedIn = isSignedIn;
-    
+
     if (isSignedIn && _isEnabled) {
       _log('✅ بدء المراقبة بعد تسجيل الدخول...');
       await _startSyncMonitoring();
@@ -213,7 +216,7 @@ class SmartSyncManager {
       _isSyncing = true;
       return true;
     });
-    
+
     if (!canStart) return;
 
     try {
@@ -232,10 +235,9 @@ class SmartSyncManager {
 
       // التحقق من آخر timestamp محفوظ محلياً
       final lastRemoteTimestamp = await _getLastRemoteTimestamp();
-      
-      if (lastRemoteTimestamp == null || 
+
+      if (lastRemoteTimestamp == null ||
           latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
-        
         // التحقق من أن النسخة ليست من نفس الجهاز
         final backupDeviceId = latestBackup.appProperties['device_id'];
         if (backupDeviceId != _deviceId) {
@@ -250,7 +252,6 @@ class SmartSyncManager {
 
       // تحديث timestamp آخر فحص
       await _updateLastSyncTime();
-      
     } catch (e) {
       _log('❌ خطأ في فحص المزامنة: $e');
     } finally {
@@ -267,36 +268,35 @@ class SmartSyncManager {
 
       // تحميل بيانات النسخة الاحتياطية
       final backupData = await _backupService!.downloadBackup(newBackup.fileId);
-      
+
       // تسجيل استهلاك البيانات
       final backupSize = newBackup.size ?? 0;
       if (backupSize > 0) {
         await DataUsageManager.instance.recordDataUsage(backupSize.toDouble());
       }
-      
+
       // تحديد استراتيجية حل التضارب
       final conflictResolution = await getConflictResolution();
-      
+
       // تنفيذ المزامنة
       await _performDataSync(backupData, newBackup, conflictResolution);
-      
+
       // حفظ timestamp النسخة الجديدة
       await _setLastRemoteTimestamp(newBackup.createdTime);
-      
+
       // إشعار النجاح
       await _notifySuccessfulSync(newBackup);
-      
+
       // تسجيل نجاح المزامنة لتحسين الأداء
       SyncPerformanceOptimizer.instance.recordSyncSuccess();
-      
+
       _log('✅ تمت المزامنة بنجاح');
-      
     } catch (e) {
       _log('❌ خطأ في مزامنة البيانات: $e');
-      
+
       // تسجيل فشل المزامنة
       SyncPerformanceOptimizer.instance.recordSyncFailure();
-      
+
       await _notifySyncError();
     }
   }
@@ -309,16 +309,16 @@ class SmartSyncManager {
   ) async {
     // إنشاء نسخة احتياطية محلية قبل المزامنة
     final localBackupData = await _backupService!.exportDatabaseToJson();
-    
+
     try {
       _log('📥 بدء استيراد البيانات الجديدة...');
-      
+
       // مقارنة البيانات وتحديد التضارب
       final conflicts = await _detectDataConflicts(localBackupData, backupData);
-      
+
       if (conflicts.isNotEmpty) {
         _log('⚠️ تم العثور على ${conflicts.length} تضارب في البيانات');
-        
+
         switch (conflictResolution) {
           case ConflictResolution.newerWins:
             await _resolveConflictsNewerWins(conflicts, backupData);
@@ -331,15 +331,14 @@ class SmartSyncManager {
             break;
         }
       }
-      
+
       // التحقق من وجود ملاحظات جديدة وإرسال إشعار
       await _checkForNewNotesAndNotify(backupData);
 
       // استيراد البيانات الجديدة
       await _mergeBackupData(backupData);
-      
+
       _log('✅ تم دمج البيانات بنجاح');
-      
     } catch (e) {
       _log('❌ خطأ في دمج البيانات، استعادة النسخة المحلية...');
       // استعادة البيانات المحلية في حالة الخطأ
@@ -354,44 +353,46 @@ class SmartSyncManager {
     Map<String, dynamic> remoteData,
   ) async {
     final conflicts = <DataConflict>[];
-    
+
     // مقارنة البيانات في الجداول المختلفة
     final tables = ['bookings', 'payments', 'expenses', 'rooms'];
-    
+
     for (final tableName in tables) {
       final localRecords = (localData[tableName] as List<dynamic>?) ?? [];
       final remoteRecords = (remoteData[tableName] as List<dynamic>?) ?? [];
-      
+
       // تحويل إلى Map للسهولة
       final localMap = <String, dynamic>{};
       final remoteMap = <String, dynamic>{};
-      
+
       for (final record in localRecords) {
         if (record is Map<String, dynamic> && record['local_uuid'] != null) {
           localMap[record['local_uuid']] = record;
         }
       }
-      
+
       for (final record in remoteRecords) {
         if (record is Map<String, dynamic> && record['local_uuid'] != null) {
           remoteMap[record['local_uuid']] = record;
         }
       }
-      
+
       // البحث عن التضارب
       for (final uuid in localMap.keys) {
         if (remoteMap.containsKey(uuid)) {
           final localRecord = localMap[uuid];
           final remoteRecord = remoteMap[uuid];
-          
+
           // مقارنة timestamps
           final localTimestamp = localRecord['last_modified'] as int?;
           final remoteTimestamp = remoteRecord['last_modified'] as int?;
-          
+
           if (localTimestamp != null && remoteTimestamp != null) {
-            final localTime = DateTime.fromMillisecondsSinceEpoch(localTimestamp);
-            final remoteTime = DateTime.fromMillisecondsSinceEpoch(remoteTimestamp);
-            
+            final localTime =
+                DateTime.fromMillisecondsSinceEpoch(localTimestamp);
+            final remoteTime =
+                DateTime.fromMillisecondsSinceEpoch(remoteTimestamp);
+
             // فرق أكثر من 30 ثانية يعتبر تضارب
             if ((localTime.difference(remoteTime).inSeconds).abs() > 30) {
               conflicts.add(DataConflict(
@@ -407,7 +408,7 @@ class SmartSyncManager {
         }
       }
     }
-    
+
     return conflicts;
   }
 
@@ -417,21 +418,25 @@ class SmartSyncManager {
     Map<String, dynamic> backupData,
   ) async {
     _log('🏆 حل التضارب: الأحدث يفوز');
-    
+
     for (final conflict in conflicts) {
       if (conflict.remoteTimestamp.isAfter(conflict.localTimestamp)) {
-        _log('📥 استبدال ${conflict.tableName}/${conflict.recordId} بالنسخة الأحدث');
+        _log(
+            '📥 استبدال ${conflict.tableName}/${conflict.recordId} بالنسخة الأحدث');
         // النسخة البعيدة أحدث، سيتم استيرادها
       } else {
-        _log('📱 الاحتفاظ بالنسخة المحلية لـ ${conflict.tableName}/${conflict.recordId}');
+        _log(
+            '📱 الاحتفاظ بالنسخة المحلية لـ ${conflict.tableName}/${conflict.recordId}');
         // إزالة السجل من بيانات النسخ الاحتياطي ليتم تجاهله
-        await _removeRecordFromBackupData(backupData, conflict.tableName, conflict.recordId);
+        await _removeRecordFromBackupData(
+            backupData, conflict.tableName, conflict.recordId);
       }
     }
   }
 
   /// التحقق من وجود ملاحظات إدارية جديدة وإرسال إشعارات
-  Future<void> _checkForNewNotesAndNotify(Map<String, dynamic> backupData) async {
+  Future<void> _checkForNewNotesAndNotify(
+      Map<String, dynamic> backupData) async {
     try {
       // التحقق من وجود ملاحظات جديدة في ShiftNotes
       if (backupData.containsKey('shift_notes')) {
@@ -452,30 +457,30 @@ class SmartSyncManager {
             String? createdAtStr = noteData['created_at'];
             // في بعض الأحيان يكون التاريخ بتنسيق مختلف، نحاول التحليل
             if (createdAtStr != null) {
-               try {
-                 final createdAt = DateTime.parse(createdAtStr);
-                 // إذا كانت الملاحظة أحدث من آخر مزامنة وليست من هذا الجهاز
-                 // ملاحظة: نحن نفترض أن createdBy يحمل اسم المستخدم أو معرفه
-                 // لكن هنا سنعتمد على الوقت بشكل أساسي
-                 if (createdAt.isAfter(lastSync)) {
-                   newNotesCount++;
-                   lastNoteTitle = noteData['title'] ?? 'بدون عنوان';
-                   noteCreator = noteData['created_by'] ?? 'مسؤول';
-                 }
-               } catch (e) {
-                 _log('⚠️ تعذر تحليل تاريخ الملاحظة: $createdAtStr - $e');
-               }
+              try {
+                final createdAt = DateTime.parse(createdAtStr);
+                // إذا كانت الملاحظة أحدث من آخر مزامنة وليست من هذا الجهاز
+                // ملاحظة: نحن نفترض أن createdBy يحمل اسم المستخدم أو معرفه
+                // لكن هنا سنعتمد على الوقت بشكل أساسي
+                if (createdAt.isAfter(lastSync)) {
+                  newNotesCount++;
+                  lastNoteTitle = noteData['title'] ?? 'بدون عنوان';
+                  noteCreator = noteData['created_by'] ?? 'مسؤول';
+                }
+              } catch (e) {
+                _log('⚠️ تعذر تحليل تاريخ الملاحظة: $createdAtStr - $e');
+              }
             }
           }
         }
 
         if (newNotesCount > 0) {
-          final message = newNotesCount == 1 
-              ? 'ملاحظة جديدة: $lastNoteTitle' 
+          final message = newNotesCount == 1
+              ? 'ملاحظة جديدة: $lastNoteTitle'
               : '$newNotesCount ملاحظات إدارية جديدة';
-          
+
           _log('🔔 🔔 تنبيه: $message');
-          
+
           await SyncNotificationManager.instance.showSystemNotification(
             title: 'تنبيه إداري جديد 📝',
             body: message,
@@ -501,8 +506,8 @@ class SmartSyncManager {
   ) async {
     if (backupData.containsKey(tableName)) {
       final records = backupData[tableName] as List<dynamic>;
-      records.removeWhere((record) => 
-        record is Map<String, dynamic> && record['local_uuid'] == recordId);
+      records.removeWhere((record) =>
+          record is Map<String, dynamic> && record['local_uuid'] == recordId);
     }
   }
 
@@ -517,10 +522,10 @@ class SmartSyncManager {
     final deviceId = backup.appProperties['device_id'] ?? 'جهاز آخر';
     _log('🎉 تمت مزامنة البيانات من $deviceId');
     _log('📅 تاريخ النسخة: ${backup.createdTime}');
-    
+
     final recordsCount = backup.appProperties['records_count'] ?? 'غير محدد';
     _log('📊 عدد السجلات: $recordsCount');
-    
+
     // إرسال إشعار للمستخدم بوصول تغييرات جديدة
     try {
       await SyncNotificationManager.instance.showSystemNotification(
@@ -543,13 +548,13 @@ class SmartSyncManager {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefsEnabledKey, enabled);
     _isEnabled = enabled;
-    
+
     if (enabled && _backupService?.isSignedIn == true) {
       await _startSyncMonitoring();
     } else {
       _stopSyncMonitoring();
     }
-    
+
     _log('🔧 المزامنة التلقائية: ${enabled ? "مُفعلة" : "معطلة"}');
   }
 
@@ -565,13 +570,13 @@ class SmartSyncManager {
   Future<void> setSyncInterval(int minutes) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsIntervalKey, minutes);
-    
+
     // إعادة تشغيل المراقبة بالفترة الجديدة
     if (_isEnabled) {
       _stopSyncMonitoring();
       await _startSyncMonitoring();
     }
-    
+
     _log('⏰ فترة المزامنة: $minutes دقائق');
   }
 
@@ -605,7 +610,8 @@ class SmartSyncManager {
 
   Future<void> _setLastRemoteTimestamp(DateTime timestamp) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsLastRemoteTimestampKey, timestamp.toIso8601String());
+    await prefs.setString(
+        _prefsLastRemoteTimestampKey, timestamp.toIso8601String());
   }
 
   Future<void> _updateLastSyncTime() async {
@@ -615,7 +621,8 @@ class SmartSyncManager {
 
   Future<void> _updateLastPushTime() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('smart_sync_last_push_ts', DateTime.now().millisecondsSinceEpoch);
+    await prefs.setInt(
+        'smart_sync_last_push_ts', DateTime.now().millisecondsSinceEpoch);
   }
 
   Future<DateTime?> getLastSyncTime() async {
@@ -631,10 +638,12 @@ class SmartSyncManager {
   ) async {
     if (_backupService == null || !_backupService!.isSignedIn) {
       _log('⚠️ لا يمكن $operationName: غير مسجل الدخول');
-      
-      if (_backupService != null && _silentSignInRetryCount < SyncConfig.maxSilentSignInRetries) {
+
+      if (_backupService != null &&
+          _silentSignInRetryCount < SyncConfig.maxSilentSignInRetries) {
         _silentSignInRetryCount++;
-        _log('🔐 محاولة تسجيل الدخول الصامت (المحاولة $_silentSignInRetryCount/${SyncConfig.maxSilentSignInRetries})...');
+        _log(
+            '🔐 محاولة تسجيل الدخول الصامت (المحاولة $_silentSignInRetryCount/${SyncConfig.maxSilentSignInRetries})...');
         try {
           final account = await _backupService!.attemptSilentSignIn();
           if (account != null) {
@@ -691,12 +700,12 @@ class SmartSyncManager {
       final db = DatabaseManager.instance;
       final outboxDao = OutboxDao(db);
       final outboxCount = await outboxDao.count();
-      
+
       if (outboxCount > 0) {
         _log('📝 توجد تغييرات محلية في Outbox ($outboxCount)');
         return true;
       }
-      
+
       _log('✅ لا توجد تغييرات محلية معلقة');
       return false;
     } catch (e) {
@@ -711,11 +720,11 @@ class SmartSyncManager {
       _log('⏸️ المزامنة جارية بالفعل...');
       return;
     }
-    
+
     _log('🚀 بدء المزامنة اليدوية الفورية...');
-    
+
     await pushLocalChanges();
-    
+
     await pullRemoteChanges();
   }
 
@@ -723,12 +732,13 @@ class SmartSyncManager {
   Future<bool> pushLocalChanges() async {
     int retries = 0;
     while (retries < 10) {
-      final isSyncing = await SyncLocks.smartSyncLock.synchronized(() => _isSyncing);
+      final isSyncing =
+          await SyncLocks.smartSyncLock.synchronized(() => _isSyncing);
       if (!isSyncing) break;
       await Future.delayed(SyncConstants.shortPollingDelay);
       retries++;
     }
-    
+
     final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
       if (_isSyncing) {
         _log('⚠️ تخطي الرفع - المزامنة جارية لفترة طويلة');
@@ -740,22 +750,24 @@ class SmartSyncManager {
       _isSyncing = true;
       return true;
     });
-    
+
     if (!canStart) {
       return await _attemptSilentSignInAndRetry(
-        'رفع التغييرات',
-        pushLocalChanges,
-      ) ?? false;
+            'رفع التغييرات',
+            pushLocalChanges,
+          ) ??
+          false;
     }
 
     try {
       _log('📤 رفع التغييرات المحلية إلى Google Drive...');
-      
+
       // محاولة استخدام Delta Sync أولاً (أسرع وأخف)
       if (GoogleDriveDeltaSync.instance.isInitialized) {
         _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
-        final deltaResult = await GoogleDriveDeltaSync.instance.pushDeltaChanges();
-        
+        final deltaResult =
+            await GoogleDriveDeltaSync.instance.pushDeltaChanges();
+
         if (deltaResult.success) {
           await _updateLastSyncTime();
           await _updateLastPushTime();
@@ -769,7 +781,7 @@ class SmartSyncManager {
           _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
         }
       }
-      
+
       // Fallback: رفع النسخة الكاملة (للأمان)
       _log('📦 رفع النسخة الكاملة...');
       final backupData = await _backupService!.exportDatabaseToJson();
@@ -787,11 +799,11 @@ class SmartSyncManager {
       metadata['device_id'] = _deviceId;
       metadata['sync_type'] = 'push';
       metadata['sync_timestamp'] = DateTime.now().toIso8601String();
-      
+
       await _backupService!.uploadBackup(backupData, isSync: true);
       await _updateLastSyncTime();
       await _updateLastPushTime();
-      
+
       _log('✅ تم رفع النسخة الكاملة بنجاح');
       return true;
     } catch (e) {
@@ -818,21 +830,23 @@ class SmartSyncManager {
       _isSyncing = true;
       return true;
     });
-    
+
     if (!canStart) {
       return await _attemptSilentSignInAndRetry(
-        'سحب التغييرات',
-        pullRemoteChanges,
-      ) ?? false;
+            'سحب التغييرات',
+            pullRemoteChanges,
+          ) ??
+          false;
     }
 
     try {
       _log('📥 سحب التغييرات من Google Drive...');
-      
+
       if (GoogleDriveDeltaSync.instance.isInitialized) {
         _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
-        final deltaResult = await GoogleDriveDeltaSync.instance.pullDeltaChanges();
-        
+        final deltaResult =
+            await GoogleDriveDeltaSync.instance.pullDeltaChanges();
+
         if (deltaResult.success && deltaResult.changesCount > 0) {
           await _updateLastSyncTime();
           _log('✅ تم سحب ${deltaResult.changesCount} تغيير عبر Delta Sync');
@@ -844,7 +858,7 @@ class SmartSyncManager {
           _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
         }
       }
-      
+
       // جلب قائمة النسخ الاحتياطية
       final backupFiles = await _backupService!.listBackupFiles();
       if (backupFiles.isEmpty) {
@@ -858,35 +872,34 @@ class SmartSyncManager {
 
       // التحقق من آخر timestamp محفوظ محلياً
       final lastRemoteTimestamp = await _getLastRemoteTimestamp();
-      
+
       // إذا كانت النسخة أحدث من آخر سحب
-      if (lastRemoteTimestamp == null || 
+      if (lastRemoteTimestamp == null ||
           latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
-        
         // التحقق من أن النسخة ليست من نفس الجهاز
         final backupDeviceId = latestBackup.appProperties['device_id'];
         if (backupDeviceId == _deviceId) {
           _log('📱 النسخة الأحدث من نفس هذا الجهاز');
           return false;
         }
-        
+
         _log('🆕 تم العثور على نسخة جديدة من جهاز: $backupDeviceId');
-        
+
         // تحميل وتطبيق النسخة الاحتياطية
-        final backupData = await _backupService!.downloadBackup(latestBackup.fileId);
+        final backupData =
+            await _backupService!.downloadBackup(latestBackup.fileId);
         await _backupService!.restoreFromBackup(backupData);
-        
+
         // تحديث timestamp
         await _setLastRemoteTimestamp(latestBackup.createdTime);
         await _updateLastSyncTime();
-        
+
         _log('✅ تم تطبيق التغييرات الجديدة بنجاح');
         return true;
       }
-      
+
       _log('ℹ️ لا توجد تغييرات جديدة');
       return false;
-      
     } catch (e) {
       _log('❌ خطأ في سحب التغييرات: $e');
       return false;
@@ -904,7 +917,8 @@ class SmartSyncManager {
   }
 
   /// معالجة طلب حل التضارب اليدوي (placeholder)
-  Future<void> _requestManualConflictResolution(List<DataConflict> conflicts) async {
+  Future<void> _requestManualConflictResolution(
+      List<DataConflict> conflicts) async {
     _log('🤔 يتطلب تدخل المستخدم لحل ${conflicts.length} تضارب');
     // يمكن إضافة واجهة لحل التضارب يدوياً
   }

@@ -41,7 +41,7 @@ class HybridLogicalClock {
 
   Future<HybridLogicalClock> tick() async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    
+
     final newPhysical = now > physicalTime ? now : physicalTime;
     final newLogical = now > physicalTime ? 0 : logicalCounter + 1;
 
@@ -53,15 +53,15 @@ class HybridLogicalClock {
 
     await _persist(newPhysical, newLogical);
     _instance = newClock;
-    
+
     return newClock;
   }
 
   Future<HybridLogicalClock> update(HybridLogicalClock remote) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    
+
     final newPhysical = _max3(now, physicalTime, remote.physicalTime);
-    
+
     int newLogical;
     if (newPhysical == physicalTime && newPhysical == remote.physicalTime) {
       newLogical = _max(logicalCounter, remote.logicalCounter) + 1;
@@ -81,17 +81,17 @@ class HybridLogicalClock {
 
     await _persist(newPhysical, newLogical);
     _instance = newClock;
-    
+
     return newClock;
   }
 
   int compare(HybridLogicalClock other) {
     if (physicalTime < other.physicalTime) return -1;
     if (physicalTime > other.physicalTime) return 1;
-    
+
     if (logicalCounter < other.logicalCounter) return -1;
     if (logicalCounter > other.logicalCounter) return 1;
-    
+
     return deviceId.compareTo(other.deviceId);
   }
 
@@ -103,11 +103,11 @@ class HybridLogicalClock {
 
   static HybridLogicalClock? fromJson(String? json, String defaultDeviceId) {
     if (json == null || json.isEmpty) return null;
-    
+
     try {
       final parts = json.split('-');
       if (parts.length != 3) return null;
-      
+
       return HybridLogicalClock._(
         physicalTime: int.parse(parts[0]),
         logicalCounter: int.parse(parts[1]),

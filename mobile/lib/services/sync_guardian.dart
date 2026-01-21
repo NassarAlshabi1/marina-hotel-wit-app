@@ -47,7 +47,8 @@ class SyncGuardian {
 
   static final SyncGuardian instance = SyncGuardian._();
 
-  final StreamController<SyncHealthSnapshot> _healthController = StreamController.broadcast();
+  final StreamController<SyncHealthSnapshot> _healthController =
+      StreamController.broadcast();
 
   SyncManager? _manager;
   GoogleDriveSyncService? _driveService;
@@ -87,9 +88,10 @@ class SyncGuardian {
       _manager = SyncManager(db: database, driveService: _driveService!);
       SyncManager.configureSingleton(_manager!);
       await _manager!.initSyncService();
-      _manager!.startOutboxDebouncedSync(debounce: SyncConstants.guardianOutboxDebounce);
+      _manager!.startOutboxDebouncedSync(
+          debounce: SyncConstants.guardianOutboxDebounce);
       await _restoreDevicePriority();
-      
+
       _appwriteSyncManager = appwriteSyncManager;
 
       _statusSubscription = _manager!.onSyncStatus().listen((status) {
@@ -98,7 +100,8 @@ class SyncGuardian {
       });
 
       await AutoSyncTask.initialize(debug: kDebugMode);
-      await AutoSyncTask.schedulePeriodicSync(SyncConstants.defaultAutoSyncInterval);
+      await AutoSyncTask.schedulePeriodicSync(
+          SyncConstants.defaultAutoSyncInterval);
 
       _startPendingMonitor();
       await _refreshPendingFlag();
@@ -123,13 +126,14 @@ class SyncGuardian {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(SyncConstants.guardianLocalChangeDebounce, () async {
       try {
-        debugPrint('📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
-        
+        debugPrint(
+            '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
+
         // استخدام Delta Sync للتحديثات الصغيرة (أسرع)
         await SmartSyncManager.instance.pushLocalChanges();
         debugPrint('✅ تم رفع التغييرات إلى Google Drive بنجاح');
         _pendingChangesCount = 0;
-      
+
         // رفع التغييرات أيضاً إلى Appwrite
         if (_appwriteSyncManager != null) {
           final appwriteResult = await _appwriteSyncManager!.pushLocalChanges();
@@ -155,9 +159,9 @@ class SyncGuardian {
     if (!_initialized) {
       return;
     }
-    
+
     _log('📱 التطبيق في المقدمة');
-    
+
     // Pull ذكي: فقط إذا مضى أكثر من 2 دقيقة (بدلاً من 5)
     final now = DateTime.now();
     if (_lastPullTime != null) {
@@ -167,14 +171,15 @@ class SyncGuardian {
         return;
       }
     }
-    
+
     _lastPullTime = now;
-    
+
     // تأجيل السحب 500ms لإعطاء UI وقت للتحميل أولاً
     Future.delayed(SyncConstants.appForegroundDelay, () async {
       // سحب التغييرات من Google Drive في الخلفية
       try {
-        final hasNewChanges = await SmartSyncManager.instance.pullRemoteChanges();
+        final hasNewChanges =
+            await SmartSyncManager.instance.pullRemoteChanges();
         if (hasNewChanges) {
           _log('✅ تم سحب تغييرات جديدة من Google Drive');
         }
@@ -182,12 +187,13 @@ class SyncGuardian {
         _log('⚠️ فشل سحب التغييرات من Google Drive: $e');
       }
     });
-    
+
     // سحب التغييرات من Appwrite في الخلفية (إذا موجود)
     if (_appwriteSyncManager != null) {
       Future.delayed(SyncConstants.appForegroundAppwriteDelay, () async {
         try {
-          final hasAppwriteChanges = await _appwriteSyncManager!.pullRemoteChanges();
+          final hasAppwriteChanges =
+              await _appwriteSyncManager!.pullRemoteChanges();
           if (hasAppwriteChanges) {
             _log('✅ تم سحب تغييرات جديدة من Appwrite');
           }
@@ -196,7 +202,7 @@ class SyncGuardian {
         }
       });
     }
-    
+
     // استهلاك الأحداث المعلقة بدون force
     await _consumePending(force: false);
   }
@@ -219,10 +225,11 @@ class SyncGuardian {
     await prefs.setInt('sync_guardian_device_priority', priority);
     _emitHealth();
   }
-  
+
   void setAppwriteSyncManager(AppwriteSyncManager? manager) {
     _appwriteSyncManager = manager;
-    debugPrint('[SyncGuardian] تم ربط AppwriteSyncManager: ${manager != null ? 'نعم' : 'لا'}');
+    debugPrint(
+        '[SyncGuardian] تم ربط AppwriteSyncManager: ${manager != null ? 'نعم' : 'لا'}');
   }
 
   Future<void> _restoreDevicePriority() async {

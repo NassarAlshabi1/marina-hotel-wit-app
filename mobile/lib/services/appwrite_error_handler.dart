@@ -18,12 +18,14 @@ class AppwriteError {
   }) : timestamp = timestamp ?? DateTime.now();
 
   @override
-  String toString() => '[$code] $message${details != null ? "\nDetails: $details" : ""}';
+  String toString() =>
+      '[$code] $message${details != null ? "\nDetails: $details" : ""}';
 }
 
 /// معالج الأخطاء المركزي
 class AppwriteErrorHandler {
-  static final AppwriteErrorHandler _instance = AppwriteErrorHandler._internal();
+  static final AppwriteErrorHandler _instance =
+      AppwriteErrorHandler._internal();
   factory AppwriteErrorHandler() => _instance;
   AppwriteErrorHandler._internal();
 
@@ -38,7 +40,7 @@ class AppwriteErrorHandler {
   }) {
     final appwriteError = _parseError(error, context);
     _errorHistory.add(appwriteError);
-    
+
     // تسجيل الخطأ
     _logger.error(
       '${appwriteError.message} (Context: $context)',
@@ -248,7 +250,8 @@ class AppwriteErrorHandler {
   int get errorCount => _errorHistory.length;
 
   /// الحصول على آخر خطأ
-  AppwriteError? get lastError => _errorHistory.isNotEmpty ? _errorHistory.last : null;
+  AppwriteError? get lastError =>
+      _errorHistory.isNotEmpty ? _errorHistory.last : null;
 
   /// مسح سجل الأخطاء
   void clearHistory() {

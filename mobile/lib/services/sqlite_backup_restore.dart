@@ -29,7 +29,8 @@ class SqliteBackupRestore {
   /// Default database file name used by Drift/sqflite. Change if the DB name differs.
   /// The current app uses 'marina_hotel.db' in `SqfliteQueryExecutor.inDatabaseFolder`.
   static const String kDefaultDbFileName = 'marina_hotel.db';
-  static const String kAndroidDocumentsBackupPath = '/storage/emulated/0/Documents/MarinaHotelBackups';
+  static const String kAndroidDocumentsBackupPath =
+      '/storage/emulated/0/Documents/MarinaHotelBackups';
 
   static Future<String> _resolveDefaultDbPath() async {
     final dbDir = await sqflite.getDatabasesPath();
@@ -54,11 +55,14 @@ class SqliteBackupRestore {
           }
           return documentsTarget;
         } catch (e) {
-          debugPrint('⚠️ Failed to access default backup dir, falling back: $e');
+          debugPrint(
+              '⚠️ Failed to access default backup dir, falling back: $e');
         }
-        final fallbackDirs = await getExternalStorageDirectories(type: StorageDirectory.documents);
+        final fallbackDirs = await getExternalStorageDirectories(
+            type: StorageDirectory.documents);
         if (fallbackDirs != null && fallbackDirs.isNotEmpty) {
-          final fallbackTarget = Directory(p.join(fallbackDirs.first.path, 'MarinaHotelBackups'));
+          final fallbackTarget =
+              Directory(p.join(fallbackDirs.first.path, 'MarinaHotelBackups'));
           if (!await fallbackTarget.exists()) {
             await fallbackTarget.create(recursive: true);
           }

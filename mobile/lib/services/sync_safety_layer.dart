@@ -181,7 +181,8 @@ class SyncSafetyLayer {
       _activeSnapshots.remove(snapshot.key);
       return true;
     } catch (rollbackError, stack) {
-      debugPrint('❌ CRITICAL: Rollback failed - attempting SQLite file restore');
+      debugPrint(
+          '❌ CRITICAL: Rollback failed - attempting SQLite file restore');
       await _appendLog({
         'event': 'rollback-error',
         'syncId': snapshot.syncId,
@@ -228,7 +229,8 @@ class SyncSafetyLayer {
   Future<void> _appendLog(Map<String, dynamic> payload) async {
     try {
       final file = await _logFile();
-      await file.writeAsString('${jsonEncode(payload)}\n', mode: FileMode.append, flush: true);
+      await file.writeAsString('${jsonEncode(payload)}\n',
+          mode: FileMode.append, flush: true);
     } catch (_) {
       // تجاهل أخطاء السجل حتى لا تؤثر على سير المزامنة
     }
@@ -258,7 +260,7 @@ class SyncSafetyLayer {
     // ملاحظة: FOREIGN KEYS يتم تعطيلها هنا ولكن لا يتم إعادة تشغيلها
     // لأن الاستعادة ستحدث مباشرة بعد الحذف في نفس transaction
     await db.customStatement('PRAGMA foreign_keys = OFF');
-    
+
     for (final table in SyncConstants.allTablesInReverseOrder) {
       try {
         await db.customStatement('DELETE FROM $table');
@@ -278,7 +280,7 @@ class SyncSafetyLayer {
     dynamic tableData,
   ) async {
     if (tableData == null) return;
-    
+
     final rows = (tableData as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList();
