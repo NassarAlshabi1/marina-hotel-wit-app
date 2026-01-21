@@ -18,6 +18,8 @@ import 'local_db.dart';
 import 'daos/outbox_dao.dart';
 import 'sync_mutex.dart';
 import 'sync_enums.dart';
+import 'sync_constants.dart';
+import 'sync_core/sync_metrics.dart';
 
 /// حالة المزامنة
 enum SyncStatus {
@@ -75,7 +77,7 @@ class AppwriteSyncManager {
   Timer? _syncTimer;
   Timer? _debouncePushTimer;
   StreamSubscription? _outboxSubscription;
-  Duration _debounceWindow = const Duration(seconds: 10);
+  Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
   DateTime? _lastSyncTime;
   String? _currentDeviceId;
@@ -251,7 +253,7 @@ class AppwriteSyncManager {
   }
 
   /// بدء المزامنة التلقائية
-  void startAutoSync({Duration interval = const Duration(minutes: 15)}) {
+  void startAutoSync({Duration interval = SyncConstants.defaultAutoSyncInterval}) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
       final prefs = await SharedPreferences.getInstance();
@@ -277,15 +279,35 @@ class AppwriteSyncManager {
       _debounceWindow = window;
     }
     _outboxSubscription?.cancel();
-    _outboxSubscription = (database.select(database.outbox)).watch().listen((_) {
-      _debouncePushTimer?.cancel();
-      _debouncePushTimer = Timer(_debounceWindow, () async {
-        _logger.debug('Debounced push triggered', tag: 'SYNC');
-        try {
-          await sync();
-        } catch (_) {}
-      });
-    });
+    _outboxSubscription = (database.select(database.outbox)).watch().listen(
+      (_) {
+        _debouncePushTimer?.cancel();
+        _debouncePushTimer = Timer(_debounceWindow, () async {
+          _logger.debug('Debounced push triggered', tag: 'SYNC');
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+            if (!enabled) {
+              _logger.debug('Debounced push skipped (disabled)', tag: 'SYNC');
+              return;
+            }
+
+            final result = await sync(push: true, pull: false);
+            if (result.status != SyncStatus.success) {
+              _logger.warning(
+                'Debounced push sync failed: ${result.errorMessage ?? ''}',
+                tag: 'SYNC',
+              );
+            }
+          } catch (e, stackTrace) {
+            _logger.error('Debounced push failed', error: e, stackTrace: stackTrace, tag: 'SYNC');
+          }
+        });
+      },
+      onError: (e, stackTrace) {
+        _logger.error('Outbox watch stream failed', error: e, stackTrace: stackTrace, tag: 'SYNC');
+      },
+    );
     _logger.info('Debounced push enabled (window: ${_debounceWindow.inSeconds}s)', tag: 'SYNC');
   }
 
@@ -298,8 +320,15 @@ class AppwriteSyncManager {
     _syncController.close();
   }
 
-  /// تنفيذ المزامنة
-  Future<SyncResult> sync() async {
+  /// دورة المزامنة الكاملة مع Appwrite:
+  /// - تتحقق من الاتصال بالشبكة
+  /// - تنشئ سجل في sync_logs (start)
+  /// - Push: تفرّغ outbox إلى Appwrite
+  /// - Pull: تسحب collections (rooms → bookings → employees → expenses → payments → debts)
+  /// - تحدّث sync_logs (completed/failed) وتخزّن آخر وقت مزامنة محلياً
+  ///
+  /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
+  Future<SyncResult> sync({bool push = true, bool pull = true}) async {
     if (!await _mutex.acquire()) {
       _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
       return SyncResult(
@@ -325,6 +354,11 @@ class AppwriteSyncManager {
     _syncController.add(_currentStatus);
     
     final startTime = DateTime.now();
+
+    final metrics = SyncMetrics.instance;
+    metrics.startSync();
+
+    final phaseMs = <String, int>{};
     int recordsPushed = 0;
     int recordsPulled = 0;
     int conflicts = 0;
@@ -351,7 +385,13 @@ class AppwriteSyncManager {
 
       final syncLog = await appwriteService.createSyncLog({
         'deviceId': _currentDeviceId ?? 'unknown',
-        'syncType': 'full',
+        'syncType': push && pull
+            ? 'full'
+            : push
+                ? 'push'
+                : pull
+                    ? 'pull'
+                    : 'noop',
         'startTime': startTime.toIso8601String(),
         'status': SyncLogStatus.inProgress.value,
         'action': 'sync_start',
@@ -367,44 +407,53 @@ class AppwriteSyncManager {
       syncLogId = syncLog.$id;
       hasSyncLog = true;
 
-      final pushedCount = await _pushAllEntities();
-      recordsPushed += pushedCount;
+      if (push) {
+        recordsPushed += await _timePhase('pushAllEntities', _pushAllEntities, phaseMs);
+      }
 
-      // مزامنة الغرف
-      final rooms = await appwriteService.listRooms(useCache: false);
-      final roomsSynced = await _syncRooms(rooms);
-      recordsPulled += roomsSynced;
-      _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
+      if (pull) {
+        recordsPulled += await _timePhase('syncRooms', () async {
+          final rooms = await appwriteService.listRooms(useCache: false);
+          final roomsSynced = await _syncRooms(rooms);
+          _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
+          return roomsSynced;
+        }, phaseMs);
 
-      // مزامنة الحجوزات
-      final bookings = await appwriteService.listBookings(useCache: false);
-      final bookingsSynced = await _syncBookings(bookings);
-      recordsPulled += bookingsSynced;
-      _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
+        recordsPulled += await _timePhase('syncBookings', () async {
+          final bookings = await appwriteService.listBookings(useCache: false);
+          final bookingsSynced = await _syncBookings(bookings);
+          _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
+          return bookingsSynced;
+        }, phaseMs);
 
-      // مزامنة الموظفين
-      final employees = await appwriteService.listEmployees(useCache: false);
-      final employeesSynced = await _syncEmployees(employees);
-      recordsPulled += employeesSynced;
-      _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
+        recordsPulled += await _timePhase('syncEmployees', () async {
+          final employees = await appwriteService.listEmployees(useCache: false);
+          final employeesSynced = await _syncEmployees(employees);
+          _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
+          return employeesSynced;
+        }, phaseMs);
 
-      // مزامنة المصروفات
-      final expenses = await appwriteService.listExpenses(useCache: false);
-      final expensesSynced = await _syncExpenses(expenses);
-      recordsPulled += expensesSynced;
-      _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
+        recordsPulled += await _timePhase('syncExpenses', () async {
+          final expenses = await appwriteService.listExpenses(useCache: false);
+          final expensesSynced = await _syncExpenses(expenses);
+          _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
+          return expensesSynced;
+        }, phaseMs);
 
-      // مزامنة المدفوعات
-      final payments = await appwriteService.listPayments(useCache: false);
-      final paymentsSynced = await _syncPayments(payments);
-      recordsPulled += paymentsSynced;
-      _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
+        recordsPulled += await _timePhase('syncPayments', () async {
+          final payments = await appwriteService.listPayments(useCache: false);
+          final paymentsSynced = await _syncPayments(payments);
+          _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
+          return paymentsSynced;
+        }, phaseMs);
 
-      // مزامنة الديون
-      final debts = await appwriteService.listDebts(useCache: false);
-      final debtsSynced = await _syncDebts(debts);
-      recordsPulled += debtsSynced;
-      _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
+        recordsPulled += await _timePhase('syncDebts', () async {
+          final debts = await appwriteService.listDebts(useCache: false);
+          final debtsSynced = await _syncDebts(debts);
+          _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
+          return debtsSynced;
+        }, phaseMs);
+      }
 
       // تحديث سجل المزامنة
       final endTime = DateTime.now();
@@ -451,7 +500,13 @@ class AppwriteSyncManager {
             data: {
               'status': SyncLogStatus.failed.value,
               'action': 'sync_failed',
-              'errorMessage': errorMessage.length > 500 ? errorMessage.substring(0, 500) : errorMessage,
+              'errorMessage': (() {
+                final msg = errorMessage ?? '';
+                if (msg.length > SyncConstants.maxErrorMessageLength) {
+                  return msg.substring(0, SyncConstants.maxErrorMessageLength);
+                }
+                return msg;
+              })(),
               'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
               'updatedAt': failEpoch,
               'lastModified': failEpoch,
@@ -460,7 +515,14 @@ class AppwriteSyncManager {
               'origin': 'mobile',
             },
           );
-        } catch (_) {}
+        } catch (logError, logStackTrace) {
+          _logger.warning(
+            'Failed to update sync log after failure',
+            tag: 'SYNC',
+            error: logError,
+            stackTrace: logStackTrace,
+          );
+        }
       }
       
       _errorHandler.handleError(e, 
@@ -477,6 +539,43 @@ class AppwriteSyncManager {
 
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
+
+    if (finalStatus == SyncStatus.success) {
+      metrics.recordSuccess(recordsSynced: recordsPushed + recordsPulled, conflictsResolved: conflicts);
+    } else {
+      metrics.recordFailure(errorMessage ?? 'Appwrite sync failed');
+    }
+
+    try {
+      final payload = <String, Object?>{
+        'durationMs': duration.inMilliseconds,
+        'recordsPushed': recordsPushed,
+        'recordsPulled': recordsPulled,
+        'conflicts': conflicts,
+        'status': finalStatus.name,
+        'phasesMs': phaseMs,
+      };
+
+      var encoded = jsonEncode(payload, toEncodable: (v) => v.toString());
+      if (encoded.length > SyncConstants.maxMetricsPayloadLength) {
+        const ellipsis = '…';
+        final maxLen = SyncConstants.maxMetricsPayloadLength - ellipsis.length;
+        if (maxLen > 0) {
+          encoded = String.fromCharCodes(encoded.runes.take(maxLen)) + ellipsis;
+        } else {
+          encoded = encoded.substring(0, SyncConstants.maxMetricsPayloadLength);
+        }
+      }
+
+      _logger.debug('Sync metrics: $encoded', tag: 'METRICS');
+    } catch (e, stackTrace) {
+      _logger.warning(
+        'Failed to log sync metrics',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'METRICS',
+      );
+    }
 
     return SyncResult(
       status: finalStatus,
@@ -588,6 +687,16 @@ class AppwriteSyncManager {
         'lastErrorTime': null,
         'timeline': <Map<String, dynamic>>[],
       };
+    }
+  }
+
+  Future<T> _timePhase<T>(String name, Future<T> Function() operation, Map<String, int> phaseMs) async {
+    final stopwatch = Stopwatch()..start();
+    try {
+      return await operation();
+    } finally {
+      stopwatch.stop();
+      phaseMs[name] = stopwatch.elapsedMilliseconds;
     }
   }
 
@@ -799,8 +908,9 @@ class AppwriteSyncManager {
         int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
         
         if (bookingLocalId != null) {
+          final bookingId = bookingLocalId;
           final bookingExists = await (database.select(database.bookings)
-            ..where((b) => b.id.equals(bookingLocalId))
+            ..where((b) => b.id.equals(bookingId))
             ..limit(1)).getSingleOrNull();
           
           if (bookingExists == null) {
@@ -812,8 +922,9 @@ class AppwriteSyncManager {
         int? cashTransactionLocalId = _asIntNullable(data['cashTransactionLocalId']);
         
         if (cashTransactionLocalId != null) {
+          final cashTransactionId = cashTransactionLocalId;
           final cashTransactionExists = await (database.select(database.cashTransactions)
-            ..where((c) => c.id.equals(cashTransactionLocalId))
+            ..where((c) => c.id.equals(cashTransactionId))
             ..limit(1)).getSingleOrNull();
           
           if (cashTransactionExists == null) {
@@ -870,8 +981,9 @@ class AppwriteSyncManager {
         int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
         
         if (bookingLocalId != null) {
+          final bookingId = bookingLocalId;
           final bookingExists = await (database.select(database.bookings)
-            ..where((b) => b.id.equals(bookingLocalId))
+            ..where((b) => b.id.equals(bookingId))
             ..limit(1)).getSingleOrNull();
           
           if (bookingExists == null) {
@@ -1334,7 +1446,7 @@ class AppwriteSyncManager {
     // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
     int retries = 0;
     while (_currentStatus == SyncStatus.syncing && retries < 10) {
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(SyncConstants.shortPollingDelay);
       retries++;
     }
     

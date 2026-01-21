@@ -119,12 +119,10 @@ class EnhancedConflictResolver {
   }
 
   ConflictResolution _handleConcurrentConflict(ConflictContext context) {
-    final timeDiff =
-        context.localTimestamp.difference(context.remoteTimestamp).abs();
-
+    final timeDiff = context.localTimestamp.difference(context.remoteTimestamp).abs();
+    
     if (timeDiff.inSeconds < 30) {
-      debugPrint(
-          '🔀 تعارض متزامن (${timeDiff.inSeconds}s) - استخدام field-level merge');
+      debugPrint('🔀 تعارض متزامن (${timeDiff.inSeconds}s) - استخدام field-level merge');
       return _fieldLevelMerge(context);
     }
 
@@ -134,7 +132,7 @@ class EnhancedConflictResolver {
 
   ConflictResolution _lastWriteWins(ConflictContext context) {
     final localNewer = context.localTimestamp.isAfter(context.remoteTimestamp);
-
+    
     if (localNewer) {
       return ConflictResolution(
         winner: context.localData,
@@ -162,7 +160,7 @@ class EnhancedConflictResolver {
 
   ConflictResolution _firstWriteWins(ConflictContext context) {
     final localOlder = context.localTimestamp.isBefore(context.remoteTimestamp);
-
+    
     return ConflictResolution(
       winner: localOlder ? context.localData : context.remoteData,
       strategy: ConflictStrategy.firstWriteWins,
@@ -171,18 +169,10 @@ class EnhancedConflictResolver {
 
   ConflictResolution _fieldLevelMerge(ConflictContext context) {
     final merged = Map<String, dynamic>.from(context.localData);
-
+    
     final criticalFields = _getCriticalFields(context.table);
-    final systemFields = {
-      'local_uuid',
-      'server_id',
-      'created_at',
-      'created_at_iso',
-      'created_at_epoch',
-      'version',
-      'origin',
-      'vector_clock'
-    };
+    final systemFields = {'local_uuid', 'server_id', 'created_at', 'created_at_iso', 
+                         'created_at_epoch', 'version', 'origin', 'vector_clock'};
 
     for (final key in context.remoteData.keys) {
       if (systemFields.contains(key)) continue;
@@ -197,9 +187,8 @@ class EnhancedConflictResolver {
           merged[key] = remoteValue;
         }
       } else {
-        if (remoteValue != null &&
-            (localValue == null ||
-                context.remoteTimestamp.isAfter(context.localTimestamp))) {
+        if (remoteValue != null && 
+            (localValue == null || context.remoteTimestamp.isAfter(context.localTimestamp))) {
           merged[key] = remoteValue;
         }
       }
@@ -237,15 +226,7 @@ class EnhancedConflictResolver {
 
   Set<String> _getCriticalFields(String table) {
     const fieldsByTable = <String, Set<String>>{
-      'bookings': {
-        'status',
-        'checkout_date',
-        'actual_checkout',
-        'room_number',
-        'total_amount',
-        'paid_amount',
-        'remaining_amount'
-      },
+      'bookings': {'status', 'checkout_date', 'actual_checkout', 'room_number', 'total_amount', 'paid_amount', 'remaining_amount'},
       'payments': {'amount', 'payment_date', 'payment_method', 'booking_uuid'},
       'rooms': {'status', 'price', 'room_number', 'floor', 'type'},
       'expenses': {'amount', 'date', 'category', 'description'},
@@ -253,12 +234,7 @@ class EnhancedConflictResolver {
       'guests': {'name', 'phone', 'id_number', 'nationality'},
       'employees': {'name', 'phone', 'salary', 'role', 'status'},
       'services': {'name', 'price', 'is_active'},
-      'room_services': {
-        'service_uuid',
-        'booking_uuid',
-        'quantity',
-        'total_price'
-      },
+      'room_services': {'service_uuid', 'booking_uuid', 'quantity', 'total_price'},
       'shifts': {'start_time', 'end_time', 'employee_uuid', 'total_amount'},
       'settings': {'value'},
     };

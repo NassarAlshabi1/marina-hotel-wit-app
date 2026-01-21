@@ -19,12 +19,12 @@ class SyncPerformanceOptimizer {
 
   // إصلاح المشكلة الأولى: تغيير نوع البيانات من ConnectivityResult إلى List<ConnectivityResult>
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-
+  
   bool _isOnWiFi = false;
   bool _isInitialized = false;
   DateTime? _lastSyncTime;
   int _syncAttempts = 0;
-
+  
   // إعدادات الأداء حسب نوع الشبكة
   static const Map<String, Map<String, dynamic>> _performanceSettings = {
     'wifi': {
@@ -75,14 +75,14 @@ class SyncPerformanceOptimizer {
   /// إصلاح المشكلة الثالثة: تحديث دالة _updateConnectivityStatus للتعامل مع List<ConnectivityResult>
   void _updateConnectivityStatus(List<ConnectivityResult> results) {
     final wasOnWiFi = _isOnWiFi;
-
+    
     // معالجة الحالات الاستثنائية (قائمة فارغة)
     if (results.isEmpty) {
       _isOnWiFi = false;
       debugPrint('⚠️ قائمة نتائج الاتصال فارغة - افتراض عدم وجود اتصال');
       return;
     }
-
+    
     // البحث عن أفضل نوع اتصال متاح
     // ترتيب الأولوية: WiFi > Ethernet > Mobile > VPN > Bluetooth > Other
     if (results.contains(ConnectivityResult.wifi)) {
@@ -100,13 +100,13 @@ class SyncPerformanceOptimizer {
     } else {
       _isOnWiFi = false; // لا يوجد اتصال
     }
-
+    
     // طباعة تفاصيل التغيير إذا حدث
     if (wasOnWiFi != _isOnWiFi) {
       final connectionType = _getConnectionTypeString(results);
       debugPrint('📡 تغيير نوع الاتصال: $connectionType');
       debugPrint('🔄 حالة WiFi: ${_isOnWiFi ? "متصل" : "غير متصل"}');
-
+      
       // إعادة تعيين عداد المحاولات عند تغيير نوع الاتصال
       _syncAttempts = 0;
     }
@@ -115,7 +115,7 @@ class SyncPerformanceOptimizer {
   /// الحصول على وصف نوع الاتصال
   String _getConnectionTypeString(List<ConnectivityResult> results) {
     if (results.isEmpty) return "لا يوجد اتصال";
-
+    
     List<String> types = [];
     for (var result in results) {
       switch (result) {
@@ -171,10 +171,9 @@ class SyncPerformanceOptimizer {
       final settings = getCurrentPerformanceSettings();
       final minInterval = Duration(seconds: settings['syncInterval']);
       final timeSinceLastSync = DateTime.now().difference(_lastSyncTime!);
-
+      
       if (timeSinceLastSync < minInterval) {
-        debugPrint(
-            '⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد (${timeSinceLastSync.inSeconds}/${minInterval.inSeconds} ثانية)');
+        debugPrint('⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد (${timeSinceLastSync.inSeconds}/${minInterval.inSeconds} ثانية)');
         return true;
       }
     }
@@ -224,17 +223,16 @@ class SyncPerformanceOptimizer {
       debugPrint('✅ تم تسجيل مزامنة ناجحة');
     } else {
       _syncAttempts++;
-      debugPrint(
-          '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)');
+      debugPrint('❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)');
     }
   }
 
   /// الحصول على حالة الاتصال الحالية
   bool get isOnWiFi => _isOnWiFi;
-
+  
   /// الحصول على عدد المحاولات الحالي
   int get syncAttempts => _syncAttempts;
-
+  
   /// الحصول على وقت آخر مزامنة
   DateTime? get lastSyncTime => _lastSyncTime;
 
@@ -334,10 +332,10 @@ class SyncPerformanceOptimizer {
     try {
       final isAdaptive = await isAdaptiveIntervalEnabled();
       if (!isAdaptive) return baseInterval;
-
+      
       // تحسين الفترة حسب حالة الشبكة وعدد الفشل
       int optimizedInterval = baseInterval;
-
+      
       // إذا كان على WiFi، قلل الفترة
       if (_isOnWiFi) {
         optimizedInterval = (baseInterval * 0.8).round().clamp(1, baseInterval);
@@ -345,14 +343,13 @@ class SyncPerformanceOptimizer {
         // إذا كان على بيانات الهاتف، زد الفترة
         optimizedInterval = (baseInterval * 1.5).round();
       }
-
+      
       // زيادة الفترة مع كل فشل متتالي
       if (_syncAttempts > 0) {
         optimizedInterval += (_syncAttempts * 30); // إضافة 30 ثانية لكل فشل
       }
-
-      debugPrint(
-          '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)');
+      
+      debugPrint('🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)');
       return optimizedInterval;
     } catch (e) {
       debugPrint('❌ خطأ في حساب الفترة المحسنة: $e');

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../utils/env.dart';
 
@@ -31,9 +30,7 @@ class ApiService {
           try {
             final req = await _retryRequest(e.requestOptions);
             return handler.resolve(req);
-          } catch (retryError) {
-            debugPrint('⚠️ Retry request failed: $retryError');
-          }
+          } catch (_) {}
         }
         handler.next(e);
       },
@@ -52,14 +49,11 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>?> login(String username, String password) async {
-    final res = await _dio.post('/auth/login.php',
-        data: jsonEncode({
-          'username': username,
-          'password': password,
-        }));
-    if (res.statusCode == 200 &&
-        res.data is Map &&
-        res.data['success'] == true) {
+    final res = await _dio.post('/auth/login.php', data: jsonEncode({
+      'username': username,
+      'password': password,
+    }));
+    if (res.statusCode == 200 && res.data is Map && res.data['success'] == true) {
       final rawData = res.data['data'];
       if (rawData is Map) {
         final data = Map<String, dynamic>.from(rawData);
@@ -124,18 +118,15 @@ class ApiService {
     return Map<String, dynamic>.from(res.data);
   }
 
-  Future<Map<String, dynamic>> syncPush(
-      List<Map<String, dynamic>> changes) async {
-    final res = await _dio.post('/sync/push.php',
-        data: jsonEncode({
-          'changes': changes,
-        }));
+  Future<Map<String, dynamic>> syncPush(List<Map<String, dynamic>> changes) async {
+    final res = await _dio.post('/sync/push.php', data: jsonEncode({
+      'changes': changes,
+    }));
     return Map<String, dynamic>.from(res.data);
   }
 
   Future<Map<String, dynamic>> syncPull(int since) async {
-    final res =
-        await _dio.get('/sync/pull.php', queryParameters: {'since': since});
+    final res = await _dio.get('/sync/pull.php', queryParameters: {'since': since});
     return Map<String, dynamic>.from(res.data);
   }
 

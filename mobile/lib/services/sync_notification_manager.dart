@@ -5,11 +5,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 /// مدير الإشعارات للمزامنة التلقائية
 class SyncNotificationManager {
   static SyncNotificationManager? _instance;
-  static SyncNotificationManager get instance =>
-      _instance ??= SyncNotificationManager._();
-
-  final FlutterLocalNotificationsPlugin _localNotifications =
-      FlutterLocalNotificationsPlugin();
+  static SyncNotificationManager get instance => _instance ??= SyncNotificationManager._();
+  
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
 
   SyncNotificationManager._() {
@@ -18,11 +16,10 @@ class SyncNotificationManager {
 
   Future<void> _initLocalNotifications() async {
     if (_isInitialized) return;
-
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidSettings);
-
+    
     await _localNotifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (details) {
@@ -49,12 +46,12 @@ class SyncNotificationManager {
       playSound: true,
       enableVibration: true,
     );
-
+    
     const details = NotificationDetails(android: androidDetails);
-
+    
     // نستخدم رقم عشوائي أو ثابت للـ ID
     final id = DateTime.now().millisecondsSinceEpoch % 100000;
-
+    
     await _localNotifications.show(
       id,
       title,
@@ -65,8 +62,7 @@ class SyncNotificationManager {
   }
 
   /// إشعار نجاح المزامنة
-  static void showSyncSuccess(
-    BuildContext context, {
+  static void showSyncSuccess(BuildContext context, {
     required String fromDevice,
     required int recordsCount,
     required DateTime syncTime,
@@ -151,7 +147,7 @@ class SyncNotificationManager {
     );
 
     overlay.insert(overlayEntry);
-
+    
     // إزالة تلقائية بعد 5 ثوان
     Future.delayed(const Duration(seconds: 5), () {
       try {
@@ -164,8 +160,7 @@ class SyncNotificationManager {
   }
 
   /// إشعار فشل المزامنة
-  static void showSyncError(
-    BuildContext context, {
+  static void showSyncError(BuildContext context, {
     required String error,
     VoidCallback? onRetry,
   }) {
@@ -242,13 +237,13 @@ class SyncNotificationManager {
                     ),
                     IconButton(
                       onPressed: () => overlayEntry.remove(),
-                      icon: const Icon(Icons.close,
-                          color: Colors.white, size: 20),
+                      icon: const Icon(Icons.close, color: Colors.white, size: 20),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
+                
                 if (onRetry != null) ...[
                   const SizedBox(height: 12),
                   SizedBox(
@@ -276,7 +271,7 @@ class SyncNotificationManager {
     );
 
     overlay.insert(overlayEntry);
-
+    
     // إزالة تلقائية بعد 7 ثوان
     Future.delayed(const Duration(seconds: 7), () {
       try {
@@ -316,8 +311,7 @@ class SyncNotificationManager {
   }
 
   /// إشعار اكتشاف بيانات جديدة
-  static void showNewDataDetected(
-    BuildContext context, {
+  static void showNewDataDetected(BuildContext context, {
     required String sourceDevice,
     required int changesCount,
     VoidCallback? onViewDetails,
@@ -393,13 +387,13 @@ class SyncNotificationManager {
                     ),
                     IconButton(
                       onPressed: () => overlayEntry.remove(),
-                      icon: const Icon(Icons.close,
-                          color: Colors.white, size: 20),
+                      icon: const Icon(Icons.close, color: Colors.white, size: 20),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
+                
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -428,8 +422,7 @@ class SyncNotificationManager {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white.withOpacity(0.2),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 8, horizontal: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                         ),
                         child: const Text('تفاصيل'),
                       ),
@@ -444,7 +437,7 @@ class SyncNotificationManager {
     );
 
     overlay.insert(overlayEntry);
-
+    
     // إزالة تلقائية بعد 10 ثوان
     Future.delayed(const Duration(seconds: 10), () {
       try {

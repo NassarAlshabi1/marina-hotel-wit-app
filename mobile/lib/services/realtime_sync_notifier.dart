@@ -6,9 +6,8 @@ import 'smart_sync_manager.dart';
 /// مُعلِم المزامنة الفورية - يتلقى إشعارات من الأجهزة الأخرى
 class RealtimeSyncNotifier {
   static RealtimeSyncNotifier? _instance;
-  static RealtimeSyncNotifier get instance =>
-      _instance ??= RealtimeSyncNotifier._();
-
+  static RealtimeSyncNotifier get instance => _instance ??= RealtimeSyncNotifier._();
+  
   RealtimeSyncNotifier._();
 
   final _syncTriggerController = StreamController<SyncTrigger>.broadcast();
@@ -24,12 +23,12 @@ class RealtimeSyncNotifier {
   /// بدء الاستماع لإشعارات المزامنة
   Future<void> startListening() async {
     if (_isListening) return;
-
+    
     _isListening = true;
     await _loadLastProcessedSyncId();
 
     _pollingTimer = Timer.periodic(_pollingInterval, (_) => _checkForNewSync());
-
+    
     debugPrint('🔔 بدء الاستماع لإشعارات المزامنة');
   }
 
@@ -38,7 +37,7 @@ class RealtimeSyncNotifier {
     _pollingTimer?.cancel();
     _pollingTimer = null;
     _isListening = false;
-
+    
     debugPrint('🔕 إيقاف الاستماع لإشعارات المزامنة');
   }
 
@@ -46,11 +45,11 @@ class RealtimeSyncNotifier {
   Future<void> _checkForNewSync() async {
     try {
       final smartSync = SmartSyncManager.instance;
-
+      
       if (!smartSync.isDriveSignedIn) return;
 
       final hasChanges = await smartSync.pullRemoteChanges();
-
+      
       if (hasChanges) {
         final trigger = SyncTrigger(
           syncId: 'auto_${DateTime.now().millisecondsSinceEpoch}',
@@ -58,7 +57,7 @@ class RealtimeSyncNotifier {
           timestamp: DateTime.now(),
           changeType: 'update',
         );
-
+        
         _syncTriggerController.add(trigger);
         debugPrint('🔔 تم اكتشاف تغييرات جديدة');
       }

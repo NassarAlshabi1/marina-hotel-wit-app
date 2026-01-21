@@ -35,7 +35,7 @@ class SyncHealthMetrics {
 class SyncHealthMonitor {
   static SyncHealthMonitor? _instance;
   static SyncHealthMonitor get instance => _instance ??= SyncHealthMonitor._();
-
+  
   SyncHealthMonitor._();
 
   final _metricsController = StreamController<SyncHealthMetrics>.broadcast();
@@ -55,10 +55,9 @@ class SyncHealthMonitor {
 
   Future<void> initialize() async {
     await _loadMetrics();
-
-    _healthCheckTimer =
-        Timer.periodic(_healthCheckInterval, (_) => _performHealthCheck());
-
+    
+    _healthCheckTimer = Timer.periodic(_healthCheckInterval, (_) => _performHealthCheck());
+    
     debugPrint('🏥 بدء مراقبة صحة المزامنة');
   }
 
@@ -68,10 +67,10 @@ class SyncHealthMonitor {
   }) {
     _consecutiveFailures = 0;
     _lastSuccessAt = DateTime.now();
-
+    
     _syncDurations.add(duration);
     if (_syncDurations.length > 20) _syncDurations.removeAt(0);
-
+    
     _hadConflicts.add(hadConflicts);
     if (_hadConflicts.length > 20) _hadConflicts.removeAt(0);
 
@@ -85,13 +84,13 @@ class SyncHealthMonitor {
 
     _persistMetrics();
     _emitMetrics();
-
+    
     debugPrint('⚠️ فشل المزامنة (المحاولة $_consecutiveFailures)');
   }
 
   Future<void> _performHealthCheck() async {
     final metrics = await getHealthMetrics();
-
+    
     if (metrics.status == SyncHealthStatus.critical) {
       debugPrint('🚨 حالة المزامنة حرجة!');
       debugPrint('توصيات: ${metrics.recommendations.join(', ')}');
@@ -108,8 +107,7 @@ class SyncHealthMonitor {
 
     if (_consecutiveFailures >= _maxFailuresBeforeCritical) {
       status = SyncHealthStatus.critical;
-      recommendations.add(
-          'فشل المزامنة $_consecutiveFailures مرات متتالية - تحقق من الاتصال');
+      recommendations.add('فشل المزامنة $_consecutiveFailures مرات متتالية - تحقق من الاتصال');
       recommendations.add('جرب إعادة تسجيل الدخول في Google Drive');
     } else if (_consecutiveFailures >= _maxFailuresBeforeWarning) {
       status = SyncHealthStatus.warning;
@@ -121,8 +119,7 @@ class SyncHealthMonitor {
       final timeSinceSuccess = DateTime.now().difference(_lastSuccessAt!);
       if (timeSinceSuccess.inHours > 24) {
         status = SyncHealthStatus.warning;
-        recommendations
-            .add('آخر مزامنة ناجحة منذ ${timeSinceSuccess.inHours} ساعة');
+        recommendations.add('آخر مزامنة ناجحة منذ ${timeSinceSuccess.inHours} ساعة');
       } else {
         status = SyncHealthStatus.healthy;
       }
@@ -131,10 +128,7 @@ class SyncHealthMonitor {
     final avgDuration = _syncDurations.isEmpty
         ? Duration.zero
         : Duration(
-            milliseconds: _syncDurations
-                    .map((d) => d.inMilliseconds)
-                    .reduce((a, b) => a + b) ~/
-                _syncDurations.length,
+            milliseconds: _syncDurations.map((d) => d.inMilliseconds).reduce((a, b) => a + b) ~/ _syncDurations.length,
           );
 
     final conflictRate = _hadConflicts.isEmpty
@@ -143,15 +137,13 @@ class SyncHealthMonitor {
 
     if (conflictRate > 0.3) {
       if (!recommendations.contains('معدل تعارضات مرتفع')) {
-        recommendations.add(
-            'معدل تعارضات مرتفع (${(conflictRate * 100).toStringAsFixed(0)}%) - راجع أولويات الأجهزة');
+        recommendations.add('معدل تعارضات مرتفع (${(conflictRate * 100).toStringAsFixed(0)}%) - راجع أولويات الأجهزة');
       }
     }
 
     final dataLossRisk = _calculateDataLossRisk();
     if (dataLossRisk > 0.5) {
-      recommendations
-          .add('خطر فقدان بيانات مرتفع - راجع استراتيجية حل التعارضات');
+      recommendations.add('خطر فقدان بيانات مرتفع - راجع استراتيجية حل التعارضات');
     }
 
     return SyncHealthMetrics(
@@ -169,24 +161,24 @@ class SyncHealthMonitor {
   double _calculateDataLossRisk() {
     if (_consecutiveFailures >= 5) return 0.8;
     if (_consecutiveFailures >= 3) return 0.5;
-
+    
     final timeSinceSuccess = _lastSuccessAt == null
         ? Duration(days: 365)
         : DateTime.now().difference(_lastSuccessAt!);
-
+    
     if (timeSinceSuccess.inHours > 48) return 0.7;
     if (timeSinceSuccess.inHours > 24) return 0.4;
-
+    
     return 0.1;
   }
 
   Future<void> _loadMetrics() async {
     final prefs = await SharedPreferences.getInstance();
     _consecutiveFailures = prefs.getInt('sync_health_failures') ?? 0;
-
+    
     final successStr = prefs.getString('sync_health_last_success');
     if (successStr != null) _lastSuccessAt = DateTime.tryParse(successStr);
-
+    
     final failureStr = prefs.getString('sync_health_last_failure');
     if (failureStr != null) _lastFailureAt = DateTime.tryParse(failureStr);
   }
@@ -194,15 +186,13 @@ class SyncHealthMonitor {
   Future<void> _persistMetrics() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('sync_health_failures', _consecutiveFailures);
-
+    
     if (_lastSuccessAt != null) {
-      await prefs.setString(
-          'sync_health_last_success', _lastSuccessAt!.toIso8601String());
+      await prefs.setString('sync_health_last_success', _lastSuccessAt!.toIso8601String());
     }
-
+    
     if (_lastFailureAt != null) {
-      await prefs.setString(
-          'sync_health_last_failure', _lastFailureAt!.toIso8601String());
+      await prefs.setString('sync_health_last_failure', _lastFailureAt!.toIso8601String());
     }
   }
 

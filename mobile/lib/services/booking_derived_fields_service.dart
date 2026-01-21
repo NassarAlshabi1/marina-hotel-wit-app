@@ -33,8 +33,7 @@ class BookingDerivedFieldsService {
     final plannedCheckout = _parseDateTime(booking.checkoutDate);
     final actualCheckout = _parseDateTime(booking.actualCheckout);
 
-    final bookingActive =
-        actualCheckout == null && StatusUtils.isBookingActive(booking);
+    final bookingActive = actualCheckout == null && StatusUtils.isBookingActive(booking);
 
     DateTime checkout = actualCheckout ?? plannedCheckout ?? moment;
     if (bookingActive && plannedCheckout == null) {
@@ -47,10 +46,7 @@ class BookingDerivedFieldsService {
 
     final segments = _buildNightSegments(checkin, checkout);
     final totalNights = segments.length;
-    final expectedNightsValue =
-        plannedCheckout != null && actualCheckout == null
-            ? totalNights
-            : booking.expectedNights;
+    final expectedNightsValue = plannedCheckout != null && actualCheckout == null ? totalNights : booking.expectedNights;
 
     final room = await (db.select(db.rooms)
           ..where((r) => r.roomNumber.equals(booking.roomNumber))
@@ -58,12 +54,10 @@ class BookingDerivedFieldsService {
         .getSingleOrNull();
 
     final nightlyRate = room?.price ?? 0.0;
-    final totalDue =
-        double.parse((nightlyRate * totalNights).toStringAsFixed(2));
+    final totalDue = double.parse((nightlyRate * totalNights).toStringAsFixed(2));
 
     final payments = await (db.select(db.payments)
-          ..where((p) => (p.bookingLocalId.equals(booking.id) |
-              p.bookingUuidCache.equals(booking.localUuid)))
+          ..where((p) => (p.bookingLocalId.equals(booking.id) | p.bookingUuidCache.equals(booking.localUuid)))
           ..where((p) => p.revenueType.equals('room'))
           ..where((p) => p.deletedAt.isNull()))
         .get();
@@ -72,18 +66,14 @@ class BookingDerivedFieldsService {
       payments.fold<double>(0.0, (sum, p) => sum + p.amount).toStringAsFixed(2),
     );
 
-    final remainingRaw =
-        double.parse((totalDue - totalPaid).toStringAsFixed(2));
+    final remainingRaw = double.parse((totalDue - totalPaid).toStringAsFixed(2));
     final remaining = remainingRaw < 0 ? 0.0 : remainingRaw;
 
     final isFullyPaid = remaining <= 0.009;
-    final isOverdue = bookingActive &&
-        plannedCheckout != null &&
-        moment.isAfter(plannedCheckout);
+    final isOverdue = bookingActive && plannedCheckout != null && moment.isAfter(plannedCheckout);
     final needsReview = isOverdue || remaining > 0.009;
 
-    final stayDurationIso =
-        '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
+    final stayDurationIso = '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
     final lastNightEpoch = segments.last.end.millisecondsSinceEpoch ~/ 1000;
 
     final hotelDayCheckin = Time.hotelDayKey(now: checkin);
@@ -94,8 +84,7 @@ class BookingDerivedFieldsService {
     final stampIso = nowUtc.toIso8601String();
 
     await db.transaction(() async {
-      await (db.update(db.bookings)..where((b) => b.id.equals(booking.id)))
-          .write(
+      await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
         BookingsCompanion(
           expectedNights: d.Value(expectedNightsValue),
           calculatedNights: d.Value(totalNights),
@@ -117,9 +106,7 @@ class BookingDerivedFieldsService {
         ),
       );
 
-      await (db.delete(db.bookingNights)
-            ..where((t) => t.bookingLocalId.equals(booking.id)))
-          .go();
+      await (db.delete(db.bookingNights)..where((t) => t.bookingLocalId.equals(booking.id))).go();
 
       await db.batch((batch) {
         int sequence = 0;
@@ -157,8 +144,7 @@ class BookingDerivedFieldsService {
     final v = value.trim();
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
-    final withSeconds =
-        normalized.length == 16 ? '${normalized}:00' : normalized;
+    final withSeconds = normalized.length == 16 ? '${normalized}:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {
@@ -166,8 +152,7 @@ class BookingDerivedFieldsService {
     }
   }
 
-  List<_NightSegment> _buildNightSegments(DateTime checkin, DateTime checkout,
-      {int cutoffHour = 14}) {
+  List<_NightSegment> _buildNightSegments(DateTime checkin, DateTime checkout, {int cutoffHour = 14}) {
     final segments = <_NightSegment>[];
     var cursor = checkin;
 
@@ -191,12 +176,9 @@ class BookingDerivedFieldsService {
     if (segments.isEmpty) {
       segments.add(
         _NightSegment(
-          hotelDayKey: Time.dateToString(
-              Time.hotelDayStart(checkin, cutoffHour: cutoffHour)),
+          hotelDayKey: Time.dateToString(Time.hotelDayStart(checkin, cutoffHour: cutoffHour)),
           start: checkin,
-          end: checkout.isAfter(checkin)
-              ? checkout
-              : checkin.add(const Duration(minutes: 1)),
+          end: checkout.isAfter(checkin) ? checkout : checkin.add(const Duration(minutes: 1)),
         ),
       );
     }

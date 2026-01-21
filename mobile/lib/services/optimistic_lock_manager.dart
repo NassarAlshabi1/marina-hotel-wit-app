@@ -3,16 +3,14 @@ import 'local_db.dart';
 import 'package:drift/drift.dart' as d;
 
 class OptimisticLockException implements Exception {
-  OptimisticLockException(this.message,
-      {this.currentVersion, this.expectedVersion});
+  OptimisticLockException(this.message, {this.currentVersion, this.expectedVersion});
 
   final String message;
   final int? currentVersion;
   final int? expectedVersion;
 
   @override
-  String toString() =>
-      'OptimisticLockException: $message (expected: $expectedVersion, current: $currentVersion)';
+  String toString() => 'OptimisticLockException: $message (expected: $expectedVersion, current: $currentVersion)';
 }
 
 /// مدير Optimistic Locking - يمنع التعديلات المتزامنة على نفس الصف
@@ -28,7 +26,7 @@ class OptimisticLockManager {
     required int expectedVersion,
   }) async {
     final currentVersion = await _getCurrentVersion(table, uuid);
-
+    
     if (currentVersion == null) {
       throw OptimisticLockException(
         'السجل غير موجود',
@@ -46,24 +44,16 @@ class OptimisticLockManager {
 
     final newVersion = currentVersion + 1;
     await _updateVersion(table, uuid, newVersion);
-
+    
     return newVersion;
   }
 
   /// الحصول على الإصدار الحالي لصف
   Future<int?> _getCurrentVersion(String table, String uuid) async {
     const allowedTables = {
-      'rooms',
-      'bookings',
-      'booking_notes',
-      'employees',
-      'expenses',
-      'cash_transactions',
-      'payments',
-      'debts',
-      'booking_nights',
-      'hotel_day_ledger',
-      'shift_notes',
+      'rooms', 'bookings', 'booking_notes', 'employees', 'expenses',
+      'cash_transactions', 'payments', 'debts', 'booking_nights',
+      'hotel_day_ledger', 'shift_notes',
     };
 
     if (!allowedTables.contains(table)) {

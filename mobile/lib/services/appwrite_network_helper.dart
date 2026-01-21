@@ -4,15 +4,14 @@ import 'appwrite_logger.dart';
 
 /// مساعد للعمليات الشبكية مع Retry Logic و Timeout
 class AppwriteNetworkHelper {
-  static final AppwriteNetworkHelper _instance =
-      AppwriteNetworkHelper._internal();
+  static final AppwriteNetworkHelper _instance = AppwriteNetworkHelper._internal();
   factory AppwriteNetworkHelper() => _instance;
   AppwriteNetworkHelper._internal();
 
   final _logger = AppwriteLogger();
 
   /// تنفيذ عملية مع Retry Logic (Exponential Backoff)
-  ///
+  /// 
   /// [operation] - الدالة المراد تنفيذها
   /// [maxRetries] - عدد المحاولات القصوى (افتراضي: 3)
   /// [initialDelay] - التأخير الأولي (افتراضي: 2 ثانية)
@@ -27,8 +26,7 @@ class AppwriteNetworkHelper {
   }) async {
     final retries = maxRetries ?? AppwriteConfig.maxRetries;
     final delay = initialDelay ?? AppwriteConfig.initialRetryDelay;
-    final multiplier =
-        backoffMultiplier ?? AppwriteConfig.retryBackoffMultiplier;
+    final multiplier = backoffMultiplier ?? AppwriteConfig.retryBackoffMultiplier;
     final opName = operationName ?? 'Operation';
 
     int attempt = 0;
@@ -36,7 +34,7 @@ class AppwriteNetworkHelper {
 
     while (true) {
       attempt++;
-
+      
       try {
         _logger.debug('$opName - Attempt $attempt/$retries', tag: 'RETRY');
         return await operation();
@@ -49,8 +47,7 @@ class AppwriteNetworkHelper {
 
         // إذا وصلنا للحد الأقصى من المحاولات
         if (attempt >= retries) {
-          _logger.error('$opName - Max retries ($retries) reached',
-              error: e, tag: 'RETRY');
+          _logger.error('$opName - Max retries ($retries) reached', error: e, tag: 'RETRY');
           rethrow;
         }
 
@@ -62,14 +59,13 @@ class AppwriteNetworkHelper {
         );
 
         await Future.delayed(waitTime);
-        currentDelay = Duration(
-            milliseconds: (currentDelay.inMilliseconds * multiplier).round());
+        currentDelay = Duration(milliseconds: (currentDelay.inMilliseconds * multiplier).round());
       }
     }
   }
 
   /// تنفيذ عملية مع Timeout
-  ///
+  /// 
   /// [operation] - الدالة المراد تنفيذها
   /// [timeout] - المدة القصوى للانتظار
   /// [operationName] - اسم العملية للتسجيل
@@ -82,16 +78,13 @@ class AppwriteNetworkHelper {
     final opName = operationName ?? 'Operation';
 
     try {
-      _logger.debug('$opName - Starting with ${maxDuration.inSeconds}s timeout',
-          tag: 'TIMEOUT');
-
+      _logger.debug('$opName - Starting with ${maxDuration.inSeconds}s timeout', tag: 'TIMEOUT');
+      
       return await operation().timeout(
         maxDuration,
         onTimeout: () {
-          _logger.error('$opName - Timeout after ${maxDuration.inSeconds}s',
-              tag: 'TIMEOUT');
-          throw TimeoutException(
-              '$opName تجاوز الوقت المحدد (${maxDuration.inSeconds} ثانية)');
+          _logger.error('$opName - Timeout after ${maxDuration.inSeconds}s', tag: 'TIMEOUT');
+          throw TimeoutException('$opName تجاوز الوقت المحدد (${maxDuration.inSeconds} ثانية)');
         },
       );
     } catch (e) {
@@ -104,7 +97,7 @@ class AppwriteNetworkHelper {
   }
 
   /// تنفيذ عملية مع كل من Retry و Timeout
-  ///
+  /// 
   /// [operation] - الدالة المراد تنفيذها
   /// [maxRetries] - عدد المحاولات القصوى
   /// [timeout] - المدة القصوى للانتظار لكل محاولة
@@ -144,8 +137,7 @@ class AppwriteNetworkHelper {
         errorStr.contains('502') || // Bad Gateway
         errorStr.contains('503') || // Service Unavailable
         errorStr.contains('504') || // Gateway Timeout
-        errorStr.contains('429')) {
-      // Too Many Requests
+        errorStr.contains('429')) { // Too Many Requests
       return true;
     }
 
@@ -161,7 +153,7 @@ class AppwriteNetworkHelper {
   }
 
   /// حساب وقت الانتظار بناءً على Exponential Backoff مع Jitter
-  ///
+  /// 
   /// [attempt] - رقم المحاولة
   /// [baseDelay] - التأخير الأساسي
   /// [multiplier] - معامل التضاعف
@@ -177,12 +169,10 @@ class AppwriteNetworkHelper {
 
     // Exponential backoff: delay = baseDelay * (multiplier ^ attempt)
     final exponentialDelay = base.inMilliseconds * (mult * attempt);
-
+    
     // إضافة jitter (تذبذب عشوائي بين 0-20%)
     if (addJitter) {
-      final jitter = (exponentialDelay *
-          0.2 *
-          (0.5 + (DateTime.now().millisecond % 100) / 100));
+      final jitter = (exponentialDelay * 0.2 * (0.5 + (DateTime.now().millisecond % 100) / 100));
       return Duration(milliseconds: (exponentialDelay + jitter).round());
     }
 

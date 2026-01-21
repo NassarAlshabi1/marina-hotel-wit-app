@@ -30,8 +30,7 @@ class VectorClock {
     final newClocks = Map<String, int>.from(clocks);
     for (final entry in other.clocks.entries) {
       final currentValue = newClocks[entry.key] ?? 0;
-      newClocks[entry.key] =
-          currentValue > entry.value ? currentValue : entry.value;
+      newClocks[entry.key] = currentValue > entry.value ? currentValue : entry.value;
     }
     return VectorClock(newClocks);
   }
@@ -82,7 +81,7 @@ class VectorClock {
 
 class MapEquality<K, V> {
   const MapEquality();
-
+  
   bool equals(Map<K, V>? a, Map<K, V>? b) {
     if (identical(a, b)) return true;
     if (a == null || b == null) return false;
@@ -92,7 +91,7 @@ class MapEquality<K, V> {
     }
     return true;
   }
-
+  
   int hash(Map<K, V>? map) {
     if (map == null) return 0;
     int hash = 0;
