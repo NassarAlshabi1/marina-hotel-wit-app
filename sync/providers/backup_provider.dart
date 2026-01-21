@@ -431,6 +431,15 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       final downloaded = await _backupService.downloadBackup(driveBackup.fileId);
 
+      if (downloaded == null) {
+        state = state.copyWith(
+          status: BackupStatus.error,
+          message: 'فشل تنزيل النسخة الاحتياطية.',
+          progress: null,
+        );
+        return;
+      }
+
       state = state.copyWith(
         status: BackupStatus.restoring,
         message: 'استعادة البيانات...',

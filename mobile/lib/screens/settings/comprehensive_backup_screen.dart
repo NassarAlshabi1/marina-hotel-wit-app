@@ -264,7 +264,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     } else if (diff.inHours > 0) {
       return '${diff.inHours} ساعات';
     } else {
-      return '${diff.inMinutes} دقائق';
+      return diff.inMinutes > 0 ? '${diff.inMinutes} دقائق' : 'لحظات';
     }
   }
 
@@ -1107,6 +1107,15 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       try {
         backup = ref.read(availableBackupsProvider).firstWhere((b) => b.fileId == identifier);
       } on StateError {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ لم يتم العثور على النسخة الاحتياطية. قد تكون تم حذفها أو تحديث القائمة.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
         return;
       }
       title = 'استعادة من Google Drive';
@@ -1118,6 +1127,15 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
       try {
         backup = ref.read(localBackupsProvider).firstWhere((b) => b.filePath == identifier);
       } on StateError {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ لم يتم العثور على النسخة الاحتياطية المحلية. قد تكون تم حذفها من التخزين.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
         return;
       }
       title = 'استعادة من النسخة المحلية';
@@ -1289,9 +1307,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
   }
 
   Future<void> _refreshAll() async {
-    await ref.read(backupStatusProvider.notifier).refreshBackupsList();
-    await ref.read(backupStatusProvider.notifier).refreshLocalBackups();
-    await ref.read(backupStatusProvider.notifier).updateDatabaseSize();
+    final notifier = ref.read(backupStatusProvider.notifier);
+    await notifier.refreshBackupsList();
+    await notifier.refreshLocalBackups();
+    await notifier.updateDatabaseSize();
+    await notifier.checkStoragePermissions();
   }
 
   Widget _buildFileManagementTab(BackupState state) {
@@ -1381,6 +1401,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
   }
 
   Widget _buildImportAndMergeCard(BackupState state) {
+    final jsonBackups = state.localBackups.where((b) => b.format == BackupFormat.json).toList();
+    final canMerge = jsonBackups.length >= 2;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1423,9 +1446,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: state.localBackups.where((b) => b.format == BackupFormat.json).length < 2
-                        ? null
-                        : () => _showMergeDialog(state),
+                    onPressed: !canMerge ? null : () => _showMergeDialog(jsonBackups),
                     icon: const Icon(Icons.merge),
                     label: const Text('دمج نسخ'),
                   ),
@@ -1613,32 +1634,37 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     );
   }
 
-  void _showMergeDialog(BackupState state) {
+  void _showMergeDialog(List<LocalBackupFile> jsonBackups) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('دمج النسخ الاحتياطية'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('سيتم دمج جميع النسخ المحلية في ملف واحد'),
+            const Text('سيتم دمج جميع النسخ المحلية بصيغة JSON في ملف واحد'),
             const SizedBox(height: 12),
-            Text('عدد الملفات: ${state.localBackups.length}'),
+            Text('عدد الملفات المتاحة: ${jsonBackups.length}'),
             const Text('سيتم إزالة التكرارات تلقائياً'),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop();
-              final jsonBackups = state.localBackups.where((b) => b.format == BackupFormat.json).toList();
+              Navigator.of(dialogContext).pop();
               final paths = jsonBackups.map((b) => b.filePath).toList();
               final mergedName = 'merged_backup_${DateTime.now().millisecondsSinceEpoch}.json';
               ref.read(backupStatusProvider.notifier).mergeBackups(paths, mergedName);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('جارٍ دمج ${jsonBackups.length} نسخة احتياطية...'),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
             child: const Text('دمج', style: TextStyle(color: Colors.white)),

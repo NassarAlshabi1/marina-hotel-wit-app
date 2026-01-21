@@ -11,7 +11,8 @@ import 'local_db.dart';
 import '../data/sync_models.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
-import 'sync_locks.dart';
+import 'sync_core/unified_lock_manager.dart';
+import 'booking_derived_fields_service.dart';
 
 class AppwriteDeltaSyncResult {
   final bool success;
@@ -77,20 +78,31 @@ class AppwriteDeltaSync {
   }
 
   Future<AppwriteDeltaSyncResult> pushDeltaChanges() async {
-    final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
-      if (!isInitialized || _isSyncing) {
-        return false;
-      }
-      _isSyncing = true;
-      return true;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.deltaSync,
+      holder: 'AppwriteDeltaSync.pushDeltaChanges',
+      priority: LockPriority.high,
+    );
     
-    if (!canStart) {
+    if (!lockResult.acquired) {
+      return AppwriteDeltaSyncResult(
+        success: false,
+        message: 'فشل الحصول على القفل: ${lockResult.failureReason}',
+      );
+    }
+    
+    if (!isInitialized || _isSyncing) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'AppwriteDeltaSync.pushDeltaChanges',
+      );
       return AppwriteDeltaSyncResult(
         success: false,
         message: 'الخدمة غير جاهزة أو المزامنة جارية',
       );
     }
+    
+    _isSyncing = true;
 
     try {
       _logger.info('📤 بدء المزامنة التفاضلية إلى Appwrite...', tag: 'DELTA_SYNC');
@@ -141,9 +153,11 @@ class AppwriteDeltaSync {
       _logger.error('❌ خطأ في المزامنة التفاضلية: $e', tag: 'DELTA_SYNC');
       return AppwriteDeltaSyncResult(success: false, message: e.toString());
     } finally {
-      await SyncLocks.appwriteSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'AppwriteDeltaSync.pushDeltaChanges',
+      );
     }
   }
 
@@ -211,20 +225,31 @@ class AppwriteDeltaSync {
   }
 
   Future<AppwriteDeltaSyncResult> pullDeltaChanges() async {
-    final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
-      if (!isInitialized || _isSyncing) {
-        return false;
-      }
-      _isSyncing = true;
-      return true;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.deltaSync,
+      holder: 'AppwriteDeltaSync.pullDeltaChanges',
+      priority: LockPriority.high,
+    );
     
-    if (!canStart) {
+    if (!lockResult.acquired) {
+      return AppwriteDeltaSyncResult(
+        success: false,
+        message: 'فشل الحصول على القفل: ${lockResult.failureReason}',
+      );
+    }
+    
+    if (!isInitialized || _isSyncing) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'AppwriteDeltaSync.pullDeltaChanges',
+      );
       return AppwriteDeltaSyncResult(
         success: false,
         message: 'الخدمة غير جاهزة',
       );
     }
+    
+    _isSyncing = true;
 
     try {
       _logger.info('📥 فحص التغييرات من Appwrite...', tag: 'DELTA_SYNC');
@@ -247,6 +272,9 @@ class AppwriteDeltaSync {
 
       if (pulledCount > 0) {
         await _updateLastDeltaSyncTimestamp();
+        
+        // إعادة حساب جميع الحجوزات النشطة بعد تطبيق التغييرات
+        await _recalculateAllActiveBookings();
       }
 
       _logger.info('✅ تم سحب $pulledCount تغيير من Appwrite', tag: 'DELTA_SYNC');
@@ -260,9 +288,11 @@ class AppwriteDeltaSync {
       _logger.error('❌ خطأ في سحب التغييرات: $e', tag: 'DELTA_SYNC');
       return AppwriteDeltaSyncResult(success: false, message: e.toString());
     } finally {
-      await SyncLocks.appwriteSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'AppwriteDeltaSync.pullDeltaChanges',
+      );
     }
   }
 
@@ -375,11 +405,20 @@ class AppwriteDeltaSync {
       actualCheckout: _nullableValue<String>(_asString(data['actualCheckout'])),
       status: d.Value(_asString(data['status']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
-      expectedNights: d.Value(_asInt(data['expectedNights']) ?? 1),
-      calculatedNights: d.Value(_asInt(data['calculatedNights']) ?? 1),
+      // لا نحفظ expected_nights و calculated_nights من delta sync
+      // سيتم حسابهم تلقائياً بعد الاستعادة
     );
 
     await db.into(db.bookings).insertOnConflictUpdate(companion);
+    
+    // إعادة حساب الحقول المشتقة (derived fields) بناءً على التواريخ
+    final insertedBooking = await (db.select(db.bookings)
+          ..where((b) => b.localUuid.equals(localUuid)))
+        .getSingleOrNull();
+    
+    if (insertedBooking != null) {
+      await _recalculateBookingFields(db, insertedBooking);
+    }
   }
 
   Future<void> _applyPaymentChange(AppDatabase db, String localUuid, Map<String, dynamic> data) async {
@@ -589,5 +628,46 @@ class AppwriteDeltaSync {
     if (value == null) return null;
     final result = value.toString();
     return result.isEmpty ? null : result;
+  }
+
+  /// إعادة حساب الحقول المشتقة للحجز (expected_nights, calculated_nights, إلخ)
+  /// بناءً على التواريخ الفعلية بدلاً من الاعتماد على القيم المحفوظة
+  Future<void> _recalculateBookingFields(AppDatabase db, Booking booking) async {
+    try {
+      final derivedFieldsService = BookingDerivedFieldsService(db);
+      await derivedFieldsService.refreshForBooking(booking);
+      _logger.info('✅ تم إعادة حساب الحقول للحجز: ${booking.guestName} (${booking.roomNumber})');
+    } catch (e) {
+      _logger.warning('⚠️ خطأ في إعادة حساب الحقول للحجز ${booking.id}: $e');
+    }
+  }
+
+  /// إعادة حساب جميع الحجوزات النشطة بعد استعادة البيانات
+  Future<void> _recalculateAllActiveBookings() async {
+    if (_database == null) return;
+    
+    try {
+      debugPrint('🔄 إعادة حساب جميع الحجوزات النشطة...');
+      
+      final bookings = await (_database!.select(_database!.bookings)
+            ..where((b) => b.deletedAt.isNull()))
+          .get();
+      
+      final derivedFieldsService = BookingDerivedFieldsService(_database!);
+      
+      int recalculated = 0;
+      for (final booking in bookings) {
+        try {
+          await derivedFieldsService.refreshForBooking(booking);
+          recalculated++;
+        } catch (e) {
+          debugPrint('⚠️ خطأ في إعادة حساب الحجز ${booking.id}: $e');
+        }
+      }
+      
+      debugPrint('✅ تم إعادة حساب $recalculated حجز من أصل ${bookings.length}');
+    } catch (e) {
+      debugPrint('⚠️ خطأ في إعادة حساب الحجوزات: $e');
+    }
   }
 }

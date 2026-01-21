@@ -409,15 +409,24 @@ class LocalBackupService {
     final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
 
     if (!backupData.containsKey('metadata')) {
-      throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
+      debugPrint('⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية - إنشاء metadata افتراضية');
     }
 
+    BackupMetadata metadata;
     final metadataSource = backupData['metadata'];
-    if (metadataSource is! Map) {
-      throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
+    if (metadataSource is Map) {
+      metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
+    } else {
+      metadata = BackupMetadata(
+        appVersion: '0.0.0-unknown',
+        databaseVersion: DatabaseManager.instance.schemaVersion,
+        backupTimestamp: DateTime.fromMillisecondsSinceEpoch(0),
+        totalRecords: -1,
+        deviceInfo: 'unknown',
+        format: BackupFormat.json,
+      );
     }
-    final metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
-    if (metadata.databaseVersion > AppDatabase().schemaVersion) {
+    if (metadata.databaseVersion > DatabaseManager.instance.schemaVersion) {
       throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
     }
 
@@ -510,7 +519,7 @@ class LocalBackupService {
     if (await metadataFile.exists()) {
       final metaContent = await metadataFile.readAsString();
       metadata = BackupMetadata.fromJson(jsonDecode(metaContent) as Map<String, dynamic>);
-      if (metadata.databaseVersion > AppDatabase().schemaVersion) {
+      if (metadata.databaseVersion > DatabaseManager.instance.schemaVersion) {
         throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
       }
     }
@@ -628,7 +637,7 @@ class LocalBackupService {
                   ? rawVersion.toInt()
                   : 0;
 
-          if (dbVersion > AppDatabase().schemaVersion) {
+          if (dbVersion > DatabaseManager.instance.schemaVersion) {
             throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
           }
 

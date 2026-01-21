@@ -18,6 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     # Increase job timeout to allow build_runner and pub get more time
     timeout-minutes: 30
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     defaults:
       run:
         # All commands will execute from the 'mobile' directory
@@ -48,14 +51,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Install Android SDK components (API 36)
+      - name: Install Android SDK components (API 35)
         run: |
           echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          echo "Installing Android SDK Platform 36 and Build-Tools..."
+          echo "Installing Android SDK Platform 35 and Build-Tools..."
           sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
             "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;36.0.0" || sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "build-tools;36.0.1" || true
+            "platforms;android-35" \
+            "build-tools;35.0.0"
           ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --list | head -n 50
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}

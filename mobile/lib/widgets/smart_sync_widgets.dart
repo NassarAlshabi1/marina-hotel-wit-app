@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/smart_sync_manager.dart';
 import '../providers/smart_sync_provider.dart';
+import '../providers/backup_provider.dart';
 
 /// Widget لعرض حالة المزامنة في الوقت الفعلي
 class SmartSyncStatusWidget extends ConsumerWidget {
@@ -195,11 +196,27 @@ class SmartSyncFloatingButton extends ConsumerWidget {
 }
 
 /// Card مختصر لحالة المزامنة (للـ dashboard)
-class SmartSyncDashboardCard extends ConsumerWidget {
+/// إصلاح: تم تحويل من ConsumerWidget إلى ConsumerStatefulWidget
+/// لنقل addPostFrameCallback من build() إلى initState() - يتم تنفيذه مرة واحدة فقط
+class SmartSyncDashboardCard extends ConsumerStatefulWidget {
   const SmartSyncDashboardCard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SmartSyncDashboardCard> createState() => _SmartSyncDashboardCardState();
+}
+
+class _SmartSyncDashboardCardState extends ConsumerState<SmartSyncDashboardCard> {
+  @override
+  void initState() {
+    super.initState();
+    // التحقق من حالة تسجيل الدخول الفعلية مرة واحدة عند إنشاء الويدجت
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(backupStatusProvider.notifier).refreshSignInStatus();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final statusAsync = ref.watch(smartSyncStatusProvider);
     
     return statusAsync.when(

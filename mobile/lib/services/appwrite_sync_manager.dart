@@ -61,7 +61,6 @@ class AppwriteSyncManager {
 
   final AppwriteService appwriteService;
   final AppDatabase database;
-  final OutboxDao outboxDao;
   final SyncMutex _mutex = SyncMutex();
   
   factory AppwriteSyncManager({required AppwriteService appwriteService, required AppDatabase database}) {
@@ -69,11 +68,13 @@ class AppwriteSyncManager {
     return _instance!;
   }
 
-  AppwriteSyncManager._internal({required this.appwriteService, required this.database})
-      : outboxDao = OutboxDao(database);
+  AppwriteSyncManager._internal({required this.appwriteService, required this.database});
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
+  
+  AppDatabase get _currentDatabase => DatabaseManager.instance;
+  OutboxDao get outboxDao => OutboxDao(_currentDatabase);
   
   Timer? _syncTimer;
   Timer? _debouncePushTimer;
@@ -95,6 +96,13 @@ class AppwriteSyncManager {
       await appwriteService.initialize();
       await _loadSettings();
       _enableDebouncedPush();
+      
+      // تسجيل callback لإعادة تشغيل المراقبة بعد إعادة فتح قاعدة البيانات
+      DatabaseManager.registerReopenCallback(() {
+        _logger.info('Database reopened - restarting outbox monitoring...', tag: 'SYNC');
+        _restartOutboxMonitoring();
+      });
+      
       _logger.info('Sync manager initialized', tag: 'SYNC');
     } catch (e, stackTrace) {
       _logger.error('Failed to initialize sync manager', 
@@ -176,7 +184,7 @@ class AppwriteSyncManager {
       _deviceCreatedAtEpoch ??= nowEpoch;
 
       if (_currentDeviceId != null) {
-        final result = await _mutex.runExclusive(() async {
+        await _mutex.runExclusive(() async {
           final existingDoc = await appwriteService.getDocument(
             collectionId: AppwriteConfig.devicesCollectionId,
             documentId: _currentDeviceId!,
@@ -188,31 +196,27 @@ class AppwriteSyncManager {
           if (_deviceVersion == null || _deviceVersion! <= currentRemoteVersion) {
             _deviceVersion = currentRemoteVersion + 1;
           }
-        });
-        
-        if (result == null) {
-          _logger.warning('Failed to acquire mutex for device registration', tag: 'SYNC');
-        }
 
-        await appwriteService.updateDocument(
-          collectionId: AppwriteConfig.devicesCollectionId,
-          documentId: _currentDeviceId!,
-          data: {
-            'deviceName': finalDeviceName,
-            'deviceModel': finalDeviceModel,
-            'osVersion': finalOsVersion,
-            'deviceType': deviceType,
-            'status': DeviceStatus.active.value,
-            'localUuid': _deviceLocalUuid,
-            'lastSeen': nowIso,
-            'lastActive': nowEpoch,
-            'createdAt': _deviceCreatedAtEpoch,
-            'updatedAt': nowEpoch,
-            'lastModified': nowEpoch,
-            'version': _deviceVersion,
-            'origin': 'mobile',
-          },
-        );
+          await appwriteService.updateDocument(
+            collectionId: AppwriteConfig.devicesCollectionId,
+            documentId: _currentDeviceId!,
+            data: {
+              'deviceName': finalDeviceName,
+              'deviceModel': finalDeviceModel,
+              'osVersion': finalOsVersion,
+              'deviceType': deviceType,
+              'status': DeviceStatus.active.value,
+              'localUuid': _deviceLocalUuid,
+              'lastSeen': nowIso,
+              'lastActive': nowEpoch,
+              'createdAt': _deviceCreatedAtEpoch,
+              'updatedAt': nowEpoch,
+              'lastModified': nowEpoch,
+              'version': _deviceVersion,
+              'origin': 'mobile',
+            },
+          );
+        });
 
         await _saveSettings();
         _logger.info('Device updated: $_currentDeviceId', tag: 'SYNC');
@@ -257,11 +261,14 @@ class AppwriteSyncManager {
   void startAutoSync({Duration interval = SyncConstants.defaultAutoSyncInterval}) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
-      final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-      
-      if (enabled) {
-        await sync();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+        if (enabled) {
+          await sync();
+        }
+      } catch (e, stackTrace) {
+        _logger.error('Auto sync error', error: e, stackTrace: stackTrace, tag: 'SYNC');
       }
     });
     _logger.info('Auto sync started (interval: ${interval.inMinutes} min)', tag: 'SYNC');
@@ -280,7 +287,25 @@ class AppwriteSyncManager {
       _debounceWindow = window;
     }
     _outboxSubscription?.cancel();
-    _outboxSubscription = (database.select(database.outbox)).watch().listen(
+    _outboxSubscription = _createOutboxListener();
+    _logger.info('Debounced push enabled (window: ${_debounceWindow.inSeconds}s)', tag: 'SYNC');
+  }
+
+  void _restartOutboxMonitoring() {
+    _logger.info('Restarting outbox monitoring...', tag: 'SYNC');
+    _outboxSubscription?.cancel();
+    
+    try {
+      _outboxSubscription = _createOutboxListener();
+      _logger.info('Outbox monitoring restarted successfully', tag: 'SYNC');
+    } catch (e, stackTrace) {
+      _logger.error('Failed to restart outbox monitoring', error: e, stackTrace: stackTrace, tag: 'SYNC');
+    }
+  }
+  
+  /// إنشاء listener مشترك لمراقبة outbox - إزالة تكرار الكود (DRY)
+  StreamSubscription<List<OutboxEntry>> _createOutboxListener() {
+    return (_currentDatabase.select(_currentDatabase.outbox)).watch().listen(
       (_) {
         _debouncePushTimer?.cancel();
         _debouncePushTimer = Timer(_debounceWindow, () async {
@@ -307,18 +332,30 @@ class AppwriteSyncManager {
       },
       onError: (e, stackTrace) {
         _logger.error('Outbox watch stream failed', error: e, stackTrace: stackTrace, tag: 'SYNC');
+        Future.delayed(const Duration(seconds: 5), () {
+          _restartOutboxMonitoring();
+        });
       },
+      onDone: () {
+        _logger.warning('Outbox watch stream closed', tag: 'SYNC');
+        Future.delayed(const Duration(seconds: 3), () {
+          _restartOutboxMonitoring();
+        });
+      },
+      cancelOnError: false,
     );
-    _logger.info('Debounced push enabled (window: ${_debounceWindow.inSeconds}s)', tag: 'SYNC');
   }
 
   /// تنظيف الموارد
-  void dispose() {
+  Future<void> dispose() async {
     _syncTimer?.cancel();
+    _syncTimer = null;
     _debouncePushTimer?.cancel();
-    _outboxSubscription?.cancel();
+    _debouncePushTimer = null;
+    await _outboxSubscription?.cancel();
+    _outboxSubscription = null;
     stopAutoSync();
-    _syncController.close();
+    await _syncController.close();
   }
 
   /// دورة المزامنة الكاملة مع Appwrite:
@@ -330,6 +367,17 @@ class AppwriteSyncManager {
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
   Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+    // Defensive check: Never sync during database restore
+    if (DatabaseManager.isRestoring) {
+      _logger.warning('Sync blocked: database is being restored', tag: 'SYNC');
+      return SyncResult(
+        status: SyncStatus.failed,
+        errorMessage: 'Sync skipped: database restore in progress',
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+    }
+    
     if (!await _mutex.acquire()) {
       _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
       return SyncResult(
@@ -706,8 +754,9 @@ class AppwriteSyncManager {
   Future<int> _syncRooms(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
+    final db = _currentDatabase;
+    await db.transaction(() async {
+      await db.batch((batch) {
         for (final doc in documents) {
           final data = Map<String, dynamic>.from(doc.data);
           final roomNumber = _asString(data['roomNumber']);
@@ -730,7 +779,7 @@ class AppwriteSyncManager {
             version: d.Value(_asInt(data['version'], fallback: 1)),
             origin: d.Value(_asString(data['origin']) ?? 'server'),
           );
-          batch.insert(database.rooms, companion, mode: d.InsertMode.insertOrReplace);
+          batch.insert(db.rooms, companion, mode: d.InsertMode.insertOrReplace);
           processed++;
         }
       });
@@ -762,13 +811,14 @@ class AppwriteSyncManager {
     const chunkSize = 900; // keep safely under SQLite bind-parameter limits
     final roomNumberList = roomNumbers.toList();
 
+    final db = _currentDatabase;
     for (var i = 0; i < roomNumberList.length; i += chunkSize) {
       final chunk = roomNumberList.sublist(
         i,
         (i + chunkSize) > roomNumberList.length ? roomNumberList.length : (i + chunkSize),
       );
 
-      final existingRoomsQuery = database.select(database.rooms)
+      final existingRoomsQuery = db.select(db.rooms)
         ..where((r) => r.roomNumber.isIn(chunk));
       existingRooms.addAll((await existingRoomsQuery.get()).map((r) => r.roomNumber));
     }
@@ -841,7 +891,7 @@ class AppwriteSyncManager {
           calculatedNights: d.Value(calculatedNights),
         );
         
-        await database.into(database.bookings).insert(companion, mode: d.InsertMode.insertOrReplace);
+        await db.into(db.bookings).insert(companion, mode: d.InsertMode.insertOrReplace);
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
@@ -854,8 +904,9 @@ class AppwriteSyncManager {
   Future<int> _syncEmployees(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
+    final db = _currentDatabase;
+    await db.transaction(() async {
+      await db.batch((batch) {
         for (final doc in documents) {
           final data = Map<String, dynamic>.from(doc.data);
           final localUuid = _asString(data['localUuid']) ?? doc.$id;
@@ -879,7 +930,7 @@ class AppwriteSyncManager {
             hireDate: d.Value(_asString(data['hireDate']) ?? ''),
             status: d.Value(_asString(data['status']) ?? ''),
           );
-          batch.insert(database.employees, companion, mode: d.InsertMode.insertOrReplace);
+          batch.insert(db.employees, companion, mode: d.InsertMode.insertOrReplace);
           processed++;
         }
       });
@@ -890,8 +941,9 @@ class AppwriteSyncManager {
   Future<int> _syncExpenses(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
+    final db = _currentDatabase;
+    await db.transaction(() async {
+      await db.batch((batch) {
         for (final doc in documents) {
           final data = Map<String, dynamic>.from(doc.data);
           final localUuid = _asString(data['localUuid']) ?? doc.$id;
@@ -915,7 +967,7 @@ class AppwriteSyncManager {
             date: d.Value(_asString(data['date']) ?? ''),
             cashTransactionId: _nullableValue<int>(_asIntNullable(data['cashTransactionId'])),
           );
-          batch.insert(database.expenses, companion, mode: d.InsertMode.insertOrReplace);
+          batch.insert(db.expenses, companion, mode: d.InsertMode.insertOrReplace);
           processed++;
         }
       });
@@ -925,42 +977,60 @@ class AppwriteSyncManager {
 
   Future<int> _syncPayments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
-    var processed = 0;
-    
+
+    final parsedDocuments = <Map<String, dynamic>>[];
+    final bookingIds = <int>{};
+    final cashTransactionIds = <int>{};
+
     for (final doc in documents) {
+      final data = Map<String, dynamic>.from(doc.data);
+      parsedDocuments.add(data);
+      final bookingId = _asIntNullable(data['bookingLocalId']);
+      if (bookingId != null) {
+        bookingIds.add(bookingId);
+      }
+      final cashId = _asIntNullable(data['cashTransactionLocalId']);
+      if (cashId != null) {
+        cashTransactionIds.add(cashId);
+      }
+    }
+
+    final db = _currentDatabase;
+    final existingBookingIds = bookingIds.isNotEmpty
+        ? (await (db.select(db.bookings)..where((b) => b.id.isIn(bookingIds.toList()))).get())
+            .map((b) => b.id)
+            .toSet()
+        : <int>{};
+
+    final existingCashTransactionIds = cashTransactionIds.isNotEmpty
+        ? (await (db.select(db.cashTransactions)..where((c) => c.id.isIn(cashTransactionIds.toList()))).get())
+            .map((c) => c.id)
+            .toSet()
+        : <int>{};
+
+    final companions = <PaymentsCompanion>[];
+
+    for (var i = 0; i < documents.length; i++) {
+      final doc = documents[i];
+      final data = parsedDocuments[i];
       try {
-        final data = Map<String, dynamic>.from(doc.data);
         final localUuid = _asString(data['localUuid']) ?? doc.$id;
         if (localUuid.isEmpty) {
           continue;
         }
-        
-        int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
-        
-        if (bookingLocalId != null) {
-          final bookingExists = await (database.select(database.bookings)
-            ..where((b) => b.id.equals(bookingLocalId!))
-            ..limit(1)).getSingleOrNull();
-          
-          if (bookingExists == null) {
-            _logger.warning('Payment $localUuid: bookingLocalId $bookingLocalId not found, setting to null', tag: 'SYNC');
-            bookingLocalId = null;
-          }
-        }
-        
-        int? cashTransactionLocalId = _asIntNullable(data['cashTransactionLocalId']);
-        
-        if (cashTransactionLocalId != null) {
-          final cashTransactionExists = await (database.select(database.cashTransactions)
-            ..where((c) => c.id.equals(cashTransactionLocalId))
 
-            ..limit(1)).getSingleOrNull();
-          
-          if (cashTransactionExists == null) {
-            _logger.warning('Payment $localUuid: cashTransactionLocalId $cashTransactionLocalId not found, setting to null', tag: 'SYNC');
-            cashTransactionLocalId = null;
-          }
+        int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
+        if (bookingLocalId != null && !existingBookingIds.contains(bookingLocalId)) {
+          _logger.warning('Payment $localUuid: bookingLocalId $bookingLocalId not found, setting to null', tag: 'SYNC');
+          bookingLocalId = null;
         }
+
+        int? cashTransactionLocalId = _asIntNullable(data['cashTransactionLocalId']);
+        if (cashTransactionLocalId != null && !existingCashTransactionIds.contains(cashTransactionLocalId)) {
+          _logger.warning('Payment $localUuid: cashTransactionLocalId $cashTransactionLocalId not found, setting to null', tag: 'SYNC');
+          cashTransactionLocalId = null;
+        }
+
         final companion = PaymentsCompanion(
           localUuid: d.Value(localUuid),
           serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
@@ -983,15 +1053,26 @@ class AppwriteSyncManager {
           cashTransactionServerId: _nullableValue<int>(_asIntNullable(data['cashTransactionServerId'])),
           referenceNumber: _nullableValue<String>(_asString(data['referenceNumber'])),
         );
-        
-        await database.into(database.payments).insert(companion, mode: d.InsertMode.insertOrReplace);
-        processed++;
+
+        companions.add(companion);
       } catch (e) {
         _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
       }
     }
-    
-    return processed;
+
+    if (companions.isEmpty) {
+      return 0;
+    }
+
+    await db.transaction(() async {
+      await db.batch((batch) {
+        for (final companion in companions) {
+          batch.insert(db.payments, companion, mode: d.InsertMode.insertOrReplace);
+        }
+      });
+    });
+
+    return companions.length;
   }
 
   Future<int> _syncDebts(List<models.Document> documents) async {
@@ -1007,11 +1088,12 @@ class AppwriteSyncManager {
           continue;
         }
         
+        final db = _currentDatabase;
         int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
         
         if (bookingLocalId != null) {
           final bookingId = bookingLocalId;
-          final bookingExists = await (database.select(database.bookings)
+          final bookingExists = await (db.select(db.bookings)
             ..where((b) => b.id.equals(bookingId))
             ..limit(1)).getSingleOrNull();
           
@@ -1045,7 +1127,7 @@ class AppwriteSyncManager {
           note: _nullableValue<String>(_asString(data['note'])),
         );
         
-        await database.into(database.debts).insert(companion, mode: d.InsertMode.insertOrReplace);
+        await db.into(db.debts).insert(companion, mode: d.InsertMode.insertOrReplace);
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync debt ${doc.$id}: $e', tag: 'SYNC');
@@ -1162,12 +1244,12 @@ class AppwriteSyncManager {
 
   Future<int> _pushAllEntities() async {
     const batchSize = 200;
-    int processed = 0;
+    int totalProcessed = 0;
 
     while (true) {
       final entries = await outboxDao.takeBatch(batchSize);
       if (entries.isEmpty) {
-        return processed;
+        return totalProcessed;
       }
 
       int batchSuccessCount = 0;
@@ -1186,6 +1268,7 @@ class AppwriteSyncManager {
         break;
       }
     }
+    return totalProcessed;
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
@@ -1317,23 +1400,28 @@ class AppwriteSyncManager {
   }
 
   Future<Room?> _getRoomByLocalUuid(String localUuid) {
-    return (database.select(database.rooms)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    final db = _currentDatabase;
+    return (db.select(db.rooms)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Booking?> _getBookingByLocalUuid(String localUuid) {
-    return (database.select(database.bookings)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    final db = _currentDatabase;
+    return (db.select(db.bookings)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Expense?> _getExpenseByLocalUuid(String localUuid) {
-    return (database.select(database.expenses)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    final db = _currentDatabase;
+    return (db.select(db.expenses)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Payment?> _getPaymentByLocalUuid(String localUuid) {
-    return (database.select(database.payments)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    final db = _currentDatabase;
+    return (db.select(db.payments)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Debt?> _getDebtByLocalUuid(String localUuid) {
-    return (database.select(database.debts)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    final db = _currentDatabase;
+    return (db.select(db.debts)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Map<String, dynamic> _roomToRemote(Room room) {

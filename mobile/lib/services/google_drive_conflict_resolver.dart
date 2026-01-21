@@ -6,7 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/debug_logs.dart';
 import '../utils/time.dart';
 import 'google_drive_logger.dart';
+import 'hybrid_logical_clock.dart';
 import 'logging/log_models.dart';
+import 'vector_clock.dart';
 
 enum ConflictResolutionStrategy {
   newerWins,
@@ -27,6 +29,10 @@ class ConflictDetails {
   final int remoteVersion;
   final String? localDeviceId;
   final String? remoteDeviceId;
+  final HybridLogicalClock? localHlc;
+  final HybridLogicalClock? remoteHlc;
+  final VectorClock? localVc;
+  final VectorClock? remoteVc;
   
   const ConflictDetails({
     required this.tableName,
@@ -39,6 +45,10 @@ class ConflictDetails {
     required this.remoteVersion,
     this.localDeviceId,
     this.remoteDeviceId,
+    this.localHlc,
+    this.remoteHlc,
+    this.localVc,
+    this.remoteVc,
   });
   
   bool get isLocalNewer => localTimestamp.isAfter(remoteTimestamp);
@@ -115,7 +125,7 @@ class GoogleDriveConflictResolver {
 
   void initialize(GoogleDriveLogger? logger) {
     _logger = logger;
-    _log('✅ Conflict Resolver initialized');
+    _log('✅ Conflict Resolver initialized with Advanced Clocks (HLC/VC)');
   }
 
   Future<void> setStrategy(ConflictResolutionStrategy strategy) async {
@@ -182,25 +192,73 @@ class GoogleDriveConflictResolver {
           final localRecord = localRecords[localUuid]!;
           final remoteRecord = remoteRecords[localUuid]!;
           
-          final localTs = _extractTimestamp(localRecord);
-          final remoteTs = _extractTimestamp(remoteRecord);
+          bool isConflict = false;
           
-          if (localTs == null || remoteTs == null) continue;
+          // 1. Try Vector Clock comparison (Causality)
+          final localVc = _extractVectorClock(localRecord);
+          final remoteVc = _extractVectorClock(remoteRecord);
           
-          final timeDiff = localTs.difference(remoteTs).inSeconds.abs();
+          if (localVc != null && remoteVc != null) {
+            if (localVc.happensBefore(remoteVc)) {
+              // Remote is newer, no conflict (Remote should just win)
+              // Currently we treat this as no conflict here, but resolution might needed
+              isConflict = false; 
+            } else if (remoteVc.happensBefore(localVc)) {
+              // Local is newer, no conflict
+              isConflict = false;
+            } else if (localVc.isConcurrent(remoteVc)) {
+              isConflict = true;
+              _log('⚔️ Vector Clock detected concurrent modification for $tableName/$localUuid');
+            }
+          } else {
+            // 2. Fallback to HLC
+            final localHlc = _extractHybridLogicalClock(localRecord);
+            final remoteHlc = _extractHybridLogicalClock(remoteRecord);
+            
+            if (localHlc != null && remoteHlc != null) {
+               // HLC also imposes total ordering
+               // If timestamps are close but logical counters differ...
+               // For HLC, if physical parts differ by > threshold, it's a conflict
+               // Otherwise we might assume one happened before other.
+               // However, simple HLC comparison resolves "who is newer", but doesn't strictly detect "concurrency" 
+               // without vector clocks. We treat it similar to timestamps but more precise.
+               final timeDiff = (localHlc.physicalTime - remoteHlc.physicalTime).abs() / 1000.0;
+               if (timeDiff > threshold) {
+                 isConflict = true;
+               }
+            } else {
+              // 3. Fallback to Physical Time
+              final localTs = _extractTimestamp(localRecord);
+              final remoteTs = _extractTimestamp(remoteRecord);
+              
+              if (localTs == null || remoteTs == null) continue;
+              
+              final timeDiff = localTs.difference(remoteTs).inSeconds.abs();
+              if (timeDiff > threshold) {
+                isConflict = true;
+              }
+            }
+          }
           
-          if (timeDiff > threshold) {
+          // Force resolving if strict version mismatch?
+          // Existing logic relied on big time diff.
+          
+          if (isConflict) {
             final conflict = ConflictDetails(
               tableName: tableName,
               localUuid: localUuid,
               localRecord: localRecord,
               remoteRecord: remoteRecord,
-              localTimestamp: localTs,
-              remoteTimestamp: remoteTs,
+              localTimestamp: _extractTimestamp(localRecord) ?? DateTime.now(),
+              remoteTimestamp: _extractTimestamp(remoteRecord) ?? DateTime.now(),
               localVersion: _extractVersion(localRecord),
               remoteVersion: _extractVersion(remoteRecord),
               localDeviceId: _extractDeviceId(localRecord),
               remoteDeviceId: _extractDeviceId(remoteRecord),
+              localHlc: _extractHybridLogicalClock(localRecord),
+              remoteHlc: _extractHybridLogicalClock(remoteRecord),
+              localVc: localVc,
+              remoteVc: remoteVc,
             );
             
             conflicts.add(conflict);
@@ -218,7 +276,6 @@ class GoogleDriveConflictResolver {
     final strategy = await getStrategy();
     
     _log('🔧 Resolving conflict using strategy: ${strategy.name}');
-    _log('   ${conflict.toString()}');
     
     switch (strategy) {
       case ConflictResolutionStrategy.newerWins:
@@ -247,6 +304,37 @@ class GoogleDriveConflictResolver {
   }
 
   ConflictResolutionResult _resolveByNewerWins(ConflictDetails conflict) {
+    if (conflict.localVc != null && conflict.remoteVc != null) {
+      if (conflict.remoteVc!.happensBefore(conflict.localVc!)) {
+         return ConflictResolutionResult.selectLocal(
+          conflict.localRecord,
+          'Local happened after Remote (Vector Clock)',
+        );
+      }
+      if (conflict.localVc!.happensBefore(conflict.remoteVc!)) {
+         return ConflictResolutionResult.selectRemote(
+          conflict.remoteRecord,
+          'Remote happened after Local (Vector Clock)',
+        );
+      }
+      // Concurrent: Fallback to HLC or Time
+    }
+
+    if (conflict.localHlc != null && conflict.remoteHlc != null) {
+      if (conflict.localHlc!.compare(conflict.remoteHlc!) > 0) {
+        return ConflictResolutionResult.selectLocal(
+          conflict.localRecord,
+          'Local HLC is higher',
+        );
+      } else {
+        return ConflictResolutionResult.selectRemote(
+          conflict.remoteRecord,
+          'Remote HLC is higher or equal',
+        );
+      }
+    }
+
+    // Fallback to Physical Time
     if (conflict.isLocalNewer) {
       return ConflictResolutionResult.selectLocal(
         conflict.localRecord,
@@ -275,6 +363,7 @@ class GoogleDriveConflictResolver {
   Future<ConflictResolutionResult> _resolveByDevicePriority(ConflictDetails conflict) async {
     final localPriority = await getDevicePriority();
     
+    // Safety break: if time difference is huge, prefer newer regardless of priority
     if (conflict.isLocalNewer && conflict.timeDifference.inMinutes > 5) {
       return ConflictResolutionResult.selectLocal(
         conflict.localRecord,
@@ -312,11 +401,13 @@ class GoogleDriveConflictResolver {
     required Map<String, dynamic> remoteData,
     required List<ConflictResolutionResult> resolutions,
   }) async {
+    // Start with Remote Data
     final merged = Map<String, dynamic>.from(remoteData);
     
+    // 1. Apply Resolutions (Handling Collisions)
     for (final entry in resolutions) {
       if (entry.resolved && entry.selectedRecord != null) {
-        final tableName = _findTableName(entry.selectedRecord!, remoteData);
+        final tableName = _findTableName(entry.selectedRecord!, remoteData) ?? _findTableName(entry.selectedRecord!, localData);
         if (tableName != null) {
           final recordsList = (merged[tableName] as List<dynamic>?) ?? [];
           final uuid = entry.selectedRecord!['local_uuid'];
@@ -325,15 +416,54 @@ class GoogleDriveConflictResolver {
             (r) => r is Map && r['local_uuid'] == uuid,
           );
           
+          // Make list mutable if it came partly from unmodifiable source
+          final mutableRecords = List<dynamic>.from(recordsList);
+          
           if (existingIndex >= 0) {
-            recordsList[existingIndex] = entry.selectedRecord!;
+            mutableRecords[existingIndex] = entry.selectedRecord!;
           } else {
-            recordsList.add(entry.selectedRecord!);
+            mutableRecords.add(entry.selectedRecord!);
           }
           
-          merged[tableName] = recordsList;
+          merged[tableName] = mutableRecords;
         }
       }
+    }
+    
+    // 2. Perform Union: Add Exclusive Local Records (Non-Conflicting)
+    final tables = [
+    final tables = SyncConstants.allTablesInOrder
+    ];
+
+    for (final tableName in tables) {
+       final localRecords = _getRecordsMap(localData[tableName]);
+       final remoteRecords = _getRecordsMap(remoteData[tableName]);
+       
+       // Prepare merged list for this table
+       final currentMergedList = (merged[tableName] as List<dynamic>?) ?? [];
+       final mutableMergedList = List<dynamic>.from(currentMergedList);
+       final mergedUuids = mutableMergedList
+           .where((r) => r is Map && r['local_uuid'] != null)
+           .map((r) => r['local_uuid'] as String)
+           .toSet();
+
+       for (final localUuid in localRecords.keys) {
+         if (!remoteRecords.containsKey(localUuid) && !mergedUuids.contains(localUuid)) {
+           final localRecord = localRecords[localUuid]!;
+           
+           // Check if this is a deleted record - don't resurrect it
+           final deletedAt = localRecord['deleted_at'] ?? localRecord['deletedAt'];
+           if (deletedAt != null) {
+             // This record is deleted locally, skip it
+             continue;
+           }
+           
+           // This record exists locally but not remotely, and is not deleted.
+           // It's a new local record -> Add it.
+           mutableMergedList.add(localRecord);
+         }
+       }
+       merged[tableName] = mutableMergedList;
     }
     
     return merged;
@@ -386,6 +516,37 @@ class GoogleDriveConflictResolver {
 
   String? _extractDeviceId(Map<String, dynamic> record) {
     return record['device_id'] ?? record['deviceId'];
+  }
+  
+  HybridLogicalClock? _extractHybridLogicalClock(Map<String, dynamic> record) {
+    final hlcStr = record['hlc'] as String?;
+    if (hlcStr != null) {
+      // إصلاح: إضافة try-catch لمعالجة أخطاء parsing بدون إيقاف عملية حل التعارضات
+      try {
+        return HybridLogicalClock.fromJson(
+          hlcStr,
+          _extractDeviceId(record) ?? 'unknown',
+        );
+      } catch (e) {
+        _log('⚠️ Failed to parse HLC: $e');
+        return null;
+      }
+    }
+    return null;
+  }
+  
+  VectorClock? _extractVectorClock(Map<String, dynamic> record) {
+    final vcStr = record['vector_clock'] as String?;
+    if (vcStr != null) {
+      // إصلاح: إضافة try-catch لمعالجة أخطاء parsing بدون إيقاف عملية حل التعارضات
+      try {
+        return VectorClock.fromJson(vcStr);
+      } catch (e) {
+        _log('⚠️ Failed to parse VectorClock: $e');
+        return null;
+      }
+    }
+    return null;
   }
 
   String? _findTableName(Map<String, dynamic> record, Map<String, dynamic> data) {
@@ -482,3 +643,4 @@ class GoogleDriveConflictResolver {
     return stats;
   }
 }
+

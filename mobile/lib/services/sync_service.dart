@@ -184,6 +184,11 @@ class SyncService {
     final res = await ApiService.I.syncPull(since).timeout(Duration(seconds: pullTimeoutSeconds));
     if (res['success'] != true) return;
     final data = List<Map<String, dynamic>>.from(res['data']['data']);
+    data.sort((a, b) {
+      final ea = (a['entity'] as String?) ?? '';
+      final eb = (b['entity'] as String?) ?? '';
+      return _entityPriority(ea).compareTo(_entityPriority(eb));
+    });
     
     await db.transaction(() async {
       int maxTs = since;
@@ -309,6 +314,9 @@ class SyncService {
           local = await (db.select(db.bookings)..where((t) => t.serverBookingId.equals(sbid))).getSingleOrNull();
         }
         final room = data['room_number'] as String?;
+        if (room != null && room.isNotEmpty) {
+          await _ensureRoomExists(room);
+        }
         if (local != null) {
           if (serverTs >= local.lastModified) {
             await bookingsDao.updateById(
@@ -554,6 +562,36 @@ class SyncService {
         await _applyHotelDayLedger(op, serverTs, data);
         break;
     }
+  }
+
+  static const Map<String, int> _entityPriorityMap = {
+    'rooms': 0,
+    'employees': 1,
+    'cash_transactions': 1,
+    'expenses': 1,
+    'bookings': 2,
+    'booking_notes': 3,
+    'booking_nights': 3,
+    'payments': 4,
+    'debts': 5,
+    'hotel_day_ledger': 6,
+  };
+
+  int _entityPriority(String entity) => _entityPriorityMap[entity] ?? 10;
+
+  Future<void> _ensureRoomExists(String roomNumber) async {
+    if (roomNumber.isEmpty) return;
+    final existing = await roomsDao.getByNumber(roomNumber);
+    if (existing != null) return;
+    await roomsDao.insertOne(
+      RoomsCompanion(
+        roomNumber: d.Value(roomNumber),
+        type: const d.Value('غير محدد'),
+        price: const d.Value(0),
+        status: const d.Value('متاح'),
+      ),
+      originIsServer: true,
+    );
   }
 
   Future<void> _applyBookingNight(String op, int serverTs, Map<String, dynamic> data) async {

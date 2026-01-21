@@ -319,10 +319,17 @@ class SyncSafetyLayer {
         return false;
       }
 
-      await DatabaseManager.close();
+      debugPrint('🔒 إيقاف جميع العمليات وإغلاق القاعدة بشكل آمن...');
+      
+      await DatabaseManager.closeForRestore();
+      
+      debugPrint('📋 استبدال ملف قاعدة البيانات...');
       await File(sqliteBackupPath).copy(dbPath);
-      await DatabaseManager.reopen();
-      debugPrint('✅ تم استعادة ملف SQLite بنجاح وإعادة فتح قاعدة البيانات');
+      
+      debugPrint('🔄 إعادة فتح قاعدة البيانات وتشغيل المزامنة...');
+      await DatabaseManager.reopenAfterRestore();
+      
+      debugPrint('✅ تم استعادة ملف SQLite بنجاح');
 
       await _appendLog({
         'event': 'file-restore-success',
@@ -340,6 +347,16 @@ class SyncSafetyLayer {
         'error': e.toString(),
         'stack': stack.toString(),
       });
+      
+      // محاولة إعادة الفتح حتى في حالة الفشل
+      try {
+        debugPrint('🔄 محاولة إعادة فتح القاعدة بعد الفشل...');
+        await DatabaseManager.reopenAfterRestore();
+        debugPrint('✅ تم إعادة فتح القاعدة بعد الفشل');
+      } catch (e2) {
+        debugPrint('❌ فشلت إعادة الفتح بعد الفشل: $e2');
+      }
+      
       return false;
     }
   }

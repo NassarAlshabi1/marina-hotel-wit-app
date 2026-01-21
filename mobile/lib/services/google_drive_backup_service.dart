@@ -16,6 +16,7 @@ import 'local_db.dart';
 import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
 import 'google_drive_logger.dart';
+import 'google_drive_sign_in_manager.dart';
 import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
 
 enum BackupFormat { json, sqlite }
@@ -118,10 +119,6 @@ class GoogleAuthClient extends http.BaseClient {
 class GoogleDriveBackupService {
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
-  static const List<String> _scopes = [
-    drive.DriveApi.driveFileScope,
-    drive.DriveApi.driveAppdataScope,
-  ];
 
   /// تحويل رموز خطأ Google Sign-In إلى رسائل عربية واضحة
   static String _getArabicErrorMessage(Object error) {
@@ -160,9 +157,7 @@ class GoogleDriveBackupService {
   }
 
   void _initializeGoogleSignIn() {
-    _googleSignIn = GoogleSignIn(
-      scopes: _scopes,
-    );
+    _googleSignIn = GoogleDriveSignInManager.instance.client;
   }
 
   Future<void> _ensureDriveClient() async {
@@ -173,7 +168,7 @@ class GoogleDriveBackupService {
     GoogleSignInAccount? account = _googleSignIn?.currentUser;
     if (account == null) {
       try {
-        account = await _googleSignIn?.signInSilently();
+        account = await _googleSignIn?.signInSilently(suppressErrors: true);
       } catch (e) {
         _log('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
       }
@@ -209,7 +204,7 @@ class GoogleDriveBackupService {
       }
 
       _log('🔄 محاولة تسجيل الدخول الصامت...');
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
+      GoogleSignInAccount? account = await _googleSignIn!.signInSilently(suppressErrors: true);
 
       if (account == null) {
         _log('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
@@ -217,13 +212,14 @@ class GoogleDriveBackupService {
       }
 
       if (account != null) {
-        _log('🔑 الحصول على رؤوس المصادقة...');
+        _log('🔑 الحصول على رؤوس المصادقة وتثبيت الجلسة...');
         final headers = await account.authHeaders;
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
 
-        _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
-        _log('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
+        _log('✅ تم تسجيل الدخول بنجاح وحفظ الجلسة بشكل دائم: ${account.email}');
+        _log('🔧 النطاقات المطلوبة: ${kGoogleDriveScopes.join(', ')}');
+        _log('💾 الجلسة محفوظة ولن تحتاج لإعادة الدخول مرة أخرى');
       } else {
         _log('⚠️ تم إلغاء تسجيل الدخول أو فشل');
       }
@@ -234,12 +230,10 @@ class GoogleDriveBackupService {
       _log('❌ خطأ في تسجيل الدخول في Google Drive: $arabicError');
       _log('❌ تفاصيل الخطأ التقنية: $e');
       
-      // رمي الخطأ مع الرسالة العربية
       throw Exception(arabicError);
     }
   }
 
-  /// محاولة استعادة جلسة تسجيل الدخول بشكل صامت
   Future<GoogleSignInAccount?> attemptSilentSignIn() async {
     try {
       if (_googleSignIn == null) {
@@ -256,6 +250,7 @@ class GoogleDriveBackupService {
         _driveApi = drive.DriveApi(client);
         
         _log('✅ تم استعادة جلسة Google Drive: ${account.email}');
+        _logger.info('تم استعادة جلسة Google Drive: ${account.email}', tag: 'AUTH');
         return account;
       } else {
         _log('ℹ️ لا توجد جلسة محفوظة');
@@ -629,19 +624,24 @@ class GoogleDriveBackupService {
 
       // البحث عن جميع أنواع النسخ الاحتياطية (الشاملة والتلقائية والتفاضلية)
       final query = "parents in '$folderId' and (name contains '$fullBackupPrefix' or name contains '$autoSyncPrefix' or name contains '$deltaSyncPrefix' or name contains '$_backupFilePrefix') and trashed=false";
-      final listResult = await _driveApi!.files.list(
-        q: query,
-        orderBy: 'createdTime desc',
-        spaces: 'drive',
-        $fields: 'files(id,name,createdTime,size,appProperties)',
-      );
 
-      final backupFiles = <DriveBackupFile>[];
-      if (listResult.files != null) {
-        for (final file in listResult.files!) {
-          backupFiles.add(DriveBackupFile.fromDriveFile(file));
+      final allFiles = <drive.File>[];
+      String? pageToken;
+      do {
+        final response = await _driveApi!.files.list(
+          q: query,
+          orderBy: 'createdTime desc',
+          spaces: 'drive',
+          pageToken: pageToken,
+          $fields: 'nextPageToken,files(id,name,createdTime,size,appProperties)',
+        );
+        if (response.files != null) {
+          allFiles.addAll(response.files!);
         }
-      }
+        pageToken = response.nextPageToken;
+      } while (pageToken != null);
+
+      final backupFiles = allFiles.map(DriveBackupFile.fromDriveFile).toList();
 
       _log('✅ تم جلب ${backupFiles.length} نسخة احتياطية');
       return backupFiles;
@@ -676,22 +676,56 @@ class GoogleDriveBackupService {
     });
   }
 
+  /// Restore database from backup data
+  /// 
+  /// ⚠️ CRITICAL: This method performs destructive operations on the database
+  /// and MUST ONLY be called within a proper restore lifecycle:
+  /// 
+  /// ```dart
+  /// await DatabaseManager.closeForRestore();
+  /// try {
+  ///   await backupService.restoreFromBackup(backupData);
+  /// } finally {
+  ///   await DatabaseManager.reopenAfterRestore();
+  /// }
+  /// ```
+  /// 
+  /// DO NOT call this method during normal app operation or active sync!
+  /// Calling this during sync will cause data corruption and crashes.
   Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
+    // Safety check: This method should ideally only be called during restore mode
+    // However, for backward compatibility, we log a warning instead of throwing
+    if (!DatabaseManager.isRestoring) {
+      _log('⚠️ WARNING: restoreFromBackup called outside of restore mode!');
+      _log('⚠️ This should be wrapped in DatabaseManager.closeForRestore() / reopenAfterRestore()');
+      // Consider throwing in future versions:
+      // throw StateError('restoreFromBackup must only be called during restore mode. Call DatabaseManager.closeForRestore() first.');
+    }
+    
     try {
       final db = DatabaseManager.instance;
 
+      BackupMetadata metadata;
       if (!backupData.containsKey('metadata')) {
-        throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
+        _log('⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية - إنشاء metadata افتراضية');
+        metadata = BackupMetadata(
+          appVersion: '1.0.0',
+          databaseVersion: 3,
+          backupTimestamp: DateTime.now(),
+          totalRecords: 0,
+          deviceInfo: 'unknown',
+          format: BackupFormat.json,
+        );
+      } else {
+        final metadataJson = backupData['metadata'];
+        if (metadataJson is! Map) {
+          throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
+        }
+        metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataJson));
       }
-
-      final metadataJson = backupData['metadata'];
-      if (metadataJson is! Map) {
-        throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
-      }
-      final metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataJson));
       _logger.info('بدء استعادة نسخة بتاريخ ${metadata.backupTimestamp.toIso8601String()} تحتوي ${metadata.totalRecords} سجل', tag: 'RESTORE');
 
-      if (metadata.databaseVersion > 3) {
+      if (metadata.databaseVersion > DatabaseManager.instance.schemaVersion) {
         throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
       }
 

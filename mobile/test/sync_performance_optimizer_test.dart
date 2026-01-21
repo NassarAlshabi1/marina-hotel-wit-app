@@ -90,8 +90,8 @@ void main() {
       ];
 
       for (final testCase in testCases) {
-        final results = testCase.$1 as List<ConnectivityResult>;
-        final expectedIsOnWiFi = testCase.$2 as bool;
+        final results = testCase.$1;
+        final expectedIsOnWiFi = testCase.$2;
         
         optimizer._updateConnectivityStatus(results);
         expect(

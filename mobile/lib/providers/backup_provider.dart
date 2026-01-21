@@ -204,18 +204,24 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
                   : BackupType.both;
 
       // محاولة استعادة جلسة Google Drive تلقائياً
-      await _backupService.attemptSilentSignIn();
+      GoogleSignInAccount? account;
+      try {
+        account = await _backupService.attemptSilentSignIn();
+      } catch (e) {
+        debugPrint('⚠️ خطأ في استعادة جلسة Google Drive: $e');
+      }
       
       // التحقق من تسجيل الدخول في Google Drive
-      GoogleSignInAccount? account;
       List<DriveBackupFile> driveBackups = [];
-      if (_backupService.isSignedIn) {
-        account = _backupService.currentUser;
+      if (_backupService.isSignedIn && account != null) {
+        // إشعار مديري المزامنة بنجاح تسجيل الدخول الصامت (مع معالجة الأخطاء)
+        try {
+          await _notifySyncManagers(true);
+        } catch (e) {
+          debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+        }
         
-        // إشعار مديري المزامنة بنجاح تسجيل الدخول الصامت
-        await _notifySyncManagers(true);
-        
-        // جلب قائمة النسخ المتاحة في Google Drive
+        // جلب قائمة النسخ المتاحة في Google Drive (مع معالجة الأخطاء)
         try {
           driveBackups = await _backupService.listBackupFiles();
         } catch (e) {
@@ -293,11 +299,21 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       
       if (account != null) {
         await setSkippedDriveLogin(false);
-        // جلب قائمة النسخ المتاحة
-        final backups = await _backupService.listBackupFiles();
         
-        // إشعار مديري المزامنة بتغير حالة تسجيل الدخول
-        await _notifySyncManagers(true);
+        // جلب قائمة النسخ المتاحة (مع معالجة الأخطاء)
+        List<DriveBackupFile> backups = [];
+        try {
+          backups = await _backupService.listBackupFiles();
+        } catch (e) {
+          debugPrint('⚠️ خطأ في جلب قائمة النسخ الاحتياطية: $e');
+        }
+        
+        // إشعار مديري المزامنة بتغير حالة تسجيل الدخول (مع معالجة الأخطاء)
+        try {
+          await _notifySyncManagers(true);
+        } catch (e) {
+          debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+        }
         
         state = state.copyWith(
           status: BackupStatus.success,
@@ -305,6 +321,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           signedInAccount: account,
           availableBackups: backups,
         );
+        
+        // مسح الرسالة تلقائياً بعد 3 ثوانٍ
+        Future.delayed(const Duration(seconds: 3), () {
+          if (state.message == 'تم تسجيل الدخول بنجاح') {
+            clearMessage();
+          }
+        });
       } else {
         state = state.copyWith(
           status: BackupStatus.error,
@@ -568,6 +591,63 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       message: null,
       progress: null,
     );
+  }
+
+  /// التحقق من حالة تسجيل الدخول وتحديثها
+  Future<void> refreshSignInStatus() async {
+    try {
+      debugPrint('🔄 التحقق من حالة تسجيل الدخول...');
+      
+      // التحقق من حالة Google Sign-In الفعلية
+      final isActuallySignedIn = _backupService.isSignedIn;
+      final currentUser = _backupService.currentUser;
+      
+      if (isActuallySignedIn && currentUser != null && state.signedInAccount == null) {
+        debugPrint('✅ تم اكتشاف جلسة Google Drive نشطة - تحديث الحالة...');
+        
+        // تحديث الحالة
+        List<DriveBackupFile> driveBackups = [];
+        try {
+          driveBackups = await _backupService.listBackupFiles();
+        } catch (e) {
+          debugPrint('⚠️ خطأ في جلب قائمة النسخ: $e');
+        }
+        
+        // إشعار مديري المزامنة
+        try {
+          await _notifySyncManagers(true);
+        } catch (e) {
+          debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+        }
+        
+        state = state.copyWith(
+          signedInAccount: currentUser,
+          availableBackups: driveBackups,
+        );
+        
+        debugPrint('✅ تم تحديث حالة تسجيل الدخول بنجاح');
+      } else if (!isActuallySignedIn && state.signedInAccount != null) {
+        debugPrint('⚠️ تم فقدان جلسة Google Drive - تحديث الحالة...');
+        
+        // إشعار مديري المزامنة
+        try {
+          await _notifySyncManagers(false);
+        } catch (e) {
+          debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+        }
+        
+        state = state.copyWith(
+          signedInAccount: null,
+          availableBackups: [],
+        );
+        
+        debugPrint('✅ تم تحديث حالة تسجيل الخروج');
+      } else {
+        debugPrint('ℹ️ حالة تسجيل الدخول متطابقة - لا حاجة للتحديث');
+      }
+    } catch (e) {
+      debugPrint('❌ خطأ في تحديث حالة تسجيل الدخول: $e');
+    }
   }
 
   // وظائف النسخ الاحتياطي المحلي
@@ -923,6 +1003,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
   /// إنشاء نسخة احتياطية شاملة (محلي + Google Drive)
   Future<void> createComprehensiveBackup() async {
+    String? tempSqlitePath;
     try {
       state = state.copyWith(
         status: BackupStatus.uploading,
@@ -951,7 +1032,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           final backupData = await _backupService.exportDatabaseToJson();
           await _backupService.uploadBackup(backupData);
         } else {
-          final sqlitePath = localBackupPath ?? await SqliteBackupRestore.backupDatabase();
+          final sqlitePath = localBackupPath ?? (tempSqlitePath = await SqliteBackupRestore.backupDatabase());
           final sqliteFile = File(sqlitePath);
           if (!await sqliteFile.exists()) {
             throw Exception('تعذر العثور على ملف النسخة الاحتياطية SQLite لرفعه');
@@ -993,6 +1074,18 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'خطأ في إنشاء النسخة الاحتياطية الشاملة: ${e.toString()}',
         progress: null,
       );
+    } finally {
+      if (tempSqlitePath != null) {
+        try {
+          final tempFile = File(tempSqlitePath);
+          if (await tempFile.exists()) {
+            await tempFile.delete();
+            debugPrint('🗑️ تم حذف ملف النسخة المؤقت: $tempSqlitePath');
+          }
+        } catch (cleanupError) {
+          debugPrint('⚠️ فشل حذف ملف النسخة المؤقت: $cleanupError');
+        }
+      }
     }
   }
 

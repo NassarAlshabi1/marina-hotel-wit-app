@@ -12,7 +12,8 @@ import 'local_db.dart';
 import 'sync_constants.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
-import 'sync_locks.dart';
+import 'sync_core/unified_lock_manager.dart';
+import 'booking_derived_fields_service.dart';
 
 enum SyncFileType {
   fullBackup,
@@ -66,21 +67,44 @@ class GoogleDriveDeltaSync {
   String? get deviceId => _deviceId;
 
   Future<DeltaSyncResult> pushDeltaChanges() async {
-    final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
-      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
-      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
-      if (_driveService?.isSignedIn != true) return _DeltaSyncStartResult.notSignedIn;
-      
-      _isSyncing = true;
-      return _DeltaSyncStartResult.ok;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.deltaSync,
+      holder: 'GoogleDriveDeltaSync.pushDeltaChanges',
+      priority: LockPriority.high,
+    );
     
-    if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
-      return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة أو المزامنة جارية');
+    if (!lockResult.acquired) {
+      return DeltaSyncResult(
+        success: false,
+        message: 'فشل الحصول على القفل: ${lockResult.failureReason}',
+      );
     }
-
-    if (canStart == _DeltaSyncStartResult.notSignedIn) {
-      return DeltaSyncResult(success: false, message: 'غير مسجل الدخول في Google Drive');
+    
+    _DeltaSyncStartResult canStart;
+    if (!isInitialized) {
+      canStart = _DeltaSyncStartResult.notInitialized;
+    } else if (_isSyncing) {
+      canStart = _DeltaSyncStartResult.alreadySyncing;
+    } else if (_driveService?.isSignedIn != true) {
+      canStart = _DeltaSyncStartResult.notSignedIn;
+    } else {
+      _isSyncing = true;
+      canStart = _DeltaSyncStartResult.ok;
+    }
+    
+    if (canStart != _DeltaSyncStartResult.ok) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'GoogleDriveDeltaSync.pushDeltaChanges',
+      );
+      
+      if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
+        return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة أو المزامنة جارية');
+      }
+      
+      if (canStart == _DeltaSyncStartResult.notSignedIn) {
+        return DeltaSyncResult(success: false, message: 'غير مسجل الدخول في Google Drive');
+      }
     }
 
     try {
@@ -114,28 +138,53 @@ class GoogleDriveDeltaSync {
       debugPrint('🔍 Stack trace: $stackTrace');
       return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
-      await SyncLocks.deltaSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'GoogleDriveDeltaSync.pushDeltaChanges',
+      );
     }
   }
 
   Future<DeltaSyncResult> pullDeltaChanges() async {
-    final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
-      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
-      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
-      if (_driveService?.isSignedIn != true) return _DeltaSyncStartResult.notSignedIn;
-      
-      _isSyncing = true;
-      return _DeltaSyncStartResult.ok;
-    });
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.deltaSync,
+      holder: 'GoogleDriveDeltaSync.pullDeltaChanges',
+      priority: LockPriority.high,
+    );
     
-    if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
-      return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة');
+    if (!lockResult.acquired) {
+      return DeltaSyncResult(
+        success: false,
+        message: 'فشل الحصول على القفل: ${lockResult.failureReason}',
+      );
     }
-
-    if (canStart == _DeltaSyncStartResult.notSignedIn) {
-      return DeltaSyncResult(success: false, message: 'غير مسجل الدخول');
+    
+    _DeltaSyncStartResult canStart;
+    if (!isInitialized) {
+      canStart = _DeltaSyncStartResult.notInitialized;
+    } else if (_isSyncing) {
+      canStart = _DeltaSyncStartResult.alreadySyncing;
+    } else if (_driveService?.isSignedIn != true) {
+      canStart = _DeltaSyncStartResult.notSignedIn;
+    } else {
+      _isSyncing = true;
+      canStart = _DeltaSyncStartResult.ok;
+    }
+    
+    if (canStart != _DeltaSyncStartResult.ok) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'GoogleDriveDeltaSync.pullDeltaChanges',
+      );
+      
+      if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
+        return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة');
+      }
+      
+      if (canStart == _DeltaSyncStartResult.notSignedIn) {
+        return DeltaSyncResult(success: false, message: 'غير مسجل الدخول');
+      }
     }
 
     try {
@@ -181,9 +230,11 @@ class GoogleDriveDeltaSync {
       debugPrint('🔍 Stack trace: $stackTrace');
       return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
-      await SyncLocks.deltaSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+      _isSyncing = false;
+      UnifiedLockManager.instance.release(
+        category: LockCategory.deltaSync,
+        holder: 'GoogleDriveDeltaSync.pullDeltaChanges',
+      );
     }
   }
 
@@ -239,7 +290,7 @@ class GoogleDriveDeltaSync {
     final changes = deltaData['changes'] as List<dynamic>?;
     if (changes == null || changes.isEmpty) return 0;
 
-    return await _database!.transaction(() async {
+    final appliedCount = await _database!.transaction(() async {
       final sortedChanges = _sortChangesByDependency(changes);
       int applied = 0;
       
@@ -255,6 +306,11 @@ class GoogleDriveDeltaSync {
       debugPrint('✅ تم تطبيق $applied تغيير بنجاح داخل transaction واحدة');
       return applied;
     });
+
+    // إعادة حساب جميع الحجوزات النشطة بعد تطبيق التغييرات
+    await _recalculateAllActiveBookings();
+    
+    return appliedCount;
   }
 
   List<Map<String, dynamic>> _sortChangesByDependency(List<dynamic> changes) {
@@ -399,10 +455,19 @@ class GoogleDriveDeltaSync {
       actualCheckout: _nullableValue<String>(_asString(data['actual_checkout']) ?? _asString(data['actualCheckout'])),
       status: d.Value(_asString(data['status']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
-      expectedNights: d.Value(_asInt(data['expected_nights']) ?? _asInt(data['expectedNights']) ?? 1),
-      calculatedNights: d.Value(_asInt(data['calculated_nights']) ?? _asInt(data['calculatedNights']) ?? 1),
+      // لا نحفظ expected_nights و calculated_nights من delta sync
+      // سيتم حسابهم تلقائياً بعد الاستعادة
     );
     await db.into(db.bookings).insertOnConflictUpdate(companion);
+    
+    // إعادة حساب الحقول المشتقة (derived fields) بناءً على التواريخ
+    final insertedBooking = await (db.select(db.bookings)
+          ..where((b) => b.localUuid.equals(localUuid)))
+        .getSingleOrNull();
+    
+    if (insertedBooking != null) {
+      await _recalculateBookingFields(db, insertedBooking);
+    }
   }
 
   Future<void> _applyPaymentChange(AppDatabase db, String localUuid, String operation, Map<String, dynamic> data) async {
@@ -769,6 +834,47 @@ class GoogleDriveDeltaSync {
           : null,
       'signed_in': _driveService?.isSignedIn ?? false,
     };
+  }
+
+  /// إعادة حساب الحقول المشتقة للحجز (expected_nights, calculated_nights, إلخ)
+  /// بناءً على التواريخ الفعلية بدلاً من الاعتماد على القيم المحفوظة
+  Future<void> _recalculateBookingFields(AppDatabase db, Booking booking) async {
+    try {
+      final derivedFieldsService = BookingDerivedFieldsService(db);
+      await derivedFieldsService.refreshForBooking(booking);
+      debugPrint('✅ تم إعادة حساب الحقول للحجز: ${booking.guestName} (${booking.roomNumber})');
+    } catch (e) {
+      debugPrint('⚠️ خطأ في إعادة حساب الحقول للحجز ${booking.id}: $e');
+    }
+  }
+
+  /// إعادة حساب جميع الحجوزات النشطة بعد استعادة البيانات
+  Future<void> _recalculateAllActiveBookings() async {
+    if (_database == null) return;
+    
+    try {
+      debugPrint('🔄 إعادة حساب جميع الحجوزات النشطة...');
+      
+      final bookings = await (_database!.select(_database!.bookings)
+            ..where((b) => b.deletedAt.isNull()))
+          .get();
+      
+      final derivedFieldsService = BookingDerivedFieldsService(_database!);
+      
+      int recalculated = 0;
+      for (final booking in bookings) {
+        try {
+          await derivedFieldsService.refreshForBooking(booking);
+          recalculated++;
+        } catch (e) {
+          debugPrint('⚠️ خطأ في إعادة حساب الحجز ${booking.id}: $e');
+        }
+      }
+      
+      debugPrint('✅ تم إعادة حساب $recalculated حجز من أصل ${bookings.length}');
+    } catch (e) {
+      debugPrint('⚠️ خطأ في إعادة حساب الحجوزات: $e');
+    }
   }
 }
 
