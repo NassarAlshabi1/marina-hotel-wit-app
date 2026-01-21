@@ -7,7 +7,7 @@ import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_logger.dart';
-import 'services/google_drive_sync_service.dart';
+import 'services/unified_sync_orchestrator.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
@@ -67,6 +67,11 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       database: database,
       logger: driveLogger,
     );
+    final unifiedOrchestrator = UnifiedSyncOrchestrator.instance;
+    await unifiedOrchestrator.initialize(
+      driveCoordinator: coordinator,
+      database: database,
+    );
     debugPrint('✅ Coordinator initialized');
 
     debugPrint('🤝 [5/6] Initializing Conflict Resolver...');
@@ -81,7 +86,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     final guardian = SyncGuardian.instance;
     await guardian.initialize(
       database: database,
-      driveService: GoogleDriveSyncService(),
     );
     debugPrint('✅ SyncGuardian initialized');
 

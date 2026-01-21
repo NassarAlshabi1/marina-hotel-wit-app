@@ -350,6 +350,10 @@ class GoogleDriveDeltaSync {
     final roomNumber = _asString(data['room_number']);
     if (roomNumber == null || roomNumber.isEmpty) return;
 
+    final incomingLastModified = _asInt(data['last_modified']) ??
+        _asInt(data['lastModified']) ??
+        Time.nowEpoch();
+
     final companion = RoomsCompanion(
       roomNumber: d.Value(roomNumber),
       type: d.Value(_asString(data['type']) ?? ''),
@@ -368,13 +372,38 @@ class GoogleDriveDeltaSync {
           Time.nowEpoch()),
       deletedAt: _nullableValue<int>(
           _asInt(data['deleted_at']) ?? _asInt(data['deletedAt'])),
-      lastModified: d.Value(_asInt(data['last_modified']) ??
-          _asInt(data['lastModified']) ??
-          Time.nowEpoch()),
+      lastModified: d.Value(incomingLastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('google_drive_delta'),
     );
-    await db.into(db.rooms).insertOnConflictUpdate(companion);
+
+    final existingByUuid = await (db.select(db.rooms)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (existingByUuid != null) {
+      await (db.update(db.rooms)
+            ..where((t) => t.localUuid.equals(localUuid)))
+          .write(companion);
+      return;
+    }
+
+    final existingByNumber = await (db.select(db.rooms)
+          ..where((t) => t.roomNumber.equals(roomNumber))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (existingByNumber != null) {
+      if (incomingLastModified >= existingByNumber.lastModified) {
+        await (db.update(db.rooms)
+              ..where((t) => t.roomNumber.equals(roomNumber)))
+            .write(companion);
+      }
+      return;
+    }
+
+    await db.into(db.rooms).insert(companion);
   }
 
   Future<void> _applyBookingChange(AppDatabase db, String localUuid,

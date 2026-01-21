@@ -6,8 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
-import '../services/central_sync_coordinator.dart';
-import '../services/sync_manager.dart';
+import '../services/unified_sync_orchestrator.dart';
 
 const _kImmediateWorkName = 'marina_auto_sync_now';
 const _kPeriodicWorkName = 'marina_auto_sync_periodic';
@@ -29,7 +28,7 @@ void autoSyncCallbackDispatcher() {
         return true;
       }
 
-      final success = await CentralSyncCoordinator.instance.syncNow(
+      final success = await UnifiedSyncOrchestrator.instance.syncNow(
         push: true,
         pull: true,
         reason: 'google_drive_background_task',
@@ -124,14 +123,14 @@ class AutoSyncTask {
   }
 
   /// استهلاك العلامة المخزنة وتشغيل المزامنة الحقيقية داخل التطبيق الرئيسي
-  static Future<void> consumePendingAndSync(SyncManager manager,
-      {bool force = false}) async {
+  static Future<void> consumePendingAndSync({bool force = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final pending = prefs.getBool(_kPendingFlagKey) ?? false;
     if (!pending && !force) {
       return;
     }
-    await manager.syncAllTables(force: force);
+    await UnifiedSyncOrchestrator.instance
+        .syncNow(push: true, pull: true, reason: 'pending_sync');
     await prefs.setBool(_kPendingFlagKey, false);
   }
 }

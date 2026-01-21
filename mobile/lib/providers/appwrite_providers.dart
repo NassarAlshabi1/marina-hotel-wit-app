@@ -35,14 +35,13 @@ final unifiedSyncOrchestratorProvider =
   final appwriteSync = ref.watch(appwriteSyncManagerProvider);
   final db = ref.watch(databaseProvider);
   final smart = SmartSyncManager.instance;
-  return UnifiedSyncOrchestrator(
-      appwrite: appwriteSync, smart: smart, database: db);
+  final orch = UnifiedSyncOrchestrator.instance;
+  orch.initialize(appwrite: appwriteSync, smart: smart, database: db);
+  return orch;
 });
 
 final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
   final orch = ref.watch(unifiedSyncOrchestratorProvider);
-  // Fire-and-forget initialization (idempotent)
-  orch.initialize();
   ref.onDispose(() => orch.dispose());
   return orch.stateStream;
 });

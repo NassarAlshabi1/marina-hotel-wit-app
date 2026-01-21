@@ -337,6 +337,9 @@ class AppwriteDeltaSync {
     final roomNumber = _asString(data['roomNumber']);
     if (roomNumber == null || roomNumber.isEmpty) return;
 
+    final incomingLastModified =
+        _asInt(data['lastModified']) ?? Time.nowEpoch();
+
     final companion = RoomsCompanion(
       roomNumber: d.Value(roomNumber),
       type: d.Value(_asString(data['type']) ?? ''),
@@ -348,12 +351,38 @@ class AppwriteDeltaSync {
       createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
-      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      lastModified: d.Value(incomingLastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
     );
 
-    await db.into(db.rooms).insertOnConflictUpdate(companion);
+    final existingByUuid = await (db.select(db.rooms)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (existingByUuid != null) {
+      await (db.update(db.rooms)
+            ..where((t) => t.localUuid.equals(localUuid)))
+          .write(companion);
+      return;
+    }
+
+    final existingByNumber = await (db.select(db.rooms)
+          ..where((t) => t.roomNumber.equals(roomNumber))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (existingByNumber != null) {
+      if (incomingLastModified >= existingByNumber.lastModified) {
+        await (db.update(db.rooms)
+              ..where((t) => t.roomNumber.equals(roomNumber)))
+            .write(companion);
+      }
+      return;
+    }
+
+    await db.into(db.rooms).insert(companion);
   }
 
   Future<void> _applyBookingChange(

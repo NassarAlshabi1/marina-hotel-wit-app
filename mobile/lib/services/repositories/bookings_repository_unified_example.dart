@@ -2,7 +2,7 @@ import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
-import '../google_drive_unified_sync_coordinator.dart';
+import '../unified_sync_orchestrator.dart';
 
 class BookingsRepositoryUnified {
   BookingsRepositoryUnified(this.db)
@@ -64,7 +64,7 @@ class BookingsRepositoryUnified {
       ),
     );
 
-    GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(
+    UnifiedSyncOrchestrator.instance.notifyLocalChange(
       table: 'bookings',
       operation: 'INSERT',
       count: 1,
@@ -140,7 +140,7 @@ class BookingsRepositoryUnified {
       ),
     );
 
-    GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(
+    UnifiedSyncOrchestrator.instance.notifyLocalChange(
       table: 'bookings',
       operation: 'UPDATE',
       count: 1,
@@ -152,7 +152,7 @@ class BookingsRepositoryUnified {
   Future<void> delete(int id) async {
     await dao.deleteById(id);
 
-    GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(
+    UnifiedSyncOrchestrator.instance.notifyLocalChange(
       table: 'bookings',
       operation: 'DELETE',
       count: 1,
@@ -172,7 +172,7 @@ class BookingsRepositoryUnified {
     }
 
     if (insertedCount > 0) {
-      GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(
+      UnifiedSyncOrchestrator.instance.notifyLocalChange(
         table: 'bookings',
         operation: 'BATCH_INSERT',
         count: insertedCount,
@@ -195,7 +195,7 @@ class BookingsRepositoryUnified {
     }
 
     if (updatedCount > 0) {
-      GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(
+      UnifiedSyncOrchestrator.instance.notifyLocalChange(
         table: 'bookings',
         operation: 'BATCH_UPDATE',
         count: updatedCount,
@@ -218,7 +218,7 @@ class BookingsRepositoryUnified {
     }
 
     if (deletedCount > 0) {
-      GoogleDriveUnifiedSyncCoordinator.instance.notifyLocalChange(
+      UnifiedSyncOrchestrator.instance.notifyLocalChange(
         table: 'bookings',
         operation: 'BATCH_DELETE',
         count: deletedCount,

@@ -726,7 +726,7 @@ class SyncManager {
                 tableStrategies: {
                   'bookings': ConflictStrategy.fieldLevel,
                   'payments': ConflictStrategy.lastWriteWins,
-                  'rooms': ConflictStrategy.fieldLevel,
+                  'rooms': ConflictStrategy.lastWriteWins,
                   'expenses': ConflictStrategy.lastWriteWins,
                   'debts': ConflictStrategy.fieldLevel,
                   'guests': ConflictStrategy.fieldLevel,

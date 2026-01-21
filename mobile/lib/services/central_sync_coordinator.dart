@@ -1,10 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'appwrite_sync_manager.dart';
-import 'google_drive_unified_sync_coordinator.dart';
-import 'appwrite_service.dart';
-import 'local_db.dart';
+
+import 'unified_sync_orchestrator.dart';
 
 class CentralSyncCoordinator {
   static final CentralSyncCoordinator _instance =
@@ -65,7 +62,7 @@ class CentralSyncCoordinator {
               push: push, pull: pull, reason: 'cooldown_delayed:$reason');
         });
 
-        return true; // sync is queued
+        return true;
       }
     }
 
@@ -80,21 +77,8 @@ class CentralSyncCoordinator {
         '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)');
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-      final googleDriveEnabled =
-          prefs.getBool('google_drive_sync_enabled') ?? false;
-
-      bool success = true;
-
-      if (appwriteEnabled) {
-        success = await _syncWithAppwrite(push: push, pull: pull);
-      } else if (googleDriveEnabled) {
-        success = await _syncWithGoogleDrive(push: push, pull: pull);
-      } else {
-        debugPrint('⚠️ لا توجد أنظمة مزامنة مفعلة');
-        return false;
-      }
+      final success = await UnifiedSyncOrchestrator.instance
+          .syncNow(push: push, pull: pull, reason: reason);
 
       if (success) {
         _lastSyncTime = DateTime.now();
@@ -110,54 +94,6 @@ class CentralSyncCoordinator {
       return false;
     } finally {
       _isSyncing = false;
-    }
-  }
-
-  Future<bool> _syncWithAppwrite({
-    required bool push,
-    required bool pull,
-  }) async {
-    try {
-      final database = DatabaseManager.instance;
-      final appwriteService = AppwriteService();
-      final syncManager = AppwriteSyncManager(
-        appwriteService: appwriteService,
-        database: database,
-      );
-
-      await syncManager.initialize();
-
-      final result = await syncManager.sync();
-      return result.isSuccess;
-    } catch (e, stackTrace) {
-      debugPrint('❌ خطأ في المزامنة مع Appwrite: $e');
-      debugPrint('Stack trace: ${stackTrace.toString()}');
-      return false;
-    }
-  }
-
-  Future<bool> _syncWithGoogleDrive({
-    required bool push,
-    required bool pull,
-  }) async {
-    try {
-      final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
-
-      if (push) {
-        final pushResult = await coordinator.pushChanges();
-        if (!pushResult) return false;
-      }
-
-      if (pull) {
-        final pullResult = await coordinator.pullChanges();
-        if (!pullResult) return false;
-      }
-
-      return true;
-    } catch (e, stackTrace) {
-      debugPrint('❌ خطأ في المزامنة مع Google Drive: $e');
-      debugPrint('Stack trace: ${stackTrace.toString()}');
-      return false;
     }
   }
 

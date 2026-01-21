@@ -37,7 +37,7 @@ import 'services/database_sync_coordinator.dart';
 import 'utils/auto_sync_preferences.dart';
 
 // AutoSync Engine imports
-import 'services/central_sync_coordinator.dart';
+import 'services/unified_sync_orchestrator.dart';
 import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
@@ -94,9 +94,10 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     final database = DatabaseManager.instance;
     debugPrint('✅ Database ready');
 
-    debugPrint('🎯 [4/7] Initializing Central Sync Coordinator...');
-    final centralCoordinator = CentralSyncCoordinator.instance;
-    debugPrint('✅ Central Sync Coordinator ready');
+    debugPrint('🎯 [4/7] Initializing Unified Sync Orchestrator...');
+    final unifiedOrchestrator = UnifiedSyncOrchestrator.instance;
+    await unifiedOrchestrator.initialize(database: database);
+    debugPrint('✅ Unified Sync Orchestrator ready');
 
     debugPrint('🎯 [5/7] Initializing Unified Sync Coordinator...');
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
@@ -118,6 +119,11 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     debugPrint('🧠 [7/8] Initializing SmartSyncManager...');
     final smartSync = SmartSyncManager.instance;
     await smartSync.initialize(backupService);
+    await unifiedOrchestrator.initialize(
+      smart: smartSync,
+      driveCoordinator: coordinator,
+      database: database,
+    );
     debugPrint('✅ SmartSyncManager initialized');
 
     debugPrint('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
@@ -354,8 +360,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('📱 التطبيق عاد للواجهة...');
       AppSessionManager.onAppOpen()
           .catchError((e, s) => debugPrint('Error in onAppOpen: $e\n$s'));
-      GoogleDriveUnifiedSyncCoordinator.instance.onAppForeground().catchError(
-          (e, s) => debugPrint('Error in GDrive onAppForeground: $e\n$s'));
+      UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
+          (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'));
       SyncGuardian.instance.onAppForeground().catchError((e, s) =>
           debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'));
     } else if (state == AppLifecycleState.paused ||

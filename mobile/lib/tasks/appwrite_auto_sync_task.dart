@@ -1,12 +1,9 @@
 import 'dart:async';
-import '../services/appwrite_sync_manager.dart';
-import '../services/sync_manager.dart';
-
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
-import '../services/central_sync_coordinator.dart';
+import '../services/unified_sync_orchestrator.dart';
 
 const _kImmediateWorkName = 'appwrite_auto_sync_now';
 const _kPeriodicWorkName = 'appwrite_auto_sync_periodic';
@@ -26,7 +23,7 @@ void appwriteAutoSyncCallbackDispatcher() {
         return true;
       }
 
-      final success = await CentralSyncCoordinator.instance.syncNow(
+      final success = await UnifiedSyncOrchestrator.instance.syncNow(
         push: true,
         pull: true,
         reason: 'appwrite_background_task',
@@ -111,12 +108,12 @@ class AppwriteAutoSyncTask {
     await Workmanager().cancelByUniqueName(_kPeriodicWorkName);
   }
 
-  static Future<void> consumePendingAndSync(AppwriteSyncManager manager,
-      {bool force = false}) async {
+  static Future<void> consumePendingAndSync({bool force = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final pending = prefs.getBool(_kPendingFlagKey) ?? false;
-    if (!pending) return;
-    await manager.sync();
+    if (!pending && !force) return;
+    await UnifiedSyncOrchestrator.instance
+        .syncNow(push: true, pull: true, reason: 'pending_appwrite_sync');
     await prefs.setBool(_kPendingFlagKey, false);
   }
 }

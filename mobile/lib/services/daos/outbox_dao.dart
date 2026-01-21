@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../local_db.dart';
-import '../central_sync_coordinator.dart';
+import '../unified_sync_orchestrator.dart';
 
 part 'outbox_dao.g.dart';
 
@@ -108,7 +108,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       return resultId;
     });
 
-    CentralSyncCoordinator.instance.notifyLocalChange(
+    UnifiedSyncOrchestrator.instance.notifyLocalChange(
       table: entity,
       operation: op,
     );
