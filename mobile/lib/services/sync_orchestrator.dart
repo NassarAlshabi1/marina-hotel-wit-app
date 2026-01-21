@@ -8,6 +8,7 @@ import 'sync_mutex.dart';
 import 'sync_core/circuit_breaker.dart';
 
 import 'daos/outbox_dao.dart';
+import 'local_db.dart';
 
 enum SyncPriority { critical, high, normal, low, background }
 

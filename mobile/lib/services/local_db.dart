@@ -730,8 +730,12 @@ class DatabaseManager {
   static AppDatabase? _instance;
   static Future<void> Function()? _onStopCallback;
   static Future<void> Function()? _onRestartCallback;
+  static bool _isRestoring = false;
 
   static AppDatabase get instance => _instance ??= AppDatabase();
+
+  static bool get isInitialized => _instance != null;
+  static bool get isRestoring => _isRestoring;
 
   static void registerSyncCallbacks({
     required Future<void> Function() onStop,
@@ -742,6 +746,7 @@ class DatabaseManager {
   }
 
   static Future<void> close() async {
+    _isRestoring = true;
     if (_onStopCallback != null) {
       try {
         await _onStopCallback!();
@@ -761,6 +766,7 @@ class DatabaseManager {
         await _onRestartCallback!();
       } catch (_) {}
     }
+    _isRestoring = false;
   }
 }
 

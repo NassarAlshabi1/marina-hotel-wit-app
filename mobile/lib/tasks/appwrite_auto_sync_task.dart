@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:../services/appwrite_sync_manager.dart';
-import 'package:../services/sync_manager.dart';
+import '../services/appwrite_sync_manager.dart';
+import '../services/sync_manager.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';

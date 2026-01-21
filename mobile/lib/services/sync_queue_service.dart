@@ -39,6 +39,20 @@ class SyncQueueItem {
       );
 }
 
+class QueueStats {
+  final int totalItems;
+  final int pendingItems;
+  final int processingItems;
+  final DateTime? lastProcessedAt;
+
+  const QueueStats({
+    required this.totalItems,
+    required this.pendingItems,
+    required this.processingItems,
+    this.lastProcessedAt,
+  });
+}
+
 class SyncQueueService {
   static SyncQueueService? _instance;
   static SyncQueueService get instance => _instance ??= SyncQueueService._();
@@ -204,6 +218,16 @@ class SyncQueueService {
   Future<int> getQueueCount() async {
     final items = await getQueueItems();
     return items.length;
+  }
+
+  Future<QueueStats> getStats() async {
+    final items = await getQueueItems();
+    return QueueStats(
+      totalItems: items.length,
+      pendingItems: items.where((i) => i.attempts < 3).length,
+      processingItems: _isProcessing ? 1 : 0,
+      lastProcessedAt: null,
+    );
   }
 
   void _emitQueueCount() async {
