@@ -346,7 +346,7 @@ class _SmartSyncSettingsScreenState
             if (shortenedDeviceId != null)
               _buildStatusRow('معرف الجهاز', shortenedDeviceId),
             if (guardianStatus != null)
-              _buildStatusRow('وضع الحارس', guardianStatus.phase.name),
+              _buildStatusRow('وضع الحارس', guardianStatus),
             if (pendingEvents)
               _buildStatusRow(
                   'أحداث في الانتظار', 'نعم - سيتم استهلاكها عند توفر التطبيق'),

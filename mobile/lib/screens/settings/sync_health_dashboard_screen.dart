@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/sync_dashboard_provider.dart';
@@ -24,7 +26,7 @@ class _SyncHealthDashboardScreenState
     final dashboardAsync = ref.watch(syncDashboardProvider);
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('مراقبة صحة المزامنة'),
