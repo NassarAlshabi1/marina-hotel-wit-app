@@ -239,8 +239,11 @@ class RestoreFixService {
       });
       
       // حذف اللقطة الاحتياطية عند النجاح
-      await _deleteSnapshot(snapshot.filePath);
-      
+      final snapshotPath = snapshot?.filePath;
+      if (snapshotPath != null) {
+        await _deleteSnapshot(snapshotPath);
+      }
+
       final duration = DateTime.now().difference(startTime).inMilliseconds;
       
       debugPrint('✅ اكتمل الإصلاح التلقائي بنجاح');
@@ -265,9 +268,10 @@ class RestoreFixService {
       debugPrint('Stack trace: $stackTrace');
       
       // استعادة اللقطة الاحتياطية في حالة الفشل
-      if (snapshot != null) {
+      final snapshotPath = snapshot?.filePath;
+      if (snapshotPath != null) {
         try {
-          await _restoreFromSnapshot(snapshot.filePath);
+          await _restoreFromSnapshot(snapshotPath);
           debugPrint('✅ تم استعادة البيانات من اللقطة الاحتياطية');
         } catch (restoreError) {
           debugPrint('❌ فشل في استعادة اللقطة الاحتياطية: $restoreError');
