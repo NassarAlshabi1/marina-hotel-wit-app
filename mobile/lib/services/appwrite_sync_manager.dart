@@ -1252,31 +1252,20 @@ class AppwriteSyncManager {
         return totalProcessed;
       }
 
-      final results = await Future.wait(entries.map((entry) async {
-        final success = await _processOutboxEntry(entry);
-        return MapEntry(entry.id, success);
-      }));
+      int batchSuccessCount = 0;
 
-      final successfulIds = <int>[];
-      for (final result in results) {
-        if (result.value) {
-          successfulIds.add(result.key);
+      for (final entry in entries) {
+        final success = await _processOutboxEntry(entry);
+        if (success) {
+          await outboxDao.removeById(entry.id);
+          processed++;
+          batchSuccessCount++;
         }
       }
 
-      final processedInBatch = successfulIds.length;
-      if (processedInBatch > 0) {
-        await outboxDao.removeByIds(successfulIds);
-        totalProcessed += processedInBatch;
-      }
-
-      if (processedInBatch == 0) {
-        _logger.warning('Push failed for all entries in batch, stopping to prevent infinite loop.', tag: 'SYNC');
+      if (entries.length == batchSize && batchSuccessCount == 0) {
+        _logger.warning('Push loop stuck on failing entries. Breaking.');
         break;
-      }
-
-      if (processedInBatch < entries.length) {
-        return totalProcessed;
       }
     }
     return totalProcessed;
