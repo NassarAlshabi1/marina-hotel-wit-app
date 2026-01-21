@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/tasks/auto_sync_task.dart';
 
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
