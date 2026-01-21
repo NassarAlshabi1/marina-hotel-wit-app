@@ -11,7 +11,7 @@ import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
 import 'sync_manager.dart';
-import 'appwrite_sync_manager.dart' hide SyncStatus;
+import 'appwrite_sync_manager.dart' as appwrite;
 import 'sync_constants.dart';
 
 class SyncHealthSnapshot {
@@ -54,7 +54,7 @@ class SyncGuardian {
 
   SyncManager? _manager;
   GoogleDriveSyncService? _driveService;
-  AppwriteSyncManager? _appwriteSyncManager;
+  appwrite.AppwriteSyncManager? _appwriteSyncManager;
   StreamSubscription<SyncStatus>? _statusSubscription;
   Timer? _pendingMonitor;
   Timer? _debounceTimer;
@@ -78,7 +78,7 @@ class SyncGuardian {
   Future<void> initialize({
     required AppDatabase database,
     GoogleDriveSyncService? driveService,
-    AppwriteSyncManager? appwriteSyncManager,
+    appwrite.AppwriteSyncManager? appwriteSyncManager,
   }) async {
     if (_initialized || _initializing) {
       return;
@@ -238,7 +238,7 @@ class SyncGuardian {
     _emitHealth();
   }
 
-  void setAppwriteSyncManager(AppwriteSyncManager? manager) {
+  void setAppwriteSyncManager(appwrite.AppwriteSyncManager? manager) {
     _appwriteSyncManager = manager;
     debugPrint(
         '[SyncGuardian] تم ربط AppwriteSyncManager: ${manager != null ? 'نعم' : 'لا'}');

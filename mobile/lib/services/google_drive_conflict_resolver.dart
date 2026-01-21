@@ -9,6 +9,7 @@ import 'google_drive_logger.dart';
 import 'hybrid_logical_clock.dart';
 import 'logging/log_models.dart';
 import 'vector_clock.dart';
+import 'sync_constants.dart';
 
 enum ConflictResolutionStrategy {
   newerWins,
