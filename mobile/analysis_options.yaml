@@ -1,4 +1,4 @@
-include: package:dcm/configs/recommended.yaml
+# include: package:dcm/configs/recommended.yaml
 
 analyzer:
   exclude:
