@@ -421,8 +421,9 @@ class GoogleDriveUnifiedSyncCoordinator {
   }) async {
     final canStartResult = await SyncLocks.mainSyncLock.synchronized(() async {
       if (!_isInitialized) return _PerformSyncNotInitialized();
-      if (!(_backupService?.isSignedIn ?? false))
+      if (!(_backupService?.isSignedIn ?? false)) {
         return _PerformSyncNotSignedIn();
+      }
 
       if (_isSyncing) {
         if (_syncStartTime != null) {

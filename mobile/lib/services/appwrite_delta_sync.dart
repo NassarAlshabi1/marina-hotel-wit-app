@@ -362,8 +362,7 @@ class AppwriteDeltaSync {
         .getSingleOrNull();
 
     if (existingByUuid != null) {
-      await (db.update(db.rooms)
-            ..where((t) => t.localUuid.equals(localUuid)))
+      await (db.update(db.rooms)..where((t) => t.localUuid.equals(localUuid)))
           .write(companion);
       return;
     }

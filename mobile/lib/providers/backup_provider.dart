@@ -285,7 +285,6 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     state = state.copyWith(driveLoginSkipped: value);
   }
 
-
   /// إشعار مديري المزامنة بتغير حالة تسجيل الدخول
   Future<void> _notifySyncManagers(bool isSignedIn) async {
     // إشعار مدير المزامنة الذكية

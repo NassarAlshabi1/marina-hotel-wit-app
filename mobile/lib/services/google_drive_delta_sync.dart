@@ -66,8 +66,9 @@ class GoogleDriveDeltaSync {
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
       if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
       if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
-      if (_driveService?.isSignedIn != true)
+      if (_driveService?.isSignedIn != true) {
         return _DeltaSyncStartResult.notSignedIn;
+      }
 
       _isSyncing = true;
       return _DeltaSyncStartResult.ok;
@@ -127,8 +128,9 @@ class GoogleDriveDeltaSync {
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
       if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
       if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
-      if (_driveService?.isSignedIn != true)
+      if (_driveService?.isSignedIn != true) {
         return _DeltaSyncStartResult.notSignedIn;
+      }
 
       _isSyncing = true;
       return _DeltaSyncStartResult.ok;
@@ -383,8 +385,7 @@ class GoogleDriveDeltaSync {
         .getSingleOrNull();
 
     if (existingByUuid != null) {
-      await (db.update(db.rooms)
-            ..where((t) => t.localUuid.equals(localUuid)))
+      await (db.update(db.rooms)..where((t) => t.localUuid.equals(localUuid)))
           .write(companion);
       return;
     }

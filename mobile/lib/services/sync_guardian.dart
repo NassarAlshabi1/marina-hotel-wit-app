@@ -27,7 +27,8 @@ class SyncHealthSnapshot {
   final String? lastError;
   final bool monitoringActive;
   final bool priorityOverridden;
-  final String? status;}
+  final String? status;
+}
 
 class SyncGuardian {
   SyncGuardian._();
@@ -91,8 +92,7 @@ class SyncGuardian {
     _emitHealth();
 
     _debounceTimer?.cancel();
-    _debounceTimer =
-        Timer(SyncConstants.guardianLocalChangeDebounce, () async {
+    _debounceTimer = Timer(SyncConstants.guardianLocalChangeDebounce, () async {
       try {
         debugPrint(
             '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
@@ -151,7 +151,8 @@ class SyncGuardian {
 
   Future<void> forceSync() async {
     await _consumePending(force: true);
-    await _orchestrator?.syncNow(push: true, pull: true, reason: 'guardian_force');
+    await _orchestrator?.syncNow(
+        push: true, pull: true, reason: 'guardian_force');
   }
 
   Future<void> setDevicePriority(int priority) async {

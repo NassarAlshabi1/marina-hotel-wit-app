@@ -357,7 +357,8 @@ class Outbox extends Table {
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
   TextColumn get idempotencyKey => text().nullable()();
-  TextColumn get processingStatus => text().withDefault(const Constant('pending'))();
+  TextColumn get processingStatus =>
+      text().withDefault(const Constant('pending'))();
   IntColumn get processingStartedAt => integer().nullable()();
   TextColumn get processingWorker => text().nullable()();
 }

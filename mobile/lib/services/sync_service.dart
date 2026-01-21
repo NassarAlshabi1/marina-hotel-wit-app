@@ -230,85 +230,93 @@ class SyncService {
         final row = await (db.select(db.rooms)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
-        if (row != null)
+        if (row != null) {
           await (db.update(db.rooms)
                 ..where((t) => t.roomNumber.equals(row.roomNumber)))
               .write(RoomsCompanion(
                   serverId: d.Value(serverId is int ? serverId : null),
                   lastModified: d.Value(Time.nowEpoch())));
+        }
         break;
       case 'bookings':
         final row = await (db.select(db.bookings)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
-        if (row != null)
+        if (row != null) {
           await (db.update(db.bookings)..where((t) => t.id.equals(row.id)))
               .write(BookingsCompanion(
                   serverBookingId: d.Value(serverId is int ? serverId : null),
                   serverId: d.Value(serverId is int ? serverId : null),
                   lastModified: d.Value(Time.nowEpoch())));
+        }
         break;
       case 'booking_notes':
         final rowN = await (db.select(db.bookingNotes)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
-        if (rowN != null)
+        if (rowN != null) {
           await (db.update(db.bookingNotes)..where((t) => t.id.equals(rowN.id)))
               .write(BookingNotesCompanion(
                   serverId: d.Value(serverId is int ? serverId : null),
                   lastModified: d.Value(Time.nowEpoch())));
+        }
         break;
       case 'employees':
         final rowE = await (db.select(db.employees)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
-        if (rowE != null)
+        if (rowE != null) {
           await (db.update(db.employees)..where((t) => t.id.equals(rowE.id)))
               .write(EmployeesCompanion(
                   serverId: d.Value(serverId is int ? serverId : null),
                   lastModified: d.Value(Time.nowEpoch())));
+        }
         break;
       case 'expenses':
         final rowX = await (db.select(db.expenses)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
-        if (rowX != null)
+        if (rowX != null) {
           await (db.update(db.expenses)..where((t) => t.id.equals(rowX.id)))
               .write(ExpensesCompanion(
                   serverId: d.Value(serverId is int ? serverId : null),
                   lastModified: d.Value(Time.nowEpoch())));
+        }
         break;
       case 'cash_transactions':
         final rowC = await (db.select(db.cashTransactions)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
-        if (rowC != null)
+        if (rowC != null) {
           await (db.update(db.cashTransactions)
                 ..where((t) => t.id.equals(rowC.id)))
               .write(CashTransactionsCompanion(
                   serverId: d.Value(serverId is int ? serverId : null),
                   lastModified: d.Value(Time.nowEpoch())));
+        }
         break;
       case 'payments':
         final rowP = await (db.select(db.payments)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
-        if (rowP != null)
+        if (rowP != null) {
           await (db.update(db.payments)..where((t) => t.id.equals(rowP.id)))
               .write(PaymentsCompanion(
                   serverPaymentId: d.Value(serverId is int ? serverId : null),
                   serverId: d.Value(serverId is int ? serverId : null),
                   lastModified: d.Value(Time.nowEpoch())));
+        }
         break;
       case 'debts':
         final rowD = await (db.select(db.debts)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
-        if (rowD != null)
+        if (rowD != null) {
           await (db.update(db.debts)..where((t) => t.id.equals(rowD.id))).write(
               DebtsCompanion(
                   serverId: d.Value(serverId is int ? serverId : null),
                   lastModified: d.Value(Time.nowEpoch())));
+        }
         break;
     }
   }
@@ -421,17 +429,19 @@ class SyncService {
               await (db.select(db.bookings)
                     ..where((t) => t.serverBookingId.equals(sbid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await bookingsDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'booking_notes':
         final nid = data['note_id'] as int?;
         BookingNote? ln;
-        if (nid != null)
+        if (nid != null) {
           ln = await (db.select(db.bookingNotes)
                 ..where((t) => t.serverId.equals(nid)))
               .getSingleOrNull();
+        }
         if (ln != null) {
           if (serverTs >= ln.lastModified) {
             await notesDao.updateById(
@@ -466,17 +476,19 @@ class SyncService {
               await (db.select(db.bookingNotes)
                     ..where((t) => t.serverId.equals(nid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await notesDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'employees':
         final sid = data['id'] as int?;
         Employee? le;
-        if (sid != null)
+        if (sid != null) {
           le = await (db.select(db.employees)
                 ..where((t) => t.serverId.equals(sid)))
               .getSingleOrNull();
+        }
         if (le != null) {
           if (serverTs >= le.lastModified) {
             await employeesDao.updateById(
@@ -510,17 +522,19 @@ class SyncService {
               await (db.select(db.employees)
                     ..where((t) => t.serverId.equals(sid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await employeesDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'expenses':
         final xid = data['id'] as int?;
         Expense? lx;
-        if (xid != null)
+        if (xid != null) {
           lx = await (db.select(db.expenses)
                 ..where((t) => t.serverId.equals(xid)))
               .getSingleOrNull();
+        }
         if (lx != null) {
           if (serverTs >= lx.lastModified) {
             await expensesDao.updateById(
@@ -557,8 +571,9 @@ class SyncService {
               await (db.select(db.expenses)
                     ..where((t) => t.serverId.equals(xid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await expensesDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'cash_transactions':
@@ -610,8 +625,9 @@ class SyncService {
               await (db.select(db.cashTransactions)
                     ..where((t) => t.serverId.equals(cid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await cashDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'payments':
@@ -667,8 +683,9 @@ class SyncService {
               await (db.select(db.payments)
                     ..where((t) => t.serverPaymentId.equals(pid ?? -1)))
                   .getSingleOrNull();
-          if (target != null)
+          if (target != null) {
             await paymentsDao.softDelete(target.id, originIsServer: true);
+          }
         }
         break;
       case 'booking_nights':
@@ -901,10 +918,12 @@ bool? _asBool(dynamic value) {
   if (value is num) return value != 0;
   if (value is String) {
     final normalized = value.toLowerCase();
-    if (normalized == 'true' || normalized == '1' || normalized == 'yes')
+    if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
       return true;
-    if (normalized == 'false' || normalized == '0' || normalized == 'no')
+    }
+    if (normalized == 'false' || normalized == '0' || normalized == 'no') {
       return false;
+    }
   }
   return null;
 }

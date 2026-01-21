@@ -160,12 +160,14 @@ class UnifiedSyncOrchestrator {
             phase: 'completing',
             message: result.message,
             timestamp: DateTime.now(),
-            lastPushAt: result.pushedChanges != null && result.pushedChanges! > 0
-                ? DateTime.now()
-                : _state.lastPushAt,
-            lastPullAt: result.pulledChanges != null && result.pulledChanges! > 0
-                ? DateTime.now()
-                : _state.lastPullAt,
+            lastPushAt:
+                result.pushedChanges != null && result.pushedChanges! > 0
+                    ? DateTime.now()
+                    : _state.lastPushAt,
+            lastPullAt:
+                result.pulledChanges != null && result.pulledChanges! > 0
+                    ? DateTime.now()
+                    : _state.lastPullAt,
           ));
         } else {
           _emit(_state.copyWith(
@@ -219,8 +221,7 @@ class UnifiedSyncOrchestrator {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final appwriteEnabled =
-          prefs.getBool('appwrite_sync_enabled') ?? true;
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
       final googleDriveEnabled =
           prefs.getBool('google_drive_sync_enabled') ?? false;
 
@@ -333,14 +334,11 @@ class UnifiedSyncOrchestrator {
       'booking_notes': (results[2] as List).map((e) => e.toJson()).toList(),
       'employees': (results[3] as List).map((e) => e.toJson()).toList(),
       'expenses': (results[4] as List).map((e) => e.toJson()).toList(),
-      'cash_transactions':
-          (results[5] as List).map((e) => e.toJson()).toList(),
+      'cash_transactions': (results[5] as List).map((e) => e.toJson()).toList(),
       'payments': (results[6] as List).map((e) => e.toJson()).toList(),
       'debts': (results[7] as List).map((e) => e.toJson()).toList(),
-      'booking_nights':
-          (results[8] as List).map((e) => e.toJson()).toList(),
-      'hotel_day_ledger':
-          (results[9] as List).map((e) => e.toJson()).toList(),
+      'booking_nights': (results[8] as List).map((e) => e.toJson()).toList(),
+      'hotel_day_ledger': (results[9] as List).map((e) => e.toJson()).toList(),
       'shift_notes': (results[10] as List).map((e) => e.toJson()).toList(),
     };
     return models.SyncChecksum.compute({'tables': snapshot});
@@ -373,8 +371,7 @@ class UnifiedSyncOrchestrator {
     final db = _database ?? DatabaseManager.instance;
     _database ??= db;
     final service = AppwriteService();
-    final manager =
-        AppwriteSyncManager(appwriteService: service, database: db);
+    final manager = AppwriteSyncManager(appwriteService: service, database: db);
     await manager.initialize();
     _appwrite = manager;
     return manager;
@@ -385,7 +382,8 @@ class UnifiedSyncOrchestrator {
     required bool pull,
     required String reason,
   }) async {
-    final coordinator = _driveCoordinator ?? GoogleDriveUnifiedSyncCoordinator.instance;
+    final coordinator =
+        _driveCoordinator ?? GoogleDriveUnifiedSyncCoordinator.instance;
     _driveCoordinator ??= coordinator;
 
     if (!coordinator.isInitialized) {

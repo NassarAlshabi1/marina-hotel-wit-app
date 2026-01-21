@@ -186,7 +186,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   Future<int> cleanupStuckEntries(
       {Duration timeout = const Duration(minutes: 5)}) async {
-    final thresholdTime = DateTime.now().subtract(timeout).millisecondsSinceEpoch;
+    final thresholdTime =
+        DateTime.now().subtract(timeout).millisecondsSinceEpoch;
 
     return await (update(outbox)
           ..where((t) =>
@@ -201,7 +202,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   Future<int> cleanupCompleted(
       {Duration olderThan = const Duration(days: 7)}) async {
-    final thresholdTime = DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
+    final thresholdTime =
+        DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
 
     return await (delete(outbox)
           ..where((t) =>
