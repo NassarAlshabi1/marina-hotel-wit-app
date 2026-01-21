@@ -127,7 +127,7 @@ class CentralSyncCoordinator {
 
       await syncManager.initialize();
 
-      final result = await syncManager.sync(push: push, pull: pull);
+      final result = await syncManager.sync();
       return result.isSuccess;
     } catch (e, stackTrace) {
       debugPrint('❌ خطأ في المزامنة مع Appwrite: $e');
