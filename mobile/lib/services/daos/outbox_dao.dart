@@ -134,7 +134,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       await (update(outbox)..where((t) => t.id.isIn(ids)))
           .write(OutboxCompanion(
         processingStatus: const Value('processing'),
-        processingStartedAt: Value(DateTime.now()),
+        processingStartedAt: Value(DateTime.now().millisecondsSinceEpoch),
         processingWorker: Value(worker),
       ));
 

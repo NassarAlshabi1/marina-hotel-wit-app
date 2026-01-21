@@ -793,6 +793,46 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
   }
 
+  Future<bool> pushChanges() async {
+    _log('📤 Pushing local changes to Google Drive...');
+    try {
+      if (!_isInitialized || !(_backupService?.isSignedIn ?? false)) {
+        _log('⚠️ Cannot push - not initialized or not signed in');
+        return false;
+      }
+
+      final pushedCount = await _performDeltaPush();
+      if (pushedCount != null && pushedCount >= 0) {
+        _log('✅ Pushed $pushedCount changes to Google Drive');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _log('❌ Push failed: $e', level: LogLevel.error);
+      return false;
+    }
+  }
+
+  Future<bool> pullChanges() async {
+    _log('📥 Pulling remote changes from Google Drive...');
+    try {
+      if (!_isInitialized || !(_backupService?.isSignedIn ?? false)) {
+        _log('⚠️ Cannot pull - not initialized or not signed in');
+        return false;
+      }
+
+      final pulledCount = await _performDeltaPull();
+      if (pulledCount != null && pulledCount >= 0) {
+        _log('✅ Pulled $pulledCount changes from Google Drive');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _log('❌ Pull failed: $e', level: LogLevel.error);
+      return false;
+    }
+  }
+
   void dispose() {
     _stopMonitoring();
     _syncResultController.close();

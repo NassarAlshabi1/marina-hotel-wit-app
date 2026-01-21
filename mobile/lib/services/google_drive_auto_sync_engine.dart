@@ -249,6 +249,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
     });
   }
 
+  Future<void> restart() async {
+    _log('🔄 Restarting Auto Sync Engine...');
+    stop();
+    await Future.delayed(const Duration(milliseconds: 500));
+    await start();
+    _log('✅ Auto Sync Engine restarted');
+  }
+
   void _setupConnectivityListener() {
     _log('📡 Setting up connectivity listener...');
 

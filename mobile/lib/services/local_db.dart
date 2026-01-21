@@ -357,6 +357,9 @@ class Outbox extends Table {
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
   TextColumn get idempotencyKey => text().nullable()();
+  TextColumn get processingStatus => text().withDefault(const Constant('pending'))();
+  IntColumn get processingStartedAt => integer().nullable()();
+  TextColumn get processingWorker => text().nullable()();
 }
 
 class SyncState extends Table {
@@ -725,10 +728,25 @@ extension EmployeeX on Employee {
 /// Singleton manager for the Drift database to support clean close/reopen during file-based restores
 class DatabaseManager {
   static AppDatabase? _instance;
+  static Future<void> Function()? _onStopCallback;
+  static Future<void> Function()? _onRestartCallback;
 
   static AppDatabase get instance => _instance ??= AppDatabase();
 
+  static void registerSyncCallbacks({
+    required Future<void> Function() onStop,
+    required Future<void> Function() onRestart,
+  }) {
+    _onStopCallback = onStop;
+    _onRestartCallback = onRestart;
+  }
+
   static Future<void> close() async {
+    if (_onStopCallback != null) {
+      try {
+        await _onStopCallback!();
+      } catch (_) {}
+    }
     try {
       await _instance?.close();
     } catch (_) {}
@@ -738,6 +756,11 @@ class DatabaseManager {
   static Future<void> reopen() async {
     await close();
     _instance = AppDatabase();
+    if (_onRestartCallback != null) {
+      try {
+        await _onRestartCallback!();
+      } catch (_) {}
+    }
   }
 }
 

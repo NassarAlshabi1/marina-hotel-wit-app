@@ -81,6 +81,7 @@ class SyncGuardian {
       return;
     }
     _initializing = true;
+    _database = database;
     try {
       _driveService = driveService ?? GoogleDriveSyncService();
       await _driveService!.init();
@@ -302,4 +303,28 @@ class SyncGuardian {
     _healthController.close();
     _initialized = false;
   }
+
+  Future<void> stop() async {
+    _log('⏸️ Stopping SyncGuardian...');
+    await _statusSubscription?.cancel();
+    _pendingMonitor?.cancel();
+    _debounceTimer?.cancel();
+    _initialized = false;
+    _log('✅ SyncGuardian stopped');
+  }
+
+  Future<void> restart() async {
+    _log('🔄 Restarting SyncGuardian...');
+    await stop();
+    if (_database != null) {
+      await initialize(
+        database: _database!,
+        driveService: _driveService,
+        appwriteSyncManager: _appwriteSyncManager,
+      );
+    }
+    _log('✅ SyncGuardian restarted');
+  }
+
+  AppDatabase? _database;
 }
