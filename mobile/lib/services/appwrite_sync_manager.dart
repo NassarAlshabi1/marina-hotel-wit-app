@@ -62,6 +62,7 @@ class AppwriteSyncManager {
   final AppDatabase database;
   final OutboxDao outboxDao;
   final SyncMutex _mutex = SyncMutex();
+  int _autoSyncFailureStreak = 0;
 
   factory AppwriteSyncManager(
       {required AppwriteService appwriteService,
@@ -257,12 +258,35 @@ class AppwriteSyncManager {
   void startAutoSync(
       {Duration interval = SyncConstants.defaultAutoSyncInterval}) {
     _syncTimer?.cancel();
+    _autoSyncFailureStreak = 0;
     _syncTimer = Timer.periodic(interval, (timer) async {
-      final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-
-      if (enabled) {
-        await sync();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+        if (!enabled) {
+          return;
+        }
+        final result = await sync();
+        if (!result.isSuccess) {
+          _autoSyncFailureStreak++;
+        } else {
+          _autoSyncFailureStreak = 0;
+        }
+        if (_autoSyncFailureStreak >= 3) {
+          _logger.warning(
+              'Auto sync paused after $_autoSyncFailureStreak consecutive failures',
+              tag: 'SYNC');
+          stopAutoSync();
+        }
+      } catch (e, stackTrace) {
+        _autoSyncFailureStreak++;
+        _logger.error('Auto sync tick failed',
+            error: e, stackTrace: stackTrace, tag: 'SYNC');
+        if (_autoSyncFailureStreak >= 3) {
+          _logger.warning(
+              'Auto sync paused after repeated failures', tag: 'SYNC');
+          stopAutoSync();
+        }
       }
     });
     _logger.info('Auto sync started (interval: ${interval.inMinutes} min)',
@@ -336,6 +360,16 @@ class AppwriteSyncManager {
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
   Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+    if (DatabaseManager.isRestoring) {
+      _logger.warning('Sync skipped: database restoring', tag: 'SYNC');
+      return SyncResult(
+        status: SyncStatus.failed,
+        errorMessage: 'Database restoring',
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+    }
+
     if (!await _mutex.acquire()) {
       _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
       return SyncResult(
@@ -783,7 +817,7 @@ class AppwriteSyncManager {
 
         if (roomExists == null) {
           _logger.warning(
-              'Skipping booking $localUuid: Room $roomNumber does not exist',
+              'Skipping booking ${_maskId(localUuid)}: Room ${_maskId(roomNumber)} does not exist',
               tag: 'SYNC');
           continue;
         }
@@ -1196,6 +1230,16 @@ class AppwriteSyncManager {
     return result;
   }
 
+  String _maskId(String value) {
+    if (value.isEmpty) {
+      return '***';
+    }
+    if (value.length <= 6) {
+      return '***${value.substring(value.length - 2)}';
+    }
+    return '${value.substring(0, 2)}***${value.substring(value.length - 2)}';
+  }
+
   Future<int> _pushAllEntities() async {
     const batchSize = 200;
     final entries = await outboxDao.takeBatch(batchSize);
@@ -1242,6 +1286,12 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _addIdempotencyKey(
       Map<String, dynamic> payload, OutboxData entry) {
+    final key = entry.idempotencyKey ?? IdGen.uuid();
+    if (!payload.containsKey('idempotencyKey')) {
+      payload['idempotencyKey'] = key;
+    } else {
+      payload['idempotencyKey'] ??= key;
+    }
     return payload;
   }
 
@@ -1334,22 +1384,18 @@ class AppwriteSyncManager {
   Future<void> _deleteSilently(Future<void> Function() action) async {
     try {
       await action();
-    } catch (error) {
-      if (error is AppwriteError && error.code == 'NOT_FOUND') {
-        _logger.debug(
-            'Delete target not found (AppwriteError): ${error.message}',
-            tag: 'SYNC');
-        return;
-      }
-
+    } catch (error, stackTrace) {
       final message = error.toString().toLowerCase();
-      if (message.contains('404') ||
+      final isNotFound =
+          message.contains('404') ||
           message.contains('not found') ||
           message.contains('not_found') ||
-          message.contains('document_not_found')) {
-        _logger.debug('Delete target not found: $message', tag: 'SYNC');
+          message.contains('document_not_found');
+      if ((error is AppwriteError && error.code == 'NOT_FOUND') || isNotFound) {
+        _logger.debug('Delete target not found', tag: 'SYNC');
         return;
       }
+      _logger.error('Delete failed', error: error, stackTrace: stackTrace, tag: 'SYNC');
       rethrow;
     }
   }
