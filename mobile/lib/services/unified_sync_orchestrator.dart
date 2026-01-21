@@ -85,34 +85,28 @@ class UnifiedSyncOrchestrator {
 
     // Listen to Appwrite sync status and project higher-level phases
     _appwriteSub = appwrite.syncStatusStream.listen((status) async {
-      switch (status) {
-        case SyncStatus.syncing:
-          _emit(_state.copyWith(
-              phase: 'pushing',
-              message: 'مزامنة الدلتا مع Appwrite',
-              timestamp: DateTime.now()));
-          break;
-        case SyncStatus.success:
-          _emit(_state.copyWith(
-              phase: 'pulling',
-              message: 'سحب التغييرات وإنهاء الدمج',
-              timestamp: DateTime.now(),
-              lastPushAt: DateTime.now()));
-          // After a successful delta, consider snapshot if needed
-          await _snapshotIfNeeded();
-          break;
-        case SyncStatus.failed:
-          _emit(_state.copyWith(
-              phase: 'error',
-              message: 'فشل مزامنة Appwrite',
-              timestamp: DateTime.now(),
-              lastError: 'Appwrite sync failed'));
-          break;
-        case SyncStatus.idle:
-        case SyncStatus.partial:
-          _emit(_state.copyWith(
-              phase: 'idle', message: 'جاهز', timestamp: DateTime.now()));
-          break;
+      if (status == SyncStatus.syncing) {
+        _emit(_state.copyWith(
+            phase: 'pushing',
+            message: 'مزامنة الدلتا مع Appwrite',
+            timestamp: DateTime.now()));
+      } else if (status == SyncStatus.success) {
+        _emit(_state.copyWith(
+            phase: 'pulling',
+            message: 'سحب التغييرات وإنهاء الدمج',
+            timestamp: DateTime.now(),
+            lastPushAt: DateTime.now()));
+        // After a successful delta, consider snapshot if needed
+        await _snapshotIfNeeded();
+      } else if (status == SyncStatus.failed) {
+        _emit(_state.copyWith(
+            phase: 'error',
+            message: 'فشل مزامنة Appwrite',
+            timestamp: DateTime.now(),
+            lastError: 'Appwrite sync failed'));
+      } else if (status == SyncStatus.idle || status == SyncStatus.partial) {
+        _emit(_state.copyWith(
+            phase: 'idle', message: 'جاهز', timestamp: DateTime.now()));
       }
     });
   }

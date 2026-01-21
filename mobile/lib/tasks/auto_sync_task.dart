@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../services/central_sync_coordinator.dart';
+import '../services/sync_manager.dart';
 
 const _kImmediateWorkName = 'marina_auto_sync_now';
 const _kPeriodicWorkName = 'marina_auto_sync_periodic';

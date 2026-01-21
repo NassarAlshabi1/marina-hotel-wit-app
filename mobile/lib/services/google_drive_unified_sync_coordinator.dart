@@ -338,7 +338,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   /// إنشاء listener مشترك لمراقبة outbox - إزالة تكرار الكود (DRY)
-  StreamSubscription<List<OutboxEntry>> _createOutboxListener() {
+  StreamSubscription<List<OutboxData>> _createOutboxListener() {
     return (_database!.select(_database!.outbox)).watch().listen(
       (_) {
         _log('📦 Detected change in outbox', level: LogLevel.debug);
@@ -1059,9 +1059,5 @@ class GoogleDriveUnifiedSyncCoordinator {
     _log('🛑 Unified Sync Coordinator disposed');
   }
   Future<void> pushChanges() async {}
-  Future<void> pushChanges() async {}
-  Future<void> pullChanges() async {}
-  Future<void> pullChanges() async {}
-  Future<void> pullChanges() async {}
   Future<void> pullChanges() async {}
 }

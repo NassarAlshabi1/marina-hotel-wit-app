@@ -156,7 +156,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await autoSyncEngine.stop();
     });
     DatabaseSyncCoordinator.registerStopCallback(() async {
-      await guardian.stop();
+      await SyncGuardian.instance.stop();
     });
 
     // Register restart callbacks
@@ -164,7 +164,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await autoSyncEngine.restart();
     });
     DatabaseSyncCoordinator.registerRestartCallback(() async {
-      await guardian.restart();
+      await SyncGuardian.instance.restart();
     });
 
     debugPrint('✅ Sync callbacks registered');
