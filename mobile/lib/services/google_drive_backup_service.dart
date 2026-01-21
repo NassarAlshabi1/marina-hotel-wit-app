@@ -49,7 +49,7 @@ class DriveBackupFile {
       fileId: file.id!,
       fileName: file.name!,
       createdTime: file.createdTime!,
-      size: file.size != null ? int.parse(file.size!) : null,
+      size: file.size != null ? int.tryParse(file.size!) : null,
       metadata: file.appProperties,
     );
   }

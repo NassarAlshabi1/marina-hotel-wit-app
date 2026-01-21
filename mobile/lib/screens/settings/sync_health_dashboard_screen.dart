@@ -55,7 +55,7 @@ class _SyncHealthDashboardScreenState
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _getLocalizedErrorMessage(error),
+                    error.toString(),
                     style: Theme.of(context).textTheme.bodySmall,
                     textAlign: TextAlign.center,
                   ),
@@ -71,7 +71,6 @@ class _SyncHealthDashboardScreenState
           data: (dashboard) => RefreshIndicator(
             onRefresh: _refreshAll,
             child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
