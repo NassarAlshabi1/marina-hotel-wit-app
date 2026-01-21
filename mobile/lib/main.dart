@@ -360,6 +360,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('📱 التطبيق عاد للواجهة...');
       AppSessionManager.onAppOpen()
           .catchError((e, s) => debugPrint('Error in onAppOpen: $e\n$s'));
+      ref
+          .read(backupStatusProvider.notifier)
+          .refreshSignInStatus()
+          .catchError(
+              (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'));
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
           (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'));
       SyncGuardian.instance.onAppForeground().catchError((e, s) =>

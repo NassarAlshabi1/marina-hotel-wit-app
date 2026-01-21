@@ -617,18 +617,29 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   /// التحقق من حالة تسجيل الدخول وتحديثها
   Future<void> refreshSignInStatus() async {
     try {
-      debugPrint('🔄 التحقق من حالة تسجيل الدخول...');
+      debugPrint('🔄 محاولة استعادة الدخول الصامت...');
 
-      // التحقق من حالة Google Sign-In الفعلية
+      GoogleSignInAccount? account;
+      try {
+        account = await _backupService.attemptSilentSignIn();
+      } catch (e) {
+        debugPrint('⚠️ فشل استعادة الدخول الصامت: $e');
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final skipPref = prefs.getBool(_driveLoginSkippedKey) ?? false;
+      if (account != null && skipPref) {
+        await prefs.setBool(_driveLoginSkippedKey, false);
+      }
+
       final isActuallySignedIn = _backupService.isSignedIn;
-      final currentUser = _backupService.currentUser;
+      final currentUser = _backupService.currentUser ?? account;
 
       if (isActuallySignedIn &&
           currentUser != null &&
           state.signedInAccount == null) {
         debugPrint('✅ تم اكتشاف جلسة Google Drive نشطة - تحديث الحالة...');
 
-        // تحديث الحالة
         List<DriveBackupFile> driveBackups = [];
         try {
           driveBackups = await _backupService.listBackupFiles();
@@ -636,7 +647,6 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           debugPrint('⚠️ خطأ في جلب قائمة النسخ: $e');
         }
 
-        // إشعار مديري المزامنة
         try {
           await _notifySyncManagers(true);
         } catch (e) {
@@ -646,13 +656,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         state = state.copyWith(
           signedInAccount: currentUser,
           availableBackups: driveBackups,
+          driveLoginSkipped: false,
         );
 
         debugPrint('✅ تم تحديث حالة تسجيل الدخول بنجاح');
       } else if (!isActuallySignedIn && state.signedInAccount != null) {
         debugPrint('⚠️ تم فقدان جلسة Google Drive - تحديث الحالة...');
 
-        // إشعار مديري المزامنة
         try {
           await _notifySyncManagers(false);
         } catch (e) {
