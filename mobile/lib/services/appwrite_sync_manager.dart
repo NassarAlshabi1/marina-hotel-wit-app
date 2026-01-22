@@ -1234,6 +1234,9 @@ class AppwriteSyncManager {
     if (value.isEmpty) {
       return '***';
     }
+    if (value.length <= 2) {
+      return '***';
+    }
     if (value.length <= 6) {
       return '***${value.substring(value.length - 2)}';
     }
