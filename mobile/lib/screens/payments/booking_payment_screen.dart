@@ -33,6 +33,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   double _totalAmount = 0;
   double _remainingAmount = 0;
   late String _currentGuestPhone;
+  bool _isSavingPayment = false;
 
   Payment _mapDbPaymentToUi(db.Payment p) {
     return Payment(
@@ -885,15 +886,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () => _processPayment(
-                method,
-                amountController.text,
-                notesController.text,
-                referenceController.text,
-                cardDigitsController.text,
-                bankController.text,
-              ),
-              child: const Text('تسجيل الدفعة'),
+              onPressed: _isSavingPayment
+                  ? null
+                  : () => _processPayment(
+                        method,
+                        amountController.text,
+                        notesController.text,
+                        referenceController.text,
+                        cardDigitsController.text,
+                        bankController.text,
+                      ),
+              child: _isSavingPayment
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('تسجيل الدفعة'),
             ),
           ],
         ),
@@ -1228,6 +1237,34 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
+  Future<_PaymentTotals> _calculateCurrentTotals() async {
+    final roomsRepo = ref.read(roomsRepoProvider);
+    final paymentsRepo = ref.read(paymentsRepoProvider);
+
+    final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
+    final roomRate = room?.price ?? 0.0;
+
+    final checkin =
+        DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+    final plannedCheckout = widget.booking.checkoutDate != null
+        ? DateTime.tryParse(widget.booking.checkoutDate!)
+        : null;
+    final actualCheckout = widget.booking.actualCheckout != null
+        ? DateTime.tryParse(widget.booking.actualCheckout!)
+        : null;
+    final actualNights =
+        Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
+
+    final totalAmount = actualNights * roomRate;
+    final payments =
+        await paymentsRepo.paymentsByBooking(widget.booking.id).first;
+    final paidAmount = payments.fold<double>(0, (s, p) => s + p.amount);
+    final remainingAmount =
+        ((totalAmount - paidAmount).clamp(0.0, totalAmount)).toDouble();
+
+    return _PaymentTotals(totalAmount, remainingAmount);
+  }
+
   Future<void> _processPayment(
     PaymentMethod method,
     String amountText,
@@ -1236,6 +1273,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String cardDigits,
     String bank,
   ) async {
+    if (_isSavingPayment) return;
+
     final amount = CurrencyFormatter.parseAmount(amountText);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context)
@@ -1243,92 +1282,113 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       return;
     }
 
+    setState(() {
+      _isSavingPayment = true;
+    });
+
     final paymentsRepo = ref.read(paymentsRepoProvider);
     final bookingsRepo = ref.read(bookingsRepoProvider);
 
-    final total = _totalAmount;
-    final remaining = _remainingAmount;
+    try {
+      final totals = await _calculateCurrentTotals();
 
-    if (amount > remaining) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              'المبلغ أكبر من المتبقي (${_currencyFmt.format(remaining)})')));
-      return;
-    }
+      if (amount > totals.remaining) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'المبلغ أكبر من المتبقي (${_currencyFmt.format(totals.remaining)})')));
+        return;
+      }
 
-    final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
+      final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
 
-    await bookingsRepo.update(widget.booking.id, guestPhone: cleanedPhone);
-    if (mounted) {
-      setState(() {
+      await bookingsRepo.update(widget.booking.id, guestPhone: cleanedPhone);
+      if (mounted) {
+        setState(() {
+          _currentGuestPhone = cleanedPhone;
+          if (_phoneController.text != cleanedPhone) {
+            _phoneController.value = TextEditingValue(
+              text: cleanedPhone,
+              selection: TextSelection.collapsed(offset: cleanedPhone.length),
+            );
+          }
+        });
+      } else {
         _currentGuestPhone = cleanedPhone;
-        if (_phoneController.text != cleanedPhone) {
-          _phoneController.value = TextEditingValue(
-            text: cleanedPhone,
-            selection: TextSelection.collapsed(offset: cleanedPhone.length),
-          );
-        }
-      });
-    } else {
-      _currentGuestPhone = cleanedPhone;
-    }
+      }
 
-    await paymentsRepo.create(
-      bookingLocalId: widget.booking.id,
-      serverBookingId: widget.booking.serverBookingId,
-      roomNumber: widget.booking.roomNumber,
-      amount: amount,
-      paymentDate: Time.nowIso(),
-      notes: notes.isEmpty ? null : notes,
-      paymentMethod: _mapUiMethodToDb(method),
-      revenueType: 'room',
-    );
+      await paymentsRepo.create(
+        bookingLocalId: widget.booking.id,
+        serverBookingId: widget.booking.serverBookingId,
+        roomNumber: widget.booking.roomNumber,
+        amount: amount,
+        paymentDate: Time.nowIso(),
+        notes: notes.isEmpty ? null : notes,
+        paymentMethod: _mapUiMethodToDb(method),
+        revenueType: 'room',
+      );
 
-    final newRemaining = ((remaining - amount).clamp(0.0, total)).toDouble();
+      final newRemaining =
+          ((totals.remaining - amount).clamp(0.0, totals.total)).toDouble();
 
-    Navigator.pop(context);
+      Navigator.pop(context);
 
-    if (mounted) {
-      setState(() {
+      if (mounted) {
+        setState(() {
+          _remainingAmount = newRemaining;
+        });
+      } else {
         _remainingAmount = newRemaining;
-      });
-    } else {
-      _remainingAmount = newRemaining;
+      }
+
+      final receipt = Payment(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        bookingId: widget.booking.localUuid,
+        amount: amount,
+        method: method,
+        status: PaymentStatus.completed,
+        paymentDate: DateTime.now(),
+        notes: notes.isNotEmpty ? notes : null,
+        referenceNumber: reference.isNotEmpty ? reference : null,
+        cardLastFourDigits: cardDigits.isNotEmpty ? cardDigits : null,
+        bankName: bank.isNotEmpty ? bank : null,
+        receivedBy: 'admin',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      _showReceiptDialog(receipt);
+
+      if (cleanedPhone.isNotEmpty) {
+        await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}'),
+          action: SnackBarAction(
+              label: 'طباعة إيصال', onPressed: () => _generateReceipt(receipt)),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('تعذّر تسجيل الدفعة: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingPayment = false;
+        });
+      } else {
+        _isSavingPayment = false;
+      }
     }
-
-    final receipt = Payment(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      bookingId: widget.booking.localUuid,
-      amount: amount,
-      method: method,
-      status: PaymentStatus.completed,
-      paymentDate: DateTime.now(),
-      notes: notes.isNotEmpty ? notes : null,
-      referenceNumber: reference.isNotEmpty ? reference : null,
-      cardLastFourDigits: cardDigits.isNotEmpty ? cardDigits : null,
-      bankName: bank.isNotEmpty ? bank : null,
-      receivedBy: 'admin',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-
-    _showReceiptDialog(receipt);
-
-    if (cleanedPhone.isNotEmpty) {
-      await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
-    }
-
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}'),
-        action: SnackBarAction(
-            label: 'طباعة إيصال', onPressed: () => _generateReceipt(receipt)),
-      ),
-    );
   }
 
   void _showReceiptDialog(Payment payment) {
@@ -1822,4 +1882,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final s = dt.second.toString().padLeft(2, '0');
     return '$y-$m-$d $h:$min:$s';
   }
+}
+
+class _PaymentTotals {
+  final double total;
+  final double remaining;
+  const _PaymentTotals(this.total, this.remaining);
 }
