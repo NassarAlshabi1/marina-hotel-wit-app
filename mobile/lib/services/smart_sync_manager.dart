@@ -940,7 +940,6 @@ class SmartSyncManager {
     await DatabaseManager.runWithRestoreGuard(
         () => _backupService!.restoreFromBackup(localData));
   }
-  }
 }
 
 /// نموذج تضارب البيانات
