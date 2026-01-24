@@ -520,10 +520,18 @@ class AppwriteService {
         data: data,
       );
     } catch (error) {
+      final code = error is AppwriteError
+          ? error.code
+          : error is AppwriteException
+              ? error.code
+              : '';
+      final message = error.toString();
       final isConflict =
-          (error is AppwriteError && error.code == 'CONFLICT_ERROR') ||
-              error.toString().contains('document_already_exists') ||
-              error.toString().contains('409');
+          code == 'CONFLICT_ERROR' ||
+              code == 'document_already_exists' ||
+              message.contains('document_already_exists') ||
+              message.contains('document already exists') ||
+              message.contains('409');
 
       if (isConflict) {
         return await updateDocument(
