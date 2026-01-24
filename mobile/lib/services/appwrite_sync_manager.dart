@@ -725,35 +725,31 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     await database.transaction(() async {
-      await database.batch((batch) {
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final roomNumber = _asString(data['roomNumber']);
-          if (roomNumber == null || roomNumber.isEmpty) {
-            continue;
-          }
-          final localUuid = _asString(data['localUuid']) ?? doc.$id;
-          final companion = RoomsCompanion(
-            roomNumber: d.Value(roomNumber),
-            type: d.Value(_asString(data['type']) ?? ''),
-            price: d.Value(_asDouble(data['price'])),
-            status: d.Value(_asString(data['status']) ?? 'available'),
-            imageUrl: _nullableValue<String>(_asString(data['imageUrl'])),
-            localUuid: d.Value(localUuid),
-            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
-            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
-            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-            deletedAt:
-                _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
-            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
-            version: d.Value(_asInt(data['version'], fallback: 1)),
-            origin: d.Value(_asString(data['origin']) ?? 'server'),
-          );
-          batch.insert(database.rooms, companion,
-              mode: d.InsertMode.insertOrReplace);
-          processed++;
+      for (final doc in documents) {
+        final data = Map<String, dynamic>.from(doc.data);
+        final roomNumber = _asString(data['roomNumber']);
+        if (roomNumber == null || roomNumber.isEmpty) {
+          continue;
         }
-      });
+        final localUuid = _asString(data['localUuid']) ?? doc.$id;
+        final companion = RoomsCompanion(
+          roomNumber: d.Value(roomNumber),
+          type: d.Value(_asString(data['type']) ?? ''),
+          price: d.Value(_asDouble(data['price'])),
+          status: d.Value(_asString(data['status']) ?? 'available'),
+          imageUrl: _nullableValue<String>(_asString(data['imageUrl'])),
+          localUuid: d.Value(localUuid),
+          serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
+          createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
+          updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
+          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
+          version: d.Value(_asInt(data['version'], fallback: 1)),
+          origin: d.Value(_asString(data['origin']) ?? 'server'),
+        );
+        await database.into(database.rooms).insertOnConflictUpdate(companion);
+        processed++;
+      }
     });
     return processed;
   }
@@ -834,8 +830,7 @@ class AppwriteSyncManager {
           serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
           createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
           updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-          deletedAt:
-              _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
           lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
           version: d.Value(_asInt(data['version'], fallback: 1)),
           origin: d.Value(_asString(data['origin']) ?? 'server'),
@@ -864,7 +859,7 @@ class AppwriteSyncManager {
 
         await database
             .into(database.bookings)
-            .insert(companion, mode: d.InsertMode.insertOrReplace);
+            .insertOnConflictUpdate(companion);
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
@@ -959,6 +954,10 @@ class AppwriteSyncManager {
         .map((d) => _asIntNullable(d.data['bookingLocalId']))
         .whereType<int>()
         .toSet();
+    final serverBookingIds = documents
+        .map((d) => _asIntNullable(d.data['serverBookingId']))
+        .whereType<int>()
+        .toSet();
     final cashIds = documents
         .map((d) => _asIntNullable(d.data['cashTransactionLocalId']))
         .whereType<int>()
@@ -970,6 +969,19 @@ class AppwriteSyncManager {
             ..where((b) => b.id.isIn(bookingIds.toList())))
           .get();
       existingBookingIds.addAll(rows.map((r) => r.id));
+    }
+
+    final bookingByServerId = <int, int>{};
+    if (serverBookingIds.isNotEmpty) {
+      final rows = await (database.select(database.bookings)
+            ..where((b) => b.serverBookingId.isIn(serverBookingIds.toList())))
+          .get();
+      for (final row in rows) {
+        final serverId = row.serverBookingId;
+        if (serverId != null) {
+          bookingByServerId[serverId] = row.id;
+        }
+      }
     }
 
     final existingCashIds = <int>{};
@@ -991,6 +1003,13 @@ class AppwriteSyncManager {
         int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
         if (bookingLocalId != null && !existingBookingIds.contains(bookingLocalId)) {
           bookingLocalId = null;
+        }
+
+        if (bookingLocalId == null) {
+          final serverBookingId = _asIntNullable(data['serverBookingId']);
+          if (serverBookingId != null) {
+            bookingLocalId = bookingByServerId[serverBookingId];
+          }
         }
 
         if (bookingLocalId == null) {
@@ -1029,8 +1048,7 @@ class AppwriteSyncManager {
           serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
           createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
           updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-          deletedAt:
-              _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
           lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
           version: d.Value(_asInt(data['version'], fallback: 1)),
           origin: d.Value(_asString(data['origin']) ?? 'server'),
@@ -1054,7 +1072,7 @@ class AppwriteSyncManager {
 
         await database
             .into(database.payments)
-            .insert(companion, mode: d.InsertMode.insertOrReplace);
+            .insertOnConflictUpdate(companion);
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
