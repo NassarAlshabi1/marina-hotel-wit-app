@@ -762,6 +762,19 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
 
+    final roomNumbers = documents
+        .map((doc) => _asString(doc.data['roomNumber']) ?? '')
+        .where((r) => r.isNotEmpty)
+        .toSet();
+
+    final existingRoomSet = <String>{};
+    if (roomNumbers.isNotEmpty) {
+      final existingRooms = await (database.select(database.rooms)
+            ..where((r) => r.roomNumber.isIn(roomNumbers.toList())))
+          .get();
+      existingRoomSet.addAll(existingRooms.map((r) => r.roomNumber));
+    }
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -771,12 +784,7 @@ class AppwriteSyncManager {
           continue;
         }
 
-        final roomExists = await (database.select(database.rooms)
-              ..where((r) => r.roomNumber.equals(roomNumber))
-              ..limit(1))
-            .getSingleOrNull();
-
-        if (roomExists == null) {
+        if (!existingRoomSet.contains(roomNumber)) {
           _logger.warning(
               'Skipping booking $localUuid: Room $roomNumber does not exist',
               tag: 'SYNC');
@@ -936,6 +944,31 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
 
+    final bookingIds = documents
+        .map((d) => _asIntNullable(d.data['bookingLocalId']))
+        .whereType<int>()
+        .toSet();
+    final cashIds = documents
+        .map((d) => _asIntNullable(d.data['cashTransactionLocalId']))
+        .whereType<int>()
+        .toSet();
+
+    final existingBookingIds = <int>{};
+    if (bookingIds.isNotEmpty) {
+      final rows = await (database.select(database.bookings)
+            ..where((b) => b.id.isIn(bookingIds.toList())))
+          .get();
+      existingBookingIds.addAll(rows.map((r) => r.id));
+    }
+
+    final existingCashIds = <int>{};
+    if (cashIds.isNotEmpty) {
+      final rows = await (database.select(database.cashTransactions)
+            ..where((c) => c.id.isIn(cashIds.toList())))
+          .get();
+      existingCashIds.addAll(rows.map((r) => r.id));
+    }
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -945,39 +978,21 @@ class AppwriteSyncManager {
         }
 
         int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
-
-        if (bookingLocalId != null) {
-          final bookingId = bookingLocalId;
-          final bookingExists = await (database.select(database.bookings)
-                ..where((b) => b.id.equals(bookingId))
-                ..limit(1))
-              .getSingleOrNull();
-
-          if (bookingExists == null) {
-            _logger.warning(
-                'Payment $localUuid: bookingLocalId $bookingLocalId not found, setting to null',
-                tag: 'SYNC');
-            bookingLocalId = null;
-          }
+        if (bookingLocalId != null && !existingBookingIds.contains(bookingLocalId)) {
+          _logger.warning(
+              'Payment $localUuid: bookingLocalId $bookingLocalId not found, setting to null',
+              tag: 'SYNC');
+          bookingLocalId = null;
         }
 
         int? cashTransactionLocalId =
             _asIntNullable(data['cashTransactionLocalId']);
-
-        if (cashTransactionLocalId != null) {
-          final cashTransactionId = cashTransactionLocalId;
-          final cashTransactionExists =
-              await (database.select(database.cashTransactions)
-                    ..where((c) => c.id.equals(cashTransactionId))
-                    ..limit(1))
-                  .getSingleOrNull();
-
-          if (cashTransactionExists == null) {
-            _logger.warning(
-                'Payment $localUuid: cashTransactionLocalId $cashTransactionLocalId not found, setting to null',
-                tag: 'SYNC');
-            cashTransactionLocalId = null;
-          }
+        if (cashTransactionLocalId != null &&
+            !existingCashIds.contains(cashTransactionLocalId)) {
+          _logger.warning(
+              'Payment $localUuid: cashTransactionLocalId $cashTransactionLocalId not found, setting to null',
+              tag: 'SYNC');
+          cashTransactionLocalId = null;
         }
         final companion = PaymentsCompanion(
           localUuid: d.Value(localUuid),
