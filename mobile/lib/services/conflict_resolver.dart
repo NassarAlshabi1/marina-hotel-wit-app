@@ -58,12 +58,23 @@ class EnhancedConflictResolver {
   EnhancedConflictResolver({
     this.defaultStrategy = ConflictStrategy.lastWriteWins,
     this.tableStrategies = const {},
+    this.tableHooks = const {},
+    this.devicePriorityResolver,
+    this.criticalFieldsOverrides = const {},
   });
 
   final ConflictStrategy defaultStrategy;
   final Map<String, ConflictStrategy> tableStrategies;
+  final Map<String, ConflictResolution Function(ConflictContext)> tableHooks;
+  final int Function(String deviceId)? devicePriorityResolver;
+  final Map<String, Set<String>> criticalFieldsOverrides;
 
   ConflictResolution resolve(ConflictContext context) {
+    final hook = tableHooks[context.table];
+    if (hook != null) {
+      return hook(context);
+    }
+
     final strategy = tableStrategies[context.table] ?? defaultStrategy;
 
     if (context.localVectorClock != null && context.remoteVectorClock != null) {
@@ -147,7 +158,16 @@ class EnhancedConflictResolver {
       );
     }
 
-    if (context.localDevicePriority >= context.remoteDevicePriority) {
+    final localPriority = _priorityForDevice(
+      context.localDeviceId,
+      context.localDevicePriority,
+    );
+    final remotePriority = _priorityForDevice(
+      context.remoteDeviceId,
+      context.remoteDevicePriority,
+    );
+
+    if (localPriority >= remotePriority) {
       return ConflictResolution(
         winner: context.localData,
         strategy: ConflictStrategy.customPriority,
@@ -217,8 +237,14 @@ class EnhancedConflictResolver {
   }
 
   ConflictResolution _customPriority(ConflictContext context) {
-    final localPriority = context.localDevicePriority;
-    final remotePriority = context.remoteDevicePriority;
+    final localPriority = _priorityForDevice(
+      context.localDeviceId,
+      context.localDevicePriority,
+    );
+    final remotePriority = _priorityForDevice(
+      context.remoteDeviceId,
+      context.remoteDevicePriority,
+    );
 
     if (localPriority > remotePriority) {
       return ConflictResolution(
@@ -235,7 +261,17 @@ class EnhancedConflictResolver {
     return _lastWriteWins(context);
   }
 
+  int _priorityForDevice(String deviceId, int fallback) {
+    if (devicePriorityResolver == null) return fallback;
+    return devicePriorityResolver!(deviceId) ?? fallback;
+  }
+
   Set<String> _getCriticalFields(String table) {
+    final override = criticalFieldsOverrides[table];
+    if (override != null) {
+      return override;
+    }
+
     const fieldsByTable = <String, Set<String>>{
       'bookings': {
         'status',

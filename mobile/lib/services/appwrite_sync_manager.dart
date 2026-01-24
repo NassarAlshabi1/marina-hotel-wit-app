@@ -747,7 +747,26 @@ class AppwriteSyncManager {
           version: d.Value(_asInt(data['version'], fallback: 1)),
           origin: d.Value(_asString(data['origin']) ?? 'server'),
         );
-        await database.into(database.rooms).insertOnConflictUpdate(companion);
+
+        final existing = await (database.select(database.rooms)
+              ..where((r) => r.roomNumber.equals(roomNumber))
+              ..limit(1))
+            .getSingleOrNull();
+
+        if (existing != null) {
+          await (database.update(database.rooms)
+                ..where((r) => r.roomNumber.equals(roomNumber)))
+              .write(companion);
+        } else {
+          try {
+            await database.into(database.rooms).insert(companion);
+          } catch (e) {
+            // إذا حدث تعارض فريد بسبب room_number، حاول تحديث السجل بدل الإدراج
+            await (database.update(database.rooms)
+                  ..where((r) => r.roomNumber.equals(roomNumber)))
+                .write(companion);
+          }
+        }
         processed++;
       }
     });
@@ -963,12 +982,16 @@ class AppwriteSyncManager {
         .whereType<int>()
         .toSet();
 
+    final bookingUuidCache = <String, int?>{};
     final existingBookingIds = <int>{};
     if (bookingIds.isNotEmpty) {
       final rows = await (database.select(database.bookings)
             ..where((b) => b.id.isIn(bookingIds.toList())))
           .get();
       existingBookingIds.addAll(rows.map((r) => r.id));
+      for (final row in rows) {
+        bookingUuidCache[row.localUuid] = row.id;
+      }
     }
 
     final bookingByServerId = <int, int>{};
@@ -980,6 +1003,7 @@ class AppwriteSyncManager {
         final serverId = row.serverBookingId;
         if (serverId != null) {
           bookingByServerId[serverId] = row.id;
+          bookingUuidCache[row.localUuid] = row.id;
         }
       }
     }
@@ -991,6 +1015,9 @@ class AppwriteSyncManager {
           .get();
       existingCashIds.addAll(rows.map((r) => r.id));
     }
+
+    var bookingFkWarnings = 0;
+    var cashFkWarnings = 0;
 
     for (final doc in documents) {
       try {
@@ -1018,17 +1045,24 @@ class AppwriteSyncManager {
               _asString(data['booking_uuid_cache']) ??
               _asString(data['booking_uuid']);
           if (bookingUuid != null && bookingUuid.isNotEmpty) {
-            final b = await (database.select(database.bookings)
-                  ..where((t) => t.localUuid.equals(bookingUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-            if (b != null) {
-              bookingLocalId = b.id;
+            if (bookingUuidCache.containsKey(bookingUuid)) {
+              bookingLocalId = bookingUuidCache[bookingUuid];
+            } else {
+              final b = await (database.select(database.bookings)
+                    ..where((t) => t.localUuid.equals(bookingUuid))
+                    ..limit(1))
+                  .getSingleOrNull();
+              bookingLocalId = b?.id;
+              bookingUuidCache[bookingUuid] = bookingLocalId;
+              if (b?.serverBookingId != null && bookingLocalId != null) {
+                bookingByServerId[b!.serverBookingId!] = bookingLocalId;
+              }
             }
           }
         }
 
         if (bookingLocalId == null && data['bookingLocalId'] != null) {
+          bookingFkWarnings += 1;
           _logger.warning(
               'Payment $localUuid: bookingLocalId not resolved, leaving null',
               tag: 'SYNC');
@@ -1038,6 +1072,7 @@ class AppwriteSyncManager {
             _asIntNullable(data['cashTransactionLocalId']);
         if (cashTransactionLocalId != null &&
             !existingCashIds.contains(cashTransactionLocalId)) {
+          cashFkWarnings += 1;
           _logger.warning(
               'Payment $localUuid: cashTransactionLocalId $cashTransactionLocalId not found, setting to null',
               tag: 'SYNC');
@@ -1077,6 +1112,17 @@ class AppwriteSyncManager {
       } catch (e) {
         _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
       }
+    }
+
+    if (bookingFkWarnings > 0) {
+      _logger.warning(
+          'Sync payments: $bookingFkWarnings booking links unresolved',
+          tag: 'SYNC');
+    }
+    if (cashFkWarnings > 0) {
+      _logger.warning(
+          'Sync payments: $cashFkWarnings cash links unresolved',
+          tag: 'SYNC');
     }
 
     return processed;
