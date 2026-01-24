@@ -138,8 +138,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
         builder: (context, roomSnap) {
           final roomRate = roomSnap.data?.price ?? 0.0;
-          final checkin =
-              DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+          final checkin = DateTime.tryParse(widget.booking.checkinDate);
+          if (checkin == null) {
+            return const Center(
+              child: Text('خطأ: تاريخ الوصول للحجز غير صالح.'),
+            );
+          }
           final plannedCheckout = widget.booking.checkoutDate != null
               ? DateTime.tryParse(widget.booking.checkoutDate!)
               : null;

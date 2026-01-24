@@ -177,7 +177,7 @@ class AppwriteSyncManager {
       _deviceCreatedAtEpoch ??= nowEpoch;
 
       if (_currentDeviceId != null) {
-        final didRun = await _mutex.runExclusive(() async {
+        await _mutex.runExclusive(() async {
           final existingDoc = await appwriteService.getDocument(
             collectionId: AppwriteConfig.devicesCollectionId,
             documentId: _currentDeviceId!,
@@ -190,33 +190,27 @@ class AppwriteSyncManager {
           if (_deviceVersion == null || _deviceVersion! <= currentRemoteVersion) {
             _deviceVersion = currentRemoteVersion + 1;
           }
-          return true;
+
+          await appwriteService.updateDocument(
+            collectionId: AppwriteConfig.devicesCollectionId,
+            documentId: _currentDeviceId!,
+            data: {
+              'deviceName': finalDeviceName,
+              'deviceModel': finalDeviceModel,
+              'osVersion': finalOsVersion,
+              'deviceType': deviceType,
+              'status': DeviceStatus.active.value,
+              'localUuid': _deviceLocalUuid,
+              'lastSeen': nowIso,
+              'lastActive': nowEpoch,
+              'createdAt': _deviceCreatedAtEpoch,
+              'updatedAt': nowEpoch,
+              'lastModified': nowEpoch,
+              'version': _deviceVersion,
+              'origin': 'mobile',
+            },
+          );
         });
-
-        if (didRun != true) {
-          _logger.warning('Failed to acquire mutex for device registration',
-              tag: 'SYNC');
-        }
-
-        await appwriteService.updateDocument(
-          collectionId: AppwriteConfig.devicesCollectionId,
-          documentId: _currentDeviceId!,
-          data: {
-            'deviceName': finalDeviceName,
-            'deviceModel': finalDeviceModel,
-            'osVersion': finalOsVersion,
-            'deviceType': deviceType,
-            'status': DeviceStatus.active.value,
-            'localUuid': _deviceLocalUuid,
-            'lastSeen': nowIso,
-            'lastActive': nowEpoch,
-            'createdAt': _deviceCreatedAtEpoch,
-            'updatedAt': nowEpoch,
-            'lastModified': nowEpoch,
-            'version': _deviceVersion,
-            'origin': 'mobile',
-          },
-        );
 
         await _saveSettings();
         _logger.info('Device updated: $_currentDeviceId', tag: 'SYNC');

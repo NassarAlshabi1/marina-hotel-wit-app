@@ -193,6 +193,25 @@ class SyncService {
     if (res['success'] != true) return;
     final data = List<Map<String, dynamic>>.from(res['data']['data']);
 
+    const Map<String, int> _entityPriority = {
+      'rooms': 0,
+      'employees': 1,
+      'cash_transactions': 1,
+      'expenses': 1,
+      'bookings': 2,
+      'booking_notes': 3,
+      'booking_nights': 3,
+      'payments': 4,
+      'debts': 5,
+      'hotel_day_ledger': 6,
+    };
+    int _priority(String entity) => _entityPriority[entity] ?? 10;
+    data.sort((a, b) {
+      final ea = (a['entity'] as String?) ?? '';
+      final eb = (b['entity'] as String?) ?? '';
+      return _priority(ea).compareTo(_priority(eb));
+    });
+
     await db.transaction(() async {
       int maxTs = since;
       for (final it in data) {
@@ -904,21 +923,20 @@ class SyncService {
   }
 
   Future<void> _ensureRoomExists(String roomNumber) async {
+    if (roomNumber.isEmpty) return;
     final existing = await (db.select(db.rooms)
           ..where((t) => t.roomNumber.equals(roomNumber)))
         .getSingleOrNull();
     if (existing != null) return;
-    final now = Time.nowEpoch();
-    await db.into(db.rooms).insert(RoomsCompanion(
-      roomNumber: d.Value(roomNumber),
-      type: const d.Value(''),
-      price: const d.Value(0),
-      status: const d.Value('available'),
-      createdAt: d.Value(now),
-      updatedAt: d.Value(now),
-      lastModified: d.Value(now),
-      origin: const d.Value('server'),
-    ));
+    await roomsDao.insertOne(
+      RoomsCompanion(
+        roomNumber: d.Value(roomNumber),
+        type: const d.Value(''),
+        price: const d.Value(0),
+        status: const d.Value('available'),
+      ),
+      originIsServer: true,
+    );
   }
 }
 

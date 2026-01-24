@@ -223,7 +223,7 @@ class GoogleDriveDeltaSync {
     final dateStr =
         '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
     final timeStr =
-        '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+        '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}${now.millisecond.toString().padLeft(3, '0')}';
     return '${deltaSyncPrefix}${dateStr}_$timeStr.json';
   }
 
@@ -361,7 +361,9 @@ class GoogleDriveDeltaSync {
     final companion = RoomsCompanion(
       roomNumber: d.Value(roomNumber),
       type: d.Value(_asString(data['type']) ?? ''),
-      price: d.Value(_asDouble(data['price'])),
+      price: data.containsKey('price')
+          ? d.Value(_asDouble(data['price']))
+          : const d.Value.absent(),
       status: d.Value(_asString(data['status']) ?? 'available'),
       imageUrl: _nullableValue<String>(
           _asString(data['image_url']) ?? _asString(data['imageUrl'])),

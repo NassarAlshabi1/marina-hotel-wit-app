@@ -716,6 +716,11 @@ class GoogleDriveBackupService {
   }
 
   Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
+    if (!DatabaseManager.isRestoring) {
+      _log('CRITICAL: restoreFromBackup called outside of restore mode! Aborting.');
+      throw StateError(
+          'restoreFromBackup must only be called within a restore lifecycle.');
+    }
     try {
       final db = DatabaseManager.instance;
 
@@ -740,10 +745,9 @@ class GoogleDriveBackupService {
 
       _log('🔄 بدء استعادة البيانات...');
 
-      // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
-      await db.customStatement('PRAGMA foreign_keys = OFF');
-      try {
-        await db.transaction(() async {
+      await db.transaction(() async {
+        await db.customStatement('PRAGMA foreign_keys = OFF');
+        try {
           // حذف جميع الجداول
           await db.delete(db.rooms).go();
           await db.delete(db.bookings).go();
@@ -1037,12 +1041,11 @@ class GoogleDriveBackupService {
           final fixService = RestoreFixService(db);
           await fixService.runAutoFixAfterRestore(
               backupTimestamp: metadata.backupTimestamp);
-        });
-      } finally {
-        // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الاستعادة بالكامل
-        await db.customStatement('PRAGMA foreign_keys = ON');
-        _log('🔓 تم إعادة تشغيل FOREIGN KEYS');
-      }
+        } finally {
+          await db.customStatement('PRAGMA foreign_keys = ON');
+          _log('🔓 تم إعادة تشغيل FOREIGN KEYS');
+        }
+      });
     } catch (e) {
       _log('❌ خطأ في استعادة البيانات: $e');
       rethrow;
