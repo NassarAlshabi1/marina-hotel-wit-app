@@ -743,6 +743,15 @@ class DatabaseManager {
   static bool get isInitialized => _instance != null;
   static bool get isRestoring => _isRestoring;
 
+  static Future<T> runWithRestoreGuard<T>(Future<T> Function() action) async {
+    _isRestoring = true;
+    try {
+      return await action();
+    } finally {
+      _isRestoring = false;
+    }
+  }
+
   static void registerSyncCallbacks({
     required Future<void> Function() onStop,
     required Future<void> Function() onRestart,

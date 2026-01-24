@@ -495,7 +495,8 @@ class SmartSyncManager {
   /// دمج بيانات النسخ الاحتياطي
   Future<void> _mergeBackupData(Map<String, dynamic> backupData) async {
     // استخدام خدمة النسخ الاحتياطي الموجودة
-    await _backupService!.restoreFromBackup(backupData);
+    await DatabaseManager.runWithRestoreGuard(
+        () => _backupService!.restoreFromBackup(backupData));
   }
 
   /// إزالة سجل من بيانات النسخ الاحتياطي
@@ -888,7 +889,8 @@ class SmartSyncManager {
         // تحميل وتطبيق النسخة الاحتياطية
         final backupData =
             await _backupService!.downloadBackup(latestBackup.fileId);
-        await _backupService!.restoreFromBackup(backupData);
+        await DatabaseManager.runWithRestoreGuard(
+            () => _backupService!.restoreFromBackup(backupData));
 
         // تحديث timestamp
         await _setLastRemoteTimestamp(latestBackup.createdTime);
@@ -935,7 +937,9 @@ class SmartSyncManager {
   /// استعادة النسخة المحلية (في حالة فشل المزامنة)
   Future<void> _restoreLocalBackup(Map<String, dynamic> localData) async {
     _log('🔄 استعادة النسخة المحلية...');
-    await _backupService!.restoreFromBackup(localData);
+    await DatabaseManager.runWithRestoreGuard(
+        () => _backupService!.restoreFromBackup(localData));
+  }
   }
 }
 

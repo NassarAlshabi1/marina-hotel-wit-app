@@ -479,7 +479,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.5,
       );
 
-      await _backupService.restoreFromBackup(downloaded);
+      await DatabaseManager.runWithRestoreGuard(
+          () => _backupService.restoreFromBackup(downloaded));
 
       // تشغيل الإصلاح التلقائي
       state = state.copyWith(
