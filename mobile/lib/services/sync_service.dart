@@ -248,6 +248,9 @@ class SyncService {
 
   Future<void> _applyServerId(
       String entity, String localUuid, dynamic serverId) async {
+    final sid = _asInt(serverId);
+    if (sid == null) return;
+
     switch (entity) {
       case 'rooms':
         final row = await (db.select(db.rooms)
@@ -257,7 +260,7 @@ class SyncService {
           await (db.update(db.rooms)
                 ..where((t) => t.localUuid.equals(localUuid)))
               .write(RoomsCompanion(
-                  serverId: d.Value(serverId is int ? serverId : null),
+                  serverId: d.Value(sid),
                   lastModified: d.Value(Time.nowEpoch())));
         }
         break;
@@ -268,8 +271,8 @@ class SyncService {
         if (row != null) {
           await (db.update(db.bookings)..where((t) => t.id.equals(row.id)))
               .write(BookingsCompanion(
-                  serverBookingId: d.Value(serverId is int ? serverId : null),
-                  serverId: d.Value(serverId is int ? serverId : null),
+                  serverBookingId: d.Value(sid),
+                  serverId: d.Value(sid),
                   lastModified: d.Value(Time.nowEpoch())));
         }
         break;
@@ -280,7 +283,7 @@ class SyncService {
         if (rowN != null) {
           await (db.update(db.bookingNotes)..where((t) => t.id.equals(rowN.id)))
               .write(BookingNotesCompanion(
-                  serverId: d.Value(serverId is int ? serverId : null),
+                  serverId: d.Value(sid),
                   lastModified: d.Value(Time.nowEpoch())));
         }
         break;
@@ -291,7 +294,7 @@ class SyncService {
         if (rowE != null) {
           await (db.update(db.employees)..where((t) => t.id.equals(rowE.id)))
               .write(EmployeesCompanion(
-                  serverId: d.Value(serverId is int ? serverId : null),
+                  serverId: d.Value(sid),
                   lastModified: d.Value(Time.nowEpoch())));
         }
         break;
@@ -302,7 +305,7 @@ class SyncService {
         if (rowX != null) {
           await (db.update(db.expenses)..where((t) => t.id.equals(rowX.id)))
               .write(ExpensesCompanion(
-                  serverId: d.Value(serverId is int ? serverId : null),
+                  serverId: d.Value(sid),
                   lastModified: d.Value(Time.nowEpoch())));
         }
         break;
@@ -314,7 +317,7 @@ class SyncService {
           await (db.update(db.cashTransactions)
                 ..where((t) => t.id.equals(rowC.id)))
               .write(CashTransactionsCompanion(
-                  serverId: d.Value(serverId is int ? serverId : null),
+                  serverId: d.Value(sid),
                   lastModified: d.Value(Time.nowEpoch())));
         }
         break;
@@ -325,8 +328,8 @@ class SyncService {
         if (rowP != null) {
           await (db.update(db.payments)..where((t) => t.id.equals(rowP.id)))
               .write(PaymentsCompanion(
-                  serverPaymentId: d.Value(serverId is int ? serverId : null),
-                  serverId: d.Value(serverId is int ? serverId : null),
+                  serverPaymentId: d.Value(sid),
+                  serverId: d.Value(sid),
                   lastModified: d.Value(Time.nowEpoch())));
         }
         break;
@@ -337,7 +340,7 @@ class SyncService {
         if (rowD != null) {
           await (db.update(db.debts)..where((t) => t.id.equals(rowD.id))).write(
               DebtsCompanion(
-                  serverId: d.Value(serverId is int ? serverId : null),
+                  serverId: d.Value(sid),
                   lastModified: d.Value(Time.nowEpoch())));
         }
         break;

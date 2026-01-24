@@ -1019,8 +1019,11 @@ class GoogleDriveBackupService {
 
                 final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
                 final parts = timeStr.split(':');
-                final hour = int.parse(parts[0]);
-                final minute = int.parse(parts[1]);
+                final parsedHour = parts.isNotEmpty ? int.tryParse(parts[0]) : null;
+                final parsedMinute = parts.length > 1 ? int.tryParse(parts[1]) : null;
+
+                final hour = (parsedHour ?? 21).clamp(0, 23);
+                final minute = (parsedMinute ?? 0).clamp(0, 59);
                 final scheduledEnabled =
                     prefs.getBool('scheduled_backup_enabled') ?? true;
 

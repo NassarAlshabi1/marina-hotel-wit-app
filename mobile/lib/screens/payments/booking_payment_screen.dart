@@ -1714,6 +1714,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// معالجة تمديد الإقامة
   Future<void> _processExtendStay(
       int additionalNights, double roomRate, String notes) async {
+    if (additionalNights <= 0 || roomRate <= 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('يرجى إدخال عدد ليالي صحيح وسعر غرفة صحيح'),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
+
     final bookingsRepo = ref.read(bookingsRepoProvider);
     final paymentsRepo = ref.read(paymentsRepoProvider);
 
