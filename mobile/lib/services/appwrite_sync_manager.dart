@@ -176,27 +176,28 @@ class AppwriteSyncManager {
       _deviceLocalUuid ??= IdGen.uuid();
       _deviceCreatedAtEpoch ??= nowEpoch;
 
-      final result = await _mutex.runExclusive(() async {
-        final existingDoc = await appwriteService.getDocument(
-          collectionId: AppwriteConfig.devicesCollectionId,
-          documentId: _currentDeviceId!,
-        );
-        int currentRemoteVersion = 0;
-        if (existingDoc != null) {
-          currentRemoteVersion =
-              _asInt(existingDoc.data['version'], fallback: 0);
-        }
-        if (_deviceVersion == null || _deviceVersion! <= currentRemoteVersion) {
-          _deviceVersion = currentRemoteVersion + 1;
-        }
-      });
-
-      if (result == null) {
-        _logger.warning('Failed to acquire mutex for device registration',
-            tag: 'SYNC');
-      }
-
       if (_currentDeviceId != null) {
+        final didRun = await _mutex.runExclusive(() async {
+          final existingDoc = await appwriteService.getDocument(
+            collectionId: AppwriteConfig.devicesCollectionId,
+            documentId: _currentDeviceId!,
+          );
+          int currentRemoteVersion = 0;
+          if (existingDoc != null) {
+            currentRemoteVersion =
+                _asInt(existingDoc.data['version'], fallback: 0);
+          }
+          if (_deviceVersion == null || _deviceVersion! <= currentRemoteVersion) {
+            _deviceVersion = currentRemoteVersion + 1;
+          }
+          return true;
+        });
+
+        if (didRun != true) {
+          _logger.warning('Failed to acquire mutex for device registration',
+              tag: 'SYNC');
+        }
+
         await appwriteService.updateDocument(
           collectionId: AppwriteConfig.devicesCollectionId,
           documentId: _currentDeviceId!,
@@ -382,7 +383,7 @@ class AppwriteSyncManager {
 
       // التحقق من الاتصال
       final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity.contains(ConnectivityResult.none)) {
+      if (connectivity == ConnectivityResult.none) {
         throw Exception('No internet connection');
       }
 
@@ -1198,20 +1199,31 @@ class AppwriteSyncManager {
 
   Future<int> _pushAllEntities() async {
     const batchSize = 200;
-    final entries = await outboxDao.takeBatch(batchSize);
-    if (entries.isEmpty) {
-      return 0;
-    }
+    int totalProcessed = 0;
 
-    int processed = 0;
-    for (final entry in entries) {
-      final success = await _processOutboxEntry(entry);
-      if (success) {
-        await outboxDao.removeById(entry.id);
-        processed++;
+    while (true) {
+      final entries = await outboxDao.takeBatch(batchSize);
+      if (entries.isEmpty) {
+        break;
+      }
+
+      int processedInBatch = 0;
+      for (final entry in entries) {
+        final success = await _processOutboxEntry(entry);
+        if (success) {
+          await outboxDao.removeById(entry.id);
+          processedInBatch++;
+        }
+      }
+      totalProcessed += processedInBatch;
+
+      if (entries.length == batchSize && processedInBatch == 0) {
+        _logger.warning('Push loop stuck on failing entries. Breaking.',
+            tag: 'SYNC');
+        break;
       }
     }
-    return processed;
+    return totalProcessed;
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
@@ -1242,7 +1254,10 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _addIdempotencyKey(
       Map<String, dynamic> payload, OutboxData entry) {
-    return payload;
+    return {
+      ...payload,
+      'idempotencyKey': '${entry.entity}:${entry.op}:${entry.localUuid}:${entry.id}',
+    };
   }
 
   Future<bool> _processRoomEntry(OutboxData entry) async {

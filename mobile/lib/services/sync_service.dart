@@ -200,14 +200,18 @@ class SyncService {
         final op = it['op'] as String;
         final serverId = it['server_id'];
         final serverTs = (it['server_ts'] as num).toInt();
-        final item = Map<String, dynamic>.from(it['data']);
+        final rawData = it['data'];
+        final item = rawData is Map
+            ? Map<String, dynamic>.from(rawData as Map)
+            : <String, dynamic>{};
+
+        if (serverTs > maxTs) maxTs = serverTs;
 
         try {
           await _applyIncoming(entity, op, serverId, serverTs, item);
-          if (serverTs > maxTs) maxTs = serverTs;
         } catch (e) {
-          debugPrint('❌ Failed to apply incoming change for $entity: $e');
-          rethrow;
+          debugPrint(
+              '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.');
         }
       }
 
@@ -232,7 +236,7 @@ class SyncService {
             .getSingleOrNull();
         if (row != null) {
           await (db.update(db.rooms)
-                ..where((t) => t.roomNumber.equals(row.roomNumber)))
+                ..where((t) => t.localUuid.equals(localUuid)))
               .write(RoomsCompanion(
                   serverId: d.Value(serverId is int ? serverId : null),
                   lastModified: d.Value(Time.nowEpoch())));
@@ -378,6 +382,9 @@ class SyncService {
               .getSingleOrNull();
         }
         final room = data['room_number'] as String?;
+        if (room != null && room.isNotEmpty) {
+          await _ensureRoomExists(room);
+        }
         if (local != null) {
           if (serverTs >= local.lastModified) {
             await bookingsDao.updateById(
@@ -707,7 +714,8 @@ class SyncService {
     final existing = await (db.select(db.bookingNights)
           ..where((t) => t.localUuid.equals(localUuid)))
         .getSingleOrNull();
-    final bool isDelete = op == 'delete' || data['deleted_at'] != null;
+    final bool isDelete =
+        op == 'delete' || (data.containsKey('deleted_at') && data['deleted_at'] != null);
     final int normalizedServerTs =
         _normalizeTimestampField(serverTs, fallback: Time.nowEpoch());
     final int createdAt = _normalizeTimestampField(data['created_at'],
@@ -721,7 +729,7 @@ class SyncService {
     final int lastModifiedEpoch = _normalizeTimestampField(
         data['last_modified_epoch'],
         fallback: lastModified);
-    final int? deletedAt = data.containsKey('deleted_at')
+    final int? deletedAt = data.containsKey('deleted_at') && data['deleted_at'] != null
         ? _normalizeTimestampField(data['deleted_at'],
             fallback: normalizedServerTs)
         : null;
@@ -822,7 +830,7 @@ class SyncService {
     final int lastModifiedEpoch = _normalizeTimestampField(
         data['last_modified_epoch'],
         fallback: lastModified);
-    final int? deletedAt = data.containsKey('deleted_at')
+    final int? deletedAt = data.containsKey('deleted_at') && data['deleted_at'] != null
         ? _normalizeTimestampField(data['deleted_at'],
             fallback: normalizedServerTs)
         : null;
@@ -893,6 +901,24 @@ class SyncService {
             ..where((t) => t.id.equals(existing.id)))
           .write(companion);
     }
+  }
+
+  Future<void> _ensureRoomExists(String roomNumber) async {
+    final existing = await (db.select(db.rooms)
+          ..where((t) => t.roomNumber.equals(roomNumber)))
+        .getSingleOrNull();
+    if (existing != null) return;
+    final now = Time.nowEpoch();
+    await db.into(db.rooms).insert(RoomsCompanion(
+      roomNumber: d.Value(roomNumber),
+      type: const d.Value(''),
+      price: const d.Value(0),
+      status: const d.Value('available'),
+      createdAt: d.Value(now),
+      updatedAt: d.Value(now),
+      lastModified: d.Value(now),
+      origin: const d.Value('server'),
+    ));
   }
 }
 

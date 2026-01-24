@@ -250,8 +250,7 @@ class GoogleDriveBackupService {
       }
 
       _log('🔄 محاولة استعادة جلسة Google Drive...');
-      GoogleSignInAccount? account =
-          await _googleSignIn!.signInSilently(suppressErrors: true);
+      GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
 
       if (account != null) {
         _log('🔑 الحصول على رؤوس المصادقة...');
@@ -275,7 +274,7 @@ class GoogleDriveBackupService {
   Future<bool> signInSilentlyIfNeeded() async {
     try {
       if (_googleSignIn == null) _initializeGoogleSignIn();
-      final account = await _googleSignIn!.signInSilently(suppressErrors: true);
+      final account = await _googleSignIn!.signInSilently();
 
       if (account != null) {
         final headers = await account.authHeaders;
@@ -665,19 +664,23 @@ class GoogleDriveBackupService {
       // البحث عن جميع أنواع النسخ الاحتياطية (الشاملة والتلقائية والتفاضلية)
       final query =
           "parents in '$folderId' and (name contains '$fullBackupPrefix' or name contains '$autoSyncPrefix' or name contains '$deltaSyncPrefix' or name contains '$_backupFilePrefix') and trashed=false";
-      final listResult = await _driveApi!.files.list(
-        q: query,
-        orderBy: 'createdTime desc',
-        spaces: 'drive',
-        $fields: 'files(id,name,createdTime,size,appProperties)',
-      );
-
-      final backupFiles = <DriveBackupFile>[];
-      if (listResult.files != null) {
-        for (final file in listResult.files!) {
-          backupFiles.add(DriveBackupFile.fromDriveFile(file));
+      final allFiles = <drive.File>[];
+      String? pageToken;
+      do {
+        final response = await _driveApi!.files.list(
+          q: query,
+          orderBy: 'createdTime desc',
+          spaces: 'drive',
+          pageToken: pageToken,
+          $fields: 'nextPageToken,files(id,name,createdTime,size,appProperties)',
+        );
+        if (response.files != null) {
+          allFiles.addAll(response.files!);
         }
-      }
+        pageToken = response.nextPageToken;
+      } while (pageToken != null);
+
+      final backupFiles = allFiles.map(DriveBackupFile.fromDriveFile).toList();
 
       _log('✅ تم جلب ${backupFiles.length} نسخة احتياطية');
       return backupFiles;
@@ -730,7 +733,7 @@ class GoogleDriveBackupService {
           'بدء استعادة نسخة بتاريخ ${metadata.backupTimestamp.toIso8601String()} تحتوي ${metadata.totalRecords} سجل',
           tag: 'RESTORE');
 
-      if (metadata.databaseVersion > 3) {
+      if (metadata.databaseVersion > DatabaseManager.instance.schemaVersion) {
         throw Exception(
             'إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
       }
@@ -740,299 +743,301 @@ class GoogleDriveBackupService {
       // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
       await db.customStatement('PRAGMA foreign_keys = OFF');
       try {
-        // حذف جميع الجداول
-        await db.delete(db.rooms).go();
-        await db.delete(db.bookings).go();
-        await db.delete(db.bookingNotes).go();
-        await db.delete(db.bookingNights).go();
-        await db.delete(db.hotelDayLedger).go();
-        await db.delete(db.shiftNotes).go();
-        await db.delete(db.employees).go();
-        await db.delete(db.expenses).go();
-        await db.delete(db.cashTransactions).go();
-        await db.delete(db.payments).go();
-        await db.delete(db.debts).go();
-        await db.delete(db.autoFixRuns).go();
-        await db.delete(db.integrityViolations).go();
-        await db.delete(db.appSessions).go();
-        await db.delete(db.salaryCycles).go();
-        await db.delete(db.salaryPayments).go();
-        await db.delete(db.restoreFixLog).go();
-        await db.delete(db.syncQueue).go();
-        await db.delete(db.syncLog).go();
-        await db.delete(db.syncConflicts).go();
-        await db.delete(db.syncState).go();
+        await db.transaction(() async {
+          // حذف جميع الجداول
+          await db.delete(db.rooms).go();
+          await db.delete(db.bookings).go();
+          await db.delete(db.bookingNotes).go();
+          await db.delete(db.bookingNights).go();
+          await db.delete(db.hotelDayLedger).go();
+          await db.delete(db.shiftNotes).go();
+          await db.delete(db.employees).go();
+          await db.delete(db.expenses).go();
+          await db.delete(db.cashTransactions).go();
+          await db.delete(db.payments).go();
+          await db.delete(db.debts).go();
+          await db.delete(db.autoFixRuns).go();
+          await db.delete(db.integrityViolations).go();
+          await db.delete(db.appSessions).go();
+          await db.delete(db.salaryCycles).go();
+          await db.delete(db.salaryPayments).go();
+          await db.delete(db.restoreFixLog).go();
+          await db.delete(db.syncQueue).go();
+          await db.delete(db.syncLog).go();
+          await db.delete(db.syncConflicts).go();
+          await db.delete(db.syncState).go();
 
-        // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
-        if (backupData.containsKey('rooms')) {
-          final roomsData = backupData['rooms'] as List<dynamic>;
-          for (final roomJson in roomsData) {
-            final map = Map<String, dynamic>.from(roomJson as Map);
-            final data = Room.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.rooms).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('bookings')) {
-          final bookingsData = backupData['bookings'] as List<dynamic>;
-          for (final bookingJson in bookingsData) {
-            final map = Map<String, dynamic>.from(bookingJson as Map);
-            final data =
-                Booking.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.bookings).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('booking_notes')) {
-          final notesData = backupData['booking_notes'] as List<dynamic>;
-          for (final noteJson in notesData) {
-            final map = Map<String, dynamic>.from(noteJson as Map);
-            final data =
-                BookingNote.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.bookingNotes).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('booking_nights')) {
-          final nightsData = backupData['booking_nights'] as List<dynamic>;
-          for (final nightJson in nightsData) {
-            final map = Map<String, dynamic>.from(nightJson as Map);
-            final data =
-                BookingNight.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.bookingNights).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('hotel_day_ledger')) {
-          final ledgerList = backupData['hotel_day_ledger'] as List<dynamic>;
-          for (final ledgerJson in ledgerList) {
-            final map = Map<String, dynamic>.from(ledgerJson as Map);
-            final data = HotelDayLedgerEntry.fromJson(map,
-                serializer: lenientValueSerializer);
-            await db.into(db.hotelDayLedger).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('shift_notes')) {
-          final shiftsData = backupData['shift_notes'] as List<dynamic>;
-          for (final shiftJson in shiftsData) {
-            final map = Map<String, dynamic>.from(shiftJson as Map);
-            final data =
-                ShiftNote.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.shiftNotes).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('employees')) {
-          final employeesData = backupData['employees'] as List<dynamic>;
-          for (final employeeJson in employeesData) {
-            final map = Map<String, dynamic>.from(employeeJson as Map);
-            final data =
-                Employee.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.employees).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('expenses')) {
-          final expensesData = backupData['expenses'] as List<dynamic>;
-          for (final expenseJson in expensesData) {
-            final map = Map<String, dynamic>.from(expenseJson as Map);
-            final data =
-                Expense.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.expenses).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('cash_transactions')) {
-          final transactionsData =
-              backupData['cash_transactions'] as List<dynamic>;
-          for (final transactionJson in transactionsData) {
-            final map = Map<String, dynamic>.from(transactionJson as Map);
-            final data = CashTransaction.fromJson(map,
-                serializer: lenientValueSerializer);
-            await db.into(db.cashTransactions).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('payments')) {
-          final paymentsData = backupData['payments'] as List<dynamic>;
-          for (final paymentJson in paymentsData) {
-            final map = Map<String, dynamic>.from(paymentJson as Map);
-            final data =
-                Payment.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.payments).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('debts')) {
-          final debtsList = backupData['debts'] as List<dynamic>;
-          for (final debtJson in debtsList) {
-            final map = Map<String, dynamic>.from(debtJson as Map);
-            final data = Debt.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.debts).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('auto_fix_runs')) {
-          final runsList = backupData['auto_fix_runs'] as List<dynamic>;
-          for (final runJson in runsList) {
-            final map = Map<String, dynamic>.from(runJson as Map);
-            final data =
-                AutoFixRun.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.autoFixRuns).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('integrity_violations')) {
-          final violationsList =
-              backupData['integrity_violations'] as List<dynamic>;
-          for (final violationJson in violationsList) {
-            final map = Map<String, dynamic>.from(violationJson as Map);
-            final data = IntegrityViolation.fromJson(map,
-                serializer: lenientValueSerializer);
-            await db.into(db.integrityViolations).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('app_sessions')) {
-          final sessionsList = backupData['app_sessions'] as List<dynamic>;
-          for (final sessionJson in sessionsList) {
-            final map = Map<String, dynamic>.from(sessionJson as Map);
-            final data =
-                AppSession.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.appSessions).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('salary_cycles')) {
-          final cyclesList = backupData['salary_cycles'] as List<dynamic>;
-          for (final cycleJson in cyclesList) {
-            final map = Map<String, dynamic>.from(cycleJson as Map);
-            final data =
-                SalaryCycle.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.salaryCycles).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('salary_payments')) {
-          final salaryList = backupData['salary_payments'] as List<dynamic>;
-          for (final salaryJson in salaryList) {
-            final map = Map<String, dynamic>.from(salaryJson as Map);
-            final data =
-                SalaryPayment.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.salaryPayments).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('restore_fix_log')) {
-          final restoreList = backupData['restore_fix_log'] as List<dynamic>;
-          for (final logJson in restoreList) {
-            final map = Map<String, dynamic>.from(logJson as Map);
-            final data = RestoreFixLogData.fromJson(map,
-                serializer: lenientValueSerializer);
-            await db.into(db.restoreFixLog).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('sync_queue')) {
-          final queueList = backupData['sync_queue'] as List<dynamic>;
-          for (final rowJson in queueList) {
-            final map = Map<String, dynamic>.from(rowJson as Map);
-            final data =
-                SyncQueueData.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.syncQueue).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('sync_log')) {
-          final logList = backupData['sync_log'] as List<dynamic>;
-          for (final logJson in logList) {
-            final map = Map<String, dynamic>.from(logJson as Map);
-            final data =
-                SyncLogData.fromJson(map, serializer: lenientValueSerializer);
-            await db.into(db.syncLog).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('sync_conflicts')) {
-          final conflictsList = backupData['sync_conflicts'] as List<dynamic>;
-          for (final conflictJson in conflictsList) {
-            final map = Map<String, dynamic>.from(conflictJson as Map);
-            final data = SyncConflictRow.fromJson(map,
-                serializer: lenientValueSerializer);
-            await db.into(db.syncConflicts).insertOnConflictUpdate(data);
-          }
-        }
-
-        if (backupData.containsKey('sync_state') &&
-            backupData['sync_state'] is Map &&
-            (backupData['sync_state'] as Map).isNotEmpty) {
-          final syncStateJson =
-              Map<String, dynamic>.from(backupData['sync_state'] as Map);
-          final data = SyncStateData.fromJson(syncStateJson,
-              serializer: lenientValueSerializer);
-          await db.into(db.syncState).insertOnConflictUpdate(data);
-        }
-
-        // استعادة وتطبيق الإعدادات العامة إذا وجدت
-        if (backupData.containsKey('system_settings')) {
-          _log('⚙️ تطبيق إعدادات النظام من النسخة الاحتياطية...');
-          try {
-            final rawSettings = backupData['system_settings'];
-            if (rawSettings is! Map) {
-              throw Exception('صيغة إعدادات النظام غير صالحة');
+          // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
+          if (backupData.containsKey('rooms')) {
+            final roomsData = backupData['rooms'] as List<dynamic>;
+            for (final roomJson in roomsData) {
+              final map = Map<String, dynamic>.from(roomJson as Map);
+              final data = Room.fromJson(map, serializer: lenientValueSerializer);
+              await db.into(db.rooms).insertOnConflictUpdate(data);
             }
-            final settings = Map<String, dynamic>.from(rawSettings);
-            final prefs = await SharedPreferences.getInstance();
+          }
 
-            final keys = SystemSettingKeys.all;
+          if (backupData.containsKey('bookings')) {
+            final bookingsData = backupData['bookings'] as List<dynamic>;
+            for (final bookingJson in bookingsData) {
+              final map = Map<String, dynamic>.from(bookingJson as Map);
+              final data =
+                  Booking.fromJson(map, serializer: lenientValueSerializer);
+              await db.into(db.bookings).insertOnConflictUpdate(data);
+            }
+          }
 
-            bool settingsChanged = false;
-            for (final key in keys) {
-              if (settings.containsKey(key) && settings[key] != null) {
-                final val = settings[key];
-                final currentVal = prefs.get(key);
+          if (backupData.containsKey('booking_notes')) {
+            final notesData = backupData['booking_notes'] as List<dynamic>;
+            for (final noteJson in notesData) {
+              final map = Map<String, dynamic>.from(noteJson as Map);
+              final data = BookingNote.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.bookingNotes).insertOnConflictUpdate(data);
+            }
+          }
 
-                if (val != currentVal) {
-                  if (val is bool) await prefs.setBool(key, val);
-                  if (val is String) await prefs.setString(key, val);
-                  if (val is int) await prefs.setInt(key, val);
-                  if (val is double) await prefs.setDouble(key, val);
-                  settingsChanged = true;
-                  _log('   UPDATED: $key = $val');
+          if (backupData.containsKey('booking_nights')) {
+            final nightsData = backupData['booking_nights'] as List<dynamic>;
+            for (final nightJson in nightsData) {
+              final map = Map<String, dynamic>.from(nightJson as Map);
+              final data = BookingNight.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.bookingNights).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('hotel_day_ledger')) {
+            final ledgerList = backupData['hotel_day_ledger'] as List<dynamic>;
+            for (final ledgerJson in ledgerList) {
+              final map = Map<String, dynamic>.from(ledgerJson as Map);
+              final data = HotelDayLedgerEntry.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.hotelDayLedger).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('shift_notes')) {
+            final shiftsData = backupData['shift_notes'] as List<dynamic>;
+            for (final shiftJson in shiftsData) {
+              final map = Map<String, dynamic>.from(shiftJson as Map);
+              final data =
+                  ShiftNote.fromJson(map, serializer: lenientValueSerializer);
+              await db.into(db.shiftNotes).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('employees')) {
+            final employeesData = backupData['employees'] as List<dynamic>;
+            for (final employeeJson in employeesData) {
+              final map = Map<String, dynamic>.from(employeeJson as Map);
+              final data =
+                  Employee.fromJson(map, serializer: lenientValueSerializer);
+              await db.into(db.employees).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('expenses')) {
+            final expensesData = backupData['expenses'] as List<dynamic>;
+            for (final expenseJson in expensesData) {
+              final map = Map<String, dynamic>.from(expenseJson as Map);
+              final data =
+                  Expense.fromJson(map, serializer: lenientValueSerializer);
+              await db.into(db.expenses).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('cash_transactions')) {
+            final transactionsData =
+                backupData['cash_transactions'] as List<dynamic>;
+            for (final transactionJson in transactionsData) {
+              final map = Map<String, dynamic>.from(transactionJson as Map);
+              final data = CashTransaction.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.cashTransactions).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('payments')) {
+            final paymentsData = backupData['payments'] as List<dynamic>;
+            for (final paymentJson in paymentsData) {
+              final map = Map<String, dynamic>.from(paymentJson as Map);
+              final data =
+                  Payment.fromJson(map, serializer: lenientValueSerializer);
+              await db.into(db.payments).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('debts')) {
+            final debtsList = backupData['debts'] as List<dynamic>;
+            for (final debtJson in debtsList) {
+              final map = Map<String, dynamic>.from(debtJson as Map);
+              final data = Debt.fromJson(map, serializer: lenientValueSerializer);
+              await db.into(db.debts).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('auto_fix_runs')) {
+            final runsList = backupData['auto_fix_runs'] as List<dynamic>;
+            for (final runJson in runsList) {
+              final map = Map<String, dynamic>.from(runJson as Map);
+              final data = AutoFixRun.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.autoFixRuns).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('integrity_violations')) {
+            final violationsList =
+                backupData['integrity_violations'] as List<dynamic>;
+            for (final violationJson in violationsList) {
+              final map = Map<String, dynamic>.from(violationJson as Map);
+              final data = IntegrityViolation.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.integrityViolations).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('app_sessions')) {
+            final sessionsList = backupData['app_sessions'] as List<dynamic>;
+            for (final sessionJson in sessionsList) {
+              final map = Map<String, dynamic>.from(sessionJson as Map);
+              final data =
+                  AppSession.fromJson(map, serializer: lenientValueSerializer);
+              await db.into(db.appSessions).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('salary_cycles')) {
+            final cyclesList = backupData['salary_cycles'] as List<dynamic>;
+            for (final cycleJson in cyclesList) {
+              final map = Map<String, dynamic>.from(cycleJson as Map);
+              final data = SalaryCycle.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.salaryCycles).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('salary_payments')) {
+            final salaryList = backupData['salary_payments'] as List<dynamic>;
+            for (final salaryJson in salaryList) {
+              final map = Map<String, dynamic>.from(salaryJson as Map);
+              final data = SalaryPayment.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.salaryPayments).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('restore_fix_log')) {
+            final restoreList = backupData['restore_fix_log'] as List<dynamic>;
+            for (final logJson in restoreList) {
+              final map = Map<String, dynamic>.from(logJson as Map);
+              final data = RestoreFixLogData.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.restoreFixLog).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('sync_queue')) {
+            final queueList = backupData['sync_queue'] as List<dynamic>;
+            for (final rowJson in queueList) {
+              final map = Map<String, dynamic>.from(rowJson as Map);
+              final data = SyncQueueData.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.syncQueue).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('sync_log')) {
+            final logList = backupData['sync_log'] as List<dynamic>;
+            for (final logJson in logList) {
+              final map = Map<String, dynamic>.from(logJson as Map);
+              final data = SyncLogData.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.syncLog).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('sync_conflicts')) {
+            final conflictsList = backupData['sync_conflicts'] as List<dynamic>;
+            for (final conflictJson in conflictsList) {
+              final map = Map<String, dynamic>.from(conflictJson as Map);
+              final data = SyncConflictRow.fromJson(map,
+                  serializer: lenientValueSerializer);
+              await db.into(db.syncConflicts).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('sync_state') &&
+              backupData['sync_state'] is Map &&
+              (backupData['sync_state'] as Map).isNotEmpty) {
+            final syncStateJson =
+                Map<String, dynamic>.from(backupData['sync_state'] as Map);
+            final data = SyncStateData.fromJson(syncStateJson,
+                serializer: lenientValueSerializer);
+            await db.into(db.syncState).insertOnConflictUpdate(data);
+          }
+
+          // استعادة وتطبيق الإعدادات العامة إذا وجدت
+          if (backupData.containsKey('system_settings')) {
+            _log('⚙️ تطبيق إعدادات النظام من النسخة الاحتياطية...');
+            try {
+              final rawSettings = backupData['system_settings'];
+              if (rawSettings is! Map) {
+                throw Exception('صيغة إعدادات النظام غير صالحة');
+              }
+              final settings = Map<String, dynamic>.from(rawSettings);
+              final prefs = await SharedPreferences.getInstance();
+
+              final keys = SystemSettingKeys.all;
+
+              bool settingsChanged = false;
+              for (final key in keys) {
+                if (settings.containsKey(key) && settings[key] != null) {
+                  final val = settings[key];
+                  final currentVal = prefs.get(key);
+
+                  if (val != currentVal) {
+                    if (val is bool) await prefs.setBool(key, val);
+                    if (val is String) await prefs.setString(key, val);
+                    if (val is int) await prefs.setInt(key, val);
+                    if (val is double) await prefs.setDouble(key, val);
+                    settingsChanged = true;
+                    _log('   UPDATED: $key = $val');
+                  }
                 }
               }
-            }
 
-            // إعادة جدولة المهام إذا تغيرت الإعدادات
-            if (settingsChanged) {
-              _log(
-                  '🔄 إعادة جدولة مهام النسخ الاحتياطي وفق الإعدادات الجديدة...');
+              // إعادة جدولة المهام إذا تغيرت الإعدادات
+              if (settingsChanged) {
+                _log(
+                    '🔄 إعادة جدولة مهام النسخ الاحتياطي وفق الإعدادات الجديدة...');
 
-              final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
-              final parts = timeStr.split(':');
-              final hour = int.parse(parts[0]);
-              final minute = int.parse(parts[1]);
-              final scheduledEnabled =
-                  prefs.getBool('scheduled_backup_enabled') ?? true;
+                final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
+                final parts = timeStr.split(':');
+                final hour = int.parse(parts[0]);
+                final minute = int.parse(parts[1]);
+                final scheduledEnabled =
+                    prefs.getBool('scheduled_backup_enabled') ?? true;
 
-              if (scheduledEnabled) {
-                await AlarmBackup.rescheduleDaily(hour, minute);
-                await AutoBackupTask.scheduleDaily(time: timeStr);
-              } else {
-                await AlarmBackup.cancelAlarm();
-                await AutoBackupTask.cancelScheduled();
+                if (scheduledEnabled) {
+                  await AlarmBackup.rescheduleDaily(hour, minute);
+                  await AutoBackupTask.scheduleDaily(time: timeStr);
+                } else {
+                  await AlarmBackup.cancelAlarm();
+                  await AutoBackupTask.cancelScheduled();
+                }
               }
+            } catch (e) {
+              _log('⚠️ خطأ في تطبيق الإعدادات المستعادة: $e');
             }
-          } catch (e) {
-            _log('⚠️ خطأ في تطبيق الإعدادات المستعادة: $e');
           }
-        }
 
-        _log('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
-        final fixService = RestoreFixService(db);
-        await fixService.runAutoFixAfterRestore(
-            backupTimestamp: metadata.backupTimestamp);
+          _log('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
+          final fixService = RestoreFixService(db);
+          await fixService.runAutoFixAfterRestore(
+              backupTimestamp: metadata.backupTimestamp);
+        });
       } finally {
         // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الاستعادة بالكامل
         await db.customStatement('PRAGMA foreign_keys = ON');
@@ -1115,7 +1120,7 @@ class GoogleDriveBackupService {
 
   Future<void> cancelAutoBackup() async {
     try {
-      await Workmanager().cancelByUniqueName('autoBackup');
+      await Workmanager().cancelByUniqueName(AutoBackupTask.taskId);
       _log('✅ تم إلغاء النسخ التلقائي');
     } catch (e) {
       _log('❌ خطأ في إلغاء النسخ التلقائي: $e');
