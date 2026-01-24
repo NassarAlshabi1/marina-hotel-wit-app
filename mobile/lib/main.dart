@@ -157,7 +157,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     // Register stop callbacks
     DatabaseSyncCoordinator.registerStopCallback(() async {
-      autoSyncEngine.stop();
+      await autoSyncEngine.stop();
     });
     DatabaseSyncCoordinator.registerStopCallback(() async {
       await SyncGuardian.instance.stop();
