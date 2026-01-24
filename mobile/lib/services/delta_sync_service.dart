@@ -355,97 +355,97 @@ class DeltaSyncService {
     debugPrint('✅ Mirror rebuild completed');
   }
 
-  List<_EntityConfig<dynamic>> _entityConfigs() {
+  List<_EntityConfig> _entityConfigs() {
     return [
-      _EntityConfig<Room>(
+      _EntityConfig(
         entity: 'rooms',
         fetchAll: () => db.select(db.rooms).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        localUuid: (row) => (row as Room).localUuid,
+        createdAt: (row) => (row as Room).createdAt,
+        lastModified: (row) => (row as Room).lastModified,
+        deletedAt: (row) => (row as Room).deletedAt,
+        toJson: (row) => (row as Room).toJson(),
       ),
-      _EntityConfig<Booking>(
+      _EntityConfig(
         entity: 'bookings',
         fetchAll: () => db.select(db.bookings).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        localUuid: (row) => (row as Booking).localUuid,
+        createdAt: (row) => (row as Booking).createdAt,
+        lastModified: (row) => (row as Booking).lastModified,
+        deletedAt: (row) => (row as Booking).deletedAt,
+        toJson: (row) => (row as Booking).toJson(),
       ),
-      _EntityConfig<BookingNote>(
+      _EntityConfig(
         entity: 'booking_notes',
         fetchAll: () => db.select(db.bookingNotes).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        localUuid: (row) => (row as BookingNote).localUuid,
+        createdAt: (row) => (row as BookingNote).createdAt,
+        lastModified: (row) => (row as BookingNote).lastModified,
+        deletedAt: (row) => (row as BookingNote).deletedAt,
+        toJson: (row) => (row as BookingNote).toJson(),
       ),
-      _EntityConfig<Employee>(
+      _EntityConfig(
         entity: 'employees',
         fetchAll: () => db.select(db.employees).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        localUuid: (row) => (row as Employee).localUuid,
+        createdAt: (row) => (row as Employee).createdAt,
+        lastModified: (row) => (row as Employee).lastModified,
+        deletedAt: (row) => (row as Employee).deletedAt,
+        toJson: (row) => (row as Employee).toJson(),
       ),
-      _EntityConfig<Expense>(
+      _EntityConfig(
         entity: 'expenses',
         fetchAll: () => db.select(db.expenses).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        localUuid: (row) => (row as Expense).localUuid,
+        createdAt: (row) => (row as Expense).createdAt,
+        lastModified: (row) => (row as Expense).lastModified,
+        deletedAt: (row) => (row as Expense).deletedAt,
+        toJson: (row) => (row as Expense).toJson(),
       ),
-      _EntityConfig<CashTransaction>(
+      _EntityConfig(
         entity: 'cash_transactions',
         fetchAll: () => db.select(db.cashTransactions).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        localUuid: (row) => (row as CashTransaction).localUuid,
+        createdAt: (row) => (row as CashTransaction).createdAt,
+        lastModified: (row) => (row as CashTransaction).lastModified,
+        deletedAt: (row) => (row as CashTransaction).deletedAt,
+        toJson: (row) => (row as CashTransaction).toJson(),
       ),
-      _EntityConfig<Payment>(
+      _EntityConfig(
         entity: 'payments',
         fetchAll: () => db.select(db.payments).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        localUuid: (row) => (row as Payment).localUuid,
+        createdAt: (row) => (row as Payment).createdAt,
+        lastModified: (row) => (row as Payment).lastModified,
+        deletedAt: (row) => (row as Payment).deletedAt,
+        toJson: (row) => (row as Payment).toJson(),
       ),
-      _EntityConfig<Debt>(
+      _EntityConfig(
         entity: 'debts',
         fetchAll: () => db.select(db.debts).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        localUuid: (row) => (row as Debt).localUuid,
+        createdAt: (row) => (row as Debt).createdAt,
+        lastModified: (row) => (row as Debt).lastModified,
+        deletedAt: (row) => (row as Debt).deletedAt,
+        toJson: (row) => (row as Debt).toJson(),
       ),
-      _EntityConfig<BookingNight>(
+      _EntityConfig(
         entity: 'booking_nights',
         fetchAll: () => db.select(db.bookingNights).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        localUuid: (row) => (row as BookingNight).localUuid,
+        createdAt: (row) => (row as BookingNight).createdAt,
+        lastModified: (row) => (row as BookingNight).lastModified,
+        deletedAt: (row) => (row as BookingNight).deletedAt,
+        toJson: (row) => (row as BookingNight).toJson(),
       ),
-      _EntityConfig<HotelDayLedgerEntry>(
+      _EntityConfig(
         entity: 'hotel_day_ledger',
         fetchAll: () => db.select(db.hotelDayLedger).get(),
-        localUuid: (row) => row.localUuid,
-        createdAt: (row) => row.createdAt,
-        lastModified: (row) => row.lastModified,
-        deletedAt: (row) => row.deletedAt,
-        toJson: (row) => row.toJson(),
+        localUuid: (row) => (row as HotelDayLedgerEntry).localUuid,
+        createdAt: (row) => (row as HotelDayLedgerEntry).createdAt,
+        lastModified: (row) => (row as HotelDayLedgerEntry).lastModified,
+        deletedAt: (row) => (row as HotelDayLedgerEntry).deletedAt,
+        toJson: (row) => (row as HotelDayLedgerEntry).toJson(),
       ),
     ];
   }
@@ -465,7 +465,7 @@ class MirrorRow {
   final int lastSeenAt;
 }
 
-class _EntityConfig<T> {
+class _EntityConfig {
   const _EntityConfig({
     required this.entity,
     required this.fetchAll,
@@ -477,12 +477,12 @@ class _EntityConfig<T> {
   });
 
   final String entity;
-  final Future<List<T>> Function() fetchAll;
-  final String Function(T row) localUuid;
-  final int? Function(T row) createdAt;
-  final int? Function(T row) lastModified;
-  final int? Function(T row) deletedAt;
-  final Map<String, dynamic> Function(T row) toJson;
+  final Future<List<dynamic>> Function() fetchAll;
+  final String Function(dynamic row) localUuid;
+  final int? Function(dynamic row) createdAt;
+  final int? Function(dynamic row) lastModified;
+  final int? Function(dynamic row) deletedAt;
+  final Map<String, dynamic> Function(dynamic row) toJson;
 }
 
 int _normalizeTimestamp(int value) {
