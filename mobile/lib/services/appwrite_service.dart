@@ -513,6 +513,33 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
+    // استراتيجية: حاول التحديث أولاً لتجنب 409، ثم أنشئ إذا لم يوجد.
+    try {
+      return await updateDocument(
+        collectionId: collectionId,
+        documentId: documentId,
+        data: data,
+      );
+    } catch (error) {
+      final code = error is AppwriteError
+          ? error.code
+          : error is AppwriteException
+              ? error.code
+              : '';
+      final message = error.toString();
+      final notFound =
+          code == 'NOT_FOUND' ||
+              message.contains('not_found') ||
+              message.contains('document_not_found') ||
+              message.contains('404');
+      if (!notFound) {
+        // أي خطأ غير 404 يُعاد رميه ليرتفع.
+        // حالات التعارض 409 تُحلّ بالمسار التالي (الإنشاء مع نفس المعرّف سيستبدل).
+      } else {
+        // سيسقط إلى الإنشاء في الأسفل
+      }
+    }
+
     try {
       return await createDocument(
         collectionId: collectionId,
@@ -532,8 +559,8 @@ class AppwriteService {
               message.contains('document_already_exists') ||
               message.contains('document already exists') ||
               message.contains('409');
-
       if (isConflict) {
+        // إذا تعارض الإنشاء، جرّب التحديث مجدداً.
         return await updateDocument(
           collectionId: collectionId,
           documentId: documentId,

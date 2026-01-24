@@ -785,10 +785,21 @@ class AppwriteSyncManager {
         }
 
         if (!existingRoomSet.contains(roomNumber)) {
-          _logger.warning(
-              'Skipping booking $localUuid: Room $roomNumber does not exist',
-              tag: 'SYNC');
-          continue;
+          final now = Time.nowEpoch();
+          await database.into(database.rooms).insertOnConflictUpdate(
+            RoomsCompanion(
+              roomNumber: d.Value(roomNumber),
+              type: const d.Value(''),
+              price: const d.Value(0),
+              status: const d.Value('available'),
+              localUuid: d.Value(IdGen.uuid()),
+              createdAt: d.Value(now),
+              updatedAt: d.Value(now),
+              lastModified: d.Value(now),
+              origin: const d.Value('appwrite_pull'),
+            ),
+          );
+          existingRoomSet.add(roomNumber);
         }
 
         final checkinDateStr = _asString(data['checkinDate']) ?? '';
@@ -979,10 +990,29 @@ class AppwriteSyncManager {
 
         int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
         if (bookingLocalId != null && !existingBookingIds.contains(bookingLocalId)) {
-          _logger.warning(
-              'Payment $localUuid: bookingLocalId $bookingLocalId not found, setting to null',
-              tag: 'SYNC');
           bookingLocalId = null;
+        }
+
+        if (bookingLocalId == null) {
+          final bookingUuid = _asString(data['bookingUuidCache']) ??
+              _asString(data['bookingUuid']) ??
+              _asString(data['booking_uuid_cache']) ??
+              _asString(data['booking_uuid']);
+          if (bookingUuid != null && bookingUuid.isNotEmpty) {
+            final b = await (database.select(database.bookings)
+                  ..where((t) => t.localUuid.equals(bookingUuid))
+                  ..limit(1))
+                .getSingleOrNull();
+            if (b != null) {
+              bookingLocalId = b.id;
+            }
+          }
+        }
+
+        if (bookingLocalId == null && data['bookingLocalId'] != null) {
+          _logger.warning(
+              'Payment $localUuid: bookingLocalId not resolved, leaving null',
+              tag: 'SYNC');
         }
 
         int? cashTransactionLocalId =
@@ -1494,6 +1524,7 @@ class AppwriteSyncManager {
     };
     _putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
     _putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
+    _putIfStringNotEmpty(data, 'bookingUuidCache', payment.bookingUuidCache);
     _putIfNotNull(data, 'serverBookingId', payment.serverBookingId);
     _putIfStringNotEmpty(data, 'roomNumber', payment.roomNumber);
     _putIfStringNotEmpty(data, 'notes', payment.notes);
