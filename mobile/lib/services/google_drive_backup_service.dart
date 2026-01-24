@@ -717,10 +717,15 @@ class GoogleDriveBackupService {
 
   Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
     if (!DatabaseManager.isRestoring) {
-      _log('CRITICAL: restoreFromBackup called outside of restore mode! Aborting.');
-      throw StateError(
-          'restoreFromBackup must only be called within a restore lifecycle.');
+      // Self-guard to avoid accidental destructive calls while keeping safety
+      return DatabaseManager.runWithRestoreGuard(
+          () => _restoreFromBackupInternal(backupData));
     }
+    return _restoreFromBackupInternal(backupData);
+  }
+
+  Future<void> _restoreFromBackupInternal(
+      Map<String, dynamic> backupData) async {
     try {
       final db = DatabaseManager.instance;
 
