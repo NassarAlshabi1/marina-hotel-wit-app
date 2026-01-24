@@ -351,7 +351,8 @@ class SyncService {
       int serverTs, Map<String, dynamic> data) async {
     switch (entity) {
       case 'rooms':
-        final rn = data['room_number'] as String;
+        final rn = _asString(data['room_number']);
+        if (rn == null || rn.isEmpty) return;
         final local = await (db.select(db.rooms)
               ..where((t) => t.roomNumber.equals(rn)))
             .getSingleOrNull();
@@ -372,7 +373,7 @@ class SyncService {
                 imageUrl: data['image_url'] != null
                     ? d.Value(data['image_url'])
                     : const d.Value.absent(),
-                serverId: d.Value(serverId is int ? serverId : null),
+                serverId: d.Value(_asInt(serverId)),
                 origin: const d.Value('server'),
               ),
               originIsServer: true,

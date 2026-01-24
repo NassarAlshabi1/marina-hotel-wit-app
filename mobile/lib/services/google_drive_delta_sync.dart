@@ -454,12 +454,18 @@ class GoogleDriveDeltaSync {
               _asString(data['actualCheckout'])),
       status: d.Value(_asString(data['status']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
-      expectedNights: d.Value(_asInt(data['expected_nights']) ??
-          _asInt(data['expectedNights']) ??
-          1),
-      calculatedNights: d.Value(_asInt(data['calculated_nights']) ??
-          _asInt(data['calculatedNights']) ??
-          1),
+      expectedNights: (data.containsKey('expected_nights') ||
+              data.containsKey('expectedNights'))
+          ? d.Value(_asInt(data['expected_nights']) ??
+              _asInt(data['expectedNights']) ??
+              1)
+          : const d.Value.absent(),
+      calculatedNights: (data.containsKey('calculated_nights') ||
+              data.containsKey('calculatedNights'))
+          ? d.Value(_asInt(data['calculated_nights']) ??
+              _asInt(data['calculatedNights']) ??
+              1)
+          : const d.Value.absent(),
     );
     await db.into(db.bookings).insertOnConflictUpdate(companion);
   }
