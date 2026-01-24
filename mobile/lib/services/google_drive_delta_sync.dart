@@ -400,6 +400,26 @@ class GoogleDriveDeltaSync {
         _asString(data['room_number']) ?? _asString(data['roomNumber']);
     if (roomNumber == null || roomNumber.isEmpty) return;
 
+    final existingRoom = await (db.select(db.rooms)
+          ..where((r) => r.roomNumber.equals(roomNumber))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (existingRoom == null) {
+      final now = Time.nowEpoch();
+      await db.into(db.rooms).insertOnConflictUpdate(RoomsCompanion(
+        roomNumber: d.Value(roomNumber),
+        type: const d.Value(''),
+        price: const d.Value(0),
+        status: const d.Value('available'),
+        localUuid: d.Value(IdGen.uuid()),
+        createdAt: d.Value(now),
+        updatedAt: d.Value(now),
+        lastModified: d.Value(now),
+        origin: const d.Value('google_drive_delta'),
+      ));
+    }
+
     final companion = BookingsCompanion(
       localUuid: d.Value(localUuid),
       serverId: _nullableValue<int>(
