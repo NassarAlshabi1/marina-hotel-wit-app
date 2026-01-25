@@ -117,27 +117,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<List<OutboxData>> takeBatch(int limit, {String? workerId}) async {
-    final worker = workerId ?? const Uuid().v4();
-
     return transaction(() async {
       final entries = await (select(outbox)
-            ..where((t) => t.processingStatus.equals('pending'))
             ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
             ..limit(limit))
           .get();
-
-      if (entries.isEmpty) {
-        return [];
-      }
-
-      final ids = entries.map((e) => e.id).toList();
-
-      await (update(outbox)..where((t) => t.id.isIn(ids)))
-          .write(OutboxCompanion(
-        processingStatus: const Value('processing'),
-        processingStartedAt: Value(DateTime.now().millisecondsSinceEpoch),
-        processingWorker: Value(worker),
-      ));
 
       return entries;
     });
@@ -159,57 +143,26 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   Future<void> markCompleted(List<int> ids) async {
     if (ids.isEmpty) return;
-    await (update(outbox)..where((t) => t.id.isIn(ids)))
-        .write(const OutboxCompanion(
-      processingStatus: Value('completed'),
-      processingStartedAt: Value.absent(),
-      processingWorker: Value.absent(),
-    ));
+    await removeByIds(ids);
   }
 
   Future<void> markFailed(List<int> ids) async {
     if (ids.isEmpty) return;
     await (update(outbox)..where((t) => t.id.isIn(ids)))
-        .write(const OutboxCompanion(
-      processingStatus: Value('failed'),
-    ));
+        .write(const OutboxCompanion(lastError: Value('failed')));
   }
 
   Future<void> retryFailed() async {
-    await (update(outbox)..where((t) => t.processingStatus.equals('failed')))
-        .write(const OutboxCompanion(
-      processingStatus: Value('pending'),
-      processingStartedAt: Value.absent(),
-      processingWorker: Value.absent(),
-      attempts: Value(0),
-    ));
+    await (update(outbox)).write(const OutboxCompanion(attempts: Value(0)));
   }
 
   Future<int> cleanupStuckEntries(
       {Duration timeout = const Duration(minutes: 5)}) async {
-    final thresholdTime =
-        DateTime.now().subtract(timeout).millisecondsSinceEpoch;
-
-    return await (update(outbox)
-          ..where((t) =>
-              t.processingStatus.equals('processing') &
-              t.processingStartedAt.isSmallerThanValue(thresholdTime)))
-        .write(const OutboxCompanion(
-      processingStatus: Value('pending'),
-      processingStartedAt: Value.absent(),
-      processingWorker: Value.absent(),
-    ));
+    return 0;
   }
 
   Future<int> cleanupCompleted(
       {Duration olderThan = const Duration(days: 7)}) async {
-    final thresholdTime =
-        DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
-
-    return await (delete(outbox)
-          ..where((t) =>
-              t.processingStatus.equals('completed') &
-              t.processingStartedAt.isSmallerThanValue(thresholdTime)))
-        .go();
+    return 0;
   }
 }

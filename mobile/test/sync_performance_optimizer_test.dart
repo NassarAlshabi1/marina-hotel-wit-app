@@ -1,12 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:marina_hotel_mobile/services/sync_performance_optimizer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('SyncPerformanceOptimizer Tests', () {
     late SyncPerformanceOptimizer optimizer;
 
     setUp(() {
+      SharedPreferences.setMockInitialValues({});
       optimizer = SyncPerformanceOptimizer();
     });
 
@@ -34,7 +38,7 @@ void main() {
       const List<ConnectivityResult> emptyResults = [];
 
       // يجب ألا ترمي خطأ عند تمرير قائمة فارغة
-      expect(() => optimizer._updateConnectivityStatus(emptyResults),
+      expect(() => optimizer.updateConnectivityStatusForTest(emptyResults),
           returnsNormally);
 
       // بعد معالجة قائمة فارغة، يجب أن يكون isOnWiFi = false
@@ -49,7 +53,7 @@ void main() {
         ConnectivityResult.bluetooth,
       ];
 
-      optimizer._updateConnectivityStatus(mixedResults);
+      optimizer.updateConnectivityStatusForTest(mixedResults);
 
       // يجب أن يفضل WiFi على Mobile
       expect(optimizer.isOnWiFi, true);
@@ -60,7 +64,7 @@ void main() {
         ConnectivityResult.mobile
       ];
 
-      optimizer._updateConnectivityStatus(mobileResults);
+      optimizer.updateConnectivityStatusForTest(mobileResults);
 
       expect(optimizer.isOnWiFi, false);
     });
@@ -96,7 +100,7 @@ void main() {
         final results = testCase.$1;
         final expectedIsOnWiFi = testCase.$2;
 
-        optimizer._updateConnectivityStatus(results);
+        optimizer.updateConnectivityStatusForTest(results);
         expect(
           optimizer.isOnWiFi,
           expectedIsOnWiFi,
@@ -108,7 +112,7 @@ void main() {
     test('should get correct performance settings based on connection', () {
       // اختبار إعدادات الأداء لـ WiFi
       const List<ConnectivityResult> wifiResults = [ConnectivityResult.wifi];
-      optimizer._updateConnectivityStatus(wifiResults);
+      optimizer.updateConnectivityStatusForTest(wifiResults);
 
       final wifiSettings = optimizer.getCurrentPerformanceSettings();
       expect(wifiSettings['batchSize'], 100);
@@ -120,7 +124,7 @@ void main() {
       const List<ConnectivityResult> mobileResults = [
         ConnectivityResult.mobile
       ];
-      optimizer._updateConnectivityStatus(mobileResults);
+      optimizer.updateConnectivityStatusForTest(mobileResults);
 
       final mobileSettings = optimizer.getCurrentPerformanceSettings();
       expect(mobileSettings['batchSize'], 50);
@@ -160,7 +164,7 @@ void main() {
 
     test('should provide performance stats', () {
       const List<ConnectivityResult> wifiResults = [ConnectivityResult.wifi];
-      optimizer._updateConnectivityStatus(wifiResults);
+      optimizer.updateConnectivityStatusForTest(wifiResults);
       optimizer.recordSyncAttempt(success: false);
 
       final stats = optimizer.getPerformanceStats();
@@ -174,40 +178,3 @@ void main() {
   });
 }
 
-/// extension لاختبار الدوال الخاصة
-extension SyncPerformanceOptimizerTestExtension on SyncPerformanceOptimizer {
-  void _updateConnectivityStatus(List<ConnectivityResult> results) {
-    // استدعاء الدالة الخاصة للاختبار
-    // في الاستخدام الفعلي، هذه الدالة تُستدعى داخلياً
-    // ولكن للاختبار نحتاج للوصول إليها
-
-    // نسخ منطق الدالة للاختبار
-    final wasOnWiFi = isOnWiFi;
-
-    if (results.isEmpty) {
-      // معالجة القائمة الفارغة
-      return;
-    }
-
-    bool newIsOnWiFi = false;
-
-    if (results.contains(ConnectivityResult.wifi)) {
-      newIsOnWiFi = true;
-    } else if (results.contains(ConnectivityResult.ethernet)) {
-      newIsOnWiFi = true;
-    } else if (results.contains(ConnectivityResult.mobile)) {
-      newIsOnWiFi = false;
-    } else if (results.contains(ConnectivityResult.vpn)) {
-      newIsOnWiFi = false;
-    } else if (results.contains(ConnectivityResult.bluetooth)) {
-      newIsOnWiFi = false;
-    } else if (results.contains(ConnectivityResult.other)) {
-      newIsOnWiFi = false;
-    } else {
-      newIsOnWiFi = false;
-    }
-
-    // محاكاة تحديث الحالة الداخلية
-    // في الاستخدام الفعلي، هذا يحدث داخل الكلاس
-  }
-}

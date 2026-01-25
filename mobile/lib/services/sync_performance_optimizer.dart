@@ -151,6 +151,12 @@ class SyncPerformanceOptimizer {
     return Map.from(_performanceSettings[networkType]!);
   }
 
+  /// للختبارات: تحديث الحالة يدوياً
+  @visibleForTesting
+  void updateConnectivityStatusForTest(List<ConnectivityResult> results) {
+    _updateConnectivityStatus(results);
+  }
+
   /// التحقق من إمكانية بدء المزامنة
   /// إصلاح المشكلة الثانية: إضافة async للدالة
   Future<bool> shouldSkipSync() async {
@@ -377,6 +383,9 @@ class SyncPerformanceOptimizer {
     _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
     _isInitialized = false;
+    _isOnWiFi = false;
+    _syncAttempts = 0;
+    _lastSyncTime = null;
     debugPrint('🧹 تم تنظيف موارد مُحسِّن أداء المزامنة');
   }
 }

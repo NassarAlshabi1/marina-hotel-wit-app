@@ -357,11 +357,6 @@ class Outbox extends Table {
   IntColumn get clientTs => integer()();
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
-  TextColumn get idempotencyKey => text().nullable()();
-  TextColumn get processingStatus =>
-      text().withDefault(const Constant('pending'))();
-  IntColumn get processingStartedAt => integer().nullable()();
-  TextColumn get processingWorker => text().nullable()();
 }
 
 class SyncState extends Table {
@@ -591,14 +586,6 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(appSessions);
             await m.createTable(salaryCycles);
             await m.createTable(salaryPayments);
-          }
-          if (from < 17) {
-            await m.addColumn(outbox, outbox.idempotencyKey);
-          }
-          if (from < 18) {
-            await m.addColumn(outbox, outbox.processingStatus);
-            await m.addColumn(outbox, outbox.processingStartedAt);
-            await m.addColumn(outbox, outbox.processingWorker);
           }
         },
       );
