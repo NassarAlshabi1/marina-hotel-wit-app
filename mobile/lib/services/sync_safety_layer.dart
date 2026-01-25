@@ -161,8 +161,8 @@ class SyncSafetyLayer {
           await _clearAllTables(db);
 
           for (final tableName in SyncConstants.allTablesInOrder) {
-            if (tables!.containsKey(tableName)) {
-              await _restoreTable(db, tableName, tables![tableName]);
+            if (tables.containsKey(tableName)) {
+              await _restoreTable(db, tableName, tables[tableName]);
             }
           }
         });
