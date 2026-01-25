@@ -12,6 +12,7 @@ mixin ErrorHandlingMixin {
       return await operation();
     } catch (e, stack) {
       debugPrint('❌ [$logTag] ${operationName ?? 'Operation'} failed: $e');
+      debugPrint('$stack');
       onError?.call(e, stack);
       return null;
     }

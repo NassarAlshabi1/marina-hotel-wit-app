@@ -33,6 +33,7 @@ class ApiService {
             return handler.resolve(req);
           } catch (error, stack) {
             debugPrint('❌ فشل إعادة المحاولة: $error');
+            debugPrint('$stack');
           }
         }
         handler.next(e);
@@ -93,6 +94,7 @@ class ApiService {
       return res.statusCode == 200 && res.data['success'] == true;
     } catch (e, stack) {
       debugPrint('❌ فشل إعادة المحاولة: $e');
+      debugPrint('$stack');
       return false;
     }
   }
@@ -137,7 +139,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> syncPush(
       List<Map<String, dynamic>> changes) async {
-    final res = await _dio.post('/sync/push.php',
+    final res = await _client.post('/sync/push.php',
         data: jsonEncode({
           'changes': changes,
         }));
@@ -146,7 +148,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> syncPull(int since) async {
     final res =
-        await _dio.get('/sync/pull.php', queryParameters: {'since': since});
+        await _client.get('/sync/pull.php', queryParameters: {'since': since});
     return Map<String, dynamic>.from(res.data);
   }
 
@@ -155,7 +157,7 @@ class ApiService {
       'room_number': roomNumber,
       'image': await MultipartFile.fromFile(filePath),
     });
-    final res = await _dio.post('/uploads/rooms.php', data: form);
+    final res = await _client.post('/uploads/rooms.php', data: form);
     if (res.statusCode == 200 && res.data['success'] == true) {
       return res.data['data']['url'] as String;
     }

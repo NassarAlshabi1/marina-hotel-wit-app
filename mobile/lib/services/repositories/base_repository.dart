@@ -22,6 +22,7 @@ abstract class BaseRepository<T, TCompanion> {
       return await operation();
     } catch (e, stack) {
       debugPrint('❌ [$tableName] ${operationName ?? 'عملية'} فشلت: $e');
+      debugPrint('$stack');
       if (fallbackValue != null) return fallbackValue;
       rethrow;
     }

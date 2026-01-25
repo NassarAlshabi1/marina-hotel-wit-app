@@ -4,6 +4,7 @@ import '../../utils/status_utils.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/rooms_dao.dart';
+import '../auto_backup_manager.dart';
 import 'base_repository.dart';
 
 class RoomsRepository extends BaseRepository<Room, RoomsCompanion> {
