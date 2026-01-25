@@ -85,10 +85,7 @@ final roomsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(roomsRepoProvider).watchAll(),
 );
 final availableRoomsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(roomsRepoProvider)
-      .watchAll()
-      .map(
+  (ref) => ref.watch(roomsRepoProvider).watchAll().map(
         (rooms) => rooms
             .where((room) => StatusUtils.isRoomAvailable(room.status))
             .toList(),
@@ -151,20 +148,14 @@ final debtsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(debtsRepoProvider).watchAll(),
 );
 final pendingDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(debtsRepoProvider)
-      .watchAll()
-      .map(
+  (ref) => ref.watch(debtsRepoProvider).watchAll().map(
         (debts) => debts
             .where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0)
             .toList(),
       ),
 );
 final settledDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(debtsRepoProvider)
-      .watchAll()
-      .map(
+  (ref) => ref.watch(debtsRepoProvider).watchAll().map(
         (debts) => debts
             .where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0)
             .toList(),

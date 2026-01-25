@@ -130,8 +130,7 @@ class SyncHealthMonitor {
     final avgDuration = _syncDurations.isEmpty
         ? Duration.zero
         : Duration(
-            milliseconds:
-                _syncDurations
+            milliseconds: _syncDurations
                     .map((d) => d.inMilliseconds)
                     .reduce((a, b) => a + b) ~/
                 _syncDurations.length,

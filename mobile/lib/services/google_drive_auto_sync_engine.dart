@@ -126,15 +126,15 @@ class AutoSyncEngine with WidgetsBindingObserver {
   Stream<AutoSyncEngineState> get stateStream => _stateController.stream;
 
   AutoSyncEngineState get currentState => AutoSyncEngineState(
-    isRunning: _isRunning,
-    hasNetworkConnection: _hasNetworkConnection,
-    isSignedIn: _isSignedIn,
-    pendingChangesCount: _pendingChangesCount,
-    lastSuccessfulSync: _lastSuccessfulSync,
-    failedAttempts: _failedAttempts,
-    nextRetryAt: _nextRetryAt,
-    lastError: _lastError,
-  );
+        isRunning: _isRunning,
+        hasNetworkConnection: _hasNetworkConnection,
+        isSignedIn: _isSignedIn,
+        pendingChangesCount: _pendingChangesCount,
+        lastSuccessfulSync: _lastSuccessfulSync,
+        failedAttempts: _failedAttempts,
+        nextRetryAt: _nextRetryAt,
+        lastError: _lastError,
+      );
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('AutoSyncEngine', message);
@@ -516,13 +516,12 @@ class AutoSyncEngine with WidgetsBindingObserver {
       _orchestrator!
           .syncNow(push: true, pull: false, reason: 'app_paused')
           .then((result) {
-            if (result) {
-              _log('✅ Quick sync before background completed');
-            }
-          })
-          .catchError((error) {
-            _log('⚠️ Quick sync before background failed: $error');
-          });
+        if (result) {
+          _log('✅ Quick sync before background completed');
+        }
+      }).catchError((error) {
+        _log('⚠️ Quick sync before background failed: $error');
+      });
     }
   }
 

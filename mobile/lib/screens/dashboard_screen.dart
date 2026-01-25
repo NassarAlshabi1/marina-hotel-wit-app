@@ -260,22 +260,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 final Color backgroundColor = isOccupied
                     ? Colors.red.shade600
                     : (isAvailable
-                          ? Colors.green.shade600
-                          : (isNewRoom
-                                ? Colors
-                                      .blue
-                                      .shade400 // لون أزرق للغرف الجديدة
-                                : Colors.grey.shade500));
+                        ? Colors.green.shade600
+                        : (isNewRoom
+                            ? Colors.blue.shade400 // لون أزرق للغرف الجديدة
+                            : Colors.grey.shade500));
                 final bool useDarkText =
                     backgroundColor.computeLuminance() > 0.5;
-                final Color foregroundColor = useDarkText
-                    ? Colors.black
-                    : Colors.white;
+                final Color foregroundColor =
+                    useDarkText ? Colors.black : Colors.white;
                 final String tooltipText = room != null
                     ? room.status
                     : (roomNumber == '503' || roomNumber == '504')
-                    ? 'غرفة جديدة - قيد التجهيز'
-                    : 'غير مسجل في النظام';
+                        ? 'غرفة جديدة - قيد التجهيز'
+                        : 'غير مسجل في النظام';
 
                 return Tooltip(
                   message: tooltipText,

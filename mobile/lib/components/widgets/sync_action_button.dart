@@ -17,8 +17,8 @@ class SyncActionButton extends ConsumerWidget {
     final tooltip = isSyncing
         ? 'جاري المزامنة...'
         : hasError
-        ? 'حدث خطأ في آخر مزامنة، اضغط لإعادة المحاولة'
-        : 'مزامنة يدوية (احتياطية)';
+            ? 'حدث خطأ في آخر مزامنة، اضغط لإعادة المحاولة'
+            : 'مزامنة يدوية (احتياطية)';
 
     return IconButton(
       onPressed: isSyncing

@@ -105,9 +105,8 @@ class ReportsScreen extends ConsumerWidget {
                   final rows = <Widget>[];
                   for (int i = 0; i < shortcuts.length; i += 2) {
                     final first = shortcuts[i];
-                    final second = i + 1 < shortcuts.length
-                        ? shortcuts[i + 1]
-                        : null;
+                    final second =
+                        i + 1 < shortcuts.length ? shortcuts[i + 1] : null;
                     rows.add(
                       Row(
                         children: [
@@ -168,9 +167,8 @@ class ReportsScreen extends ConsumerWidget {
 
     // dummy last 7 days occupancy by current status
     final daily = List.generate(7, (i) {
-      final busy = rooms
-          .where((r) => StatusUtils.isRoomOccupied(r.status))
-          .length;
+      final busy =
+          rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
       final occ = (busy * 100 / total).round();
       return BarChartGroupData(
         x: i,

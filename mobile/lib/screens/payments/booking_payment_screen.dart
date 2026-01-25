@@ -251,12 +251,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final progressPercentage = summary.paidPercentage / 100;
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
     final checkinText = dateFmt.format(checkin);
-    final plannedText = plannedCheckout != null
-        ? dateFmt.format(plannedCheckout)
-        : null;
-    final actualText = actualCheckout != null
-        ? dateFmt.format(actualCheckout)
-        : null;
+    final plannedText =
+        plannedCheckout != null ? dateFmt.format(plannedCheckout) : null;
+    final actualText =
+        actualCheckout != null ? dateFmt.format(actualCheckout) : null;
     final hasPhone = _currentGuestPhone.isNotEmpty;
     final identityLine = widget.booking.guestIdNumber.isEmpty
         ? widget.booking.guestIdType
@@ -943,13 +941,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               onPressed: _isSavingPayment
                   ? null
                   : () => _processPayment(
-                      method,
-                      amountController.text,
-                      notesController.text,
-                      referenceController.text,
-                      cardDigitsController.text,
-                      bankController.text,
-                    ),
+                        method,
+                        amountController.text,
+                        notesController.text,
+                        referenceController.text,
+                        cardDigitsController.text,
+                        bankController.text,
+                      ),
               child: _isSavingPayment
                   ? const SizedBox(
                       width: 20,
@@ -1117,9 +1115,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         final amount = nights * roomRate;
 
         return ElevatedButton(
-          onPressed: amount > 0
-              ? () => _showDailyPaymentDialog(nights, amount)
-              : null,
+          onPressed:
+              amount > 0 ? () => _showDailyPaymentDialog(nights, amount) : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.orange,
             foregroundColor: Colors.white,
@@ -1237,9 +1234,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final now = DateTime.now();
     final currentNights = Time.nightsWithCutoff(checkin, checkout: now);
     final currentTotal = currentNights * roomRate;
-    final allPayments = await paymentsRepo
-        .paymentsByBooking(widget.booking.id)
-        .first;
+    final allPayments =
+        await paymentsRepo.paymentsByBooking(widget.booking.id).first;
     final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
     final newRemaining = (currentTotal - totalPaid).clamp(0.0, currentTotal);
 
@@ -1321,9 +1317,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
 
     final totalAmount = actualNights * roomRate;
-    final payments = await paymentsRepo
-        .paymentsByBooking(widget.booking.id)
-        .first;
+    final payments =
+        await paymentsRepo.paymentsByBooking(widget.booking.id).first;
     final paidAmount = payments.fold<double>(0, (s, p) => s + p.amount);
     final remainingAmount = ((totalAmount - paidAmount).clamp(
       0.0,

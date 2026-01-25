@@ -168,9 +168,8 @@ class AppwriteCacheManager {
   /// مسح العناصر بناءً على نمط (pattern)
   int clearByPattern(String pattern) {
     final regex = RegExp(pattern);
-    final keysToRemove = _cache.keys
-        .where((key) => regex.hasMatch(key))
-        .toList();
+    final keysToRemove =
+        _cache.keys.where((key) => regex.hasMatch(key)).toList();
 
     for (final key in keysToRemove) {
       _cache.remove(key);

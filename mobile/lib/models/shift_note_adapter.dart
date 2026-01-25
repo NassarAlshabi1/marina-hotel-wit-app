@@ -40,9 +40,8 @@ class ShiftNoteAdapter {
           ? DateTime.tryParse(bookingNote.alertUntil!)
           : null,
       isRead: bookingNote.isActive == 0, // عكس المنطق
-      status: bookingNote.isActive == 1
-          ? NoteStatus.active
-          : NoteStatus.completed,
+      status:
+          bookingNote.isActive == 1 ? NoteStatus.active : NoteStatus.completed,
       createdBy: 'user', // قيمة افتراضية
     );
   }
@@ -52,15 +51,15 @@ class ShiftNoteAdapter {
     final priorityCode = priority == NotePriority.high
         ? 'H'
         : priority == NotePriority.medium
-        ? 'M'
-        : 'L';
+            ? 'M'
+            : 'L';
     final shiftCode = shiftType == ShiftType.morning
         ? 'MOR'
         : shiftType == ShiftType.evening
-        ? 'EVE'
-        : shiftType == ShiftType.night
-        ? 'NIG'
-        : 'ALL';
+            ? 'EVE'
+            : shiftType == ShiftType.night
+                ? 'NIG'
+                : 'ALL';
     return '$priorityCode-$shiftCode';
   }
 
@@ -76,16 +75,16 @@ class ShiftNoteAdapter {
       final priority = priorityCode == 'H'
           ? NotePriority.high
           : priorityCode == 'M'
-          ? NotePriority.medium
-          : NotePriority.low;
+              ? NotePriority.medium
+              : NotePriority.low;
 
       final shiftType = shiftCode == 'MOR'
           ? ShiftType.morning
           : shiftCode == 'EVE'
-          ? ShiftType.evening
-          : shiftCode == 'NIG'
-          ? ShiftType.night
-          : ShiftType.all;
+              ? ShiftType.evening
+              : shiftCode == 'NIG'
+                  ? ShiftType.night
+                  : ShiftType.all;
 
       return (priority, shiftType);
     } catch (e) {

@@ -29,18 +29,18 @@ final syncDashboardProvider = FutureProvider.autoDispose<SyncDashboardData>((
   final integrityReport = results[3] as IntegrityReport;
 
   final guardianHealthSnapshot = await guardian.watchHealth().first.timeout(
-    const Duration(seconds: 2),
-    onTimeout: () => const SyncHealthSnapshot(
-      lastSyncAt: null,
-      failedAttempts: 0,
-      pendingEvents: false,
-      isInitialized: false,
-      lastError: null,
-      monitoringActive: false,
-      priorityOverridden: false,
-      status: null,
-    ),
-  );
+        const Duration(seconds: 2),
+        onTimeout: () => const SyncHealthSnapshot(
+          lastSyncAt: null,
+          failedAttempts: 0,
+          pendingEvents: false,
+          isInitialized: false,
+          lastError: null,
+          monitoringActive: false,
+          priorityOverridden: false,
+          status: null,
+        ),
+      );
 
   return SyncDashboardData(
     guardianHealth: guardianHealthSnapshot,

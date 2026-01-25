@@ -80,7 +80,8 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         bookingNotes,
-      )..where((t) => t.id.equals(id))).write(comp);
+      )..where((t) => t.id.equals(id)))
+          .write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'booking_notes',
@@ -100,14 +101,14 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id)))
-          .write(
-            BookingNotesCompanion(
-              deletedAt: Value(now),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
+      final rows =
+          await (update(bookingNotes)..where((t) => t.id.equals(id))).write(
+        BookingNotesCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ),
+      );
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'booking_notes',
