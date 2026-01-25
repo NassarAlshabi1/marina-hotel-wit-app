@@ -596,23 +596,53 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(outbox, outbox.idempotencyKey);
           }
           if (from < 18) {
-            await m.addColumn(outbox, outbox.processingStatus);
-            await m.addColumn(outbox, outbox.processingStartedAt);
-            await m.addColumn(outbox, outbox.processingWorker);
+            try {
+              await m.addColumn(outbox, outbox.processingStatus);
+            } catch (_) {}
+            try {
+              await m.addColumn(outbox, outbox.processingStartedAt);
+            } catch (_) {}
+            try {
+              await m.addColumn(outbox, outbox.processingWorker);
+            } catch (_) {}
           }
           if (from < 19) {
-            await m.addColumn(bookings, bookings.vectorClock);
-            await m.addColumn(rooms, rooms.vectorClock);
-            await m.addColumn(employees, employees.vectorClock);
-            await m.addColumn(expenses, expenses.vectorClock);
-            await m.addColumn(cashTransactions, cashTransactions.vectorClock);
-            await m.addColumn(payments, payments.vectorClock);
-            await m.addColumn(debts, debts.vectorClock);
-            await m.addColumn(bookingNotes, bookingNotes.vectorClock);
-            await m.addColumn(bookingNights, bookingNights.vectorClock);
-            await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock);
-            await m.addColumn(salaryCycles, salaryCycles.vectorClock);
-            await m.addColumn(salaryPayments, salaryPayments.vectorClock);
+            try {
+              await m.addColumn(bookings, bookings.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(rooms, rooms.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(employees, employees.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(expenses, expenses.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(cashTransactions, cashTransactions.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(payments, payments.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(debts, debts.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(bookingNotes, bookingNotes.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(bookingNights, bookingNights.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(salaryCycles, salaryCycles.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(salaryPayments, salaryPayments.vectorClock);
+            } catch (_) {}
           }
         },
       );
