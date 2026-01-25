@@ -12,7 +12,7 @@ on:
     tags-ignore:
       - '**'
   pull_request:
-    branches: [ "master" ]
+    branches: ["master", "dev"]
 
 jobs:
   build:
