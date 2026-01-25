@@ -10,6 +10,7 @@ import 'daos/outbox_dao.dart';
 import 'data_usage_manager.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
+import 'enhanced_delta_sync.dart';
 import 'local_db.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
@@ -32,6 +33,7 @@ class SmartSyncManager {
   SmartSyncManager._();
 
   GoogleDriveBackupService? _backupService;
+  EnhancedDeltaSync? _enhancedDeltaSync;
   Timer? _syncCheckTimer;
   Timer? _periodicSyncTimer;
   bool _isSyncing = false;
@@ -69,6 +71,16 @@ class SmartSyncManager {
 
     // تهيئة مُحسِّن الأداء
     await SyncPerformanceOptimizer.instance.initialize();
+    
+    // تهيئة Enhanced Delta Sync
+    if (GoogleDriveDeltaSync.instance.isInitialized) {
+      _enhancedDeltaSync = EnhancedDeltaSync(
+        deltaSync: GoogleDriveDeltaSync.instance,
+        driveService: backupService,
+        db: DatabaseManager.instance,
+      );
+      _log('✅ تم تهيئة Enhanced Delta Sync');
+    }
 
     if (_isEnabled && _backupService?.isSignedIn == true) {
       await _startSyncMonitoring();
@@ -492,11 +504,11 @@ class SmartSyncManager {
     }
   }
 
-  /// دمج بيانات النسخ الاحتياطي
+  /// دمج بيانات النسخ الاحتياطي - استخدام الدمج الذكي بشكل افتراضي
   Future<void> _mergeBackupData(Map<String, dynamic> backupData) async {
-    // استخدام خدمة النسخ الاحتياطي الموجودة
+    // استخدام Smart Merge (أسرع وأكثر أماناً من الحذف الكامل)
     await DatabaseManager.runWithRestoreGuard(
-        () => _backupService!.restoreFromBackup(backupData));
+        () => _backupService!.restoreFromBackup(backupData, useSmartMerge: true));
   }
 
   /// إزالة سجل من بيانات النسخ الاحتياطي
@@ -763,23 +775,22 @@ class SmartSyncManager {
     try {
       _log('📤 رفع التغييرات المحلية إلى Google Drive...');
 
-      // محاولة استخدام Delta Sync أولاً (أسرع وأخف)
-      if (GoogleDriveDeltaSync.instance.isInitialized) {
-        _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
-        final deltaResult =
-            await GoogleDriveDeltaSync.instance.pushDeltaChanges();
+      // محاولة استخدام Enhanced Delta Sync أولاً (أسرع وأخف وأكثر موثوقية)
+      if (_enhancedDeltaSync != null) {
+        _log('🔄 استخدام Enhanced Delta Sync للتحديثات السريعة...');
+        final deltaResult = await _enhancedDeltaSync!.pushWithRetry(maxRetries: 3);
 
         if (deltaResult.success) {
           await _updateLastSyncTime();
           await _updateLastPushTime();
-          _log('✅ تم رفع ${deltaResult.changesCount} تغيير عبر Delta Sync');
+          _log('✅ تم رفع ${deltaResult.changesCount} تغيير عبر Enhanced Delta Sync');
           return true;
         } else if (deltaResult.changesCount == 0) {
           _log('✓ لا توجد تغييرات للرفع');
           await _updateLastPushTime();
           return true;
         } else {
-          _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
+          _log('⚠️ فشل Enhanced Delta Sync: ${deltaResult.message} - fallback إلى Full');
         }
       }
 
@@ -843,20 +854,19 @@ class SmartSyncManager {
     try {
       _log('📥 سحب التغييرات من Google Drive...');
 
-      if (GoogleDriveDeltaSync.instance.isInitialized) {
-        _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
-        final deltaResult =
-            await GoogleDriveDeltaSync.instance.pullDeltaChanges();
+      if (_enhancedDeltaSync != null) {
+        _log('🔄 استخدام Enhanced Delta Sync للتحديثات السريعة...');
+        final deltaResult = await _enhancedDeltaSync!.pullWithRetry(maxRetries: 3);
 
         if (deltaResult.success && deltaResult.changesCount > 0) {
           await _updateLastSyncTime();
-          _log('✅ تم سحب ${deltaResult.changesCount} تغيير عبر Delta Sync');
+          _log('✅ تم سحب ${deltaResult.changesCount} تغيير عبر Enhanced Delta Sync');
           return true;
         } else if (deltaResult.success && deltaResult.changesCount == 0) {
           _log('✓ لا توجد تغييرات للسحب');
           return false;
         } else {
-          _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
+          _log('⚠️ فشل Enhanced Delta Sync: ${deltaResult.message} - fallback إلى Full');
         }
       }
 
