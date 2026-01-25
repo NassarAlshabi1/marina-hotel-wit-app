@@ -1,3 +1,4 @@
+// ignore_for_file: undefined_named_parameter
 import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';

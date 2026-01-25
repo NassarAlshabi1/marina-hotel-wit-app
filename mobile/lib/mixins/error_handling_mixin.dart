@@ -26,6 +26,7 @@ mixin ErrorHandlingMixin {
       return operation();
     } catch (e, stack) {
       debugPrint('❌ [$logTag] ${operationName ?? 'Operation'} failed: $e');
+      debugPrint('$stack');
       return null;
     }
   }

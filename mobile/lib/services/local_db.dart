@@ -1,3 +1,4 @@
+// ignore_for_file: argument_type_not_assignable
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
