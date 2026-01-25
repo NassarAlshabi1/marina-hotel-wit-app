@@ -2,8 +2,12 @@ name: Auto-fix & analyse
 
 on:
   pull_request:
+    branches:
+      - main
   push:
-    branches: [capy/S]
+    branches:
+      - main
+      - 'capy/**'
 
 jobs:
   lint:

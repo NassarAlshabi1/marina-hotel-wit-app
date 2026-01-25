@@ -2,12 +2,15 @@ name: Flutter Analyze
 
 on:
   push:
-    branches: [ main,dev ]
+    branches:
+      - main
+      - 'capy/**'
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-analyze.yml'
   pull_request:
-    branches: [ main,dev ]
+    branches:
+      - main
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-analyze.yml'

@@ -8,9 +8,11 @@ name: Dart
 on:
   push:
     branches:
-      - master
+      - main
+      - 'capy/**'
   pull_request:
-    branches: [master]
+    branches:
+      - main
 
 jobs:
   build:

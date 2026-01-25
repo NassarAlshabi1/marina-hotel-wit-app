@@ -5,7 +5,12 @@ permissions:
 
 on:
   push:
+    branches:
+      - main
+      - 'capy/**'
   pull_request:
+    branches:
+      - main
 
 jobs:
   lint-test:
