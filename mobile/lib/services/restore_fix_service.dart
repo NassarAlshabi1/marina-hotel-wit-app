@@ -133,7 +133,7 @@ class RestoreFixService {
     );
 
     Future<RestoreSnapshot> doCreate() async {
-      final directory = await getApplicationCacheDirectory();
+      final directory = await _resolveCacheDirectory();
       final timestamp = Time.nowEpoch();
       final filename = '${prefix}_restore_snapshot_$timestamp.json';
       final filePath = '${directory.path}/$filename';
@@ -184,6 +184,14 @@ class RestoreFixService {
       return await db.transaction<RestoreSnapshot>(doCreate);
     }
     return doCreate();
+  }
+
+  Future<Directory> _resolveCacheDirectory() async {
+    try {
+      return await getApplicationCacheDirectory();
+    } catch (_) {
+      return Directory.systemTemp.createTemp('marina_cache_');
+    }
   }
 
   /// الدالة الرئيسية لتشغيل الإصلاح التلقائي

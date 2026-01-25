@@ -29,7 +29,7 @@ void main() {
       username: 'm',
       fullName: 'محمد',
       userType: 'supervisor',
-      permissions: const [],
+      permissions: const ['dashboard'],
     );
 
     await tester.pumpWidget(

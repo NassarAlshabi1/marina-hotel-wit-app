@@ -210,7 +210,12 @@ class SyncSafetyLayer {
       return _baseDirectoryOverride!;
     }
 
-    final dir = await getApplicationSupportDirectory();
+    Directory dir;
+    try {
+      dir = await getApplicationSupportDirectory();
+    } catch (_) {
+      dir = await Directory.systemTemp.createTemp('sync_support_');
+    }
     final target = Directory(p.join(dir.path, 'sync_safety'));
     if (!await target.exists()) {
       await target.create(recursive: true);

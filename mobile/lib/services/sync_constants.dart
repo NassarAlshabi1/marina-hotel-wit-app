@@ -9,6 +9,7 @@ class SyncConstants {
     'expenses',
     'debts',
     'booking_notes',
+    'shift_notes',
     'cash_transactions',
   ];
 
