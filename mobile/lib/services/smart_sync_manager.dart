@@ -191,6 +191,10 @@ class SmartSyncManager {
 
   /// استدعاء هذه الدالة عند تغير حالة تسجيل الدخول في Google Drive
   Future<void> onGoogleDriveSignInChanged(bool isSignedIn) async {
+    if (_isLoggedIn == isSignedIn) {
+      return;
+    }
+
     _log('🔔 تغيرت حالة تسجيل الدخول Google Drive: $isSignedIn');
     _log(
         '🔍 Debug: _backupService?.isSignedIn = ${_backupService?.isSignedIn}');
@@ -476,7 +480,7 @@ class SmartSyncManager {
 
         if (newNotesCount > 0) {
           final message = newNotesCount == 1
-              ? 'ملاحظة جديدة: $lastNoteTitle'
+              ? 'ملاحظة جديدة من $noteCreator: $lastNoteTitle'
               : '$newNotesCount ملاحظات إدارية جديدة';
 
           _log('🔔 🔔 تنبيه: $message');

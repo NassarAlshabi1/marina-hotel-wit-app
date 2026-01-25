@@ -14,7 +14,6 @@ class NotesScreen extends ConsumerStatefulWidget {
 class _NotesScreenState extends ConsumerState<NotesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final String _selectedFilter = 'all';
   final List<ShiftNote> _notes = _generateSampleNotes();
 
   @override

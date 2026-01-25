@@ -220,8 +220,8 @@ class SyncService {
         final serverId = it['server_id'];
         final serverTs = (it['server_ts'] as num).toInt();
         final rawData = it['data'];
-        final item = rawData is Map
-            ? Map<String, dynamic>.from(rawData as Map)
+        final item = rawData is Map<String, dynamic>
+            ? Map<String, dynamic>.from(rawData)
             : <String, dynamic>{};
 
         if (serverTs > maxTs) maxTs = serverTs;

@@ -13,7 +13,6 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(syncStatsProvider);
-    final outboxCountAsync = ref.watch(outboxCountProvider);
 
     return AppScaffold(
       title: 'إحصائيات المزامنة',

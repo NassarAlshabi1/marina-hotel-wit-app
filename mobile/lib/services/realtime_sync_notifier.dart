@@ -52,14 +52,20 @@ class RealtimeSyncNotifier {
       final hasChanges = await smartSync.pullRemoteChanges();
 
       if (hasChanges) {
+        final syncId = 'auto_${DateTime.now().millisecondsSinceEpoch}';
+        if (_lastProcessedSyncId == syncId) {
+          return;
+        }
+
         final trigger = SyncTrigger(
-          syncId: 'auto_${DateTime.now().millisecondsSinceEpoch}',
+          syncId: syncId,
           sourceDeviceId: 'remote',
           timestamp: DateTime.now(),
           changeType: 'update',
         );
 
         _syncTriggerController.add(trigger);
+        await _saveLastProcessedSyncId(syncId);
         debugPrint('🔔 تم اكتشاف تغييرات جديدة');
       }
     } catch (e) {

@@ -500,8 +500,7 @@ class AppwriteDeltaSync {
       checkoutDate: d.Value(_asString(data['checkoutDate']) ?? ''),
       dateRecorded: d.Value(_asString(data['dateRecorded']) ?? ''),
       debtReason: d.Value(_asString(data['debtReason']) ?? ''),
-      totalAmount:
-          d.Value(_asDouble(data['totalAmount']) ?? _asDouble(data['amount'])),
+      totalAmount: d.Value(_asDouble(data['totalAmount'] ?? data['amount'])),
       paidAmount: d.Value(_asDouble(data['paidAmount'])),
       remainingAmount: d.Value(_asDouble(data['remainingAmount'])),
       paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),

@@ -30,7 +30,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   late TabController _tabController;
   late TextEditingController _phoneController;
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
-  double _totalAmount = 0;
   double _remainingAmount = 0;
   late String _currentGuestPhone;
   bool _isSavingPayment = false;
@@ -168,7 +167,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               final remainingAmount =
                   ((totalAmount - paidAmount).clamp(0.0, totalAmount))
                       .toDouble();
-              _totalAmount = totalAmount;
               _remainingAmount = remainingAmount;
               final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
               final summary = BookingPaymentSummary(
@@ -941,6 +939,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
+  // ignore: unused_element
   /// التحقق من وجود ليالي إضافية
   bool _shouldShowExtendedStayOptions(BookingPaymentSummary summary) {
     final checkin =
@@ -961,6 +960,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     return currentStay > expectedNights || isPastCheckoutDate;
   }
 
+  // ignore: unused_element
   /// عرض خيارات دفع الليالي الإضافية
   Widget _buildExtendedStayPaymentOptions(BookingPaymentSummary summary) {
     final checkin =
@@ -1544,6 +1544,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
+  // ignore: unused_element
   Future<void> _performSendAccountStatement(
       BookingPaymentSummary summary) async {
     final whatsappService = ref.read(whatsappServiceProvider);
@@ -1619,6 +1620,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
+  // ignore: unused_element
   Future<void> _sendPaymentReminder(BookingPaymentSummary summary) async {
     if (_currentGuestPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1676,6 +1678,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
+  // ignore: unused_element
   /// نافذة حوار تمديد الإقامة
   void _showExtendStayDialog() {
     final roomsRepo = ref.watch(roomsRepoProvider);

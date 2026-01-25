@@ -24,7 +24,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd HH:mm');
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
 
-  String _formatNumber(num value) => _currencyFmt.format(value);
+  // ignore: unused_element
+String _formatNumber(num value) => _currencyFmt.format(value);
 
   DateTime? _fromDate;
   DateTime? _toDate;

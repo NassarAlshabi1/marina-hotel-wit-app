@@ -263,7 +263,7 @@ class EnhancedConflictResolver {
 
   int _priorityForDevice(String deviceId, int fallback) {
     if (devicePriorityResolver == null) return fallback;
-    return devicePriorityResolver!(deviceId) ?? fallback;
+    return devicePriorityResolver!(deviceId);
   }
 
   Set<String> _getCriticalFields(String table) {

@@ -189,7 +189,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
 
-      final futures = <Future<Object?>>[];
       final results = <String, bool>{};
 
       if (smartEnabled && isGoogleDriveSignedIn) {
@@ -344,8 +343,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     final isGoogleDriveSignedIn =
         ref.watch(smartSyncGoogleDriveSignInStatusProvider);
     final hasChanges = _pendingChangesCount > 0;
-    // تمكين الزر إذا كان هناك تغييرات أو إذا كان غير متصل (للسماح بالضغط لتسجيل الدخول)
-    final isEnabled = hasChanges || _isUploading || !isGoogleDriveSignedIn;
 
     Color buttonColor;
     IconData buttonIcon;

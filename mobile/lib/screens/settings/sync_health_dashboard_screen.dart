@@ -96,7 +96,8 @@ class _SyncHealthDashboardScreenState
     );
   }
 
-  String _getLocalizedErrorMessage(Object error) {
+  // ignore: unused_element
+String _getLocalizedErrorMessage(Object error) {
     final errorStr = error.toString().toLowerCase();
     if (errorStr.contains('network') ||
         errorStr.contains('socket') ||

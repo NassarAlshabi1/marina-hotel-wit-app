@@ -100,8 +100,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     for (final booking in bookings) {
       final key = '${booking.guestName}_${booking.guestPhone}';
       final email = booking.guestEmail ?? '';
-      final idType = booking.guestIdType ?? 'بطاقة شخصية';
-      final idNumber = booking.guestIdNumber ?? '';
+      final idType = booking.guestIdType;
+      final idNumber = booking.guestIdNumber;
       final idIssueDate = booking.guestIdIssueDate;
       final idIssuePlace = booking.guestIdIssuePlace;
       final address = booking.guestAddress;

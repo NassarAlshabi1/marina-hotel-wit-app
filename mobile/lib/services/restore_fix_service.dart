@@ -188,7 +188,7 @@ class RestoreFixService {
     int bookingsFixed = 0;
     int roomsUpdated = 0;
     int paymentsChecked = 0;
-    List<String> changes = [];
+    final List<String> changes = [];
     RestoreSnapshot? snapshot;
 
     try {
@@ -316,7 +316,7 @@ class RestoreFixService {
 
   /// إصلاح تواريخ وليالي الحجز
   Future<List<String>> _fixBookingDatesAndNights(Booking booking, DateTime now, String fixId) async {
-    List<String> changes = [];
+    final List<String> changes = [];
     
     try {
       // تحليل تواريخ الدخول والخروج

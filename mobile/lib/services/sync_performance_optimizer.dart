@@ -114,35 +114,35 @@ class SyncPerformanceOptimizer {
 
   /// الحصول على وصف نوع الاتصال
   String _getConnectionTypeString(List<ConnectivityResult> results) {
-    if (results.isEmpty) return "لا يوجد اتصال";
+    if (results.isEmpty) return 'لا يوجد اتصال';
 
-    List<String> types = [];
+    final List<String> types = [];
     for (var result in results) {
       switch (result) {
         case ConnectivityResult.wifi:
-          types.add("WiFi");
+          types.add('WiFi');
           break;
         case ConnectivityResult.mobile:
-          types.add("بيانات الهاتف");
+          types.add('بيانات الهاتف');
           break;
         case ConnectivityResult.ethernet:
-          types.add("إيثرنت");
+          types.add('إيثرنت');
           break;
         case ConnectivityResult.vpn:
-          types.add("VPN");
+          types.add('VPN');
           break;
         case ConnectivityResult.bluetooth:
-          types.add("بلوتوث");
+          types.add('بلوتوث');
           break;
         case ConnectivityResult.other:
-          types.add("أخرى");
+          types.add('أخرى');
           break;
         case ConnectivityResult.none:
-          types.add("لا يوجد اتصال");
+          types.add('لا يوجد اتصال');
           break;
       }
     }
-    return types.join(" + ");
+    return types.join(' + ');
   }
 
   /// الحصول على إعدادات الأداء الحالية

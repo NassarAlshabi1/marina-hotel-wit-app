@@ -173,7 +173,6 @@ class _ComprehensiveBackupScreenState
   }
 
   Widget _buildSystemOverviewCard(BackupState state) {
-    final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
     final sizeInMB = state.databaseSizeBytes != null
         ? (state.databaseSizeBytes! / (1024 * 1024)).toStringAsFixed(2)
         : '---';

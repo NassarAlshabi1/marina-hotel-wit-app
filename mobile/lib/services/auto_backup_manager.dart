@@ -41,7 +41,9 @@ class AutoBackupManager {
   GoogleDriveBackupService? _backupService;
   GoogleDriveDeltaSync? _googleDriveDeltaSync;
   AppwriteDeltaSync? _appwriteDeltaSync;
+  // ignore: unused_field
   AppwriteService? _appwriteService;
+  // ignore: unused_field
   AppDatabase? _database;
   Timer? _debounceTimer;
   Timer? _deltaSyncDebounceTimer;

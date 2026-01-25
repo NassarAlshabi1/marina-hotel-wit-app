@@ -394,8 +394,8 @@ class _GoogleDriveBackupScreenState
               const SizedBox(height: 8),
               Text(
                 state.progress != null
-                    ? '${(state.progress! * 100).round()}% - ${state.message ?? "جاري الاستعادة..."}'
-                    : state.message ?? "جاري الاستعادة...",
+                    ? '${(state.progress! * 100).round()}% - ${state.message ?? 'جاري الاستعادة...'}'
+                    : state.message ?? 'جاري الاستعادة...',
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 12),

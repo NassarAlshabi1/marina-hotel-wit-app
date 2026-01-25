@@ -277,8 +277,8 @@ ThemeData buildDarkTheme() {
 
 // Helper function to create MaterialColor from Color
 MaterialColor _createMaterialColor(Color color) {
-  List strengths = <double>[.05];
-  Map<int, Color> swatch = <int, Color>{};
+  final strengths = <double>[.05];
+  final Map<int, Color> swatch = <int, Color>{};
   final int r = color.red, g = color.green, b = color.blue;
 
   for (int i = 1; i < 10; i++) {

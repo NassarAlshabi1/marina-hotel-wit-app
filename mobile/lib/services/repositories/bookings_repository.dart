@@ -144,11 +144,6 @@ class BookingsRepository {
   }
 
   Future<int> delete(int id) async {
-    final booking = await (db.select(db.bookings)
-          ..where((b) => b.id.equals(id)))
-        .getSingleOrNull();
-    final roomNumber = booking?.roomNumber;
-
     final result = await dao.softDelete(id);
     if (result > 0) {
       AutoBackupManager.instance
