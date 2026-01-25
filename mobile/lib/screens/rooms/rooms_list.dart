@@ -165,7 +165,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     markDataChanged();
   }
 
-  Future<void> _uploadImage(BuildContext context, String roomNumber) async {
+  // ignore: unused_element
+Future<void> _uploadImage(BuildContext context, String roomNumber) async {
     try {
       final picker = await _lazyPicker();
       final picked = await picker.pickImage(

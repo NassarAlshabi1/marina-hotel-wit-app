@@ -710,13 +710,12 @@ class GoogleDriveDeltaSync {
       debtReason: d.Value(_asString(data['debt_reason']) ??
           _asString(data['debtReason']) ??
           ''),
-      totalAmount: d.Value(_asDouble(data['total_amount']) ??
-          _asDouble(data['totalAmount']) ??
-          _asDouble(data['amount'])),
-      paidAmount: d.Value(
-          _asDouble(data['paid_amount']) ?? _asDouble(data['paidAmount'])),
-      remainingAmount: d.Value(_asDouble(data['remaining_amount']) ??
-          _asDouble(data['remainingAmount'])),
+      totalAmount: d.Value(
+          _asDouble(data['total_amount'] ?? data['totalAmount'] ?? data['amount'])),
+      paidAmount:
+          d.Value(_asDouble(data['paid_amount'] ?? data['paidAmount'])),
+      remainingAmount:
+          d.Value(_asDouble(data['remaining_amount'] ?? data['remainingAmount'])),
       paymentDate: d.Value(_asString(data['payment_date']) ??
           _asString(data['paymentDate']) ??
           ''),
@@ -928,7 +927,8 @@ class GoogleDriveDeltaSync {
     await prefs.setInt(_prefsLastPushTsKey, Time.nowEpoch());
   }
 
-  Future<void> _updateLastPullTimestamp() async {
+  // ignore: unused_element
+Future<void> _updateLastPullTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsLastPullTsKey, Time.nowEpoch());
   }

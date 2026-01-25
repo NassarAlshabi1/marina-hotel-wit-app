@@ -621,27 +621,27 @@ class AppwriteSyncManager {
         return 0;
       }
 
-      int totalSyncs = syncLogs.length;
-      int successfulSyncs = syncLogs
+      final totalSyncs = syncLogs.length;
+      final successfulSyncs = syncLogs
           .where((log) => log.data['status'] == SyncLogStatus.completed.value)
           .length;
-      int failedSyncs = syncLogs
+      final failedSyncs = syncLogs
           .where((log) => log.data['status'] == SyncLogStatus.failed.value)
           .length;
 
-      int totalRecordsPushed = syncLogs.fold<int>(
+      final totalRecordsPushed = syncLogs.fold<int>(
           0,
           (sum, log) =>
               sum +
               extractCount(
                   Map<String, dynamic>.from(log.data), 'recordsPushed'));
-      int totalRecordsPulled = syncLogs.fold<int>(
+      final totalRecordsPulled = syncLogs.fold<int>(
           0,
           (sum, log) =>
               sum +
               extractCount(
                   Map<String, dynamic>.from(log.data), 'recordsPulled'));
-      int totalConflicts = syncLogs.fold<int>(
+      final totalConflicts = syncLogs.fold<int>(
           0,
           (sum, log) =>
               sum +

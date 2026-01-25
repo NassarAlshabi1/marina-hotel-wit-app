@@ -38,6 +38,7 @@ enum SyncPhase {
   failed,
 }
 
+// ignore: unused_element
 enum _SyncStartResult {
   ok,
   notInitialized,

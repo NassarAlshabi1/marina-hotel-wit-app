@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -8,6 +10,7 @@ import '../../components/app_scaffold.dart';
 import '../../services/local_db.dart' as db;
 import '../../models/payment_models.dart';
 import '../../services/providers.dart';
+
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 import 'payment_history_screen.dart';

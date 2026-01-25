@@ -95,6 +95,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   UnifiedSyncOrchestrator? _orchestrator;
   GoogleDriveConflictResolver? _conflictResolver;
   GoogleDriveLogger? _logger;
+  // ignore: unused_field
   AppDatabase? _database;
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;

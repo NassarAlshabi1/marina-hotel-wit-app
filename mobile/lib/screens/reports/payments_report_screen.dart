@@ -177,7 +177,7 @@ String _formatNumber(num value) => _currencyFmt.format(value);
       final booking = bookingMap[payment.bookingLocalId];
       final roomNumber =
           payment.roomNumber ?? booking?.roomNumber ?? 'غير محدد';
-      final payerName = booking?.guestName ?? payment.revenueType ?? 'غير محدد';
+      final payerName = booking?.guestName ?? payment.revenueType;
       final paymentDate = _parseDateTime(payment.paymentDate);
       final bookingCode =
           booking != null ? _formatBookingCode(booking.id) : null;
