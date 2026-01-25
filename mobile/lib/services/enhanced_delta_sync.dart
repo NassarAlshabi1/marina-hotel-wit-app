@@ -166,7 +166,7 @@ class EnhancedDeltaSync {
       
       // التحقق من الدفعات بدون حجوزات
       final orphanedPaymentsQuery = await _db.customSelect(
-        'SELECT COUNT(*) as count FROM payments WHERE booking_id NOT IN (SELECT id FROM bookings)',
+        'SELECT COUNT(*) as count FROM payments WHERE booking_local_id NOT IN (SELECT id FROM bookings)',
       ).getSingle();
       final orphanedPaymentsCount = orphanedPaymentsQuery.data['count'] as int;
       
