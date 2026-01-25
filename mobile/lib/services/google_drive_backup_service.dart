@@ -730,12 +730,18 @@ class GoogleDriveBackupService {
       final db = DatabaseManager.instance;
 
       if (!backupData.containsKey('metadata')) {
-        throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
+        _log('⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية، سيتم تجاوزها');
+        _logger.warning('Skipping restore: backup missing metadata',
+            tag: 'RESTORE');
+        return;
       }
 
       final metadataJson = backupData['metadata'];
       if (metadataJson is! Map) {
-        throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
+        _log('⚠️ صيغة بيانات النسخة الاحتياطية غير صالحة، سيتم تجاوزها');
+        _logger.warning('Skipping restore: invalid metadata format',
+            tag: 'RESTORE');
+        return;
       }
       final metadata =
           BackupMetadata.fromJson(Map<String, dynamic>.from(metadataJson));
