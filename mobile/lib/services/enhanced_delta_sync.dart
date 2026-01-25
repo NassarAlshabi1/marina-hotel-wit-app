@@ -8,12 +8,12 @@ import '../utils/debug_logs.dart';
 class EnhancedDeltaSync {
   final GoogleDriveDeltaSync _deltaSync;
   final GoogleDriveBackupService _driveService;
-  final DatabaseManager _db;
+  final AppDatabase _db;
   
   EnhancedDeltaSync({
     required GoogleDriveDeltaSync deltaSync,
     required GoogleDriveBackupService driveService,
-    required DatabaseManager db,
+    required AppDatabase db,
   })  : _deltaSync = deltaSync,
         _driveService = driveService,
         _db = db;
@@ -154,7 +154,7 @@ class EnhancedDeltaSync {
     
     try {
       // التحقق من الحجوزات بدون غرف
-      final orphanedBookingsQuery = await _db.instance.customSelect(
+      final orphanedBookingsQuery = await _db.customSelect(
         'SELECT COUNT(*) as count FROM bookings WHERE room_number NOT IN (SELECT room_number FROM rooms)',
       ).getSingle();
       final orphanedBookingsCount = orphanedBookingsQuery.data['count'] as int;
@@ -165,7 +165,7 @@ class EnhancedDeltaSync {
       }
       
       // التحقق من الدفعات بدون حجوزات
-      final orphanedPaymentsQuery = await _db.instance.customSelect(
+      final orphanedPaymentsQuery = await _db.customSelect(
         'SELECT COUNT(*) as count FROM payments WHERE booking_id NOT IN (SELECT id FROM bookings)',
       ).getSingle();
       final orphanedPaymentsCount = orphanedPaymentsQuery.data['count'] as int;
@@ -176,7 +176,7 @@ class EnhancedDeltaSync {
       }
       
       // التحقق من تضارب الـ UUIDs
-      final duplicateUuidsQuery = await _db.instance.customSelect(
+      final duplicateUuidsQuery = await _db.customSelect(
         'SELECT local_uuid, COUNT(*) as count FROM bookings GROUP BY local_uuid HAVING count > 1',
       ).get();
       
@@ -204,19 +204,19 @@ class EnhancedDeltaSync {
     }
     
     try {
-      await _db.instance.transaction(() async {
+      await _db.transaction(() async {
         // حذف الحجوزات اليتيمة
-        await _db.instance.customStatement(
+        await _db.customStatement(
           'DELETE FROM bookings WHERE room_number NOT IN (SELECT room_number FROM rooms)',
         );
         
         // حذف الدفعات اليتيمة
-        await _db.instance.customStatement(
+        await _db.customStatement(
           'DELETE FROM payments WHERE booking_id NOT IN (SELECT id FROM bookings)',
         );
         
         // حذف الملاحظات اليتيمة
-        await _db.instance.customStatement(
+        await _db.customStatement(
           'DELETE FROM booking_notes WHERE booking_id NOT IN (SELECT id FROM bookings)',
         );
       });

@@ -6,7 +6,7 @@ import 'local_db.dart';
 /// خدمة استعادة ذكية تدمج البيانات بدلاً من الحذف الكامل
 /// تقلل من فقدان البيانات وتحسن الأداء
 class SmartRestoreService {
-  final DatabaseManager db;
+  final AppDatabase db;
   
   SmartRestoreService(this.db);
   
