@@ -756,6 +756,7 @@ class GoogleDriveBackupService {
 
       _log('🔄 بدء استعادة البيانات...');
 
+<<<<<<< Updated upstream
       await db.transaction(() async {
         await db.customStatement('PRAGMA foreign_keys = OFF');
         try {
@@ -782,6 +783,36 @@ class GoogleDriveBackupService {
           await db.delete(db.syncConflicts).go();
           await db.delete(db.syncState).go();
 
+=======
+      await db.customStatement('PRAGMA foreign_keys = OFF');
+      _log('🔓 تم إيقاف FOREIGN KEYS مؤقتاً');
+
+      await db.transaction(() async {
+        try {
+          // حذف جميع الجداول بالترتيب الصحيح (من التابعة إلى الرئيسية)
+          await db.delete(db.syncState).go();
+          await db.delete(db.syncConflicts).go();
+          await db.delete(db.syncLog).go();
+          await db.delete(db.syncQueue).go();
+          await db.delete(db.restoreFixLog).go();
+          await db.delete(db.salaryPayments).go();
+          await db.delete(db.salaryCycles).go();
+          await db.delete(db.appSessions).go();
+          await db.delete(db.integrityViolations).go();
+          await db.delete(db.autoFixRuns).go();
+          await db.delete(db.debts).go();
+          await db.delete(db.payments).go();
+          await db.delete(db.cashTransactions).go();
+          await db.delete(db.expenses).go();
+          await db.delete(db.employees).go();
+          await db.delete(db.shiftNotes).go();
+          await db.delete(db.hotelDayLedger).go();
+          await db.delete(db.bookingNights).go();
+          await db.delete(db.bookingNotes).go();
+          await db.delete(db.bookings).go();
+          await db.delete(db.rooms).go();
+
+>>>>>>> Stashed changes
           // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
           if (backupData.containsKey('rooms')) {
             final roomsData = backupData['rooms'] as List<dynamic>;
@@ -1000,6 +1031,7 @@ class GoogleDriveBackupService {
               final rawSettings = backupData['system_settings'];
               if (rawSettings is! Map) {
                 throw Exception('صيغة إعدادات النظام غير صالحة');
+<<<<<<< Updated upstream
               }
               final settings = Map<String, dynamic>.from(rawSettings);
               final prefs = await SharedPreferences.getInstance();
@@ -1022,6 +1054,30 @@ class GoogleDriveBackupService {
                   }
                 }
               }
+=======
+              }
+              final settings = Map<String, dynamic>.from(rawSettings);
+              final prefs = await SharedPreferences.getInstance();
+
+              final keys = SystemSettingKeys.all;
+
+              bool settingsChanged = false;
+              for (final key in keys) {
+                if (settings.containsKey(key) && settings[key] != null) {
+                  final val = settings[key];
+                  final currentVal = prefs.get(key);
+
+                  if (val != currentVal) {
+                    if (val is bool) await prefs.setBool(key, val);
+                    if (val is String) await prefs.setString(key, val);
+                    if (val is int) await prefs.setInt(key, val);
+                    if (val is double) await prefs.setDouble(key, val);
+                    settingsChanged = true;
+                    _log('   UPDATED: $key = $val');
+                  }
+                }
+              }
+>>>>>>> Stashed changes
 
               // إعادة جدولة المهام إذا تغيرت الإعدادات
               if (settingsChanged) {
@@ -1055,11 +1111,22 @@ class GoogleDriveBackupService {
           final fixService = RestoreFixService(db);
           await fixService.runAutoFixAfterRestore(
               backupTimestamp: metadata.backupTimestamp);
+<<<<<<< Updated upstream
         } finally {
           await db.customStatement('PRAGMA foreign_keys = ON');
           _log('🔓 تم إعادة تشغيل FOREIGN KEYS');
         }
       });
+=======
+        } catch (e) {
+          _log('❌ خطأ أثناء الاستعادة داخل Transaction: $e');
+          rethrow;
+        }
+      });
+
+      await db.customStatement('PRAGMA foreign_keys = ON');
+      _log('🔓 تم إعادة تشغيل FOREIGN KEYS');
+>>>>>>> Stashed changes
     } catch (e) {
       _log('❌ خطأ في استعادة البيانات: $e');
       rethrow;

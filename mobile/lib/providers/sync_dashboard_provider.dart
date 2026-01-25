@@ -13,7 +13,10 @@ final syncDashboardProvider =
   final orchestrator = SyncOrchestrator.instance;
   final queueService = SyncQueueService.instance;
   final healthMonitor = SyncHealthMonitor.instance;
+<<<<<<< Updated upstream
   final db = DatabaseManager.instance;
+=======
+>>>>>>> Stashed changes
 
   final results = await Future.wait([
     orchestrator.getHealth(),
@@ -25,7 +28,10 @@ final syncDashboardProvider =
   final orchestratorHealth = results[0] as SyncHealth;
   final queueStats = results[1] as QueueStats;
   final healthMetrics = results[2] as SyncHealthMetrics;
+<<<<<<< Updated upstream
   final integrityReport = results[3] as IntegrityReport;
+=======
+>>>>>>> Stashed changes
 
   final guardianHealthSnapshot = await guardian.watchHealth().first.timeout(
         const Duration(seconds: 2),
@@ -57,7 +63,10 @@ class SyncDashboardData {
   final SyncMetricsData? orchestratorMetrics;
   final QueueStats queueStats;
   final SyncHealthMetrics healthMetrics;
+<<<<<<< Updated upstream
   final IntegrityReport? integrityReport;
+=======
+>>>>>>> Stashed changes
 
   const SyncDashboardData({
     required this.guardianHealth,

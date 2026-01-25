@@ -385,6 +385,7 @@ class _SyncHealthDashboardScreenState
                             Icons.arrow_left,
                             size: 20,
                             color: Colors.orange.shade700,
+<<<<<<< Updated upstream
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -396,6 +397,19 @@ class _SyncHealthDashboardScreenState
                               ),
                             ),
                           ),
+=======
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              recommendation,
+                              style: TextStyle(
+                                color: Colors.orange.shade900,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+>>>>>>> Stashed changes
                         ],
                       ),
                     )),

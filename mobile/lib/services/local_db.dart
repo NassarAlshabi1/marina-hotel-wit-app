@@ -596,6 +596,7 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(outbox, outbox.idempotencyKey);
           }
           if (from < 18) {
+<<<<<<< Updated upstream
             try {
               await m.addColumn(outbox, outbox.processingStatus);
             } catch (_) {}
@@ -643,6 +644,11 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(salaryPayments, salaryPayments.vectorClock);
             } catch (_) {}
+=======
+            await m.addColumn(outbox, outbox.processingStatus);
+            await m.addColumn(outbox, outbox.processingStartedAt);
+            await m.addColumn(outbox, outbox.processingWorker);
+>>>>>>> Stashed changes
           }
         },
       );
@@ -763,9 +769,12 @@ class AppDatabase extends _$AppDatabase {
       await replaceTableIfNonEmpty<SalaryPayment>(salaryPayments,
           'salary_payments', (row) => SalaryPayment.fromJson(row));
     });
+<<<<<<< Updated upstream
     } finally {
       await customStatement('PRAGMA foreign_keys = ON');
     }
+=======
+>>>>>>> Stashed changes
   }
 }
 

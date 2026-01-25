@@ -9,7 +9,11 @@ part 'payments_dao.g.dart';
 
 @DriftAccessor(tables: [Payments])
 class PaymentsDao extends DatabaseAccessor<AppDatabase>
+<<<<<<< Updated upstream
     with _$PaymentsDaoMixin, OptimisticLockDaoMixin<Payments, Payment> {
+=======
+    with _$PaymentsDaoMixin {
+>>>>>>> Stashed changes
   PaymentsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 

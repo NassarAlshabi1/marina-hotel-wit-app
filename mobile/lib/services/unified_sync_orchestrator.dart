@@ -11,7 +11,10 @@ import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
 import 'smart_sync_manager.dart';
+<<<<<<< Updated upstream
 import 'sync_integrity_checker.dart';
+=======
+>>>>>>> Stashed changes
 
 class UnifiedSyncState {
   final String phase;
@@ -188,6 +191,7 @@ class UnifiedSyncOrchestrator {
     await _driveSub?.cancel();
     await _stateController.close();
     _initialized = false;
+<<<<<<< Updated upstream
   }
 
   Future<void> notifyLocalChange({String? table, String? operation}) async {
@@ -282,6 +286,98 @@ class UnifiedSyncOrchestrator {
     await _driveCoordinator!.setDebounceSeconds(seconds);
   }
 
+=======
+  }
+
+  Future<void> notifyLocalChange({String? table, String? operation}) async {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(seconds: 2), () async {
+      await syncNow(
+        push: true,
+        pull: true,
+        reason: 'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}',
+      );
+    });
+  }
+
+  Future<bool> syncNow({
+    bool push = true,
+    bool pull = true,
+    String reason = 'manual',
+    bool forceSnapshot = false,
+  }) async {
+    if (_syncing) {
+      return false;
+    }
+
+    _syncing = true;
+    _syncCount++;
+
+    _emit(_state.copyWith(
+      phase: push ? 'pushing' : 'pulling',
+      message: 'تشغيل المزامنة الموحدة',
+      timestamp: DateTime.now(),
+    ));
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      final googleDriveEnabled =
+          prefs.getBool('google_drive_sync_enabled') ?? false;
+
+      var success = true;
+
+      if (appwriteEnabled) {
+        success = await _syncAppwrite(push: push, pull: pull) && success;
+      }
+
+      if (googleDriveEnabled) {
+        success =
+            await _syncGoogleDrive(push: push, pull: pull, reason: reason) &&
+                success;
+      }
+
+      if (forceSnapshot) {
+        await snapshotNow();
+      }
+
+      _lastSyncTime = DateTime.now();
+
+      _emit(_state.copyWith(
+        phase: success ? 'completing' : 'error',
+        message: success ? 'اكتملت الدورة' : 'فشل في مزامنة واحدة أو أكثر',
+        timestamp: DateTime.now(),
+      ));
+
+      return success;
+    } catch (e) {
+      _emit(_state.copyWith(
+        phase: 'error',
+        message: 'فشل تشغيل المزامنة',
+        timestamp: DateTime.now(),
+        lastError: e.toString(),
+      ));
+      return false;
+    } finally {
+      _syncing = false;
+    }
+  }
+
+  Future<void> onAppForeground() async {
+    await syncNow(push: false, pull: true, reason: 'app_foreground');
+  }
+
+  Future<void> onDriveSignInChanged(bool isSignedIn) async {
+    if (_driveCoordinator == null) return;
+    await _driveCoordinator!.onSignInChanged(isSignedIn);
+  }
+
+  Future<void> setDebounceSeconds(int seconds) async {
+    if (_driveCoordinator == null) return;
+    await _driveCoordinator!.setDebounceSeconds(seconds);
+  }
+
+>>>>>>> Stashed changes
   Future<void> setPullInterval(int minutes) async {
     if (_driveCoordinator == null) return;
     await _driveCoordinator!.setPullInterval(minutes);
@@ -439,6 +535,7 @@ class UnifiedSyncOrchestrator {
     return true;
   }
 
+<<<<<<< Updated upstream
   Future<void> _verifySyncIntegrity() async {
     if (_database == null) return;
 
@@ -481,6 +578,8 @@ class UnifiedSyncOrchestrator {
     }
   }
 
+=======
+>>>>>>> Stashed changes
   void _emit(UnifiedSyncState s) {
     _state = s;
     if (!_stateController.isClosed) {

@@ -454,16 +454,17 @@ class LocalBackupService {
 
     // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
     await db.customStatement('PRAGMA foreign_keys = OFF');
+    debugPrint('🔓 تم إيقاف FOREIGN KEYS مؤقتاً');
     try {
-      // حذف جميع الجداول
-      await db.delete(db.rooms).go();
-      await db.delete(db.bookings).go();
-      await db.delete(db.bookingNotes).go();
-      await db.delete(db.employees).go();
-      await db.delete(db.expenses).go();
-      await db.delete(db.cashTransactions).go();
-      await db.delete(db.payments).go();
+      // حذف جميع الجداول بالترتيب الصحيح (من التابعة إلى الرئيسية)
       await db.delete(db.syncState).go();
+      await db.delete(db.payments).go();
+      await db.delete(db.cashTransactions).go();
+      await db.delete(db.expenses).go();
+      await db.delete(db.employees).go();
+      await db.delete(db.bookingNotes).go();
+      await db.delete(db.bookings).go();
+      await db.delete(db.rooms).go();
 
       Future<void> insertList<T>(String key,
           Future<void> Function(Map<String, dynamic> json) insert) async {
