@@ -394,7 +394,7 @@ class SmartRestoreService {
         
         // تنظيف الدفعات بدون حجوزات
         final orphanedPayments = await db.customSelect(
-          'SELECT id FROM payments WHERE booking_id NOT IN (SELECT id FROM bookings)',
+          'SELECT id FROM payments WHERE booking_local_id NOT IN (SELECT id FROM bookings)',
         ).get();
         
         if (orphanedPayments.isNotEmpty) {
