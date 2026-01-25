@@ -1,17 +1,21 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/expenses_dao.dart';
-import '../auto_backup_manager.dart';
+import 'base_repository.dart';
 import '../../utils/time.dart';
 
-class ExpensesRepository {
+class ExpensesRepository extends BaseRepository<Expense, ExpensesCompanion> {
   ExpensesRepository(this.db)
       : outbox = OutboxDao(db),
         dao = ExpensesDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final ExpensesDao dao;
+
+  @override
+  String get tableName => 'expenses';
 
   Stream<List<Expense>> watchAll() => dao.watchList();
   Stream<Expense?> watchOne(int id) => dao.watchById(id);
@@ -35,8 +39,7 @@ class ExpensesRepository {
         hotelDayKey: d.Value(hotelDayKey),
       ),
     );
-    AutoBackupManager.instance
-        .onDataChange('expenses', 'INSERT', recordData: {'amount': amount});
+    await notifyBackup('INSERT', {'amount': amount});
     return result;
   }
 
@@ -65,8 +68,7 @@ class ExpensesRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance
-          .onDataChange('expenses', 'UPDATE', recordData: {'id': id});
+      await notifyBackup('UPDATE', {'id': id});
     }
     return result;
   }
@@ -74,8 +76,7 @@ class ExpensesRepository {
   Future<int> delete(int id) async {
     final result = await dao.softDelete(id);
     if (result > 0) {
-      AutoBackupManager.instance
-          .onDataChange('expenses', 'DELETE', recordData: {'id': id});
+      await notifyBackup('DELETE', {'id': id});
     }
     return result;
   }

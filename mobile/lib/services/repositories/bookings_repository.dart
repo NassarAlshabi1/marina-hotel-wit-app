@@ -1,11 +1,13 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
-import '../auto_backup_manager.dart';
+import '../../utils/app_strings.dart';
+import 'base_repository.dart';
 
-class BookingsRepository {
+class BookingsRepository extends BaseRepository<Booking, BookingsCompanion> {
   BookingsRepository(this.db)
       : outbox = OutboxDao(db),
         dao = BookingsDao(db, OutboxDao(db)),
@@ -14,6 +16,9 @@ class BookingsRepository {
   final OutboxDao outbox;
   final BookingsDao dao;
   final BookingDerivedFieldsService derivedFields;
+
+  @override
+  String get tableName => 'bookings';
 
   Stream<List<Booking>> watch({String? roomNumber, String? status}) =>
       dao.watchList(roomNumber: roomNumber, status: status);
@@ -25,7 +30,7 @@ class BookingsRepository {
     required String roomNumber,
     required String guestName,
     required String guestPhone,
-    String guestIdType = 'بطاقة شخصية',
+    String guestIdType = AppStrings.idTypePersonal,
     String guestIdNumber = '',
     String? guestIdIssueDate,
     String? guestIdIssuePlace,
@@ -63,9 +68,12 @@ class BookingsRepository {
             : const d.Value.absent(),
       ),
     );
-    await derivedFields.refreshForBookingId(result);
-    AutoBackupManager.instance
-        .onDataChange('bookings', 'INSERT', recordData: {'id': result});
+    try {
+      await derivedFields.refreshForBookingId(result);
+    } catch (e) {
+      debugPrint('⚠️ فشل تحديث الحقول المشتقة للحجز $result: $e');
+    }
+    await notifyBackup('INSERT', {'id': result});
     return result;
   }
 
@@ -136,9 +144,12 @@ class BookingsRepository {
       ),
     );
     if (result > 0) {
-      await derivedFields.refreshForBookingId(id);
-      AutoBackupManager.instance
-          .onDataChange('bookings', 'UPDATE', recordData: {'id': id});
+      try {
+        await derivedFields.refreshForBookingId(id);
+      } catch (e) {
+        debugPrint('⚠️ فشل تحديث الحقول المشتقة للحجز $id: $e');
+      }
+      await notifyBackup('UPDATE', {'id': id});
     }
     return result;
   }
@@ -151,8 +162,7 @@ class BookingsRepository {
 
     final result = await dao.softDelete(id);
     if (result > 0) {
-      AutoBackupManager.instance
-          .onDataChange('bookings', 'DELETE', recordData: {'id': id});
+      await notifyBackup('DELETE', {'id': id});
     }
     return result;
   }
@@ -194,8 +204,8 @@ class BookingsRepository {
   /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
     return await (db.select(db.bookings)
-          ..where((b) => b.roomNumber.equals(roomNumber))
-          ..where((b) => b.status.equals('محجوزة'))
+          ..where((b) =>
+              b.roomNumber.equals(roomNumber) & b.status.equals(AppStrings.statusBooked))
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
           ..limit(1))
         .getSingleOrNull();

@@ -1,14 +1,18 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 import '../local_db.dart';
 import '../daos/debts_dao.dart';
 import '../daos/outbox_dao.dart';
-import '../auto_backup_manager.dart';
+import 'base_repository.dart';
 
-class DebtsRepository {
+class DebtsRepository extends BaseRepository<Debt, DebtsCompanion> {
   DebtsRepository(this.db) : dao = DebtsDao(db, OutboxDao(db));
 
   final AppDatabase db;
   final DebtsDao dao;
+
+  @override
+  String get tableName => 'debts';
 
   Stream<List<Debt>> watchAll({bool includeDeleted = false}) =>
       dao.watchList(includeDeleted: includeDeleted);
@@ -57,8 +61,7 @@ class DebtsRepository {
         note: d.Value(note),
       ),
     );
-    AutoBackupManager.instance
-        .onDataChange('debts', 'INSERT', recordData: {'guest_name': guestName});
+    await notifyBackup('INSERT', {'guest_name': guestName});
     return result;
   }
 
@@ -121,8 +124,7 @@ class DebtsRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance
-          .onDataChange('debts', 'UPDATE', recordData: {'id': id});
+      await notifyBackup('UPDATE', {'id': id});
     }
     return result;
   }
@@ -130,8 +132,7 @@ class DebtsRepository {
   Future<int> delete(int id) async {
     final result = await dao.softDelete(id);
     if (result > 0) {
-      AutoBackupManager.instance
-          .onDataChange('debts', 'DELETE', recordData: {'id': id});
+      await notifyBackup('DELETE', {'id': id});
     }
     return result;
   }

@@ -88,6 +88,7 @@ class AppwriteSyncManager {
   String? _deviceLocalUuid;
   int? _deviceVersion;
   int? _deviceCreatedAtEpoch;
+  bool _isDisposed = false;
 
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
@@ -251,8 +252,12 @@ class AppwriteSyncManager {
   /// بدء المزامنة التلقائية
   void startAutoSync(
       {Duration interval = SyncConstants.defaultAutoSyncInterval}) {
+    if (_isDisposed) return;
+
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
+      if (_isDisposed) return;
+
       final prefs = await SharedPreferences.getInstance();
       final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
@@ -279,8 +284,12 @@ class AppwriteSyncManager {
     _outboxSubscription?.cancel();
     _outboxSubscription = (database.select(database.outbox)).watch().listen(
       (_) {
+        if (_isDisposed) return;
+
         _debouncePushTimer?.cancel();
         _debouncePushTimer = Timer(_debounceWindow, () async {
+          if (_isDisposed) return;
+
           _logger.debug('Debounced push triggered', tag: 'SYNC');
           try {
             final prefs = await SharedPreferences.getInstance();
@@ -315,11 +324,19 @@ class AppwriteSyncManager {
 
   /// تنظيف الموارد
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
+
     _syncTimer?.cancel();
+    _syncTimer = null;
     _debouncePushTimer?.cancel();
+    _debouncePushTimer = null;
     _outboxSubscription?.cancel();
+    _outboxSubscription = null;
     stopAutoSync();
-    _syncController.close();
+    if (!_syncController.isClosed) {
+      _syncController.close();
+    }
   }
 
   /// دورة المزامنة الكاملة مع Appwrite:
@@ -331,6 +348,15 @@ class AppwriteSyncManager {
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
   Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+    if (_isDisposed) {
+      return SyncResult(
+        status: SyncStatus.failed,
+        errorMessage: 'Sync manager disposed',
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+    }
+
     if (!await _mutex.acquire()) {
       _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
       return SyncResult(
@@ -353,7 +379,9 @@ class AppwriteSyncManager {
     }
 
     _currentStatus = SyncStatus.syncing;
-    _syncController.add(_currentStatus);
+    if (!_syncController.isClosed) {
+      _syncController.add(_currentStatus);
+    }
 
     final startTime = DateTime.now();
 
@@ -537,7 +565,9 @@ class AppwriteSyncManager {
     }
 
     _currentStatus = finalStatus;
-    _syncController.add(_currentStatus);
+    if (!_syncController.isClosed) {
+      _syncController.add(_currentStatus);
+    }
     _mutex.release();
 
     final endTime = DateTime.now();

@@ -1,12 +1,13 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
-import '../auto_backup_manager.dart';
+import 'base_repository.dart';
 import '../../utils/time.dart';
 
-class PaymentsRepository {
+class PaymentsRepository extends BaseRepository<Payment, PaymentsCompanion> {
   PaymentsRepository(this.db)
       : outbox = OutboxDao(db),
         dao = PaymentsDao(db, OutboxDao(db)),
@@ -15,6 +16,9 @@ class PaymentsRepository {
   final OutboxDao outbox;
   final PaymentsDao dao;
   final BookingDerivedFieldsService derivedFields;
+
+  @override
+  String get tableName => 'payments';
 
   Stream<List<Payment>> paymentsByBooking(int bookingLocalId) {
     final bookingStream = (db.select(db.bookings)
@@ -76,10 +80,13 @@ class PaymentsRepository {
       ),
     );
     if (bookingLocalId != null) {
-      await derivedFields.refreshForBookingId(bookingLocalId);
+      try {
+        await derivedFields.refreshForBookingId(bookingLocalId);
+      } catch (e) {
+        debugPrint('⚠️ فشل تحديث الحقول المشتقة للحجز $bookingLocalId: $e');
+      }
     }
-    AutoBackupManager.instance
-        .onDataChange('payments', 'INSERT', recordData: {'amount': amount});
+    await notifyBackup('INSERT', {'amount': amount});
     return result;
   }
 
@@ -132,10 +139,13 @@ class PaymentsRepository {
         bookingIds.add(newBookingId);
       }
       for (final bId in bookingIds) {
-        await derivedFields.refreshForBookingId(bId);
+        try {
+          await derivedFields.refreshForBookingId(bId);
+        } catch (e) {
+          debugPrint('⚠️ فشل تحديث الحقول المشتقة للحجز $bId: $e');
+        }
       }
-      AutoBackupManager.instance
-          .onDataChange('payments', 'UPDATE', recordData: {'id': id});
+      await notifyBackup('UPDATE', {'id': id});
     }
     return result;
   }
@@ -149,10 +159,13 @@ class PaymentsRepository {
     final result = await dao.softDelete(id);
     if (result > 0) {
       if (bookingId != null) {
-        await derivedFields.refreshForBookingId(bookingId);
+        try {
+          await derivedFields.refreshForBookingId(bookingId);
+        } catch (e) {
+          debugPrint('⚠️ فشل تحديث الحقول المشتقة للحجز $bookingId: $e');
+        }
       }
-      AutoBackupManager.instance
-          .onDataChange('payments', 'DELETE', recordData: {'id': id});
+      await notifyBackup('DELETE', {'id': id});
     }
     return result;
   }

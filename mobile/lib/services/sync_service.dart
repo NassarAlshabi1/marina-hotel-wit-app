@@ -19,6 +19,7 @@ import 'repositories/rooms_repository.dart';
 import 'package:flutter/material.dart';
 import 'sync_mutex.dart';
 import 'sync_config.dart';
+import '../utils/app_strings.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
@@ -67,8 +68,10 @@ class SyncService {
 
   /// تنظيف الموارد
   void dispose() {
+    if (!_status.isClosed) {
+      _status.close();
+    }
     _performanceOptimizer.dispose();
-    _status.close();
   }
 
   /// تشغيل المزامنة مع تحسين الأداء وحماية من التشغيل المتزامن
@@ -447,7 +450,7 @@ class SyncService {
               guestAddress: d.Value(data['guest_address']),
               checkinDate: d.Value(data['checkin_date'] ?? Time.nowIso()),
               checkoutDate: d.Value(data['checkout_date']),
-              status: d.Value(data['status'] ?? 'محجوزة'),
+              status: d.Value(data['status'] ?? AppStrings.statusBooked),
               notes: d.Value(data['notes']),
               serverId: d.Value(sbid),
             ),

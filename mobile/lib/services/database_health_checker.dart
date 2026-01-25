@@ -11,14 +11,19 @@ class DatabaseHealthChecker {
   Timer? _healthCheckTimer;
 
   DatabaseHealth _lastHealth = DatabaseHealth.healthy();
+  bool _isDisposed = false;
 
   Stream<DatabaseHealth> get healthStream => _healthStreamController.stream;
 
   DatabaseHealth get currentHealth => _lastHealth;
 
   void startMonitoring({Duration interval = const Duration(seconds: 30)}) {
+    if (_isDisposed) return;
     _healthCheckTimer?.cancel();
-    _healthCheckTimer = Timer.periodic(interval, (_) => _checkHealth());
+    _healthCheckTimer = Timer.periodic(interval, (_) {
+      if (_isDisposed) return;
+      _checkHealth();
+    });
   }
 
   void stopMonitoring() {
@@ -27,6 +32,8 @@ class DatabaseHealthChecker {
   }
 
   Future<void> _checkHealth() async {
+    if (_isDisposed) return;
+
     try {
       if (!DatabaseManager.isInitialized) {
         _updateHealth(DatabaseHealth.notInitialized());
@@ -53,6 +60,8 @@ class DatabaseHealthChecker {
   }
 
   void _updateHealth(DatabaseHealth health) {
+    if (_isDisposed) return;
+
     _lastHealth = health;
     if (!_healthStreamController.isClosed) {
       _healthStreamController.add(health);
@@ -84,8 +93,12 @@ class DatabaseHealthChecker {
   }
 
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
     stopMonitoring();
-    _healthStreamController.close();
+    if (!_healthStreamController.isClosed) {
+      _healthStreamController.close();
+    }
   }
 }
 

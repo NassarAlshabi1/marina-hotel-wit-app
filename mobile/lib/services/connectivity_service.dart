@@ -76,6 +76,7 @@ class ConnectivityService {
   final _statusController = StreamController<ConnectionStatus>.broadcast();
   ConnectionStatus _currentStatus = ConnectionStatus.offline();
   bool _initialized = false;
+  bool _isDisposed = false;
 
   Stream<ConnectionStatus> get statusStream => _statusController.stream;
   ConnectionStatus get currentStatus => _currentStatus;
@@ -84,7 +85,7 @@ class ConnectivityService {
   bool get isHighSpeed => _currentStatus.isHighSpeed;
 
   Future<void> initialize() async {
-    if (_initialized) return;
+    if (_initialized || _isDisposed) return;
 
     try {
       final results = await _connectivity.checkConnectivity();
@@ -93,9 +94,12 @@ class ConnectivityService {
       _subscription = _connectivity.onConnectivityChanged.listen(
         _updateStatus,
         onError: (error) {
+          if (_isDisposed) return;
           debugPrint('❌ [Connectivity] خطأ في مراقبة الاتصال: $error');
           _currentStatus = ConnectionStatus.offline();
-          _statusController.add(_currentStatus);
+          if (!_statusController.isClosed) {
+            _statusController.add(_currentStatus);
+          }
         },
       );
 
@@ -108,10 +112,14 @@ class ConnectivityService {
   }
 
   void _updateStatus(List<ConnectivityResult> results) {
+    if (_isDisposed) return;
+
     final newStatus = ConnectionStatus.fromConnectivityResult(results);
     final wasOnline = _currentStatus.isOnline;
     _currentStatus = newStatus;
-    _statusController.add(newStatus);
+    if (!_statusController.isClosed) {
+      _statusController.add(newStatus);
+    }
 
     if (!wasOnline && newStatus.isOnline) {
       debugPrint('🌐 [Connectivity] الاتصال متاح: ${newStatus.type}');
@@ -159,8 +167,11 @@ class ConnectivityService {
   void dispose() {
     _subscription?.cancel();
     _subscription = null;
-    _statusController.close();
     _initialized = false;
     _instance = null;
+    if (!_statusController.isClosed) {
+      _statusController.close();
+    }
+    _isDisposed = true;
   }
 }

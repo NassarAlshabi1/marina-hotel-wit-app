@@ -9,6 +9,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
 import '../../utils/time.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/app_strings.dart';
 import '../payments/booking_payment_screen.dart';
 import 'booking_edit.dart';
 import '../payments/payments_main_screen.dart';
@@ -76,10 +77,13 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
 
             final filtered = bookings.where((b) {
               final status = b.status.toLowerCase();
-              if (status == 'مكتمل' ||
-                  status == 'completed' ||
-                  status == 'غادر' ||
-                  status == 'departed') {
+              final completedStatuses = {
+                AppStrings.statusCompleted.toLowerCase(),
+                'completed',
+                AppStrings.statusDeparted.toLowerCase(),
+                'departed',
+              };
+              if (completedStatuses.contains(status)) {
                 return false;
               }
               return true;

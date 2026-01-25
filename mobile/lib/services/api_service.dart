@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../utils/env.dart';
 
@@ -12,7 +13,7 @@ class ApiService {
       headers: {'Content-Type': 'application/json; charset=utf-8'},
     ));
 
-    _dio.interceptors.add(InterceptorsWrapper(
+    _dio!.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         final token = await _storage.read(key: _kToken);
         if (token != null) {
@@ -30,26 +31,38 @@ class ApiService {
           try {
             final req = await _retryRequest(e.requestOptions);
             return handler.resolve(req);
-          } catch (_) {}
+          } catch (error, stack) {
+            debugPrint('❌ فشل إعادة المحاولة: $error');
+          }
         }
         handler.next(e);
       },
     ));
+
+    _isInitialized = true;
   }
   static final ApiService I = ApiService._internal();
 
-  late final Dio _dio;
+  Dio? _dio;
+  bool _isInitialized = false;
   static const _storage = FlutterSecureStorage();
   static const _kToken = 'auth_token';
 
+  Dio get _client {
+    if (_dio == null || !_isInitialized) {
+      throw StateError('ApiService not initialized');
+    }
+    return _dio!;
+  }
+
   Future<Response<dynamic>> _retryRequest(RequestOptions ro) async {
     final opts = Options(method: ro.method, headers: ro.headers);
-    return _dio.request<dynamic>(ro.path,
+    return _client.request<dynamic>(ro.path,
         data: ro.data, queryParameters: ro.queryParameters, options: opts);
   }
 
   Future<Map<String, dynamic>?> login(String username, String password) async {
-    final res = await _dio.post('/auth/login.php',
+    final res = await _client.post('/auth/login.php',
         data: jsonEncode({
           'username': username,
           'password': password,
@@ -76,9 +89,10 @@ class ApiService {
 
   Future<bool> ping() async {
     try {
-      final res = await _dio.get('/auth/ping.php');
+      final res = await _client.get('/auth/ping.php');
       return res.statusCode == 200 && res.data['success'] == true;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('❌ فشل إعادة المحاولة: $e');
       return false;
     }
   }
@@ -95,29 +109,29 @@ class ApiService {
       if (since != null) 'since': since,
       if (filter != null && filter.isNotEmpty) 'filter': filter,
     };
-    final res = await _dio.get('/$entity.php', queryParameters: qp);
+    final res = await _client.get('/$entity.php', queryParameters: qp);
     return Map<String, dynamic>.from(res.data);
   }
 
   Future<Map<String, dynamic>> getEntity(String entity, dynamic id) async {
-    final res = await _dio.get('/$entity.php/$id');
+    final res = await _client.get('/$entity.php/$id');
     return Map<String, dynamic>.from(res.data);
   }
 
   Future<Map<String, dynamic>> createEntity(
       String entity, Map<String, dynamic> data) async {
-    final res = await _dio.post('/$entity.php', data: jsonEncode(data));
+    final res = await _client.post('/$entity.php', data: jsonEncode(data));
     return Map<String, dynamic>.from(res.data);
   }
 
   Future<Map<String, dynamic>> updateEntity(
       String entity, dynamic id, Map<String, dynamic> data) async {
-    final res = await _dio.put('/$entity.php/$id', data: jsonEncode(data));
+    final res = await _client.put('/$entity.php/$id', data: jsonEncode(data));
     return Map<String, dynamic>.from(res.data);
   }
 
   Future<Map<String, dynamic>> deleteEntity(String entity, dynamic id) async {
-    final res = await _dio.delete('/$entity.php/$id');
+    final res = await _client.delete('/$entity.php/$id');
     return Map<String, dynamic>.from(res.data);
   }
 

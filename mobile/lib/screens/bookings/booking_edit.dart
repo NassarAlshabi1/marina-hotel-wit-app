@@ -7,6 +7,7 @@ import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../services/screen_sync_controller.dart';
+import '../../utils/app_strings.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -40,8 +41,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _expectedNights = TextEditingController(text: '1');
   final _notes = TextEditingController();
 
-  String _status = 'محجوزة';
-  String _idType = 'بطاقة شخصية';
+  String _status = AppStrings.statusBooked;
+  String _idType = AppStrings.idTypePersonal;
   bool _roomInitialized = false;
 
   // متغيرات الدفع المتقدم
@@ -52,14 +53,19 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   static const _paymentMethods = ['نقداً', 'تحويل بنكي'];
 
   static const _idTypes = [
-    'بطاقة شخصية',
-    'جواز سفر',
+    AppStrings.idTypePersonal,
+    AppStrings.idTypePassport,
     'رخصة قيادة',
     'بطاقة عسكرية',
     'استبيان',
     'شهادة ميلاد'
   ];
-  static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
+  static const _statusOptions = [
+    AppStrings.statusBooked,
+    'شاغرة',
+    AppStrings.statusCompleted,
+    AppStrings.statusCancelled,
+  ];
 
   @override
   void initState() {

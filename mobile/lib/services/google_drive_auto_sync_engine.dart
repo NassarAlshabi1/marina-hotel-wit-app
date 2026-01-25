@@ -111,6 +111,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   int _failedAttempts = 0;
   DateTime? _nextRetryAt;
   String? _lastError;
+  bool _isDisposed = false;
 
   final _stateController = StreamController<AutoSyncEngineState>.broadcast();
 
@@ -146,6 +147,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   void _emitState() {
+    if (_isDisposed || _stateController.isClosed) return;
     _stateController.add(currentState);
   }
 
@@ -154,6 +156,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
     required AppDatabase database,
     GoogleDriveLogger? logger,
   }) async {
+    if (_isDisposed) {
+      _log('⚠️ Cannot initialize a disposed engine');
+      return;
+    }
     if (_isInitialized) {
       _log('⚠️ Engine already initialized');
       return;
@@ -190,6 +196,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> start() async {
+    if (_isDisposed) {
+      _log('❌ Cannot start - engine disposed');
+      return;
+    }
+
     final canStart = await SyncLocks.autoEngineLock.synchronized(() async {
       if (!_isInitialized) return _StartResult.notInitialized;
       if (_isRunning) return _StartResult.alreadyRunning;
@@ -267,6 +278,8 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
       (List<ConnectivityResult> results) async {
+        if (_isDisposed) return;
+
         final wasConnected = _hasNetworkConnection;
         _hasNetworkConnection =
             results.any((r) => r != ConnectivityResult.none);
@@ -361,11 +374,15 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _healthCheckTimer?.cancel();
     _healthCheckTimer = Timer.periodic(
       const Duration(minutes: 5),
-      (_) => _performHealthCheck(),
+      (_) {
+        if (_isDisposed) return;
+        _performHealthCheck();
+      },
     );
   }
 
   Future<void> _performHealthCheck() async {
+    if (_isDisposed) return;
     final shouldRun =
         await SyncLocks.autoEngineLock.synchronized(() => _isRunning);
     if (!shouldRun) return;
@@ -532,7 +549,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     int count = 1,
     Map<String, dynamic>? recordData,
   }) {
-    if (!_isRunning) return;
+    if (!_isRunning || _isDisposed) return;
 
     SyncLocks.autoEngineLock.synchronized(() {
       _pendingChangesCount += count;
@@ -564,6 +581,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
     _retryTimer?.cancel();
     _retryTimer = Timer(Duration(seconds: delaySeconds), () async {
+      if (_isDisposed || !_isRunning) {
+        return;
+      }
+
       _log('🔄 Executing scheduled retry #$_failedAttempts');
 
       if (!_hasNetworkConnection) {
@@ -763,8 +784,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
+
     stop();
-    _stateController.close();
+    WidgetsBinding.instance.removeObserver(this);
+    if (!_stateController.isClosed) {
+      _stateController.close();
+    }
     _log('🛑 Auto Sync Engine disposed');
   }
 }

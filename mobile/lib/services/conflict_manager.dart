@@ -41,6 +41,7 @@ class ConflictManager {
   final _conflictsController =
       StreamController<List<PendingConflict>>.broadcast();
   final List<PendingConflict> _pendingConflicts = [];
+  bool _isDisposed = false;
 
   Stream<List<PendingConflict>> get conflictsStream =>
       _conflictsController.stream;
@@ -71,7 +72,9 @@ class ConflictManager {
 
     if (autoResolution == null) {
       _pendingConflicts.add(conflict);
-      _conflictsController.add(_pendingConflicts);
+      if (!_conflictsController.isClosed) {
+        _conflictsController.add(_pendingConflicts);
+      }
     }
 
     await _persistConflict(conflict);
@@ -100,7 +103,9 @@ class ConflictManager {
     await _updateConflictResolution(conflictId, resolution);
 
     _pendingConflicts.removeAt(index);
-    _conflictsController.add(_pendingConflicts);
+    if (!_conflictsController.isClosed) {
+      _conflictsController.add(_pendingConflicts);
+    }
   }
 
   Future<void> _persistConflict(PendingConflict conflict) async {
@@ -212,13 +217,19 @@ class ConflictManager {
         ));
       }
 
-      _conflictsController.add(_pendingConflicts);
+      if (!_conflictsController.isClosed) {
+        _conflictsController.add(_pendingConflicts);
+      }
     } catch (e) {
       debugPrint('❌ فشل تحميل التعارضات المعلقة: $e');
     }
   }
 
   void dispose() {
-    _conflictsController.close();
+    if (_isDisposed) return;
+    _isDisposed = true;
+    if (!_conflictsController.isClosed) {
+      _conflictsController.close();
+    }
   }
 }

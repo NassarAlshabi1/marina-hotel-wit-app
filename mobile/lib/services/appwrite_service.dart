@@ -13,22 +13,34 @@ class AppwriteService {
   factory AppwriteService() => _instance;
   AppwriteService._internal();
 
-  late final Client _client;
-  late final Databases _databases;
+  Client? _client;
+  Databases? _databases;
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
   final _cache = AppwriteCacheManager();
   final _networkHelper = AppwriteNetworkHelper();
 
-  bool _initialized = false;
+  bool _isInitialized = false;
 
   /// Getter للوصول إلى Client من الخارج
-  Client get client => _client;
+  Client get client {
+    if (_client == null || !_isInitialized) {
+      throw StateError('AppwriteService not initialized. Call initialize() first.');
+    }
+    return _client!;
+  }
+
+  Databases get databases {
+    if (_databases == null || !_isInitialized) {
+      throw StateError('AppwriteService not initialized. Call initialize() first.');
+    }
+    return _databases!;
+  }
 
   /// تهيئة الخدمة
   Future<void> initialize() async {
-    if (_initialized) return;
+    if (_isInitialized) return;
 
     try {
       // التحقق من صحة الإعدادات
@@ -49,9 +61,9 @@ class AppwriteService {
       // 3. JWT Tokens
       // لكن للتطوير والاختبار، يمكن استخدام الصلاحيات المفتوحة (Any role)
 
-      _databases = Databases(_client);
+      _databases = Databases(_client!);
 
-      _initialized = true;
+      _isInitialized = true;
       _logger.info('Appwrite service initialized successfully', tag: 'SERVICE');
     } catch (e, stackTrace) {
       _logger.error('Failed to initialize Appwrite service',
@@ -62,7 +74,7 @@ class AppwriteService {
 
   /// التأكد من التهيئة
   void _ensureInitialized() {
-    if (!_initialized) {
+    if (!_isInitialized) {
       throw Exception(
           'AppwriteService not initialized. Call initialize() first.');
     }
@@ -249,7 +261,7 @@ class AppwriteService {
       final sanitizedData = _sanitizeData(collectionId, data);
 
       Future<models.Document> performOperation() {
-        return _databases.createDocument(
+        return databases.createDocument(
           databaseId: AppwriteConfig.databaseId,
           collectionId: collectionId,
           documentId: documentId ?? 'unique()',
@@ -301,7 +313,7 @@ class AppwriteService {
       _logger.debug('Getting document $documentId from $collectionId',
           tag: 'CRUD');
 
-      final document = await _databases.getDocument(
+      final document = await databases.getDocument(
         databaseId: AppwriteConfig.databaseId,
         collectionId: collectionId,
         documentId: documentId,
@@ -340,7 +352,7 @@ class AppwriteService {
       final sanitizedData = _sanitizeData(collectionId, data);
 
       Future<models.Document> performOperation() {
-        return _databases.updateDocument(
+        return databases.updateDocument(
           databaseId: AppwriteConfig.databaseId,
           collectionId: collectionId,
           documentId: documentId,
@@ -383,7 +395,7 @@ class AppwriteService {
       _logger.debug('Deleting document $documentId from $collectionId',
           tag: 'CRUD');
 
-      await _databases.deleteDocument(
+      await databases.deleteDocument(
         databaseId: AppwriteConfig.databaseId,
         collectionId: collectionId,
         documentId: documentId,
@@ -436,7 +448,7 @@ class AppwriteService {
       );
 
       Future<List<models.Document>> performOperation() async {
-        final documentList = await _databases.listDocuments(
+        final documentList = await databases.listDocuments(
           databaseId: AppwriteConfig.databaseId,
           collectionId: collectionId,
           queries: queries,
@@ -786,7 +798,7 @@ class AppwriteService {
       try {
         _logger.debug('Testing READ operation...', tag: 'CONNECTION_TEST');
         final docs = await _networkHelper.withTimeout(
-          operation: () => _databases.listDocuments(
+          operation: () => databases.listDocuments(
             databaseId: AppwriteConfig.databaseId,
             collectionId: testCollection,
           ),
@@ -821,7 +833,7 @@ class AppwriteService {
           };
 
           final createdDoc = await _networkHelper.withTimeout(
-            operation: () => _databases.createDocument(
+            operation: () => databases.createDocument(
               databaseId: AppwriteConfig.databaseId,
               collectionId: testCollection,
               documentId: 'unique()',
@@ -847,7 +859,7 @@ class AppwriteService {
           };
 
           await _networkHelper.withTimeout(
-            operation: () => _databases.updateDocument(
+            operation: () => databases.updateDocument(
               databaseId: AppwriteConfig.databaseId,
               collectionId: testCollection,
               documentId: testDocumentId!,
@@ -863,7 +875,7 @@ class AppwriteService {
           // 4. اختبار الحذف (Delete)
           _logger.debug('Testing DELETE operation...', tag: 'CONNECTION_TEST');
           await _networkHelper.withTimeout(
-            operation: () => _databases.deleteDocument(
+            operation: () => databases.deleteDocument(
               databaseId: AppwriteConfig.databaseId,
               collectionId: testCollection,
               documentId: testDocumentId!,
@@ -892,7 +904,7 @@ class AppwriteService {
           // تنظيف: حذف المستند الاختباري إذا كان موجوداً
           if (testDocumentId != null) {
             try {
-              await _databases.deleteDocument(
+              await databases.deleteDocument(
                 databaseId: AppwriteConfig.databaseId,
                 collectionId: testCollection,
                 documentId: testDocumentId,
@@ -935,7 +947,7 @@ class AppwriteService {
       _ensureInitialized();
 
       await _networkHelper.withTimeout(
-        operation: () => _databases.listDocuments(
+        operation: () => databases.listDocuments(
           databaseId: AppwriteConfig.databaseId,
           collectionId: AppwriteConfig.roomsCollectionId,
         ),
@@ -958,7 +970,7 @@ class AppwriteService {
       'endpoint': AppwriteConfig.endpoint,
       'projectId': AppwriteConfig.projectId,
       'databaseId': AppwriteConfig.databaseId,
-      'initialized': _initialized.toString(),
+      'initialized': _isInitialized.toString(),
     };
   }
 }

@@ -31,6 +31,7 @@ class SmartGoogleDriveSync {
   bool _isEnabled = false;
   bool _hasPendingChanges = false;
   int _pendingChangesCount = 0;
+  bool _isDisposed = false;
 
   static const String _prefsEnabledKey = 'smart_gd_sync_enabled';
   static const String _prefsLastFullBackupKey = 'smart_gd_last_full_backup';
@@ -74,6 +75,8 @@ class SmartGoogleDriveSync {
 
   /// بدء المزامنة التلقائية
   Future<void> start() async {
+    if (_isDisposed) return;
+
     if (!_isEnabled || _driveService?.isSignedIn != true) {
       _log('⚠️ المزامنة غير مُفعلة أو غير مسجل الدخول');
       return;
@@ -94,8 +97,11 @@ class SmartGoogleDriveSync {
   /// إيقاف المزامنة
   void stop() {
     _debounceTimer?.cancel();
+    _debounceTimer = null;
     _periodicSyncTimer?.cancel();
+    _periodicSyncTimer = null;
     _dailyFullBackupTimer?.cancel();
+    _dailyFullBackupTimer = null;
     _hasPendingChanges = false;
     _pendingChangesCount = 0;
     _log('⏸️ تم إيقاف المزامنة التلقائية');
@@ -116,7 +122,7 @@ class SmartGoogleDriveSync {
 
   /// تسجيل تغيير محلي (يُستدعى من DAOs)
   void notifyLocalChange({String? entity, int count = 1}) {
-    if (!_isEnabled) return;
+    if (!_isEnabled || _isDisposed) return;
 
     _hasPendingChanges = true;
     _pendingChangesCount += count;
@@ -124,6 +130,7 @@ class SmartGoogleDriveSync {
     // إلغاء المؤقت السابق وبدء واحد جديد (Debouncing)
     _debounceTimer?.cancel();
     _debounceTimer = Timer(_debounceDuration, () {
+      if (_isDisposed) return;
       if (_hasPendingChanges) {
         _log('📤 رفع $_pendingChangesCount تغيير بعد debounce...');
         pushLocalChanges();
@@ -133,6 +140,8 @@ class SmartGoogleDriveSync {
 
   /// رفع التغييرات المحلية (Delta Sync)
   Future<bool> pushLocalChanges() async {
+    if (_isDisposed) return false;
+
     final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
       if (_isSyncing || !_isEnabled || _driveService?.isSignedIn != true) {
         return false;
@@ -185,6 +194,8 @@ class SmartGoogleDriveSync {
 
   /// سحب التغييرات من الأجهزة الأخرى
   Future<bool> pullRemoteChanges() async {
+    if (_isDisposed) return false;
+
     final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
       if (_isSyncing || !_isEnabled || _driveService?.isSignedIn != true) {
         return false;
@@ -229,6 +240,8 @@ class SmartGoogleDriveSync {
 
   /// عمل نسخة احتياطية كاملة
   Future<bool> createFullBackup() async {
+    if (_isDisposed) return false;
+
     final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
       if (_isSyncing || _driveService?.isSignedIn != true) {
         return false;
@@ -279,6 +292,7 @@ class SmartGoogleDriveSync {
     _periodicSyncTimer?.cancel();
 
     _periodicSyncTimer = Timer.periodic(_periodicSyncInterval, (timer) async {
+      if (_isDisposed) return;
       if (!_isSyncing) {
         _log('🔄 فحص دوري للتحديثات...');
 
@@ -321,11 +335,13 @@ class SmartGoogleDriveSync {
 
     _dailyFullBackupTimer?.cancel();
     _dailyFullBackupTimer = Timer(initialDelay, () async {
+      if (_isDisposed) return;
       await createFullBackup();
 
       // جدولة التكرار اليومي
       _dailyFullBackupTimer =
           Timer.periodic(_dailyFullBackupInterval, (timer) async {
+        if (_isDisposed) return;
         await createFullBackup();
       });
     });
@@ -345,6 +361,8 @@ class SmartGoogleDriveSync {
 
   /// تنظيف الموارد
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
     stop();
   }
 }

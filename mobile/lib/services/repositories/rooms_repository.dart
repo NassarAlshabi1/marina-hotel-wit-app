@@ -1,17 +1,21 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 import '../../utils/status_utils.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/rooms_dao.dart';
-import '../auto_backup_manager.dart';
+import 'base_repository.dart';
 
-class RoomsRepository {
+class RoomsRepository extends BaseRepository<Room, RoomsCompanion> {
   RoomsRepository(this.db)
       : outbox = OutboxDao(db),
         dao = RoomsDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final RoomsDao dao;
+
+  @override
+  String get tableName => 'rooms';
 
   Stream<List<Room>> watchAll({String? search}) =>
       dao.watchList(search: search);
@@ -34,8 +38,7 @@ class RoomsRepository {
         imageUrl: d.Value(imageUrl),
       ),
     );
-    AutoBackupManager.instance.onDataChange('rooms', 'INSERT',
-        recordData: {'room_number': roomNumber});
+    await notifyBackup('INSERT', {'room_number': roomNumber});
     return result;
   }
 
@@ -51,8 +54,7 @@ class RoomsRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance
-          .onDataChange('rooms', 'UPDATE', recordData: {'id': id});
+      await notifyBackup('UPDATE', {'id': id});
     }
     return result;
   }
@@ -78,8 +80,7 @@ class RoomsRepository {
   Future<int> delete(String roomNumber) async {
     final result = await dao.softDelete(roomNumber);
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange('rooms', 'DELETE',
-          recordData: {'room_number': roomNumber});
+      await notifyBackup('DELETE', {'room_number': roomNumber});
     }
     return result;
   }
