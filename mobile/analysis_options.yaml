@@ -1,5 +1,3 @@
-include: package:dcm/configs/recommended.yaml
-
 analyzer:
   exclude:
     - lib/services/repositories/automated_repositories_examples.dart
