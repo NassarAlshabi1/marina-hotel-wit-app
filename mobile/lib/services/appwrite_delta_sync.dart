@@ -379,30 +379,30 @@ class AppwriteDeltaSync {
       origin: d.Value('appwrite_delta'),
     );
 
-    final existingByUuid = await (db.select(db.rooms)
-          ..where((t) => t.localUuid.equals(localUuid))
-          ..limit(1))
-        .getSingleOrNull();
+    final existingByUuid =
+        await (db.select(db.rooms)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
 
     if (existingByUuid != null) {
       await (db.update(
         db.rooms,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .write(companion);
+      )..where((t) => t.localUuid.equals(localUuid))).write(companion);
       return;
     }
 
-    final existingByNumber = await (db.select(db.rooms)
-          ..where((t) => t.roomNumber.equals(roomNumber))
-          ..limit(1))
-        .getSingleOrNull();
+    final existingByNumber =
+        await (db.select(db.rooms)
+              ..where((t) => t.roomNumber.equals(roomNumber))
+              ..limit(1))
+            .getSingleOrNull();
 
     if (existingByNumber != null) {
       if (incomingLastModified >= existingByNumber.lastModified) {
         await (db.update(
           db.rooms,
-        )..where((t) => t.roomNumber.equals(roomNumber)))
-            .write(companion);
+        )..where((t) => t.roomNumber.equals(roomNumber))).write(companion);
       }
       return;
     }

@@ -35,7 +35,7 @@ void main() {
 
       // يجب ألا ترمي خطأ عند تمرير قائمة فارغة
       expect(
-        () => optimizer._updateConnectivityStatus(emptyResults),
+        () => optimizer.simulateConnectivity(emptyResults),
         returnsNormally,
       );
 
@@ -51,7 +51,7 @@ void main() {
         ConnectivityResult.bluetooth,
       ];
 
-      optimizer._updateConnectivityStatus(mixedResults);
+      optimizer.simulateConnectivity(mixedResults);
 
       // يجب أن يفضل WiFi على Mobile
       expect(optimizer.isOnWiFi, true);
@@ -62,7 +62,7 @@ void main() {
         ConnectivityResult.mobile,
       ];
 
-      optimizer._updateConnectivityStatus(mobileResults);
+      optimizer.simulateConnectivity(mobileResults);
 
       expect(optimizer.isOnWiFi, false);
     });
@@ -98,7 +98,7 @@ void main() {
         final results = testCase.$1;
         final expectedIsOnWiFi = testCase.$2;
 
-        optimizer._updateConnectivityStatus(results);
+        optimizer.simulateConnectivity(results);
         expect(
           optimizer.isOnWiFi,
           expectedIsOnWiFi,
@@ -110,7 +110,7 @@ void main() {
     test('should get correct performance settings based on connection', () {
       // اختبار إعدادات الأداء لـ WiFi
       const List<ConnectivityResult> wifiResults = [ConnectivityResult.wifi];
-      optimizer._updateConnectivityStatus(wifiResults);
+      optimizer.simulateConnectivity(wifiResults);
 
       final wifiSettings = optimizer.getCurrentPerformanceSettings();
       expect(wifiSettings['batchSize'], 100);
@@ -122,7 +122,7 @@ void main() {
       const List<ConnectivityResult> mobileResults = [
         ConnectivityResult.mobile,
       ];
-      optimizer._updateConnectivityStatus(mobileResults);
+      optimizer.simulateConnectivity(mobileResults);
 
       final mobileSettings = optimizer.getCurrentPerformanceSettings();
       expect(mobileSettings['batchSize'], 50);
@@ -162,7 +162,7 @@ void main() {
 
     test('should provide performance stats', () {
       const List<ConnectivityResult> wifiResults = [ConnectivityResult.wifi];
-      optimizer._updateConnectivityStatus(wifiResults);
+      optimizer.simulateConnectivity(wifiResults);
       optimizer.recordSyncAttempt(success: false);
 
       final stats = optimizer.getPerformanceStats();
@@ -174,44 +174,4 @@ void main() {
       expect(stats.containsKey('lastSyncTime'), true);
     });
   });
-}
-
-/// extension لاختبار الدوال الخاصة
-extension SyncPerformanceOptimizerTestExtension on SyncPerformanceOptimizer {
-  void _updateConnectivityStatus(List<ConnectivityResult> results) {
-    // استدعاء الدالة الخاصة للاختبار
-    // في الاستخدام الفعلي، هذه الدالة تُستدعى داخلياً
-    // ولكن للاختبار نحتاج للوصول إليها
-
-    // نسخ منطق الدالة للاختبار
-    // ignore: unused_local_variable
-    final wasOnWiFi = isOnWiFi;
-
-    if (results.isEmpty) {
-      // معالجة القائمة الفارغة
-      return;
-    }
-
-    // ignore: unused_local_variable
-    bool newIsOnWiFi = false;
-
-    if (results.contains(ConnectivityResult.wifi)) {
-      newIsOnWiFi = true;
-    } else if (results.contains(ConnectivityResult.ethernet)) {
-      newIsOnWiFi = true;
-    } else if (results.contains(ConnectivityResult.mobile)) {
-      newIsOnWiFi = false;
-    } else if (results.contains(ConnectivityResult.vpn)) {
-      newIsOnWiFi = false;
-    } else if (results.contains(ConnectivityResult.bluetooth)) {
-      newIsOnWiFi = false;
-    } else if (results.contains(ConnectivityResult.other)) {
-      newIsOnWiFi = false;
-    } else {
-      newIsOnWiFi = false;
-    }
-
-    // محاكاة تحديث الحالة الداخلية
-    // في الاستخدام الفعلي، هذا يحدث داخل الكلاس
-  }
 }

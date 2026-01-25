@@ -158,8 +158,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     final priorityColor = note.priority == 'high'
         ? Colors.red
         : note.priority == 'medium'
-            ? Colors.orange
-            : Colors.green;
+        ? Colors.orange
+        : Colors.green;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),

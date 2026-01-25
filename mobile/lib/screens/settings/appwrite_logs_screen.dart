@@ -170,8 +170,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                     separatorBuilder: (context, index) =>
                         const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      final log = filteredLogs[
-                          filteredLogs.length - 1 - index]; // عكس الترتيب
+                      final log =
+                          filteredLogs[filteredLogs.length -
+                              1 -
+                              index]; // عكس الترتيب
                       return _buildLogEntry(log);
                     },
                   ),

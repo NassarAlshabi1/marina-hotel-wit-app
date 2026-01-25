@@ -234,23 +234,23 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
   @override
   late final GeneratedColumn<String> lastCleanedHotelDay =
       GeneratedColumn<String>(
-    'last_cleaned_hotel_day',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
+        'last_cleaned_hotel_day',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _lastOccupiedHotelDayMeta =
       const VerificationMeta('lastOccupiedHotelDay');
   @override
   late final GeneratedColumn<String> lastOccupiedHotelDay =
       GeneratedColumn<String>(
-    'last_occupied_hotel_day',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
+        'last_occupied_hotel_day',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _requiresMaintenanceMeta =
       const VerificationMeta('requiresMaintenance');
   @override
@@ -267,30 +267,30 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        roomNumber,
-        type,
-        price,
-        status,
-        imageUrl,
-        cleaningStatus,
-        lastCleanedHotelDay,
-        lastOccupiedHotelDay,
-        requiresMaintenance,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    roomNumber,
+    type,
+    price,
+    status,
+    imageUrl,
+    cleaningStatus,
+    lastCleanedHotelDay,
+    lastOccupiedHotelDay,
+    requiresMaintenance,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -823,39 +823,35 @@ class Room extends DataClass implements Insertable<Room> {
     Value<String?> lastCleanedHotelDay = const Value.absent(),
     Value<String?> lastOccupiedHotelDay = const Value.absent(),
     bool? requiresMaintenance,
-  }) =>
-      Room(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        roomNumber: roomNumber ?? this.roomNumber,
-        type: type ?? this.type,
-        price: price ?? this.price,
-        status: status ?? this.status,
-        imageUrl: imageUrl.present ? imageUrl.value : this.imageUrl,
-        cleaningStatus: cleaningStatus ?? this.cleaningStatus,
-        lastCleanedHotelDay: lastCleanedHotelDay.present
-            ? lastCleanedHotelDay.value
-            : this.lastCleanedHotelDay,
-        lastOccupiedHotelDay: lastOccupiedHotelDay.present
-            ? lastOccupiedHotelDay.value
-            : this.lastOccupiedHotelDay,
-        requiresMaintenance: requiresMaintenance ?? this.requiresMaintenance,
-      );
+  }) => Room(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    roomNumber: roomNumber ?? this.roomNumber,
+    type: type ?? this.type,
+    price: price ?? this.price,
+    status: status ?? this.status,
+    imageUrl: imageUrl.present ? imageUrl.value : this.imageUrl,
+    cleaningStatus: cleaningStatus ?? this.cleaningStatus,
+    lastCleanedHotelDay: lastCleanedHotelDay.present
+        ? lastCleanedHotelDay.value
+        : this.lastCleanedHotelDay,
+    lastOccupiedHotelDay: lastOccupiedHotelDay.present
+        ? lastOccupiedHotelDay.value
+        : this.lastOccupiedHotelDay,
+    requiresMaintenance: requiresMaintenance ?? this.requiresMaintenance,
+  );
   Room copyWithCompanion(RoomsCompanion data) {
     return Room(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -884,8 +880,9 @@ class Room extends DataClass implements Insertable<Room> {
       version: data.version.present ? data.version.value : this.version,
       origin: data.origin.present ? data.origin.value : this.origin,
       id: data.id.present ? data.id.value : this.id,
-      roomNumber:
-          data.roomNumber.present ? data.roomNumber.value : this.roomNumber,
+      roomNumber: data.roomNumber.present
+          ? data.roomNumber.value
+          : this.roomNumber,
       type: data.type.present ? data.type.value : this.type,
       price: data.price.present ? data.price.value : this.price,
       status: data.status.present ? data.status.value : this.status,
@@ -937,30 +934,30 @@ class Room extends DataClass implements Insertable<Room> {
 
   @override
   int get hashCode => Object.hashAll([
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        roomNumber,
-        type,
-        price,
-        status,
-        imageUrl,
-        cleaningStatus,
-        lastCleanedHotelDay,
-        lastOccupiedHotelDay,
-        requiresMaintenance,
-      ]);
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    roomNumber,
+    type,
+    price,
+    status,
+    imageUrl,
+    cleaningStatus,
+    lastCleanedHotelDay,
+    lastOccupiedHotelDay,
+    requiresMaintenance,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1063,14 +1060,14 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     this.lastCleanedHotelDay = const Value.absent(),
     this.lastOccupiedHotelDay = const Value.absent(),
     this.requiresMaintenance = const Value.absent(),
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        roomNumber = Value(roomNumber),
-        type = Value(type),
-        price = Value(price),
-        status = Value(status);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       roomNumber = Value(roomNumber),
+       type = Value(type),
+       price = Value(price),
+       status = Value(status);
   static Insertable<Room> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -1540,12 +1537,12 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
   @override
   late final GeneratedColumn<String> guestIdIssuePlace =
       GeneratedColumn<String>(
-    'guest_id_issue_place',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
+        'guest_id_issue_place',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _guestNationalityMeta = const VerificationMeta(
     'guestNationality',
   );
@@ -1746,13 +1743,13 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
   @override
   late final GeneratedColumn<double> remainingBalanceCached =
       GeneratedColumn<double>(
-    'remaining_balance_cached',
-    aliasedName,
-    false,
-    type: DriftSqlType.double,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
+        'remaining_balance_cached',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
   static const VerificationMeta _isFullyPaidMeta = const VerificationMeta(
     'isFullyPaid',
   );
@@ -1792,50 +1789,50 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        serverBookingId,
-        roomNumber,
-        guestName,
-        guestPhone,
-        guestIdType,
-        guestIdNumber,
-        guestIdIssueDate,
-        guestIdIssuePlace,
-        guestNationality,
-        guestEmail,
-        guestAddress,
-        checkinDate,
-        checkoutDate,
-        actualCheckout,
-        status,
-        notes,
-        expectedNights,
-        calculatedNights,
-        totalNightsCached,
-        stayDurationIso,
-        lastNightEpoch,
-        isOverdue,
-        needsCheckoutReview,
-        totalDueCached,
-        totalPaidCached,
-        remainingBalanceCached,
-        isFullyPaid,
-        hotelDayCheckin,
-        hotelDayCheckout,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    serverBookingId,
+    roomNumber,
+    guestName,
+    guestPhone,
+    guestIdType,
+    guestIdNumber,
+    guestIdIssueDate,
+    guestIdIssuePlace,
+    guestNationality,
+    guestEmail,
+    guestAddress,
+    checkinDate,
+    checkoutDate,
+    actualCheckout,
+    status,
+    notes,
+    expectedNights,
+    calculatedNights,
+    totalNightsCached,
+    stayDurationIso,
+    lastNightEpoch,
+    isOverdue,
+    needsCheckoutReview,
+    totalDueCached,
+    totalPaidCached,
+    remainingBalanceCached,
+    isFullyPaid,
+    hotelDayCheckin,
+    hotelDayCheckout,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2624,8 +2621,9 @@ class Booking extends DataClass implements Insertable<Booking> {
           ? const Value.absent()
           : Value(actualCheckout),
       status: Value(status),
-      notes:
-          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
       expectedNights: Value(expectedNights),
       calculatedNights: Value(calculatedNights),
       totalNightsCached: Value(totalNightsCached),
@@ -2803,72 +2801,68 @@ class Booking extends DataClass implements Insertable<Booking> {
     bool? isFullyPaid,
     Value<String?> hotelDayCheckin = const Value.absent(),
     Value<String?> hotelDayCheckout = const Value.absent(),
-  }) =>
-      Booking(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        serverBookingId: serverBookingId.present
-            ? serverBookingId.value
-            : this.serverBookingId,
-        roomNumber: roomNumber ?? this.roomNumber,
-        guestName: guestName ?? this.guestName,
-        guestPhone: guestPhone ?? this.guestPhone,
-        guestIdType: guestIdType ?? this.guestIdType,
-        guestIdNumber: guestIdNumber ?? this.guestIdNumber,
-        guestIdIssueDate: guestIdIssueDate.present
-            ? guestIdIssueDate.value
-            : this.guestIdIssueDate,
-        guestIdIssuePlace: guestIdIssuePlace.present
-            ? guestIdIssuePlace.value
-            : this.guestIdIssuePlace,
-        guestNationality: guestNationality ?? this.guestNationality,
-        guestEmail: guestEmail.present ? guestEmail.value : this.guestEmail,
-        guestAddress:
-            guestAddress.present ? guestAddress.value : this.guestAddress,
-        checkinDate: checkinDate ?? this.checkinDate,
-        checkoutDate:
-            checkoutDate.present ? checkoutDate.value : this.checkoutDate,
-        actualCheckout:
-            actualCheckout.present ? actualCheckout.value : this.actualCheckout,
-        status: status ?? this.status,
-        notes: notes.present ? notes.value : this.notes,
-        expectedNights: expectedNights ?? this.expectedNights,
-        calculatedNights: calculatedNights ?? this.calculatedNights,
-        totalNightsCached: totalNightsCached ?? this.totalNightsCached,
-        stayDurationIso: stayDurationIso.present
-            ? stayDurationIso.value
-            : this.stayDurationIso,
-        lastNightEpoch:
-            lastNightEpoch.present ? lastNightEpoch.value : this.lastNightEpoch,
-        isOverdue: isOverdue ?? this.isOverdue,
-        needsCheckoutReview: needsCheckoutReview ?? this.needsCheckoutReview,
-        totalDueCached: totalDueCached ?? this.totalDueCached,
-        totalPaidCached: totalPaidCached ?? this.totalPaidCached,
-        remainingBalanceCached:
-            remainingBalanceCached ?? this.remainingBalanceCached,
-        isFullyPaid: isFullyPaid ?? this.isFullyPaid,
-        hotelDayCheckin: hotelDayCheckin.present
-            ? hotelDayCheckin.value
-            : this.hotelDayCheckin,
-        hotelDayCheckout: hotelDayCheckout.present
-            ? hotelDayCheckout.value
-            : this.hotelDayCheckout,
-      );
+  }) => Booking(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    serverBookingId: serverBookingId.present
+        ? serverBookingId.value
+        : this.serverBookingId,
+    roomNumber: roomNumber ?? this.roomNumber,
+    guestName: guestName ?? this.guestName,
+    guestPhone: guestPhone ?? this.guestPhone,
+    guestIdType: guestIdType ?? this.guestIdType,
+    guestIdNumber: guestIdNumber ?? this.guestIdNumber,
+    guestIdIssueDate: guestIdIssueDate.present
+        ? guestIdIssueDate.value
+        : this.guestIdIssueDate,
+    guestIdIssuePlace: guestIdIssuePlace.present
+        ? guestIdIssuePlace.value
+        : this.guestIdIssuePlace,
+    guestNationality: guestNationality ?? this.guestNationality,
+    guestEmail: guestEmail.present ? guestEmail.value : this.guestEmail,
+    guestAddress: guestAddress.present ? guestAddress.value : this.guestAddress,
+    checkinDate: checkinDate ?? this.checkinDate,
+    checkoutDate: checkoutDate.present ? checkoutDate.value : this.checkoutDate,
+    actualCheckout: actualCheckout.present
+        ? actualCheckout.value
+        : this.actualCheckout,
+    status: status ?? this.status,
+    notes: notes.present ? notes.value : this.notes,
+    expectedNights: expectedNights ?? this.expectedNights,
+    calculatedNights: calculatedNights ?? this.calculatedNights,
+    totalNightsCached: totalNightsCached ?? this.totalNightsCached,
+    stayDurationIso: stayDurationIso.present
+        ? stayDurationIso.value
+        : this.stayDurationIso,
+    lastNightEpoch: lastNightEpoch.present
+        ? lastNightEpoch.value
+        : this.lastNightEpoch,
+    isOverdue: isOverdue ?? this.isOverdue,
+    needsCheckoutReview: needsCheckoutReview ?? this.needsCheckoutReview,
+    totalDueCached: totalDueCached ?? this.totalDueCached,
+    totalPaidCached: totalPaidCached ?? this.totalPaidCached,
+    remainingBalanceCached:
+        remainingBalanceCached ?? this.remainingBalanceCached,
+    isFullyPaid: isFullyPaid ?? this.isFullyPaid,
+    hotelDayCheckin: hotelDayCheckin.present
+        ? hotelDayCheckin.value
+        : this.hotelDayCheckin,
+    hotelDayCheckout: hotelDayCheckout.present
+        ? hotelDayCheckout.value
+        : this.hotelDayCheckout,
+  );
   Booking copyWithCompanion(BookingsCompanion data) {
     return Booking(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -2900,13 +2894,16 @@ class Booking extends DataClass implements Insertable<Booking> {
       serverBookingId: data.serverBookingId.present
           ? data.serverBookingId.value
           : this.serverBookingId,
-      roomNumber:
-          data.roomNumber.present ? data.roomNumber.value : this.roomNumber,
+      roomNumber: data.roomNumber.present
+          ? data.roomNumber.value
+          : this.roomNumber,
       guestName: data.guestName.present ? data.guestName.value : this.guestName,
-      guestPhone:
-          data.guestPhone.present ? data.guestPhone.value : this.guestPhone,
-      guestIdType:
-          data.guestIdType.present ? data.guestIdType.value : this.guestIdType,
+      guestPhone: data.guestPhone.present
+          ? data.guestPhone.value
+          : this.guestPhone,
+      guestIdType: data.guestIdType.present
+          ? data.guestIdType.value
+          : this.guestIdType,
       guestIdNumber: data.guestIdNumber.present
           ? data.guestIdNumber.value
           : this.guestIdNumber,
@@ -2919,13 +2916,15 @@ class Booking extends DataClass implements Insertable<Booking> {
       guestNationality: data.guestNationality.present
           ? data.guestNationality.value
           : this.guestNationality,
-      guestEmail:
-          data.guestEmail.present ? data.guestEmail.value : this.guestEmail,
+      guestEmail: data.guestEmail.present
+          ? data.guestEmail.value
+          : this.guestEmail,
       guestAddress: data.guestAddress.present
           ? data.guestAddress.value
           : this.guestAddress,
-      checkinDate:
-          data.checkinDate.present ? data.checkinDate.value : this.checkinDate,
+      checkinDate: data.checkinDate.present
+          ? data.checkinDate.value
+          : this.checkinDate,
       checkoutDate: data.checkoutDate.present
           ? data.checkoutDate.value
           : this.checkoutDate,
@@ -2962,8 +2961,9 @@ class Booking extends DataClass implements Insertable<Booking> {
       remainingBalanceCached: data.remainingBalanceCached.present
           ? data.remainingBalanceCached.value
           : this.remainingBalanceCached,
-      isFullyPaid:
-          data.isFullyPaid.present ? data.isFullyPaid.value : this.isFullyPaid,
+      isFullyPaid: data.isFullyPaid.present
+          ? data.isFullyPaid.value
+          : this.isFullyPaid,
       hotelDayCheckin: data.hotelDayCheckin.present
           ? data.hotelDayCheckin.value
           : this.hotelDayCheckin,
@@ -3025,50 +3025,50 @@ class Booking extends DataClass implements Insertable<Booking> {
 
   @override
   int get hashCode => Object.hashAll([
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        serverBookingId,
-        roomNumber,
-        guestName,
-        guestPhone,
-        guestIdType,
-        guestIdNumber,
-        guestIdIssueDate,
-        guestIdIssuePlace,
-        guestNationality,
-        guestEmail,
-        guestAddress,
-        checkinDate,
-        checkoutDate,
-        actualCheckout,
-        status,
-        notes,
-        expectedNights,
-        calculatedNights,
-        totalNightsCached,
-        stayDurationIso,
-        lastNightEpoch,
-        isOverdue,
-        needsCheckoutReview,
-        totalDueCached,
-        totalPaidCached,
-        remainingBalanceCached,
-        isFullyPaid,
-        hotelDayCheckin,
-        hotelDayCheckout,
-      ]);
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    serverBookingId,
+    roomNumber,
+    guestName,
+    guestPhone,
+    guestIdType,
+    guestIdNumber,
+    guestIdIssueDate,
+    guestIdIssuePlace,
+    guestNationality,
+    guestEmail,
+    guestAddress,
+    checkinDate,
+    checkoutDate,
+    actualCheckout,
+    status,
+    notes,
+    expectedNights,
+    calculatedNights,
+    totalNightsCached,
+    stayDurationIso,
+    lastNightEpoch,
+    isOverdue,
+    needsCheckoutReview,
+    totalDueCached,
+    totalPaidCached,
+    remainingBalanceCached,
+    isFullyPaid,
+    hotelDayCheckin,
+    hotelDayCheckout,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3251,16 +3251,16 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.isFullyPaid = const Value.absent(),
     this.hotelDayCheckin = const Value.absent(),
     this.hotelDayCheckout = const Value.absent(),
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        roomNumber = Value(roomNumber),
-        guestName = Value(guestName),
-        guestPhone = Value(guestPhone),
-        guestNationality = Value(guestNationality),
-        checkinDate = Value(checkinDate),
-        status = Value(status);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       roomNumber = Value(roomNumber),
+       guestName = Value(guestName),
+       guestPhone = Value(guestPhone),
+       guestNationality = Value(guestNationality),
+       checkinDate = Value(checkinDate),
+       status = Value(status);
   static Insertable<Booking> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -3862,26 +3862,26 @@ class $BookingNotesTable extends BookingNotes
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        bookingId,
-        noteText,
-        alertType,
-        alertUntil,
-        isActive,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    bookingId,
+    noteText,
+    alertType,
+    alertUntil,
+    isActive,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -4318,31 +4318,27 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     String? alertType,
     Value<String?> alertUntil = const Value.absent(),
     int? isActive,
-  }) =>
-      BookingNote(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        bookingId: bookingId ?? this.bookingId,
-        noteText: noteText ?? this.noteText,
-        alertType: alertType ?? this.alertType,
-        alertUntil: alertUntil.present ? alertUntil.value : this.alertUntil,
-        isActive: isActive ?? this.isActive,
-      );
+  }) => BookingNote(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    bookingId: bookingId ?? this.bookingId,
+    noteText: noteText ?? this.noteText,
+    alertType: alertType ?? this.alertType,
+    alertUntil: alertUntil.present ? alertUntil.value : this.alertUntil,
+    isActive: isActive ?? this.isActive,
+  );
   BookingNote copyWithCompanion(BookingNotesCompanion data) {
     return BookingNote(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -4374,8 +4370,9 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
       bookingId: data.bookingId.present ? data.bookingId.value : this.bookingId,
       noteText: data.noteText.present ? data.noteText.value : this.noteText,
       alertType: data.alertType.present ? data.alertType.value : this.alertType,
-      alertUntil:
-          data.alertUntil.present ? data.alertUntil.value : this.alertUntil,
+      alertUntil: data.alertUntil.present
+          ? data.alertUntil.value
+          : this.alertUntil,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
     );
   }
@@ -4408,26 +4405,26 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
 
   @override
   int get hashCode => Object.hash(
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        bookingId,
-        noteText,
-        alertType,
-        alertUntil,
-        isActive,
-      );
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    bookingId,
+    noteText,
+    alertType,
+    alertUntil,
+    isActive,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4514,13 +4511,13 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     required String alertType,
     this.alertUntil = const Value.absent(),
     this.isActive = const Value.absent(),
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        bookingId = Value(bookingId),
-        noteText = Value(noteText),
-        alertType = Value(alertType);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       bookingId = Value(bookingId),
+       noteText = Value(noteText),
+       alertType = Value(alertType);
   static Insertable<BookingNote> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -4808,16 +4805,16 @@ class $ShiftNotesTable extends ShiftNotes
   );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        title,
-        content,
-        priority,
-        shiftType,
-        isRead,
-        createdAt,
-        expiresAt,
-        createdBy,
-      ];
+    id,
+    title,
+    content,
+    priority,
+    shiftType,
+    isRead,
+    createdAt,
+    expiresAt,
+    createdBy,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -5038,18 +5035,17 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     String? createdAt,
     Value<String?> expiresAt = const Value.absent(),
     String? createdBy,
-  }) =>
-      ShiftNote(
-        id: id ?? this.id,
-        title: title ?? this.title,
-        content: content ?? this.content,
-        priority: priority ?? this.priority,
-        shiftType: shiftType ?? this.shiftType,
-        isRead: isRead ?? this.isRead,
-        createdAt: createdAt ?? this.createdAt,
-        expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
-        createdBy: createdBy ?? this.createdBy,
-      );
+  }) => ShiftNote(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    content: content ?? this.content,
+    priority: priority ?? this.priority,
+    shiftType: shiftType ?? this.shiftType,
+    isRead: isRead ?? this.isRead,
+    createdAt: createdAt ?? this.createdAt,
+    expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
+    createdBy: createdBy ?? this.createdBy,
+  );
   ShiftNote copyWithCompanion(ShiftNotesCompanion data) {
     return ShiftNote(
       id: data.id.present ? data.id.value : this.id,
@@ -5082,16 +5078,16 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        title,
-        content,
-        priority,
-        shiftType,
-        isRead,
-        createdAt,
-        expiresAt,
-        createdBy,
-      );
+    id,
+    title,
+    content,
+    priority,
+    shiftType,
+    isRead,
+    createdAt,
+    expiresAt,
+    createdBy,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5138,9 +5134,9 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     required String createdAt,
     this.expiresAt = const Value.absent(),
     this.createdBy = const Value.absent(),
-  })  : title = Value(title),
-        content = Value(content),
-        createdAt = Value(createdAt);
+  }) : title = Value(title),
+       content = Value(content),
+       createdAt = Value(createdAt);
   static Insertable<ShiftNote> custom({
     Expression<int>? id,
     Expression<String>? title,
@@ -5469,27 +5465,27 @@ class $EmployeesTable extends Employees
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        name,
-        basicSalary,
-        position,
-        phone,
-        hireDate,
-        status,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    name,
+    basicSalary,
+    position,
+    phone,
+    hireDate,
+    status,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -5942,32 +5938,28 @@ class Employee extends DataClass implements Insertable<Employee> {
     String? phone,
     String? hireDate,
     String? status,
-  }) =>
-      Employee(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        name: name ?? this.name,
-        basicSalary: basicSalary ?? this.basicSalary,
-        position: position ?? this.position,
-        phone: phone ?? this.phone,
-        hireDate: hireDate ?? this.hireDate,
-        status: status ?? this.status,
-      );
+  }) => Employee(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    name: name ?? this.name,
+    basicSalary: basicSalary ?? this.basicSalary,
+    position: position ?? this.position,
+    phone: phone ?? this.phone,
+    hireDate: hireDate ?? this.hireDate,
+    status: status ?? this.status,
+  );
   Employee copyWithCompanion(EmployeesCompanion data) {
     return Employee(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -5997,8 +5989,9 @@ class Employee extends DataClass implements Insertable<Employee> {
       origin: data.origin.present ? data.origin.value : this.origin,
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
-      basicSalary:
-          data.basicSalary.present ? data.basicSalary.value : this.basicSalary,
+      basicSalary: data.basicSalary.present
+          ? data.basicSalary.value
+          : this.basicSalary,
       position: data.position.present ? data.position.value : this.position,
       phone: data.phone.present ? data.phone.value : this.phone,
       hireDate: data.hireDate.present ? data.hireDate.value : this.hireDate,
@@ -6035,27 +6028,27 @@ class Employee extends DataClass implements Insertable<Employee> {
 
   @override
   int get hashCode => Object.hash(
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        name,
-        basicSalary,
-        position,
-        phone,
-        hireDate,
-        status,
-      );
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    name,
+    basicSalary,
+    position,
+    phone,
+    hireDate,
+    status,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -6146,13 +6139,13 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     this.phone = const Value.absent(),
     this.hireDate = const Value.absent(),
     required String status,
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        name = Value(name),
-        basicSalary = Value(basicSalary),
-        status = Value(status);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       name = Value(name),
+       basicSalary = Value(basicSalary),
+       status = Value(status);
   static Insertable<Employee> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -6615,31 +6608,31 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        expenseType,
-        relatedId,
-        description,
-        amount,
-        date,
-        cashTransactionId,
-        hotelDayKey,
-        categoryUuid,
-        cashFlowUuid,
-        isAutoGenerated,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    expenseType,
+    relatedId,
+    description,
+    amount,
+    date,
+    cashTransactionId,
+    hotelDayKey,
+    categoryUuid,
+    cashFlowUuid,
+    isAutoGenerated,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -7200,40 +7193,34 @@ class Expense extends DataClass implements Insertable<Expense> {
     Value<String?> categoryUuid = const Value.absent(),
     Value<String?> cashFlowUuid = const Value.absent(),
     bool? isAutoGenerated,
-  }) =>
-      Expense(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        expenseType: expenseType ?? this.expenseType,
-        relatedId: relatedId.present ? relatedId.value : this.relatedId,
-        description: description ?? this.description,
-        amount: amount ?? this.amount,
-        date: date ?? this.date,
-        cashTransactionId: cashTransactionId.present
-            ? cashTransactionId.value
-            : this.cashTransactionId,
-        hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
-        categoryUuid:
-            categoryUuid.present ? categoryUuid.value : this.categoryUuid,
-        cashFlowUuid:
-            cashFlowUuid.present ? cashFlowUuid.value : this.cashFlowUuid,
-        isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
-      );
+  }) => Expense(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    expenseType: expenseType ?? this.expenseType,
+    relatedId: relatedId.present ? relatedId.value : this.relatedId,
+    description: description ?? this.description,
+    amount: amount ?? this.amount,
+    date: date ?? this.date,
+    cashTransactionId: cashTransactionId.present
+        ? cashTransactionId.value
+        : this.cashTransactionId,
+    hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
+    categoryUuid: categoryUuid.present ? categoryUuid.value : this.categoryUuid,
+    cashFlowUuid: cashFlowUuid.present ? cashFlowUuid.value : this.cashFlowUuid,
+    isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
+  );
   Expense copyWithCompanion(ExpensesCompanion data) {
     return Expense(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -7262,18 +7249,21 @@ class Expense extends DataClass implements Insertable<Expense> {
       version: data.version.present ? data.version.value : this.version,
       origin: data.origin.present ? data.origin.value : this.origin,
       id: data.id.present ? data.id.value : this.id,
-      expenseType:
-          data.expenseType.present ? data.expenseType.value : this.expenseType,
+      expenseType: data.expenseType.present
+          ? data.expenseType.value
+          : this.expenseType,
       relatedId: data.relatedId.present ? data.relatedId.value : this.relatedId,
-      description:
-          data.description.present ? data.description.value : this.description,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
       amount: data.amount.present ? data.amount.value : this.amount,
       date: data.date.present ? data.date.value : this.date,
       cashTransactionId: data.cashTransactionId.present
           ? data.cashTransactionId.value
           : this.cashTransactionId,
-      hotelDayKey:
-          data.hotelDayKey.present ? data.hotelDayKey.value : this.hotelDayKey,
+      hotelDayKey: data.hotelDayKey.present
+          ? data.hotelDayKey.value
+          : this.hotelDayKey,
       categoryUuid: data.categoryUuid.present
           ? data.categoryUuid.value
           : this.categoryUuid,
@@ -7319,31 +7309,31 @@ class Expense extends DataClass implements Insertable<Expense> {
 
   @override
   int get hashCode => Object.hashAll([
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        expenseType,
-        relatedId,
-        description,
-        amount,
-        date,
-        cashTransactionId,
-        hotelDayKey,
-        categoryUuid,
-        cashFlowUuid,
-        isAutoGenerated,
-      ]);
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    expenseType,
+    relatedId,
+    description,
+    amount,
+    date,
+    cashTransactionId,
+    hotelDayKey,
+    categoryUuid,
+    cashFlowUuid,
+    isAutoGenerated,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -7450,14 +7440,14 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.categoryUuid = const Value.absent(),
     this.cashFlowUuid = const Value.absent(),
     this.isAutoGenerated = const Value.absent(),
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        expenseType = Value(expenseType),
-        description = Value(description),
-        amount = Value(amount),
-        date = Value(date);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       expenseType = Value(expenseType),
+       description = Value(description),
+       amount = Value(amount),
+       date = Value(date);
   static Insertable<Expense> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -7929,29 +7919,29 @@ class $CashTransactionsTable extends CashTransactions
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        registerId,
-        transactionType,
-        amount,
-        referenceType,
-        referenceId,
-        description,
-        transactionTime,
-        createdBy,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    registerId,
+    transactionType,
+    amount,
+    referenceType,
+    referenceId,
+    description,
+    transactionTime,
+    createdBy,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -8470,35 +8460,32 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     Value<String?> description = const Value.absent(),
     String? transactionTime,
     Value<int?> createdBy = const Value.absent(),
-  }) =>
-      CashTransaction(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        registerId: registerId.present ? registerId.value : this.registerId,
-        transactionType: transactionType ?? this.transactionType,
-        amount: amount ?? this.amount,
-        referenceType:
-            referenceType.present ? referenceType.value : this.referenceType,
-        referenceId: referenceId.present ? referenceId.value : this.referenceId,
-        description: description.present ? description.value : this.description,
-        transactionTime: transactionTime ?? this.transactionTime,
-        createdBy: createdBy.present ? createdBy.value : this.createdBy,
-      );
+  }) => CashTransaction(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    registerId: registerId.present ? registerId.value : this.registerId,
+    transactionType: transactionType ?? this.transactionType,
+    amount: amount ?? this.amount,
+    referenceType: referenceType.present
+        ? referenceType.value
+        : this.referenceType,
+    referenceId: referenceId.present ? referenceId.value : this.referenceId,
+    description: description.present ? description.value : this.description,
+    transactionTime: transactionTime ?? this.transactionTime,
+    createdBy: createdBy.present ? createdBy.value : this.createdBy,
+  );
   CashTransaction copyWithCompanion(CashTransactionsCompanion data) {
     return CashTransaction(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -8527,8 +8514,9 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       version: data.version.present ? data.version.value : this.version,
       origin: data.origin.present ? data.origin.value : this.origin,
       id: data.id.present ? data.id.value : this.id,
-      registerId:
-          data.registerId.present ? data.registerId.value : this.registerId,
+      registerId: data.registerId.present
+          ? data.registerId.value
+          : this.registerId,
       transactionType: data.transactionType.present
           ? data.transactionType.value
           : this.transactionType,
@@ -8536,10 +8524,12 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       referenceType: data.referenceType.present
           ? data.referenceType.value
           : this.referenceType,
-      referenceId:
-          data.referenceId.present ? data.referenceId.value : this.referenceId,
-      description:
-          data.description.present ? data.description.value : this.description,
+      referenceId: data.referenceId.present
+          ? data.referenceId.value
+          : this.referenceId,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
       transactionTime: data.transactionTime.present
           ? data.transactionTime.value
           : this.transactionTime,
@@ -8578,29 +8568,29 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
 
   @override
   int get hashCode => Object.hashAll([
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        registerId,
-        transactionType,
-        amount,
-        referenceType,
-        referenceId,
-        description,
-        transactionTime,
-        createdBy,
-      ]);
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    registerId,
+    transactionType,
+    amount,
+    referenceType,
+    referenceId,
+    description,
+    transactionTime,
+    createdBy,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -8699,13 +8689,13 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     this.description = const Value.absent(),
     required String transactionTime,
     this.createdBy = const Value.absent(),
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        transactionType = Value(transactionType),
-        amount = Value(amount),
-        transactionTime = Value(transactionTime);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       transactionType = Value(transactionType),
+       amount = Value(amount),
+       transactionTime = Value(transactionTime);
   static Insertable<CashTransaction> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -9188,12 +9178,12 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
   @override
   late final GeneratedColumn<int> cashTransactionServerId =
       GeneratedColumn<int>(
-    'cash_transaction_server_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
+        'cash_transaction_server_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _referenceNumberMeta = const VerificationMeta(
     'referenceNumber',
   );
@@ -9255,37 +9245,37 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        serverPaymentId,
-        bookingLocalId,
-        serverBookingId,
-        roomNumber,
-        amount,
-        paymentDate,
-        notes,
-        paymentMethod,
-        revenueType,
-        cashTransactionLocalId,
-        cashTransactionServerId,
-        referenceNumber,
-        hotelDayKey,
-        isPendingBalance,
-        linkedDebtUuid,
-        bookingUuidCache,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    serverPaymentId,
+    bookingLocalId,
+    serverBookingId,
+    roomNumber,
+    amount,
+    paymentDate,
+    notes,
+    paymentMethod,
+    revenueType,
+    cashTransactionLocalId,
+    cashTransactionServerId,
+    referenceNumber,
+    hotelDayKey,
+    isPendingBalance,
+    linkedDebtUuid,
+    bookingUuidCache,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -9859,8 +9849,9 @@ class Payment extends DataClass implements Insertable<Payment> {
           : Value(roomNumber),
       amount: Value(amount),
       paymentDate: Value(paymentDate),
-      notes:
-          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
       paymentMethod: Value(paymentMethod),
       revenueType: Value(revenueType),
       cashTransactionLocalId: cashTransactionLocalId == null && nullToAbsent
@@ -9997,56 +9988,54 @@ class Payment extends DataClass implements Insertable<Payment> {
     bool? isPendingBalance,
     Value<String?> linkedDebtUuid = const Value.absent(),
     Value<String?> bookingUuidCache = const Value.absent(),
-  }) =>
-      Payment(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        serverPaymentId: serverPaymentId.present
-            ? serverPaymentId.value
-            : this.serverPaymentId,
-        bookingLocalId:
-            bookingLocalId.present ? bookingLocalId.value : this.bookingLocalId,
-        serverBookingId: serverBookingId.present
-            ? serverBookingId.value
-            : this.serverBookingId,
-        roomNumber: roomNumber.present ? roomNumber.value : this.roomNumber,
-        amount: amount ?? this.amount,
-        paymentDate: paymentDate ?? this.paymentDate,
-        notes: notes.present ? notes.value : this.notes,
-        paymentMethod: paymentMethod ?? this.paymentMethod,
-        revenueType: revenueType ?? this.revenueType,
-        cashTransactionLocalId: cashTransactionLocalId.present
-            ? cashTransactionLocalId.value
-            : this.cashTransactionLocalId,
-        cashTransactionServerId: cashTransactionServerId.present
-            ? cashTransactionServerId.value
-            : this.cashTransactionServerId,
-        referenceNumber: referenceNumber.present
-            ? referenceNumber.value
-            : this.referenceNumber,
-        hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
-        isPendingBalance: isPendingBalance ?? this.isPendingBalance,
-        linkedDebtUuid:
-            linkedDebtUuid.present ? linkedDebtUuid.value : this.linkedDebtUuid,
-        bookingUuidCache: bookingUuidCache.present
-            ? bookingUuidCache.value
-            : this.bookingUuidCache,
-      );
+  }) => Payment(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    serverPaymentId: serverPaymentId.present
+        ? serverPaymentId.value
+        : this.serverPaymentId,
+    bookingLocalId: bookingLocalId.present
+        ? bookingLocalId.value
+        : this.bookingLocalId,
+    serverBookingId: serverBookingId.present
+        ? serverBookingId.value
+        : this.serverBookingId,
+    roomNumber: roomNumber.present ? roomNumber.value : this.roomNumber,
+    amount: amount ?? this.amount,
+    paymentDate: paymentDate ?? this.paymentDate,
+    notes: notes.present ? notes.value : this.notes,
+    paymentMethod: paymentMethod ?? this.paymentMethod,
+    revenueType: revenueType ?? this.revenueType,
+    cashTransactionLocalId: cashTransactionLocalId.present
+        ? cashTransactionLocalId.value
+        : this.cashTransactionLocalId,
+    cashTransactionServerId: cashTransactionServerId.present
+        ? cashTransactionServerId.value
+        : this.cashTransactionServerId,
+    referenceNumber: referenceNumber.present
+        ? referenceNumber.value
+        : this.referenceNumber,
+    hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
+    isPendingBalance: isPendingBalance ?? this.isPendingBalance,
+    linkedDebtUuid: linkedDebtUuid.present
+        ? linkedDebtUuid.value
+        : this.linkedDebtUuid,
+    bookingUuidCache: bookingUuidCache.present
+        ? bookingUuidCache.value
+        : this.bookingUuidCache,
+  );
   Payment copyWithCompanion(PaymentsCompanion data) {
     return Payment(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -10084,17 +10073,20 @@ class Payment extends DataClass implements Insertable<Payment> {
       serverBookingId: data.serverBookingId.present
           ? data.serverBookingId.value
           : this.serverBookingId,
-      roomNumber:
-          data.roomNumber.present ? data.roomNumber.value : this.roomNumber,
+      roomNumber: data.roomNumber.present
+          ? data.roomNumber.value
+          : this.roomNumber,
       amount: data.amount.present ? data.amount.value : this.amount,
-      paymentDate:
-          data.paymentDate.present ? data.paymentDate.value : this.paymentDate,
+      paymentDate: data.paymentDate.present
+          ? data.paymentDate.value
+          : this.paymentDate,
       notes: data.notes.present ? data.notes.value : this.notes,
       paymentMethod: data.paymentMethod.present
           ? data.paymentMethod.value
           : this.paymentMethod,
-      revenueType:
-          data.revenueType.present ? data.revenueType.value : this.revenueType,
+      revenueType: data.revenueType.present
+          ? data.revenueType.value
+          : this.revenueType,
       cashTransactionLocalId: data.cashTransactionLocalId.present
           ? data.cashTransactionLocalId.value
           : this.cashTransactionLocalId,
@@ -10104,8 +10096,9 @@ class Payment extends DataClass implements Insertable<Payment> {
       referenceNumber: data.referenceNumber.present
           ? data.referenceNumber.value
           : this.referenceNumber,
-      hotelDayKey:
-          data.hotelDayKey.present ? data.hotelDayKey.value : this.hotelDayKey,
+      hotelDayKey: data.hotelDayKey.present
+          ? data.hotelDayKey.value
+          : this.hotelDayKey,
       isPendingBalance: data.isPendingBalance.present
           ? data.isPendingBalance.value
           : this.isPendingBalance,
@@ -10157,37 +10150,37 @@ class Payment extends DataClass implements Insertable<Payment> {
 
   @override
   int get hashCode => Object.hashAll([
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        serverPaymentId,
-        bookingLocalId,
-        serverBookingId,
-        roomNumber,
-        amount,
-        paymentDate,
-        notes,
-        paymentMethod,
-        revenueType,
-        cashTransactionLocalId,
-        cashTransactionServerId,
-        referenceNumber,
-        hotelDayKey,
-        isPendingBalance,
-        linkedDebtUuid,
-        bookingUuidCache,
-      ]);
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    serverPaymentId,
+    bookingLocalId,
+    serverBookingId,
+    roomNumber,
+    amount,
+    paymentDate,
+    notes,
+    paymentMethod,
+    revenueType,
+    cashTransactionLocalId,
+    cashTransactionServerId,
+    referenceNumber,
+    hotelDayKey,
+    isPendingBalance,
+    linkedDebtUuid,
+    bookingUuidCache,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -10318,14 +10311,14 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.isPendingBalance = const Value.absent(),
     this.linkedDebtUuid = const Value.absent(),
     this.bookingUuidCache = const Value.absent(),
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        amount = Value(amount),
-        paymentDate = Value(paymentDate),
-        paymentMethod = Value(paymentMethod),
-        revenueType = Value(revenueType);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       amount = Value(amount),
+       paymentDate = Value(paymentDate),
+       paymentMethod = Value(paymentMethod),
+       revenueType = Value(revenueType);
   static Insertable<Payment> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -10984,40 +10977,40 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        bookingLocalId,
-        guestName,
-        checkinDate,
-        checkoutDate,
-        dateRecorded,
-        debtReason,
-        totalAmount,
-        paidAmount,
-        remainingAmount,
-        paymentDate,
-        isSettled,
-        pledge,
-        pledgeType,
-        note,
-        debtUuid,
-        hotelDayOpened,
-        hotelDayClosed,
-        isFromAutoFix,
-        settlementConfirmed,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    bookingLocalId,
+    guestName,
+    checkinDate,
+    checkoutDate,
+    dateRecorded,
+    debtReason,
+    totalAmount,
+    paidAmount,
+    remainingAmount,
+    paymentDate,
+    isSettled,
+    pledge,
+    pledgeType,
+    note,
+    debtUuid,
+    hotelDayOpened,
+    hotelDayClosed,
+    isFromAutoFix,
+    settlementConfirmed,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -11619,8 +11612,9 @@ class Debt extends DataClass implements Insertable<Debt> {
       remainingAmount: Value(remainingAmount),
       paymentDate: Value(paymentDate),
       isSettled: Value(isSettled),
-      pledge:
-          pledge == null && nullToAbsent ? const Value.absent() : Value(pledge),
+      pledge: pledge == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pledge),
       pledgeType: pledgeType == null && nullToAbsent
           ? const Value.absent()
           : Value(pledgeType),
@@ -11756,48 +11750,47 @@ class Debt extends DataClass implements Insertable<Debt> {
     Value<String?> hotelDayClosed = const Value.absent(),
     bool? isFromAutoFix,
     bool? settlementConfirmed,
-  }) =>
-      Debt(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        bookingLocalId:
-            bookingLocalId.present ? bookingLocalId.value : this.bookingLocalId,
-        guestName: guestName ?? this.guestName,
-        checkinDate: checkinDate ?? this.checkinDate,
-        checkoutDate: checkoutDate ?? this.checkoutDate,
-        dateRecorded: dateRecorded ?? this.dateRecorded,
-        debtReason: debtReason ?? this.debtReason,
-        totalAmount: totalAmount ?? this.totalAmount,
-        paidAmount: paidAmount ?? this.paidAmount,
-        remainingAmount: remainingAmount ?? this.remainingAmount,
-        paymentDate: paymentDate ?? this.paymentDate,
-        isSettled: isSettled ?? this.isSettled,
-        pledge: pledge.present ? pledge.value : this.pledge,
-        pledgeType: pledgeType.present ? pledgeType.value : this.pledgeType,
-        note: note.present ? note.value : this.note,
-        debtUuid: debtUuid.present ? debtUuid.value : this.debtUuid,
-        hotelDayOpened:
-            hotelDayOpened.present ? hotelDayOpened.value : this.hotelDayOpened,
-        hotelDayClosed:
-            hotelDayClosed.present ? hotelDayClosed.value : this.hotelDayClosed,
-        isFromAutoFix: isFromAutoFix ?? this.isFromAutoFix,
-        settlementConfirmed: settlementConfirmed ?? this.settlementConfirmed,
-      );
+  }) => Debt(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    bookingLocalId: bookingLocalId.present
+        ? bookingLocalId.value
+        : this.bookingLocalId,
+    guestName: guestName ?? this.guestName,
+    checkinDate: checkinDate ?? this.checkinDate,
+    checkoutDate: checkoutDate ?? this.checkoutDate,
+    dateRecorded: dateRecorded ?? this.dateRecorded,
+    debtReason: debtReason ?? this.debtReason,
+    totalAmount: totalAmount ?? this.totalAmount,
+    paidAmount: paidAmount ?? this.paidAmount,
+    remainingAmount: remainingAmount ?? this.remainingAmount,
+    paymentDate: paymentDate ?? this.paymentDate,
+    isSettled: isSettled ?? this.isSettled,
+    pledge: pledge.present ? pledge.value : this.pledge,
+    pledgeType: pledgeType.present ? pledgeType.value : this.pledgeType,
+    note: note.present ? note.value : this.note,
+    debtUuid: debtUuid.present ? debtUuid.value : this.debtUuid,
+    hotelDayOpened: hotelDayOpened.present
+        ? hotelDayOpened.value
+        : this.hotelDayOpened,
+    hotelDayClosed: hotelDayClosed.present
+        ? hotelDayClosed.value
+        : this.hotelDayClosed,
+    isFromAutoFix: isFromAutoFix ?? this.isFromAutoFix,
+    settlementConfirmed: settlementConfirmed ?? this.settlementConfirmed,
+  );
   Debt copyWithCompanion(DebtsCompanion data) {
     return Debt(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -11830,29 +11823,35 @@ class Debt extends DataClass implements Insertable<Debt> {
           ? data.bookingLocalId.value
           : this.bookingLocalId,
       guestName: data.guestName.present ? data.guestName.value : this.guestName,
-      checkinDate:
-          data.checkinDate.present ? data.checkinDate.value : this.checkinDate,
+      checkinDate: data.checkinDate.present
+          ? data.checkinDate.value
+          : this.checkinDate,
       checkoutDate: data.checkoutDate.present
           ? data.checkoutDate.value
           : this.checkoutDate,
       dateRecorded: data.dateRecorded.present
           ? data.dateRecorded.value
           : this.dateRecorded,
-      debtReason:
-          data.debtReason.present ? data.debtReason.value : this.debtReason,
-      totalAmount:
-          data.totalAmount.present ? data.totalAmount.value : this.totalAmount,
-      paidAmount:
-          data.paidAmount.present ? data.paidAmount.value : this.paidAmount,
+      debtReason: data.debtReason.present
+          ? data.debtReason.value
+          : this.debtReason,
+      totalAmount: data.totalAmount.present
+          ? data.totalAmount.value
+          : this.totalAmount,
+      paidAmount: data.paidAmount.present
+          ? data.paidAmount.value
+          : this.paidAmount,
       remainingAmount: data.remainingAmount.present
           ? data.remainingAmount.value
           : this.remainingAmount,
-      paymentDate:
-          data.paymentDate.present ? data.paymentDate.value : this.paymentDate,
+      paymentDate: data.paymentDate.present
+          ? data.paymentDate.value
+          : this.paymentDate,
       isSettled: data.isSettled.present ? data.isSettled.value : this.isSettled,
       pledge: data.pledge.present ? data.pledge.value : this.pledge,
-      pledgeType:
-          data.pledgeType.present ? data.pledgeType.value : this.pledgeType,
+      pledgeType: data.pledgeType.present
+          ? data.pledgeType.value
+          : this.pledgeType,
       note: data.note.present ? data.note.value : this.note,
       debtUuid: data.debtUuid.present ? data.debtUuid.value : this.debtUuid,
       hotelDayOpened: data.hotelDayOpened.present
@@ -11912,40 +11911,40 @@ class Debt extends DataClass implements Insertable<Debt> {
 
   @override
   int get hashCode => Object.hashAll([
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        bookingLocalId,
-        guestName,
-        checkinDate,
-        checkoutDate,
-        dateRecorded,
-        debtReason,
-        totalAmount,
-        paidAmount,
-        remainingAmount,
-        paymentDate,
-        isSettled,
-        pledge,
-        pledgeType,
-        note,
-        debtUuid,
-        hotelDayOpened,
-        hotelDayClosed,
-        isFromAutoFix,
-        settlementConfirmed,
-      ]);
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    bookingLocalId,
+    guestName,
+    checkinDate,
+    checkoutDate,
+    dateRecorded,
+    debtReason,
+    totalAmount,
+    paidAmount,
+    remainingAmount,
+    paymentDate,
+    isSettled,
+    pledge,
+    pledgeType,
+    note,
+    debtUuid,
+    hotelDayOpened,
+    hotelDayClosed,
+    isFromAutoFix,
+    settlementConfirmed,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -12088,17 +12087,17 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.hotelDayClosed = const Value.absent(),
     this.isFromAutoFix = const Value.absent(),
     this.settlementConfirmed = const Value.absent(),
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        guestName = Value(guestName),
-        checkinDate = Value(checkinDate),
-        checkoutDate = Value(checkoutDate),
-        totalAmount = Value(totalAmount),
-        paidAmount = Value(paidAmount),
-        remainingAmount = Value(remainingAmount),
-        paymentDate = Value(paymentDate);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       guestName = Value(guestName),
+       checkinDate = Value(checkinDate),
+       checkoutDate = Value(checkoutDate),
+       totalAmount = Value(totalAmount),
+       paidAmount = Value(paidAmount),
+       remainingAmount = Value(remainingAmount),
+       paymentDate = Value(paymentDate);
   static Insertable<Debt> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -12642,28 +12641,28 @@ class $BookingNightsTable extends BookingNights
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        bookingLocalId,
-        hotelDayKey,
-        nightStart,
-        nightEnd,
-        nightlyRate,
-        sequence,
-        isProcessedByAutoFix,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    bookingLocalId,
+    hotelDayKey,
+    nightStart,
+    nightEnd,
+    nightlyRate,
+    sequence,
+    isProcessedByAutoFix,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -12852,8 +12851,8 @@ class $BookingNightsTable extends BookingNights
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
   List<Set<GeneratedColumn>> get uniqueKeys => [
-        {bookingLocalId, hotelDayKey},
-      ];
+    {bookingLocalId, hotelDayKey},
+  ];
   @override
   BookingNight map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -13150,33 +13149,29 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     double? nightlyRate,
     int? sequence,
     bool? isProcessedByAutoFix,
-  }) =>
-      BookingNight(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        bookingLocalId: bookingLocalId ?? this.bookingLocalId,
-        hotelDayKey: hotelDayKey ?? this.hotelDayKey,
-        nightStart: nightStart ?? this.nightStart,
-        nightEnd: nightEnd ?? this.nightEnd,
-        nightlyRate: nightlyRate ?? this.nightlyRate,
-        sequence: sequence ?? this.sequence,
-        isProcessedByAutoFix: isProcessedByAutoFix ?? this.isProcessedByAutoFix,
-      );
+  }) => BookingNight(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    bookingLocalId: bookingLocalId ?? this.bookingLocalId,
+    hotelDayKey: hotelDayKey ?? this.hotelDayKey,
+    nightStart: nightStart ?? this.nightStart,
+    nightEnd: nightEnd ?? this.nightEnd,
+    nightlyRate: nightlyRate ?? this.nightlyRate,
+    sequence: sequence ?? this.sequence,
+    isProcessedByAutoFix: isProcessedByAutoFix ?? this.isProcessedByAutoFix,
+  );
   BookingNight copyWithCompanion(BookingNightsCompanion data) {
     return BookingNight(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -13208,13 +13203,16 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       bookingLocalId: data.bookingLocalId.present
           ? data.bookingLocalId.value
           : this.bookingLocalId,
-      hotelDayKey:
-          data.hotelDayKey.present ? data.hotelDayKey.value : this.hotelDayKey,
-      nightStart:
-          data.nightStart.present ? data.nightStart.value : this.nightStart,
+      hotelDayKey: data.hotelDayKey.present
+          ? data.hotelDayKey.value
+          : this.hotelDayKey,
+      nightStart: data.nightStart.present
+          ? data.nightStart.value
+          : this.nightStart,
       nightEnd: data.nightEnd.present ? data.nightEnd.value : this.nightEnd,
-      nightlyRate:
-          data.nightlyRate.present ? data.nightlyRate.value : this.nightlyRate,
+      nightlyRate: data.nightlyRate.present
+          ? data.nightlyRate.value
+          : this.nightlyRate,
       sequence: data.sequence.present ? data.sequence.value : this.sequence,
       isProcessedByAutoFix: data.isProcessedByAutoFix.present
           ? data.isProcessedByAutoFix.value
@@ -13252,28 +13250,28 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
 
   @override
   int get hashCode => Object.hashAll([
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        bookingLocalId,
-        hotelDayKey,
-        nightStart,
-        nightEnd,
-        nightlyRate,
-        sequence,
-        isProcessedByAutoFix,
-      ]);
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    bookingLocalId,
+    hotelDayKey,
+    nightStart,
+    nightEnd,
+    nightlyRate,
+    sequence,
+    isProcessedByAutoFix,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -13368,14 +13366,14 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.nightlyRate = const Value.absent(),
     this.sequence = const Value.absent(),
     this.isProcessedByAutoFix = const Value.absent(),
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        bookingLocalId = Value(bookingLocalId),
-        hotelDayKey = Value(hotelDayKey),
-        nightStart = Value(nightStart),
-        nightEnd = Value(nightEnd);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       bookingLocalId = Value(bookingLocalId),
+       hotelDayKey = Value(hotelDayKey),
+       nightStart = Value(nightStart),
+       nightEnd = Value(nightEnd);
   static Insertable<BookingNight> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -13857,31 +13855,31 @@ class $HotelDayLedgerTable extends HotelDayLedger
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        hotelDayKey,
-        totalIncome,
-        totalExpenses,
-        pendingBalances,
-        occupancyRate,
-        bookingsProcessed,
-        paymentsProcessed,
-        debtsProcessed,
-        expensesProcessed,
-        status,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    hotelDayKey,
+    totalIncome,
+    totalExpenses,
+    pendingBalances,
+    occupancyRate,
+    bookingsProcessed,
+    paymentsProcessed,
+    debtsProcessed,
+    expensesProcessed,
+    status,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -14097,8 +14095,8 @@ class $HotelDayLedgerTable extends HotelDayLedger
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
   List<Set<GeneratedColumn>> get uniqueKeys => [
-        {hotelDayKey},
-      ];
+    {hotelDayKey},
+  ];
   @override
   HotelDayLedgerEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -14427,36 +14425,32 @@ class HotelDayLedgerEntry extends DataClass
     int? debtsProcessed,
     int? expensesProcessed,
     String? status,
-  }) =>
-      HotelDayLedgerEntry(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        hotelDayKey: hotelDayKey ?? this.hotelDayKey,
-        totalIncome: totalIncome ?? this.totalIncome,
-        totalExpenses: totalExpenses ?? this.totalExpenses,
-        pendingBalances: pendingBalances ?? this.pendingBalances,
-        occupancyRate: occupancyRate ?? this.occupancyRate,
-        bookingsProcessed: bookingsProcessed ?? this.bookingsProcessed,
-        paymentsProcessed: paymentsProcessed ?? this.paymentsProcessed,
-        debtsProcessed: debtsProcessed ?? this.debtsProcessed,
-        expensesProcessed: expensesProcessed ?? this.expensesProcessed,
-        status: status ?? this.status,
-      );
+  }) => HotelDayLedgerEntry(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    hotelDayKey: hotelDayKey ?? this.hotelDayKey,
+    totalIncome: totalIncome ?? this.totalIncome,
+    totalExpenses: totalExpenses ?? this.totalExpenses,
+    pendingBalances: pendingBalances ?? this.pendingBalances,
+    occupancyRate: occupancyRate ?? this.occupancyRate,
+    bookingsProcessed: bookingsProcessed ?? this.bookingsProcessed,
+    paymentsProcessed: paymentsProcessed ?? this.paymentsProcessed,
+    debtsProcessed: debtsProcessed ?? this.debtsProcessed,
+    expensesProcessed: expensesProcessed ?? this.expensesProcessed,
+    status: status ?? this.status,
+  );
   HotelDayLedgerEntry copyWithCompanion(HotelDayLedgerCompanion data) {
     return HotelDayLedgerEntry(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -14485,10 +14479,12 @@ class HotelDayLedgerEntry extends DataClass
       version: data.version.present ? data.version.value : this.version,
       origin: data.origin.present ? data.origin.value : this.origin,
       id: data.id.present ? data.id.value : this.id,
-      hotelDayKey:
-          data.hotelDayKey.present ? data.hotelDayKey.value : this.hotelDayKey,
-      totalIncome:
-          data.totalIncome.present ? data.totalIncome.value : this.totalIncome,
+      hotelDayKey: data.hotelDayKey.present
+          ? data.hotelDayKey.value
+          : this.hotelDayKey,
+      totalIncome: data.totalIncome.present
+          ? data.totalIncome.value
+          : this.totalIncome,
       totalExpenses: data.totalExpenses.present
           ? data.totalExpenses.value
           : this.totalExpenses,
@@ -14547,31 +14543,31 @@ class HotelDayLedgerEntry extends DataClass
 
   @override
   int get hashCode => Object.hashAll([
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        hotelDayKey,
-        totalIncome,
-        totalExpenses,
-        pendingBalances,
-        occupancyRate,
-        bookingsProcessed,
-        paymentsProcessed,
-        debtsProcessed,
-        expensesProcessed,
-        status,
-      ]);
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    hotelDayKey,
+    totalIncome,
+    totalExpenses,
+    pendingBalances,
+    occupancyRate,
+    bookingsProcessed,
+    paymentsProcessed,
+    debtsProcessed,
+    expensesProcessed,
+    status,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -14678,11 +14674,11 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     this.debtsProcessed = const Value.absent(),
     this.expensesProcessed = const Value.absent(),
     this.status = const Value.absent(),
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        hotelDayKey = Value(hotelDayKey);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       hotelDayKey = Value(hotelDayKey);
   static Insertable<HotelDayLedgerEntry> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -15032,18 +15028,18 @@ class $AutoFixRunsTable extends AutoFixRuns
   );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        runUuid,
-        source,
-        status,
-        startedAtEpoch,
-        startedAtIso,
-        completedAtEpoch,
-        completedAtIso,
-        fixesApplied,
-        errorMessage,
-        metadata,
-      ];
+    id,
+    runUuid,
+    source,
+    status,
+    startedAtEpoch,
+    startedAtIso,
+    completedAtEpoch,
+    completedAtIso,
+    fixesApplied,
+    errorMessage,
+    metadata,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -15328,24 +15324,23 @@ class AutoFixRun extends DataClass implements Insertable<AutoFixRun> {
     int? fixesApplied,
     Value<String?> errorMessage = const Value.absent(),
     Value<String?> metadata = const Value.absent(),
-  }) =>
-      AutoFixRun(
-        id: id ?? this.id,
-        runUuid: runUuid ?? this.runUuid,
-        source: source ?? this.source,
-        status: status ?? this.status,
-        startedAtEpoch: startedAtEpoch ?? this.startedAtEpoch,
-        startedAtIso: startedAtIso ?? this.startedAtIso,
-        completedAtEpoch: completedAtEpoch.present
-            ? completedAtEpoch.value
-            : this.completedAtEpoch,
-        completedAtIso:
-            completedAtIso.present ? completedAtIso.value : this.completedAtIso,
-        fixesApplied: fixesApplied ?? this.fixesApplied,
-        errorMessage:
-            errorMessage.present ? errorMessage.value : this.errorMessage,
-        metadata: metadata.present ? metadata.value : this.metadata,
-      );
+  }) => AutoFixRun(
+    id: id ?? this.id,
+    runUuid: runUuid ?? this.runUuid,
+    source: source ?? this.source,
+    status: status ?? this.status,
+    startedAtEpoch: startedAtEpoch ?? this.startedAtEpoch,
+    startedAtIso: startedAtIso ?? this.startedAtIso,
+    completedAtEpoch: completedAtEpoch.present
+        ? completedAtEpoch.value
+        : this.completedAtEpoch,
+    completedAtIso: completedAtIso.present
+        ? completedAtIso.value
+        : this.completedAtIso,
+    fixesApplied: fixesApplied ?? this.fixesApplied,
+    errorMessage: errorMessage.present ? errorMessage.value : this.errorMessage,
+    metadata: metadata.present ? metadata.value : this.metadata,
+  );
   AutoFixRun copyWithCompanion(AutoFixRunsCompanion data) {
     return AutoFixRun(
       id: data.id.present ? data.id.value : this.id,
@@ -15394,18 +15389,18 @@ class AutoFixRun extends DataClass implements Insertable<AutoFixRun> {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        runUuid,
-        source,
-        status,
-        startedAtEpoch,
-        startedAtIso,
-        completedAtEpoch,
-        completedAtIso,
-        fixesApplied,
-        errorMessage,
-        metadata,
-      );
+    id,
+    runUuid,
+    source,
+    status,
+    startedAtEpoch,
+    startedAtIso,
+    completedAtEpoch,
+    completedAtIso,
+    fixesApplied,
+    errorMessage,
+    metadata,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -15460,9 +15455,9 @@ class AutoFixRunsCompanion extends UpdateCompanion<AutoFixRun> {
     this.fixesApplied = const Value.absent(),
     this.errorMessage = const Value.absent(),
     this.metadata = const Value.absent(),
-  })  : runUuid = Value(runUuid),
-        startedAtEpoch = Value(startedAtEpoch),
-        startedAtIso = Value(startedAtIso);
+  }) : runUuid = Value(runUuid),
+       startedAtEpoch = Value(startedAtEpoch),
+       startedAtIso = Value(startedAtIso);
   static Insertable<AutoFixRun> custom({
     Expression<int>? id,
     Expression<String>? runUuid,
@@ -15614,12 +15609,12 @@ class $IntegrityViolationsTable extends IntegrityViolations
   @override
   late final GeneratedColumn<String> affectedTableName =
       GeneratedColumn<String>(
-    'affected_table_name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+        'affected_table_name',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
   static const VerificationMeta _recordUuidMeta = const VerificationMeta(
     'recordUuid',
   );
@@ -15692,16 +15687,16 @@ class $IntegrityViolationsTable extends IntegrityViolations
   );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        runId,
-        affectedTableName,
-        recordUuid,
-        violationType,
-        details,
-        isCritical,
-        createdAtIso,
-        createdAtEpoch,
-      ];
+    id,
+    runId,
+    affectedTableName,
+    recordUuid,
+    violationType,
+    details,
+    isCritical,
+    createdAtIso,
+    createdAtEpoch,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -15941,18 +15936,17 @@ class IntegrityViolation extends DataClass
     bool? isCritical,
     String? createdAtIso,
     int? createdAtEpoch,
-  }) =>
-      IntegrityViolation(
-        id: id ?? this.id,
-        runId: runId ?? this.runId,
-        affectedTableName: affectedTableName ?? this.affectedTableName,
-        recordUuid: recordUuid.present ? recordUuid.value : this.recordUuid,
-        violationType: violationType ?? this.violationType,
-        details: details ?? this.details,
-        isCritical: isCritical ?? this.isCritical,
-        createdAtIso: createdAtIso ?? this.createdAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-      );
+  }) => IntegrityViolation(
+    id: id ?? this.id,
+    runId: runId ?? this.runId,
+    affectedTableName: affectedTableName ?? this.affectedTableName,
+    recordUuid: recordUuid.present ? recordUuid.value : this.recordUuid,
+    violationType: violationType ?? this.violationType,
+    details: details ?? this.details,
+    isCritical: isCritical ?? this.isCritical,
+    createdAtIso: createdAtIso ?? this.createdAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+  );
   IntegrityViolation copyWithCompanion(IntegrityViolationsCompanion data) {
     return IntegrityViolation(
       id: data.id.present ? data.id.value : this.id,
@@ -15960,14 +15954,16 @@ class IntegrityViolation extends DataClass
       affectedTableName: data.affectedTableName.present
           ? data.affectedTableName.value
           : this.affectedTableName,
-      recordUuid:
-          data.recordUuid.present ? data.recordUuid.value : this.recordUuid,
+      recordUuid: data.recordUuid.present
+          ? data.recordUuid.value
+          : this.recordUuid,
       violationType: data.violationType.present
           ? data.violationType.value
           : this.violationType,
       details: data.details.present ? data.details.value : this.details,
-      isCritical:
-          data.isCritical.present ? data.isCritical.value : this.isCritical,
+      isCritical: data.isCritical.present
+          ? data.isCritical.value
+          : this.isCritical,
       createdAtIso: data.createdAtIso.present
           ? data.createdAtIso.value
           : this.createdAtIso,
@@ -15995,16 +15991,16 @@ class IntegrityViolation extends DataClass
 
   @override
   int get hashCode => Object.hash(
-        id,
-        runId,
-        affectedTableName,
-        recordUuid,
-        violationType,
-        details,
-        isCritical,
-        createdAtIso,
-        createdAtEpoch,
-      );
+    id,
+    runId,
+    affectedTableName,
+    recordUuid,
+    violationType,
+    details,
+    isCritical,
+    createdAtIso,
+    createdAtEpoch,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -16051,12 +16047,12 @@ class IntegrityViolationsCompanion extends UpdateCompanion<IntegrityViolation> {
     this.isCritical = const Value.absent(),
     required String createdAtIso,
     required int createdAtEpoch,
-  })  : runId = Value(runId),
-        affectedTableName = Value(affectedTableName),
-        violationType = Value(violationType),
-        details = Value(details),
-        createdAtIso = Value(createdAtIso),
-        createdAtEpoch = Value(createdAtEpoch);
+  }) : runId = Value(runId),
+       affectedTableName = Value(affectedTableName),
+       violationType = Value(violationType),
+       details = Value(details),
+       createdAtIso = Value(createdAtIso),
+       createdAtEpoch = Value(createdAtEpoch);
   static Insertable<IntegrityViolation> custom({
     Expression<int>? id,
     Expression<int>? runId,
@@ -16255,15 +16251,15 @@ class $AppSessionsTable extends AppSessions
   );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        sessionUuid,
-        deviceId,
-        sessionStartIso,
-        sessionEndIso,
-        durationSeconds,
-        lastKnownVersion,
-        metadata,
-      ];
+    id,
+    sessionUuid,
+    deviceId,
+    sessionStartIso,
+    sessionEndIso,
+    durationSeconds,
+    lastKnownVersion,
+    metadata,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -16492,25 +16488,26 @@ class AppSession extends DataClass implements Insertable<AppSession> {
     int? durationSeconds,
     Value<String?> lastKnownVersion = const Value.absent(),
     Value<String?> metadata = const Value.absent(),
-  }) =>
-      AppSession(
-        id: id ?? this.id,
-        sessionUuid: sessionUuid ?? this.sessionUuid,
-        deviceId: deviceId.present ? deviceId.value : this.deviceId,
-        sessionStartIso: sessionStartIso ?? this.sessionStartIso,
-        sessionEndIso:
-            sessionEndIso.present ? sessionEndIso.value : this.sessionEndIso,
-        durationSeconds: durationSeconds ?? this.durationSeconds,
-        lastKnownVersion: lastKnownVersion.present
-            ? lastKnownVersion.value
-            : this.lastKnownVersion,
-        metadata: metadata.present ? metadata.value : this.metadata,
-      );
+  }) => AppSession(
+    id: id ?? this.id,
+    sessionUuid: sessionUuid ?? this.sessionUuid,
+    deviceId: deviceId.present ? deviceId.value : this.deviceId,
+    sessionStartIso: sessionStartIso ?? this.sessionStartIso,
+    sessionEndIso: sessionEndIso.present
+        ? sessionEndIso.value
+        : this.sessionEndIso,
+    durationSeconds: durationSeconds ?? this.durationSeconds,
+    lastKnownVersion: lastKnownVersion.present
+        ? lastKnownVersion.value
+        : this.lastKnownVersion,
+    metadata: metadata.present ? metadata.value : this.metadata,
+  );
   AppSession copyWithCompanion(AppSessionsCompanion data) {
     return AppSession(
       id: data.id.present ? data.id.value : this.id,
-      sessionUuid:
-          data.sessionUuid.present ? data.sessionUuid.value : this.sessionUuid,
+      sessionUuid: data.sessionUuid.present
+          ? data.sessionUuid.value
+          : this.sessionUuid,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
       sessionStartIso: data.sessionStartIso.present
           ? data.sessionStartIso.value
@@ -16545,15 +16542,15 @@ class AppSession extends DataClass implements Insertable<AppSession> {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        sessionUuid,
-        deviceId,
-        sessionStartIso,
-        sessionEndIso,
-        durationSeconds,
-        lastKnownVersion,
-        metadata,
-      );
+    id,
+    sessionUuid,
+    deviceId,
+    sessionStartIso,
+    sessionEndIso,
+    durationSeconds,
+    lastKnownVersion,
+    metadata,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -16596,8 +16593,8 @@ class AppSessionsCompanion extends UpdateCompanion<AppSession> {
     this.durationSeconds = const Value.absent(),
     this.lastKnownVersion = const Value.absent(),
     this.metadata = const Value.absent(),
-  })  : sessionUuid = Value(sessionUuid),
-        sessionStartIso = Value(sessionStartIso);
+  }) : sessionUuid = Value(sessionUuid),
+       sessionStartIso = Value(sessionStartIso);
   static Insertable<AppSession> custom({
     Expression<int>? id,
     Expression<String>? sessionUuid,
@@ -16948,29 +16945,29 @@ class $SalaryCyclesTable extends SalaryCycles
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        employeeId,
-        cycleKey,
-        hotelDayStart,
-        hotelDayEnd,
-        expectedAmount,
-        actualPaid,
-        remainingAmount,
-        status,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    employeeId,
+    cycleKey,
+    hotelDayStart,
+    hotelDayEnd,
+    expectedAmount,
+    actualPaid,
+    remainingAmount,
+    status,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -17161,8 +17158,8 @@ class $SalaryCyclesTable extends SalaryCycles
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
   List<Set<GeneratedColumn>> get uniqueKeys => [
-        {employeeId, cycleKey},
-      ];
+    {employeeId, cycleKey},
+  ];
   @override
   SalaryCycle map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -17476,35 +17473,32 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     double? actualPaid,
     double? remainingAmount,
     String? status,
-  }) =>
-      SalaryCycle(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        employeeId: employeeId ?? this.employeeId,
-        cycleKey: cycleKey ?? this.cycleKey,
-        hotelDayStart:
-            hotelDayStart.present ? hotelDayStart.value : this.hotelDayStart,
-        hotelDayEnd: hotelDayEnd.present ? hotelDayEnd.value : this.hotelDayEnd,
-        expectedAmount: expectedAmount ?? this.expectedAmount,
-        actualPaid: actualPaid ?? this.actualPaid,
-        remainingAmount: remainingAmount ?? this.remainingAmount,
-        status: status ?? this.status,
-      );
+  }) => SalaryCycle(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    employeeId: employeeId ?? this.employeeId,
+    cycleKey: cycleKey ?? this.cycleKey,
+    hotelDayStart: hotelDayStart.present
+        ? hotelDayStart.value
+        : this.hotelDayStart,
+    hotelDayEnd: hotelDayEnd.present ? hotelDayEnd.value : this.hotelDayEnd,
+    expectedAmount: expectedAmount ?? this.expectedAmount,
+    actualPaid: actualPaid ?? this.actualPaid,
+    remainingAmount: remainingAmount ?? this.remainingAmount,
+    status: status ?? this.status,
+  );
   SalaryCycle copyWithCompanion(SalaryCyclesCompanion data) {
     return SalaryCycle(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -17533,19 +17527,22 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       version: data.version.present ? data.version.value : this.version,
       origin: data.origin.present ? data.origin.value : this.origin,
       id: data.id.present ? data.id.value : this.id,
-      employeeId:
-          data.employeeId.present ? data.employeeId.value : this.employeeId,
+      employeeId: data.employeeId.present
+          ? data.employeeId.value
+          : this.employeeId,
       cycleKey: data.cycleKey.present ? data.cycleKey.value : this.cycleKey,
       hotelDayStart: data.hotelDayStart.present
           ? data.hotelDayStart.value
           : this.hotelDayStart,
-      hotelDayEnd:
-          data.hotelDayEnd.present ? data.hotelDayEnd.value : this.hotelDayEnd,
+      hotelDayEnd: data.hotelDayEnd.present
+          ? data.hotelDayEnd.value
+          : this.hotelDayEnd,
       expectedAmount: data.expectedAmount.present
           ? data.expectedAmount.value
           : this.expectedAmount,
-      actualPaid:
-          data.actualPaid.present ? data.actualPaid.value : this.actualPaid,
+      actualPaid: data.actualPaid.present
+          ? data.actualPaid.value
+          : this.actualPaid,
       remainingAmount: data.remainingAmount.present
           ? data.remainingAmount.value
           : this.remainingAmount,
@@ -17584,29 +17581,29 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
 
   @override
   int get hashCode => Object.hashAll([
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        employeeId,
-        cycleKey,
-        hotelDayStart,
-        hotelDayEnd,
-        expectedAmount,
-        actualPaid,
-        remainingAmount,
-        status,
-      ]);
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    employeeId,
+    cycleKey,
+    hotelDayStart,
+    hotelDayEnd,
+    expectedAmount,
+    actualPaid,
+    remainingAmount,
+    status,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -17705,12 +17702,12 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     this.actualPaid = const Value.absent(),
     this.remainingAmount = const Value.absent(),
     this.status = const Value.absent(),
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        employeeId = Value(employeeId),
-        cycleKey = Value(cycleKey);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       employeeId = Value(employeeId),
+       cycleKey = Value(cycleKey);
   static Insertable<SalaryCycle> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -18150,27 +18147,27 @@ class $SalaryPaymentsTable extends SalaryPayments
   );
   @override
   List<GeneratedColumn> get $columns => [
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        cycleId,
-        amount,
-        hotelDayKey,
-        paymentDateIso,
-        method,
-        isAutoGenerated,
-      ];
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    cycleId,
+    amount,
+    hotelDayKey,
+    paymentDateIso,
+    method,
+    isAutoGenerated,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -18552,8 +18549,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           ? const Value.absent()
           : Value(hotelDayKey),
       paymentDateIso: Value(paymentDateIso),
-      method:
-          method == null && nullToAbsent ? const Value.absent() : Value(method),
+      method: method == null && nullToAbsent
+          ? const Value.absent()
+          : Value(method),
       isAutoGenerated: Value(isAutoGenerated),
     );
   }
@@ -18634,32 +18632,28 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     String? paymentDateIso,
     Value<String?> method = const Value.absent(),
     bool? isAutoGenerated,
-  }) =>
-      SalaryPayment(
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-        lastModified: lastModified ?? this.lastModified,
-        createdAtIso:
-            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
-        updatedAtIso:
-            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
-        deletedAtIso:
-            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
-        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
-        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
-        version: version ?? this.version,
-        origin: origin ?? this.origin,
-        id: id ?? this.id,
-        cycleId: cycleId ?? this.cycleId,
-        amount: amount ?? this.amount,
-        hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
-        paymentDateIso: paymentDateIso ?? this.paymentDateIso,
-        method: method.present ? method.value : this.method,
-        isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
-      );
+  }) => SalaryPayment(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    id: id ?? this.id,
+    cycleId: cycleId ?? this.cycleId,
+    amount: amount ?? this.amount,
+    hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
+    paymentDateIso: paymentDateIso ?? this.paymentDateIso,
+    method: method.present ? method.value : this.method,
+    isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
+  );
   SalaryPayment copyWithCompanion(SalaryPaymentsCompanion data) {
     return SalaryPayment(
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
@@ -18690,8 +18684,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       id: data.id.present ? data.id.value : this.id,
       cycleId: data.cycleId.present ? data.cycleId.value : this.cycleId,
       amount: data.amount.present ? data.amount.value : this.amount,
-      hotelDayKey:
-          data.hotelDayKey.present ? data.hotelDayKey.value : this.hotelDayKey,
+      hotelDayKey: data.hotelDayKey.present
+          ? data.hotelDayKey.value
+          : this.hotelDayKey,
       paymentDateIso: data.paymentDateIso.present
           ? data.paymentDateIso.value
           : this.paymentDateIso,
@@ -18731,27 +18726,27 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
 
   @override
   int get hashCode => Object.hash(
-        localUuid,
-        serverId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-        lastModified,
-        createdAtIso,
-        updatedAtIso,
-        deletedAtIso,
-        createdAtEpoch,
-        lastModifiedEpoch,
-        version,
-        origin,
-        id,
-        cycleId,
-        amount,
-        hotelDayKey,
-        paymentDateIso,
-        method,
-        isAutoGenerated,
-      );
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    id,
+    cycleId,
+    amount,
+    hotelDayKey,
+    paymentDateIso,
+    method,
+    isAutoGenerated,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -18842,12 +18837,12 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     required String paymentDateIso,
     this.method = const Value.absent(),
     this.isAutoGenerated = const Value.absent(),
-  })  : localUuid = Value(localUuid),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt),
-        lastModified = Value(lastModified),
-        cycleId = Value(cycleId),
-        paymentDateIso = Value(paymentDateIso);
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       cycleId = Value(cycleId),
+       paymentDateIso = Value(paymentDateIso);
   static Insertable<SalaryPayment> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -19139,16 +19134,16 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
   );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        entity,
-        op,
-        localUuid,
-        serverId,
-        payload,
-        clientTs,
-        attempts,
-        lastError,
-      ];
+    id,
+    entity,
+    op,
+    localUuid,
+    serverId,
+    payload,
+    clientTs,
+    attempts,
+    lastError,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -19374,18 +19369,17 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     int? clientTs,
     int? attempts,
     Value<String?> lastError = const Value.absent(),
-  }) =>
-      OutboxData(
-        id: id ?? this.id,
-        entity: entity ?? this.entity,
-        op: op ?? this.op,
-        localUuid: localUuid ?? this.localUuid,
-        serverId: serverId.present ? serverId.value : this.serverId,
-        payload: payload ?? this.payload,
-        clientTs: clientTs ?? this.clientTs,
-        attempts: attempts ?? this.attempts,
-        lastError: lastError.present ? lastError.value : this.lastError,
-      );
+  }) => OutboxData(
+    id: id ?? this.id,
+    entity: entity ?? this.entity,
+    op: op ?? this.op,
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    payload: payload ?? this.payload,
+    clientTs: clientTs ?? this.clientTs,
+    attempts: attempts ?? this.attempts,
+    lastError: lastError.present ? lastError.value : this.lastError,
+  );
   OutboxData copyWithCompanion(OutboxCompanion data) {
     return OutboxData(
       id: data.id.present ? data.id.value : this.id,
@@ -19418,16 +19412,16 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        entity,
-        op,
-        localUuid,
-        serverId,
-        payload,
-        clientTs,
-        attempts,
-        lastError,
-      );
+    id,
+    entity,
+    op,
+    localUuid,
+    serverId,
+    payload,
+    clientTs,
+    attempts,
+    lastError,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -19474,11 +19468,11 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     required int clientTs,
     this.attempts = const Value.absent(),
     this.lastError = const Value.absent(),
-  })  : entity = Value(entity),
-        op = Value(op),
-        localUuid = Value(localUuid),
-        payload = Value(payload),
-        clientTs = Value(clientTs);
+  }) : entity = Value(entity),
+       op = Value(op),
+       localUuid = Value(localUuid),
+       payload = Value(payload),
+       clientTs = Value(clientTs);
   static Insertable<OutboxData> custom({
     Expression<int>? id,
     Expression<String>? entity,
@@ -19655,13 +19649,13 @@ class $SyncStateTable extends SyncState
   );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        lastServerTs,
-        lastPullTs,
-        lastPushTs,
-        isSyncing,
-        version,
-      ];
+    id,
+    lastServerTs,
+    lastPullTs,
+    lastPushTs,
+    isSyncing,
+    version,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -19830,25 +19824,26 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
     int? lastPushTs,
     int? isSyncing,
     int? version,
-  }) =>
-      SyncStateData(
-        id: id ?? this.id,
-        lastServerTs: lastServerTs ?? this.lastServerTs,
-        lastPullTs: lastPullTs ?? this.lastPullTs,
-        lastPushTs: lastPushTs ?? this.lastPushTs,
-        isSyncing: isSyncing ?? this.isSyncing,
-        version: version ?? this.version,
-      );
+  }) => SyncStateData(
+    id: id ?? this.id,
+    lastServerTs: lastServerTs ?? this.lastServerTs,
+    lastPullTs: lastPullTs ?? this.lastPullTs,
+    lastPushTs: lastPushTs ?? this.lastPushTs,
+    isSyncing: isSyncing ?? this.isSyncing,
+    version: version ?? this.version,
+  );
   SyncStateData copyWithCompanion(SyncStateCompanion data) {
     return SyncStateData(
       id: data.id.present ? data.id.value : this.id,
       lastServerTs: data.lastServerTs.present
           ? data.lastServerTs.value
           : this.lastServerTs,
-      lastPullTs:
-          data.lastPullTs.present ? data.lastPullTs.value : this.lastPullTs,
-      lastPushTs:
-          data.lastPushTs.present ? data.lastPushTs.value : this.lastPushTs,
+      lastPullTs: data.lastPullTs.present
+          ? data.lastPullTs.value
+          : this.lastPullTs,
+      lastPushTs: data.lastPushTs.present
+          ? data.lastPushTs.value
+          : this.lastPushTs,
       isSyncing: data.isSyncing.present ? data.isSyncing.value : this.isSyncing,
       version: data.version.present ? data.version.value : this.version,
     );
@@ -20096,17 +20091,17 @@ class $RestoreFixLogTable extends RestoreFixLog
   );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        fixId,
-        executedAt,
-        targetTable,
-        targetRecordId,
-        fieldName,
-        oldValue,
-        newValue,
-        reason,
-        fixType,
-      ];
+    id,
+    fixId,
+    executedAt,
+    targetTable,
+    targetRecordId,
+    fieldName,
+    oldValue,
+    newValue,
+    reason,
+    fixType,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -20363,27 +20358,28 @@ class RestoreFixLogData extends DataClass
     Value<String?> newValue = const Value.absent(),
     String? reason,
     String? fixType,
-  }) =>
-      RestoreFixLogData(
-        id: id ?? this.id,
-        fixId: fixId ?? this.fixId,
-        executedAt: executedAt ?? this.executedAt,
-        targetTable: targetTable ?? this.targetTable,
-        targetRecordId: targetRecordId ?? this.targetRecordId,
-        fieldName: fieldName ?? this.fieldName,
-        oldValue: oldValue.present ? oldValue.value : this.oldValue,
-        newValue: newValue.present ? newValue.value : this.newValue,
-        reason: reason ?? this.reason,
-        fixType: fixType ?? this.fixType,
-      );
+  }) => RestoreFixLogData(
+    id: id ?? this.id,
+    fixId: fixId ?? this.fixId,
+    executedAt: executedAt ?? this.executedAt,
+    targetTable: targetTable ?? this.targetTable,
+    targetRecordId: targetRecordId ?? this.targetRecordId,
+    fieldName: fieldName ?? this.fieldName,
+    oldValue: oldValue.present ? oldValue.value : this.oldValue,
+    newValue: newValue.present ? newValue.value : this.newValue,
+    reason: reason ?? this.reason,
+    fixType: fixType ?? this.fixType,
+  );
   RestoreFixLogData copyWithCompanion(RestoreFixLogCompanion data) {
     return RestoreFixLogData(
       id: data.id.present ? data.id.value : this.id,
       fixId: data.fixId.present ? data.fixId.value : this.fixId,
-      executedAt:
-          data.executedAt.present ? data.executedAt.value : this.executedAt,
-      targetTable:
-          data.targetTable.present ? data.targetTable.value : this.targetTable,
+      executedAt: data.executedAt.present
+          ? data.executedAt.value
+          : this.executedAt,
+      targetTable: data.targetTable.present
+          ? data.targetTable.value
+          : this.targetTable,
       targetRecordId: data.targetRecordId.present
           ? data.targetRecordId.value
           : this.targetRecordId,
@@ -20414,17 +20410,17 @@ class RestoreFixLogData extends DataClass
 
   @override
   int get hashCode => Object.hash(
-        id,
-        fixId,
-        executedAt,
-        targetTable,
-        targetRecordId,
-        fieldName,
-        oldValue,
-        newValue,
-        reason,
-        fixType,
-      );
+    id,
+    fixId,
+    executedAt,
+    targetTable,
+    targetRecordId,
+    fieldName,
+    oldValue,
+    newValue,
+    reason,
+    fixType,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -20475,13 +20471,13 @@ class RestoreFixLogCompanion extends UpdateCompanion<RestoreFixLogData> {
     this.newValue = const Value.absent(),
     required String reason,
     required String fixType,
-  })  : fixId = Value(fixId),
-        executedAt = Value(executedAt),
-        targetTable = Value(targetTable),
-        targetRecordId = Value(targetRecordId),
-        fieldName = Value(fieldName),
-        reason = Value(reason),
-        fixType = Value(fixType);
+  }) : fixId = Value(fixId),
+       executedAt = Value(executedAt),
+       targetTable = Value(targetTable),
+       targetRecordId = Value(targetRecordId),
+       fieldName = Value(fieldName),
+       reason = Value(reason),
+       fixType = Value(fixType);
   static Insertable<RestoreFixLogData> custom({
     Expression<int>? id,
     Expression<String>? fixId,
@@ -20694,16 +20690,16 @@ class $SyncQueueTable extends SyncQueue
   );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        uuid,
-        targetTable,
-        operation,
-        payload,
-        updatedAt,
-        deviceId,
-        status,
-        createdAt,
-      ];
+    id,
+    uuid,
+    targetTable,
+    operation,
+    payload,
+    updatedAt,
+    deviceId,
+    status,
+    createdAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -20931,24 +20927,24 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
     String? deviceId,
     String? status,
     String? createdAt,
-  }) =>
-      SyncQueueData(
-        id: id ?? this.id,
-        uuid: uuid ?? this.uuid,
-        targetTable: targetTable ?? this.targetTable,
-        operation: operation ?? this.operation,
-        payload: payload ?? this.payload,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deviceId: deviceId ?? this.deviceId,
-        status: status ?? this.status,
-        createdAt: createdAt ?? this.createdAt,
-      );
+  }) => SyncQueueData(
+    id: id ?? this.id,
+    uuid: uuid ?? this.uuid,
+    targetTable: targetTable ?? this.targetTable,
+    operation: operation ?? this.operation,
+    payload: payload ?? this.payload,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deviceId: deviceId ?? this.deviceId,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+  );
   SyncQueueData copyWithCompanion(SyncQueueCompanion data) {
     return SyncQueueData(
       id: data.id.present ? data.id.value : this.id,
       uuid: data.uuid.present ? data.uuid.value : this.uuid,
-      targetTable:
-          data.targetTable.present ? data.targetTable.value : this.targetTable,
+      targetTable: data.targetTable.present
+          ? data.targetTable.value
+          : this.targetTable,
       operation: data.operation.present ? data.operation.value : this.operation,
       payload: data.payload.present ? data.payload.value : this.payload,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -20976,16 +20972,16 @@ class SyncQueueData extends DataClass implements Insertable<SyncQueueData> {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        uuid,
-        targetTable,
-        operation,
-        payload,
-        updatedAt,
-        deviceId,
-        status,
-        createdAt,
-      );
+    id,
+    uuid,
+    targetTable,
+    operation,
+    payload,
+    updatedAt,
+    deviceId,
+    status,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -21032,13 +21028,13 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
     required String deviceId,
     this.status = const Value.absent(),
     required String createdAt,
-  })  : uuid = Value(uuid),
-        targetTable = Value(targetTable),
-        operation = Value(operation),
-        payload = Value(payload),
-        updatedAt = Value(updatedAt),
-        deviceId = Value(deviceId),
-        createdAt = Value(createdAt);
+  }) : uuid = Value(uuid),
+       targetTable = Value(targetTable),
+       operation = Value(operation),
+       payload = Value(payload),
+       updatedAt = Value(updatedAt),
+       deviceId = Value(deviceId),
+       createdAt = Value(createdAt);
   static Insertable<SyncQueueData> custom({
     Expression<int>? id,
     Expression<String>? uuid,
@@ -21254,17 +21250,17 @@ class $SyncLogTable extends SyncLog with TableInfo<$SyncLogTable, SyncLogData> {
   );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        syncId,
-        direction,
-        deviceId,
-        metadata,
-        operations,
-        checksumMatched,
-        status,
-        createdAt,
-        completedAt,
-      ];
+    id,
+    syncId,
+    direction,
+    deviceId,
+    metadata,
+    operations,
+    checksumMatched,
+    status,
+    createdAt,
+    completedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -21514,19 +21510,18 @@ class SyncLogData extends DataClass implements Insertable<SyncLogData> {
     String? status,
     String? createdAt,
     Value<String?> completedAt = const Value.absent(),
-  }) =>
-      SyncLogData(
-        id: id ?? this.id,
-        syncId: syncId ?? this.syncId,
-        direction: direction ?? this.direction,
-        deviceId: deviceId ?? this.deviceId,
-        metadata: metadata ?? this.metadata,
-        operations: operations ?? this.operations,
-        checksumMatched: checksumMatched ?? this.checksumMatched,
-        status: status ?? this.status,
-        createdAt: createdAt ?? this.createdAt,
-        completedAt: completedAt.present ? completedAt.value : this.completedAt,
-      );
+  }) => SyncLogData(
+    id: id ?? this.id,
+    syncId: syncId ?? this.syncId,
+    direction: direction ?? this.direction,
+    deviceId: deviceId ?? this.deviceId,
+    metadata: metadata ?? this.metadata,
+    operations: operations ?? this.operations,
+    checksumMatched: checksumMatched ?? this.checksumMatched,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+  );
   SyncLogData copyWithCompanion(SyncLogCompanion data) {
     return SyncLogData(
       id: data.id.present ? data.id.value : this.id,
@@ -21534,15 +21529,17 @@ class SyncLogData extends DataClass implements Insertable<SyncLogData> {
       direction: data.direction.present ? data.direction.value : this.direction,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
       metadata: data.metadata.present ? data.metadata.value : this.metadata,
-      operations:
-          data.operations.present ? data.operations.value : this.operations,
+      operations: data.operations.present
+          ? data.operations.value
+          : this.operations,
       checksumMatched: data.checksumMatched.present
           ? data.checksumMatched.value
           : this.checksumMatched,
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      completedAt:
-          data.completedAt.present ? data.completedAt.value : this.completedAt,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
     );
   }
 
@@ -21565,17 +21562,17 @@ class SyncLogData extends DataClass implements Insertable<SyncLogData> {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        syncId,
-        direction,
-        deviceId,
-        metadata,
-        operations,
-        checksumMatched,
-        status,
-        createdAt,
-        completedAt,
-      );
+    id,
+    syncId,
+    direction,
+    deviceId,
+    metadata,
+    operations,
+    checksumMatched,
+    status,
+    createdAt,
+    completedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -21626,12 +21623,12 @@ class SyncLogCompanion extends UpdateCompanion<SyncLogData> {
     this.status = const Value.absent(),
     required String createdAt,
     this.completedAt = const Value.absent(),
-  })  : syncId = Value(syncId),
-        direction = Value(direction),
-        deviceId = Value(deviceId),
-        metadata = Value(metadata),
-        operations = Value(operations),
-        createdAt = Value(createdAt);
+  }) : syncId = Value(syncId),
+       direction = Value(direction),
+       deviceId = Value(deviceId),
+       metadata = Value(metadata),
+       operations = Value(operations),
+       createdAt = Value(createdAt);
   static Insertable<SyncLogData> custom({
     Expression<int>? id,
     Expression<String>? syncId,
@@ -21835,15 +21832,15 @@ class $SyncConflictsTable extends SyncConflicts
   );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        logId,
-        targetTable,
-        uuid,
-        resolution,
-        localPayload,
-        remotePayload,
-        createdAt,
-      ];
+    id,
+    logId,
+    targetTable,
+    uuid,
+    resolution,
+    localPayload,
+    remotePayload,
+    createdAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -22060,26 +22057,27 @@ class SyncConflictRow extends DataClass implements Insertable<SyncConflictRow> {
     String? localPayload,
     String? remotePayload,
     String? createdAt,
-  }) =>
-      SyncConflictRow(
-        id: id ?? this.id,
-        logId: logId ?? this.logId,
-        targetTable: targetTable ?? this.targetTable,
-        uuid: uuid ?? this.uuid,
-        resolution: resolution ?? this.resolution,
-        localPayload: localPayload ?? this.localPayload,
-        remotePayload: remotePayload ?? this.remotePayload,
-        createdAt: createdAt ?? this.createdAt,
-      );
+  }) => SyncConflictRow(
+    id: id ?? this.id,
+    logId: logId ?? this.logId,
+    targetTable: targetTable ?? this.targetTable,
+    uuid: uuid ?? this.uuid,
+    resolution: resolution ?? this.resolution,
+    localPayload: localPayload ?? this.localPayload,
+    remotePayload: remotePayload ?? this.remotePayload,
+    createdAt: createdAt ?? this.createdAt,
+  );
   SyncConflictRow copyWithCompanion(SyncConflictsCompanion data) {
     return SyncConflictRow(
       id: data.id.present ? data.id.value : this.id,
       logId: data.logId.present ? data.logId.value : this.logId,
-      targetTable:
-          data.targetTable.present ? data.targetTable.value : this.targetTable,
+      targetTable: data.targetTable.present
+          ? data.targetTable.value
+          : this.targetTable,
       uuid: data.uuid.present ? data.uuid.value : this.uuid,
-      resolution:
-          data.resolution.present ? data.resolution.value : this.resolution,
+      resolution: data.resolution.present
+          ? data.resolution.value
+          : this.resolution,
       localPayload: data.localPayload.present
           ? data.localPayload.value
           : this.localPayload,
@@ -22107,15 +22105,15 @@ class SyncConflictRow extends DataClass implements Insertable<SyncConflictRow> {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        logId,
-        targetTable,
-        uuid,
-        resolution,
-        localPayload,
-        remotePayload,
-        createdAt,
-      );
+    id,
+    logId,
+    targetTable,
+    uuid,
+    resolution,
+    localPayload,
+    remotePayload,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -22158,13 +22156,13 @@ class SyncConflictsCompanion extends UpdateCompanion<SyncConflictRow> {
     required String localPayload,
     required String remotePayload,
     required String createdAt,
-  })  : logId = Value(logId),
-        targetTable = Value(targetTable),
-        uuid = Value(uuid),
-        resolution = Value(resolution),
-        localPayload = Value(localPayload),
-        remotePayload = Value(remotePayload),
-        createdAt = Value(createdAt);
+  }) : logId = Value(logId),
+       targetTable = Value(targetTable),
+       uuid = Value(uuid),
+       resolution = Value(resolution),
+       localPayload = Value(localPayload),
+       remotePayload = Value(remotePayload),
+       createdAt = Value(createdAt);
   static Insertable<SyncConflictRow> custom({
     Expression<int>? id,
     Expression<int>? logId,
@@ -22288,81 +22286,83 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
-        rooms,
-        bookings,
-        bookingNotes,
-        shiftNotes,
-        employees,
-        expenses,
-        cashTransactions,
-        payments,
-        debts,
-        bookingNights,
-        hotelDayLedger,
-        autoFixRuns,
-        integrityViolations,
-        appSessions,
-        salaryCycles,
-        salaryPayments,
-        outbox,
-        syncState,
-        restoreFixLog,
-        syncQueue,
-        syncLog,
-        syncConflicts,
-      ];
+    rooms,
+    bookings,
+    bookingNotes,
+    shiftNotes,
+    employees,
+    expenses,
+    cashTransactions,
+    payments,
+    debts,
+    bookingNights,
+    hotelDayLedger,
+    autoFixRuns,
+    integrityViolations,
+    appSessions,
+    salaryCycles,
+    salaryPayments,
+    outbox,
+    syncState,
+    restoreFixLog,
+    syncQueue,
+    syncLog,
+    syncConflicts,
+  ];
 }
 
-typedef $$RoomsTableCreateCompanionBuilder = RoomsCompanion Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  required String roomNumber,
-  required String type,
-  required double price,
-  required String status,
-  Value<String?> imageUrl,
-  Value<String> cleaningStatus,
-  Value<String?> lastCleanedHotelDay,
-  Value<String?> lastOccupiedHotelDay,
-  Value<bool> requiresMaintenance,
-});
-typedef $$RoomsTableUpdateCompanionBuilder = RoomsCompanion Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<String> roomNumber,
-  Value<String> type,
-  Value<double> price,
-  Value<String> status,
-  Value<String?> imageUrl,
-  Value<String> cleaningStatus,
-  Value<String?> lastCleanedHotelDay,
-  Value<String?> lastOccupiedHotelDay,
-  Value<bool> requiresMaintenance,
-});
+typedef $$RoomsTableCreateCompanionBuilder =
+    RoomsCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      required String roomNumber,
+      required String type,
+      required double price,
+      required String status,
+      Value<String?> imageUrl,
+      Value<String> cleaningStatus,
+      Value<String?> lastCleanedHotelDay,
+      Value<String?> lastOccupiedHotelDay,
+      Value<bool> requiresMaintenance,
+    });
+typedef $$RoomsTableUpdateCompanionBuilder =
+    RoomsCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<String> roomNumber,
+      Value<String> type,
+      Value<double> price,
+      Value<String> status,
+      Value<String?> imageUrl,
+      Value<String> cleaningStatus,
+      Value<String?> lastCleanedHotelDay,
+      Value<String?> lastOccupiedHotelDay,
+      Value<bool> requiresMaintenance,
+    });
 
 final class $$RoomsTableReferences
     extends BaseReferences<_$AppDatabase, $RoomsTable, Room> {
@@ -22370,14 +22370,13 @@ final class $$RoomsTableReferences
 
   static MultiTypedResultKey<$BookingsTable, List<Booking>> _bookingsRefsTable(
     _$AppDatabase db,
-  ) =>
-      MultiTypedResultKey.fromTable(
-        db.bookings,
-        aliasName: $_aliasNameGenerator(
-          db.rooms.roomNumber,
-          db.bookings.roomNumber,
-        ),
-      );
+  ) => MultiTypedResultKey.fromTable(
+    db.bookings,
+    aliasName: $_aliasNameGenerator(
+      db.rooms.roomNumber,
+      db.bookings.roomNumber,
+    ),
+  );
 
   $$BookingsTableProcessedTableManager get bookingsRefs {
     final manager = $$BookingsTableTableManager($_db, $_db.bookings).filter(
@@ -22402,119 +22401,119 @@ class $$RoomsTableFilterComposer extends Composer<_$AppDatabase, $RoomsTable> {
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get roomNumber => $composableBuilder(
-        column: $table.roomNumber,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.roomNumber,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get type => $composableBuilder(
-        column: $table.type,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get price => $composableBuilder(
-        column: $table.price,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.price,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get imageUrl => $composableBuilder(
-        column: $table.imageUrl,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.imageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get cleaningStatus => $composableBuilder(
-        column: $table.cleaningStatus,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.cleaningStatus,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get lastCleanedHotelDay => $composableBuilder(
-        column: $table.lastCleanedHotelDay,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastCleanedHotelDay,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get lastOccupiedHotelDay => $composableBuilder(
-        column: $table.lastOccupiedHotelDay,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastOccupiedHotelDay,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get requiresMaintenance => $composableBuilder(
-        column: $table.requiresMaintenance,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.requiresMaintenance,
+    builder: (column) => ColumnFilters(column),
+  );
 
   Expression<bool> bookingsRefs(
     Expression<bool> Function($$BookingsTableFilterComposer f) f,
@@ -22524,18 +22523,19 @@ class $$RoomsTableFilterComposer extends Composer<_$AppDatabase, $RoomsTable> {
       getCurrentColumn: (t) => t.roomNumber,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.roomNumber,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableFilterComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableFilterComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -22551,119 +22551,119 @@ class $$RoomsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get roomNumber => $composableBuilder(
-        column: $table.roomNumber,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.roomNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get type => $composableBuilder(
-        column: $table.type,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get price => $composableBuilder(
-        column: $table.price,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.price,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get imageUrl => $composableBuilder(
-        column: $table.imageUrl,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.imageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get cleaningStatus => $composableBuilder(
-        column: $table.cleaningStatus,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.cleaningStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get lastCleanedHotelDay => $composableBuilder(
-        column: $table.lastCleanedHotelDay,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastCleanedHotelDay,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get lastOccupiedHotelDay => $composableBuilder(
-        column: $table.lastOccupiedHotelDay,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastOccupiedHotelDay,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get requiresMaintenance => $composableBuilder(
-        column: $table.requiresMaintenance,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.requiresMaintenance,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$RoomsTableAnnotationComposer
@@ -22691,34 +22691,34 @@ class $$RoomsTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -22730,9 +22730,9 @@ class $$RoomsTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get roomNumber => $composableBuilder(
-        column: $table.roomNumber,
-        builder: (column) => column,
-      );
+    column: $table.roomNumber,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
@@ -22747,24 +22747,24 @@ class $$RoomsTableAnnotationComposer
       $composableBuilder(column: $table.imageUrl, builder: (column) => column);
 
   GeneratedColumn<String> get cleaningStatus => $composableBuilder(
-        column: $table.cleaningStatus,
-        builder: (column) => column,
-      );
+    column: $table.cleaningStatus,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get lastCleanedHotelDay => $composableBuilder(
-        column: $table.lastCleanedHotelDay,
-        builder: (column) => column,
-      );
+    column: $table.lastCleanedHotelDay,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get lastOccupiedHotelDay => $composableBuilder(
-        column: $table.lastOccupiedHotelDay,
-        builder: (column) => column,
-      );
+    column: $table.lastOccupiedHotelDay,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get requiresMaintenance => $composableBuilder(
-        column: $table.requiresMaintenance,
-        builder: (column) => column,
-      );
+    column: $table.requiresMaintenance,
+    builder: (column) => column,
+  );
 
   Expression<T> bookingsRefs<T extends Object>(
     Expression<T> Function($$BookingsTableAnnotationComposer a) f,
@@ -22774,292 +22774,298 @@ class $$RoomsTableAnnotationComposer
       getCurrentColumn: (t) => t.roomNumber,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.roomNumber,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
 }
 
-class $$RoomsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $RoomsTable,
-    Room,
-    $$RoomsTableFilterComposer,
-    $$RoomsTableOrderingComposer,
-    $$RoomsTableAnnotationComposer,
-    $$RoomsTableCreateCompanionBuilder,
-    $$RoomsTableUpdateCompanionBuilder,
-    (Room, $$RoomsTableReferences),
-    Room,
-    PrefetchHooks Function({bool bookingsRefs})> {
+class $$RoomsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RoomsTable,
+          Room,
+          $$RoomsTableFilterComposer,
+          $$RoomsTableOrderingComposer,
+          $$RoomsTableAnnotationComposer,
+          $$RoomsTableCreateCompanionBuilder,
+          $$RoomsTableUpdateCompanionBuilder,
+          (Room, $$RoomsTableReferences),
+          Room,
+          PrefetchHooks Function({bool bookingsRefs})
+        > {
   $$RoomsTableTableManager(_$AppDatabase db, $RoomsTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$RoomsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$RoomsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$RoomsTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<String> roomNumber = const Value.absent(),
-              Value<String> type = const Value.absent(),
-              Value<double> price = const Value.absent(),
-              Value<String> status = const Value.absent(),
-              Value<String?> imageUrl = const Value.absent(),
-              Value<String> cleaningStatus = const Value.absent(),
-              Value<String?> lastCleanedHotelDay = const Value.absent(),
-              Value<String?> lastOccupiedHotelDay = const Value.absent(),
-              Value<bool> requiresMaintenance = const Value.absent(),
-            }) =>
-                RoomsCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              roomNumber: roomNumber,
-              type: type,
-              price: price,
-              status: status,
-              imageUrl: imageUrl,
-              cleaningStatus: cleaningStatus,
-              lastCleanedHotelDay: lastCleanedHotelDay,
-              lastOccupiedHotelDay: lastOccupiedHotelDay,
-              requiresMaintenance: requiresMaintenance,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              required String roomNumber,
-              required String type,
-              required double price,
-              required String status,
-              Value<String?> imageUrl = const Value.absent(),
-              Value<String> cleaningStatus = const Value.absent(),
-              Value<String?> lastCleanedHotelDay = const Value.absent(),
-              Value<String?> lastOccupiedHotelDay = const Value.absent(),
-              Value<bool> requiresMaintenance = const Value.absent(),
-            }) =>
-                RoomsCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              roomNumber: roomNumber,
-              type: type,
-              price: price,
-              status: status,
-              imageUrl: imageUrl,
-              cleaningStatus: cleaningStatus,
-              lastCleanedHotelDay: lastCleanedHotelDay,
-              lastOccupiedHotelDay: lastOccupiedHotelDay,
-              requiresMaintenance: requiresMaintenance,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$RoomsTableReferences(db, table, e)
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({bookingsRefs = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [if (bookingsRefs) db.bookings],
-                addJoins: null,
-                getPrefetchedDataCallback: (items) async {
-                  return [
-                    if (bookingsRefs)
-                      await $_getPrefetchedData<Room, $RoomsTable, Booking>(
-                        currentTable: table,
-                        referencedTable:
-                            $$RoomsTableReferences._bookingsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$RoomsTableReferences(db, table, p0).bookingsRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems.where(
-                          (e) => e.roomNumber == item.roomNumber,
-                        ),
-                        typedResults: items,
-                      ),
-                  ];
-                },
-              );
-            },
-          ),
-        );
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RoomsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RoomsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RoomsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<String> roomNumber = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<double> price = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> imageUrl = const Value.absent(),
+                Value<String> cleaningStatus = const Value.absent(),
+                Value<String?> lastCleanedHotelDay = const Value.absent(),
+                Value<String?> lastOccupiedHotelDay = const Value.absent(),
+                Value<bool> requiresMaintenance = const Value.absent(),
+              }) => RoomsCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                roomNumber: roomNumber,
+                type: type,
+                price: price,
+                status: status,
+                imageUrl: imageUrl,
+                cleaningStatus: cleaningStatus,
+                lastCleanedHotelDay: lastCleanedHotelDay,
+                lastOccupiedHotelDay: lastOccupiedHotelDay,
+                requiresMaintenance: requiresMaintenance,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required String roomNumber,
+                required String type,
+                required double price,
+                required String status,
+                Value<String?> imageUrl = const Value.absent(),
+                Value<String> cleaningStatus = const Value.absent(),
+                Value<String?> lastCleanedHotelDay = const Value.absent(),
+                Value<String?> lastOccupiedHotelDay = const Value.absent(),
+                Value<bool> requiresMaintenance = const Value.absent(),
+              }) => RoomsCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                roomNumber: roomNumber,
+                type: type,
+                price: price,
+                status: status,
+                imageUrl: imageUrl,
+                cleaningStatus: cleaningStatus,
+                lastCleanedHotelDay: lastCleanedHotelDay,
+                lastOccupiedHotelDay: lastOccupiedHotelDay,
+                requiresMaintenance: requiresMaintenance,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) =>
+                    (e.readTable(table), $$RoomsTableReferences(db, table, e)),
+              )
+              .toList(),
+          prefetchHooksCallback: ({bookingsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (bookingsRefs) db.bookings],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (bookingsRefs)
+                    await $_getPrefetchedData<Room, $RoomsTable, Booking>(
+                      currentTable: table,
+                      referencedTable: $$RoomsTableReferences
+                          ._bookingsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$RoomsTableReferences(db, table, p0).bookingsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.roomNumber == item.roomNumber,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
 }
 
-typedef $$RoomsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $RoomsTable,
-    Room,
-    $$RoomsTableFilterComposer,
-    $$RoomsTableOrderingComposer,
-    $$RoomsTableAnnotationComposer,
-    $$RoomsTableCreateCompanionBuilder,
-    $$RoomsTableUpdateCompanionBuilder,
-    (Room, $$RoomsTableReferences),
-    Room,
-    PrefetchHooks Function({bool bookingsRefs})>;
-typedef $$BookingsTableCreateCompanionBuilder = BookingsCompanion Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int?> serverBookingId,
-  required String roomNumber,
-  required String guestName,
-  required String guestPhone,
-  Value<String> guestIdType,
-  Value<String> guestIdNumber,
-  Value<String?> guestIdIssueDate,
-  Value<String?> guestIdIssuePlace,
-  required String guestNationality,
-  Value<String?> guestEmail,
-  Value<String?> guestAddress,
-  required String checkinDate,
-  Value<String?> checkoutDate,
-  Value<String?> actualCheckout,
-  required String status,
-  Value<String?> notes,
-  Value<int> expectedNights,
-  Value<int> calculatedNights,
-  Value<int> totalNightsCached,
-  Value<String?> stayDurationIso,
-  Value<int?> lastNightEpoch,
-  Value<bool> isOverdue,
-  Value<bool> needsCheckoutReview,
-  Value<double> totalDueCached,
-  Value<double> totalPaidCached,
-  Value<double> remainingBalanceCached,
-  Value<bool> isFullyPaid,
-  Value<String?> hotelDayCheckin,
-  Value<String?> hotelDayCheckout,
-});
-typedef $$BookingsTableUpdateCompanionBuilder = BookingsCompanion Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int?> serverBookingId,
-  Value<String> roomNumber,
-  Value<String> guestName,
-  Value<String> guestPhone,
-  Value<String> guestIdType,
-  Value<String> guestIdNumber,
-  Value<String?> guestIdIssueDate,
-  Value<String?> guestIdIssuePlace,
-  Value<String> guestNationality,
-  Value<String?> guestEmail,
-  Value<String?> guestAddress,
-  Value<String> checkinDate,
-  Value<String?> checkoutDate,
-  Value<String?> actualCheckout,
-  Value<String> status,
-  Value<String?> notes,
-  Value<int> expectedNights,
-  Value<int> calculatedNights,
-  Value<int> totalNightsCached,
-  Value<String?> stayDurationIso,
-  Value<int?> lastNightEpoch,
-  Value<bool> isOverdue,
-  Value<bool> needsCheckoutReview,
-  Value<double> totalDueCached,
-  Value<double> totalPaidCached,
-  Value<double> remainingBalanceCached,
-  Value<bool> isFullyPaid,
-  Value<String?> hotelDayCheckin,
-  Value<String?> hotelDayCheckout,
-});
+typedef $$RoomsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RoomsTable,
+      Room,
+      $$RoomsTableFilterComposer,
+      $$RoomsTableOrderingComposer,
+      $$RoomsTableAnnotationComposer,
+      $$RoomsTableCreateCompanionBuilder,
+      $$RoomsTableUpdateCompanionBuilder,
+      (Room, $$RoomsTableReferences),
+      Room,
+      PrefetchHooks Function({bool bookingsRefs})
+    >;
+typedef $$BookingsTableCreateCompanionBuilder =
+    BookingsCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int?> serverBookingId,
+      required String roomNumber,
+      required String guestName,
+      required String guestPhone,
+      Value<String> guestIdType,
+      Value<String> guestIdNumber,
+      Value<String?> guestIdIssueDate,
+      Value<String?> guestIdIssuePlace,
+      required String guestNationality,
+      Value<String?> guestEmail,
+      Value<String?> guestAddress,
+      required String checkinDate,
+      Value<String?> checkoutDate,
+      Value<String?> actualCheckout,
+      required String status,
+      Value<String?> notes,
+      Value<int> expectedNights,
+      Value<int> calculatedNights,
+      Value<int> totalNightsCached,
+      Value<String?> stayDurationIso,
+      Value<int?> lastNightEpoch,
+      Value<bool> isOverdue,
+      Value<bool> needsCheckoutReview,
+      Value<double> totalDueCached,
+      Value<double> totalPaidCached,
+      Value<double> remainingBalanceCached,
+      Value<bool> isFullyPaid,
+      Value<String?> hotelDayCheckin,
+      Value<String?> hotelDayCheckout,
+    });
+typedef $$BookingsTableUpdateCompanionBuilder =
+    BookingsCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int?> serverBookingId,
+      Value<String> roomNumber,
+      Value<String> guestName,
+      Value<String> guestPhone,
+      Value<String> guestIdType,
+      Value<String> guestIdNumber,
+      Value<String?> guestIdIssueDate,
+      Value<String?> guestIdIssuePlace,
+      Value<String> guestNationality,
+      Value<String?> guestEmail,
+      Value<String?> guestAddress,
+      Value<String> checkinDate,
+      Value<String?> checkoutDate,
+      Value<String?> actualCheckout,
+      Value<String> status,
+      Value<String?> notes,
+      Value<int> expectedNights,
+      Value<int> calculatedNights,
+      Value<int> totalNightsCached,
+      Value<String?> stayDurationIso,
+      Value<int?> lastNightEpoch,
+      Value<bool> isOverdue,
+      Value<bool> needsCheckoutReview,
+      Value<double> totalDueCached,
+      Value<double> totalPaidCached,
+      Value<double> remainingBalanceCached,
+      Value<bool> isFullyPaid,
+      Value<String?> hotelDayCheckin,
+      Value<String?> hotelDayCheckout,
+    });
 
 final class $$BookingsTableReferences
     extends BaseReferences<_$AppDatabase, $BookingsTable, Booking> {
   $$BookingsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $RoomsTable _roomNumberTable(_$AppDatabase db) => db.rooms.createAlias(
-        $_aliasNameGenerator(db.bookings.roomNumber, db.rooms.roomNumber),
-      );
+    $_aliasNameGenerator(db.bookings.roomNumber, db.rooms.roomNumber),
+  );
 
   $$RoomsTableProcessedTableManager get roomNumber {
     final $_column = $_itemColumn<String>('room_number')!;
@@ -23076,11 +23082,10 @@ final class $$BookingsTableReferences
   }
 
   static MultiTypedResultKey<$BookingNotesTable, List<BookingNote>>
-      _bookingNotesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-            db.bookingNotes,
-            aliasName:
-                $_aliasNameGenerator(db.bookings.id, db.bookingNotes.bookingId),
-          );
+  _bookingNotesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.bookingNotes,
+    aliasName: $_aliasNameGenerator(db.bookings.id, db.bookingNotes.bookingId),
+  );
 
   $$BookingNotesTableProcessedTableManager get bookingNotesRefs {
     final manager = $$BookingNotesTableTableManager(
@@ -23096,12 +23101,10 @@ final class $$BookingsTableReferences
 
   static MultiTypedResultKey<$PaymentsTable, List<Payment>> _paymentsRefsTable(
     _$AppDatabase db,
-  ) =>
-      MultiTypedResultKey.fromTable(
-        db.payments,
-        aliasName:
-            $_aliasNameGenerator(db.bookings.id, db.payments.bookingLocalId),
-      );
+  ) => MultiTypedResultKey.fromTable(
+    db.payments,
+    aliasName: $_aliasNameGenerator(db.bookings.id, db.payments.bookingLocalId),
+  );
 
   $$PaymentsTableProcessedTableManager get paymentsRefs {
     final manager = $$PaymentsTableTableManager(
@@ -23117,12 +23120,10 @@ final class $$BookingsTableReferences
 
   static MultiTypedResultKey<$DebtsTable, List<Debt>> _debtsRefsTable(
     _$AppDatabase db,
-  ) =>
-      MultiTypedResultKey.fromTable(
-        db.debts,
-        aliasName:
-            $_aliasNameGenerator(db.bookings.id, db.debts.bookingLocalId),
-      );
+  ) => MultiTypedResultKey.fromTable(
+    db.debts,
+    aliasName: $_aliasNameGenerator(db.bookings.id, db.debts.bookingLocalId),
+  );
 
   $$DebtsTableProcessedTableManager get debtsRefs {
     final manager = $$DebtsTableTableManager(
@@ -23137,14 +23138,13 @@ final class $$BookingsTableReferences
   }
 
   static MultiTypedResultKey<$BookingNightsTable, List<BookingNight>>
-      _bookingNightsRefsTable(_$AppDatabase db) =>
-          MultiTypedResultKey.fromTable(
-            db.bookingNights,
-            aliasName: $_aliasNameGenerator(
-              db.bookings.id,
-              db.bookingNights.bookingLocalId,
-            ),
-          );
+  _bookingNightsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.bookingNights,
+    aliasName: $_aliasNameGenerator(
+      db.bookings.id,
+      db.bookingNights.bookingLocalId,
+    ),
+  );
 
   $$BookingNightsTableProcessedTableManager get bookingNightsRefs {
     final manager = $$BookingNightsTableTableManager(
@@ -23169,214 +23169,214 @@ class $$BookingsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverBookingId => $composableBuilder(
-        column: $table.serverBookingId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverBookingId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get guestName => $composableBuilder(
-        column: $table.guestName,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.guestName,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get guestPhone => $composableBuilder(
-        column: $table.guestPhone,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.guestPhone,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get guestIdType => $composableBuilder(
-        column: $table.guestIdType,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.guestIdType,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get guestIdNumber => $composableBuilder(
-        column: $table.guestIdNumber,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.guestIdNumber,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get guestIdIssueDate => $composableBuilder(
-        column: $table.guestIdIssueDate,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.guestIdIssueDate,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get guestIdIssuePlace => $composableBuilder(
-        column: $table.guestIdIssuePlace,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.guestIdIssuePlace,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get guestNationality => $composableBuilder(
-        column: $table.guestNationality,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.guestNationality,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get guestEmail => $composableBuilder(
-        column: $table.guestEmail,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.guestEmail,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get guestAddress => $composableBuilder(
-        column: $table.guestAddress,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.guestAddress,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get checkinDate => $composableBuilder(
-        column: $table.checkinDate,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.checkinDate,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get checkoutDate => $composableBuilder(
-        column: $table.checkoutDate,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.checkoutDate,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get actualCheckout => $composableBuilder(
-        column: $table.actualCheckout,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.actualCheckout,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get notes => $composableBuilder(
-        column: $table.notes,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get expectedNights => $composableBuilder(
-        column: $table.expectedNights,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.expectedNights,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get calculatedNights => $composableBuilder(
-        column: $table.calculatedNights,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.calculatedNights,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get totalNightsCached => $composableBuilder(
-        column: $table.totalNightsCached,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.totalNightsCached,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get stayDurationIso => $composableBuilder(
-        column: $table.stayDurationIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.stayDurationIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastNightEpoch => $composableBuilder(
-        column: $table.lastNightEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastNightEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isOverdue => $composableBuilder(
-        column: $table.isOverdue,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isOverdue,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get needsCheckoutReview => $composableBuilder(
-        column: $table.needsCheckoutReview,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.needsCheckoutReview,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get totalDueCached => $composableBuilder(
-        column: $table.totalDueCached,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.totalDueCached,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get totalPaidCached => $composableBuilder(
-        column: $table.totalPaidCached,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.totalPaidCached,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get remainingBalanceCached => $composableBuilder(
-        column: $table.remainingBalanceCached,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.remainingBalanceCached,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isFullyPaid => $composableBuilder(
-        column: $table.isFullyPaid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isFullyPaid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hotelDayCheckin => $composableBuilder(
-        column: $table.hotelDayCheckin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hotelDayCheckin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hotelDayCheckout => $composableBuilder(
-        column: $table.hotelDayCheckout,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hotelDayCheckout,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$RoomsTableFilterComposer get roomNumber {
     final $$RoomsTableFilterComposer composer = $composerBuilder(
@@ -23384,18 +23384,19 @@ class $$BookingsTableFilterComposer
       getCurrentColumn: (t) => t.roomNumber,
       referencedTable: $db.rooms,
       getReferencedColumn: (t) => t.roomNumber,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$RoomsTableFilterComposer(
-        $db: $db,
-        $table: $db.rooms,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RoomsTableFilterComposer(
+            $db: $db,
+            $table: $db.rooms,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -23408,18 +23409,19 @@ class $$BookingsTableFilterComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.bookingNotes,
       getReferencedColumn: (t) => t.bookingId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingNotesTableFilterComposer(
-        $db: $db,
-        $table: $db.bookingNotes,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingNotesTableFilterComposer(
+            $db: $db,
+            $table: $db.bookingNotes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -23432,18 +23434,19 @@ class $$BookingsTableFilterComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.payments,
       getReferencedColumn: (t) => t.bookingLocalId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$PaymentsTableFilterComposer(
-        $db: $db,
-        $table: $db.payments,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PaymentsTableFilterComposer(
+            $db: $db,
+            $table: $db.payments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -23456,18 +23459,19 @@ class $$BookingsTableFilterComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.debts,
       getReferencedColumn: (t) => t.bookingLocalId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$DebtsTableFilterComposer(
-        $db: $db,
-        $table: $db.debts,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DebtsTableFilterComposer(
+            $db: $db,
+            $table: $db.debts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -23480,18 +23484,19 @@ class $$BookingsTableFilterComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.bookingNights,
       getReferencedColumn: (t) => t.bookingLocalId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingNightsTableFilterComposer(
-        $db: $db,
-        $table: $db.bookingNights,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingNightsTableFilterComposer(
+            $db: $db,
+            $table: $db.bookingNights,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -23507,214 +23512,214 @@ class $$BookingsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverBookingId => $composableBuilder(
-        column: $table.serverBookingId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverBookingId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get guestName => $composableBuilder(
-        column: $table.guestName,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.guestName,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get guestPhone => $composableBuilder(
-        column: $table.guestPhone,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.guestPhone,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get guestIdType => $composableBuilder(
-        column: $table.guestIdType,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.guestIdType,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get guestIdNumber => $composableBuilder(
-        column: $table.guestIdNumber,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.guestIdNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get guestIdIssueDate => $composableBuilder(
-        column: $table.guestIdIssueDate,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.guestIdIssueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get guestIdIssuePlace => $composableBuilder(
-        column: $table.guestIdIssuePlace,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.guestIdIssuePlace,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get guestNationality => $composableBuilder(
-        column: $table.guestNationality,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.guestNationality,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get guestEmail => $composableBuilder(
-        column: $table.guestEmail,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.guestEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get guestAddress => $composableBuilder(
-        column: $table.guestAddress,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.guestAddress,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get checkinDate => $composableBuilder(
-        column: $table.checkinDate,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.checkinDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get checkoutDate => $composableBuilder(
-        column: $table.checkoutDate,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.checkoutDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get actualCheckout => $composableBuilder(
-        column: $table.actualCheckout,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.actualCheckout,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get notes => $composableBuilder(
-        column: $table.notes,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get expectedNights => $composableBuilder(
-        column: $table.expectedNights,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.expectedNights,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get calculatedNights => $composableBuilder(
-        column: $table.calculatedNights,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.calculatedNights,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get totalNightsCached => $composableBuilder(
-        column: $table.totalNightsCached,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.totalNightsCached,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get stayDurationIso => $composableBuilder(
-        column: $table.stayDurationIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.stayDurationIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastNightEpoch => $composableBuilder(
-        column: $table.lastNightEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastNightEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isOverdue => $composableBuilder(
-        column: $table.isOverdue,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isOverdue,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get needsCheckoutReview => $composableBuilder(
-        column: $table.needsCheckoutReview,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.needsCheckoutReview,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get totalDueCached => $composableBuilder(
-        column: $table.totalDueCached,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.totalDueCached,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get totalPaidCached => $composableBuilder(
-        column: $table.totalPaidCached,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.totalPaidCached,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get remainingBalanceCached => $composableBuilder(
-        column: $table.remainingBalanceCached,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.remainingBalanceCached,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isFullyPaid => $composableBuilder(
-        column: $table.isFullyPaid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isFullyPaid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hotelDayCheckin => $composableBuilder(
-        column: $table.hotelDayCheckin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hotelDayCheckin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hotelDayCheckout => $composableBuilder(
-        column: $table.hotelDayCheckout,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hotelDayCheckout,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$RoomsTableOrderingComposer get roomNumber {
     final $$RoomsTableOrderingComposer composer = $composerBuilder(
@@ -23722,18 +23727,19 @@ class $$BookingsTableOrderingComposer
       getCurrentColumn: (t) => t.roomNumber,
       referencedTable: $db.rooms,
       getReferencedColumn: (t) => t.roomNumber,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$RoomsTableOrderingComposer(
-        $db: $db,
-        $table: $db.rooms,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RoomsTableOrderingComposer(
+            $db: $db,
+            $table: $db.rooms,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -23764,34 +23770,34 @@ class $$BookingsTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -23803,67 +23809,67 @@ class $$BookingsTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<int> get serverBookingId => $composableBuilder(
-        column: $table.serverBookingId,
-        builder: (column) => column,
-      );
+    column: $table.serverBookingId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get guestName =>
       $composableBuilder(column: $table.guestName, builder: (column) => column);
 
   GeneratedColumn<String> get guestPhone => $composableBuilder(
-        column: $table.guestPhone,
-        builder: (column) => column,
-      );
+    column: $table.guestPhone,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get guestIdType => $composableBuilder(
-        column: $table.guestIdType,
-        builder: (column) => column,
-      );
+    column: $table.guestIdType,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get guestIdNumber => $composableBuilder(
-        column: $table.guestIdNumber,
-        builder: (column) => column,
-      );
+    column: $table.guestIdNumber,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get guestIdIssueDate => $composableBuilder(
-        column: $table.guestIdIssueDate,
-        builder: (column) => column,
-      );
+    column: $table.guestIdIssueDate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get guestIdIssuePlace => $composableBuilder(
-        column: $table.guestIdIssuePlace,
-        builder: (column) => column,
-      );
+    column: $table.guestIdIssuePlace,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get guestNationality => $composableBuilder(
-        column: $table.guestNationality,
-        builder: (column) => column,
-      );
+    column: $table.guestNationality,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get guestEmail => $composableBuilder(
-        column: $table.guestEmail,
-        builder: (column) => column,
-      );
+    column: $table.guestEmail,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get guestAddress => $composableBuilder(
-        column: $table.guestAddress,
-        builder: (column) => column,
-      );
+    column: $table.guestAddress,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get checkinDate => $composableBuilder(
-        column: $table.checkinDate,
-        builder: (column) => column,
-      );
+    column: $table.checkinDate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get checkoutDate => $composableBuilder(
-        column: $table.checkoutDate,
-        builder: (column) => column,
-      );
+    column: $table.checkoutDate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get actualCheckout => $composableBuilder(
-        column: $table.actualCheckout,
-        builder: (column) => column,
-      );
+    column: $table.actualCheckout,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
@@ -23872,67 +23878,67 @@ class $$BookingsTableAnnotationComposer
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
   GeneratedColumn<int> get expectedNights => $composableBuilder(
-        column: $table.expectedNights,
-        builder: (column) => column,
-      );
+    column: $table.expectedNights,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get calculatedNights => $composableBuilder(
-        column: $table.calculatedNights,
-        builder: (column) => column,
-      );
+    column: $table.calculatedNights,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get totalNightsCached => $composableBuilder(
-        column: $table.totalNightsCached,
-        builder: (column) => column,
-      );
+    column: $table.totalNightsCached,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get stayDurationIso => $composableBuilder(
-        column: $table.stayDurationIso,
-        builder: (column) => column,
-      );
+    column: $table.stayDurationIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastNightEpoch => $composableBuilder(
-        column: $table.lastNightEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastNightEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isOverdue =>
       $composableBuilder(column: $table.isOverdue, builder: (column) => column);
 
   GeneratedColumn<bool> get needsCheckoutReview => $composableBuilder(
-        column: $table.needsCheckoutReview,
-        builder: (column) => column,
-      );
+    column: $table.needsCheckoutReview,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get totalDueCached => $composableBuilder(
-        column: $table.totalDueCached,
-        builder: (column) => column,
-      );
+    column: $table.totalDueCached,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get totalPaidCached => $composableBuilder(
-        column: $table.totalPaidCached,
-        builder: (column) => column,
-      );
+    column: $table.totalPaidCached,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get remainingBalanceCached => $composableBuilder(
-        column: $table.remainingBalanceCached,
-        builder: (column) => column,
-      );
+    column: $table.remainingBalanceCached,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isFullyPaid => $composableBuilder(
-        column: $table.isFullyPaid,
-        builder: (column) => column,
-      );
+    column: $table.isFullyPaid,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get hotelDayCheckin => $composableBuilder(
-        column: $table.hotelDayCheckin,
-        builder: (column) => column,
-      );
+    column: $table.hotelDayCheckin,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get hotelDayCheckout => $composableBuilder(
-        column: $table.hotelDayCheckout,
-        builder: (column) => column,
-      );
+    column: $table.hotelDayCheckout,
+    builder: (column) => column,
+  );
 
   $$RoomsTableAnnotationComposer get roomNumber {
     final $$RoomsTableAnnotationComposer composer = $composerBuilder(
@@ -23940,18 +23946,19 @@ class $$BookingsTableAnnotationComposer
       getCurrentColumn: (t) => t.roomNumber,
       referencedTable: $db.rooms,
       getReferencedColumn: (t) => t.roomNumber,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$RoomsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.rooms,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RoomsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.rooms,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -23964,18 +23971,19 @@ class $$BookingsTableAnnotationComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.bookingNotes,
       getReferencedColumn: (t) => t.bookingId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingNotesTableAnnotationComposer(
-        $db: $db,
-        $table: $db.bookingNotes,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingNotesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookingNotes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -23988,18 +23996,19 @@ class $$BookingsTableAnnotationComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.payments,
       getReferencedColumn: (t) => t.bookingLocalId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$PaymentsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.payments,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PaymentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.payments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -24012,18 +24021,19 @@ class $$BookingsTableAnnotationComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.debts,
       getReferencedColumn: (t) => t.bookingLocalId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$DebtsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.debts,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DebtsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.debts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -24036,425 +24046,450 @@ class $$BookingsTableAnnotationComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.bookingNights,
       getReferencedColumn: (t) => t.bookingLocalId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingNightsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.bookingNights,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingNightsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookingNights,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
 }
 
-class $$BookingsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $BookingsTable,
-    Booking,
-    $$BookingsTableFilterComposer,
-    $$BookingsTableOrderingComposer,
-    $$BookingsTableAnnotationComposer,
-    $$BookingsTableCreateCompanionBuilder,
-    $$BookingsTableUpdateCompanionBuilder,
-    (Booking, $$BookingsTableReferences),
-    Booking,
-    PrefetchHooks Function({
-      bool roomNumber,
-      bool bookingNotesRefs,
-      bool paymentsRefs,
-      bool debtsRefs,
-      bool bookingNightsRefs,
-    })> {
+class $$BookingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BookingsTable,
+          Booking,
+          $$BookingsTableFilterComposer,
+          $$BookingsTableOrderingComposer,
+          $$BookingsTableAnnotationComposer,
+          $$BookingsTableCreateCompanionBuilder,
+          $$BookingsTableUpdateCompanionBuilder,
+          (Booking, $$BookingsTableReferences),
+          Booking,
+          PrefetchHooks Function({
+            bool roomNumber,
+            bool bookingNotesRefs,
+            bool paymentsRefs,
+            bool debtsRefs,
+            bool bookingNightsRefs,
+          })
+        > {
   $$BookingsTableTableManager(_$AppDatabase db, $BookingsTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$BookingsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$BookingsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$BookingsTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int?> serverBookingId = const Value.absent(),
-              Value<String> roomNumber = const Value.absent(),
-              Value<String> guestName = const Value.absent(),
-              Value<String> guestPhone = const Value.absent(),
-              Value<String> guestIdType = const Value.absent(),
-              Value<String> guestIdNumber = const Value.absent(),
-              Value<String?> guestIdIssueDate = const Value.absent(),
-              Value<String?> guestIdIssuePlace = const Value.absent(),
-              Value<String> guestNationality = const Value.absent(),
-              Value<String?> guestEmail = const Value.absent(),
-              Value<String?> guestAddress = const Value.absent(),
-              Value<String> checkinDate = const Value.absent(),
-              Value<String?> checkoutDate = const Value.absent(),
-              Value<String?> actualCheckout = const Value.absent(),
-              Value<String> status = const Value.absent(),
-              Value<String?> notes = const Value.absent(),
-              Value<int> expectedNights = const Value.absent(),
-              Value<int> calculatedNights = const Value.absent(),
-              Value<int> totalNightsCached = const Value.absent(),
-              Value<String?> stayDurationIso = const Value.absent(),
-              Value<int?> lastNightEpoch = const Value.absent(),
-              Value<bool> isOverdue = const Value.absent(),
-              Value<bool> needsCheckoutReview = const Value.absent(),
-              Value<double> totalDueCached = const Value.absent(),
-              Value<double> totalPaidCached = const Value.absent(),
-              Value<double> remainingBalanceCached = const Value.absent(),
-              Value<bool> isFullyPaid = const Value.absent(),
-              Value<String?> hotelDayCheckin = const Value.absent(),
-              Value<String?> hotelDayCheckout = const Value.absent(),
-            }) =>
-                BookingsCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              serverBookingId: serverBookingId,
-              roomNumber: roomNumber,
-              guestName: guestName,
-              guestPhone: guestPhone,
-              guestIdType: guestIdType,
-              guestIdNumber: guestIdNumber,
-              guestIdIssueDate: guestIdIssueDate,
-              guestIdIssuePlace: guestIdIssuePlace,
-              guestNationality: guestNationality,
-              guestEmail: guestEmail,
-              guestAddress: guestAddress,
-              checkinDate: checkinDate,
-              checkoutDate: checkoutDate,
-              actualCheckout: actualCheckout,
-              status: status,
-              notes: notes,
-              expectedNights: expectedNights,
-              calculatedNights: calculatedNights,
-              totalNightsCached: totalNightsCached,
-              stayDurationIso: stayDurationIso,
-              lastNightEpoch: lastNightEpoch,
-              isOverdue: isOverdue,
-              needsCheckoutReview: needsCheckoutReview,
-              totalDueCached: totalDueCached,
-              totalPaidCached: totalPaidCached,
-              remainingBalanceCached: remainingBalanceCached,
-              isFullyPaid: isFullyPaid,
-              hotelDayCheckin: hotelDayCheckin,
-              hotelDayCheckout: hotelDayCheckout,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int?> serverBookingId = const Value.absent(),
-              required String roomNumber,
-              required String guestName,
-              required String guestPhone,
-              Value<String> guestIdType = const Value.absent(),
-              Value<String> guestIdNumber = const Value.absent(),
-              Value<String?> guestIdIssueDate = const Value.absent(),
-              Value<String?> guestIdIssuePlace = const Value.absent(),
-              required String guestNationality,
-              Value<String?> guestEmail = const Value.absent(),
-              Value<String?> guestAddress = const Value.absent(),
-              required String checkinDate,
-              Value<String?> checkoutDate = const Value.absent(),
-              Value<String?> actualCheckout = const Value.absent(),
-              required String status,
-              Value<String?> notes = const Value.absent(),
-              Value<int> expectedNights = const Value.absent(),
-              Value<int> calculatedNights = const Value.absent(),
-              Value<int> totalNightsCached = const Value.absent(),
-              Value<String?> stayDurationIso = const Value.absent(),
-              Value<int?> lastNightEpoch = const Value.absent(),
-              Value<bool> isOverdue = const Value.absent(),
-              Value<bool> needsCheckoutReview = const Value.absent(),
-              Value<double> totalDueCached = const Value.absent(),
-              Value<double> totalPaidCached = const Value.absent(),
-              Value<double> remainingBalanceCached = const Value.absent(),
-              Value<bool> isFullyPaid = const Value.absent(),
-              Value<String?> hotelDayCheckin = const Value.absent(),
-              Value<String?> hotelDayCheckout = const Value.absent(),
-            }) =>
-                BookingsCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              serverBookingId: serverBookingId,
-              roomNumber: roomNumber,
-              guestName: guestName,
-              guestPhone: guestPhone,
-              guestIdType: guestIdType,
-              guestIdNumber: guestIdNumber,
-              guestIdIssueDate: guestIdIssueDate,
-              guestIdIssuePlace: guestIdIssuePlace,
-              guestNationality: guestNationality,
-              guestEmail: guestEmail,
-              guestAddress: guestAddress,
-              checkinDate: checkinDate,
-              checkoutDate: checkoutDate,
-              actualCheckout: actualCheckout,
-              status: status,
-              notes: notes,
-              expectedNights: expectedNights,
-              calculatedNights: calculatedNights,
-              totalNightsCached: totalNightsCached,
-              stayDurationIso: stayDurationIso,
-              lastNightEpoch: lastNightEpoch,
-              isOverdue: isOverdue,
-              needsCheckoutReview: needsCheckoutReview,
-              totalDueCached: totalDueCached,
-              totalPaidCached: totalPaidCached,
-              remainingBalanceCached: remainingBalanceCached,
-              isFullyPaid: isFullyPaid,
-              hotelDayCheckin: hotelDayCheckin,
-              hotelDayCheckout: hotelDayCheckout,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$BookingsTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({
-              roomNumber = false,
-              bookingNotesRefs = false,
-              paymentsRefs = false,
-              debtsRefs = false,
-              bookingNightsRefs = false,
-            }) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [
-                  if (bookingNotesRefs) db.bookingNotes,
-                  if (paymentsRefs) db.payments,
-                  if (debtsRefs) db.debts,
-                  if (bookingNightsRefs) db.bookingNights,
-                ],
-                addJoins: <
-                    T extends TableManagerState<
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic>>(state) {
-                  if (roomNumber) {
-                    state = state.withJoin(
-                      currentTable: table,
-                      currentColumn: table.roomNumber,
-                      referencedTable:
-                          $$BookingsTableReferences._roomNumberTable(db),
-                      referencedColumn: $$BookingsTableReferences
-                          ._roomNumberTable(db)
-                          .roomNumber,
-                    ) as T;
-                  }
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BookingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BookingsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BookingsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int?> serverBookingId = const Value.absent(),
+                Value<String> roomNumber = const Value.absent(),
+                Value<String> guestName = const Value.absent(),
+                Value<String> guestPhone = const Value.absent(),
+                Value<String> guestIdType = const Value.absent(),
+                Value<String> guestIdNumber = const Value.absent(),
+                Value<String?> guestIdIssueDate = const Value.absent(),
+                Value<String?> guestIdIssuePlace = const Value.absent(),
+                Value<String> guestNationality = const Value.absent(),
+                Value<String?> guestEmail = const Value.absent(),
+                Value<String?> guestAddress = const Value.absent(),
+                Value<String> checkinDate = const Value.absent(),
+                Value<String?> checkoutDate = const Value.absent(),
+                Value<String?> actualCheckout = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> expectedNights = const Value.absent(),
+                Value<int> calculatedNights = const Value.absent(),
+                Value<int> totalNightsCached = const Value.absent(),
+                Value<String?> stayDurationIso = const Value.absent(),
+                Value<int?> lastNightEpoch = const Value.absent(),
+                Value<bool> isOverdue = const Value.absent(),
+                Value<bool> needsCheckoutReview = const Value.absent(),
+                Value<double> totalDueCached = const Value.absent(),
+                Value<double> totalPaidCached = const Value.absent(),
+                Value<double> remainingBalanceCached = const Value.absent(),
+                Value<bool> isFullyPaid = const Value.absent(),
+                Value<String?> hotelDayCheckin = const Value.absent(),
+                Value<String?> hotelDayCheckout = const Value.absent(),
+              }) => BookingsCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                serverBookingId: serverBookingId,
+                roomNumber: roomNumber,
+                guestName: guestName,
+                guestPhone: guestPhone,
+                guestIdType: guestIdType,
+                guestIdNumber: guestIdNumber,
+                guestIdIssueDate: guestIdIssueDate,
+                guestIdIssuePlace: guestIdIssuePlace,
+                guestNationality: guestNationality,
+                guestEmail: guestEmail,
+                guestAddress: guestAddress,
+                checkinDate: checkinDate,
+                checkoutDate: checkoutDate,
+                actualCheckout: actualCheckout,
+                status: status,
+                notes: notes,
+                expectedNights: expectedNights,
+                calculatedNights: calculatedNights,
+                totalNightsCached: totalNightsCached,
+                stayDurationIso: stayDurationIso,
+                lastNightEpoch: lastNightEpoch,
+                isOverdue: isOverdue,
+                needsCheckoutReview: needsCheckoutReview,
+                totalDueCached: totalDueCached,
+                totalPaidCached: totalPaidCached,
+                remainingBalanceCached: remainingBalanceCached,
+                isFullyPaid: isFullyPaid,
+                hotelDayCheckin: hotelDayCheckin,
+                hotelDayCheckout: hotelDayCheckout,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int?> serverBookingId = const Value.absent(),
+                required String roomNumber,
+                required String guestName,
+                required String guestPhone,
+                Value<String> guestIdType = const Value.absent(),
+                Value<String> guestIdNumber = const Value.absent(),
+                Value<String?> guestIdIssueDate = const Value.absent(),
+                Value<String?> guestIdIssuePlace = const Value.absent(),
+                required String guestNationality,
+                Value<String?> guestEmail = const Value.absent(),
+                Value<String?> guestAddress = const Value.absent(),
+                required String checkinDate,
+                Value<String?> checkoutDate = const Value.absent(),
+                Value<String?> actualCheckout = const Value.absent(),
+                required String status,
+                Value<String?> notes = const Value.absent(),
+                Value<int> expectedNights = const Value.absent(),
+                Value<int> calculatedNights = const Value.absent(),
+                Value<int> totalNightsCached = const Value.absent(),
+                Value<String?> stayDurationIso = const Value.absent(),
+                Value<int?> lastNightEpoch = const Value.absent(),
+                Value<bool> isOverdue = const Value.absent(),
+                Value<bool> needsCheckoutReview = const Value.absent(),
+                Value<double> totalDueCached = const Value.absent(),
+                Value<double> totalPaidCached = const Value.absent(),
+                Value<double> remainingBalanceCached = const Value.absent(),
+                Value<bool> isFullyPaid = const Value.absent(),
+                Value<String?> hotelDayCheckin = const Value.absent(),
+                Value<String?> hotelDayCheckout = const Value.absent(),
+              }) => BookingsCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                serverBookingId: serverBookingId,
+                roomNumber: roomNumber,
+                guestName: guestName,
+                guestPhone: guestPhone,
+                guestIdType: guestIdType,
+                guestIdNumber: guestIdNumber,
+                guestIdIssueDate: guestIdIssueDate,
+                guestIdIssuePlace: guestIdIssuePlace,
+                guestNationality: guestNationality,
+                guestEmail: guestEmail,
+                guestAddress: guestAddress,
+                checkinDate: checkinDate,
+                checkoutDate: checkoutDate,
+                actualCheckout: actualCheckout,
+                status: status,
+                notes: notes,
+                expectedNights: expectedNights,
+                calculatedNights: calculatedNights,
+                totalNightsCached: totalNightsCached,
+                stayDurationIso: stayDurationIso,
+                lastNightEpoch: lastNightEpoch,
+                isOverdue: isOverdue,
+                needsCheckoutReview: needsCheckoutReview,
+                totalDueCached: totalDueCached,
+                totalPaidCached: totalPaidCached,
+                remainingBalanceCached: remainingBalanceCached,
+                isFullyPaid: isFullyPaid,
+                hotelDayCheckin: hotelDayCheckin,
+                hotelDayCheckout: hotelDayCheckout,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$BookingsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                roomNumber = false,
+                bookingNotesRefs = false,
+                paymentsRefs = false,
+                debtsRefs = false,
+                bookingNightsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (bookingNotesRefs) db.bookingNotes,
+                    if (paymentsRefs) db.payments,
+                    if (debtsRefs) db.debts,
+                    if (bookingNightsRefs) db.bookingNights,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (roomNumber) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.roomNumber,
+                                    referencedTable: $$BookingsTableReferences
+                                        ._roomNumberTable(db),
+                                    referencedColumn: $$BookingsTableReferences
+                                        ._roomNumberTable(db)
+                                        .roomNumber,
+                                  )
+                                  as T;
+                        }
 
-                  return state;
-                },
-                getPrefetchedDataCallback: (items) async {
-                  return [
-                    if (bookingNotesRefs)
-                      await $_getPrefetchedData<Booking, $BookingsTable,
-                          BookingNote>(
-                        currentTable: table,
-                        referencedTable: $$BookingsTableReferences
-                            ._bookingNotesRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$BookingsTableReferences(
-                          db,
-                          table,
-                          p0,
-                        ).bookingNotesRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems.where(
-                          (e) => e.bookingId == item.id,
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (bookingNotesRefs)
+                        await $_getPrefetchedData<
+                          Booking,
+                          $BookingsTable,
+                          BookingNote
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BookingsTableReferences
+                              ._bookingNotesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BookingsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).bookingNotesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.bookingId == item.id,
+                              ),
+                          typedResults: items,
                         ),
-                        typedResults: items,
-                      ),
-                    if (paymentsRefs)
-                      await $_getPrefetchedData<Booking, $BookingsTable,
-                          Payment>(
-                        currentTable: table,
-                        referencedTable:
-                            $$BookingsTableReferences._paymentsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$BookingsTableReferences(
-                          db,
-                          table,
-                          p0,
-                        ).paymentsRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems.where(
-                          (e) => e.bookingLocalId == item.id,
+                      if (paymentsRefs)
+                        await $_getPrefetchedData<
+                          Booking,
+                          $BookingsTable,
+                          Payment
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BookingsTableReferences
+                              ._paymentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BookingsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).paymentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.bookingLocalId == item.id,
+                              ),
+                          typedResults: items,
                         ),
-                        typedResults: items,
-                      ),
-                    if (debtsRefs)
-                      await $_getPrefetchedData<Booking, $BookingsTable, Debt>(
-                        currentTable: table,
-                        referencedTable:
-                            $$BookingsTableReferences._debtsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$BookingsTableReferences(
-                          db,
-                          table,
-                          p0,
-                        ).debtsRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems.where(
-                          (e) => e.bookingLocalId == item.id,
+                      if (debtsRefs)
+                        await $_getPrefetchedData<
+                          Booking,
+                          $BookingsTable,
+                          Debt
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BookingsTableReferences
+                              ._debtsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BookingsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).debtsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.bookingLocalId == item.id,
+                              ),
+                          typedResults: items,
                         ),
-                        typedResults: items,
-                      ),
-                    if (bookingNightsRefs)
-                      await $_getPrefetchedData<Booking, $BookingsTable,
-                          BookingNight>(
-                        currentTable: table,
-                        referencedTable: $$BookingsTableReferences
-                            ._bookingNightsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$BookingsTableReferences(
-                          db,
-                          table,
-                          p0,
-                        ).bookingNightsRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems.where(
-                          (e) => e.bookingLocalId == item.id,
+                      if (bookingNightsRefs)
+                        await $_getPrefetchedData<
+                          Booking,
+                          $BookingsTable,
+                          BookingNight
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BookingsTableReferences
+                              ._bookingNightsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BookingsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).bookingNightsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.bookingLocalId == item.id,
+                              ),
+                          typedResults: items,
                         ),
-                        typedResults: items,
-                      ),
-                  ];
-                },
-              );
-            },
-          ),
-        );
+                    ];
+                  },
+                );
+              },
+        ),
+      );
 }
 
-typedef $$BookingsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $BookingsTable,
-    Booking,
-    $$BookingsTableFilterComposer,
-    $$BookingsTableOrderingComposer,
-    $$BookingsTableAnnotationComposer,
-    $$BookingsTableCreateCompanionBuilder,
-    $$BookingsTableUpdateCompanionBuilder,
-    (Booking, $$BookingsTableReferences),
-    Booking,
-    PrefetchHooks Function({
-      bool roomNumber,
-      bool bookingNotesRefs,
-      bool paymentsRefs,
-      bool debtsRefs,
-      bool bookingNightsRefs,
-    })>;
-typedef $$BookingNotesTableCreateCompanionBuilder = BookingNotesCompanion
-    Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  required int bookingId,
-  required String noteText,
-  required String alertType,
-  Value<String?> alertUntil,
-  Value<int> isActive,
-});
-typedef $$BookingNotesTableUpdateCompanionBuilder = BookingNotesCompanion
-    Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int> bookingId,
-  Value<String> noteText,
-  Value<String> alertType,
-  Value<String?> alertUntil,
-  Value<int> isActive,
-});
+typedef $$BookingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BookingsTable,
+      Booking,
+      $$BookingsTableFilterComposer,
+      $$BookingsTableOrderingComposer,
+      $$BookingsTableAnnotationComposer,
+      $$BookingsTableCreateCompanionBuilder,
+      $$BookingsTableUpdateCompanionBuilder,
+      (Booking, $$BookingsTableReferences),
+      Booking,
+      PrefetchHooks Function({
+        bool roomNumber,
+        bool bookingNotesRefs,
+        bool paymentsRefs,
+        bool debtsRefs,
+        bool bookingNightsRefs,
+      })
+    >;
+typedef $$BookingNotesTableCreateCompanionBuilder =
+    BookingNotesCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      required int bookingId,
+      required String noteText,
+      required String alertType,
+      Value<String?> alertUntil,
+      Value<int> isActive,
+    });
+typedef $$BookingNotesTableUpdateCompanionBuilder =
+    BookingNotesCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int> bookingId,
+      Value<String> noteText,
+      Value<String> alertType,
+      Value<String?> alertUntil,
+      Value<int> isActive,
+    });
 
 final class $$BookingNotesTableReferences
     extends BaseReferences<_$AppDatabase, $BookingNotesTable, BookingNote> {
@@ -24490,94 +24525,94 @@ class $$BookingNotesTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get noteText => $composableBuilder(
-        column: $table.noteText,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.noteText,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get alertType => $composableBuilder(
-        column: $table.alertType,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.alertType,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get alertUntil => $composableBuilder(
-        column: $table.alertUntil,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.alertUntil,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get isActive => $composableBuilder(
-        column: $table.isActive,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$BookingsTableFilterComposer get bookingId {
     final $$BookingsTableFilterComposer composer = $composerBuilder(
@@ -24585,18 +24620,19 @@ class $$BookingNotesTableFilterComposer
       getCurrentColumn: (t) => t.bookingId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableFilterComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableFilterComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -24612,94 +24648,94 @@ class $$BookingNotesTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get noteText => $composableBuilder(
-        column: $table.noteText,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.noteText,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get alertType => $composableBuilder(
-        column: $table.alertType,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.alertType,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get alertUntil => $composableBuilder(
-        column: $table.alertUntil,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.alertUntil,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get isActive => $composableBuilder(
-        column: $table.isActive,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$BookingsTableOrderingComposer get bookingId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
@@ -24707,18 +24743,19 @@ class $$BookingNotesTableOrderingComposer
       getCurrentColumn: (t) => t.bookingId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableOrderingComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -24749,34 +24786,34 @@ class $$BookingNotesTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -24794,9 +24831,9 @@ class $$BookingNotesTableAnnotationComposer
       $composableBuilder(column: $table.alertType, builder: (column) => column);
 
   GeneratedColumn<String> get alertUntil => $composableBuilder(
-        column: $table.alertUntil,
-        builder: (column) => column,
-      );
+    column: $table.alertUntil,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
@@ -24807,211 +24844,225 @@ class $$BookingNotesTableAnnotationComposer
       getCurrentColumn: (t) => t.bookingId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
 }
 
-class $$BookingNotesTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $BookingNotesTable,
-    BookingNote,
-    $$BookingNotesTableFilterComposer,
-    $$BookingNotesTableOrderingComposer,
-    $$BookingNotesTableAnnotationComposer,
-    $$BookingNotesTableCreateCompanionBuilder,
-    $$BookingNotesTableUpdateCompanionBuilder,
-    (BookingNote, $$BookingNotesTableReferences),
-    BookingNote,
-    PrefetchHooks Function({bool bookingId})> {
+class $$BookingNotesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BookingNotesTable,
+          BookingNote,
+          $$BookingNotesTableFilterComposer,
+          $$BookingNotesTableOrderingComposer,
+          $$BookingNotesTableAnnotationComposer,
+          $$BookingNotesTableCreateCompanionBuilder,
+          $$BookingNotesTableUpdateCompanionBuilder,
+          (BookingNote, $$BookingNotesTableReferences),
+          BookingNote,
+          PrefetchHooks Function({bool bookingId})
+        > {
   $$BookingNotesTableTableManager(_$AppDatabase db, $BookingNotesTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$BookingNotesTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$BookingNotesTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$BookingNotesTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int> bookingId = const Value.absent(),
-              Value<String> noteText = const Value.absent(),
-              Value<String> alertType = const Value.absent(),
-              Value<String?> alertUntil = const Value.absent(),
-              Value<int> isActive = const Value.absent(),
-            }) =>
-                BookingNotesCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              bookingId: bookingId,
-              noteText: noteText,
-              alertType: alertType,
-              alertUntil: alertUntil,
-              isActive: isActive,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              required int bookingId,
-              required String noteText,
-              required String alertType,
-              Value<String?> alertUntil = const Value.absent(),
-              Value<int> isActive = const Value.absent(),
-            }) =>
-                BookingNotesCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              bookingId: bookingId,
-              noteText: noteText,
-              alertType: alertType,
-              alertUntil: alertUntil,
-              isActive: isActive,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$BookingNotesTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({bookingId = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [],
-                addJoins: <
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BookingNotesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BookingNotesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BookingNotesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int> bookingId = const Value.absent(),
+                Value<String> noteText = const Value.absent(),
+                Value<String> alertType = const Value.absent(),
+                Value<String?> alertUntil = const Value.absent(),
+                Value<int> isActive = const Value.absent(),
+              }) => BookingNotesCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                bookingId: bookingId,
+                noteText: noteText,
+                alertType: alertType,
+                alertUntil: alertUntil,
+                isActive: isActive,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required int bookingId,
+                required String noteText,
+                required String alertType,
+                Value<String?> alertUntil = const Value.absent(),
+                Value<int> isActive = const Value.absent(),
+              }) => BookingNotesCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                bookingId: bookingId,
+                noteText: noteText,
+                alertType: alertType,
+                alertUntil: alertUntil,
+                isActive: isActive,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$BookingNotesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({bookingId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
                     T extends TableManagerState<
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic>>(state) {
-                  if (bookingId) {
-                    state = state.withJoin(
-                      currentTable: table,
-                      currentColumn: table.bookingId,
-                      referencedTable:
-                          $$BookingNotesTableReferences._bookingIdTable(db),
-                      referencedColumn:
-                          $$BookingNotesTableReferences._bookingIdTable(db).id,
-                    ) as T;
-                  }
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (bookingId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.bookingId,
+                                referencedTable: $$BookingNotesTableReferences
+                                    ._bookingIdTable(db),
+                                referencedColumn: $$BookingNotesTableReferences
+                                    ._bookingIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
 
-                  return state;
-                },
-                getPrefetchedDataCallback: (items) async {
-                  return [];
-                },
-              );
-            },
-          ),
-        );
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
 }
 
-typedef $$BookingNotesTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $BookingNotesTable,
-    BookingNote,
-    $$BookingNotesTableFilterComposer,
-    $$BookingNotesTableOrderingComposer,
-    $$BookingNotesTableAnnotationComposer,
-    $$BookingNotesTableCreateCompanionBuilder,
-    $$BookingNotesTableUpdateCompanionBuilder,
-    (BookingNote, $$BookingNotesTableReferences),
-    BookingNote,
-    PrefetchHooks Function({bool bookingId})>;
-typedef $$ShiftNotesTableCreateCompanionBuilder = ShiftNotesCompanion Function({
-  Value<int> id,
-  required String title,
-  required String content,
-  Value<String> priority,
-  Value<String> shiftType,
-  Value<int> isRead,
-  required String createdAt,
-  Value<String?> expiresAt,
-  Value<String> createdBy,
-});
-typedef $$ShiftNotesTableUpdateCompanionBuilder = ShiftNotesCompanion Function({
-  Value<int> id,
-  Value<String> title,
-  Value<String> content,
-  Value<String> priority,
-  Value<String> shiftType,
-  Value<int> isRead,
-  Value<String> createdAt,
-  Value<String?> expiresAt,
-  Value<String> createdBy,
-});
+typedef $$BookingNotesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BookingNotesTable,
+      BookingNote,
+      $$BookingNotesTableFilterComposer,
+      $$BookingNotesTableOrderingComposer,
+      $$BookingNotesTableAnnotationComposer,
+      $$BookingNotesTableCreateCompanionBuilder,
+      $$BookingNotesTableUpdateCompanionBuilder,
+      (BookingNote, $$BookingNotesTableReferences),
+      BookingNote,
+      PrefetchHooks Function({bool bookingId})
+    >;
+typedef $$ShiftNotesTableCreateCompanionBuilder =
+    ShiftNotesCompanion Function({
+      Value<int> id,
+      required String title,
+      required String content,
+      Value<String> priority,
+      Value<String> shiftType,
+      Value<int> isRead,
+      required String createdAt,
+      Value<String?> expiresAt,
+      Value<String> createdBy,
+    });
+typedef $$ShiftNotesTableUpdateCompanionBuilder =
+    ShiftNotesCompanion Function({
+      Value<int> id,
+      Value<String> title,
+      Value<String> content,
+      Value<String> priority,
+      Value<String> shiftType,
+      Value<int> isRead,
+      Value<String> createdAt,
+      Value<String?> expiresAt,
+      Value<String> createdBy,
+    });
 
 class $$ShiftNotesTableFilterComposer
     extends Composer<_$AppDatabase, $ShiftNotesTable> {
@@ -25023,49 +25074,49 @@ class $$ShiftNotesTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get title => $composableBuilder(
-        column: $table.title,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get content => $composableBuilder(
-        column: $table.content,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get priority => $composableBuilder(
-        column: $table.priority,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.priority,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get shiftType => $composableBuilder(
-        column: $table.shiftType,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.shiftType,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get isRead => $composableBuilder(
-        column: $table.isRead,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isRead,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get expiresAt => $composableBuilder(
-        column: $table.expiresAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.expiresAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdBy => $composableBuilder(
-        column: $table.createdBy,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$ShiftNotesTableOrderingComposer
@@ -25078,49 +25129,49 @@ class $$ShiftNotesTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get title => $composableBuilder(
-        column: $table.title,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get content => $composableBuilder(
-        column: $table.content,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get priority => $composableBuilder(
-        column: $table.priority,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get shiftType => $composableBuilder(
-        column: $table.shiftType,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.shiftType,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get isRead => $composableBuilder(
-        column: $table.isRead,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isRead,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get expiresAt => $composableBuilder(
-        column: $table.expiresAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.expiresAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdBy => $composableBuilder(
-        column: $table.createdBy,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdBy,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ShiftNotesTableAnnotationComposer
@@ -25160,153 +25211,160 @@ class $$ShiftNotesTableAnnotationComposer
       $composableBuilder(column: $table.createdBy, builder: (column) => column);
 }
 
-class $$ShiftNotesTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $ShiftNotesTable,
-    ShiftNote,
-    $$ShiftNotesTableFilterComposer,
-    $$ShiftNotesTableOrderingComposer,
-    $$ShiftNotesTableAnnotationComposer,
-    $$ShiftNotesTableCreateCompanionBuilder,
-    $$ShiftNotesTableUpdateCompanionBuilder,
-    (
-      ShiftNote,
-      BaseReferences<_$AppDatabase, $ShiftNotesTable, ShiftNote>,
-    ),
-    ShiftNote,
-    PrefetchHooks Function()> {
-  $$ShiftNotesTableTableManager(_$AppDatabase db, $ShiftNotesTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$ShiftNotesTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$ShiftNotesTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$ShiftNotesTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<String> title = const Value.absent(),
-              Value<String> content = const Value.absent(),
-              Value<String> priority = const Value.absent(),
-              Value<String> shiftType = const Value.absent(),
-              Value<int> isRead = const Value.absent(),
-              Value<String> createdAt = const Value.absent(),
-              Value<String?> expiresAt = const Value.absent(),
-              Value<String> createdBy = const Value.absent(),
-            }) =>
-                ShiftNotesCompanion(
-              id: id,
-              title: title,
-              content: content,
-              priority: priority,
-              shiftType: shiftType,
-              isRead: isRead,
-              createdAt: createdAt,
-              expiresAt: expiresAt,
-              createdBy: createdBy,
-            ),
-            createCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              required String title,
-              required String content,
-              Value<String> priority = const Value.absent(),
-              Value<String> shiftType = const Value.absent(),
-              Value<int> isRead = const Value.absent(),
-              required String createdAt,
-              Value<String?> expiresAt = const Value.absent(),
-              Value<String> createdBy = const Value.absent(),
-            }) =>
-                ShiftNotesCompanion.insert(
-              id: id,
-              title: title,
-              content: content,
-              priority: priority,
-              shiftType: shiftType,
-              isRead: isRead,
-              createdAt: createdAt,
-              expiresAt: expiresAt,
-              createdBy: createdBy,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-                .toList(),
-            prefetchHooksCallback: null,
+class $$ShiftNotesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ShiftNotesTable,
+          ShiftNote,
+          $$ShiftNotesTableFilterComposer,
+          $$ShiftNotesTableOrderingComposer,
+          $$ShiftNotesTableAnnotationComposer,
+          $$ShiftNotesTableCreateCompanionBuilder,
+          $$ShiftNotesTableUpdateCompanionBuilder,
+          (
+            ShiftNote,
+            BaseReferences<_$AppDatabase, $ShiftNotesTable, ShiftNote>,
           ),
-        );
+          ShiftNote,
+          PrefetchHooks Function()
+        > {
+  $$ShiftNotesTableTableManager(_$AppDatabase db, $ShiftNotesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ShiftNotesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ShiftNotesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ShiftNotesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<String> priority = const Value.absent(),
+                Value<String> shiftType = const Value.absent(),
+                Value<int> isRead = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String?> expiresAt = const Value.absent(),
+                Value<String> createdBy = const Value.absent(),
+              }) => ShiftNotesCompanion(
+                id: id,
+                title: title,
+                content: content,
+                priority: priority,
+                shiftType: shiftType,
+                isRead: isRead,
+                createdAt: createdAt,
+                expiresAt: expiresAt,
+                createdBy: createdBy,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String title,
+                required String content,
+                Value<String> priority = const Value.absent(),
+                Value<String> shiftType = const Value.absent(),
+                Value<int> isRead = const Value.absent(),
+                required String createdAt,
+                Value<String?> expiresAt = const Value.absent(),
+                Value<String> createdBy = const Value.absent(),
+              }) => ShiftNotesCompanion.insert(
+                id: id,
+                title: title,
+                content: content,
+                priority: priority,
+                shiftType: shiftType,
+                isRead: isRead,
+                createdAt: createdAt,
+                expiresAt: expiresAt,
+                createdBy: createdBy,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
 }
 
-typedef $$ShiftNotesTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $ShiftNotesTable,
-    ShiftNote,
-    $$ShiftNotesTableFilterComposer,
-    $$ShiftNotesTableOrderingComposer,
-    $$ShiftNotesTableAnnotationComposer,
-    $$ShiftNotesTableCreateCompanionBuilder,
-    $$ShiftNotesTableUpdateCompanionBuilder,
-    (ShiftNote, BaseReferences<_$AppDatabase, $ShiftNotesTable, ShiftNote>),
-    ShiftNote,
-    PrefetchHooks Function()>;
-typedef $$EmployeesTableCreateCompanionBuilder = EmployeesCompanion Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  required String name,
-  required double basicSalary,
-  Value<String> position,
-  Value<String> phone,
-  Value<String> hireDate,
-  required String status,
-});
-typedef $$EmployeesTableUpdateCompanionBuilder = EmployeesCompanion Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<String> name,
-  Value<double> basicSalary,
-  Value<String> position,
-  Value<String> phone,
-  Value<String> hireDate,
-  Value<String> status,
-});
+typedef $$ShiftNotesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ShiftNotesTable,
+      ShiftNote,
+      $$ShiftNotesTableFilterComposer,
+      $$ShiftNotesTableOrderingComposer,
+      $$ShiftNotesTableAnnotationComposer,
+      $$ShiftNotesTableCreateCompanionBuilder,
+      $$ShiftNotesTableUpdateCompanionBuilder,
+      (ShiftNote, BaseReferences<_$AppDatabase, $ShiftNotesTable, ShiftNote>),
+      ShiftNote,
+      PrefetchHooks Function()
+    >;
+typedef $$EmployeesTableCreateCompanionBuilder =
+    EmployeesCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      required String name,
+      required double basicSalary,
+      Value<String> position,
+      Value<String> phone,
+      Value<String> hireDate,
+      required String status,
+    });
+typedef $$EmployeesTableUpdateCompanionBuilder =
+    EmployeesCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<String> name,
+      Value<double> basicSalary,
+      Value<String> position,
+      Value<String> phone,
+      Value<String> hireDate,
+      Value<String> status,
+    });
 
 final class $$EmployeesTableReferences
     extends BaseReferences<_$AppDatabase, $EmployeesTable, Employee> {
   $$EmployeesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static MultiTypedResultKey<$SalaryCyclesTable, List<SalaryCycle>>
-      _salaryCyclesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-            db.salaryCycles,
-            aliasName: $_aliasNameGenerator(
-              db.employees.id,
-              db.salaryCycles.employeeId,
-            ),
-          );
+  _salaryCyclesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.salaryCycles,
+    aliasName: $_aliasNameGenerator(
+      db.employees.id,
+      db.salaryCycles.employeeId,
+    ),
+  );
 
   $$SalaryCyclesTableProcessedTableManager get salaryCyclesRefs {
     final manager = $$SalaryCyclesTableTableManager(
@@ -25331,104 +25389,104 @@ class $$EmployeesTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get name => $composableBuilder(
-        column: $table.name,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get basicSalary => $composableBuilder(
-        column: $table.basicSalary,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.basicSalary,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get position => $composableBuilder(
-        column: $table.position,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get phone => $composableBuilder(
-        column: $table.phone,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.phone,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hireDate => $composableBuilder(
-        column: $table.hireDate,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hireDate,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
 
   Expression<bool> salaryCyclesRefs(
     Expression<bool> Function($$SalaryCyclesTableFilterComposer f) f,
@@ -25438,18 +25496,19 @@ class $$EmployeesTableFilterComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.salaryCycles,
       getReferencedColumn: (t) => t.employeeId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SalaryCyclesTableFilterComposer(
-        $db: $db,
-        $table: $db.salaryCycles,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalaryCyclesTableFilterComposer(
+            $db: $db,
+            $table: $db.salaryCycles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -25465,104 +25524,104 @@ class $$EmployeesTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get name => $composableBuilder(
-        column: $table.name,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get basicSalary => $composableBuilder(
-        column: $table.basicSalary,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.basicSalary,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get position => $composableBuilder(
-        column: $table.position,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get phone => $composableBuilder(
-        column: $table.phone,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.phone,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hireDate => $composableBuilder(
-        column: $table.hireDate,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hireDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$EmployeesTableAnnotationComposer
@@ -25590,34 +25649,34 @@ class $$EmployeesTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -25632,9 +25691,9 @@ class $$EmployeesTableAnnotationComposer
       $composableBuilder(column: $table.name, builder: (column) => column);
 
   GeneratedColumn<double> get basicSalary => $composableBuilder(
-        column: $table.basicSalary,
-        builder: (column) => column,
-      );
+    column: $table.basicSalary,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
@@ -25656,240 +25715,248 @@ class $$EmployeesTableAnnotationComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.salaryCycles,
       getReferencedColumn: (t) => t.employeeId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SalaryCyclesTableAnnotationComposer(
-        $db: $db,
-        $table: $db.salaryCycles,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalaryCyclesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.salaryCycles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
 }
 
-class $$EmployeesTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $EmployeesTable,
-    Employee,
-    $$EmployeesTableFilterComposer,
-    $$EmployeesTableOrderingComposer,
-    $$EmployeesTableAnnotationComposer,
-    $$EmployeesTableCreateCompanionBuilder,
-    $$EmployeesTableUpdateCompanionBuilder,
-    (Employee, $$EmployeesTableReferences),
-    Employee,
-    PrefetchHooks Function({bool salaryCyclesRefs})> {
+class $$EmployeesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EmployeesTable,
+          Employee,
+          $$EmployeesTableFilterComposer,
+          $$EmployeesTableOrderingComposer,
+          $$EmployeesTableAnnotationComposer,
+          $$EmployeesTableCreateCompanionBuilder,
+          $$EmployeesTableUpdateCompanionBuilder,
+          (Employee, $$EmployeesTableReferences),
+          Employee,
+          PrefetchHooks Function({bool salaryCyclesRefs})
+        > {
   $$EmployeesTableTableManager(_$AppDatabase db, $EmployeesTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$EmployeesTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$EmployeesTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$EmployeesTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<String> name = const Value.absent(),
-              Value<double> basicSalary = const Value.absent(),
-              Value<String> position = const Value.absent(),
-              Value<String> phone = const Value.absent(),
-              Value<String> hireDate = const Value.absent(),
-              Value<String> status = const Value.absent(),
-            }) =>
-                EmployeesCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              name: name,
-              basicSalary: basicSalary,
-              position: position,
-              phone: phone,
-              hireDate: hireDate,
-              status: status,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              required String name,
-              required double basicSalary,
-              Value<String> position = const Value.absent(),
-              Value<String> phone = const Value.absent(),
-              Value<String> hireDate = const Value.absent(),
-              required String status,
-            }) =>
-                EmployeesCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              name: name,
-              basicSalary: basicSalary,
-              position: position,
-              phone: phone,
-              hireDate: hireDate,
-              status: status,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$EmployeesTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({salaryCyclesRefs = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [
-                  if (salaryCyclesRefs) db.salaryCycles
-                ],
-                addJoins: null,
-                getPrefetchedDataCallback: (items) async {
-                  return [
-                    if (salaryCyclesRefs)
-                      await $_getPrefetchedData<Employee, $EmployeesTable,
-                          SalaryCycle>(
-                        currentTable: table,
-                        referencedTable: $$EmployeesTableReferences
-                            ._salaryCyclesRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$EmployeesTableReferences(
-                          db,
-                          table,
-                          p0,
-                        ).salaryCyclesRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems
-                                .where((e) => e.employeeId == item.id),
-                        typedResults: items,
-                      ),
-                  ];
-                },
-              );
-            },
-          ),
-        );
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EmployeesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EmployeesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EmployeesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<double> basicSalary = const Value.absent(),
+                Value<String> position = const Value.absent(),
+                Value<String> phone = const Value.absent(),
+                Value<String> hireDate = const Value.absent(),
+                Value<String> status = const Value.absent(),
+              }) => EmployeesCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                name: name,
+                basicSalary: basicSalary,
+                position: position,
+                phone: phone,
+                hireDate: hireDate,
+                status: status,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required String name,
+                required double basicSalary,
+                Value<String> position = const Value.absent(),
+                Value<String> phone = const Value.absent(),
+                Value<String> hireDate = const Value.absent(),
+                required String status,
+              }) => EmployeesCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                name: name,
+                basicSalary: basicSalary,
+                position: position,
+                phone: phone,
+                hireDate: hireDate,
+                status: status,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$EmployeesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({salaryCyclesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (salaryCyclesRefs) db.salaryCycles],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (salaryCyclesRefs)
+                    await $_getPrefetchedData<
+                      Employee,
+                      $EmployeesTable,
+                      SalaryCycle
+                    >(
+                      currentTable: table,
+                      referencedTable: $$EmployeesTableReferences
+                          ._salaryCyclesRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$EmployeesTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).salaryCyclesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.employeeId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
 }
 
-typedef $$EmployeesTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $EmployeesTable,
-    Employee,
-    $$EmployeesTableFilterComposer,
-    $$EmployeesTableOrderingComposer,
-    $$EmployeesTableAnnotationComposer,
-    $$EmployeesTableCreateCompanionBuilder,
-    $$EmployeesTableUpdateCompanionBuilder,
-    (Employee, $$EmployeesTableReferences),
-    Employee,
-    PrefetchHooks Function({bool salaryCyclesRefs})>;
-typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  required String expenseType,
-  Value<int?> relatedId,
-  required String description,
-  required double amount,
-  required String date,
-  Value<int?> cashTransactionId,
-  Value<String?> hotelDayKey,
-  Value<String?> categoryUuid,
-  Value<String?> cashFlowUuid,
-  Value<bool> isAutoGenerated,
-});
-typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<String> expenseType,
-  Value<int?> relatedId,
-  Value<String> description,
-  Value<double> amount,
-  Value<String> date,
-  Value<int?> cashTransactionId,
-  Value<String?> hotelDayKey,
-  Value<String?> categoryUuid,
-  Value<String?> cashFlowUuid,
-  Value<bool> isAutoGenerated,
-});
+typedef $$EmployeesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EmployeesTable,
+      Employee,
+      $$EmployeesTableFilterComposer,
+      $$EmployeesTableOrderingComposer,
+      $$EmployeesTableAnnotationComposer,
+      $$EmployeesTableCreateCompanionBuilder,
+      $$EmployeesTableUpdateCompanionBuilder,
+      (Employee, $$EmployeesTableReferences),
+      Employee,
+      PrefetchHooks Function({bool salaryCyclesRefs})
+    >;
+typedef $$ExpensesTableCreateCompanionBuilder =
+    ExpensesCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      required String expenseType,
+      Value<int?> relatedId,
+      required String description,
+      required double amount,
+      required String date,
+      Value<int?> cashTransactionId,
+      Value<String?> hotelDayKey,
+      Value<String?> categoryUuid,
+      Value<String?> cashFlowUuid,
+      Value<bool> isAutoGenerated,
+    });
+typedef $$ExpensesTableUpdateCompanionBuilder =
+    ExpensesCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<String> expenseType,
+      Value<int?> relatedId,
+      Value<String> description,
+      Value<double> amount,
+      Value<String> date,
+      Value<int?> cashTransactionId,
+      Value<String?> hotelDayKey,
+      Value<String?> categoryUuid,
+      Value<String?> cashFlowUuid,
+      Value<bool> isAutoGenerated,
+    });
 
 class $$ExpensesTableFilterComposer
     extends Composer<_$AppDatabase, $ExpensesTable> {
@@ -25901,124 +25968,124 @@ class $$ExpensesTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get expenseType => $composableBuilder(
-        column: $table.expenseType,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.expenseType,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get relatedId => $composableBuilder(
-        column: $table.relatedId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.relatedId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get description => $composableBuilder(
-        column: $table.description,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get amount => $composableBuilder(
-        column: $table.amount,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get date => $composableBuilder(
-        column: $table.date,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get cashTransactionId => $composableBuilder(
-        column: $table.cashTransactionId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.cashTransactionId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get categoryUuid => $composableBuilder(
-        column: $table.categoryUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.categoryUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get cashFlowUuid => $composableBuilder(
-        column: $table.cashFlowUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.cashFlowUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isAutoGenerated => $composableBuilder(
-        column: $table.isAutoGenerated,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isAutoGenerated,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$ExpensesTableOrderingComposer
@@ -26031,124 +26098,124 @@ class $$ExpensesTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get expenseType => $composableBuilder(
-        column: $table.expenseType,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.expenseType,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get relatedId => $composableBuilder(
-        column: $table.relatedId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.relatedId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get description => $composableBuilder(
-        column: $table.description,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get amount => $composableBuilder(
-        column: $table.amount,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get date => $composableBuilder(
-        column: $table.date,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get cashTransactionId => $composableBuilder(
-        column: $table.cashTransactionId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.cashTransactionId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get categoryUuid => $composableBuilder(
-        column: $table.categoryUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.categoryUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get cashFlowUuid => $composableBuilder(
-        column: $table.cashFlowUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.cashFlowUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isAutoGenerated => $composableBuilder(
-        column: $table.isAutoGenerated,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isAutoGenerated,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExpensesTableAnnotationComposer
@@ -26176,34 +26243,34 @@ class $$ExpensesTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -26215,17 +26282,17 @@ class $$ExpensesTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get expenseType => $composableBuilder(
-        column: $table.expenseType,
-        builder: (column) => column,
-      );
+    column: $table.expenseType,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get relatedId =>
       $composableBuilder(column: $table.relatedId, builder: (column) => column);
 
   GeneratedColumn<String> get description => $composableBuilder(
-        column: $table.description,
-        builder: (column) => column,
-      );
+    column: $table.description,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
@@ -26234,231 +26301,237 @@ class $$ExpensesTableAnnotationComposer
       $composableBuilder(column: $table.date, builder: (column) => column);
 
   GeneratedColumn<int> get cashTransactionId => $composableBuilder(
-        column: $table.cashTransactionId,
-        builder: (column) => column,
-      );
+    column: $table.cashTransactionId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => column,
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get categoryUuid => $composableBuilder(
-        column: $table.categoryUuid,
-        builder: (column) => column,
-      );
+    column: $table.categoryUuid,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get cashFlowUuid => $composableBuilder(
-        column: $table.cashFlowUuid,
-        builder: (column) => column,
-      );
+    column: $table.cashFlowUuid,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isAutoGenerated => $composableBuilder(
-        column: $table.isAutoGenerated,
-        builder: (column) => column,
+    column: $table.isAutoGenerated,
+    builder: (column) => column,
+  );
+}
+
+class $$ExpensesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ExpensesTable,
+          Expense,
+          $$ExpensesTableFilterComposer,
+          $$ExpensesTableOrderingComposer,
+          $$ExpensesTableAnnotationComposer,
+          $$ExpensesTableCreateCompanionBuilder,
+          $$ExpensesTableUpdateCompanionBuilder,
+          (Expense, BaseReferences<_$AppDatabase, $ExpensesTable, Expense>),
+          Expense,
+          PrefetchHooks Function()
+        > {
+  $$ExpensesTableTableManager(_$AppDatabase db, $ExpensesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExpensesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExpensesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ExpensesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<String> expenseType = const Value.absent(),
+                Value<int?> relatedId = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String> date = const Value.absent(),
+                Value<int?> cashTransactionId = const Value.absent(),
+                Value<String?> hotelDayKey = const Value.absent(),
+                Value<String?> categoryUuid = const Value.absent(),
+                Value<String?> cashFlowUuid = const Value.absent(),
+                Value<bool> isAutoGenerated = const Value.absent(),
+              }) => ExpensesCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                expenseType: expenseType,
+                relatedId: relatedId,
+                description: description,
+                amount: amount,
+                date: date,
+                cashTransactionId: cashTransactionId,
+                hotelDayKey: hotelDayKey,
+                categoryUuid: categoryUuid,
+                cashFlowUuid: cashFlowUuid,
+                isAutoGenerated: isAutoGenerated,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required String expenseType,
+                Value<int?> relatedId = const Value.absent(),
+                required String description,
+                required double amount,
+                required String date,
+                Value<int?> cashTransactionId = const Value.absent(),
+                Value<String?> hotelDayKey = const Value.absent(),
+                Value<String?> categoryUuid = const Value.absent(),
+                Value<String?> cashFlowUuid = const Value.absent(),
+                Value<bool> isAutoGenerated = const Value.absent(),
+              }) => ExpensesCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                expenseType: expenseType,
+                relatedId: relatedId,
+                description: description,
+                amount: amount,
+                date: date,
+                cashTransactionId: cashTransactionId,
+                hotelDayKey: hotelDayKey,
+                categoryUuid: categoryUuid,
+                cashFlowUuid: cashFlowUuid,
+                isAutoGenerated: isAutoGenerated,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
       );
 }
 
-class $$ExpensesTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $ExpensesTable,
-    Expense,
-    $$ExpensesTableFilterComposer,
-    $$ExpensesTableOrderingComposer,
-    $$ExpensesTableAnnotationComposer,
-    $$ExpensesTableCreateCompanionBuilder,
-    $$ExpensesTableUpdateCompanionBuilder,
-    (Expense, BaseReferences<_$AppDatabase, $ExpensesTable, Expense>),
-    Expense,
-    PrefetchHooks Function()> {
-  $$ExpensesTableTableManager(_$AppDatabase db, $ExpensesTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$ExpensesTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$ExpensesTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$ExpensesTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<String> expenseType = const Value.absent(),
-              Value<int?> relatedId = const Value.absent(),
-              Value<String> description = const Value.absent(),
-              Value<double> amount = const Value.absent(),
-              Value<String> date = const Value.absent(),
-              Value<int?> cashTransactionId = const Value.absent(),
-              Value<String?> hotelDayKey = const Value.absent(),
-              Value<String?> categoryUuid = const Value.absent(),
-              Value<String?> cashFlowUuid = const Value.absent(),
-              Value<bool> isAutoGenerated = const Value.absent(),
-            }) =>
-                ExpensesCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              expenseType: expenseType,
-              relatedId: relatedId,
-              description: description,
-              amount: amount,
-              date: date,
-              cashTransactionId: cashTransactionId,
-              hotelDayKey: hotelDayKey,
-              categoryUuid: categoryUuid,
-              cashFlowUuid: cashFlowUuid,
-              isAutoGenerated: isAutoGenerated,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              required String expenseType,
-              Value<int?> relatedId = const Value.absent(),
-              required String description,
-              required double amount,
-              required String date,
-              Value<int?> cashTransactionId = const Value.absent(),
-              Value<String?> hotelDayKey = const Value.absent(),
-              Value<String?> categoryUuid = const Value.absent(),
-              Value<String?> cashFlowUuid = const Value.absent(),
-              Value<bool> isAutoGenerated = const Value.absent(),
-            }) =>
-                ExpensesCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              expenseType: expenseType,
-              relatedId: relatedId,
-              description: description,
-              amount: amount,
-              date: date,
-              cashTransactionId: cashTransactionId,
-              hotelDayKey: hotelDayKey,
-              categoryUuid: categoryUuid,
-              cashFlowUuid: cashFlowUuid,
-              isAutoGenerated: isAutoGenerated,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-                .toList(),
-            prefetchHooksCallback: null,
-          ),
-        );
-}
+typedef $$ExpensesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ExpensesTable,
+      Expense,
+      $$ExpensesTableFilterComposer,
+      $$ExpensesTableOrderingComposer,
+      $$ExpensesTableAnnotationComposer,
+      $$ExpensesTableCreateCompanionBuilder,
+      $$ExpensesTableUpdateCompanionBuilder,
+      (Expense, BaseReferences<_$AppDatabase, $ExpensesTable, Expense>),
+      Expense,
+      PrefetchHooks Function()
+    >;
+typedef $$CashTransactionsTableCreateCompanionBuilder =
+    CashTransactionsCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int?> registerId,
+      required String transactionType,
+      required double amount,
+      Value<String?> referenceType,
+      Value<int?> referenceId,
+      Value<String?> description,
+      required String transactionTime,
+      Value<int?> createdBy,
+    });
+typedef $$CashTransactionsTableUpdateCompanionBuilder =
+    CashTransactionsCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int?> registerId,
+      Value<String> transactionType,
+      Value<double> amount,
+      Value<String?> referenceType,
+      Value<int?> referenceId,
+      Value<String?> description,
+      Value<String> transactionTime,
+      Value<int?> createdBy,
+    });
 
-typedef $$ExpensesTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $ExpensesTable,
-    Expense,
-    $$ExpensesTableFilterComposer,
-    $$ExpensesTableOrderingComposer,
-    $$ExpensesTableAnnotationComposer,
-    $$ExpensesTableCreateCompanionBuilder,
-    $$ExpensesTableUpdateCompanionBuilder,
-    (Expense, BaseReferences<_$AppDatabase, $ExpensesTable, Expense>),
-    Expense,
-    PrefetchHooks Function()>;
-typedef $$CashTransactionsTableCreateCompanionBuilder
-    = CashTransactionsCompanion Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int?> registerId,
-  required String transactionType,
-  required double amount,
-  Value<String?> referenceType,
-  Value<int?> referenceId,
-  Value<String?> description,
-  required String transactionTime,
-  Value<int?> createdBy,
-});
-typedef $$CashTransactionsTableUpdateCompanionBuilder
-    = CashTransactionsCompanion Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int?> registerId,
-  Value<String> transactionType,
-  Value<double> amount,
-  Value<String?> referenceType,
-  Value<int?> referenceId,
-  Value<String?> description,
-  Value<String> transactionTime,
-  Value<int?> createdBy,
-});
-
-final class $$CashTransactionsTableReferences extends BaseReferences<
-    _$AppDatabase, $CashTransactionsTable, CashTransaction> {
+final class $$CashTransactionsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $CashTransactionsTable, CashTransaction> {
   $$CashTransactionsTableReferences(
     super.$_db,
     super.$_table,
@@ -26467,14 +26540,13 @@ final class $$CashTransactionsTableReferences extends BaseReferences<
 
   static MultiTypedResultKey<$PaymentsTable, List<Payment>> _paymentsRefsTable(
     _$AppDatabase db,
-  ) =>
-      MultiTypedResultKey.fromTable(
-        db.payments,
-        aliasName: $_aliasNameGenerator(
-          db.cashTransactions.id,
-          db.payments.cashTransactionLocalId,
-        ),
-      );
+  ) => MultiTypedResultKey.fromTable(
+    db.payments,
+    aliasName: $_aliasNameGenerator(
+      db.cashTransactions.id,
+      db.payments.cashTransactionLocalId,
+    ),
+  );
 
   $$PaymentsTableProcessedTableManager get paymentsRefs {
     final manager = $$PaymentsTableTableManager($_db, $_db.payments).filter(
@@ -26498,114 +26570,114 @@ class $$CashTransactionsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get registerId => $composableBuilder(
-        column: $table.registerId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.registerId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get transactionType => $composableBuilder(
-        column: $table.transactionType,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.transactionType,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get amount => $composableBuilder(
-        column: $table.amount,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get referenceType => $composableBuilder(
-        column: $table.referenceType,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.referenceType,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get referenceId => $composableBuilder(
-        column: $table.referenceId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.referenceId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get description => $composableBuilder(
-        column: $table.description,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get transactionTime => $composableBuilder(
-        column: $table.transactionTime,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.transactionTime,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdBy => $composableBuilder(
-        column: $table.createdBy,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
 
   Expression<bool> paymentsRefs(
     Expression<bool> Function($$PaymentsTableFilterComposer f) f,
@@ -26615,18 +26687,19 @@ class $$CashTransactionsTableFilterComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.payments,
       getReferencedColumn: (t) => t.cashTransactionLocalId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$PaymentsTableFilterComposer(
-        $db: $db,
-        $table: $db.payments,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PaymentsTableFilterComposer(
+            $db: $db,
+            $table: $db.payments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -26642,114 +26715,114 @@ class $$CashTransactionsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get registerId => $composableBuilder(
-        column: $table.registerId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.registerId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get transactionType => $composableBuilder(
-        column: $table.transactionType,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.transactionType,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get amount => $composableBuilder(
-        column: $table.amount,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get referenceType => $composableBuilder(
-        column: $table.referenceType,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.referenceType,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get referenceId => $composableBuilder(
-        column: $table.referenceId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.referenceId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get description => $composableBuilder(
-        column: $table.description,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get transactionTime => $composableBuilder(
-        column: $table.transactionTime,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.transactionTime,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdBy => $composableBuilder(
-        column: $table.createdBy,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdBy,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CashTransactionsTableAnnotationComposer
@@ -26777,34 +26850,34 @@ class $$CashTransactionsTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -26816,37 +26889,37 @@ class $$CashTransactionsTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<int> get registerId => $composableBuilder(
-        column: $table.registerId,
-        builder: (column) => column,
-      );
+    column: $table.registerId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get transactionType => $composableBuilder(
-        column: $table.transactionType,
-        builder: (column) => column,
-      );
+    column: $table.transactionType,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
   GeneratedColumn<String> get referenceType => $composableBuilder(
-        column: $table.referenceType,
-        builder: (column) => column,
-      );
+    column: $table.referenceType,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get referenceId => $composableBuilder(
-        column: $table.referenceId,
-        builder: (column) => column,
-      );
+    column: $table.referenceId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get description => $composableBuilder(
-        column: $table.description,
-        builder: (column) => column,
-      );
+    column: $table.description,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get transactionTime => $composableBuilder(
-        column: $table.transactionTime,
-        builder: (column) => column,
-      );
+    column: $table.transactionTime,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdBy =>
       $composableBuilder(column: $table.createdBy, builder: (column) => column);
@@ -26859,262 +26932,272 @@ class $$CashTransactionsTableAnnotationComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.payments,
       getReferencedColumn: (t) => t.cashTransactionLocalId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$PaymentsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.payments,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PaymentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.payments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
 }
 
-class $$CashTransactionsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $CashTransactionsTable,
-    CashTransaction,
-    $$CashTransactionsTableFilterComposer,
-    $$CashTransactionsTableOrderingComposer,
-    $$CashTransactionsTableAnnotationComposer,
-    $$CashTransactionsTableCreateCompanionBuilder,
-    $$CashTransactionsTableUpdateCompanionBuilder,
-    (CashTransaction, $$CashTransactionsTableReferences),
-    CashTransaction,
-    PrefetchHooks Function({bool paymentsRefs})> {
+class $$CashTransactionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CashTransactionsTable,
+          CashTransaction,
+          $$CashTransactionsTableFilterComposer,
+          $$CashTransactionsTableOrderingComposer,
+          $$CashTransactionsTableAnnotationComposer,
+          $$CashTransactionsTableCreateCompanionBuilder,
+          $$CashTransactionsTableUpdateCompanionBuilder,
+          (CashTransaction, $$CashTransactionsTableReferences),
+          CashTransaction,
+          PrefetchHooks Function({bool paymentsRefs})
+        > {
   $$CashTransactionsTableTableManager(
     _$AppDatabase db,
     $CashTransactionsTable table,
   ) : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$CashTransactionsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$CashTransactionsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$CashTransactionsTableAnnotationComposer(
-                    $db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int?> registerId = const Value.absent(),
-              Value<String> transactionType = const Value.absent(),
-              Value<double> amount = const Value.absent(),
-              Value<String?> referenceType = const Value.absent(),
-              Value<int?> referenceId = const Value.absent(),
-              Value<String?> description = const Value.absent(),
-              Value<String> transactionTime = const Value.absent(),
-              Value<int?> createdBy = const Value.absent(),
-            }) =>
-                CashTransactionsCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              registerId: registerId,
-              transactionType: transactionType,
-              amount: amount,
-              referenceType: referenceType,
-              referenceId: referenceId,
-              description: description,
-              transactionTime: transactionTime,
-              createdBy: createdBy,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int?> registerId = const Value.absent(),
-              required String transactionType,
-              required double amount,
-              Value<String?> referenceType = const Value.absent(),
-              Value<int?> referenceId = const Value.absent(),
-              Value<String?> description = const Value.absent(),
-              required String transactionTime,
-              Value<int?> createdBy = const Value.absent(),
-            }) =>
-                CashTransactionsCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              registerId: registerId,
-              transactionType: transactionType,
-              amount: amount,
-              referenceType: referenceType,
-              referenceId: referenceId,
-              description: description,
-              transactionTime: transactionTime,
-              createdBy: createdBy,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$CashTransactionsTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({paymentsRefs = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [if (paymentsRefs) db.payments],
-                addJoins: null,
-                getPrefetchedDataCallback: (items) async {
-                  return [
-                    if (paymentsRefs)
-                      await $_getPrefetchedData<CashTransaction,
-                          $CashTransactionsTable, Payment>(
-                        currentTable: table,
-                        referencedTable: $$CashTransactionsTableReferences
-                            ._paymentsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$CashTransactionsTableReferences(
-                          db,
-                          table,
-                          p0,
-                        ).paymentsRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems.where(
-                          (e) => e.cashTransactionLocalId == item.id,
-                        ),
-                        typedResults: items,
-                      ),
-                  ];
-                },
-              );
-            },
-          ),
-        );
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CashTransactionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CashTransactionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CashTransactionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int?> registerId = const Value.absent(),
+                Value<String> transactionType = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String?> referenceType = const Value.absent(),
+                Value<int?> referenceId = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String> transactionTime = const Value.absent(),
+                Value<int?> createdBy = const Value.absent(),
+              }) => CashTransactionsCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                registerId: registerId,
+                transactionType: transactionType,
+                amount: amount,
+                referenceType: referenceType,
+                referenceId: referenceId,
+                description: description,
+                transactionTime: transactionTime,
+                createdBy: createdBy,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int?> registerId = const Value.absent(),
+                required String transactionType,
+                required double amount,
+                Value<String?> referenceType = const Value.absent(),
+                Value<int?> referenceId = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                required String transactionTime,
+                Value<int?> createdBy = const Value.absent(),
+              }) => CashTransactionsCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                registerId: registerId,
+                transactionType: transactionType,
+                amount: amount,
+                referenceType: referenceType,
+                referenceId: referenceId,
+                description: description,
+                transactionTime: transactionTime,
+                createdBy: createdBy,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$CashTransactionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({paymentsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (paymentsRefs) db.payments],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (paymentsRefs)
+                    await $_getPrefetchedData<
+                      CashTransaction,
+                      $CashTransactionsTable,
+                      Payment
+                    >(
+                      currentTable: table,
+                      referencedTable: $$CashTransactionsTableReferences
+                          ._paymentsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$CashTransactionsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).paymentsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.cashTransactionLocalId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
 }
 
-typedef $$CashTransactionsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $CashTransactionsTable,
-    CashTransaction,
-    $$CashTransactionsTableFilterComposer,
-    $$CashTransactionsTableOrderingComposer,
-    $$CashTransactionsTableAnnotationComposer,
-    $$CashTransactionsTableCreateCompanionBuilder,
-    $$CashTransactionsTableUpdateCompanionBuilder,
-    (CashTransaction, $$CashTransactionsTableReferences),
-    CashTransaction,
-    PrefetchHooks Function({bool paymentsRefs})>;
-typedef $$PaymentsTableCreateCompanionBuilder = PaymentsCompanion Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int?> serverPaymentId,
-  Value<int?> bookingLocalId,
-  Value<int?> serverBookingId,
-  Value<String?> roomNumber,
-  required double amount,
-  required String paymentDate,
-  Value<String?> notes,
-  required String paymentMethod,
-  required String revenueType,
-  Value<int?> cashTransactionLocalId,
-  Value<int?> cashTransactionServerId,
-  Value<String?> referenceNumber,
-  Value<String?> hotelDayKey,
-  Value<bool> isPendingBalance,
-  Value<String?> linkedDebtUuid,
-  Value<String?> bookingUuidCache,
-});
-typedef $$PaymentsTableUpdateCompanionBuilder = PaymentsCompanion Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int?> serverPaymentId,
-  Value<int?> bookingLocalId,
-  Value<int?> serverBookingId,
-  Value<String?> roomNumber,
-  Value<double> amount,
-  Value<String> paymentDate,
-  Value<String?> notes,
-  Value<String> paymentMethod,
-  Value<String> revenueType,
-  Value<int?> cashTransactionLocalId,
-  Value<int?> cashTransactionServerId,
-  Value<String?> referenceNumber,
-  Value<String?> hotelDayKey,
-  Value<bool> isPendingBalance,
-  Value<String?> linkedDebtUuid,
-  Value<String?> bookingUuidCache,
-});
+typedef $$CashTransactionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CashTransactionsTable,
+      CashTransaction,
+      $$CashTransactionsTableFilterComposer,
+      $$CashTransactionsTableOrderingComposer,
+      $$CashTransactionsTableAnnotationComposer,
+      $$CashTransactionsTableCreateCompanionBuilder,
+      $$CashTransactionsTableUpdateCompanionBuilder,
+      (CashTransaction, $$CashTransactionsTableReferences),
+      CashTransaction,
+      PrefetchHooks Function({bool paymentsRefs})
+    >;
+typedef $$PaymentsTableCreateCompanionBuilder =
+    PaymentsCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int?> serverPaymentId,
+      Value<int?> bookingLocalId,
+      Value<int?> serverBookingId,
+      Value<String?> roomNumber,
+      required double amount,
+      required String paymentDate,
+      Value<String?> notes,
+      required String paymentMethod,
+      required String revenueType,
+      Value<int?> cashTransactionLocalId,
+      Value<int?> cashTransactionServerId,
+      Value<String?> referenceNumber,
+      Value<String?> hotelDayKey,
+      Value<bool> isPendingBalance,
+      Value<String?> linkedDebtUuid,
+      Value<String?> bookingUuidCache,
+    });
+typedef $$PaymentsTableUpdateCompanionBuilder =
+    PaymentsCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int?> serverPaymentId,
+      Value<int?> bookingLocalId,
+      Value<int?> serverBookingId,
+      Value<String?> roomNumber,
+      Value<double> amount,
+      Value<String> paymentDate,
+      Value<String?> notes,
+      Value<String> paymentMethod,
+      Value<String> revenueType,
+      Value<int?> cashTransactionLocalId,
+      Value<int?> cashTransactionServerId,
+      Value<String?> referenceNumber,
+      Value<String?> hotelDayKey,
+      Value<bool> isPendingBalance,
+      Value<String?> linkedDebtUuid,
+      Value<String?> bookingUuidCache,
+    });
 
 final class $$PaymentsTableReferences
     extends BaseReferences<_$AppDatabase, $PaymentsTable, Payment> {
@@ -27141,13 +27224,12 @@ final class $$PaymentsTableReferences
 
   static $CashTransactionsTable _cashTransactionLocalIdTable(
     _$AppDatabase db,
-  ) =>
-      db.cashTransactions.createAlias(
-        $_aliasNameGenerator(
-          db.payments.cashTransactionLocalId,
-          db.cashTransactions.id,
-        ),
-      );
+  ) => db.cashTransactions.createAlias(
+    $_aliasNameGenerator(
+      db.payments.cashTransactionLocalId,
+      db.cashTransactions.id,
+    ),
+  );
 
   $$CashTransactionsTableProcessedTableManager? get cashTransactionLocalId {
     final $_column = $_itemColumn<int>('cash_transaction_local_id');
@@ -27176,144 +27258,144 @@ class $$PaymentsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverPaymentId => $composableBuilder(
-        column: $table.serverPaymentId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverPaymentId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverBookingId => $composableBuilder(
-        column: $table.serverBookingId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverBookingId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get roomNumber => $composableBuilder(
-        column: $table.roomNumber,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.roomNumber,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get amount => $composableBuilder(
-        column: $table.amount,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get paymentDate => $composableBuilder(
-        column: $table.paymentDate,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.paymentDate,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get notes => $composableBuilder(
-        column: $table.notes,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get paymentMethod => $composableBuilder(
-        column: $table.paymentMethod,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.paymentMethod,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get revenueType => $composableBuilder(
-        column: $table.revenueType,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.revenueType,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get cashTransactionServerId => $composableBuilder(
-        column: $table.cashTransactionServerId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.cashTransactionServerId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get referenceNumber => $composableBuilder(
-        column: $table.referenceNumber,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.referenceNumber,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isPendingBalance => $composableBuilder(
-        column: $table.isPendingBalance,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isPendingBalance,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get linkedDebtUuid => $composableBuilder(
-        column: $table.linkedDebtUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.linkedDebtUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get bookingUuidCache => $composableBuilder(
-        column: $table.bookingUuidCache,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.bookingUuidCache,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$BookingsTableFilterComposer get bookingLocalId {
     final $$BookingsTableFilterComposer composer = $composerBuilder(
@@ -27321,18 +27403,19 @@ class $$PaymentsTableFilterComposer
       getCurrentColumn: (t) => t.bookingLocalId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableFilterComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableFilterComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -27343,18 +27426,19 @@ class $$PaymentsTableFilterComposer
       getCurrentColumn: (t) => t.cashTransactionLocalId,
       referencedTable: $db.cashTransactions,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$CashTransactionsTableFilterComposer(
-        $db: $db,
-        $table: $db.cashTransactions,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashTransactionsTableFilterComposer(
+            $db: $db,
+            $table: $db.cashTransactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -27370,144 +27454,144 @@ class $$PaymentsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverPaymentId => $composableBuilder(
-        column: $table.serverPaymentId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverPaymentId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverBookingId => $composableBuilder(
-        column: $table.serverBookingId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverBookingId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get roomNumber => $composableBuilder(
-        column: $table.roomNumber,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.roomNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get amount => $composableBuilder(
-        column: $table.amount,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get paymentDate => $composableBuilder(
-        column: $table.paymentDate,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.paymentDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get notes => $composableBuilder(
-        column: $table.notes,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get paymentMethod => $composableBuilder(
-        column: $table.paymentMethod,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.paymentMethod,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get revenueType => $composableBuilder(
-        column: $table.revenueType,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.revenueType,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get cashTransactionServerId => $composableBuilder(
-        column: $table.cashTransactionServerId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.cashTransactionServerId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get referenceNumber => $composableBuilder(
-        column: $table.referenceNumber,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.referenceNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isPendingBalance => $composableBuilder(
-        column: $table.isPendingBalance,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isPendingBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get linkedDebtUuid => $composableBuilder(
-        column: $table.linkedDebtUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.linkedDebtUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get bookingUuidCache => $composableBuilder(
-        column: $table.bookingUuidCache,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.bookingUuidCache,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
@@ -27515,18 +27599,19 @@ class $$PaymentsTableOrderingComposer
       getCurrentColumn: (t) => t.bookingLocalId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableOrderingComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -27537,18 +27622,19 @@ class $$PaymentsTableOrderingComposer
       getCurrentColumn: (t) => t.cashTransactionLocalId,
       referencedTable: $db.cashTransactions,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$CashTransactionsTableOrderingComposer(
-        $db: $db,
-        $table: $db.cashTransactions,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashTransactionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.cashTransactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -27579,34 +27665,34 @@ class $$PaymentsTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -27618,70 +27704,70 @@ class $$PaymentsTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<int> get serverPaymentId => $composableBuilder(
-        column: $table.serverPaymentId,
-        builder: (column) => column,
-      );
+    column: $table.serverPaymentId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get serverBookingId => $composableBuilder(
-        column: $table.serverBookingId,
-        builder: (column) => column,
-      );
+    column: $table.serverBookingId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get roomNumber => $composableBuilder(
-        column: $table.roomNumber,
-        builder: (column) => column,
-      );
+    column: $table.roomNumber,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
   GeneratedColumn<String> get paymentDate => $composableBuilder(
-        column: $table.paymentDate,
-        builder: (column) => column,
-      );
+    column: $table.paymentDate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
   GeneratedColumn<String> get paymentMethod => $composableBuilder(
-        column: $table.paymentMethod,
-        builder: (column) => column,
-      );
+    column: $table.paymentMethod,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get revenueType => $composableBuilder(
-        column: $table.revenueType,
-        builder: (column) => column,
-      );
+    column: $table.revenueType,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get cashTransactionServerId => $composableBuilder(
-        column: $table.cashTransactionServerId,
-        builder: (column) => column,
-      );
+    column: $table.cashTransactionServerId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get referenceNumber => $composableBuilder(
-        column: $table.referenceNumber,
-        builder: (column) => column,
-      );
+    column: $table.referenceNumber,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => column,
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isPendingBalance => $composableBuilder(
-        column: $table.isPendingBalance,
-        builder: (column) => column,
-      );
+    column: $table.isPendingBalance,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get linkedDebtUuid => $composableBuilder(
-        column: $table.linkedDebtUuid,
-        builder: (column) => column,
-      );
+    column: $table.linkedDebtUuid,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get bookingUuidCache => $composableBuilder(
-        column: $table.bookingUuidCache,
-        builder: (column) => column,
-      );
+    column: $table.bookingUuidCache,
+    builder: (column) => column,
+  );
 
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
@@ -27689,18 +27775,19 @@ class $$PaymentsTableAnnotationComposer
       getCurrentColumn: (t) => t.bookingLocalId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -27711,318 +27798,334 @@ class $$PaymentsTableAnnotationComposer
       getCurrentColumn: (t) => t.cashTransactionLocalId,
       referencedTable: $db.cashTransactions,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$CashTransactionsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.cashTransactions,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashTransactionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.cashTransactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
 }
 
-class $$PaymentsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $PaymentsTable,
-    Payment,
-    $$PaymentsTableFilterComposer,
-    $$PaymentsTableOrderingComposer,
-    $$PaymentsTableAnnotationComposer,
-    $$PaymentsTableCreateCompanionBuilder,
-    $$PaymentsTableUpdateCompanionBuilder,
-    (Payment, $$PaymentsTableReferences),
-    Payment,
-    PrefetchHooks Function({
-      bool bookingLocalId,
-      bool cashTransactionLocalId,
-    })> {
+class $$PaymentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PaymentsTable,
+          Payment,
+          $$PaymentsTableFilterComposer,
+          $$PaymentsTableOrderingComposer,
+          $$PaymentsTableAnnotationComposer,
+          $$PaymentsTableCreateCompanionBuilder,
+          $$PaymentsTableUpdateCompanionBuilder,
+          (Payment, $$PaymentsTableReferences),
+          Payment,
+          PrefetchHooks Function({
+            bool bookingLocalId,
+            bool cashTransactionLocalId,
+          })
+        > {
   $$PaymentsTableTableManager(_$AppDatabase db, $PaymentsTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$PaymentsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$PaymentsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$PaymentsTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int?> serverPaymentId = const Value.absent(),
-              Value<int?> bookingLocalId = const Value.absent(),
-              Value<int?> serverBookingId = const Value.absent(),
-              Value<String?> roomNumber = const Value.absent(),
-              Value<double> amount = const Value.absent(),
-              Value<String> paymentDate = const Value.absent(),
-              Value<String?> notes = const Value.absent(),
-              Value<String> paymentMethod = const Value.absent(),
-              Value<String> revenueType = const Value.absent(),
-              Value<int?> cashTransactionLocalId = const Value.absent(),
-              Value<int?> cashTransactionServerId = const Value.absent(),
-              Value<String?> referenceNumber = const Value.absent(),
-              Value<String?> hotelDayKey = const Value.absent(),
-              Value<bool> isPendingBalance = const Value.absent(),
-              Value<String?> linkedDebtUuid = const Value.absent(),
-              Value<String?> bookingUuidCache = const Value.absent(),
-            }) =>
-                PaymentsCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              serverPaymentId: serverPaymentId,
-              bookingLocalId: bookingLocalId,
-              serverBookingId: serverBookingId,
-              roomNumber: roomNumber,
-              amount: amount,
-              paymentDate: paymentDate,
-              notes: notes,
-              paymentMethod: paymentMethod,
-              revenueType: revenueType,
-              cashTransactionLocalId: cashTransactionLocalId,
-              cashTransactionServerId: cashTransactionServerId,
-              referenceNumber: referenceNumber,
-              hotelDayKey: hotelDayKey,
-              isPendingBalance: isPendingBalance,
-              linkedDebtUuid: linkedDebtUuid,
-              bookingUuidCache: bookingUuidCache,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int?> serverPaymentId = const Value.absent(),
-              Value<int?> bookingLocalId = const Value.absent(),
-              Value<int?> serverBookingId = const Value.absent(),
-              Value<String?> roomNumber = const Value.absent(),
-              required double amount,
-              required String paymentDate,
-              Value<String?> notes = const Value.absent(),
-              required String paymentMethod,
-              required String revenueType,
-              Value<int?> cashTransactionLocalId = const Value.absent(),
-              Value<int?> cashTransactionServerId = const Value.absent(),
-              Value<String?> referenceNumber = const Value.absent(),
-              Value<String?> hotelDayKey = const Value.absent(),
-              Value<bool> isPendingBalance = const Value.absent(),
-              Value<String?> linkedDebtUuid = const Value.absent(),
-              Value<String?> bookingUuidCache = const Value.absent(),
-            }) =>
-                PaymentsCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              serverPaymentId: serverPaymentId,
-              bookingLocalId: bookingLocalId,
-              serverBookingId: serverBookingId,
-              roomNumber: roomNumber,
-              amount: amount,
-              paymentDate: paymentDate,
-              notes: notes,
-              paymentMethod: paymentMethod,
-              revenueType: revenueType,
-              cashTransactionLocalId: cashTransactionLocalId,
-              cashTransactionServerId: cashTransactionServerId,
-              referenceNumber: referenceNumber,
-              hotelDayKey: hotelDayKey,
-              isPendingBalance: isPendingBalance,
-              linkedDebtUuid: linkedDebtUuid,
-              bookingUuidCache: bookingUuidCache,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$PaymentsTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: (
-                {bookingLocalId = false, cashTransactionLocalId = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [],
-                addJoins: <
-                    T extends TableManagerState<
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic>>(state) {
-                  if (bookingLocalId) {
-                    state = state.withJoin(
-                      currentTable: table,
-                      currentColumn: table.bookingLocalId,
-                      referencedTable:
-                          $$PaymentsTableReferences._bookingLocalIdTable(db),
-                      referencedColumn:
-                          $$PaymentsTableReferences._bookingLocalIdTable(db).id,
-                    ) as T;
-                  }
-                  if (cashTransactionLocalId) {
-                    state = state.withJoin(
-                      currentTable: table,
-                      currentColumn: table.cashTransactionLocalId,
-                      referencedTable: $$PaymentsTableReferences
-                          ._cashTransactionLocalIdTable(db),
-                      referencedColumn: $$PaymentsTableReferences
-                          ._cashTransactionLocalIdTable(db)
-                          .id,
-                    ) as T;
-                  }
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PaymentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PaymentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PaymentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int?> serverPaymentId = const Value.absent(),
+                Value<int?> bookingLocalId = const Value.absent(),
+                Value<int?> serverBookingId = const Value.absent(),
+                Value<String?> roomNumber = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String> paymentDate = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String> paymentMethod = const Value.absent(),
+                Value<String> revenueType = const Value.absent(),
+                Value<int?> cashTransactionLocalId = const Value.absent(),
+                Value<int?> cashTransactionServerId = const Value.absent(),
+                Value<String?> referenceNumber = const Value.absent(),
+                Value<String?> hotelDayKey = const Value.absent(),
+                Value<bool> isPendingBalance = const Value.absent(),
+                Value<String?> linkedDebtUuid = const Value.absent(),
+                Value<String?> bookingUuidCache = const Value.absent(),
+              }) => PaymentsCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                serverPaymentId: serverPaymentId,
+                bookingLocalId: bookingLocalId,
+                serverBookingId: serverBookingId,
+                roomNumber: roomNumber,
+                amount: amount,
+                paymentDate: paymentDate,
+                notes: notes,
+                paymentMethod: paymentMethod,
+                revenueType: revenueType,
+                cashTransactionLocalId: cashTransactionLocalId,
+                cashTransactionServerId: cashTransactionServerId,
+                referenceNumber: referenceNumber,
+                hotelDayKey: hotelDayKey,
+                isPendingBalance: isPendingBalance,
+                linkedDebtUuid: linkedDebtUuid,
+                bookingUuidCache: bookingUuidCache,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int?> serverPaymentId = const Value.absent(),
+                Value<int?> bookingLocalId = const Value.absent(),
+                Value<int?> serverBookingId = const Value.absent(),
+                Value<String?> roomNumber = const Value.absent(),
+                required double amount,
+                required String paymentDate,
+                Value<String?> notes = const Value.absent(),
+                required String paymentMethod,
+                required String revenueType,
+                Value<int?> cashTransactionLocalId = const Value.absent(),
+                Value<int?> cashTransactionServerId = const Value.absent(),
+                Value<String?> referenceNumber = const Value.absent(),
+                Value<String?> hotelDayKey = const Value.absent(),
+                Value<bool> isPendingBalance = const Value.absent(),
+                Value<String?> linkedDebtUuid = const Value.absent(),
+                Value<String?> bookingUuidCache = const Value.absent(),
+              }) => PaymentsCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                serverPaymentId: serverPaymentId,
+                bookingLocalId: bookingLocalId,
+                serverBookingId: serverBookingId,
+                roomNumber: roomNumber,
+                amount: amount,
+                paymentDate: paymentDate,
+                notes: notes,
+                paymentMethod: paymentMethod,
+                revenueType: revenueType,
+                cashTransactionLocalId: cashTransactionLocalId,
+                cashTransactionServerId: cashTransactionServerId,
+                referenceNumber: referenceNumber,
+                hotelDayKey: hotelDayKey,
+                isPendingBalance: isPendingBalance,
+                linkedDebtUuid: linkedDebtUuid,
+                bookingUuidCache: bookingUuidCache,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$PaymentsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({bookingLocalId = false, cashTransactionLocalId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (bookingLocalId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.bookingLocalId,
+                                    referencedTable: $$PaymentsTableReferences
+                                        ._bookingLocalIdTable(db),
+                                    referencedColumn: $$PaymentsTableReferences
+                                        ._bookingLocalIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+                        if (cashTransactionLocalId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.cashTransactionLocalId,
+                                    referencedTable: $$PaymentsTableReferences
+                                        ._cashTransactionLocalIdTable(db),
+                                    referencedColumn: $$PaymentsTableReferences
+                                        ._cashTransactionLocalIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
 
-                  return state;
-                },
-                getPrefetchedDataCallback: (items) async {
-                  return [];
-                },
-              );
-            },
-          ),
-        );
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
 }
 
-typedef $$PaymentsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $PaymentsTable,
-    Payment,
-    $$PaymentsTableFilterComposer,
-    $$PaymentsTableOrderingComposer,
-    $$PaymentsTableAnnotationComposer,
-    $$PaymentsTableCreateCompanionBuilder,
-    $$PaymentsTableUpdateCompanionBuilder,
-    (Payment, $$PaymentsTableReferences),
-    Payment,
-    PrefetchHooks Function({bool bookingLocalId, bool cashTransactionLocalId})>;
-typedef $$DebtsTableCreateCompanionBuilder = DebtsCompanion Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int?> bookingLocalId,
-  required String guestName,
-  required String checkinDate,
-  required String checkoutDate,
-  Value<String> dateRecorded,
-  Value<String> debtReason,
-  required double totalAmount,
-  required double paidAmount,
-  required double remainingAmount,
-  required String paymentDate,
-  Value<int> isSettled,
-  Value<String?> pledge,
-  Value<String?> pledgeType,
-  Value<String?> note,
-  Value<String?> debtUuid,
-  Value<String?> hotelDayOpened,
-  Value<String?> hotelDayClosed,
-  Value<bool> isFromAutoFix,
-  Value<bool> settlementConfirmed,
-});
-typedef $$DebtsTableUpdateCompanionBuilder = DebtsCompanion Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int?> bookingLocalId,
-  Value<String> guestName,
-  Value<String> checkinDate,
-  Value<String> checkoutDate,
-  Value<String> dateRecorded,
-  Value<String> debtReason,
-  Value<double> totalAmount,
-  Value<double> paidAmount,
-  Value<double> remainingAmount,
-  Value<String> paymentDate,
-  Value<int> isSettled,
-  Value<String?> pledge,
-  Value<String?> pledgeType,
-  Value<String?> note,
-  Value<String?> debtUuid,
-  Value<String?> hotelDayOpened,
-  Value<String?> hotelDayClosed,
-  Value<bool> isFromAutoFix,
-  Value<bool> settlementConfirmed,
-});
+typedef $$PaymentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PaymentsTable,
+      Payment,
+      $$PaymentsTableFilterComposer,
+      $$PaymentsTableOrderingComposer,
+      $$PaymentsTableAnnotationComposer,
+      $$PaymentsTableCreateCompanionBuilder,
+      $$PaymentsTableUpdateCompanionBuilder,
+      (Payment, $$PaymentsTableReferences),
+      Payment,
+      PrefetchHooks Function({bool bookingLocalId, bool cashTransactionLocalId})
+    >;
+typedef $$DebtsTableCreateCompanionBuilder =
+    DebtsCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int?> bookingLocalId,
+      required String guestName,
+      required String checkinDate,
+      required String checkoutDate,
+      Value<String> dateRecorded,
+      Value<String> debtReason,
+      required double totalAmount,
+      required double paidAmount,
+      required double remainingAmount,
+      required String paymentDate,
+      Value<int> isSettled,
+      Value<String?> pledge,
+      Value<String?> pledgeType,
+      Value<String?> note,
+      Value<String?> debtUuid,
+      Value<String?> hotelDayOpened,
+      Value<String?> hotelDayClosed,
+      Value<bool> isFromAutoFix,
+      Value<bool> settlementConfirmed,
+    });
+typedef $$DebtsTableUpdateCompanionBuilder =
+    DebtsCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int?> bookingLocalId,
+      Value<String> guestName,
+      Value<String> checkinDate,
+      Value<String> checkoutDate,
+      Value<String> dateRecorded,
+      Value<String> debtReason,
+      Value<double> totalAmount,
+      Value<double> paidAmount,
+      Value<double> remainingAmount,
+      Value<String> paymentDate,
+      Value<int> isSettled,
+      Value<String?> pledge,
+      Value<String?> pledgeType,
+      Value<String?> note,
+      Value<String?> debtUuid,
+      Value<String?> hotelDayOpened,
+      Value<String?> hotelDayClosed,
+      Value<bool> isFromAutoFix,
+      Value<bool> settlementConfirmed,
+    });
 
 final class $$DebtsTableReferences
     extends BaseReferences<_$AppDatabase, $DebtsTable, Debt> {
@@ -28057,164 +28160,164 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get guestName => $composableBuilder(
-        column: $table.guestName,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.guestName,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get checkinDate => $composableBuilder(
-        column: $table.checkinDate,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.checkinDate,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get checkoutDate => $composableBuilder(
-        column: $table.checkoutDate,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.checkoutDate,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get dateRecorded => $composableBuilder(
-        column: $table.dateRecorded,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.dateRecorded,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get debtReason => $composableBuilder(
-        column: $table.debtReason,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.debtReason,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get totalAmount => $composableBuilder(
-        column: $table.totalAmount,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.totalAmount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get paidAmount => $composableBuilder(
-        column: $table.paidAmount,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.paidAmount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get remainingAmount => $composableBuilder(
-        column: $table.remainingAmount,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.remainingAmount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get paymentDate => $composableBuilder(
-        column: $table.paymentDate,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.paymentDate,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get isSettled => $composableBuilder(
-        column: $table.isSettled,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isSettled,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get pledge => $composableBuilder(
-        column: $table.pledge,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.pledge,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get pledgeType => $composableBuilder(
-        column: $table.pledgeType,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.pledgeType,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get note => $composableBuilder(
-        column: $table.note,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get debtUuid => $composableBuilder(
-        column: $table.debtUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.debtUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hotelDayOpened => $composableBuilder(
-        column: $table.hotelDayOpened,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hotelDayOpened,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hotelDayClosed => $composableBuilder(
-        column: $table.hotelDayClosed,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hotelDayClosed,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isFromAutoFix => $composableBuilder(
-        column: $table.isFromAutoFix,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isFromAutoFix,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get settlementConfirmed => $composableBuilder(
-        column: $table.settlementConfirmed,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.settlementConfirmed,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$BookingsTableFilterComposer get bookingLocalId {
     final $$BookingsTableFilterComposer composer = $composerBuilder(
@@ -28222,18 +28325,19 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
       getCurrentColumn: (t) => t.bookingLocalId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableFilterComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableFilterComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -28249,164 +28353,164 @@ class $$DebtsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get guestName => $composableBuilder(
-        column: $table.guestName,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.guestName,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get checkinDate => $composableBuilder(
-        column: $table.checkinDate,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.checkinDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get checkoutDate => $composableBuilder(
-        column: $table.checkoutDate,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.checkoutDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get dateRecorded => $composableBuilder(
-        column: $table.dateRecorded,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.dateRecorded,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get debtReason => $composableBuilder(
-        column: $table.debtReason,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.debtReason,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get totalAmount => $composableBuilder(
-        column: $table.totalAmount,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.totalAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get paidAmount => $composableBuilder(
-        column: $table.paidAmount,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.paidAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get remainingAmount => $composableBuilder(
-        column: $table.remainingAmount,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.remainingAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get paymentDate => $composableBuilder(
-        column: $table.paymentDate,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.paymentDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get isSettled => $composableBuilder(
-        column: $table.isSettled,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isSettled,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get pledge => $composableBuilder(
-        column: $table.pledge,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.pledge,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get pledgeType => $composableBuilder(
-        column: $table.pledgeType,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.pledgeType,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get note => $composableBuilder(
-        column: $table.note,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get debtUuid => $composableBuilder(
-        column: $table.debtUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.debtUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hotelDayOpened => $composableBuilder(
-        column: $table.hotelDayOpened,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hotelDayOpened,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hotelDayClosed => $composableBuilder(
-        column: $table.hotelDayClosed,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hotelDayClosed,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isFromAutoFix => $composableBuilder(
-        column: $table.isFromAutoFix,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isFromAutoFix,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get settlementConfirmed => $composableBuilder(
-        column: $table.settlementConfirmed,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.settlementConfirmed,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
@@ -28414,18 +28518,19 @@ class $$DebtsTableOrderingComposer
       getCurrentColumn: (t) => t.bookingLocalId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableOrderingComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -28456,34 +28561,34 @@ class $$DebtsTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -28498,44 +28603,44 @@ class $$DebtsTableAnnotationComposer
       $composableBuilder(column: $table.guestName, builder: (column) => column);
 
   GeneratedColumn<String> get checkinDate => $composableBuilder(
-        column: $table.checkinDate,
-        builder: (column) => column,
-      );
+    column: $table.checkinDate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get checkoutDate => $composableBuilder(
-        column: $table.checkoutDate,
-        builder: (column) => column,
-      );
+    column: $table.checkoutDate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get dateRecorded => $composableBuilder(
-        column: $table.dateRecorded,
-        builder: (column) => column,
-      );
+    column: $table.dateRecorded,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get debtReason => $composableBuilder(
-        column: $table.debtReason,
-        builder: (column) => column,
-      );
+    column: $table.debtReason,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get totalAmount => $composableBuilder(
-        column: $table.totalAmount,
-        builder: (column) => column,
-      );
+    column: $table.totalAmount,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get paidAmount => $composableBuilder(
-        column: $table.paidAmount,
-        builder: (column) => column,
-      );
+    column: $table.paidAmount,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get remainingAmount => $composableBuilder(
-        column: $table.remainingAmount,
-        builder: (column) => column,
-      );
+    column: $table.remainingAmount,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get paymentDate => $composableBuilder(
-        column: $table.paymentDate,
-        builder: (column) => column,
-      );
+    column: $table.paymentDate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get isSettled =>
       $composableBuilder(column: $table.isSettled, builder: (column) => column);
@@ -28544,9 +28649,9 @@ class $$DebtsTableAnnotationComposer
       $composableBuilder(column: $table.pledge, builder: (column) => column);
 
   GeneratedColumn<String> get pledgeType => $composableBuilder(
-        column: $table.pledgeType,
-        builder: (column) => column,
-      );
+    column: $table.pledgeType,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
@@ -28555,24 +28660,24 @@ class $$DebtsTableAnnotationComposer
       $composableBuilder(column: $table.debtUuid, builder: (column) => column);
 
   GeneratedColumn<String> get hotelDayOpened => $composableBuilder(
-        column: $table.hotelDayOpened,
-        builder: (column) => column,
-      );
+    column: $table.hotelDayOpened,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get hotelDayClosed => $composableBuilder(
-        column: $table.hotelDayClosed,
-        builder: (column) => column,
-      );
+    column: $table.hotelDayClosed,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isFromAutoFix => $composableBuilder(
-        column: $table.isFromAutoFix,
-        builder: (column) => column,
-      );
+    column: $table.isFromAutoFix,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get settlementConfirmed => $composableBuilder(
-        column: $table.settlementConfirmed,
-        builder: (column) => column,
-      );
+    column: $table.settlementConfirmed,
+    builder: (column) => column,
+  );
 
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
@@ -28580,293 +28685,303 @@ class $$DebtsTableAnnotationComposer
       getCurrentColumn: (t) => t.bookingLocalId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
 }
 
-class $$DebtsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $DebtsTable,
-    Debt,
-    $$DebtsTableFilterComposer,
-    $$DebtsTableOrderingComposer,
-    $$DebtsTableAnnotationComposer,
-    $$DebtsTableCreateCompanionBuilder,
-    $$DebtsTableUpdateCompanionBuilder,
-    (Debt, $$DebtsTableReferences),
-    Debt,
-    PrefetchHooks Function({bool bookingLocalId})> {
+class $$DebtsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DebtsTable,
+          Debt,
+          $$DebtsTableFilterComposer,
+          $$DebtsTableOrderingComposer,
+          $$DebtsTableAnnotationComposer,
+          $$DebtsTableCreateCompanionBuilder,
+          $$DebtsTableUpdateCompanionBuilder,
+          (Debt, $$DebtsTableReferences),
+          Debt,
+          PrefetchHooks Function({bool bookingLocalId})
+        > {
   $$DebtsTableTableManager(_$AppDatabase db, $DebtsTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$DebtsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$DebtsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$DebtsTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int?> bookingLocalId = const Value.absent(),
-              Value<String> guestName = const Value.absent(),
-              Value<String> checkinDate = const Value.absent(),
-              Value<String> checkoutDate = const Value.absent(),
-              Value<String> dateRecorded = const Value.absent(),
-              Value<String> debtReason = const Value.absent(),
-              Value<double> totalAmount = const Value.absent(),
-              Value<double> paidAmount = const Value.absent(),
-              Value<double> remainingAmount = const Value.absent(),
-              Value<String> paymentDate = const Value.absent(),
-              Value<int> isSettled = const Value.absent(),
-              Value<String?> pledge = const Value.absent(),
-              Value<String?> pledgeType = const Value.absent(),
-              Value<String?> note = const Value.absent(),
-              Value<String?> debtUuid = const Value.absent(),
-              Value<String?> hotelDayOpened = const Value.absent(),
-              Value<String?> hotelDayClosed = const Value.absent(),
-              Value<bool> isFromAutoFix = const Value.absent(),
-              Value<bool> settlementConfirmed = const Value.absent(),
-            }) =>
-                DebtsCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              bookingLocalId: bookingLocalId,
-              guestName: guestName,
-              checkinDate: checkinDate,
-              checkoutDate: checkoutDate,
-              dateRecorded: dateRecorded,
-              debtReason: debtReason,
-              totalAmount: totalAmount,
-              paidAmount: paidAmount,
-              remainingAmount: remainingAmount,
-              paymentDate: paymentDate,
-              isSettled: isSettled,
-              pledge: pledge,
-              pledgeType: pledgeType,
-              note: note,
-              debtUuid: debtUuid,
-              hotelDayOpened: hotelDayOpened,
-              hotelDayClosed: hotelDayClosed,
-              isFromAutoFix: isFromAutoFix,
-              settlementConfirmed: settlementConfirmed,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int?> bookingLocalId = const Value.absent(),
-              required String guestName,
-              required String checkinDate,
-              required String checkoutDate,
-              Value<String> dateRecorded = const Value.absent(),
-              Value<String> debtReason = const Value.absent(),
-              required double totalAmount,
-              required double paidAmount,
-              required double remainingAmount,
-              required String paymentDate,
-              Value<int> isSettled = const Value.absent(),
-              Value<String?> pledge = const Value.absent(),
-              Value<String?> pledgeType = const Value.absent(),
-              Value<String?> note = const Value.absent(),
-              Value<String?> debtUuid = const Value.absent(),
-              Value<String?> hotelDayOpened = const Value.absent(),
-              Value<String?> hotelDayClosed = const Value.absent(),
-              Value<bool> isFromAutoFix = const Value.absent(),
-              Value<bool> settlementConfirmed = const Value.absent(),
-            }) =>
-                DebtsCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              bookingLocalId: bookingLocalId,
-              guestName: guestName,
-              checkinDate: checkinDate,
-              checkoutDate: checkoutDate,
-              dateRecorded: dateRecorded,
-              debtReason: debtReason,
-              totalAmount: totalAmount,
-              paidAmount: paidAmount,
-              remainingAmount: remainingAmount,
-              paymentDate: paymentDate,
-              isSettled: isSettled,
-              pledge: pledge,
-              pledgeType: pledgeType,
-              note: note,
-              debtUuid: debtUuid,
-              hotelDayOpened: hotelDayOpened,
-              hotelDayClosed: hotelDayClosed,
-              isFromAutoFix: isFromAutoFix,
-              settlementConfirmed: settlementConfirmed,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$DebtsTableReferences(db, table, e)
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({bookingLocalId = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [],
-                addJoins: <
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DebtsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DebtsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DebtsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int?> bookingLocalId = const Value.absent(),
+                Value<String> guestName = const Value.absent(),
+                Value<String> checkinDate = const Value.absent(),
+                Value<String> checkoutDate = const Value.absent(),
+                Value<String> dateRecorded = const Value.absent(),
+                Value<String> debtReason = const Value.absent(),
+                Value<double> totalAmount = const Value.absent(),
+                Value<double> paidAmount = const Value.absent(),
+                Value<double> remainingAmount = const Value.absent(),
+                Value<String> paymentDate = const Value.absent(),
+                Value<int> isSettled = const Value.absent(),
+                Value<String?> pledge = const Value.absent(),
+                Value<String?> pledgeType = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> debtUuid = const Value.absent(),
+                Value<String?> hotelDayOpened = const Value.absent(),
+                Value<String?> hotelDayClosed = const Value.absent(),
+                Value<bool> isFromAutoFix = const Value.absent(),
+                Value<bool> settlementConfirmed = const Value.absent(),
+              }) => DebtsCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                bookingLocalId: bookingLocalId,
+                guestName: guestName,
+                checkinDate: checkinDate,
+                checkoutDate: checkoutDate,
+                dateRecorded: dateRecorded,
+                debtReason: debtReason,
+                totalAmount: totalAmount,
+                paidAmount: paidAmount,
+                remainingAmount: remainingAmount,
+                paymentDate: paymentDate,
+                isSettled: isSettled,
+                pledge: pledge,
+                pledgeType: pledgeType,
+                note: note,
+                debtUuid: debtUuid,
+                hotelDayOpened: hotelDayOpened,
+                hotelDayClosed: hotelDayClosed,
+                isFromAutoFix: isFromAutoFix,
+                settlementConfirmed: settlementConfirmed,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int?> bookingLocalId = const Value.absent(),
+                required String guestName,
+                required String checkinDate,
+                required String checkoutDate,
+                Value<String> dateRecorded = const Value.absent(),
+                Value<String> debtReason = const Value.absent(),
+                required double totalAmount,
+                required double paidAmount,
+                required double remainingAmount,
+                required String paymentDate,
+                Value<int> isSettled = const Value.absent(),
+                Value<String?> pledge = const Value.absent(),
+                Value<String?> pledgeType = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> debtUuid = const Value.absent(),
+                Value<String?> hotelDayOpened = const Value.absent(),
+                Value<String?> hotelDayClosed = const Value.absent(),
+                Value<bool> isFromAutoFix = const Value.absent(),
+                Value<bool> settlementConfirmed = const Value.absent(),
+              }) => DebtsCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                bookingLocalId: bookingLocalId,
+                guestName: guestName,
+                checkinDate: checkinDate,
+                checkoutDate: checkoutDate,
+                dateRecorded: dateRecorded,
+                debtReason: debtReason,
+                totalAmount: totalAmount,
+                paidAmount: paidAmount,
+                remainingAmount: remainingAmount,
+                paymentDate: paymentDate,
+                isSettled: isSettled,
+                pledge: pledge,
+                pledgeType: pledgeType,
+                note: note,
+                debtUuid: debtUuid,
+                hotelDayOpened: hotelDayOpened,
+                hotelDayClosed: hotelDayClosed,
+                isFromAutoFix: isFromAutoFix,
+                settlementConfirmed: settlementConfirmed,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) =>
+                    (e.readTable(table), $$DebtsTableReferences(db, table, e)),
+              )
+              .toList(),
+          prefetchHooksCallback: ({bookingLocalId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
                     T extends TableManagerState<
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic>>(state) {
-                  if (bookingLocalId) {
-                    state = state.withJoin(
-                      currentTable: table,
-                      currentColumn: table.bookingLocalId,
-                      referencedTable:
-                          $$DebtsTableReferences._bookingLocalIdTable(db),
-                      referencedColumn:
-                          $$DebtsTableReferences._bookingLocalIdTable(db).id,
-                    ) as T;
-                  }
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (bookingLocalId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.bookingLocalId,
+                                referencedTable: $$DebtsTableReferences
+                                    ._bookingLocalIdTable(db),
+                                referencedColumn: $$DebtsTableReferences
+                                    ._bookingLocalIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
 
-                  return state;
-                },
-                getPrefetchedDataCallback: (items) async {
-                  return [];
-                },
-              );
-            },
-          ),
-        );
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
 }
 
-typedef $$DebtsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $DebtsTable,
-    Debt,
-    $$DebtsTableFilterComposer,
-    $$DebtsTableOrderingComposer,
-    $$DebtsTableAnnotationComposer,
-    $$DebtsTableCreateCompanionBuilder,
-    $$DebtsTableUpdateCompanionBuilder,
-    (Debt, $$DebtsTableReferences),
-    Debt,
-    PrefetchHooks Function({bool bookingLocalId})>;
-typedef $$BookingNightsTableCreateCompanionBuilder = BookingNightsCompanion
-    Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  required int bookingLocalId,
-  required String hotelDayKey,
-  required String nightStart,
-  required String nightEnd,
-  Value<double> nightlyRate,
-  Value<int> sequence,
-  Value<bool> isProcessedByAutoFix,
-});
-typedef $$BookingNightsTableUpdateCompanionBuilder = BookingNightsCompanion
-    Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int> bookingLocalId,
-  Value<String> hotelDayKey,
-  Value<String> nightStart,
-  Value<String> nightEnd,
-  Value<double> nightlyRate,
-  Value<int> sequence,
-  Value<bool> isProcessedByAutoFix,
-});
+typedef $$DebtsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DebtsTable,
+      Debt,
+      $$DebtsTableFilterComposer,
+      $$DebtsTableOrderingComposer,
+      $$DebtsTableAnnotationComposer,
+      $$DebtsTableCreateCompanionBuilder,
+      $$DebtsTableUpdateCompanionBuilder,
+      (Debt, $$DebtsTableReferences),
+      Debt,
+      PrefetchHooks Function({bool bookingLocalId})
+    >;
+typedef $$BookingNightsTableCreateCompanionBuilder =
+    BookingNightsCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      required int bookingLocalId,
+      required String hotelDayKey,
+      required String nightStart,
+      required String nightEnd,
+      Value<double> nightlyRate,
+      Value<int> sequence,
+      Value<bool> isProcessedByAutoFix,
+    });
+typedef $$BookingNightsTableUpdateCompanionBuilder =
+    BookingNightsCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int> bookingLocalId,
+      Value<String> hotelDayKey,
+      Value<String> nightStart,
+      Value<String> nightEnd,
+      Value<double> nightlyRate,
+      Value<int> sequence,
+      Value<bool> isProcessedByAutoFix,
+    });
 
 final class $$BookingNightsTableReferences
     extends BaseReferences<_$AppDatabase, $BookingNightsTable, BookingNight> {
@@ -28906,104 +29021,104 @@ class $$BookingNightsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get nightStart => $composableBuilder(
-        column: $table.nightStart,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.nightStart,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get nightEnd => $composableBuilder(
-        column: $table.nightEnd,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.nightEnd,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get nightlyRate => $composableBuilder(
-        column: $table.nightlyRate,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.nightlyRate,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get sequence => $composableBuilder(
-        column: $table.sequence,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.sequence,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isProcessedByAutoFix => $composableBuilder(
-        column: $table.isProcessedByAutoFix,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isProcessedByAutoFix,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$BookingsTableFilterComposer get bookingLocalId {
     final $$BookingsTableFilterComposer composer = $composerBuilder(
@@ -29011,18 +29126,19 @@ class $$BookingNightsTableFilterComposer
       getCurrentColumn: (t) => t.bookingLocalId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableFilterComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableFilterComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -29038,104 +29154,104 @@ class $$BookingNightsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get nightStart => $composableBuilder(
-        column: $table.nightStart,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.nightStart,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get nightEnd => $composableBuilder(
-        column: $table.nightEnd,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.nightEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get nightlyRate => $composableBuilder(
-        column: $table.nightlyRate,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.nightlyRate,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get sequence => $composableBuilder(
-        column: $table.sequence,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.sequence,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isProcessedByAutoFix => $composableBuilder(
-        column: $table.isProcessedByAutoFix,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isProcessedByAutoFix,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
@@ -29143,18 +29259,19 @@ class $$BookingNightsTableOrderingComposer
       getCurrentColumn: (t) => t.bookingLocalId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableOrderingComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -29185,34 +29302,34 @@ class $$BookingNightsTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -29224,30 +29341,30 @@ class $$BookingNightsTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => column,
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get nightStart => $composableBuilder(
-        column: $table.nightStart,
-        builder: (column) => column,
-      );
+    column: $table.nightStart,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get nightEnd =>
       $composableBuilder(column: $table.nightEnd, builder: (column) => column);
 
   GeneratedColumn<double> get nightlyRate => $composableBuilder(
-        column: $table.nightlyRate,
-        builder: (column) => column,
-      );
+    column: $table.nightlyRate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get sequence =>
       $composableBuilder(column: $table.sequence, builder: (column) => column);
 
   GeneratedColumn<bool> get isProcessedByAutoFix => $composableBuilder(
-        column: $table.isProcessedByAutoFix,
-        builder: (column) => column,
-      );
+    column: $table.isProcessedByAutoFix,
+    builder: (column) => column,
+  );
 
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
@@ -29255,252 +29372,263 @@ class $$BookingNightsTableAnnotationComposer
       getCurrentColumn: (t) => t.bookingLocalId,
       referencedTable: $db.bookings,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$BookingsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.bookings,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
 }
 
-class $$BookingNightsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $BookingNightsTable,
-    BookingNight,
-    $$BookingNightsTableFilterComposer,
-    $$BookingNightsTableOrderingComposer,
-    $$BookingNightsTableAnnotationComposer,
-    $$BookingNightsTableCreateCompanionBuilder,
-    $$BookingNightsTableUpdateCompanionBuilder,
-    (BookingNight, $$BookingNightsTableReferences),
-    BookingNight,
-    PrefetchHooks Function({bool bookingLocalId})> {
+class $$BookingNightsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BookingNightsTable,
+          BookingNight,
+          $$BookingNightsTableFilterComposer,
+          $$BookingNightsTableOrderingComposer,
+          $$BookingNightsTableAnnotationComposer,
+          $$BookingNightsTableCreateCompanionBuilder,
+          $$BookingNightsTableUpdateCompanionBuilder,
+          (BookingNight, $$BookingNightsTableReferences),
+          BookingNight,
+          PrefetchHooks Function({bool bookingLocalId})
+        > {
   $$BookingNightsTableTableManager(_$AppDatabase db, $BookingNightsTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$BookingNightsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$BookingNightsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$BookingNightsTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int> bookingLocalId = const Value.absent(),
-              Value<String> hotelDayKey = const Value.absent(),
-              Value<String> nightStart = const Value.absent(),
-              Value<String> nightEnd = const Value.absent(),
-              Value<double> nightlyRate = const Value.absent(),
-              Value<int> sequence = const Value.absent(),
-              Value<bool> isProcessedByAutoFix = const Value.absent(),
-            }) =>
-                BookingNightsCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              bookingLocalId: bookingLocalId,
-              hotelDayKey: hotelDayKey,
-              nightStart: nightStart,
-              nightEnd: nightEnd,
-              nightlyRate: nightlyRate,
-              sequence: sequence,
-              isProcessedByAutoFix: isProcessedByAutoFix,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              required int bookingLocalId,
-              required String hotelDayKey,
-              required String nightStart,
-              required String nightEnd,
-              Value<double> nightlyRate = const Value.absent(),
-              Value<int> sequence = const Value.absent(),
-              Value<bool> isProcessedByAutoFix = const Value.absent(),
-            }) =>
-                BookingNightsCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              bookingLocalId: bookingLocalId,
-              hotelDayKey: hotelDayKey,
-              nightStart: nightStart,
-              nightEnd: nightEnd,
-              nightlyRate: nightlyRate,
-              sequence: sequence,
-              isProcessedByAutoFix: isProcessedByAutoFix,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$BookingNightsTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({bookingLocalId = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [],
-                addJoins: <
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BookingNightsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BookingNightsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BookingNightsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int> bookingLocalId = const Value.absent(),
+                Value<String> hotelDayKey = const Value.absent(),
+                Value<String> nightStart = const Value.absent(),
+                Value<String> nightEnd = const Value.absent(),
+                Value<double> nightlyRate = const Value.absent(),
+                Value<int> sequence = const Value.absent(),
+                Value<bool> isProcessedByAutoFix = const Value.absent(),
+              }) => BookingNightsCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                bookingLocalId: bookingLocalId,
+                hotelDayKey: hotelDayKey,
+                nightStart: nightStart,
+                nightEnd: nightEnd,
+                nightlyRate: nightlyRate,
+                sequence: sequence,
+                isProcessedByAutoFix: isProcessedByAutoFix,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required int bookingLocalId,
+                required String hotelDayKey,
+                required String nightStart,
+                required String nightEnd,
+                Value<double> nightlyRate = const Value.absent(),
+                Value<int> sequence = const Value.absent(),
+                Value<bool> isProcessedByAutoFix = const Value.absent(),
+              }) => BookingNightsCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                bookingLocalId: bookingLocalId,
+                hotelDayKey: hotelDayKey,
+                nightStart: nightStart,
+                nightEnd: nightEnd,
+                nightlyRate: nightlyRate,
+                sequence: sequence,
+                isProcessedByAutoFix: isProcessedByAutoFix,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$BookingNightsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({bookingLocalId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
                     T extends TableManagerState<
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic>>(state) {
-                  if (bookingLocalId) {
-                    state = state.withJoin(
-                      currentTable: table,
-                      currentColumn: table.bookingLocalId,
-                      referencedTable: $$BookingNightsTableReferences
-                          ._bookingLocalIdTable(db),
-                      referencedColumn: $$BookingNightsTableReferences
-                          ._bookingLocalIdTable(db)
-                          .id,
-                    ) as T;
-                  }
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (bookingLocalId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.bookingLocalId,
+                                referencedTable: $$BookingNightsTableReferences
+                                    ._bookingLocalIdTable(db),
+                                referencedColumn: $$BookingNightsTableReferences
+                                    ._bookingLocalIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
 
-                  return state;
-                },
-                getPrefetchedDataCallback: (items) async {
-                  return [];
-                },
-              );
-            },
-          ),
-        );
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
 }
 
-typedef $$BookingNightsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $BookingNightsTable,
-    BookingNight,
-    $$BookingNightsTableFilterComposer,
-    $$BookingNightsTableOrderingComposer,
-    $$BookingNightsTableAnnotationComposer,
-    $$BookingNightsTableCreateCompanionBuilder,
-    $$BookingNightsTableUpdateCompanionBuilder,
-    (BookingNight, $$BookingNightsTableReferences),
-    BookingNight,
-    PrefetchHooks Function({bool bookingLocalId})>;
-typedef $$HotelDayLedgerTableCreateCompanionBuilder = HotelDayLedgerCompanion
-    Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  required String hotelDayKey,
-  Value<double> totalIncome,
-  Value<double> totalExpenses,
-  Value<double> pendingBalances,
-  Value<double> occupancyRate,
-  Value<int> bookingsProcessed,
-  Value<int> paymentsProcessed,
-  Value<int> debtsProcessed,
-  Value<int> expensesProcessed,
-  Value<String> status,
-});
-typedef $$HotelDayLedgerTableUpdateCompanionBuilder = HotelDayLedgerCompanion
-    Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<String> hotelDayKey,
-  Value<double> totalIncome,
-  Value<double> totalExpenses,
-  Value<double> pendingBalances,
-  Value<double> occupancyRate,
-  Value<int> bookingsProcessed,
-  Value<int> paymentsProcessed,
-  Value<int> debtsProcessed,
-  Value<int> expensesProcessed,
-  Value<String> status,
-});
+typedef $$BookingNightsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BookingNightsTable,
+      BookingNight,
+      $$BookingNightsTableFilterComposer,
+      $$BookingNightsTableOrderingComposer,
+      $$BookingNightsTableAnnotationComposer,
+      $$BookingNightsTableCreateCompanionBuilder,
+      $$BookingNightsTableUpdateCompanionBuilder,
+      (BookingNight, $$BookingNightsTableReferences),
+      BookingNight,
+      PrefetchHooks Function({bool bookingLocalId})
+    >;
+typedef $$HotelDayLedgerTableCreateCompanionBuilder =
+    HotelDayLedgerCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      required String hotelDayKey,
+      Value<double> totalIncome,
+      Value<double> totalExpenses,
+      Value<double> pendingBalances,
+      Value<double> occupancyRate,
+      Value<int> bookingsProcessed,
+      Value<int> paymentsProcessed,
+      Value<int> debtsProcessed,
+      Value<int> expensesProcessed,
+      Value<String> status,
+    });
+typedef $$HotelDayLedgerTableUpdateCompanionBuilder =
+    HotelDayLedgerCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<String> hotelDayKey,
+      Value<double> totalIncome,
+      Value<double> totalExpenses,
+      Value<double> pendingBalances,
+      Value<double> occupancyRate,
+      Value<int> bookingsProcessed,
+      Value<int> paymentsProcessed,
+      Value<int> debtsProcessed,
+      Value<int> expensesProcessed,
+      Value<String> status,
+    });
 
 class $$HotelDayLedgerTableFilterComposer
     extends Composer<_$AppDatabase, $HotelDayLedgerTable> {
@@ -29512,124 +29640,124 @@ class $$HotelDayLedgerTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get totalIncome => $composableBuilder(
-        column: $table.totalIncome,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.totalIncome,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get totalExpenses => $composableBuilder(
-        column: $table.totalExpenses,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.totalExpenses,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get pendingBalances => $composableBuilder(
-        column: $table.pendingBalances,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.pendingBalances,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get occupancyRate => $composableBuilder(
-        column: $table.occupancyRate,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.occupancyRate,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get bookingsProcessed => $composableBuilder(
-        column: $table.bookingsProcessed,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.bookingsProcessed,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get paymentsProcessed => $composableBuilder(
-        column: $table.paymentsProcessed,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.paymentsProcessed,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get debtsProcessed => $composableBuilder(
-        column: $table.debtsProcessed,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.debtsProcessed,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get expensesProcessed => $composableBuilder(
-        column: $table.expensesProcessed,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.expensesProcessed,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$HotelDayLedgerTableOrderingComposer
@@ -29642,124 +29770,124 @@ class $$HotelDayLedgerTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get totalIncome => $composableBuilder(
-        column: $table.totalIncome,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.totalIncome,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get totalExpenses => $composableBuilder(
-        column: $table.totalExpenses,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.totalExpenses,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get pendingBalances => $composableBuilder(
-        column: $table.pendingBalances,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.pendingBalances,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get occupancyRate => $composableBuilder(
-        column: $table.occupancyRate,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.occupancyRate,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get bookingsProcessed => $composableBuilder(
-        column: $table.bookingsProcessed,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.bookingsProcessed,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get paymentsProcessed => $composableBuilder(
-        column: $table.paymentsProcessed,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.paymentsProcessed,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get debtsProcessed => $composableBuilder(
-        column: $table.debtsProcessed,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.debtsProcessed,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get expensesProcessed => $composableBuilder(
-        column: $table.expensesProcessed,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.expensesProcessed,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$HotelDayLedgerTableAnnotationComposer
@@ -29787,34 +29915,34 @@ class $$HotelDayLedgerTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -29826,245 +29954,260 @@ class $$HotelDayLedgerTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => column,
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get totalIncome => $composableBuilder(
-        column: $table.totalIncome,
-        builder: (column) => column,
-      );
+    column: $table.totalIncome,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get totalExpenses => $composableBuilder(
-        column: $table.totalExpenses,
-        builder: (column) => column,
-      );
+    column: $table.totalExpenses,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get pendingBalances => $composableBuilder(
-        column: $table.pendingBalances,
-        builder: (column) => column,
-      );
+    column: $table.pendingBalances,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get occupancyRate => $composableBuilder(
-        column: $table.occupancyRate,
-        builder: (column) => column,
-      );
+    column: $table.occupancyRate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get bookingsProcessed => $composableBuilder(
-        column: $table.bookingsProcessed,
-        builder: (column) => column,
-      );
+    column: $table.bookingsProcessed,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get paymentsProcessed => $composableBuilder(
-        column: $table.paymentsProcessed,
-        builder: (column) => column,
-      );
+    column: $table.paymentsProcessed,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get debtsProcessed => $composableBuilder(
-        column: $table.debtsProcessed,
-        builder: (column) => column,
-      );
+    column: $table.debtsProcessed,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get expensesProcessed => $composableBuilder(
-        column: $table.expensesProcessed,
-        builder: (column) => column,
-      );
+    column: $table.expensesProcessed,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 }
 
-class $$HotelDayLedgerTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $HotelDayLedgerTable,
-    HotelDayLedgerEntry,
-    $$HotelDayLedgerTableFilterComposer,
-    $$HotelDayLedgerTableOrderingComposer,
-    $$HotelDayLedgerTableAnnotationComposer,
-    $$HotelDayLedgerTableCreateCompanionBuilder,
-    $$HotelDayLedgerTableUpdateCompanionBuilder,
-    (
-      HotelDayLedgerEntry,
-      BaseReferences<_$AppDatabase, $HotelDayLedgerTable, HotelDayLedgerEntry>,
-    ),
-    HotelDayLedgerEntry,
-    PrefetchHooks Function()> {
+class $$HotelDayLedgerTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $HotelDayLedgerTable,
+          HotelDayLedgerEntry,
+          $$HotelDayLedgerTableFilterComposer,
+          $$HotelDayLedgerTableOrderingComposer,
+          $$HotelDayLedgerTableAnnotationComposer,
+          $$HotelDayLedgerTableCreateCompanionBuilder,
+          $$HotelDayLedgerTableUpdateCompanionBuilder,
+          (
+            HotelDayLedgerEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $HotelDayLedgerTable,
+              HotelDayLedgerEntry
+            >,
+          ),
+          HotelDayLedgerEntry,
+          PrefetchHooks Function()
+        > {
   $$HotelDayLedgerTableTableManager(
     _$AppDatabase db,
     $HotelDayLedgerTable table,
   ) : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$HotelDayLedgerTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$HotelDayLedgerTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$HotelDayLedgerTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<String> hotelDayKey = const Value.absent(),
-              Value<double> totalIncome = const Value.absent(),
-              Value<double> totalExpenses = const Value.absent(),
-              Value<double> pendingBalances = const Value.absent(),
-              Value<double> occupancyRate = const Value.absent(),
-              Value<int> bookingsProcessed = const Value.absent(),
-              Value<int> paymentsProcessed = const Value.absent(),
-              Value<int> debtsProcessed = const Value.absent(),
-              Value<int> expensesProcessed = const Value.absent(),
-              Value<String> status = const Value.absent(),
-            }) =>
-                HotelDayLedgerCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              hotelDayKey: hotelDayKey,
-              totalIncome: totalIncome,
-              totalExpenses: totalExpenses,
-              pendingBalances: pendingBalances,
-              occupancyRate: occupancyRate,
-              bookingsProcessed: bookingsProcessed,
-              paymentsProcessed: paymentsProcessed,
-              debtsProcessed: debtsProcessed,
-              expensesProcessed: expensesProcessed,
-              status: status,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              required String hotelDayKey,
-              Value<double> totalIncome = const Value.absent(),
-              Value<double> totalExpenses = const Value.absent(),
-              Value<double> pendingBalances = const Value.absent(),
-              Value<double> occupancyRate = const Value.absent(),
-              Value<int> bookingsProcessed = const Value.absent(),
-              Value<int> paymentsProcessed = const Value.absent(),
-              Value<int> debtsProcessed = const Value.absent(),
-              Value<int> expensesProcessed = const Value.absent(),
-              Value<String> status = const Value.absent(),
-            }) =>
-                HotelDayLedgerCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              hotelDayKey: hotelDayKey,
-              totalIncome: totalIncome,
-              totalExpenses: totalExpenses,
-              pendingBalances: pendingBalances,
-              occupancyRate: occupancyRate,
-              bookingsProcessed: bookingsProcessed,
-              paymentsProcessed: paymentsProcessed,
-              debtsProcessed: debtsProcessed,
-              expensesProcessed: expensesProcessed,
-              status: status,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-                .toList(),
-            prefetchHooksCallback: null,
-          ),
-        );
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HotelDayLedgerTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HotelDayLedgerTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$HotelDayLedgerTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<String> hotelDayKey = const Value.absent(),
+                Value<double> totalIncome = const Value.absent(),
+                Value<double> totalExpenses = const Value.absent(),
+                Value<double> pendingBalances = const Value.absent(),
+                Value<double> occupancyRate = const Value.absent(),
+                Value<int> bookingsProcessed = const Value.absent(),
+                Value<int> paymentsProcessed = const Value.absent(),
+                Value<int> debtsProcessed = const Value.absent(),
+                Value<int> expensesProcessed = const Value.absent(),
+                Value<String> status = const Value.absent(),
+              }) => HotelDayLedgerCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                hotelDayKey: hotelDayKey,
+                totalIncome: totalIncome,
+                totalExpenses: totalExpenses,
+                pendingBalances: pendingBalances,
+                occupancyRate: occupancyRate,
+                bookingsProcessed: bookingsProcessed,
+                paymentsProcessed: paymentsProcessed,
+                debtsProcessed: debtsProcessed,
+                expensesProcessed: expensesProcessed,
+                status: status,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required String hotelDayKey,
+                Value<double> totalIncome = const Value.absent(),
+                Value<double> totalExpenses = const Value.absent(),
+                Value<double> pendingBalances = const Value.absent(),
+                Value<double> occupancyRate = const Value.absent(),
+                Value<int> bookingsProcessed = const Value.absent(),
+                Value<int> paymentsProcessed = const Value.absent(),
+                Value<int> debtsProcessed = const Value.absent(),
+                Value<int> expensesProcessed = const Value.absent(),
+                Value<String> status = const Value.absent(),
+              }) => HotelDayLedgerCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                hotelDayKey: hotelDayKey,
+                totalIncome: totalIncome,
+                totalExpenses: totalExpenses,
+                pendingBalances: pendingBalances,
+                occupancyRate: occupancyRate,
+                bookingsProcessed: bookingsProcessed,
+                paymentsProcessed: paymentsProcessed,
+                debtsProcessed: debtsProcessed,
+                expensesProcessed: expensesProcessed,
+                status: status,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
 }
 
-typedef $$HotelDayLedgerTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $HotelDayLedgerTable,
-    HotelDayLedgerEntry,
-    $$HotelDayLedgerTableFilterComposer,
-    $$HotelDayLedgerTableOrderingComposer,
-    $$HotelDayLedgerTableAnnotationComposer,
-    $$HotelDayLedgerTableCreateCompanionBuilder,
-    $$HotelDayLedgerTableUpdateCompanionBuilder,
-    (
+typedef $$HotelDayLedgerTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $HotelDayLedgerTable,
       HotelDayLedgerEntry,
-      BaseReferences<_$AppDatabase, $HotelDayLedgerTable, HotelDayLedgerEntry>,
-    ),
-    HotelDayLedgerEntry,
-    PrefetchHooks Function()>;
-typedef $$AutoFixRunsTableCreateCompanionBuilder = AutoFixRunsCompanion
-    Function({
-  Value<int> id,
-  required String runUuid,
-  Value<String> source,
-  Value<String> status,
-  required int startedAtEpoch,
-  required String startedAtIso,
-  Value<int?> completedAtEpoch,
-  Value<String?> completedAtIso,
-  Value<int> fixesApplied,
-  Value<String?> errorMessage,
-  Value<String?> metadata,
-});
-typedef $$AutoFixRunsTableUpdateCompanionBuilder = AutoFixRunsCompanion
-    Function({
-  Value<int> id,
-  Value<String> runUuid,
-  Value<String> source,
-  Value<String> status,
-  Value<int> startedAtEpoch,
-  Value<String> startedAtIso,
-  Value<int?> completedAtEpoch,
-  Value<String?> completedAtIso,
-  Value<int> fixesApplied,
-  Value<String?> errorMessage,
-  Value<String?> metadata,
-});
+      $$HotelDayLedgerTableFilterComposer,
+      $$HotelDayLedgerTableOrderingComposer,
+      $$HotelDayLedgerTableAnnotationComposer,
+      $$HotelDayLedgerTableCreateCompanionBuilder,
+      $$HotelDayLedgerTableUpdateCompanionBuilder,
+      (
+        HotelDayLedgerEntry,
+        BaseReferences<
+          _$AppDatabase,
+          $HotelDayLedgerTable,
+          HotelDayLedgerEntry
+        >,
+      ),
+      HotelDayLedgerEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$AutoFixRunsTableCreateCompanionBuilder =
+    AutoFixRunsCompanion Function({
+      Value<int> id,
+      required String runUuid,
+      Value<String> source,
+      Value<String> status,
+      required int startedAtEpoch,
+      required String startedAtIso,
+      Value<int?> completedAtEpoch,
+      Value<String?> completedAtIso,
+      Value<int> fixesApplied,
+      Value<String?> errorMessage,
+      Value<String?> metadata,
+    });
+typedef $$AutoFixRunsTableUpdateCompanionBuilder =
+    AutoFixRunsCompanion Function({
+      Value<int> id,
+      Value<String> runUuid,
+      Value<String> source,
+      Value<String> status,
+      Value<int> startedAtEpoch,
+      Value<String> startedAtIso,
+      Value<int?> completedAtEpoch,
+      Value<String?> completedAtIso,
+      Value<int> fixesApplied,
+      Value<String?> errorMessage,
+      Value<String?> metadata,
+    });
 
 final class $$AutoFixRunsTableReferences
     extends BaseReferences<_$AppDatabase, $AutoFixRunsTable, AutoFixRun> {
   $$AutoFixRunsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static MultiTypedResultKey<$IntegrityViolationsTable,
-      List<IntegrityViolation>> _integrityViolationsRefsTable(
-          _$AppDatabase db) =>
+  static MultiTypedResultKey<
+    $IntegrityViolationsTable,
+    List<IntegrityViolation>
+  >
+  _integrityViolationsRefsTable(_$AppDatabase db) =>
       MultiTypedResultKey.fromTable(
         db.integrityViolations,
         aliasName: $_aliasNameGenerator(
@@ -30098,59 +30241,59 @@ class $$AutoFixRunsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get runUuid => $composableBuilder(
-        column: $table.runUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.runUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get source => $composableBuilder(
-        column: $table.source,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get startedAtEpoch => $composableBuilder(
-        column: $table.startedAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.startedAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get startedAtIso => $composableBuilder(
-        column: $table.startedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.startedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get completedAtEpoch => $composableBuilder(
-        column: $table.completedAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.completedAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get completedAtIso => $composableBuilder(
-        column: $table.completedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.completedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get fixesApplied => $composableBuilder(
-        column: $table.fixesApplied,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.fixesApplied,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get errorMessage => $composableBuilder(
-        column: $table.errorMessage,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.errorMessage,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get metadata => $composableBuilder(
-        column: $table.metadata,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.metadata,
+    builder: (column) => ColumnFilters(column),
+  );
 
   Expression<bool> integrityViolationsRefs(
     Expression<bool> Function($$IntegrityViolationsTableFilterComposer f) f,
@@ -30160,18 +30303,19 @@ class $$AutoFixRunsTableFilterComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.integrityViolations,
       getReferencedColumn: (t) => t.runId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$IntegrityViolationsTableFilterComposer(
-        $db: $db,
-        $table: $db.integrityViolations,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$IntegrityViolationsTableFilterComposer(
+            $db: $db,
+            $table: $db.integrityViolations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -30187,59 +30331,59 @@ class $$AutoFixRunsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get runUuid => $composableBuilder(
-        column: $table.runUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.runUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get source => $composableBuilder(
-        column: $table.source,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get startedAtEpoch => $composableBuilder(
-        column: $table.startedAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.startedAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get startedAtIso => $composableBuilder(
-        column: $table.startedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.startedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get completedAtEpoch => $composableBuilder(
-        column: $table.completedAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.completedAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get completedAtIso => $composableBuilder(
-        column: $table.completedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.completedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get fixesApplied => $composableBuilder(
-        column: $table.fixesApplied,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.fixesApplied,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get errorMessage => $composableBuilder(
-        column: $table.errorMessage,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.errorMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get metadata => $composableBuilder(
-        column: $table.metadata,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.metadata,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AutoFixRunsTableAnnotationComposer
@@ -30264,34 +30408,34 @@ class $$AutoFixRunsTableAnnotationComposer
       $composableBuilder(column: $table.status, builder: (column) => column);
 
   GeneratedColumn<int> get startedAtEpoch => $composableBuilder(
-        column: $table.startedAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.startedAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get startedAtIso => $composableBuilder(
-        column: $table.startedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.startedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get completedAtEpoch => $composableBuilder(
-        column: $table.completedAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.completedAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get completedAtIso => $composableBuilder(
-        column: $table.completedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.completedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get fixesApplied => $composableBuilder(
-        column: $table.fixesApplied,
-        builder: (column) => column,
-      );
+    column: $table.fixesApplied,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get errorMessage => $composableBuilder(
-        column: $table.errorMessage,
-        builder: (column) => column,
-      );
+    column: $table.errorMessage,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get metadata =>
       $composableBuilder(column: $table.metadata, builder: (column) => column);
@@ -30301,183 +30445,196 @@ class $$AutoFixRunsTableAnnotationComposer
   ) {
     final $$IntegrityViolationsTableAnnotationComposer composer =
         $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.integrityViolations,
-      getReferencedColumn: (t) => t.runId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$IntegrityViolationsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.integrityViolations,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
-    );
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.integrityViolations,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$IntegrityViolationsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.integrityViolations,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
 
-class $$AutoFixRunsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $AutoFixRunsTable,
-    AutoFixRun,
-    $$AutoFixRunsTableFilterComposer,
-    $$AutoFixRunsTableOrderingComposer,
-    $$AutoFixRunsTableAnnotationComposer,
-    $$AutoFixRunsTableCreateCompanionBuilder,
-    $$AutoFixRunsTableUpdateCompanionBuilder,
-    (AutoFixRun, $$AutoFixRunsTableReferences),
-    AutoFixRun,
-    PrefetchHooks Function({bool integrityViolationsRefs})> {
+class $$AutoFixRunsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AutoFixRunsTable,
+          AutoFixRun,
+          $$AutoFixRunsTableFilterComposer,
+          $$AutoFixRunsTableOrderingComposer,
+          $$AutoFixRunsTableAnnotationComposer,
+          $$AutoFixRunsTableCreateCompanionBuilder,
+          $$AutoFixRunsTableUpdateCompanionBuilder,
+          (AutoFixRun, $$AutoFixRunsTableReferences),
+          AutoFixRun,
+          PrefetchHooks Function({bool integrityViolationsRefs})
+        > {
   $$AutoFixRunsTableTableManager(_$AppDatabase db, $AutoFixRunsTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$AutoFixRunsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$AutoFixRunsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$AutoFixRunsTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<String> runUuid = const Value.absent(),
-              Value<String> source = const Value.absent(),
-              Value<String> status = const Value.absent(),
-              Value<int> startedAtEpoch = const Value.absent(),
-              Value<String> startedAtIso = const Value.absent(),
-              Value<int?> completedAtEpoch = const Value.absent(),
-              Value<String?> completedAtIso = const Value.absent(),
-              Value<int> fixesApplied = const Value.absent(),
-              Value<String?> errorMessage = const Value.absent(),
-              Value<String?> metadata = const Value.absent(),
-            }) =>
-                AutoFixRunsCompanion(
-              id: id,
-              runUuid: runUuid,
-              source: source,
-              status: status,
-              startedAtEpoch: startedAtEpoch,
-              startedAtIso: startedAtIso,
-              completedAtEpoch: completedAtEpoch,
-              completedAtIso: completedAtIso,
-              fixesApplied: fixesApplied,
-              errorMessage: errorMessage,
-              metadata: metadata,
-            ),
-            createCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              required String runUuid,
-              Value<String> source = const Value.absent(),
-              Value<String> status = const Value.absent(),
-              required int startedAtEpoch,
-              required String startedAtIso,
-              Value<int?> completedAtEpoch = const Value.absent(),
-              Value<String?> completedAtIso = const Value.absent(),
-              Value<int> fixesApplied = const Value.absent(),
-              Value<String?> errorMessage = const Value.absent(),
-              Value<String?> metadata = const Value.absent(),
-            }) =>
-                AutoFixRunsCompanion.insert(
-              id: id,
-              runUuid: runUuid,
-              source: source,
-              status: status,
-              startedAtEpoch: startedAtEpoch,
-              startedAtIso: startedAtIso,
-              completedAtEpoch: completedAtEpoch,
-              completedAtIso: completedAtIso,
-              fixesApplied: fixesApplied,
-              errorMessage: errorMessage,
-              metadata: metadata,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$AutoFixRunsTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({integrityViolationsRefs = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [
-                  if (integrityViolationsRefs) db.integrityViolations,
-                ],
-                addJoins: null,
-                getPrefetchedDataCallback: (items) async {
-                  return [
-                    if (integrityViolationsRefs)
-                      await $_getPrefetchedData<AutoFixRun, $AutoFixRunsTable,
-                          IntegrityViolation>(
-                        currentTable: table,
-                        referencedTable: $$AutoFixRunsTableReferences
-                            ._integrityViolationsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$AutoFixRunsTableReferences(
-                          db,
-                          table,
-                          p0,
-                        ).integrityViolationsRefs,
-                        referencedItemsForCurrentItem: (item,
-                                referencedItems) =>
-                            referencedItems.where((e) => e.runId == item.id),
-                        typedResults: items,
-                      ),
-                  ];
-                },
-              );
-            },
-          ),
-        );
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AutoFixRunsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AutoFixRunsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AutoFixRunsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> runUuid = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> startedAtEpoch = const Value.absent(),
+                Value<String> startedAtIso = const Value.absent(),
+                Value<int?> completedAtEpoch = const Value.absent(),
+                Value<String?> completedAtIso = const Value.absent(),
+                Value<int> fixesApplied = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                Value<String?> metadata = const Value.absent(),
+              }) => AutoFixRunsCompanion(
+                id: id,
+                runUuid: runUuid,
+                source: source,
+                status: status,
+                startedAtEpoch: startedAtEpoch,
+                startedAtIso: startedAtIso,
+                completedAtEpoch: completedAtEpoch,
+                completedAtIso: completedAtIso,
+                fixesApplied: fixesApplied,
+                errorMessage: errorMessage,
+                metadata: metadata,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String runUuid,
+                Value<String> source = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                required int startedAtEpoch,
+                required String startedAtIso,
+                Value<int?> completedAtEpoch = const Value.absent(),
+                Value<String?> completedAtIso = const Value.absent(),
+                Value<int> fixesApplied = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                Value<String?> metadata = const Value.absent(),
+              }) => AutoFixRunsCompanion.insert(
+                id: id,
+                runUuid: runUuid,
+                source: source,
+                status: status,
+                startedAtEpoch: startedAtEpoch,
+                startedAtIso: startedAtIso,
+                completedAtEpoch: completedAtEpoch,
+                completedAtIso: completedAtIso,
+                fixesApplied: fixesApplied,
+                errorMessage: errorMessage,
+                metadata: metadata,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$AutoFixRunsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({integrityViolationsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (integrityViolationsRefs) db.integrityViolations,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (integrityViolationsRefs)
+                    await $_getPrefetchedData<
+                      AutoFixRun,
+                      $AutoFixRunsTable,
+                      IntegrityViolation
+                    >(
+                      currentTable: table,
+                      referencedTable: $$AutoFixRunsTableReferences
+                          ._integrityViolationsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$AutoFixRunsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).integrityViolationsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.runId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
 }
 
-typedef $$AutoFixRunsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $AutoFixRunsTable,
-    AutoFixRun,
-    $$AutoFixRunsTableFilterComposer,
-    $$AutoFixRunsTableOrderingComposer,
-    $$AutoFixRunsTableAnnotationComposer,
-    $$AutoFixRunsTableCreateCompanionBuilder,
-    $$AutoFixRunsTableUpdateCompanionBuilder,
-    (AutoFixRun, $$AutoFixRunsTableReferences),
-    AutoFixRun,
-    PrefetchHooks Function({bool integrityViolationsRefs})>;
-typedef $$IntegrityViolationsTableCreateCompanionBuilder
-    = IntegrityViolationsCompanion Function({
-  Value<int> id,
-  required int runId,
-  required String affectedTableName,
-  Value<String?> recordUuid,
-  required String violationType,
-  required String details,
-  Value<bool> isCritical,
-  required String createdAtIso,
-  required int createdAtEpoch,
-});
-typedef $$IntegrityViolationsTableUpdateCompanionBuilder
-    = IntegrityViolationsCompanion Function({
-  Value<int> id,
-  Value<int> runId,
-  Value<String> affectedTableName,
-  Value<String?> recordUuid,
-  Value<String> violationType,
-  Value<String> details,
-  Value<bool> isCritical,
-  Value<String> createdAtIso,
-  Value<int> createdAtEpoch,
-});
+typedef $$AutoFixRunsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AutoFixRunsTable,
+      AutoFixRun,
+      $$AutoFixRunsTableFilterComposer,
+      $$AutoFixRunsTableOrderingComposer,
+      $$AutoFixRunsTableAnnotationComposer,
+      $$AutoFixRunsTableCreateCompanionBuilder,
+      $$AutoFixRunsTableUpdateCompanionBuilder,
+      (AutoFixRun, $$AutoFixRunsTableReferences),
+      AutoFixRun,
+      PrefetchHooks Function({bool integrityViolationsRefs})
+    >;
+typedef $$IntegrityViolationsTableCreateCompanionBuilder =
+    IntegrityViolationsCompanion Function({
+      Value<int> id,
+      required int runId,
+      required String affectedTableName,
+      Value<String?> recordUuid,
+      required String violationType,
+      required String details,
+      Value<bool> isCritical,
+      required String createdAtIso,
+      required int createdAtEpoch,
+    });
+typedef $$IntegrityViolationsTableUpdateCompanionBuilder =
+    IntegrityViolationsCompanion Function({
+      Value<int> id,
+      Value<int> runId,
+      Value<String> affectedTableName,
+      Value<String?> recordUuid,
+      Value<String> violationType,
+      Value<String> details,
+      Value<bool> isCritical,
+      Value<String> createdAtIso,
+      Value<int> createdAtEpoch,
+    });
 
-final class $$IntegrityViolationsTableReferences extends BaseReferences<
-    _$AppDatabase, $IntegrityViolationsTable, IntegrityViolation> {
+final class $$IntegrityViolationsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $IntegrityViolationsTable,
+          IntegrityViolation
+        > {
   $$IntegrityViolationsTableReferences(
     super.$_db,
     super.$_table,
@@ -30514,44 +30671,44 @@ class $$IntegrityViolationsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get affectedTableName => $composableBuilder(
-        column: $table.affectedTableName,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.affectedTableName,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get recordUuid => $composableBuilder(
-        column: $table.recordUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.recordUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get violationType => $composableBuilder(
-        column: $table.violationType,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.violationType,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get details => $composableBuilder(
-        column: $table.details,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.details,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isCritical => $composableBuilder(
-        column: $table.isCritical,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isCritical,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$AutoFixRunsTableFilterComposer get runId {
     final $$AutoFixRunsTableFilterComposer composer = $composerBuilder(
@@ -30559,18 +30716,19 @@ class $$IntegrityViolationsTableFilterComposer
       getCurrentColumn: (t) => t.runId,
       referencedTable: $db.autoFixRuns,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$AutoFixRunsTableFilterComposer(
-        $db: $db,
-        $table: $db.autoFixRuns,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AutoFixRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.autoFixRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -30586,44 +30744,44 @@ class $$IntegrityViolationsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get affectedTableName => $composableBuilder(
-        column: $table.affectedTableName,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.affectedTableName,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get recordUuid => $composableBuilder(
-        column: $table.recordUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.recordUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get violationType => $composableBuilder(
-        column: $table.violationType,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.violationType,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get details => $composableBuilder(
-        column: $table.details,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.details,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isCritical => $composableBuilder(
-        column: $table.isCritical,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isCritical,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$AutoFixRunsTableOrderingComposer get runId {
     final $$AutoFixRunsTableOrderingComposer composer = $composerBuilder(
@@ -30631,18 +30789,19 @@ class $$IntegrityViolationsTableOrderingComposer
       getCurrentColumn: (t) => t.runId,
       referencedTable: $db.autoFixRuns,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$AutoFixRunsTableOrderingComposer(
-        $db: $db,
-        $table: $db.autoFixRuns,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AutoFixRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.autoFixRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -30661,37 +30820,37 @@ class $$IntegrityViolationsTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get affectedTableName => $composableBuilder(
-        column: $table.affectedTableName,
-        builder: (column) => column,
-      );
+    column: $table.affectedTableName,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get recordUuid => $composableBuilder(
-        column: $table.recordUuid,
-        builder: (column) => column,
-      );
+    column: $table.recordUuid,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get violationType => $composableBuilder(
-        column: $table.violationType,
-        builder: (column) => column,
-      );
+    column: $table.violationType,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get details =>
       $composableBuilder(column: $table.details, builder: (column) => column);
 
   GeneratedColumn<bool> get isCritical => $composableBuilder(
-        column: $table.isCritical,
-        builder: (column) => column,
-      );
+    column: $table.isCritical,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   $$AutoFixRunsTableAnnotationComposer get runId {
     final $$AutoFixRunsTableAnnotationComposer composer = $composerBuilder(
@@ -30699,181 +30858,193 @@ class $$IntegrityViolationsTableAnnotationComposer
       getCurrentColumn: (t) => t.runId,
       referencedTable: $db.autoFixRuns,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$AutoFixRunsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.autoFixRuns,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AutoFixRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.autoFixRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
 }
 
-class $$IntegrityViolationsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $IntegrityViolationsTable,
-    IntegrityViolation,
-    $$IntegrityViolationsTableFilterComposer,
-    $$IntegrityViolationsTableOrderingComposer,
-    $$IntegrityViolationsTableAnnotationComposer,
-    $$IntegrityViolationsTableCreateCompanionBuilder,
-    $$IntegrityViolationsTableUpdateCompanionBuilder,
-    (IntegrityViolation, $$IntegrityViolationsTableReferences),
-    IntegrityViolation,
-    PrefetchHooks Function({bool runId})> {
+class $$IntegrityViolationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $IntegrityViolationsTable,
+          IntegrityViolation,
+          $$IntegrityViolationsTableFilterComposer,
+          $$IntegrityViolationsTableOrderingComposer,
+          $$IntegrityViolationsTableAnnotationComposer,
+          $$IntegrityViolationsTableCreateCompanionBuilder,
+          $$IntegrityViolationsTableUpdateCompanionBuilder,
+          (IntegrityViolation, $$IntegrityViolationsTableReferences),
+          IntegrityViolation,
+          PrefetchHooks Function({bool runId})
+        > {
   $$IntegrityViolationsTableTableManager(
     _$AppDatabase db,
     $IntegrityViolationsTable table,
   ) : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$IntegrityViolationsTableFilterComposer(
-                    $db: db, $table: table),
-            createOrderingComposer: () =>
-                $$IntegrityViolationsTableOrderingComposer(
-              $db: db,
-              $table: table,
-            ),
-            createComputedFieldComposer: () =>
-                $$IntegrityViolationsTableAnnotationComposer(
-              $db: db,
-              $table: table,
-            ),
-            updateCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<int> runId = const Value.absent(),
-              Value<String> affectedTableName = const Value.absent(),
-              Value<String?> recordUuid = const Value.absent(),
-              Value<String> violationType = const Value.absent(),
-              Value<String> details = const Value.absent(),
-              Value<bool> isCritical = const Value.absent(),
-              Value<String> createdAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-            }) =>
-                IntegrityViolationsCompanion(
-              id: id,
-              runId: runId,
-              affectedTableName: affectedTableName,
-              recordUuid: recordUuid,
-              violationType: violationType,
-              details: details,
-              isCritical: isCritical,
-              createdAtIso: createdAtIso,
-              createdAtEpoch: createdAtEpoch,
-            ),
-            createCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              required int runId,
-              required String affectedTableName,
-              Value<String?> recordUuid = const Value.absent(),
-              required String violationType,
-              required String details,
-              Value<bool> isCritical = const Value.absent(),
-              required String createdAtIso,
-              required int createdAtEpoch,
-            }) =>
-                IntegrityViolationsCompanion.insert(
-              id: id,
-              runId: runId,
-              affectedTableName: affectedTableName,
-              recordUuid: recordUuid,
-              violationType: violationType,
-              details: details,
-              isCritical: isCritical,
-              createdAtIso: createdAtIso,
-              createdAtEpoch: createdAtEpoch,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$IntegrityViolationsTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({runId = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [],
-                addJoins: <
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$IntegrityViolationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$IntegrityViolationsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$IntegrityViolationsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> runId = const Value.absent(),
+                Value<String> affectedTableName = const Value.absent(),
+                Value<String?> recordUuid = const Value.absent(),
+                Value<String> violationType = const Value.absent(),
+                Value<String> details = const Value.absent(),
+                Value<bool> isCritical = const Value.absent(),
+                Value<String> createdAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+              }) => IntegrityViolationsCompanion(
+                id: id,
+                runId: runId,
+                affectedTableName: affectedTableName,
+                recordUuid: recordUuid,
+                violationType: violationType,
+                details: details,
+                isCritical: isCritical,
+                createdAtIso: createdAtIso,
+                createdAtEpoch: createdAtEpoch,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int runId,
+                required String affectedTableName,
+                Value<String?> recordUuid = const Value.absent(),
+                required String violationType,
+                required String details,
+                Value<bool> isCritical = const Value.absent(),
+                required String createdAtIso,
+                required int createdAtEpoch,
+              }) => IntegrityViolationsCompanion.insert(
+                id: id,
+                runId: runId,
+                affectedTableName: affectedTableName,
+                recordUuid: recordUuid,
+                violationType: violationType,
+                details: details,
+                isCritical: isCritical,
+                createdAtIso: createdAtIso,
+                createdAtEpoch: createdAtEpoch,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$IntegrityViolationsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({runId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
                     T extends TableManagerState<
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic>>(state) {
-                  if (runId) {
-                    state = state.withJoin(
-                      currentTable: table,
-                      currentColumn: table.runId,
-                      referencedTable:
-                          $$IntegrityViolationsTableReferences._runIdTable(db),
-                      referencedColumn: $$IntegrityViolationsTableReferences
-                          ._runIdTable(db)
-                          .id,
-                    ) as T;
-                  }
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (runId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.runId,
+                                referencedTable:
+                                    $$IntegrityViolationsTableReferences
+                                        ._runIdTable(db),
+                                referencedColumn:
+                                    $$IntegrityViolationsTableReferences
+                                        ._runIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
 
-                  return state;
-                },
-                getPrefetchedDataCallback: (items) async {
-                  return [];
-                },
-              );
-            },
-          ),
-        );
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
 }
 
-typedef $$IntegrityViolationsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $IntegrityViolationsTable,
-    IntegrityViolation,
-    $$IntegrityViolationsTableFilterComposer,
-    $$IntegrityViolationsTableOrderingComposer,
-    $$IntegrityViolationsTableAnnotationComposer,
-    $$IntegrityViolationsTableCreateCompanionBuilder,
-    $$IntegrityViolationsTableUpdateCompanionBuilder,
-    (IntegrityViolation, $$IntegrityViolationsTableReferences),
-    IntegrityViolation,
-    PrefetchHooks Function({bool runId})>;
-typedef $$AppSessionsTableCreateCompanionBuilder = AppSessionsCompanion
-    Function({
-  Value<int> id,
-  required String sessionUuid,
-  Value<String?> deviceId,
-  required String sessionStartIso,
-  Value<String?> sessionEndIso,
-  Value<int> durationSeconds,
-  Value<String?> lastKnownVersion,
-  Value<String?> metadata,
-});
-typedef $$AppSessionsTableUpdateCompanionBuilder = AppSessionsCompanion
-    Function({
-  Value<int> id,
-  Value<String> sessionUuid,
-  Value<String?> deviceId,
-  Value<String> sessionStartIso,
-  Value<String?> sessionEndIso,
-  Value<int> durationSeconds,
-  Value<String?> lastKnownVersion,
-  Value<String?> metadata,
-});
+typedef $$IntegrityViolationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $IntegrityViolationsTable,
+      IntegrityViolation,
+      $$IntegrityViolationsTableFilterComposer,
+      $$IntegrityViolationsTableOrderingComposer,
+      $$IntegrityViolationsTableAnnotationComposer,
+      $$IntegrityViolationsTableCreateCompanionBuilder,
+      $$IntegrityViolationsTableUpdateCompanionBuilder,
+      (IntegrityViolation, $$IntegrityViolationsTableReferences),
+      IntegrityViolation,
+      PrefetchHooks Function({bool runId})
+    >;
+typedef $$AppSessionsTableCreateCompanionBuilder =
+    AppSessionsCompanion Function({
+      Value<int> id,
+      required String sessionUuid,
+      Value<String?> deviceId,
+      required String sessionStartIso,
+      Value<String?> sessionEndIso,
+      Value<int> durationSeconds,
+      Value<String?> lastKnownVersion,
+      Value<String?> metadata,
+    });
+typedef $$AppSessionsTableUpdateCompanionBuilder =
+    AppSessionsCompanion Function({
+      Value<int> id,
+      Value<String> sessionUuid,
+      Value<String?> deviceId,
+      Value<String> sessionStartIso,
+      Value<String?> sessionEndIso,
+      Value<int> durationSeconds,
+      Value<String?> lastKnownVersion,
+      Value<String?> metadata,
+    });
 
 class $$AppSessionsTableFilterComposer
     extends Composer<_$AppDatabase, $AppSessionsTable> {
@@ -30885,44 +31056,44 @@ class $$AppSessionsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get sessionUuid => $composableBuilder(
-        column: $table.sessionUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.sessionUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deviceId => $composableBuilder(
-        column: $table.deviceId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get sessionStartIso => $composableBuilder(
-        column: $table.sessionStartIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.sessionStartIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get sessionEndIso => $composableBuilder(
-        column: $table.sessionEndIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.sessionEndIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get durationSeconds => $composableBuilder(
-        column: $table.durationSeconds,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.durationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get lastKnownVersion => $composableBuilder(
-        column: $table.lastKnownVersion,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastKnownVersion,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get metadata => $composableBuilder(
-        column: $table.metadata,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.metadata,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$AppSessionsTableOrderingComposer
@@ -30935,44 +31106,44 @@ class $$AppSessionsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get sessionUuid => $composableBuilder(
-        column: $table.sessionUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.sessionUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deviceId => $composableBuilder(
-        column: $table.deviceId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get sessionStartIso => $composableBuilder(
-        column: $table.sessionStartIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.sessionStartIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get sessionEndIso => $composableBuilder(
-        column: $table.sessionEndIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.sessionEndIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get durationSeconds => $composableBuilder(
-        column: $table.durationSeconds,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.durationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get lastKnownVersion => $composableBuilder(
-        column: $table.lastKnownVersion,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastKnownVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get metadata => $composableBuilder(
-        column: $table.metadata,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.metadata,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSessionsTableAnnotationComposer
@@ -30988,176 +31159,181 @@ class $$AppSessionsTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get sessionUuid => $composableBuilder(
-        column: $table.sessionUuid,
-        builder: (column) => column,
-      );
+    column: $table.sessionUuid,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
   GeneratedColumn<String> get sessionStartIso => $composableBuilder(
-        column: $table.sessionStartIso,
-        builder: (column) => column,
-      );
+    column: $table.sessionStartIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get sessionEndIso => $composableBuilder(
-        column: $table.sessionEndIso,
-        builder: (column) => column,
-      );
+    column: $table.sessionEndIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get durationSeconds => $composableBuilder(
-        column: $table.durationSeconds,
-        builder: (column) => column,
-      );
+    column: $table.durationSeconds,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get lastKnownVersion => $composableBuilder(
-        column: $table.lastKnownVersion,
-        builder: (column) => column,
-      );
+    column: $table.lastKnownVersion,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get metadata =>
       $composableBuilder(column: $table.metadata, builder: (column) => column);
 }
 
-class $$AppSessionsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $AppSessionsTable,
-    AppSession,
-    $$AppSessionsTableFilterComposer,
-    $$AppSessionsTableOrderingComposer,
-    $$AppSessionsTableAnnotationComposer,
-    $$AppSessionsTableCreateCompanionBuilder,
-    $$AppSessionsTableUpdateCompanionBuilder,
-    (
-      AppSession,
-      BaseReferences<_$AppDatabase, $AppSessionsTable, AppSession>,
-    ),
-    AppSession,
-    PrefetchHooks Function()> {
-  $$AppSessionsTableTableManager(_$AppDatabase db, $AppSessionsTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$AppSessionsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$AppSessionsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$AppSessionsTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<String> sessionUuid = const Value.absent(),
-              Value<String?> deviceId = const Value.absent(),
-              Value<String> sessionStartIso = const Value.absent(),
-              Value<String?> sessionEndIso = const Value.absent(),
-              Value<int> durationSeconds = const Value.absent(),
-              Value<String?> lastKnownVersion = const Value.absent(),
-              Value<String?> metadata = const Value.absent(),
-            }) =>
-                AppSessionsCompanion(
-              id: id,
-              sessionUuid: sessionUuid,
-              deviceId: deviceId,
-              sessionStartIso: sessionStartIso,
-              sessionEndIso: sessionEndIso,
-              durationSeconds: durationSeconds,
-              lastKnownVersion: lastKnownVersion,
-              metadata: metadata,
-            ),
-            createCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              required String sessionUuid,
-              Value<String?> deviceId = const Value.absent(),
-              required String sessionStartIso,
-              Value<String?> sessionEndIso = const Value.absent(),
-              Value<int> durationSeconds = const Value.absent(),
-              Value<String?> lastKnownVersion = const Value.absent(),
-              Value<String?> metadata = const Value.absent(),
-            }) =>
-                AppSessionsCompanion.insert(
-              id: id,
-              sessionUuid: sessionUuid,
-              deviceId: deviceId,
-              sessionStartIso: sessionStartIso,
-              sessionEndIso: sessionEndIso,
-              durationSeconds: durationSeconds,
-              lastKnownVersion: lastKnownVersion,
-              metadata: metadata,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-                .toList(),
-            prefetchHooksCallback: null,
+class $$AppSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AppSessionsTable,
+          AppSession,
+          $$AppSessionsTableFilterComposer,
+          $$AppSessionsTableOrderingComposer,
+          $$AppSessionsTableAnnotationComposer,
+          $$AppSessionsTableCreateCompanionBuilder,
+          $$AppSessionsTableUpdateCompanionBuilder,
+          (
+            AppSession,
+            BaseReferences<_$AppDatabase, $AppSessionsTable, AppSession>,
           ),
-        );
+          AppSession,
+          PrefetchHooks Function()
+        > {
+  $$AppSessionsTableTableManager(_$AppDatabase db, $AppSessionsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> sessionUuid = const Value.absent(),
+                Value<String?> deviceId = const Value.absent(),
+                Value<String> sessionStartIso = const Value.absent(),
+                Value<String?> sessionEndIso = const Value.absent(),
+                Value<int> durationSeconds = const Value.absent(),
+                Value<String?> lastKnownVersion = const Value.absent(),
+                Value<String?> metadata = const Value.absent(),
+              }) => AppSessionsCompanion(
+                id: id,
+                sessionUuid: sessionUuid,
+                deviceId: deviceId,
+                sessionStartIso: sessionStartIso,
+                sessionEndIso: sessionEndIso,
+                durationSeconds: durationSeconds,
+                lastKnownVersion: lastKnownVersion,
+                metadata: metadata,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String sessionUuid,
+                Value<String?> deviceId = const Value.absent(),
+                required String sessionStartIso,
+                Value<String?> sessionEndIso = const Value.absent(),
+                Value<int> durationSeconds = const Value.absent(),
+                Value<String?> lastKnownVersion = const Value.absent(),
+                Value<String?> metadata = const Value.absent(),
+              }) => AppSessionsCompanion.insert(
+                id: id,
+                sessionUuid: sessionUuid,
+                deviceId: deviceId,
+                sessionStartIso: sessionStartIso,
+                sessionEndIso: sessionEndIso,
+                durationSeconds: durationSeconds,
+                lastKnownVersion: lastKnownVersion,
+                metadata: metadata,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
 }
 
-typedef $$AppSessionsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $AppSessionsTable,
-    AppSession,
-    $$AppSessionsTableFilterComposer,
-    $$AppSessionsTableOrderingComposer,
-    $$AppSessionsTableAnnotationComposer,
-    $$AppSessionsTableCreateCompanionBuilder,
-    $$AppSessionsTableUpdateCompanionBuilder,
-    (
+typedef $$AppSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AppSessionsTable,
       AppSession,
-      BaseReferences<_$AppDatabase, $AppSessionsTable, AppSession>,
-    ),
-    AppSession,
-    PrefetchHooks Function()>;
-typedef $$SalaryCyclesTableCreateCompanionBuilder = SalaryCyclesCompanion
-    Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  required int employeeId,
-  required String cycleKey,
-  Value<String?> hotelDayStart,
-  Value<String?> hotelDayEnd,
-  Value<double> expectedAmount,
-  Value<double> actualPaid,
-  Value<double> remainingAmount,
-  Value<String> status,
-});
-typedef $$SalaryCyclesTableUpdateCompanionBuilder = SalaryCyclesCompanion
-    Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int> employeeId,
-  Value<String> cycleKey,
-  Value<String?> hotelDayStart,
-  Value<String?> hotelDayEnd,
-  Value<double> expectedAmount,
-  Value<double> actualPaid,
-  Value<double> remainingAmount,
-  Value<String> status,
-});
+      $$AppSessionsTableFilterComposer,
+      $$AppSessionsTableOrderingComposer,
+      $$AppSessionsTableAnnotationComposer,
+      $$AppSessionsTableCreateCompanionBuilder,
+      $$AppSessionsTableUpdateCompanionBuilder,
+      (
+        AppSession,
+        BaseReferences<_$AppDatabase, $AppSessionsTable, AppSession>,
+      ),
+      AppSession,
+      PrefetchHooks Function()
+    >;
+typedef $$SalaryCyclesTableCreateCompanionBuilder =
+    SalaryCyclesCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      required int employeeId,
+      required String cycleKey,
+      Value<String?> hotelDayStart,
+      Value<String?> hotelDayEnd,
+      Value<double> expectedAmount,
+      Value<double> actualPaid,
+      Value<double> remainingAmount,
+      Value<String> status,
+    });
+typedef $$SalaryCyclesTableUpdateCompanionBuilder =
+    SalaryCyclesCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int> employeeId,
+      Value<String> cycleKey,
+      Value<String?> hotelDayStart,
+      Value<String?> hotelDayEnd,
+      Value<double> expectedAmount,
+      Value<double> actualPaid,
+      Value<double> remainingAmount,
+      Value<String> status,
+    });
 
 final class $$SalaryCyclesTableReferences
     extends BaseReferences<_$AppDatabase, $SalaryCyclesTable, SalaryCycle> {
@@ -31183,14 +31359,13 @@ final class $$SalaryCyclesTableReferences
   }
 
   static MultiTypedResultKey<$SalaryPaymentsTable, List<SalaryPayment>>
-      _salaryPaymentsRefsTable(_$AppDatabase db) =>
-          MultiTypedResultKey.fromTable(
-            db.salaryPayments,
-            aliasName: $_aliasNameGenerator(
-              db.salaryCycles.id,
-              db.salaryPayments.cycleId,
-            ),
-          );
+  _salaryPaymentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.salaryPayments,
+    aliasName: $_aliasNameGenerator(
+      db.salaryCycles.id,
+      db.salaryPayments.cycleId,
+    ),
+  );
 
   $$SalaryPaymentsTableProcessedTableManager get salaryPaymentsRefs {
     final manager = $$SalaryPaymentsTableTableManager(
@@ -31215,109 +31390,109 @@ class $$SalaryCyclesTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get cycleKey => $composableBuilder(
-        column: $table.cycleKey,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.cycleKey,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hotelDayStart => $composableBuilder(
-        column: $table.hotelDayStart,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hotelDayStart,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hotelDayEnd => $composableBuilder(
-        column: $table.hotelDayEnd,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hotelDayEnd,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get expectedAmount => $composableBuilder(
-        column: $table.expectedAmount,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.expectedAmount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get actualPaid => $composableBuilder(
-        column: $table.actualPaid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.actualPaid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get remainingAmount => $composableBuilder(
-        column: $table.remainingAmount,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.remainingAmount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$EmployeesTableFilterComposer get employeeId {
     final $$EmployeesTableFilterComposer composer = $composerBuilder(
@@ -31325,18 +31500,19 @@ class $$SalaryCyclesTableFilterComposer
       getCurrentColumn: (t) => t.employeeId,
       referencedTable: $db.employees,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$EmployeesTableFilterComposer(
-        $db: $db,
-        $table: $db.employees,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableFilterComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -31349,18 +31525,19 @@ class $$SalaryCyclesTableFilterComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.salaryPayments,
       getReferencedColumn: (t) => t.cycleId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SalaryPaymentsTableFilterComposer(
-        $db: $db,
-        $table: $db.salaryPayments,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalaryPaymentsTableFilterComposer(
+            $db: $db,
+            $table: $db.salaryPayments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -31376,109 +31553,109 @@ class $$SalaryCyclesTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get cycleKey => $composableBuilder(
-        column: $table.cycleKey,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.cycleKey,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hotelDayStart => $composableBuilder(
-        column: $table.hotelDayStart,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hotelDayStart,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hotelDayEnd => $composableBuilder(
-        column: $table.hotelDayEnd,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hotelDayEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get expectedAmount => $composableBuilder(
-        column: $table.expectedAmount,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.expectedAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get actualPaid => $composableBuilder(
-        column: $table.actualPaid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.actualPaid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get remainingAmount => $composableBuilder(
-        column: $table.remainingAmount,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.remainingAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$EmployeesTableOrderingComposer get employeeId {
     final $$EmployeesTableOrderingComposer composer = $composerBuilder(
@@ -31486,18 +31663,19 @@ class $$SalaryCyclesTableOrderingComposer
       getCurrentColumn: (t) => t.employeeId,
       referencedTable: $db.employees,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$EmployeesTableOrderingComposer(
-        $db: $db,
-        $table: $db.employees,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableOrderingComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -31528,34 +31706,34 @@ class $$SalaryCyclesTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -31570,29 +31748,29 @@ class $$SalaryCyclesTableAnnotationComposer
       $composableBuilder(column: $table.cycleKey, builder: (column) => column);
 
   GeneratedColumn<String> get hotelDayStart => $composableBuilder(
-        column: $table.hotelDayStart,
-        builder: (column) => column,
-      );
+    column: $table.hotelDayStart,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get hotelDayEnd => $composableBuilder(
-        column: $table.hotelDayEnd,
-        builder: (column) => column,
-      );
+    column: $table.hotelDayEnd,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get expectedAmount => $composableBuilder(
-        column: $table.expectedAmount,
-        builder: (column) => column,
-      );
+    column: $table.expectedAmount,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get actualPaid => $composableBuilder(
-        column: $table.actualPaid,
-        builder: (column) => column,
-      );
+    column: $table.actualPaid,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get remainingAmount => $composableBuilder(
-        column: $table.remainingAmount,
-        builder: (column) => column,
-      );
+    column: $table.remainingAmount,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
@@ -31603,18 +31781,19 @@ class $$SalaryCyclesTableAnnotationComposer
       getCurrentColumn: (t) => t.employeeId,
       referencedTable: $db.employees,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$EmployeesTableAnnotationComposer(
-        $db: $db,
-        $table: $db.employees,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -31627,269 +31806,286 @@ class $$SalaryCyclesTableAnnotationComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.salaryPayments,
       getReferencedColumn: (t) => t.cycleId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SalaryPaymentsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.salaryPayments,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalaryPaymentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.salaryPayments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
 }
 
-class $$SalaryCyclesTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $SalaryCyclesTable,
-    SalaryCycle,
-    $$SalaryCyclesTableFilterComposer,
-    $$SalaryCyclesTableOrderingComposer,
-    $$SalaryCyclesTableAnnotationComposer,
-    $$SalaryCyclesTableCreateCompanionBuilder,
-    $$SalaryCyclesTableUpdateCompanionBuilder,
-    (SalaryCycle, $$SalaryCyclesTableReferences),
-    SalaryCycle,
-    PrefetchHooks Function({bool employeeId, bool salaryPaymentsRefs})> {
+class $$SalaryCyclesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SalaryCyclesTable,
+          SalaryCycle,
+          $$SalaryCyclesTableFilterComposer,
+          $$SalaryCyclesTableOrderingComposer,
+          $$SalaryCyclesTableAnnotationComposer,
+          $$SalaryCyclesTableCreateCompanionBuilder,
+          $$SalaryCyclesTableUpdateCompanionBuilder,
+          (SalaryCycle, $$SalaryCyclesTableReferences),
+          SalaryCycle,
+          PrefetchHooks Function({bool employeeId, bool salaryPaymentsRefs})
+        > {
   $$SalaryCyclesTableTableManager(_$AppDatabase db, $SalaryCyclesTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$SalaryCyclesTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$SalaryCyclesTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$SalaryCyclesTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int> employeeId = const Value.absent(),
-              Value<String> cycleKey = const Value.absent(),
-              Value<String?> hotelDayStart = const Value.absent(),
-              Value<String?> hotelDayEnd = const Value.absent(),
-              Value<double> expectedAmount = const Value.absent(),
-              Value<double> actualPaid = const Value.absent(),
-              Value<double> remainingAmount = const Value.absent(),
-              Value<String> status = const Value.absent(),
-            }) =>
-                SalaryCyclesCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              employeeId: employeeId,
-              cycleKey: cycleKey,
-              hotelDayStart: hotelDayStart,
-              hotelDayEnd: hotelDayEnd,
-              expectedAmount: expectedAmount,
-              actualPaid: actualPaid,
-              remainingAmount: remainingAmount,
-              status: status,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              required int employeeId,
-              required String cycleKey,
-              Value<String?> hotelDayStart = const Value.absent(),
-              Value<String?> hotelDayEnd = const Value.absent(),
-              Value<double> expectedAmount = const Value.absent(),
-              Value<double> actualPaid = const Value.absent(),
-              Value<double> remainingAmount = const Value.absent(),
-              Value<String> status = const Value.absent(),
-            }) =>
-                SalaryCyclesCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              employeeId: employeeId,
-              cycleKey: cycleKey,
-              hotelDayStart: hotelDayStart,
-              hotelDayEnd: hotelDayEnd,
-              expectedAmount: expectedAmount,
-              actualPaid: actualPaid,
-              remainingAmount: remainingAmount,
-              status: status,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$SalaryCyclesTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: (
-                {employeeId = false, salaryPaymentsRefs = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [
-                  if (salaryPaymentsRefs) db.salaryPayments,
-                ],
-                addJoins: <
-                    T extends TableManagerState<
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic>>(state) {
-                  if (employeeId) {
-                    state = state.withJoin(
-                      currentTable: table,
-                      currentColumn: table.employeeId,
-                      referencedTable:
-                          $$SalaryCyclesTableReferences._employeeIdTable(db),
-                      referencedColumn:
-                          $$SalaryCyclesTableReferences._employeeIdTable(db).id,
-                    ) as T;
-                  }
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SalaryCyclesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SalaryCyclesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SalaryCyclesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int> employeeId = const Value.absent(),
+                Value<String> cycleKey = const Value.absent(),
+                Value<String?> hotelDayStart = const Value.absent(),
+                Value<String?> hotelDayEnd = const Value.absent(),
+                Value<double> expectedAmount = const Value.absent(),
+                Value<double> actualPaid = const Value.absent(),
+                Value<double> remainingAmount = const Value.absent(),
+                Value<String> status = const Value.absent(),
+              }) => SalaryCyclesCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                employeeId: employeeId,
+                cycleKey: cycleKey,
+                hotelDayStart: hotelDayStart,
+                hotelDayEnd: hotelDayEnd,
+                expectedAmount: expectedAmount,
+                actualPaid: actualPaid,
+                remainingAmount: remainingAmount,
+                status: status,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required int employeeId,
+                required String cycleKey,
+                Value<String?> hotelDayStart = const Value.absent(),
+                Value<String?> hotelDayEnd = const Value.absent(),
+                Value<double> expectedAmount = const Value.absent(),
+                Value<double> actualPaid = const Value.absent(),
+                Value<double> remainingAmount = const Value.absent(),
+                Value<String> status = const Value.absent(),
+              }) => SalaryCyclesCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                employeeId: employeeId,
+                cycleKey: cycleKey,
+                hotelDayStart: hotelDayStart,
+                hotelDayEnd: hotelDayEnd,
+                expectedAmount: expectedAmount,
+                actualPaid: actualPaid,
+                remainingAmount: remainingAmount,
+                status: status,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SalaryCyclesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({employeeId = false, salaryPaymentsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (salaryPaymentsRefs) db.salaryPayments,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (employeeId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.employeeId,
+                                    referencedTable:
+                                        $$SalaryCyclesTableReferences
+                                            ._employeeIdTable(db),
+                                    referencedColumn:
+                                        $$SalaryCyclesTableReferences
+                                            ._employeeIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
 
-                  return state;
-                },
-                getPrefetchedDataCallback: (items) async {
-                  return [
-                    if (salaryPaymentsRefs)
-                      await $_getPrefetchedData<SalaryCycle, $SalaryCyclesTable,
-                          SalaryPayment>(
-                        currentTable: table,
-                        referencedTable: $$SalaryCyclesTableReferences
-                            ._salaryPaymentsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$SalaryCyclesTableReferences(
-                          db,
-                          table,
-                          p0,
-                        ).salaryPaymentsRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems.where(
-                          (e) => e.cycleId == item.id,
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (salaryPaymentsRefs)
+                        await $_getPrefetchedData<
+                          SalaryCycle,
+                          $SalaryCyclesTable,
+                          SalaryPayment
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SalaryCyclesTableReferences
+                              ._salaryPaymentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SalaryCyclesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).salaryPaymentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.cycleId == item.id,
+                              ),
+                          typedResults: items,
                         ),
-                        typedResults: items,
-                      ),
-                  ];
-                },
-              );
-            },
-          ),
-        );
+                    ];
+                  },
+                );
+              },
+        ),
+      );
 }
 
-typedef $$SalaryCyclesTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $SalaryCyclesTable,
-    SalaryCycle,
-    $$SalaryCyclesTableFilterComposer,
-    $$SalaryCyclesTableOrderingComposer,
-    $$SalaryCyclesTableAnnotationComposer,
-    $$SalaryCyclesTableCreateCompanionBuilder,
-    $$SalaryCyclesTableUpdateCompanionBuilder,
-    (SalaryCycle, $$SalaryCyclesTableReferences),
-    SalaryCycle,
-    PrefetchHooks Function({bool employeeId, bool salaryPaymentsRefs})>;
-typedef $$SalaryPaymentsTableCreateCompanionBuilder = SalaryPaymentsCompanion
-    Function({
-  required String localUuid,
-  Value<int?> serverId,
-  required int createdAt,
-  required int updatedAt,
-  Value<int?> deletedAt,
-  required int lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  required int cycleId,
-  Value<double> amount,
-  Value<String?> hotelDayKey,
-  required String paymentDateIso,
-  Value<String?> method,
-  Value<bool> isAutoGenerated,
-});
-typedef $$SalaryPaymentsTableUpdateCompanionBuilder = SalaryPaymentsCompanion
-    Function({
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<int> createdAt,
-  Value<int> updatedAt,
-  Value<int?> deletedAt,
-  Value<int> lastModified,
-  Value<String?> createdAtIso,
-  Value<String?> updatedAtIso,
-  Value<String?> deletedAtIso,
-  Value<int> createdAtEpoch,
-  Value<int> lastModifiedEpoch,
-  Value<int> version,
-  Value<String> origin,
-  Value<int> id,
-  Value<int> cycleId,
-  Value<double> amount,
-  Value<String?> hotelDayKey,
-  Value<String> paymentDateIso,
-  Value<String?> method,
-  Value<bool> isAutoGenerated,
-});
+typedef $$SalaryCyclesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SalaryCyclesTable,
+      SalaryCycle,
+      $$SalaryCyclesTableFilterComposer,
+      $$SalaryCyclesTableOrderingComposer,
+      $$SalaryCyclesTableAnnotationComposer,
+      $$SalaryCyclesTableCreateCompanionBuilder,
+      $$SalaryCyclesTableUpdateCompanionBuilder,
+      (SalaryCycle, $$SalaryCyclesTableReferences),
+      SalaryCycle,
+      PrefetchHooks Function({bool employeeId, bool salaryPaymentsRefs})
+    >;
+typedef $$SalaryPaymentsTableCreateCompanionBuilder =
+    SalaryPaymentsCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      required int cycleId,
+      Value<double> amount,
+      Value<String?> hotelDayKey,
+      required String paymentDateIso,
+      Value<String?> method,
+      Value<bool> isAutoGenerated,
+    });
+typedef $$SalaryPaymentsTableUpdateCompanionBuilder =
+    SalaryPaymentsCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<int> id,
+      Value<int> cycleId,
+      Value<double> amount,
+      Value<String?> hotelDayKey,
+      Value<String> paymentDateIso,
+      Value<String?> method,
+      Value<bool> isAutoGenerated,
+    });
 
 final class $$SalaryPaymentsTableReferences
     extends BaseReferences<_$AppDatabase, $SalaryPaymentsTable, SalaryPayment> {
@@ -31929,99 +32125,99 @@ class $$SalaryPaymentsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get amount => $composableBuilder(
-        column: $table.amount,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get paymentDateIso => $composableBuilder(
-        column: $table.paymentDateIso,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.paymentDateIso,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get method => $composableBuilder(
-        column: $table.method,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.method,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isAutoGenerated => $composableBuilder(
-        column: $table.isAutoGenerated,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isAutoGenerated,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$SalaryCyclesTableFilterComposer get cycleId {
     final $$SalaryCyclesTableFilterComposer composer = $composerBuilder(
@@ -32029,18 +32225,19 @@ class $$SalaryPaymentsTableFilterComposer
       getCurrentColumn: (t) => t.cycleId,
       referencedTable: $db.salaryCycles,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SalaryCyclesTableFilterComposer(
-        $db: $db,
-        $table: $db.salaryCycles,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalaryCyclesTableFilterComposer(
+            $db: $db,
+            $table: $db.salaryCycles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -32056,99 +32253,99 @@ class $$SalaryPaymentsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get deletedAt => $composableBuilder(
-        column: $table.deletedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-        column: $table.origin,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get amount => $composableBuilder(
-        column: $table.amount,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get paymentDateIso => $composableBuilder(
-        column: $table.paymentDateIso,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.paymentDateIso,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get method => $composableBuilder(
-        column: $table.method,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.method,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isAutoGenerated => $composableBuilder(
-        column: $table.isAutoGenerated,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isAutoGenerated,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$SalaryCyclesTableOrderingComposer get cycleId {
     final $$SalaryCyclesTableOrderingComposer composer = $composerBuilder(
@@ -32156,18 +32353,19 @@ class $$SalaryPaymentsTableOrderingComposer
       getCurrentColumn: (t) => t.cycleId,
       referencedTable: $db.salaryCycles,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SalaryCyclesTableOrderingComposer(
-        $db: $db,
-        $table: $db.salaryCycles,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalaryCyclesTableOrderingComposer(
+            $db: $db,
+            $table: $db.salaryCycles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -32198,34 +32396,34 @@ class $$SalaryPaymentsTableAnnotationComposer
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get lastModified => $composableBuilder(
-        column: $table.lastModified,
-        builder: (column) => column,
-      );
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAtIso => $composableBuilder(
-        column: $table.createdAtIso,
-        builder: (column) => column,
-      );
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get updatedAtIso => $composableBuilder(
-        column: $table.updatedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get deletedAtIso => $composableBuilder(
-        column: $table.deletedAtIso,
-        builder: (column) => column,
-      );
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
-        column: $table.createdAtEpoch,
-        builder: (column) => column,
-      );
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
-        column: $table.lastModifiedEpoch,
-        builder: (column) => column,
-      );
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
@@ -32240,22 +32438,22 @@ class $$SalaryPaymentsTableAnnotationComposer
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
   GeneratedColumn<String> get hotelDayKey => $composableBuilder(
-        column: $table.hotelDayKey,
-        builder: (column) => column,
-      );
+    column: $table.hotelDayKey,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get paymentDateIso => $composableBuilder(
-        column: $table.paymentDateIso,
-        builder: (column) => column,
-      );
+    column: $table.paymentDateIso,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get method =>
       $composableBuilder(column: $table.method, builder: (column) => column);
 
   GeneratedColumn<bool> get isAutoGenerated => $composableBuilder(
-        column: $table.isAutoGenerated,
-        builder: (column) => column,
-      );
+    column: $table.isAutoGenerated,
+    builder: (column) => column,
+  );
 
   $$SalaryCyclesTableAnnotationComposer get cycleId {
     final $$SalaryCyclesTableAnnotationComposer composer = $composerBuilder(
@@ -32263,217 +32461,232 @@ class $$SalaryPaymentsTableAnnotationComposer
       getCurrentColumn: (t) => t.cycleId,
       referencedTable: $db.salaryCycles,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SalaryCyclesTableAnnotationComposer(
-        $db: $db,
-        $table: $db.salaryCycles,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalaryCyclesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.salaryCycles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
 }
 
-class $$SalaryPaymentsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $SalaryPaymentsTable,
-    SalaryPayment,
-    $$SalaryPaymentsTableFilterComposer,
-    $$SalaryPaymentsTableOrderingComposer,
-    $$SalaryPaymentsTableAnnotationComposer,
-    $$SalaryPaymentsTableCreateCompanionBuilder,
-    $$SalaryPaymentsTableUpdateCompanionBuilder,
-    (SalaryPayment, $$SalaryPaymentsTableReferences),
-    SalaryPayment,
-    PrefetchHooks Function({bool cycleId})> {
+class $$SalaryPaymentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SalaryPaymentsTable,
+          SalaryPayment,
+          $$SalaryPaymentsTableFilterComposer,
+          $$SalaryPaymentsTableOrderingComposer,
+          $$SalaryPaymentsTableAnnotationComposer,
+          $$SalaryPaymentsTableCreateCompanionBuilder,
+          $$SalaryPaymentsTableUpdateCompanionBuilder,
+          (SalaryPayment, $$SalaryPaymentsTableReferences),
+          SalaryPayment,
+          PrefetchHooks Function({bool cycleId})
+        > {
   $$SalaryPaymentsTableTableManager(
     _$AppDatabase db,
     $SalaryPaymentsTable table,
   ) : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$SalaryPaymentsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$SalaryPaymentsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$SalaryPaymentsTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<int> createdAt = const Value.absent(),
-              Value<int> updatedAt = const Value.absent(),
-              Value<int?> deletedAt = const Value.absent(),
-              Value<int> lastModified = const Value.absent(),
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              Value<int> cycleId = const Value.absent(),
-              Value<double> amount = const Value.absent(),
-              Value<String?> hotelDayKey = const Value.absent(),
-              Value<String> paymentDateIso = const Value.absent(),
-              Value<String?> method = const Value.absent(),
-              Value<bool> isAutoGenerated = const Value.absent(),
-            }) =>
-                SalaryPaymentsCompanion(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              cycleId: cycleId,
-              amount: amount,
-              hotelDayKey: hotelDayKey,
-              paymentDateIso: paymentDateIso,
-              method: method,
-              isAutoGenerated: isAutoGenerated,
-            ),
-            createCompanionCallback: ({
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required int createdAt,
-              required int updatedAt,
-              Value<int?> deletedAt = const Value.absent(),
-              required int lastModified,
-              Value<String?> createdAtIso = const Value.absent(),
-              Value<String?> updatedAtIso = const Value.absent(),
-              Value<String?> deletedAtIso = const Value.absent(),
-              Value<int> createdAtEpoch = const Value.absent(),
-              Value<int> lastModifiedEpoch = const Value.absent(),
-              Value<int> version = const Value.absent(),
-              Value<String> origin = const Value.absent(),
-              Value<int> id = const Value.absent(),
-              required int cycleId,
-              Value<double> amount = const Value.absent(),
-              Value<String?> hotelDayKey = const Value.absent(),
-              required String paymentDateIso,
-              Value<String?> method = const Value.absent(),
-              Value<bool> isAutoGenerated = const Value.absent(),
-            }) =>
-                SalaryPaymentsCompanion.insert(
-              localUuid: localUuid,
-              serverId: serverId,
-              createdAt: createdAt,
-              updatedAt: updatedAt,
-              deletedAt: deletedAt,
-              lastModified: lastModified,
-              createdAtIso: createdAtIso,
-              updatedAtIso: updatedAtIso,
-              deletedAtIso: deletedAtIso,
-              createdAtEpoch: createdAtEpoch,
-              lastModifiedEpoch: lastModifiedEpoch,
-              version: version,
-              origin: origin,
-              id: id,
-              cycleId: cycleId,
-              amount: amount,
-              hotelDayKey: hotelDayKey,
-              paymentDateIso: paymentDateIso,
-              method: method,
-              isAutoGenerated: isAutoGenerated,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$SalaryPaymentsTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({cycleId = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [],
-                addJoins: <
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SalaryPaymentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SalaryPaymentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SalaryPaymentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int> cycleId = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String?> hotelDayKey = const Value.absent(),
+                Value<String> paymentDateIso = const Value.absent(),
+                Value<String?> method = const Value.absent(),
+                Value<bool> isAutoGenerated = const Value.absent(),
+              }) => SalaryPaymentsCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                cycleId: cycleId,
+                amount: amount,
+                hotelDayKey: hotelDayKey,
+                paymentDateIso: paymentDateIso,
+                method: method,
+                isAutoGenerated: isAutoGenerated,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required int cycleId,
+                Value<double> amount = const Value.absent(),
+                Value<String?> hotelDayKey = const Value.absent(),
+                required String paymentDateIso,
+                Value<String?> method = const Value.absent(),
+                Value<bool> isAutoGenerated = const Value.absent(),
+              }) => SalaryPaymentsCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                id: id,
+                cycleId: cycleId,
+                amount: amount,
+                hotelDayKey: hotelDayKey,
+                paymentDateIso: paymentDateIso,
+                method: method,
+                isAutoGenerated: isAutoGenerated,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SalaryPaymentsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({cycleId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
                     T extends TableManagerState<
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic>>(state) {
-                  if (cycleId) {
-                    state = state.withJoin(
-                      currentTable: table,
-                      currentColumn: table.cycleId,
-                      referencedTable:
-                          $$SalaryPaymentsTableReferences._cycleIdTable(db),
-                      referencedColumn:
-                          $$SalaryPaymentsTableReferences._cycleIdTable(db).id,
-                    ) as T;
-                  }
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (cycleId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.cycleId,
+                                referencedTable: $$SalaryPaymentsTableReferences
+                                    ._cycleIdTable(db),
+                                referencedColumn:
+                                    $$SalaryPaymentsTableReferences
+                                        ._cycleIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
 
-                  return state;
-                },
-                getPrefetchedDataCallback: (items) async {
-                  return [];
-                },
-              );
-            },
-          ),
-        );
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
 }
 
-typedef $$SalaryPaymentsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $SalaryPaymentsTable,
-    SalaryPayment,
-    $$SalaryPaymentsTableFilterComposer,
-    $$SalaryPaymentsTableOrderingComposer,
-    $$SalaryPaymentsTableAnnotationComposer,
-    $$SalaryPaymentsTableCreateCompanionBuilder,
-    $$SalaryPaymentsTableUpdateCompanionBuilder,
-    (SalaryPayment, $$SalaryPaymentsTableReferences),
-    SalaryPayment,
-    PrefetchHooks Function({bool cycleId})>;
-typedef $$OutboxTableCreateCompanionBuilder = OutboxCompanion Function({
-  Value<int> id,
-  required String entity,
-  required String op,
-  required String localUuid,
-  Value<int?> serverId,
-  required String payload,
-  required int clientTs,
-  Value<int> attempts,
-  Value<String?> lastError,
-});
-typedef $$OutboxTableUpdateCompanionBuilder = OutboxCompanion Function({
-  Value<int> id,
-  Value<String> entity,
-  Value<String> op,
-  Value<String> localUuid,
-  Value<int?> serverId,
-  Value<String> payload,
-  Value<int> clientTs,
-  Value<int> attempts,
-  Value<String?> lastError,
-});
+typedef $$SalaryPaymentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SalaryPaymentsTable,
+      SalaryPayment,
+      $$SalaryPaymentsTableFilterComposer,
+      $$SalaryPaymentsTableOrderingComposer,
+      $$SalaryPaymentsTableAnnotationComposer,
+      $$SalaryPaymentsTableCreateCompanionBuilder,
+      $$SalaryPaymentsTableUpdateCompanionBuilder,
+      (SalaryPayment, $$SalaryPaymentsTableReferences),
+      SalaryPayment,
+      PrefetchHooks Function({bool cycleId})
+    >;
+typedef $$OutboxTableCreateCompanionBuilder =
+    OutboxCompanion Function({
+      Value<int> id,
+      required String entity,
+      required String op,
+      required String localUuid,
+      Value<int?> serverId,
+      required String payload,
+      required int clientTs,
+      Value<int> attempts,
+      Value<String?> lastError,
+    });
+typedef $$OutboxTableUpdateCompanionBuilder =
+    OutboxCompanion Function({
+      Value<int> id,
+      Value<String> entity,
+      Value<String> op,
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<String> payload,
+      Value<int> clientTs,
+      Value<int> attempts,
+      Value<String?> lastError,
+    });
 
 class $$OutboxTableFilterComposer
     extends Composer<_$AppDatabase, $OutboxTable> {
@@ -32485,49 +32698,49 @@ class $$OutboxTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get entity => $composableBuilder(
-        column: $table.entity,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.entity,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get op => $composableBuilder(
-        column: $table.op,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.op,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get payload => $composableBuilder(
-        column: $table.payload,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get clientTs => $composableBuilder(
-        column: $table.clientTs,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.clientTs,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get attempts => $composableBuilder(
-        column: $table.attempts,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.attempts,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get lastError => $composableBuilder(
-        column: $table.lastError,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastError,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$OutboxTableOrderingComposer
@@ -32540,49 +32753,49 @@ class $$OutboxTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get entity => $composableBuilder(
-        column: $table.entity,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.entity,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get op => $composableBuilder(
-        column: $table.op,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.op,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get localUuid => $composableBuilder(
-        column: $table.localUuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get serverId => $composableBuilder(
-        column: $table.serverId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get payload => $composableBuilder(
-        column: $table.payload,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get clientTs => $composableBuilder(
-        column: $table.clientTs,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.clientTs,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get attempts => $composableBuilder(
-        column: $table.attempts,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.attempts,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get lastError => $composableBuilder(
-        column: $table.lastError,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastError,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OutboxTableAnnotationComposer
@@ -32622,109 +32835,116 @@ class $$OutboxTableAnnotationComposer
       $composableBuilder(column: $table.lastError, builder: (column) => column);
 }
 
-class $$OutboxTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $OutboxTable,
-    OutboxData,
-    $$OutboxTableFilterComposer,
-    $$OutboxTableOrderingComposer,
-    $$OutboxTableAnnotationComposer,
-    $$OutboxTableCreateCompanionBuilder,
-    $$OutboxTableUpdateCompanionBuilder,
-    (OutboxData, BaseReferences<_$AppDatabase, $OutboxTable, OutboxData>),
-    OutboxData,
-    PrefetchHooks Function()> {
+class $$OutboxTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $OutboxTable,
+          OutboxData,
+          $$OutboxTableFilterComposer,
+          $$OutboxTableOrderingComposer,
+          $$OutboxTableAnnotationComposer,
+          $$OutboxTableCreateCompanionBuilder,
+          $$OutboxTableUpdateCompanionBuilder,
+          (OutboxData, BaseReferences<_$AppDatabase, $OutboxTable, OutboxData>),
+          OutboxData,
+          PrefetchHooks Function()
+        > {
   $$OutboxTableTableManager(_$AppDatabase db, $OutboxTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$OutboxTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$OutboxTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$OutboxTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<String> entity = const Value.absent(),
-              Value<String> op = const Value.absent(),
-              Value<String> localUuid = const Value.absent(),
-              Value<int?> serverId = const Value.absent(),
-              Value<String> payload = const Value.absent(),
-              Value<int> clientTs = const Value.absent(),
-              Value<int> attempts = const Value.absent(),
-              Value<String?> lastError = const Value.absent(),
-            }) =>
-                OutboxCompanion(
-              id: id,
-              entity: entity,
-              op: op,
-              localUuid: localUuid,
-              serverId: serverId,
-              payload: payload,
-              clientTs: clientTs,
-              attempts: attempts,
-              lastError: lastError,
-            ),
-            createCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              required String entity,
-              required String op,
-              required String localUuid,
-              Value<int?> serverId = const Value.absent(),
-              required String payload,
-              required int clientTs,
-              Value<int> attempts = const Value.absent(),
-              Value<String?> lastError = const Value.absent(),
-            }) =>
-                OutboxCompanion.insert(
-              id: id,
-              entity: entity,
-              op: op,
-              localUuid: localUuid,
-              serverId: serverId,
-              payload: payload,
-              clientTs: clientTs,
-              attempts: attempts,
-              lastError: lastError,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-                .toList(),
-            prefetchHooksCallback: null,
-          ),
-        );
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$OutboxTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$OutboxTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$OutboxTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> entity = const Value.absent(),
+                Value<String> op = const Value.absent(),
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<int> clientTs = const Value.absent(),
+                Value<int> attempts = const Value.absent(),
+                Value<String?> lastError = const Value.absent(),
+              }) => OutboxCompanion(
+                id: id,
+                entity: entity,
+                op: op,
+                localUuid: localUuid,
+                serverId: serverId,
+                payload: payload,
+                clientTs: clientTs,
+                attempts: attempts,
+                lastError: lastError,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String entity,
+                required String op,
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required String payload,
+                required int clientTs,
+                Value<int> attempts = const Value.absent(),
+                Value<String?> lastError = const Value.absent(),
+              }) => OutboxCompanion.insert(
+                id: id,
+                entity: entity,
+                op: op,
+                localUuid: localUuid,
+                serverId: serverId,
+                payload: payload,
+                clientTs: clientTs,
+                attempts: attempts,
+                lastError: lastError,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
 }
 
-typedef $$OutboxTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $OutboxTable,
-    OutboxData,
-    $$OutboxTableFilterComposer,
-    $$OutboxTableOrderingComposer,
-    $$OutboxTableAnnotationComposer,
-    $$OutboxTableCreateCompanionBuilder,
-    $$OutboxTableUpdateCompanionBuilder,
-    (OutboxData, BaseReferences<_$AppDatabase, $OutboxTable, OutboxData>),
-    OutboxData,
-    PrefetchHooks Function()>;
-typedef $$SyncStateTableCreateCompanionBuilder = SyncStateCompanion Function({
-  Value<int> id,
-  Value<int> lastServerTs,
-  Value<int> lastPullTs,
-  Value<int> lastPushTs,
-  Value<int> isSyncing,
-  Value<int> version,
-});
-typedef $$SyncStateTableUpdateCompanionBuilder = SyncStateCompanion Function({
-  Value<int> id,
-  Value<int> lastServerTs,
-  Value<int> lastPullTs,
-  Value<int> lastPushTs,
-  Value<int> isSyncing,
-  Value<int> version,
-});
+typedef $$OutboxTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $OutboxTable,
+      OutboxData,
+      $$OutboxTableFilterComposer,
+      $$OutboxTableOrderingComposer,
+      $$OutboxTableAnnotationComposer,
+      $$OutboxTableCreateCompanionBuilder,
+      $$OutboxTableUpdateCompanionBuilder,
+      (OutboxData, BaseReferences<_$AppDatabase, $OutboxTable, OutboxData>),
+      OutboxData,
+      PrefetchHooks Function()
+    >;
+typedef $$SyncStateTableCreateCompanionBuilder =
+    SyncStateCompanion Function({
+      Value<int> id,
+      Value<int> lastServerTs,
+      Value<int> lastPullTs,
+      Value<int> lastPushTs,
+      Value<int> isSyncing,
+      Value<int> version,
+    });
+typedef $$SyncStateTableUpdateCompanionBuilder =
+    SyncStateCompanion Function({
+      Value<int> id,
+      Value<int> lastServerTs,
+      Value<int> lastPullTs,
+      Value<int> lastPushTs,
+      Value<int> isSyncing,
+      Value<int> version,
+    });
 
 class $$SyncStateTableFilterComposer
     extends Composer<_$AppDatabase, $SyncStateTable> {
@@ -32736,34 +32956,34 @@ class $$SyncStateTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastServerTs => $composableBuilder(
-        column: $table.lastServerTs,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastServerTs,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastPullTs => $composableBuilder(
-        column: $table.lastPullTs,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastPullTs,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lastPushTs => $composableBuilder(
-        column: $table.lastPushTs,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.lastPushTs,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get isSyncing => $composableBuilder(
-        column: $table.isSyncing,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.isSyncing,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SyncStateTableOrderingComposer
@@ -32776,34 +32996,34 @@ class $$SyncStateTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastServerTs => $composableBuilder(
-        column: $table.lastServerTs,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastServerTs,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastPullTs => $composableBuilder(
-        column: $table.lastPullTs,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastPullTs,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lastPushTs => $composableBuilder(
-        column: $table.lastPushTs,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.lastPushTs,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get isSyncing => $composableBuilder(
-        column: $table.isSyncing,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.isSyncing,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get version => $composableBuilder(
-        column: $table.version,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SyncStateTableAnnotationComposer
@@ -32819,19 +33039,19 @@ class $$SyncStateTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<int> get lastServerTs => $composableBuilder(
-        column: $table.lastServerTs,
-        builder: (column) => column,
-      );
+    column: $table.lastServerTs,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastPullTs => $composableBuilder(
-        column: $table.lastPullTs,
-        builder: (column) => column,
-      );
+    column: $table.lastPullTs,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get lastPushTs => $composableBuilder(
-        column: $table.lastPushTs,
-        builder: (column) => column,
-      );
+    column: $table.lastPushTs,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get isSyncing =>
       $composableBuilder(column: $table.isSyncing, builder: (column) => column);
@@ -32840,113 +33060,118 @@ class $$SyncStateTableAnnotationComposer
       $composableBuilder(column: $table.version, builder: (column) => column);
 }
 
-class $$SyncStateTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $SyncStateTable,
-    SyncStateData,
-    $$SyncStateTableFilterComposer,
-    $$SyncStateTableOrderingComposer,
-    $$SyncStateTableAnnotationComposer,
-    $$SyncStateTableCreateCompanionBuilder,
-    $$SyncStateTableUpdateCompanionBuilder,
-    (
-      SyncStateData,
-      BaseReferences<_$AppDatabase, $SyncStateTable, SyncStateData>,
-    ),
-    SyncStateData,
-    PrefetchHooks Function()> {
-  $$SyncStateTableTableManager(_$AppDatabase db, $SyncStateTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$SyncStateTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$SyncStateTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$SyncStateTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<int> lastServerTs = const Value.absent(),
-              Value<int> lastPullTs = const Value.absent(),
-              Value<int> lastPushTs = const Value.absent(),
-              Value<int> isSyncing = const Value.absent(),
-              Value<int> version = const Value.absent(),
-            }) =>
-                SyncStateCompanion(
-              id: id,
-              lastServerTs: lastServerTs,
-              lastPullTs: lastPullTs,
-              lastPushTs: lastPushTs,
-              isSyncing: isSyncing,
-              version: version,
-            ),
-            createCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<int> lastServerTs = const Value.absent(),
-              Value<int> lastPullTs = const Value.absent(),
-              Value<int> lastPushTs = const Value.absent(),
-              Value<int> isSyncing = const Value.absent(),
-              Value<int> version = const Value.absent(),
-            }) =>
-                SyncStateCompanion.insert(
-              id: id,
-              lastServerTs: lastServerTs,
-              lastPullTs: lastPullTs,
-              lastPushTs: lastPushTs,
-              isSyncing: isSyncing,
-              version: version,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-                .toList(),
-            prefetchHooksCallback: null,
+class $$SyncStateTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncStateTable,
+          SyncStateData,
+          $$SyncStateTableFilterComposer,
+          $$SyncStateTableOrderingComposer,
+          $$SyncStateTableAnnotationComposer,
+          $$SyncStateTableCreateCompanionBuilder,
+          $$SyncStateTableUpdateCompanionBuilder,
+          (
+            SyncStateData,
+            BaseReferences<_$AppDatabase, $SyncStateTable, SyncStateData>,
           ),
-        );
+          SyncStateData,
+          PrefetchHooks Function()
+        > {
+  $$SyncStateTableTableManager(_$AppDatabase db, $SyncStateTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncStateTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncStateTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncStateTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> lastServerTs = const Value.absent(),
+                Value<int> lastPullTs = const Value.absent(),
+                Value<int> lastPushTs = const Value.absent(),
+                Value<int> isSyncing = const Value.absent(),
+                Value<int> version = const Value.absent(),
+              }) => SyncStateCompanion(
+                id: id,
+                lastServerTs: lastServerTs,
+                lastPullTs: lastPullTs,
+                lastPushTs: lastPushTs,
+                isSyncing: isSyncing,
+                version: version,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> lastServerTs = const Value.absent(),
+                Value<int> lastPullTs = const Value.absent(),
+                Value<int> lastPushTs = const Value.absent(),
+                Value<int> isSyncing = const Value.absent(),
+                Value<int> version = const Value.absent(),
+              }) => SyncStateCompanion.insert(
+                id: id,
+                lastServerTs: lastServerTs,
+                lastPullTs: lastPullTs,
+                lastPushTs: lastPushTs,
+                isSyncing: isSyncing,
+                version: version,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
 }
 
-typedef $$SyncStateTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $SyncStateTable,
-    SyncStateData,
-    $$SyncStateTableFilterComposer,
-    $$SyncStateTableOrderingComposer,
-    $$SyncStateTableAnnotationComposer,
-    $$SyncStateTableCreateCompanionBuilder,
-    $$SyncStateTableUpdateCompanionBuilder,
-    (
+typedef $$SyncStateTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncStateTable,
       SyncStateData,
-      BaseReferences<_$AppDatabase, $SyncStateTable, SyncStateData>,
-    ),
-    SyncStateData,
-    PrefetchHooks Function()>;
-typedef $$RestoreFixLogTableCreateCompanionBuilder = RestoreFixLogCompanion
-    Function({
-  Value<int> id,
-  required String fixId,
-  required int executedAt,
-  required String targetTable,
-  required int targetRecordId,
-  required String fieldName,
-  Value<String?> oldValue,
-  Value<String?> newValue,
-  required String reason,
-  required String fixType,
-});
-typedef $$RestoreFixLogTableUpdateCompanionBuilder = RestoreFixLogCompanion
-    Function({
-  Value<int> id,
-  Value<String> fixId,
-  Value<int> executedAt,
-  Value<String> targetTable,
-  Value<int> targetRecordId,
-  Value<String> fieldName,
-  Value<String?> oldValue,
-  Value<String?> newValue,
-  Value<String> reason,
-  Value<String> fixType,
-});
+      $$SyncStateTableFilterComposer,
+      $$SyncStateTableOrderingComposer,
+      $$SyncStateTableAnnotationComposer,
+      $$SyncStateTableCreateCompanionBuilder,
+      $$SyncStateTableUpdateCompanionBuilder,
+      (
+        SyncStateData,
+        BaseReferences<_$AppDatabase, $SyncStateTable, SyncStateData>,
+      ),
+      SyncStateData,
+      PrefetchHooks Function()
+    >;
+typedef $$RestoreFixLogTableCreateCompanionBuilder =
+    RestoreFixLogCompanion Function({
+      Value<int> id,
+      required String fixId,
+      required int executedAt,
+      required String targetTable,
+      required int targetRecordId,
+      required String fieldName,
+      Value<String?> oldValue,
+      Value<String?> newValue,
+      required String reason,
+      required String fixType,
+    });
+typedef $$RestoreFixLogTableUpdateCompanionBuilder =
+    RestoreFixLogCompanion Function({
+      Value<int> id,
+      Value<String> fixId,
+      Value<int> executedAt,
+      Value<String> targetTable,
+      Value<int> targetRecordId,
+      Value<String> fieldName,
+      Value<String?> oldValue,
+      Value<String?> newValue,
+      Value<String> reason,
+      Value<String> fixType,
+    });
 
 class $$RestoreFixLogTableFilterComposer
     extends Composer<_$AppDatabase, $RestoreFixLogTable> {
@@ -32958,54 +33183,54 @@ class $$RestoreFixLogTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get fixId => $composableBuilder(
-        column: $table.fixId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.fixId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get executedAt => $composableBuilder(
-        column: $table.executedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.executedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get targetTable => $composableBuilder(
-        column: $table.targetTable,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.targetTable,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get targetRecordId => $composableBuilder(
-        column: $table.targetRecordId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.targetRecordId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get fieldName => $composableBuilder(
-        column: $table.fieldName,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.fieldName,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get oldValue => $composableBuilder(
-        column: $table.oldValue,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.oldValue,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get newValue => $composableBuilder(
-        column: $table.newValue,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.newValue,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get reason => $composableBuilder(
-        column: $table.reason,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get fixType => $composableBuilder(
-        column: $table.fixType,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.fixType,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$RestoreFixLogTableOrderingComposer
@@ -33018,54 +33243,54 @@ class $$RestoreFixLogTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get fixId => $composableBuilder(
-        column: $table.fixId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.fixId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get executedAt => $composableBuilder(
-        column: $table.executedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.executedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get targetTable => $composableBuilder(
-        column: $table.targetTable,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.targetTable,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get targetRecordId => $composableBuilder(
-        column: $table.targetRecordId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.targetRecordId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get fieldName => $composableBuilder(
-        column: $table.fieldName,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.fieldName,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get oldValue => $composableBuilder(
-        column: $table.oldValue,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.oldValue,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get newValue => $composableBuilder(
-        column: $table.newValue,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.newValue,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get reason => $composableBuilder(
-        column: $table.reason,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get fixType => $composableBuilder(
-        column: $table.fixType,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.fixType,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$RestoreFixLogTableAnnotationComposer
@@ -33084,19 +33309,19 @@ class $$RestoreFixLogTableAnnotationComposer
       $composableBuilder(column: $table.fixId, builder: (column) => column);
 
   GeneratedColumn<int> get executedAt => $composableBuilder(
-        column: $table.executedAt,
-        builder: (column) => column,
-      );
+    column: $table.executedAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get targetTable => $composableBuilder(
-        column: $table.targetTable,
-        builder: (column) => column,
-      );
+    column: $table.targetTable,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get targetRecordId => $composableBuilder(
-        column: $table.targetRecordId,
-        builder: (column) => column,
-      );
+    column: $table.targetRecordId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get fieldName =>
       $composableBuilder(column: $table.fieldName, builder: (column) => column);
@@ -33114,125 +33339,136 @@ class $$RestoreFixLogTableAnnotationComposer
       $composableBuilder(column: $table.fixType, builder: (column) => column);
 }
 
-class $$RestoreFixLogTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $RestoreFixLogTable,
-    RestoreFixLogData,
-    $$RestoreFixLogTableFilterComposer,
-    $$RestoreFixLogTableOrderingComposer,
-    $$RestoreFixLogTableAnnotationComposer,
-    $$RestoreFixLogTableCreateCompanionBuilder,
-    $$RestoreFixLogTableUpdateCompanionBuilder,
-    (
-      RestoreFixLogData,
-      BaseReferences<_$AppDatabase, $RestoreFixLogTable, RestoreFixLogData>,
-    ),
-    RestoreFixLogData,
-    PrefetchHooks Function()> {
-  $$RestoreFixLogTableTableManager(_$AppDatabase db, $RestoreFixLogTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$RestoreFixLogTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$RestoreFixLogTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$RestoreFixLogTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<String> fixId = const Value.absent(),
-              Value<int> executedAt = const Value.absent(),
-              Value<String> targetTable = const Value.absent(),
-              Value<int> targetRecordId = const Value.absent(),
-              Value<String> fieldName = const Value.absent(),
-              Value<String?> oldValue = const Value.absent(),
-              Value<String?> newValue = const Value.absent(),
-              Value<String> reason = const Value.absent(),
-              Value<String> fixType = const Value.absent(),
-            }) =>
-                RestoreFixLogCompanion(
-              id: id,
-              fixId: fixId,
-              executedAt: executedAt,
-              targetTable: targetTable,
-              targetRecordId: targetRecordId,
-              fieldName: fieldName,
-              oldValue: oldValue,
-              newValue: newValue,
-              reason: reason,
-              fixType: fixType,
-            ),
-            createCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              required String fixId,
-              required int executedAt,
-              required String targetTable,
-              required int targetRecordId,
-              required String fieldName,
-              Value<String?> oldValue = const Value.absent(),
-              Value<String?> newValue = const Value.absent(),
-              required String reason,
-              required String fixType,
-            }) =>
-                RestoreFixLogCompanion.insert(
-              id: id,
-              fixId: fixId,
-              executedAt: executedAt,
-              targetTable: targetTable,
-              targetRecordId: targetRecordId,
-              fieldName: fieldName,
-              oldValue: oldValue,
-              newValue: newValue,
-              reason: reason,
-              fixType: fixType,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-                .toList(),
-            prefetchHooksCallback: null,
+class $$RestoreFixLogTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RestoreFixLogTable,
+          RestoreFixLogData,
+          $$RestoreFixLogTableFilterComposer,
+          $$RestoreFixLogTableOrderingComposer,
+          $$RestoreFixLogTableAnnotationComposer,
+          $$RestoreFixLogTableCreateCompanionBuilder,
+          $$RestoreFixLogTableUpdateCompanionBuilder,
+          (
+            RestoreFixLogData,
+            BaseReferences<
+              _$AppDatabase,
+              $RestoreFixLogTable,
+              RestoreFixLogData
+            >,
           ),
-        );
+          RestoreFixLogData,
+          PrefetchHooks Function()
+        > {
+  $$RestoreFixLogTableTableManager(_$AppDatabase db, $RestoreFixLogTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RestoreFixLogTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RestoreFixLogTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RestoreFixLogTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> fixId = const Value.absent(),
+                Value<int> executedAt = const Value.absent(),
+                Value<String> targetTable = const Value.absent(),
+                Value<int> targetRecordId = const Value.absent(),
+                Value<String> fieldName = const Value.absent(),
+                Value<String?> oldValue = const Value.absent(),
+                Value<String?> newValue = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<String> fixType = const Value.absent(),
+              }) => RestoreFixLogCompanion(
+                id: id,
+                fixId: fixId,
+                executedAt: executedAt,
+                targetTable: targetTable,
+                targetRecordId: targetRecordId,
+                fieldName: fieldName,
+                oldValue: oldValue,
+                newValue: newValue,
+                reason: reason,
+                fixType: fixType,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String fixId,
+                required int executedAt,
+                required String targetTable,
+                required int targetRecordId,
+                required String fieldName,
+                Value<String?> oldValue = const Value.absent(),
+                Value<String?> newValue = const Value.absent(),
+                required String reason,
+                required String fixType,
+              }) => RestoreFixLogCompanion.insert(
+                id: id,
+                fixId: fixId,
+                executedAt: executedAt,
+                targetTable: targetTable,
+                targetRecordId: targetRecordId,
+                fieldName: fieldName,
+                oldValue: oldValue,
+                newValue: newValue,
+                reason: reason,
+                fixType: fixType,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
 }
 
-typedef $$RestoreFixLogTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $RestoreFixLogTable,
-    RestoreFixLogData,
-    $$RestoreFixLogTableFilterComposer,
-    $$RestoreFixLogTableOrderingComposer,
-    $$RestoreFixLogTableAnnotationComposer,
-    $$RestoreFixLogTableCreateCompanionBuilder,
-    $$RestoreFixLogTableUpdateCompanionBuilder,
-    (
+typedef $$RestoreFixLogTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RestoreFixLogTable,
       RestoreFixLogData,
-      BaseReferences<_$AppDatabase, $RestoreFixLogTable, RestoreFixLogData>,
-    ),
-    RestoreFixLogData,
-    PrefetchHooks Function()>;
-typedef $$SyncQueueTableCreateCompanionBuilder = SyncQueueCompanion Function({
-  Value<int> id,
-  required String uuid,
-  required String targetTable,
-  required String operation,
-  required String payload,
-  required String updatedAt,
-  required String deviceId,
-  Value<String> status,
-  required String createdAt,
-});
-typedef $$SyncQueueTableUpdateCompanionBuilder = SyncQueueCompanion Function({
-  Value<int> id,
-  Value<String> uuid,
-  Value<String> targetTable,
-  Value<String> operation,
-  Value<String> payload,
-  Value<String> updatedAt,
-  Value<String> deviceId,
-  Value<String> status,
-  Value<String> createdAt,
-});
+      $$RestoreFixLogTableFilterComposer,
+      $$RestoreFixLogTableOrderingComposer,
+      $$RestoreFixLogTableAnnotationComposer,
+      $$RestoreFixLogTableCreateCompanionBuilder,
+      $$RestoreFixLogTableUpdateCompanionBuilder,
+      (
+        RestoreFixLogData,
+        BaseReferences<_$AppDatabase, $RestoreFixLogTable, RestoreFixLogData>,
+      ),
+      RestoreFixLogData,
+      PrefetchHooks Function()
+    >;
+typedef $$SyncQueueTableCreateCompanionBuilder =
+    SyncQueueCompanion Function({
+      Value<int> id,
+      required String uuid,
+      required String targetTable,
+      required String operation,
+      required String payload,
+      required String updatedAt,
+      required String deviceId,
+      Value<String> status,
+      required String createdAt,
+    });
+typedef $$SyncQueueTableUpdateCompanionBuilder =
+    SyncQueueCompanion Function({
+      Value<int> id,
+      Value<String> uuid,
+      Value<String> targetTable,
+      Value<String> operation,
+      Value<String> payload,
+      Value<String> updatedAt,
+      Value<String> deviceId,
+      Value<String> status,
+      Value<String> createdAt,
+    });
 
 class $$SyncQueueTableFilterComposer
     extends Composer<_$AppDatabase, $SyncQueueTable> {
@@ -33244,49 +33480,49 @@ class $$SyncQueueTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get uuid => $composableBuilder(
-        column: $table.uuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get targetTable => $composableBuilder(
-        column: $table.targetTable,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.targetTable,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get operation => $composableBuilder(
-        column: $table.operation,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.operation,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get payload => $composableBuilder(
-        column: $table.payload,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deviceId => $composableBuilder(
-        column: $table.deviceId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SyncQueueTableOrderingComposer
@@ -33299,49 +33535,49 @@ class $$SyncQueueTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get uuid => $composableBuilder(
-        column: $table.uuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get targetTable => $composableBuilder(
-        column: $table.targetTable,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.targetTable,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get operation => $composableBuilder(
-        column: $table.operation,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.operation,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get payload => $composableBuilder(
-        column: $table.payload,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get updatedAt => $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deviceId => $composableBuilder(
-        column: $table.deviceId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SyncQueueTableAnnotationComposer
@@ -33360,9 +33596,9 @@ class $$SyncQueueTableAnnotationComposer
       $composableBuilder(column: $table.uuid, builder: (column) => column);
 
   GeneratedColumn<String> get targetTable => $composableBuilder(
-        column: $table.targetTable,
-        builder: (column) => column,
-      );
+    column: $table.targetTable,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get operation =>
       $composableBuilder(column: $table.operation, builder: (column) => column);
@@ -33383,135 +33619,140 @@ class $$SyncQueueTableAnnotationComposer
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
 
-class $$SyncQueueTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $SyncQueueTable,
-    SyncQueueData,
-    $$SyncQueueTableFilterComposer,
-    $$SyncQueueTableOrderingComposer,
-    $$SyncQueueTableAnnotationComposer,
-    $$SyncQueueTableCreateCompanionBuilder,
-    $$SyncQueueTableUpdateCompanionBuilder,
-    (
-      SyncQueueData,
-      BaseReferences<_$AppDatabase, $SyncQueueTable, SyncQueueData>,
-    ),
-    SyncQueueData,
-    PrefetchHooks Function()> {
-  $$SyncQueueTableTableManager(_$AppDatabase db, $SyncQueueTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$SyncQueueTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$SyncQueueTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$SyncQueueTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<String> uuid = const Value.absent(),
-              Value<String> targetTable = const Value.absent(),
-              Value<String> operation = const Value.absent(),
-              Value<String> payload = const Value.absent(),
-              Value<String> updatedAt = const Value.absent(),
-              Value<String> deviceId = const Value.absent(),
-              Value<String> status = const Value.absent(),
-              Value<String> createdAt = const Value.absent(),
-            }) =>
-                SyncQueueCompanion(
-              id: id,
-              uuid: uuid,
-              targetTable: targetTable,
-              operation: operation,
-              payload: payload,
-              updatedAt: updatedAt,
-              deviceId: deviceId,
-              status: status,
-              createdAt: createdAt,
-            ),
-            createCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              required String uuid,
-              required String targetTable,
-              required String operation,
-              required String payload,
-              required String updatedAt,
-              required String deviceId,
-              Value<String> status = const Value.absent(),
-              required String createdAt,
-            }) =>
-                SyncQueueCompanion.insert(
-              id: id,
-              uuid: uuid,
-              targetTable: targetTable,
-              operation: operation,
-              payload: payload,
-              updatedAt: updatedAt,
-              deviceId: deviceId,
-              status: status,
-              createdAt: createdAt,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-                .toList(),
-            prefetchHooksCallback: null,
+class $$SyncQueueTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncQueueTable,
+          SyncQueueData,
+          $$SyncQueueTableFilterComposer,
+          $$SyncQueueTableOrderingComposer,
+          $$SyncQueueTableAnnotationComposer,
+          $$SyncQueueTableCreateCompanionBuilder,
+          $$SyncQueueTableUpdateCompanionBuilder,
+          (
+            SyncQueueData,
+            BaseReferences<_$AppDatabase, $SyncQueueTable, SyncQueueData>,
           ),
-        );
+          SyncQueueData,
+          PrefetchHooks Function()
+        > {
+  $$SyncQueueTableTableManager(_$AppDatabase db, $SyncQueueTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncQueueTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncQueueTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncQueueTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> uuid = const Value.absent(),
+                Value<String> targetTable = const Value.absent(),
+                Value<String> operation = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+              }) => SyncQueueCompanion(
+                id: id,
+                uuid: uuid,
+                targetTable: targetTable,
+                operation: operation,
+                payload: payload,
+                updatedAt: updatedAt,
+                deviceId: deviceId,
+                status: status,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String uuid,
+                required String targetTable,
+                required String operation,
+                required String payload,
+                required String updatedAt,
+                required String deviceId,
+                Value<String> status = const Value.absent(),
+                required String createdAt,
+              }) => SyncQueueCompanion.insert(
+                id: id,
+                uuid: uuid,
+                targetTable: targetTable,
+                operation: operation,
+                payload: payload,
+                updatedAt: updatedAt,
+                deviceId: deviceId,
+                status: status,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
 }
 
-typedef $$SyncQueueTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $SyncQueueTable,
-    SyncQueueData,
-    $$SyncQueueTableFilterComposer,
-    $$SyncQueueTableOrderingComposer,
-    $$SyncQueueTableAnnotationComposer,
-    $$SyncQueueTableCreateCompanionBuilder,
-    $$SyncQueueTableUpdateCompanionBuilder,
-    (
+typedef $$SyncQueueTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncQueueTable,
       SyncQueueData,
-      BaseReferences<_$AppDatabase, $SyncQueueTable, SyncQueueData>,
-    ),
-    SyncQueueData,
-    PrefetchHooks Function()>;
-typedef $$SyncLogTableCreateCompanionBuilder = SyncLogCompanion Function({
-  Value<int> id,
-  required String syncId,
-  required String direction,
-  required String deviceId,
-  required String metadata,
-  required String operations,
-  Value<int> checksumMatched,
-  Value<String> status,
-  required String createdAt,
-  Value<String?> completedAt,
-});
-typedef $$SyncLogTableUpdateCompanionBuilder = SyncLogCompanion Function({
-  Value<int> id,
-  Value<String> syncId,
-  Value<String> direction,
-  Value<String> deviceId,
-  Value<String> metadata,
-  Value<String> operations,
-  Value<int> checksumMatched,
-  Value<String> status,
-  Value<String> createdAt,
-  Value<String?> completedAt,
-});
+      $$SyncQueueTableFilterComposer,
+      $$SyncQueueTableOrderingComposer,
+      $$SyncQueueTableAnnotationComposer,
+      $$SyncQueueTableCreateCompanionBuilder,
+      $$SyncQueueTableUpdateCompanionBuilder,
+      (
+        SyncQueueData,
+        BaseReferences<_$AppDatabase, $SyncQueueTable, SyncQueueData>,
+      ),
+      SyncQueueData,
+      PrefetchHooks Function()
+    >;
+typedef $$SyncLogTableCreateCompanionBuilder =
+    SyncLogCompanion Function({
+      Value<int> id,
+      required String syncId,
+      required String direction,
+      required String deviceId,
+      required String metadata,
+      required String operations,
+      Value<int> checksumMatched,
+      Value<String> status,
+      required String createdAt,
+      Value<String?> completedAt,
+    });
+typedef $$SyncLogTableUpdateCompanionBuilder =
+    SyncLogCompanion Function({
+      Value<int> id,
+      Value<String> syncId,
+      Value<String> direction,
+      Value<String> deviceId,
+      Value<String> metadata,
+      Value<String> operations,
+      Value<int> checksumMatched,
+      Value<String> status,
+      Value<String> createdAt,
+      Value<String?> completedAt,
+    });
 
 final class $$SyncLogTableReferences
     extends BaseReferences<_$AppDatabase, $SyncLogTable, SyncLogData> {
   $$SyncLogTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static MultiTypedResultKey<$SyncConflictsTable, List<SyncConflictRow>>
-      _syncConflictsRefsTable(_$AppDatabase db) =>
-          MultiTypedResultKey.fromTable(
-            db.syncConflicts,
-            aliasName:
-                $_aliasNameGenerator(db.syncLog.id, db.syncConflicts.logId),
-          );
+  _syncConflictsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.syncConflicts,
+    aliasName: $_aliasNameGenerator(db.syncLog.id, db.syncConflicts.logId),
+  );
 
   $$SyncConflictsTableProcessedTableManager get syncConflictsRefs {
     final manager = $$SyncConflictsTableTableManager(
@@ -33536,54 +33777,54 @@ class $$SyncLogTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get syncId => $composableBuilder(
-        column: $table.syncId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get direction => $composableBuilder(
-        column: $table.direction,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.direction,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get deviceId => $composableBuilder(
-        column: $table.deviceId,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get metadata => $composableBuilder(
-        column: $table.metadata,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.metadata,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get operations => $composableBuilder(
-        column: $table.operations,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.operations,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get checksumMatched => $composableBuilder(
-        column: $table.checksumMatched,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.checksumMatched,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get completedAt => $composableBuilder(
-        column: $table.completedAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   Expression<bool> syncConflictsRefs(
     Expression<bool> Function($$SyncConflictsTableFilterComposer f) f,
@@ -33593,18 +33834,19 @@ class $$SyncLogTableFilterComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.syncConflicts,
       getReferencedColumn: (t) => t.logId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SyncConflictsTableFilterComposer(
-        $db: $db,
-        $table: $db.syncConflicts,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SyncConflictsTableFilterComposer(
+            $db: $db,
+            $table: $db.syncConflicts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
@@ -33620,54 +33862,54 @@ class $$SyncLogTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get syncId => $composableBuilder(
-        column: $table.syncId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get direction => $composableBuilder(
-        column: $table.direction,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.direction,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get deviceId => $composableBuilder(
-        column: $table.deviceId,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get metadata => $composableBuilder(
-        column: $table.metadata,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.metadata,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get operations => $composableBuilder(
-        column: $table.operations,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.operations,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get checksumMatched => $composableBuilder(
-        column: $table.checksumMatched,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.checksumMatched,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get status => $composableBuilder(
-        column: $table.status,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get completedAt => $composableBuilder(
-        column: $table.completedAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SyncLogTableAnnotationComposer
@@ -33695,14 +33937,14 @@ class $$SyncLogTableAnnotationComposer
       $composableBuilder(column: $table.metadata, builder: (column) => column);
 
   GeneratedColumn<String> get operations => $composableBuilder(
-        column: $table.operations,
-        builder: (column) => column,
-      );
+    column: $table.operations,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get checksumMatched => $composableBuilder(
-        column: $table.checksumMatched,
-        builder: (column) => column,
-      );
+    column: $table.checksumMatched,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
@@ -33711,9 +33953,9 @@ class $$SyncLogTableAnnotationComposer
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   GeneratedColumn<String> get completedAt => $composableBuilder(
-        column: $table.completedAt,
-        builder: (column) => column,
-      );
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
 
   Expression<T> syncConflictsRefs<T extends Object>(
     Expression<T> Function($$SyncConflictsTableAnnotationComposer a) f,
@@ -33723,173 +33965,181 @@ class $$SyncLogTableAnnotationComposer
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.syncConflicts,
       getReferencedColumn: (t) => t.logId,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SyncConflictsTableAnnotationComposer(
-        $db: $db,
-        $table: $db.syncConflicts,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SyncConflictsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.syncConflicts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return f(composer);
   }
 }
 
-class $$SyncLogTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $SyncLogTable,
-    SyncLogData,
-    $$SyncLogTableFilterComposer,
-    $$SyncLogTableOrderingComposer,
-    $$SyncLogTableAnnotationComposer,
-    $$SyncLogTableCreateCompanionBuilder,
-    $$SyncLogTableUpdateCompanionBuilder,
-    (SyncLogData, $$SyncLogTableReferences),
-    SyncLogData,
-    PrefetchHooks Function({bool syncConflictsRefs})> {
+class $$SyncLogTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncLogTable,
+          SyncLogData,
+          $$SyncLogTableFilterComposer,
+          $$SyncLogTableOrderingComposer,
+          $$SyncLogTableAnnotationComposer,
+          $$SyncLogTableCreateCompanionBuilder,
+          $$SyncLogTableUpdateCompanionBuilder,
+          (SyncLogData, $$SyncLogTableReferences),
+          SyncLogData,
+          PrefetchHooks Function({bool syncConflictsRefs})
+        > {
   $$SyncLogTableTableManager(_$AppDatabase db, $SyncLogTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$SyncLogTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$SyncLogTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$SyncLogTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<String> syncId = const Value.absent(),
-              Value<String> direction = const Value.absent(),
-              Value<String> deviceId = const Value.absent(),
-              Value<String> metadata = const Value.absent(),
-              Value<String> operations = const Value.absent(),
-              Value<int> checksumMatched = const Value.absent(),
-              Value<String> status = const Value.absent(),
-              Value<String> createdAt = const Value.absent(),
-              Value<String?> completedAt = const Value.absent(),
-            }) =>
-                SyncLogCompanion(
-              id: id,
-              syncId: syncId,
-              direction: direction,
-              deviceId: deviceId,
-              metadata: metadata,
-              operations: operations,
-              checksumMatched: checksumMatched,
-              status: status,
-              createdAt: createdAt,
-              completedAt: completedAt,
-            ),
-            createCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              required String syncId,
-              required String direction,
-              required String deviceId,
-              required String metadata,
-              required String operations,
-              Value<int> checksumMatched = const Value.absent(),
-              Value<String> status = const Value.absent(),
-              required String createdAt,
-              Value<String?> completedAt = const Value.absent(),
-            }) =>
-                SyncLogCompanion.insert(
-              id: id,
-              syncId: syncId,
-              direction: direction,
-              deviceId: deviceId,
-              metadata: metadata,
-              operations: operations,
-              checksumMatched: checksumMatched,
-              status: status,
-              createdAt: createdAt,
-              completedAt: completedAt,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$SyncLogTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({syncConflictsRefs = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [
-                  if (syncConflictsRefs) db.syncConflicts,
-                ],
-                addJoins: null,
-                getPrefetchedDataCallback: (items) async {
-                  return [
-                    if (syncConflictsRefs)
-                      await $_getPrefetchedData<SyncLogData, $SyncLogTable,
-                          SyncConflictRow>(
-                        currentTable: table,
-                        referencedTable: $$SyncLogTableReferences
-                            ._syncConflictsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$SyncLogTableReferences(
-                          db,
-                          table,
-                          p0,
-                        ).syncConflictsRefs,
-                        referencedItemsForCurrentItem: (item,
-                                referencedItems) =>
-                            referencedItems.where((e) => e.logId == item.id),
-                        typedResults: items,
-                      ),
-                  ];
-                },
-              );
-            },
-          ),
-        );
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncLogTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncLogTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncLogTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> syncId = const Value.absent(),
+                Value<String> direction = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String> metadata = const Value.absent(),
+                Value<String> operations = const Value.absent(),
+                Value<int> checksumMatched = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String?> completedAt = const Value.absent(),
+              }) => SyncLogCompanion(
+                id: id,
+                syncId: syncId,
+                direction: direction,
+                deviceId: deviceId,
+                metadata: metadata,
+                operations: operations,
+                checksumMatched: checksumMatched,
+                status: status,
+                createdAt: createdAt,
+                completedAt: completedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String syncId,
+                required String direction,
+                required String deviceId,
+                required String metadata,
+                required String operations,
+                Value<int> checksumMatched = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                required String createdAt,
+                Value<String?> completedAt = const Value.absent(),
+              }) => SyncLogCompanion.insert(
+                id: id,
+                syncId: syncId,
+                direction: direction,
+                deviceId: deviceId,
+                metadata: metadata,
+                operations: operations,
+                checksumMatched: checksumMatched,
+                status: status,
+                createdAt: createdAt,
+                completedAt: completedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SyncLogTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({syncConflictsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (syncConflictsRefs) db.syncConflicts,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (syncConflictsRefs)
+                    await $_getPrefetchedData<
+                      SyncLogData,
+                      $SyncLogTable,
+                      SyncConflictRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$SyncLogTableReferences
+                          ._syncConflictsRefsTable(db),
+                      managerFromTypedResult: (p0) => $$SyncLogTableReferences(
+                        db,
+                        table,
+                        p0,
+                      ).syncConflictsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.logId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
 }
 
-typedef $$SyncLogTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $SyncLogTable,
-    SyncLogData,
-    $$SyncLogTableFilterComposer,
-    $$SyncLogTableOrderingComposer,
-    $$SyncLogTableAnnotationComposer,
-    $$SyncLogTableCreateCompanionBuilder,
-    $$SyncLogTableUpdateCompanionBuilder,
-    (SyncLogData, $$SyncLogTableReferences),
-    SyncLogData,
-    PrefetchHooks Function({bool syncConflictsRefs})>;
-typedef $$SyncConflictsTableCreateCompanionBuilder = SyncConflictsCompanion
-    Function({
-  Value<int> id,
-  required int logId,
-  required String targetTable,
-  required String uuid,
-  required String resolution,
-  required String localPayload,
-  required String remotePayload,
-  required String createdAt,
-});
-typedef $$SyncConflictsTableUpdateCompanionBuilder = SyncConflictsCompanion
-    Function({
-  Value<int> id,
-  Value<int> logId,
-  Value<String> targetTable,
-  Value<String> uuid,
-  Value<String> resolution,
-  Value<String> localPayload,
-  Value<String> remotePayload,
-  Value<String> createdAt,
-});
+typedef $$SyncLogTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncLogTable,
+      SyncLogData,
+      $$SyncLogTableFilterComposer,
+      $$SyncLogTableOrderingComposer,
+      $$SyncLogTableAnnotationComposer,
+      $$SyncLogTableCreateCompanionBuilder,
+      $$SyncLogTableUpdateCompanionBuilder,
+      (SyncLogData, $$SyncLogTableReferences),
+      SyncLogData,
+      PrefetchHooks Function({bool syncConflictsRefs})
+    >;
+typedef $$SyncConflictsTableCreateCompanionBuilder =
+    SyncConflictsCompanion Function({
+      Value<int> id,
+      required int logId,
+      required String targetTable,
+      required String uuid,
+      required String resolution,
+      required String localPayload,
+      required String remotePayload,
+      required String createdAt,
+    });
+typedef $$SyncConflictsTableUpdateCompanionBuilder =
+    SyncConflictsCompanion Function({
+      Value<int> id,
+      Value<int> logId,
+      Value<String> targetTable,
+      Value<String> uuid,
+      Value<String> resolution,
+      Value<String> localPayload,
+      Value<String> remotePayload,
+      Value<String> createdAt,
+    });
 
-final class $$SyncConflictsTableReferences extends BaseReferences<_$AppDatabase,
-    $SyncConflictsTable, SyncConflictRow> {
+final class $$SyncConflictsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $SyncConflictsTable, SyncConflictRow> {
   $$SyncConflictsTableReferences(
     super.$_db,
     super.$_table,
@@ -33897,8 +34147,8 @@ final class $$SyncConflictsTableReferences extends BaseReferences<_$AppDatabase,
   );
 
   static $SyncLogTable _logIdTable(_$AppDatabase db) => db.syncLog.createAlias(
-        $_aliasNameGenerator(db.syncConflicts.logId, db.syncLog.id),
-      );
+    $_aliasNameGenerator(db.syncConflicts.logId, db.syncLog.id),
+  );
 
   $$SyncLogTableProcessedTableManager get logId {
     final $_column = $_itemColumn<int>('log_id')!;
@@ -33925,39 +34175,39 @@ class $$SyncConflictsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get targetTable => $composableBuilder(
-        column: $table.targetTable,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.targetTable,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get uuid => $composableBuilder(
-        column: $table.uuid,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get resolution => $composableBuilder(
-        column: $table.resolution,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.resolution,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get localPayload => $composableBuilder(
-        column: $table.localPayload,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.localPayload,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get remotePayload => $composableBuilder(
-        column: $table.remotePayload,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.remotePayload,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnFilters(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$SyncLogTableFilterComposer get logId {
     final $$SyncLogTableFilterComposer composer = $composerBuilder(
@@ -33965,18 +34215,19 @@ class $$SyncConflictsTableFilterComposer
       getCurrentColumn: (t) => t.logId,
       referencedTable: $db.syncLog,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SyncLogTableFilterComposer(
-        $db: $db,
-        $table: $db.syncLog,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SyncLogTableFilterComposer(
+            $db: $db,
+            $table: $db.syncLog,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -33992,39 +34243,39 @@ class $$SyncConflictsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get targetTable => $composableBuilder(
-        column: $table.targetTable,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.targetTable,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get uuid => $composableBuilder(
-        column: $table.uuid,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get resolution => $composableBuilder(
-        column: $table.resolution,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.resolution,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get localPayload => $composableBuilder(
-        column: $table.localPayload,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.localPayload,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get remotePayload => $composableBuilder(
-        column: $table.remotePayload,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.remotePayload,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get createdAt => $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnOrderings(column),
-      );
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$SyncLogTableOrderingComposer get logId {
     final $$SyncLogTableOrderingComposer composer = $composerBuilder(
@@ -34032,18 +34283,19 @@ class $$SyncConflictsTableOrderingComposer
       getCurrentColumn: (t) => t.logId,
       referencedTable: $db.syncLog,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SyncLogTableOrderingComposer(
-        $db: $db,
-        $table: $db.syncLog,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SyncLogTableOrderingComposer(
+            $db: $db,
+            $table: $db.syncLog,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
@@ -34062,27 +34314,27 @@ class $$SyncConflictsTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get targetTable => $composableBuilder(
-        column: $table.targetTable,
-        builder: (column) => column,
-      );
+    column: $table.targetTable,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get uuid =>
       $composableBuilder(column: $table.uuid, builder: (column) => column);
 
   GeneratedColumn<String> get resolution => $composableBuilder(
-        column: $table.resolution,
-        builder: (column) => column,
-      );
+    column: $table.resolution,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get localPayload => $composableBuilder(
-        column: $table.localPayload,
-        builder: (column) => column,
-      );
+    column: $table.localPayload,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get remotePayload => $composableBuilder(
-        column: $table.remotePayload,
-        builder: (column) => column,
-      );
+    column: $table.remotePayload,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -34093,145 +34345,157 @@ class $$SyncConflictsTableAnnotationComposer
       getCurrentColumn: (t) => t.logId,
       referencedTable: $db.syncLog,
       getReferencedColumn: (t) => t.id,
-      builder: (
-        joinBuilder, {
-        $addJoinBuilderToRootComposer,
-        $removeJoinBuilderFromRootComposer,
-      }) =>
-          $$SyncLogTableAnnotationComposer(
-        $db: $db,
-        $table: $db.syncLog,
-        $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-        joinBuilder: joinBuilder,
-        $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-      ),
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SyncLogTableAnnotationComposer(
+            $db: $db,
+            $table: $db.syncLog,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
     );
     return composer;
   }
 }
 
-class $$SyncConflictsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $SyncConflictsTable,
-    SyncConflictRow,
-    $$SyncConflictsTableFilterComposer,
-    $$SyncConflictsTableOrderingComposer,
-    $$SyncConflictsTableAnnotationComposer,
-    $$SyncConflictsTableCreateCompanionBuilder,
-    $$SyncConflictsTableUpdateCompanionBuilder,
-    (SyncConflictRow, $$SyncConflictsTableReferences),
-    SyncConflictRow,
-    PrefetchHooks Function({bool logId})> {
+class $$SyncConflictsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncConflictsTable,
+          SyncConflictRow,
+          $$SyncConflictsTableFilterComposer,
+          $$SyncConflictsTableOrderingComposer,
+          $$SyncConflictsTableAnnotationComposer,
+          $$SyncConflictsTableCreateCompanionBuilder,
+          $$SyncConflictsTableUpdateCompanionBuilder,
+          (SyncConflictRow, $$SyncConflictsTableReferences),
+          SyncConflictRow,
+          PrefetchHooks Function({bool logId})
+        > {
   $$SyncConflictsTableTableManager(_$AppDatabase db, $SyncConflictsTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$SyncConflictsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$SyncConflictsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$SyncConflictsTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<int> logId = const Value.absent(),
-              Value<String> targetTable = const Value.absent(),
-              Value<String> uuid = const Value.absent(),
-              Value<String> resolution = const Value.absent(),
-              Value<String> localPayload = const Value.absent(),
-              Value<String> remotePayload = const Value.absent(),
-              Value<String> createdAt = const Value.absent(),
-            }) =>
-                SyncConflictsCompanion(
-              id: id,
-              logId: logId,
-              targetTable: targetTable,
-              uuid: uuid,
-              resolution: resolution,
-              localPayload: localPayload,
-              remotePayload: remotePayload,
-              createdAt: createdAt,
-            ),
-            createCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              required int logId,
-              required String targetTable,
-              required String uuid,
-              required String resolution,
-              required String localPayload,
-              required String remotePayload,
-              required String createdAt,
-            }) =>
-                SyncConflictsCompanion.insert(
-              id: id,
-              logId: logId,
-              targetTable: targetTable,
-              uuid: uuid,
-              resolution: resolution,
-              localPayload: localPayload,
-              remotePayload: remotePayload,
-              createdAt: createdAt,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map(
-                  (e) => (
-                    e.readTable(table),
-                    $$SyncConflictsTableReferences(db, table, e),
-                  ),
-                )
-                .toList(),
-            prefetchHooksCallback: ({logId = false}) {
-              return PrefetchHooks(
-                db: db,
-                explicitlyWatchedTables: [],
-                addJoins: <
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncConflictsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncConflictsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncConflictsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> logId = const Value.absent(),
+                Value<String> targetTable = const Value.absent(),
+                Value<String> uuid = const Value.absent(),
+                Value<String> resolution = const Value.absent(),
+                Value<String> localPayload = const Value.absent(),
+                Value<String> remotePayload = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+              }) => SyncConflictsCompanion(
+                id: id,
+                logId: logId,
+                targetTable: targetTable,
+                uuid: uuid,
+                resolution: resolution,
+                localPayload: localPayload,
+                remotePayload: remotePayload,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int logId,
+                required String targetTable,
+                required String uuid,
+                required String resolution,
+                required String localPayload,
+                required String remotePayload,
+                required String createdAt,
+              }) => SyncConflictsCompanion.insert(
+                id: id,
+                logId: logId,
+                targetTable: targetTable,
+                uuid: uuid,
+                resolution: resolution,
+                localPayload: localPayload,
+                remotePayload: remotePayload,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SyncConflictsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({logId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
                     T extends TableManagerState<
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic,
-                        dynamic>>(state) {
-                  if (logId) {
-                    state = state.withJoin(
-                      currentTable: table,
-                      currentColumn: table.logId,
-                      referencedTable:
-                          $$SyncConflictsTableReferences._logIdTable(db),
-                      referencedColumn:
-                          $$SyncConflictsTableReferences._logIdTable(db).id,
-                    ) as T;
-                  }
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (logId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.logId,
+                                referencedTable: $$SyncConflictsTableReferences
+                                    ._logIdTable(db),
+                                referencedColumn: $$SyncConflictsTableReferences
+                                    ._logIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
 
-                  return state;
-                },
-                getPrefetchedDataCallback: (items) async {
-                  return [];
-                },
-              );
-            },
-          ),
-        );
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
 }
 
-typedef $$SyncConflictsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $SyncConflictsTable,
-    SyncConflictRow,
-    $$SyncConflictsTableFilterComposer,
-    $$SyncConflictsTableOrderingComposer,
-    $$SyncConflictsTableAnnotationComposer,
-    $$SyncConflictsTableCreateCompanionBuilder,
-    $$SyncConflictsTableUpdateCompanionBuilder,
-    (SyncConflictRow, $$SyncConflictsTableReferences),
-    SyncConflictRow,
-    PrefetchHooks Function({bool logId})>;
+typedef $$SyncConflictsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncConflictsTable,
+      SyncConflictRow,
+      $$SyncConflictsTableFilterComposer,
+      $$SyncConflictsTableOrderingComposer,
+      $$SyncConflictsTableAnnotationComposer,
+      $$SyncConflictsTableCreateCompanionBuilder,
+      $$SyncConflictsTableUpdateCompanionBuilder,
+      (SyncConflictRow, $$SyncConflictsTableReferences),
+      SyncConflictRow,
+      PrefetchHooks Function({bool logId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;

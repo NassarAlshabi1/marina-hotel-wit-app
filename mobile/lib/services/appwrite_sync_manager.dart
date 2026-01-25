@@ -413,10 +413,10 @@ class AppwriteSyncManager {
         'syncType': push && pull
             ? 'full'
             : push
-                ? 'push'
-                : pull
-                    ? 'pull'
-                    : 'noop',
+            ? 'push'
+            : pull
+            ? 'pull'
+            : 'noop',
         'startTime': startTime.toIso8601String(),
         'status': SyncLogStatus.inProgress.value,
         'action': 'sync_start',
@@ -709,19 +709,21 @@ class AppwriteSyncManager {
         'totalSyncs': totalSyncs,
         'successfulSyncs': successfulSyncs,
         'failedSyncs': failedSyncs,
-        'successRate':
-            totalSyncs > 0 ? (successfulSyncs / totalSyncs * 100) : 0.0,
+        'successRate': totalSyncs > 0
+            ? (successfulSyncs / totalSyncs * 100)
+            : 0.0,
         'totalRecordsPushed': totalRecordsPushed,
         'totalRecordsPulled': totalRecordsPulled,
         'totalConflicts': totalConflicts,
         'lastSyncTime': _lastSyncTime?.toIso8601String(),
         'outboxCount': outboxCount,
-        'lastErrorMessage':
-            lastFailed != null ? (lastFailed['errorMessage'] ?? '') : null,
+        'lastErrorMessage': lastFailed != null
+            ? (lastFailed['errorMessage'] ?? '')
+            : null,
         'lastErrorTime': lastFailed != null
             ? (lastFailed['timestamp'] ??
-                lastFailed['endTime'] ??
-                lastFailed['startTime'])
+                  lastFailed['endTime'] ??
+                  lastFailed['startTime'])
             : null,
         'timeline': timeline,
       };
@@ -787,16 +789,16 @@ class AppwriteSyncManager {
           origin: d.Value(_asString(data['origin']) ?? 'server'),
         );
 
-        final existing = await (database.select(database.rooms)
-              ..where((r) => r.roomNumber.equals(roomNumber))
-              ..limit(1))
-            .getSingleOrNull();
+        final existing =
+            await (database.select(database.rooms)
+                  ..where((r) => r.roomNumber.equals(roomNumber))
+                  ..limit(1))
+                .getSingleOrNull();
 
         if (existing != null) {
           await (database.update(
             database.rooms,
-          )..where((r) => r.roomNumber.equals(roomNumber)))
-              .write(companion);
+          )..where((r) => r.roomNumber.equals(roomNumber))).write(companion);
         } else {
           try {
             await database.into(database.rooms).insert(companion);
@@ -804,8 +806,7 @@ class AppwriteSyncManager {
             // إذا حدث تعارض فريد بسبب room_number، حاول تحديث السجل بدل الإدراج
             await (database.update(
               database.rooms,
-            )..where((r) => r.roomNumber.equals(roomNumber)))
-                .write(companion);
+            )..where((r) => r.roomNumber.equals(roomNumber))).write(companion);
           }
         }
         processed++;
@@ -827,8 +828,7 @@ class AppwriteSyncManager {
     if (roomNumbers.isNotEmpty) {
       final existingRooms = await (database.select(
         database.rooms,
-      )..where((r) => r.roomNumber.isIn(roomNumbers.toList())))
-          .get();
+      )..where((r) => r.roomNumber.isIn(roomNumbers.toList()))).get();
       existingRoomSet.addAll(existingRooms.map((r) => r.roomNumber));
     }
 
@@ -843,7 +843,9 @@ class AppwriteSyncManager {
 
         if (!existingRoomSet.contains(roomNumber)) {
           final now = Time.nowEpoch();
-          await database.into(database.rooms).insertOnConflictUpdate(
+          await database
+              .into(database.rooms)
+              .insertOnConflictUpdate(
                 RoomsCompanion(
                   roomNumber: d.Value(roomNumber),
                   type: const d.Value(''),
@@ -871,10 +873,10 @@ class AppwriteSyncManager {
             final checkinDate = DateTime.parse(checkinDateStr);
             final checkoutDate =
                 actualCheckoutStr != null && actualCheckoutStr.isNotEmpty
-                    ? DateTime.parse(actualCheckoutStr)
-                    : (checkoutDateStr != null && checkoutDateStr.isNotEmpty
-                        ? DateTime.parse(checkoutDateStr)
-                        : null);
+                ? DateTime.parse(actualCheckoutStr)
+                : (checkoutDateStr != null && checkoutDateStr.isNotEmpty
+                      ? DateTime.parse(checkoutDateStr)
+                      : null);
 
             if (checkoutDate != null) {
               calculatedNights = Time.nightsWithCutoff(
@@ -925,24 +927,23 @@ class AppwriteSyncManager {
           calculatedNights: d.Value(calculatedNights),
         );
 
-        final existingByUuid = await (database.select(database.bookings)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final existingByUuid =
+            await (database.select(database.bookings)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
 
         if (existingByUuid != null) {
           await (database.update(
             database.bookings,
-          )..where((t) => t.localUuid.equals(localUuid)))
-              .write(companion);
+          )..where((t) => t.localUuid.equals(localUuid))).write(companion);
         } else {
           try {
             await database.into(database.bookings).insert(companion);
           } catch (_) {
             await (database.update(
               database.bookings,
-            )..where((t) => t.localUuid.equals(localUuid)))
-                .write(companion);
+            )..where((t) => t.localUuid.equals(localUuid))).write(companion);
           }
         }
         processed++;
@@ -1062,8 +1063,7 @@ class AppwriteSyncManager {
     if (bookingIds.isNotEmpty) {
       final rows = await (database.select(
         database.bookings,
-      )..where((b) => b.id.isIn(bookingIds.toList())))
-          .get();
+      )..where((b) => b.id.isIn(bookingIds.toList()))).get();
       existingBookingIds.addAll(rows.map((r) => r.id));
       for (final row in rows) {
         bookingUuidCache[row.localUuid] = row.id;
@@ -1074,8 +1074,7 @@ class AppwriteSyncManager {
     if (serverBookingIds.isNotEmpty) {
       final rows = await (database.select(
         database.bookings,
-      )..where((b) => b.serverBookingId.isIn(serverBookingIds.toList())))
-          .get();
+      )..where((b) => b.serverBookingId.isIn(serverBookingIds.toList()))).get();
       for (final row in rows) {
         final serverId = row.serverBookingId;
         if (serverId != null) {
@@ -1089,8 +1088,7 @@ class AppwriteSyncManager {
     if (cashIds.isNotEmpty) {
       final rows = await (database.select(
         database.cashTransactions,
-      )..where((c) => c.id.isIn(cashIds.toList())))
-          .get();
+      )..where((c) => c.id.isIn(cashIds.toList()))).get();
       existingCashIds.addAll(rows.map((r) => r.id));
     }
 
@@ -1119,7 +1117,8 @@ class AppwriteSyncManager {
         }
 
         if (bookingLocalId == null) {
-          final bookingUuid = _asString(data['bookingUuidCache']) ??
+          final bookingUuid =
+              _asString(data['bookingUuidCache']) ??
               _asString(data['bookingUuid']) ??
               _asString(data['booking_uuid_cache']) ??
               _asString(data['booking_uuid']);
@@ -1127,10 +1126,11 @@ class AppwriteSyncManager {
             if (bookingUuidCache.containsKey(bookingUuid)) {
               bookingLocalId = bookingUuidCache[bookingUuid];
             } else {
-              final b = await (database.select(database.bookings)
-                    ..where((t) => t.localUuid.equals(bookingUuid))
-                    ..limit(1))
-                  .getSingleOrNull();
+              final b =
+                  await (database.select(database.bookings)
+                        ..where((t) => t.localUuid.equals(bookingUuid))
+                        ..limit(1))
+                      .getSingleOrNull();
               bookingLocalId = b?.id;
               bookingUuidCache[bookingUuid] = bookingLocalId;
               if (b?.serverBookingId != null && bookingLocalId != null) {
@@ -1193,24 +1193,23 @@ class AppwriteSyncManager {
           ),
         );
 
-        final existingPayment = await (database.select(database.payments)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final existingPayment =
+            await (database.select(database.payments)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
 
         if (existingPayment != null) {
           await (database.update(
             database.payments,
-          )..where((t) => t.localUuid.equals(localUuid)))
-              .write(companion);
+          )..where((t) => t.localUuid.equals(localUuid))).write(companion);
         } else {
           try {
             await database.into(database.payments).insert(companion);
           } catch (_) {
             await (database.update(
               database.payments,
-            )..where((t) => t.localUuid.equals(localUuid)))
-                .write(companion);
+            )..where((t) => t.localUuid.equals(localUuid))).write(companion);
           }
         }
         processed++;
@@ -1252,10 +1251,11 @@ class AppwriteSyncManager {
 
         if (bookingLocalId != null) {
           final bookingId = bookingLocalId;
-          final bookingExists = await (database.select(database.bookings)
-                ..where((b) => b.id.equals(bookingId))
-                ..limit(1))
-              .getSingleOrNull();
+          final bookingExists =
+              await (database.select(database.bookings)
+                    ..where((b) => b.id.equals(bookingId))
+                    ..limit(1))
+                  .getSingleOrNull();
 
           if (bookingExists == null) {
             _logger.warning(
@@ -1611,36 +1611,31 @@ class AppwriteSyncManager {
   Future<Room?> _getRoomByLocalUuid(String localUuid) {
     return (database.select(
       database.rooms,
-    )..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Booking?> _getBookingByLocalUuid(String localUuid) {
     return (database.select(
       database.bookings,
-    )..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Expense?> _getExpenseByLocalUuid(String localUuid) {
     return (database.select(
       database.expenses,
-    )..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Payment?> _getPaymentByLocalUuid(String localUuid) {
     return (database.select(
       database.payments,
-    )..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Debt?> _getDebtByLocalUuid(String localUuid) {
     return (database.select(
       database.debts,
-    )..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Map<String, dynamic> _roomToRemote(Room room) {

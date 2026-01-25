@@ -93,6 +93,8 @@ class SyncPerformanceOptimizer {
       _isOnWiFi = false;
     } else if (results.contains(ConnectivityResult.vpn)) {
       _isOnWiFi = false; // VPN قد يكون بطيء
+    } else if (results.contains(ConnectivityResult.none)) {
+      _isOnWiFi = false;
     } else if (results.contains(ConnectivityResult.bluetooth)) {
       _isOnWiFi = false; // البلوتوث بطيء
     } else if (results.contains(ConnectivityResult.other)) {
@@ -143,6 +145,11 @@ class SyncPerformanceOptimizer {
       }
     }
     return types.join(' + ');
+  }
+
+  @visibleForTesting
+  void simulateConnectivity(List<ConnectivityResult> results) {
+    _updateConnectivityStatus(results);
   }
 
   /// الحصول على إعدادات الأداء الحالية

@@ -8,9 +8,9 @@ import '../../utils/time.dart';
 
 class PaymentsRepository {
   PaymentsRepository(this.db)
-      : outbox = OutboxDao(db),
-        dao = PaymentsDao(db, OutboxDao(db)),
-        derivedFields = BookingDerivedFieldsService(db);
+    : outbox = OutboxDao(db),
+      dao = PaymentsDao(db, OutboxDao(db)),
+      derivedFields = BookingDerivedFieldsService(db);
   final AppDatabase db;
   final OutboxDao outbox;
   final PaymentsDao dao;
@@ -19,8 +19,7 @@ class PaymentsRepository {
   Stream<List<Payment>> paymentsByBooking(int bookingLocalId) {
     final bookingStream = (db.select(
       db.bookings,
-    )..where((b) => b.id.equals(bookingLocalId)))
-        .watchSingleOrNull();
+    )..where((b) => b.id.equals(bookingLocalId))).watchSingleOrNull();
 
     return bookingStream.asyncExpand((booking) {
       final q = db.select(db.payments);
@@ -59,8 +58,7 @@ class PaymentsRepository {
     if (bookingLocalId != null) {
       final booking = await (db.select(
         db.bookings,
-      )..where((b) => b.id.equals(bookingLocalId)))
-          .getSingleOrNull();
+      )..where((b) => b.id.equals(bookingLocalId))).getSingleOrNull();
       bookingUuidCache = booking?.localUuid;
     }
 
@@ -102,12 +100,12 @@ class PaymentsRepository {
   }) async {
     final before = await (db.select(
       db.payments,
-    )..where((p) => p.id.equals(id)))
-        .getSingleOrNull();
+    )..where((p) => p.id.equals(id))).getSingleOrNull();
     final oldBookingId = before?.bookingLocalId;
 
-    final hotelDayKey =
-        paymentDate != null ? Time.hotelDayKeyFromIso(paymentDate) : null;
+    final hotelDayKey = paymentDate != null
+        ? Time.hotelDayKeyFromIso(paymentDate)
+        : null;
     final result = await dao.updateById(
       id,
       PaymentsCompanion(
@@ -117,19 +115,23 @@ class PaymentsRepository {
         serverBookingId: serverBookingId != null
             ? d.Value(serverBookingId)
             : const d.Value.absent(),
-        roomNumber:
-            roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
+        roomNumber: roomNumber != null
+            ? d.Value(roomNumber)
+            : const d.Value.absent(),
         amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-        paymentDate:
-            paymentDate != null ? d.Value(paymentDate) : const d.Value.absent(),
+        paymentDate: paymentDate != null
+            ? d.Value(paymentDate)
+            : const d.Value.absent(),
         notes: notes != null ? d.Value(notes) : const d.Value.absent(),
         paymentMethod: paymentMethod != null
             ? d.Value(paymentMethod)
             : const d.Value.absent(),
-        revenueType:
-            revenueType != null ? d.Value(revenueType) : const d.Value.absent(),
-        hotelDayKey:
-            hotelDayKey != null ? d.Value(hotelDayKey) : const d.Value.absent(),
+        revenueType: revenueType != null
+            ? d.Value(revenueType)
+            : const d.Value.absent(),
+        hotelDayKey: hotelDayKey != null
+            ? d.Value(hotelDayKey)
+            : const d.Value.absent(),
       ),
     );
     if (result > 0) {
@@ -156,8 +158,7 @@ class PaymentsRepository {
   Future<int> delete(int id) async {
     final payment = await (db.select(
       db.payments,
-    )..where((p) => p.id.equals(id)))
-        .getSingleOrNull();
+    )..where((p) => p.id.equals(id))).getSingleOrNull();
     final bookingId = payment?.bookingLocalId;
 
     final result = await dao.softDelete(id);

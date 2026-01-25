@@ -368,8 +368,7 @@ class GoogleDriveDeltaSync {
     if (operation == 'delete') {
       await (db.delete(
         db.rooms,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .go();
+      )..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
     final roomNumber = _asString(data['room_number']);
@@ -411,29 +410,29 @@ class GoogleDriveDeltaSync {
       origin: d.Value('google_drive_delta'),
     );
 
-    final existingByUuid = await (db.select(db.rooms)
-          ..where((t) => t.localUuid.equals(localUuid))
-          ..limit(1))
-        .getSingleOrNull();
+    final existingByUuid =
+        await (db.select(db.rooms)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
 
     if (existingByUuid != null) {
       await (db.update(
         db.rooms,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .write(companion);
+      )..where((t) => t.localUuid.equals(localUuid))).write(companion);
       return;
     }
 
-    final existingByNumber = await (db.select(db.rooms)
-          ..where((t) => t.roomNumber.equals(roomNumber))
-          ..limit(1))
-        .getSingleOrNull();
+    final existingByNumber =
+        await (db.select(db.rooms)
+              ..where((t) => t.roomNumber.equals(roomNumber))
+              ..limit(1))
+            .getSingleOrNull();
 
     if (existingByNumber != null) {
       await (db.update(
         db.rooms,
-      )..where((t) => t.roomNumber.equals(roomNumber)))
-          .write(companion);
+      )..where((t) => t.roomNumber.equals(roomNumber))).write(companion);
       return;
     }
 
@@ -442,8 +441,7 @@ class GoogleDriveDeltaSync {
     } catch (_) {
       await (db.update(
         db.rooms,
-      )..where((t) => t.roomNumber.equals(roomNumber)))
-          .write(companion);
+      )..where((t) => t.roomNumber.equals(roomNumber))).write(companion);
     }
   }
 
@@ -456,22 +454,24 @@ class GoogleDriveDeltaSync {
     if (operation == 'delete') {
       await (db.delete(
         db.bookings,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .go();
+      )..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
     final roomNumber =
         _asString(data['room_number']) ?? _asString(data['roomNumber']);
     if (roomNumber == null || roomNumber.isEmpty) return;
 
-    final existingRoom = await (db.select(db.rooms)
-          ..where((r) => r.roomNumber.equals(roomNumber))
-          ..limit(1))
-        .getSingleOrNull();
+    final existingRoom =
+        await (db.select(db.rooms)
+              ..where((r) => r.roomNumber.equals(roomNumber))
+              ..limit(1))
+            .getSingleOrNull();
 
     if (existingRoom == null) {
       final now = Time.nowEpoch();
-      await db.into(db.rooms).insertOnConflictUpdate(
+      await db
+          .into(db.rooms)
+          .insertOnConflictUpdate(
             RoomsCompanion(
               roomNumber: d.Value(roomNumber),
               type: const d.Value(''),
@@ -561,7 +561,8 @@ class GoogleDriveDeltaSync {
       ),
       status: d.Value(_asString(data['status']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
-      expectedNights: (data.containsKey('expected_nights') ||
+      expectedNights:
+          (data.containsKey('expected_nights') ||
               data.containsKey('expectedNights'))
           ? d.Value(
               _asInt(data['expected_nights']) ??
@@ -569,7 +570,8 @@ class GoogleDriveDeltaSync {
                   1,
             )
           : const d.Value.absent(),
-      calculatedNights: (data.containsKey('calculated_nights') ||
+      calculatedNights:
+          (data.containsKey('calculated_nights') ||
               data.containsKey('calculatedNights'))
           ? d.Value(
               _asInt(data['calculated_nights']) ??
@@ -590,14 +592,14 @@ class GoogleDriveDeltaSync {
     if (operation == 'delete') {
       await (db.delete(
         db.payments,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .go();
+      )..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
 
     final serverBookingId =
         _asInt(data['server_booking_id']) ?? _asInt(data['serverBookingId']);
-    final incomingBookingUuid = _asString(data['booking_uuid_cache']) ??
+    final incomingBookingUuid =
+        _asString(data['booking_uuid_cache']) ??
         _asString(data['bookingUuidCache']) ??
         _asString(data['booking_uuid']) ??
         _asString(data['bookingUuid']);
@@ -607,16 +609,18 @@ class GoogleDriveDeltaSync {
 
     if (incomingBookingUuid != null && incomingBookingUuid.isNotEmpty) {
       bookingUuidCache = incomingBookingUuid;
-      final booking = await (db.select(db.bookings)
-            ..where((b) => b.localUuid.equals(incomingBookingUuid)))
-          .getSingleOrNull();
+      final booking =
+          await (db.select(db.bookings)
+                ..where((b) => b.localUuid.equals(incomingBookingUuid)))
+              .getSingleOrNull();
       resolvedBookingLocalId = booking?.id;
     }
 
     if (resolvedBookingLocalId == null && serverBookingId != null) {
-      final booking = await (db.select(db.bookings)
-            ..where((b) => b.serverBookingId.equals(serverBookingId)))
-          .getSingleOrNull();
+      final booking =
+          await (db.select(db.bookings)
+                ..where((b) => b.serverBookingId.equals(serverBookingId)))
+              .getSingleOrNull();
       resolvedBookingLocalId = booking?.id;
       bookingUuidCache = bookingUuidCache ?? booking?.localUuid;
     }
@@ -719,8 +723,7 @@ class GoogleDriveDeltaSync {
     if (operation == 'delete') {
       await (db.delete(
         db.expenses,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .go();
+      )..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
     final expenseType =
@@ -776,11 +779,11 @@ class GoogleDriveDeltaSync {
     if (operation == 'delete') {
       await (db.delete(
         db.debts,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .go();
+      )..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
-    final guestName = _asString(data['guest_name']) ??
+    final guestName =
+        _asString(data['guest_name']) ??
         _asString(data['guestName']) ??
         _asString(data['debtor_name']) ??
         _asString(data['debtorName']);
@@ -866,8 +869,7 @@ class GoogleDriveDeltaSync {
     if (operation == 'delete') {
       await (db.delete(
         db.employees,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .go();
+      )..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
     final name = _asString(data['name']);
@@ -921,8 +923,7 @@ class GoogleDriveDeltaSync {
     if (operation == 'delete') {
       await (db.delete(
         db.bookingNotes,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .go();
+      )..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
 
@@ -931,7 +932,8 @@ class GoogleDriveDeltaSync {
         _asString(data['note_text']) ?? _asString(data['noteText']);
     if (bookingId == null || noteText == null) return;
 
-    final alertType = _asString(data['alert_type']) ??
+    final alertType =
+        _asString(data['alert_type']) ??
         _asString(data['alertType']) ??
         'general';
     final alertUntil =
@@ -981,16 +983,17 @@ class GoogleDriveDeltaSync {
     if (operation == 'delete') {
       await (db.delete(
         db.cashTransactions,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .go();
+      )..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
 
-    final transactionType = _asString(data['transaction_type']) ??
+    final transactionType =
+        _asString(data['transaction_type']) ??
         _asString(data['transactionType']);
     if (transactionType == null || transactionType.isEmpty) return;
 
-    final transactionTime = _asString(data['transaction_time']) ??
+    final transactionTime =
+        _asString(data['transaction_time']) ??
         _asString(data['transactionTime']) ??
         Time.nowIso();
 

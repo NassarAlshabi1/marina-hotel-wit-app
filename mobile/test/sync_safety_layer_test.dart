@@ -4,9 +4,12 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync_safety_layer.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
 
   late AppDatabase db;
   late Directory tempDir;
@@ -23,7 +26,9 @@ void main() {
   });
 
   test('snapshot rollback restores data after simulated failure', () async {
-    await db.into(db.shiftNotes).insert(
+    await db
+        .into(db.shiftNotes)
+        .insert(
           ShiftNotesCompanion.insert(
             title: 'ملاحظة اختبار',
             content: 'قبل المزامنة',

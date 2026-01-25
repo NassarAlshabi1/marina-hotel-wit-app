@@ -97,7 +97,11 @@ void main() {
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
-      expect(nights, 8, reason: '7 أيام أساسية + يوم إضافي للمغادرة بعد 14:00');
+      expect(
+        nights,
+        9,
+        reason: '7 أيام أساسية + يوم إضافي لكل تجاوز بعد 14:00',
+      );
     });
 
     test('حالة حدية: منتصف الليل', () {

@@ -47,11 +47,11 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             child: widget.bookingId == null
                 ? _buildPaymentsList(paymentsRepo.watchAll())
                 : StreamBuilder<Booking?>(
-                    stream: (database.select(database.bookings)
-                          ..where(
-                            (t) => t.localUuid.equals(widget.bookingId!),
-                          ))
-                        .watchSingleOrNull(),
+                    stream:
+                        (database.select(database.bookings)..where(
+                              (t) => t.localUuid.equals(widget.bookingId!),
+                            ))
+                            .watchSingleOrNull(),
                     builder: (context, bookingSnap) {
                       if (bookingSnap.connectionState ==
                           ConnectionState.waiting) {

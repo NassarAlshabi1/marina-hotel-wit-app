@@ -258,10 +258,12 @@ class DebtsListScreen extends ConsumerWidget {
     final paymentDate = paymentDateCtrl.text.trim().isEmpty
         ? Time.nowDateString()
         : paymentDateCtrl.text.trim();
-    final pledge =
-        pledgeCtrl.text.trim().isEmpty ? null : pledgeCtrl.text.trim();
-    final pledgeType =
-        pledgeTypeCtrl.text.trim().isEmpty ? null : pledgeTypeCtrl.text.trim();
+    final pledge = pledgeCtrl.text.trim().isEmpty
+        ? null
+        : pledgeCtrl.text.trim();
+    final pledgeType = pledgeTypeCtrl.text.trim().isEmpty
+        ? null
+        : pledgeTypeCtrl.text.trim();
     final note = noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim();
 
     if (guestName.isEmpty) {

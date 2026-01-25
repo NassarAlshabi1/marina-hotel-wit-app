@@ -184,8 +184,8 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                         ),
                         validator: (value) =>
                             (value == null || value.trim().isEmpty)
-                                ? 'الاسم مطلوب'
-                                : null,
+                            ? 'الاسم مطلوب'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -195,8 +195,8 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                         ),
                         validator: (value) =>
                             (value == null || value.trim().isEmpty)
-                                ? 'اسم المستخدم مطلوب'
-                                : null,
+                            ? 'اسم المستخدم مطلوب'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -207,8 +207,8 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                         obscureText: true,
                         validator: (value) =>
                             (value == null || value.length < 4)
-                                ? 'أدخل 4 أرقام/رموز على الأقل'
-                                : null,
+                            ? 'أدخل 4 أرقام/رموز على الأقل'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -315,7 +315,9 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                             localError = null;
                           });
                           try {
-                            await ref.read(authProvider.notifier).addUser(
+                            await ref
+                                .read(authProvider.notifier)
+                                .addUser(
                                   username: usernameCtrl.text.trim(),
                                   password: passwordCtrl.text,
                                   fullName: fullNameCtrl.text.trim(),
@@ -335,9 +337,9 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                             setStateDialog(() {
                               saving = false;
                               localError = e.toString().replaceAll(
-                                    'Exception: ',
-                                    '',
-                                  );
+                                'Exception: ',
+                                '',
+                              );
                             });
                           }
                         },

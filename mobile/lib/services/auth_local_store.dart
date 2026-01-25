@@ -125,8 +125,9 @@ class AuthLocalStore {
       return null;
     }
 
-    final perms =
-        normalized == 'admin' ? ['all'] : await getPermissions(normalized);
+    final perms = normalized == 'admin'
+        ? ['all']
+        : await getPermissions(normalized);
     return {
       'id': account['id'] ?? 0,
       'username': normalized,

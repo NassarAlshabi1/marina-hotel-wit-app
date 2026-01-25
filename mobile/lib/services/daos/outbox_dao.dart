@@ -38,8 +38,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<int> clearStale({int attemptsThreshold = 3}) async {
     return (delete(
       outbox,
-    )..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold)))
-        .go();
+    )..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold))).go();
   }
 
   Future<int> merge({
@@ -53,9 +52,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final data = jsonEncode(payload);
 
     final id = await transaction(() async {
-      final existing = await (select(outbox)
-            ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
-          .getSingleOrNull();
+      final existing =
+          await (select(outbox)
+                ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
+              .getSingleOrNull();
 
       String idempotencyKey;
       if (existing != null) {
@@ -120,11 +120,12 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final worker = workerId ?? const Uuid().v4();
 
     return transaction(() async {
-      final entries = await (select(outbox)
-            ..where((t) => t.processingStatus.equals('pending'))
-            ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
-            ..limit(limit))
-          .get();
+      final entries =
+          await (select(outbox)
+                ..where((t) => t.processingStatus.equals('pending'))
+                ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
+                ..limit(limit))
+              .get();
 
       if (entries.isEmpty) {
         return [];
@@ -180,8 +181,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<void> retryFailed() async {
     await (update(
       outbox,
-    )..where((t) => t.processingStatus.equals('failed')))
-        .write(
+    )..where((t) => t.processingStatus.equals('failed'))).write(
       const OutboxCompanion(
         processingStatus: Value('pending'),
         processingStartedAt: Value(null),
@@ -194,36 +194,36 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<int> cleanupStuckEntries({
     Duration timeout = const Duration(minutes: 5),
   }) async {
-    final thresholdTime =
-        DateTime.now().subtract(timeout).millisecondsSinceEpoch;
+    final thresholdTime = DateTime.now()
+        .subtract(timeout)
+        .millisecondsSinceEpoch;
 
-    return await (update(outbox)
-          ..where(
-            (t) =>
-                t.processingStatus.equals('processing') &
-                t.processingStartedAt.isSmallerThanValue(thresholdTime),
-          ))
+    return await (update(outbox)..where(
+          (t) =>
+              t.processingStatus.equals('processing') &
+              t.processingStartedAt.isSmallerThanValue(thresholdTime),
+        ))
         .write(
-      const OutboxCompanion(
-        processingStatus: Value('pending'),
-        processingStartedAt: Value(null),
-        processingWorker: Value(null),
-      ),
-    );
+          const OutboxCompanion(
+            processingStatus: Value('pending'),
+            processingStartedAt: Value(null),
+            processingWorker: Value(null),
+          ),
+        );
   }
 
   Future<int> cleanupCompleted({
     Duration olderThan = const Duration(days: 7),
   }) async {
-    final thresholdTime =
-        DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
+    final thresholdTime = DateTime.now()
+        .subtract(olderThan)
+        .millisecondsSinceEpoch;
 
-    return await (delete(outbox)
-          ..where(
-            (t) =>
-                t.processingStatus.equals('completed') &
-                t.processingStartedAt.isSmallerThanValue(thresholdTime),
-          ))
+    return await (delete(outbox)..where(
+          (t) =>
+              t.processingStatus.equals('completed') &
+              t.processingStartedAt.isSmallerThanValue(thresholdTime),
+        ))
         .go();
   }
 }

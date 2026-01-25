@@ -292,8 +292,9 @@ class AdminTable extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               )
             : null,
-        columns:
-            headers.map((header) => DataColumn(label: Text(header))).toList(),
+        columns: headers
+            .map((header) => DataColumn(label: Text(header)))
+            .toList(),
         rows: rows
             .asMap()
             .entries

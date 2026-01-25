@@ -4,11 +4,12 @@ import '../utils/time.dart';
 import 'local_db.dart';
 import 'appwrite_logger.dart';
 
-typedef DocumentMapper<T extends d.Insertable> = T? Function(
-  Map<String, dynamic> data,
-  String localUuid,
-  SyncFieldsHelper helper,
-);
+typedef DocumentMapper<T extends d.Insertable> =
+    T? Function(
+      Map<String, dynamic> data,
+      String localUuid,
+      SyncFieldsHelper helper,
+    );
 
 typedef DocumentValidator = bool Function(Map<String, dynamic> data);
 
@@ -123,8 +124,8 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
     required this.database,
     required this.tableName,
     required this.table,
-  })  : helper = SyncFieldsHelper(database),
-        _logger = AppwriteLogger();
+  }) : helper = SyncFieldsHelper(database),
+       _logger = AppwriteLogger();
 
   Future<SyncResult> syncDocuments({
     required List<models.Document> documents,

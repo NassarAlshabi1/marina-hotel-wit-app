@@ -138,9 +138,9 @@ class _SyncHealthDashboardScreenState
             Text(
               statusText,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             StatusIndicator(status: status),
@@ -501,13 +501,15 @@ class _SyncHealthDashboardScreenState
 
     final hasIssues = report.hasIssues;
     final hasCritical = report.hasCriticalIssues;
-    final statusColor =
-        hasCritical ? Colors.red : (hasIssues ? Colors.orange : Colors.green);
+    final statusColor = hasCritical
+        ? Colors.red
+        : (hasIssues ? Colors.orange : Colors.green);
     final statusIcon = hasCritical
         ? Icons.error
         : (hasIssues ? Icons.warning : Icons.check_circle);
-    final statusText =
-        hasCritical ? 'مشاكل حرجة' : (hasIssues ? 'تحذيرات' : 'سليم');
+    final statusText = hasCritical
+        ? 'مشاكل حرجة'
+        : (hasIssues ? 'تحذيرات' : 'سليم');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

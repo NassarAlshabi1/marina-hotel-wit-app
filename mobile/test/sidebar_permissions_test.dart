@@ -21,6 +21,8 @@ class FakeAuthNotifier extends AuthNotifier {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   testWidgets('إخفاء عنصر الغرف بدون صلاحية rooms', (tester) async {
     final user = AuthUser(
       id: 2,

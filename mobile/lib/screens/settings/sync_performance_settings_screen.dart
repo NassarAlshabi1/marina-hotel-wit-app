@@ -421,8 +421,8 @@ class _SyncPerformanceSettingsScreenState
   }
 
   Future<Map<String, dynamic>> _loadPerformanceStats() async {
-    final performanceStats =
-        SyncPerformanceOptimizer.instance.getPerformanceStatus();
+    final performanceStats = SyncPerformanceOptimizer.instance
+        .getPerformanceStatus();
     final usageStats = await DataUsageManager.instance.getUsageStats();
 
     return {...performanceStats, ...usageStats};
