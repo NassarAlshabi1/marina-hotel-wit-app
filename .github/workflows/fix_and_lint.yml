@@ -2,8 +2,17 @@ name: Auto-fix & analyse
 
 on:
   pull_request:
+<<<<<<< Updated upstream
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - 'capy/**'
+=======
   push:
     branches: [capy/S]
+>>>>>>> Stashed changes
 
 jobs:
   lint:

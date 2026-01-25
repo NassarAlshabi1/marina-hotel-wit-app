@@ -27,6 +27,7 @@ mixin SyncFields on Table {
   IntColumn get lastModifiedEpoch => integer().withDefault(const Constant(0))();
   IntColumn get version => integer().withDefault(const Constant(1))();
   TextColumn get origin => text().withDefault(const Constant('local'))();
+  TextColumn get vectorClock => text().withDefault(const Constant('{}'))();
 }
 
 class Rooms extends Table with SyncFields {
@@ -456,7 +457,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -595,9 +596,62 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(outbox, outbox.idempotencyKey);
           }
           if (from < 18) {
-            await m.addColumn(outbox, outbox.processingStatus);
-            await m.addColumn(outbox, outbox.processingStartedAt);
-            await m.addColumn(outbox, outbox.processingWorker);
+            try {
+              await m.addColumn(outbox, outbox.processingStatus);
+            } catch (_) {}
+            try {
+              await m.addColumn(outbox, outbox.processingStartedAt);
+            } catch (_) {}
+            try {
+              await m.addColumn(outbox, outbox.processingWorker);
+            } catch (_) {}
+          }
+          if (from < 19) {
+            try {
+              await m.addColumn(bookings, bookings.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(rooms, rooms.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(employees, employees.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(expenses, expenses.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(cashTransactions, cashTransactions.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(payments, payments.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(debts, debts.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(bookingNotes, bookingNotes.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(bookingNights, bookingNights.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(salaryCycles, salaryCycles.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(salaryPayments, salaryPayments.vectorClock);
+            } catch (_) {}
+            try {
+              await m.addColumn(outbox, outbox.processingStatus);
+            } catch (_) {}
+            try {
+              await m.addColumn(outbox, outbox.processingStartedAt);
+            } catch (_) {}
+            try {
+              await m.addColumn(outbox, outbox.processingWorker);
+            } catch (_) {}
           }
         },
       );
@@ -668,7 +722,9 @@ class AppDatabase extends _$AppDatabase {
       return value.map((row) => Map<String, dynamic>.from(row as Map)).toList();
     }
 
-    await transaction(() async {
+    await customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      await transaction(() async {
       Future<void> replaceTableIfNonEmpty<T extends Insertable<dynamic>>(
         TableInfo<Table, dynamic> table,
         String key,
@@ -716,6 +772,9 @@ class AppDatabase extends _$AppDatabase {
       await replaceTableIfNonEmpty<SalaryPayment>(salaryPayments,
           'salary_payments', (row) => SalaryPayment.fromJson(row));
     });
+    } finally {
+      await customStatement('PRAGMA foreign_keys = ON');
+    }
   }
 }
 

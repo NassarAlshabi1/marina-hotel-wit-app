@@ -968,12 +968,15 @@ class RestoreFixService {
       final jsonString = await file.readAsString();
       final snapshotData = jsonDecode(jsonString) as Map<String, dynamic>;
       
-      await db.transaction(() async {
-        // مسح الجداول المتأثرة
-        await db.delete(db.bookings).go();
-        await db.delete(db.rooms).go();
-        await db.delete(db.payments).go();
-        await db.delete(db.debts).go();
+      await db.customStatement('PRAGMA foreign_keys = OFF');
+      debugPrint('🔓 تم إيقاف FOREIGN KEYS مؤقتاً');
+      try {
+        await db.transaction(() async {
+          // مسح الجداول المتأثرة بالترتيب الصحيح
+          await db.delete(db.debts).go();
+          await db.delete(db.payments).go();
+          await db.delete(db.bookings).go();
+          await db.delete(db.rooms).go();
         
         // استعادة البيانات
         if (snapshotData.containsKey('bookings')) {
@@ -989,10 +992,14 @@ class RestoreFixService {
           await debtsDao.importFromJson(List<Map<String, dynamic>>.from(snapshotData['debts']), clearExisting: false);
         }
 
-        await db.delete(db.bookingNights).go();
-        await db.delete(db.hotelDayLedger).go();
-        await _rebuildBookingStructures(DateTime.now());
-      });
+          await db.delete(db.bookingNights).go();
+          await db.delete(db.hotelDayLedger).go();
+          await _rebuildBookingStructures(DateTime.now());
+        });
+      } finally {
+        await db.customStatement('PRAGMA foreign_keys = ON');
+        debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+      }
       
     } catch (e) {
       debugPrint('❌ فشل في استعادة اللقطة الاحتياطية: $e');

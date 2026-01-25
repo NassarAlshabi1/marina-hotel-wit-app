@@ -17,6 +17,7 @@ import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
 import 'google_drive_logger.dart';
 import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
+import 'smart_restore_service.dart';
 
 enum BackupFormat { json, sqlite }
 
@@ -715,17 +716,17 @@ class GoogleDriveBackupService {
     });
   }
 
-  Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
+  Future<void> restoreFromBackup(Map<String, dynamic> backupData, {bool useSmartMerge = true}) async {
     if (!DatabaseManager.isRestoring) {
       // Self-guard to avoid accidental destructive calls while keeping safety
       return DatabaseManager.runWithRestoreGuard(
-          () => _restoreFromBackupInternal(backupData));
+          () => _restoreFromBackupInternal(backupData, useSmartMerge: useSmartMerge));
     }
-    return _restoreFromBackupInternal(backupData);
+    return _restoreFromBackupInternal(backupData, useSmartMerge: useSmartMerge);
   }
 
   Future<void> _restoreFromBackupInternal(
-      Map<String, dynamic> backupData) async {
+      Map<String, dynamic> backupData, {bool useSmartMerge = true}) async {
     try {
       final db = DatabaseManager.instance;
 
@@ -754,34 +755,65 @@ class GoogleDriveBackupService {
             'إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
       }
 
-      _log('🔄 بدء استعادة البيانات...');
+      // استخدام الدمج الذكي إذا كان مفعلاً (أسرع وأكثر أماناً)
+      if (useSmartMerge) {
+        _log('🧠 استخدام الدمج الذكي (Smart Merge)...');
+        final smartRestore = SmartRestoreService(db);
+        final result = await smartRestore.smartMerge(backupData);
+        
+        if (result.success) {
+          _log('✅ الدمج الذكي نجح: ${result.totalUpdated} سجل');
+          
+          // تنظيف السجلات اليتيمة
+          final cleanupResult = await smartRestore.cleanupOrphanedRecords();
+          if (cleanupResult.totalDeleted > 0) {
+            _log('🧹 تم تنظيف ${cleanupResult.totalDeleted} سجل يتيم');
+          }
+          
+          // تطبيق إعدادات النظام
+          await _applySystemSettings(backupData);
+          
+          // تشغيل auto-fix
+          final fixService = RestoreFixService(db);
+          await fixService.runAutoFixAfterRestore(
+              backupTimestamp: metadata.backupTimestamp);
+          
+          return;
+        } else {
+          _log('⚠️ فشل الدمج الذكي، fallback إلى الاستعادة الكاملة: ${result.error}');
+          // سيتم استخدام الطريقة التقليدية أدناه
+        }
+      }
+
+      _log('🔄 بدء الاستعادة الكاملة (Full Restore)...');
+
+      await db.customStatement('PRAGMA foreign_keys = OFF');
+      _log('🔓 تم إيقاف FOREIGN KEYS مؤقتاً');
 
       await db.transaction(() async {
-        await db.customStatement('PRAGMA foreign_keys = OFF');
         try {
-          // حذف جميع الجداول
-          await db.delete(db.rooms).go();
-          await db.delete(db.bookings).go();
-          await db.delete(db.bookingNotes).go();
-          await db.delete(db.bookingNights).go();
-          await db.delete(db.hotelDayLedger).go();
-          await db.delete(db.shiftNotes).go();
-          await db.delete(db.employees).go();
-          await db.delete(db.expenses).go();
-          await db.delete(db.cashTransactions).go();
-          await db.delete(db.payments).go();
-          await db.delete(db.debts).go();
-          await db.delete(db.autoFixRuns).go();
-          await db.delete(db.integrityViolations).go();
-          await db.delete(db.appSessions).go();
-          await db.delete(db.salaryCycles).go();
-          await db.delete(db.salaryPayments).go();
-          await db.delete(db.restoreFixLog).go();
-          await db.delete(db.syncQueue).go();
-          await db.delete(db.syncLog).go();
-          await db.delete(db.syncConflicts).go();
+          // حذف جميع الجداول بالترتيب الصحيح (من التابعة إلى الرئيسية)
           await db.delete(db.syncState).go();
-
+          await db.delete(db.syncConflicts).go();
+          await db.delete(db.syncLog).go();
+          await db.delete(db.syncQueue).go();
+          await db.delete(db.restoreFixLog).go();
+          await db.delete(db.salaryPayments).go();
+          await db.delete(db.salaryCycles).go();
+          await db.delete(db.appSessions).go();
+          await db.delete(db.integrityViolations).go();
+          await db.delete(db.autoFixRuns).go();
+          await db.delete(db.debts).go();
+          await db.delete(db.payments).go();
+          await db.delete(db.cashTransactions).go();
+          await db.delete(db.expenses).go();
+          await db.delete(db.employees).go();
+          await db.delete(db.shiftNotes).go();
+          await db.delete(db.hotelDayLedger).go();
+          await db.delete(db.bookingNights).go();
+          await db.delete(db.bookingNotes).go();
+          await db.delete(db.bookings).go();
+          await db.delete(db.rooms).go();
           // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
           if (backupData.containsKey('rooms')) {
             final roomsData = backupData['rooms'] as List<dynamic>;
@@ -993,76 +1025,85 @@ class GoogleDriveBackupService {
             await db.into(db.syncState).insertOnConflictUpdate(data);
           }
 
-          // استعادة وتطبيق الإعدادات العامة إذا وجدت
-          if (backupData.containsKey('system_settings')) {
-            _log('⚙️ تطبيق إعدادات النظام من النسخة الاحتياطية...');
-            try {
-              final rawSettings = backupData['system_settings'];
-              if (rawSettings is! Map) {
-                throw Exception('صيغة إعدادات النظام غير صالحة');
-              }
-              final settings = Map<String, dynamic>.from(rawSettings);
-              final prefs = await SharedPreferences.getInstance();
-
-              final keys = SystemSettingKeys.all;
-
-              bool settingsChanged = false;
-              for (final key in keys) {
-                if (settings.containsKey(key) && settings[key] != null) {
-                  final val = settings[key];
-                  final currentVal = prefs.get(key);
-
-                  if (val != currentVal) {
-                    if (val is bool) await prefs.setBool(key, val);
-                    if (val is String) await prefs.setString(key, val);
-                    if (val is int) await prefs.setInt(key, val);
-                    if (val is double) await prefs.setDouble(key, val);
-                    settingsChanged = true;
-                    _log('   UPDATED: $key = $val');
-                  }
-                }
-              }
-
-              // إعادة جدولة المهام إذا تغيرت الإعدادات
-              if (settingsChanged) {
-                _log(
-                    '🔄 إعادة جدولة مهام النسخ الاحتياطي وفق الإعدادات الجديدة...');
-
-                final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
-                final parts = timeStr.split(':');
-                final parsedHour = parts.isNotEmpty ? int.tryParse(parts[0]) : null;
-                final parsedMinute = parts.length > 1 ? int.tryParse(parts[1]) : null;
-
-                final hour = (parsedHour ?? 21).clamp(0, 23);
-                final minute = (parsedMinute ?? 0).clamp(0, 59);
-                final scheduledEnabled =
-                    prefs.getBool('scheduled_backup_enabled') ?? true;
-
-                if (scheduledEnabled) {
-                  await AlarmBackup.rescheduleDaily(hour, minute);
-                  await AutoBackupTask.scheduleDaily(time: timeStr);
-                } else {
-                  await AlarmBackup.cancelAlarm();
-                  await AutoBackupTask.cancelScheduled();
-                }
-              }
-            } catch (e) {
-              _log('⚠️ خطأ في تطبيق الإعدادات المستعادة: $e');
-            }
-          }
-
           _log('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
+          
+          // تطبيق إعدادات النظام
+          await _applySystemSettings(backupData);
           final fixService = RestoreFixService(db);
           await fixService.runAutoFixAfterRestore(
               backupTimestamp: metadata.backupTimestamp);
-        } finally {
-          await db.customStatement('PRAGMA foreign_keys = ON');
-          _log('🔓 تم إعادة تشغيل FOREIGN KEYS');
+        } catch (e) {
+          _log('❌ خطأ أثناء الاستعادة داخل Transaction: $e');
+          rethrow;
         }
       });
+
+      await db.customStatement('PRAGMA foreign_keys = ON');
+      _log('🔓 تم إعادة تشغيل FOREIGN KEYS');
     } catch (e) {
       _log('❌ خطأ في استعادة البيانات: $e');
       rethrow;
+    }
+  }
+
+  /// تطبيق إعدادات النظام من النسخة الاحتياطية
+  Future<void> _applySystemSettings(Map<String, dynamic> backupData) async {
+    if (!backupData.containsKey('system_settings')) {
+      return;
+    }
+    
+    _log('⚙️ تطبيق إعدادات النظام من النسخة الاحتياطية...');
+    try {
+      final rawSettings = backupData['system_settings'];
+      if (rawSettings is! Map) {
+        throw Exception('صيغة إعدادات النظام غير صالحة');
+      }
+      final settings = Map<String, dynamic>.from(rawSettings);
+      final prefs = await SharedPreferences.getInstance();
+
+      final keys = SystemSettingKeys.all;
+
+      bool settingsChanged = false;
+      for (final key in keys) {
+        if (settings.containsKey(key) && settings[key] != null) {
+          final val = settings[key];
+          final currentVal = prefs.get(key);
+
+          if (val != currentVal) {
+            if (val is bool) await prefs.setBool(key, val);
+            if (val is String) await prefs.setString(key, val);
+            if (val is int) await prefs.setInt(key, val);
+            if (val is double) await prefs.setDouble(key, val);
+            settingsChanged = true;
+            _log('   UPDATED: $key = $val');
+          }
+        }
+      }
+
+      // إعادة جدولة المهام إذا تغيرت الإعدادات
+      if (settingsChanged) {
+        _log('🔄 إعادة جدولة مهام النسخ الاحتياطي وفق الإعدادات الجديدة...');
+
+        final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
+        final parts = timeStr.split(':');
+        final parsedHour = parts.isNotEmpty ? int.tryParse(parts[0]) : null;
+        final parsedMinute = parts.length > 1 ? int.tryParse(parts[1]) : null;
+
+        final hour = (parsedHour ?? 21).clamp(0, 23);
+        final minute = (parsedMinute ?? 0).clamp(0, 59);
+        final scheduledEnabled =
+            prefs.getBool('scheduled_backup_enabled') ?? true;
+
+        if (scheduledEnabled) {
+          await AlarmBackup.rescheduleDaily(hour, minute);
+          await AutoBackupTask.scheduleDaily(time: timeStr);
+        } else {
+          await AlarmBackup.cancelAlarm();
+          await AutoBackupTask.cancelScheduled();
+        }
+      }
+    } catch (e) {
+      _log('⚠️ خطأ في تطبيق الإعدادات المستعادة: $e');
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/sync_dashboard_provider.dart';
 import '../../services/sync_health_monitor.dart';
 import '../../services/sync_core/circuit_breaker.dart';
+import '../../services/sync_integrity_checker.dart';
 import 'package:intl/intl.dart';
 
 class SyncHealthDashboardScreen extends ConsumerStatefulWidget {
@@ -80,6 +81,8 @@ class _SyncHealthDashboardScreenState
                   _buildMetricsGrid(dashboard),
                   const SizedBox(height: 16),
                   _buildCircuitBreakerStatus(dashboard),
+                  const SizedBox(height: 16),
+                  _buildIntegrityReportCard(dashboard),
                   const SizedBox(height: 16),
                   _buildQueueStatus(dashboard),
                   const SizedBox(height: 16),
@@ -473,6 +476,176 @@ class _SyncHealthDashboardScreenState
   String _formatDateTime(DateTime dateTime) {
     final format = DateFormat('yyyy/MM/dd HH:mm', 'ar');
     return format.format(dateTime.toLocal());
+  }
+
+  Widget _buildIntegrityReportCard(SyncDashboardData dashboard) {
+    final report = dashboard.integrityReport;
+    
+    if (report == null) {
+      return const SizedBox.shrink();
+    }
+
+    final hasIssues = report.hasIssues;
+    final hasCritical = report.hasCriticalIssues;
+    final statusColor = hasCritical
+        ? Colors.red
+        : (hasIssues ? Colors.orange : Colors.green);
+    final statusIcon = hasCritical
+        ? Icons.error
+        : (hasIssues ? Icons.warning : Icons.check_circle);
+    final statusText = hasCritical
+        ? 'مشاكل حرجة'
+        : (hasIssues ? 'تحذيرات' : 'سليم');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Text(
+            'فحص سلامة البيانات',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+        ),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Icon(statusIcon, color: statusColor, size: 32),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            statusText,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                            ),
+                          ),
+                          if (hasIssues) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'تم اكتشاف ${report.issueCount} مشكلة',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (hasIssues) ...[
+                  const Divider(height: 24),
+                  _buildIntegrityMetricsRow(
+                    'مشاكل حرجة',
+                    report.criticalIssueCount.toString(),
+                    Icons.error,
+                    Colors.red,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildIntegrityMetricsRow(
+                    'مشاكل عادية',
+                    (report.issueCount - report.criticalIssueCount).toString(),
+                    Icons.warning,
+                    Colors.orange,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildIntegrityMetricsRow(
+                    'مدة الفحص',
+                    '${report.checkDuration.inMilliseconds}مللي ثانية',
+                    Icons.timer,
+                    Colors.blue,
+                  ),
+                  if (report.issuesByType.isNotEmpty) ...[
+                    const Divider(height: 24),
+                    Text(
+                      'تفصيل المشاكل',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...report.issuesByType.entries.map((entry) {
+                      final typeLabel = _getIssueTypeLabel(entry.key);
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(typeLabel),
+                            Text(
+                              entry.value.toString(),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ],
+                if (!hasIssues) ...[
+                  const Divider(height: 24),
+                  Text(
+                    'جميع الفحوصات نجحت ✓',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIntegrityMetricsRow(
+      String label, String value, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(color: Colors.grey[700]),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getIssueTypeLabel(IssueType issueType) {
+    const labels = {
+      IssueType.orphanedRecord: 'سجلات يتيمة',
+      IssueType.duplicateUuid: 'معرّفات مكررة',
+      IssueType.versionInconsistency: 'عدم تطابق الإصدارات',
+      IssueType.amountMismatch: 'عدم تطابق المبالغ',
+      IssueType.missingReference: 'مراجع مفقودة',
+      IssueType.invalidStatus: 'حالات غير صالحة',
+    };
+    return labels[issueType] ?? issueType.toString().split('.').last;
   }
 }
 

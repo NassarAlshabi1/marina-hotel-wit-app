@@ -2,13 +2,14 @@ import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
+import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 
 part 'payments_dao.g.dart';
 
 @DriftAccessor(tables: [Payments])
 class PaymentsDao extends DatabaseAccessor<AppDatabase>
-    with _$PaymentsDaoMixin {
+    with _$PaymentsDaoMixin, OptimisticLockDaoMixin<Payments, Payment> {
   PaymentsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
@@ -249,4 +250,16 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   Future<void> clearAllData() async {
     await delete(payments).go();
   }
+
+  @override
+  TableInfo<Payments, Payment> get optimisticTable => payments;
+
+  @override
+  String get optimisticTableName => 'payments';
+
+  @override
+  GeneratedColumn<String> get optimisticLocalUuid => payments.localUuid;
+
+  @override
+  GeneratedColumn<int> get optimisticVersion => payments.version;
 }

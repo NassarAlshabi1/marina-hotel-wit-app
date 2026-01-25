@@ -1083,17 +1083,18 @@ class RestoreFixService {
 
   /// استعادة البيانات من اللقطة الاحتياطية
   Future<void> _restoreFromSnapshot(String snapshotPath) async {
+    await db.customStatement('PRAGMA foreign_keys = OFF');
     try {
       final file = File(snapshotPath);
       if (!await file.exists()) {
         throw RestoreValidationException('ملف اللقطة الاحتياطية غير موجود: $snapshotPath');
       }
-      
+
       final jsonString = await file.readAsString();
       final snapshotData = jsonDecode(jsonString) as Map<String, dynamic>;
-      
+
       _validateSnapshotData(snapshotData);
-      
+
       await db.transaction(() async {
         // مسح الجداول المتأثرة (احذف children أولًا لتفادي كسر قيود FK)
         await db.delete(db.payments).go();
@@ -1129,13 +1130,14 @@ class RestoreFixService {
           );
         }
 
-        // إعادة بناء الجداول المشتقة لضمان الاتساق
         await _rebuildBookingStructures(DateTime.now());
       });
-      
     } catch (e) {
       debugPrint('❌ فشل في استعادة اللقطة الاحتياطية: $e');
       rethrow;
+    } finally {
+      await db.customStatement('PRAGMA foreign_keys = ON');
+      debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
     }
   }
 

@@ -11,6 +11,7 @@ import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
 import 'smart_sync_manager.dart';
+import 'sync_integrity_checker.dart';
 
 class UnifiedSyncState {
   final String phase;
@@ -241,6 +242,10 @@ class UnifiedSyncOrchestrator {
         await snapshotNow();
       }
 
+      if (success) {
+        await _verifySyncIntegrity();
+      }
+
       _lastSyncTime = DateTime.now();
 
       _emit(_state.copyWith(
@@ -432,6 +437,48 @@ class UnifiedSyncOrchestrator {
     }
 
     return true;
+  }
+
+  Future<void> _verifySyncIntegrity() async {
+    if (_database == null) return;
+
+    try {
+      _emit(_state.copyWith(
+        phase: 'verifying',
+        message: 'التحقق من سلامة البيانات',
+        timestamp: DateTime.now(),
+      ));
+
+      final report = await SyncIntegrityChecker.instance.verify(_database!);
+
+      if (report.hasCriticalIssues) {
+        _emit(_state.copyWith(
+          phase: 'completing',
+          message: 'تم اكتشاف ${report.criticalIssueCount} مشاكل حرجة',
+          timestamp: DateTime.now(),
+          lastError: 'Found ${report.criticalIssueCount} critical integrity issues',
+        ));
+      } else if (report.hasIssues) {
+        _emit(_state.copyWith(
+          phase: 'completing',
+          message: 'تم اكتشاف ${report.issueCount} مشاكل غير حرجة',
+          timestamp: DateTime.now(),
+        ));
+      } else {
+        _emit(_state.copyWith(
+          phase: 'completing',
+          message: 'سلامة البيانات جيدة',
+          timestamp: DateTime.now(),
+        ));
+      }
+    } catch (e) {
+      _emit(_state.copyWith(
+        phase: 'error',
+        message: 'فشل التحقق من سلامة البيانات',
+        timestamp: DateTime.now(),
+        lastError: e.toString(),
+      ));
+    }
   }
 
   void _emit(UnifiedSyncState s) {

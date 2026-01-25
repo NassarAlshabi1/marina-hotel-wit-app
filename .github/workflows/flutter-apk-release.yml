@@ -5,7 +5,16 @@
 name: Build Flutter Release APK
 
 on:
+  push:
+    branches:
+      - main
+      - 'capy/**'
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/flutter-apk-release.yml'
   pull_request:
+    branches:
+      - main
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-apk-release.yml'

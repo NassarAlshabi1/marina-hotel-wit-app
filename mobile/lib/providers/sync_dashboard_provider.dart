@@ -3,6 +3,8 @@ import '../services/sync_guardian.dart';
 import '../services/sync_health_monitor.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/sync_queue_service.dart';
+import '../services/sync_integrity_checker.dart';
+import '../services/local_db.dart';
 import 'repository_providers.dart';
 
 final syncDashboardProvider =
@@ -11,16 +13,19 @@ final syncDashboardProvider =
   final orchestrator = SyncOrchestrator.instance;
   final queueService = SyncQueueService.instance;
   final healthMonitor = SyncHealthMonitor.instance;
+  final db = DatabaseManager.instance;
 
   final results = await Future.wait([
     orchestrator.getHealth(),
     queueService.getStats(),
     healthMonitor.getHealthMetrics(),
+    SyncIntegrityChecker.instance.verify(db),
   ]);
 
   final orchestratorHealth = results[0] as SyncHealth;
   final queueStats = results[1] as QueueStats;
   final healthMetrics = results[2] as SyncHealthMetrics;
+  final integrityReport = results[3] as IntegrityReport;
 
   final guardianHealthSnapshot = await guardian.watchHealth().first.timeout(
         const Duration(seconds: 2),
@@ -42,6 +47,7 @@ final syncDashboardProvider =
     orchestratorMetrics: orchestrator.metrics,
     queueStats: queueStats,
     healthMetrics: healthMetrics,
+    integrityReport: integrityReport,
   );
 });
 
@@ -51,6 +57,7 @@ class SyncDashboardData {
   final SyncMetricsData? orchestratorMetrics;
   final QueueStats queueStats;
   final SyncHealthMetrics healthMetrics;
+  final IntegrityReport? integrityReport;
 
   const SyncDashboardData({
     required this.guardianHealth,
@@ -58,5 +65,6 @@ class SyncDashboardData {
     this.orchestratorMetrics,
     required this.queueStats,
     required this.healthMetrics,
+    this.integrityReport,
   });
 }
