@@ -155,14 +155,19 @@ class SyncSafetyLayer {
       final content = await file.readAsString();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       tables = Map<String, dynamic>.from(decoded['tables'] as Map);
+      final localTables = tables;
+
+      if (localTables == null) {
+        throw StateError('Snapshot tables missing');
+      }
 
       try {
         await db.transaction(() async {
           await _clearAllTables(db);
 
           for (final tableName in SyncConstants.allTablesInOrder) {
-            if (tables.containsKey(tableName)) {
-              await _restoreTable(db, tableName, tables[tableName]);
+            if (localTables.containsKey(tableName)) {
+              await _restoreTable(db, tableName, localTables[tableName]);
             }
           }
         });
