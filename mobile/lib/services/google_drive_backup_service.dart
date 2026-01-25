@@ -250,7 +250,8 @@ class GoogleDriveBackupService {
       }
 
       _log('🔄 محاولة استعادة جلسة Google Drive...');
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
+      final GoogleSignInAccount? account =
+          await _googleSignIn!.signInSilently();
 
       if (account != null) {
         _log('🔑 الحصول على رؤوس المصادقة...');

@@ -552,7 +552,8 @@ class GoogleDriveDeltaSync {
       bookingUuidCache = bookingUuidCache ?? booking?.localUuid;
     }
 
-    dynamic pendingRaw = data['is_pending_balance'] ?? data['isPendingBalance'];
+    final dynamic pendingRaw =
+        data['is_pending_balance'] ?? data['isPendingBalance'];
     bool? isPendingBalance;
     if (pendingRaw is bool) {
       isPendingBalance = pendingRaw;
