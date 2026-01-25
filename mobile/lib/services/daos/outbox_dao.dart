@@ -131,12 +131,14 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
       final ids = entries.map((e) => e.id).toList();
 
-      await (update(outbox)..where((t) => t.id.isIn(ids)))
-          .write(OutboxCompanion(
-        processingStatus: const Value('processing'),
-        processingStartedAt: Value(DateTime.now().millisecondsSinceEpoch),
-        processingWorker: Value(worker),
-      ));
+      await (update(outbox)..where((t) => t.id.isIn(ids))).write(
+        RawValuesInsertable({
+          'processing_status': const Variable<String>('processing'),
+          'processing_started_at':
+              Variable<int?>(DateTime.now().millisecondsSinceEpoch),
+          'processing_worker': Variable<String?>(worker),
+        }),
+      );
 
       return entries;
     });
@@ -158,20 +160,22 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   Future<void> markCompleted(List<int> ids) async {
     if (ids.isEmpty) return;
-    await (update(outbox)..where((t) => t.id.isIn(ids)))
-        .write(const OutboxCompanion(
-      processingStatus: Value('completed'),
-      processingStartedAt: Value.absent(),
-      processingWorker: Value.absent(),
-    ));
+    await (update(outbox)..where((t) => t.id.isIn(ids))).write(
+      const RawValuesInsertable({
+        'processing_status': Variable<String>('completed'),
+        'processing_started_at': Variable<int?>(null),
+        'processing_worker': Variable<String?>(null),
+      }),
+    );
   }
 
   Future<void> markFailed(List<int> ids) async {
     if (ids.isEmpty) return;
-    await (update(outbox)..where((t) => t.id.isIn(ids)))
-        .write(const OutboxCompanion(
-      processingStatus: Value('failed'),
-    ));
+    await (update(outbox)..where((t) => t.id.isIn(ids))).write(
+      const RawValuesInsertable({
+        'processing_status': Variable<String>('failed'),
+      }),
+    );
   }
 
   Future<void> retryFailed() async {
