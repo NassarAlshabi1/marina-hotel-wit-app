@@ -277,7 +277,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   void _showNoteDialog({ShiftNote? note}) {
     final titleController = TextEditingController(text: note?.title ?? '');
     final contentController = TextEditingController(text: note?.content ?? '');
+    // ignore: prefer_final_locals
     String priority = note?.priority.name ?? 'medium';
+    // ignore: prefer_final_locals
     String shiftType = note?.shiftType.name ?? 'all';
 
     showDialog(

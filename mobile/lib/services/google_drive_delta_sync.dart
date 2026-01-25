@@ -759,8 +759,8 @@ class GoogleDriveDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('google_drive_delta'),
       name: d.Value(name),
-      basicSalary: d.Value(
-          _asDouble(data['basic_salary']) ?? _asDouble(data['basicSalary'])),
+      basicSalary:
+          d.Value(_asDouble(data['basic_salary'] ?? data['basicSalary'])),
       position: d.Value(_asString(data['position']) ?? ''),
       phone: d.Value(_asString(data['phone']) ?? ''),
       hireDate: d.Value(

@@ -942,7 +942,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
-  // ignore: unused_element
   /// التحقق من وجود ليالي إضافية
   bool _shouldShowExtendedStayOptions(BookingPaymentSummary summary) {
     final checkin =
@@ -963,7 +962,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     return currentStay > expectedNights || isPastCheckoutDate;
   }
 
-  // ignore: unused_element
   /// عرض خيارات دفع الليالي الإضافية
   Widget _buildExtendedStayPaymentOptions(BookingPaymentSummary summary) {
     final checkin =
@@ -1547,7 +1545,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
-  // ignore: unused_element
   Future<void> _performSendAccountStatement(
       BookingPaymentSummary summary) async {
     final whatsappService = ref.read(whatsappServiceProvider);
@@ -1623,7 +1620,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
-  // ignore: unused_element
   Future<void> _sendPaymentReminder(BookingPaymentSummary summary) async {
     if (_currentGuestPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1681,7 +1677,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
-  // ignore: unused_element
   /// نافذة حوار تمديد الإقامة
   void _showExtendStayDialog() {
     final roomsRepo = ref.watch(roomsRepoProvider);
