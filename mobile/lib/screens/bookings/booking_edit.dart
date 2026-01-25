@@ -85,9 +85,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     if (b != null) {
       _guestName.text = b.guestName;
       _guestPhone.text = b.guestPhone;
-      _guestNationality.text = b.guestNationality.isEmpty
-          ? 'يمني'
-          : b.guestNationality;
+      _guestNationality.text =
+          b.guestNationality.isEmpty ? 'يمني' : b.guestNationality;
       _guestAddress.text = b.guestAddress ?? '';
       _guestIdNumber.text = b.guestIdNumber;
       _guestIdIssueDate.text = b.guestIdIssueDate ?? '';
@@ -438,9 +437,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     final expectedNights =
                         int.tryParse(_expectedNights.text.trim()) ?? 1;
                     final checkinDt = _parseDateTime(checkin);
-                    final checkoutDt = checkout != null
-                        ? _parseDateTime(checkout)
-                        : null;
+                    final checkoutDt =
+                        checkout != null ? _parseDateTime(checkout) : null;
                     final calculatedNights = checkinDt == null
                         ? expectedNights
                         : Time.nightsWithCutoff(
@@ -649,11 +647,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         validator: _req,
       ),
       data: (rooms) {
-        final availableRooms =
-            rooms
-                .where((room) => StatusUtils.isRoomAvailable(room.status))
-                .toList()
-              ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+        final availableRooms = rooms
+            .where((room) => StatusUtils.isRoomAvailable(room.status))
+            .toList()
+          ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
 
         final currentValue = _roomNumber.text.trim();
         if (!_roomInitialized &&
@@ -723,7 +720,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final roomsRepo = ref.read(roomsRepoProvider);
     final bookings = await (db.select(
       db.bookings,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
+    )..where((tbl) => tbl.deletedAt.isNull()))
+        .get();
     final occupiedRooms = <String>{};
     for (final booking in bookings) {
       if (StatusUtils.isActiveBooking(booking.status)) {
@@ -733,7 +731,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
     final rooms = await (db.select(
       db.rooms,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
+    )..where((tbl) => tbl.deletedAt.isNull()))
+        .get();
     for (final room in rooms) {
       final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
       final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
@@ -750,9 +749,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   DateTime? _parseDateTime(String value) {
     if (value.isEmpty) return null;
     final normalized = value.contains('T') ? value : value.replaceAll(' ', 'T');
-    final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
-        : normalized;
+    final withSeconds =
+        normalized.length == 16 ? '${normalized}:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {

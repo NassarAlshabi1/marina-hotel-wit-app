@@ -32,16 +32,16 @@ class SyncError {
   }) : timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'operation': operation,
-    'table': table,
-    'recordId': recordId,
-    'message': message,
-    'severity': severity.name,
-    'isRetriable': isRetriable,
-    'timestamp': timestamp.toIso8601String(),
-    'retryCount': retryCount,
-  };
+        'id': id,
+        'operation': operation,
+        'table': table,
+        'recordId': recordId,
+        'message': message,
+        'severity': severity.name,
+        'isRetriable': isRetriable,
+        'timestamp': timestamp.toIso8601String(),
+        'retryCount': retryCount,
+      };
 }
 
 class RecoveryResult {

@@ -180,8 +180,7 @@ class LocalBackupService {
         final paymentsData = await db.select(db.payments).get();
         final syncStateData = await db.select(db.syncState).get();
 
-        final totalRecords =
-            roomsData.length +
+        final totalRecords = roomsData.length +
             bookingsData.length +
             bookingNotesData.length +
             employeesData.length +
@@ -202,20 +201,17 @@ class LocalBackupService {
           'metadata': metadata.toJson(),
           'rooms': roomsData.map((room) => room.toJson()).toList(),
           'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
-          'booking_notes': bookingNotesData
-              .map((note) => note.toJson())
-              .toList(),
-          'employees': employeesData
-              .map((employee) => employee.toJson())
-              .toList(),
+          'booking_notes':
+              bookingNotesData.map((note) => note.toJson()).toList(),
+          'employees':
+              employeesData.map((employee) => employee.toJson()).toList(),
           'expenses': expensesData.map((expense) => expense.toJson()).toList(),
           'cash_transactions': cashTransactionsData
               .map((transaction) => transaction.toJson())
               .toList(),
           'payments': paymentsData.map((payment) => payment.toJson()).toList(),
-          'sync_state': syncStateData.isNotEmpty
-              ? syncStateData.first.toJson()
-              : {},
+          'sync_state':
+              syncStateData.isNotEmpty ? syncStateData.first.toJson() : {},
         };
 
         final filePath = '${backupDir.path}/$baseName.json';
@@ -371,9 +367,8 @@ class LocalBackupService {
 
       for (final file in files) {
         final extension = p.extension(file.path).toLowerCase();
-        final format = extension == '.sqlite'
-            ? BackupFormat.sqlite
-            : BackupFormat.json;
+        final format =
+            extension == '.sqlite' ? BackupFormat.sqlite : BackupFormat.json;
 
         try {
           BackupMetadata? metadata;
@@ -705,8 +700,8 @@ class LocalBackupService {
           final dbVersion = rawVersion is int
               ? rawVersion
               : rawVersion is num
-              ? rawVersion.toInt()
-              : 0;
+                  ? rawVersion.toInt()
+                  : 0;
 
           if (dbVersion > AppDatabase().schemaVersion) {
             throw Exception(

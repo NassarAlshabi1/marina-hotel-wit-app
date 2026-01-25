@@ -13,8 +13,8 @@ import '../local_db.dart';
 
 class BookingsRepositoryAutomated {
   BookingsRepositoryAutomated(this.db)
-    : outbox = OutboxDao(db),
-      dao = BookingsDao(db, OutboxDao(db));
+      : outbox = OutboxDao(db),
+        dao = BookingsDao(db, OutboxDao(db));
 
   final AppDatabase db;
   final OutboxDao outbox;
@@ -311,8 +311,8 @@ class DebtsRepositoryAutomated {
 
   Stream<List<Debt>> watchAll() => dao.watchList();
   Stream<List<Debt>> watchUnsettled() => dao.watchList().map(
-    (debts) => debts.where((d) => d.isSettled == 0).toList(),
-  );
+        (debts) => debts.where((d) => d.isSettled == 0).toList(),
+      );
 
   Future<int> create({
     required String guestName,
@@ -397,8 +397,8 @@ class EmployeesRepositoryAutomated {
 
   Stream<List<Employee>> watchAll() => dao.watchList();
   Stream<List<Employee>> watchActive() => dao.watchList().map(
-    (employees) => employees.where((e) => e.status == 'active').toList(),
-  );
+        (employees) => employees.where((e) => e.status == 'active').toList(),
+      );
 
   Future<int> create({
     required String name,
@@ -454,7 +454,7 @@ class EmployeesRepositoryAutomated {
 
 class CashTransactionsRepositoryAutomated {
   CashTransactionsRepositoryAutomated(this.db)
-    : dao = CashTransactionsDao(db, OutboxDao(db));
+      : dao = CashTransactionsDao(db, OutboxDao(db));
 
   final AppDatabase db;
   final CashTransactionsDao dao;

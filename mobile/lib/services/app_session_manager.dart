@@ -38,15 +38,12 @@ class AppSessionManager {
     final db = _database;
     if (db != null && _activeSessionUuid != null) {
       final deviceId = await _resolveDeviceId();
-      await db
-          .into(db.appSessions)
-          .insert(
+      await db.into(db.appSessions).insert(
             AppSessionsCompanion.insert(
               sessionUuid: _activeSessionUuid!,
               sessionStartIso: _sessionStart!.toIso8601String(),
-              deviceId: deviceId != null
-                  ? Value(deviceId)
-                  : const Value.absent(),
+              deviceId:
+                  deviceId != null ? Value(deviceId) : const Value.absent(),
               durationSeconds: const Value(0),
             ),
           );
@@ -70,7 +67,8 @@ class AppSessionManager {
       final deviceId = await _resolveDeviceId();
       await (db.update(
         db.appSessions,
-      )..where((tbl) => tbl.sessionUuid.equals(sessionUuid))).write(
+      )..where((tbl) => tbl.sessionUuid.equals(sessionUuid)))
+          .write(
         AppSessionsCompanion(
           sessionEndIso: Value(end.toIso8601String()),
           durationSeconds: Value(durationSeconds),

@@ -26,9 +26,7 @@ void main() {
       final now = Time.nowEpoch();
       final roomUuid = IdGen.uuid();
       final bookingUuid = IdGen.uuid();
-      await database
-          .into(database.rooms)
-          .insert(
+      await database.into(database.rooms).insert(
             RoomsCompanion(
               localUuid: Value(roomUuid),
               roomNumber: const Value('101'),
@@ -40,9 +38,7 @@ void main() {
               lastModified: Value(now),
             ),
           );
-      final bookingId = await database
-          .into(database.bookings)
-          .insert(
+      final bookingId = await database.into(database.bookings).insert(
             BookingsCompanion(
               localUuid: Value(bookingUuid),
               roomNumber: const Value('101'),
@@ -59,9 +55,7 @@ void main() {
               lastModified: Value(now),
             ),
           );
-      await database
-          .into(database.payments)
-          .insert(
+      await database.into(database.payments).insert(
             PaymentsCompanion(
               localUuid: Value(IdGen.uuid()),
               bookingLocalId: Value(bookingId),
@@ -75,9 +69,7 @@ void main() {
             ),
           );
       final debtUuid = IdGen.uuid();
-      await database
-          .into(database.debts)
-          .insert(
+      await database.into(database.debts).insert(
             DebtsCompanion(
               localUuid: Value(debtUuid),
               bookingLocalId: Value(bookingId),
@@ -100,7 +92,8 @@ void main() {
       expect(report.success, isTrue);
       final debt = await (database.select(
         database.debts,
-      )..where((d) => d.localUuid.equals(debtUuid))).getSingle();
+      )..where((d) => d.localUuid.equals(debtUuid)))
+          .getSingle();
       expect(debt.totalAmount, closeTo(600.0, 0.01));
       expect(debt.paidAmount, closeTo(600.0, 0.01));
       expect(debt.remainingAmount, closeTo(0.0, 0.01));
@@ -110,9 +103,7 @@ void main() {
     test('handles large dataset efficiently', () async {
       final now = Time.nowEpoch();
       for (var i = 0; i < 100; i++) {
-        await database
-            .into(database.rooms)
-            .insert(
+        await database.into(database.rooms).insert(
               RoomsCompanion(
                 localUuid: Value(IdGen.uuid()),
                 roomNumber: Value('R${i + 1}'),
@@ -126,9 +117,7 @@ void main() {
             );
       }
       for (var i = 0; i < 50; i++) {
-        final bookingId = await database
-            .into(database.bookings)
-            .insert(
+        final bookingId = await database.into(database.bookings).insert(
               BookingsCompanion(
                 localUuid: Value(IdGen.uuid()),
                 roomNumber: Value('R${(i % 100) + 1}'),
@@ -145,9 +134,7 @@ void main() {
                 lastModified: Value(now),
               ),
             );
-        await database
-            .into(database.payments)
-            .insert(
+        await database.into(database.payments).insert(
               PaymentsCompanion(
                 localUuid: Value(IdGen.uuid()),
                 bookingLocalId: Value(bookingId),
@@ -174,9 +161,7 @@ void main() {
     test('snapshot rollback restores data on failure', () async {
       final now = Time.nowEpoch();
       final originalStatus = 'شاغرة';
-      await database
-          .into(database.rooms)
-          .insert(
+      await database.into(database.rooms).insert(
             RoomsCompanion(
               localUuid: Value(IdGen.uuid()),
               roomNumber: const Value('201'),
@@ -197,15 +182,14 @@ void main() {
       expect(report.success, isFalse);
       final room = await (database.select(
         database.rooms,
-      )..where((r) => r.roomNumber.equals('201'))).getSingle();
+      )..where((r) => r.roomNumber.equals('201')))
+          .getSingle();
       expect(room.status, equals(originalStatus));
     });
 
     test('end-to-end auto fix normalizes bookings and rooms', () async {
       final now = Time.nowEpoch();
-      await database
-          .into(database.rooms)
-          .insert(
+      await database.into(database.rooms).insert(
             RoomsCompanion(
               localUuid: Value(IdGen.uuid()),
               roomNumber: const Value('301'),
@@ -217,9 +201,7 @@ void main() {
               lastModified: Value(now),
             ),
           );
-      final bookingId = await database
-          .into(database.bookings)
-          .insert(
+      final bookingId = await database.into(database.bookings).insert(
             BookingsCompanion(
               localUuid: Value(IdGen.uuid()),
               roomNumber: const Value('301'),
@@ -239,9 +221,7 @@ void main() {
               lastModified: Value(now),
             ),
           );
-      await database
-          .into(database.payments)
-          .insert(
+      await database.into(database.payments).insert(
             PaymentsCompanion(
               localUuid: Value(IdGen.uuid()),
               bookingLocalId: Value(bookingId),
@@ -260,7 +240,8 @@ void main() {
       expect(report.success, isTrue);
       final updatedBooking = await (database.select(
         database.bookings,
-      )..where((b) => b.id.equals(bookingId))).getSingle();
+      )..where((b) => b.id.equals(bookingId)))
+          .getSingle();
       final expectedNights = Time.nightsWithCutoff(
         DateTime(2024, 8, 10, 16),
         checkout: DateTime(2024, 8, 13, 15),
@@ -268,7 +249,8 @@ void main() {
       expect(updatedBooking.calculatedNights, equals(expectedNights));
       final room = await (database.select(
         database.rooms,
-      )..where((r) => r.roomNumber.equals('301'))).getSingle();
+      )..where((r) => r.roomNumber.equals('301')))
+          .getSingle();
       expect(room.status, equals(StatusUtils.roomStatusForOccupancy(true)));
       final fixLogs = await database.select(database.restoreFixLog).get();
       final conflictLogs = await database
@@ -294,9 +276,7 @@ void main() {
 
     test('detects inserts and normalizes timestamps', () async {
       final now = Time.nowEpoch();
-      await database
-          .into(database.rooms)
-          .insert(
+      await database.into(database.rooms).insert(
             RoomsCompanion(
               localUuid: Value(IdGen.uuid()),
               roomNumber: const Value('401'),
@@ -325,9 +305,7 @@ void main() {
     test('detects updates after mirror persistence', () async {
       final now = Time.nowEpoch();
       final roomUuid = IdGen.uuid();
-      await database
-          .into(database.rooms)
-          .insert(
+      await database.into(database.rooms).insert(
             RoomsCompanion(
               localUuid: Value(roomUuid),
               roomNumber: const Value('501'),
@@ -353,7 +331,8 @@ void main() {
       final updateTs = now + 100;
       await (database.update(
         database.rooms,
-      )..where((t) => t.roomNumber.equals('501'))).write(
+      )..where((t) => t.roomNumber.equals('501')))
+          .write(
         RoomsCompanion(
           price: const Value(150.0),
           updatedAt: Value(updateTs),
@@ -374,9 +353,7 @@ void main() {
     test('detects deletes after soft removal', () async {
       final now = Time.nowEpoch();
       final roomUuid = IdGen.uuid();
-      await database
-          .into(database.rooms)
-          .insert(
+      await database.into(database.rooms).insert(
             RoomsCompanion(
               localUuid: Value(roomUuid),
               roomNumber: const Value('601'),
@@ -402,7 +379,8 @@ void main() {
       final deleteTs = now + 200;
       await (database.update(
         database.rooms,
-      )..where((t) => t.roomNumber.equals('601'))).write(
+      )..where((t) => t.roomNumber.equals('601')))
+          .write(
         RoomsCompanion(
           deletedAt: Value(deleteTs),
           lastModified: Value(deleteTs),

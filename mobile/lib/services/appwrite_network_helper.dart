@@ -189,8 +189,7 @@ class AppwriteNetworkHelper {
 
     // إضافة jitter (تذبذب عشوائي بين 0-20%)
     if (addJitter) {
-      final jitter =
-          (exponentialDelay *
+      final jitter = (exponentialDelay *
           0.2 *
           (0.5 + (DateTime.now().millisecond % 100) / 100));
       return Duration(milliseconds: (exponentialDelay + jitter).round());

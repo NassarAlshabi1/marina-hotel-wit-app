@@ -86,7 +86,8 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                 return false;
               }
               return true;
-            }).toList()..sort((a, b) => b.checkinDate.compareTo(a.checkinDate));
+            }).toList()
+              ..sort((a, b) => b.checkinDate.compareTo(a.checkinDate));
 
             if (filtered.isEmpty) {
               return const EmptyState(
@@ -123,25 +124,25 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                 : null;
                             final actualCheckout =
                                 booking.actualCheckout != null
-                                ? DateTime.tryParse(booking.actualCheckout!)
-                                : null;
+                                    ? DateTime.tryParse(booking.actualCheckout!)
+                                    : null;
                             final price = room?.price ?? 0;
                             final expectedNights = booking.expectedNights > 0
                                 ? booking.expectedNights
                                 : (checkin == null
-                                      ? 1
-                                      : Time.nightsWithCutoff(
-                                          checkin,
-                                          checkout: plannedCheckout,
-                                        ));
+                                    ? 1
+                                    : Time.nightsWithCutoff(
+                                        checkin,
+                                        checkout: plannedCheckout,
+                                      ));
                             final actualNights = checkin == null
                                 ? expectedNights
                                 : Time.nightsWithCutoff(
                                     checkin,
                                     checkout: actualCheckout ?? plannedCheckout,
                                   );
-                            final totalAmount = (actualNights * price)
-                                .toDouble();
+                            final totalAmount =
+                                (actualNights * price).toDouble();
                             return _BookingRow(
                               index: index,
                               booking: booking,
@@ -181,11 +182,11 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                       final expectedNights = booking.expectedNights > 0
                           ? booking.expectedNights
                           : (checkin == null
-                                ? 1
-                                : Time.nightsWithCutoff(
-                                    checkin,
-                                    checkout: plannedCheckout,
-                                  ));
+                              ? 1
+                              : Time.nightsWithCutoff(
+                                  checkin,
+                                  checkout: plannedCheckout,
+                                ));
                       final actualNights = checkin == null
                           ? expectedNights
                           : Time.nightsWithCutoff(
@@ -463,15 +464,13 @@ class _BookingRow extends ConsumerWidget {
         final paid = snapshot.hasData
             ? snapshot.data!.fold<double>(0, (s, p) => s + p.amount)
             : 0.0;
-        final remaining = (totalAmount - paid)
-            .clamp(0.0, totalAmount)
-            .toDouble();
+        final remaining =
+            (totalAmount - paid).clamp(0.0, totalAmount).toDouble();
         final Color statusColor = remaining <= 0.0
             ? Colors.green
             : (paid > 0 ? Colors.orange : Colors.red);
-        final String statusText = remaining <= 0.0
-            ? 'مسددة'
-            : (paid > 0 ? 'جزئياً' : 'غير مسددة');
+        final String statusText =
+            remaining <= 0.0 ? 'مسددة' : (paid > 0 ? 'جزئياً' : 'غير مسددة');
 
         return compact
             ? _CompactBookingCard(
