@@ -608,40 +608,40 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 19) {
             try {
-              await m.addColumn(bookings, bookings.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(bookings, bookings.vectorClock);
             } catch (_) {}
             try {
-              await m.addColumn(rooms, rooms.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(rooms, rooms.vectorClock);
             } catch (_) {}
             try {
-              await m.addColumn(employees, employees.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(employees, employees.vectorClock);
             } catch (_) {}
             try {
-              await m.addColumn(expenses, expenses.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(expenses, expenses.vectorClock);
             } catch (_) {}
             try {
-              await m.addColumn(cashTransactions, cashTransactions.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(cashTransactions, cashTransactions.vectorClock);
             } catch (_) {}
             try {
-              await m.addColumn(payments, payments.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(payments, payments.vectorClock);
             } catch (_) {}
             try {
-              await m.addColumn(debts, debts.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(debts, debts.vectorClock);
             } catch (_) {}
             try {
-              await m.addColumn(bookingNotes, bookingNotes.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(bookingNotes, bookingNotes.vectorClock);
             } catch (_) {}
             try {
-              await m.addColumn(bookingNights, bookingNights.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(bookingNights, bookingNights.vectorClock);
             } catch (_) {}
             try {
-              await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock);
             } catch (_) {}
             try {
-              await m.addColumn(salaryCycles, salaryCycles.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(salaryCycles, salaryCycles.vectorClock);
             } catch (_) {}
             try {
-              await m.addColumn(salaryPayments, salaryPayments.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(salaryPayments, salaryPayments.vectorClock);
             } catch (_) {}
           }
         },

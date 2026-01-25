@@ -135,8 +135,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         RawValuesInsertable({
           'processing_status': Variable<String>('processing'),
           'processing_started_at':
-              Variable<int?>(DateTime.now().millisecondsSinceEpoch),
-          'processing_worker': Variable<String?>(worker),
+              Variable<int>(DateTime.now().millisecondsSinceEpoch),
+          'processing_worker': Variable<String>(worker),
         }),
       );
 
@@ -163,8 +163,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     await (update(outbox)..where((t) => t.id.isIn(ids))).write(
       RawValuesInsertable({
         'processing_status': Variable<String>('completed'),
-        'processing_started_at': const Variable<int?>(null),
-        'processing_worker': const Variable<String?>(null),
+        'processing_started_at': const Variable<int>(null),
+        'processing_worker': const Variable<String>(null),
       }),
     );
   }
@@ -182,8 +182,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     await (update(outbox)..where((t) => t.processingStatus.equals('failed')))
         .write(RawValuesInsertable({
       'processing_status': Variable<String>('pending'),
-      'processing_started_at': const Variable<int?>(null),
-      'processing_worker': const Variable<String?>(null),
+      'processing_started_at': const Variable<int>(null),
+      'processing_worker': const Variable<String>(null),
       'attempts': const Variable<int>(0),
     }));
   }
@@ -199,8 +199,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
               t.processingStartedAt.isSmallerThanValue(thresholdTime)))
         .write(RawValuesInsertable({
       'processing_status': Variable<String>('pending'),
-      'processing_started_at': const Variable<int?>(null),
-      'processing_worker': const Variable<String?>(null),
+      'processing_started_at': const Variable<int>(null),
+      'processing_worker': const Variable<String>(null),
     }));
   }
 
