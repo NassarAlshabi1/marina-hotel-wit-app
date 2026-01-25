@@ -278,7 +278,6 @@ class EnhancedConflictResolver {
         'checkout_date',
         'actual_checkout',
         'room_number',
-<<<<<<< Updated upstream
         'total_due_cached',
         'total_paid_cached',
         'remaining_balance_cached',
@@ -355,27 +354,6 @@ class EnhancedConflictResolver {
         'status',
         'note_text'
       },
-=======
-        'total_amount',
-        'paid_amount',
-        'remaining_amount'
-      },
-      'payments': {'amount', 'payment_date', 'payment_method', 'booking_uuid'},
-      'rooms': {'status', 'price', 'room_number', 'floor', 'type'},
-      'expenses': {'amount', 'date', 'category', 'description'},
-      'debts': {'amount', 'status', 'due_date', 'paid_amount'},
-      'guests': {'name', 'phone', 'id_number', 'nationality'},
-      'employees': {'name', 'phone', 'salary', 'role', 'status'},
-      'services': {'name', 'price', 'is_active'},
-      'room_services': {
-        'service_uuid',
-        'booking_uuid',
-        'quantity',
-        'total_price'
-      },
-      'shifts': {'start_time', 'end_time', 'employee_uuid', 'total_amount'},
-      'settings': {'value'},
->>>>>>> Stashed changes
     };
 
     return fieldsByTable[table] ?? {};

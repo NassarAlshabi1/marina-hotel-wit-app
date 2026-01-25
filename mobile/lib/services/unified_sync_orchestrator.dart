@@ -11,10 +11,7 @@ import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
 import 'smart_sync_manager.dart';
-<<<<<<< Updated upstream
 import 'sync_integrity_checker.dart';
-=======
->>>>>>> Stashed changes
 
 class UnifiedSyncState {
   final String phase;
@@ -191,7 +188,6 @@ class UnifiedSyncOrchestrator {
     await _driveSub?.cancel();
     await _stateController.close();
     _initialized = false;
-<<<<<<< Updated upstream
   }
 
   Future<void> notifyLocalChange({String? table, String? operation}) async {
@@ -286,9 +282,6 @@ class UnifiedSyncOrchestrator {
     await _driveCoordinator!.setDebounceSeconds(seconds);
   }
 
-=======
-  }
-
   Future<void> notifyLocalChange({String? table, String? operation}) async {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(seconds: 2), () async {
@@ -377,7 +370,6 @@ class UnifiedSyncOrchestrator {
     await _driveCoordinator!.setDebounceSeconds(seconds);
   }
 
->>>>>>> Stashed changes
   Future<void> setPullInterval(int minutes) async {
     if (_driveCoordinator == null) return;
     await _driveCoordinator!.setPullInterval(minutes);
@@ -535,7 +527,6 @@ class UnifiedSyncOrchestrator {
     return true;
   }
 
-<<<<<<< Updated upstream
   Future<void> _verifySyncIntegrity() async {
     if (_database == null) return;
 
@@ -578,8 +569,6 @@ class UnifiedSyncOrchestrator {
     }
   }
 
-=======
->>>>>>> Stashed changes
   void _emit(UnifiedSyncState s) {
     _state = s;
     if (!_stateController.isClosed) {

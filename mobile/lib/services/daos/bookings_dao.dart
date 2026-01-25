@@ -9,11 +9,7 @@ part 'bookings_dao.g.dart';
 
 @DriftAccessor(tables: [Bookings])
 class BookingsDao extends DatabaseAccessor<AppDatabase>
-<<<<<<< Updated upstream
     with _$BookingsDaoMixin, OptimisticLockDaoMixin<Bookings, Booking> {
-=======
-    with _$BookingsDaoMixin {
->>>>>>> Stashed changes
   BookingsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 

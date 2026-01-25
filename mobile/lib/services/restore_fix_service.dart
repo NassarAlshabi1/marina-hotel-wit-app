@@ -667,7 +667,6 @@ class RestoreFixService {
         roomLastOccupied[room.id] = bookingResult.lastOccupiedDay!;
       }
     }
-<<<<<<< Updated upstream
 
     if (nightRows.isNotEmpty) {
       await db.batch((batch) {
@@ -717,57 +716,6 @@ class RestoreFixService {
     int sequence = 0;
     DateTime? lastNightEnd;
 
-=======
-
-    if (nightRows.isNotEmpty) {
-      await db.batch((batch) {
-        for (final row in nightRows) {
-          batch.insert(db.bookingNights, row, mode: InsertMode.insertOrReplace);
-        }
-      });
-    }
-
-    await _processExpenses(context, ledger);
-
-    return _NightsRebuildResult(
-      ledger: ledger,
-      nightRows: nightRows,
-      roomLastOccupied: roomLastOccupied,
-      changes: changes,
-      bookingNightCount: bookingNightCount,
-      paymentsProcessed: paymentsProcessed,
-    );
-  }
-
-  Future<_BookingProcessingResult> _processBookingForNights({
-    required Booking booking,
-    required Room room,
-    required DateTime restoreMoment,
-    required Map<String, _LedgerAccumulator> ledger,
-  }) async {
-    final bool bookingActive = booking.actualCheckout == null &&
-        (StatusUtils.isBookingActive(booking) || booking.checkoutDate == null);
-
-    final DateTime checkin = _parseDate(booking.checkinDate) ?? restoreMoment;
-    DateTime checkout =
-        _parseDate(booking.actualCheckout) ?? _parseDate(booking.checkoutDate) ?? restoreMoment;
-
-    if (bookingActive && restoreMoment.isAfter(checkin)) {
-      checkout = restoreMoment;
-    }
-
-    if (!checkout.isAfter(checkin)) {
-      checkout = checkin.add(const Duration(hours: 12));
-    }
-
-    final segments = _buildNightSegments(checkin, checkout);
-    final double nightlyRate = room.price;
-    final List<BookingNightsCompanion> nightRows = [];
-
-    int sequence = 0;
-    DateTime? lastNightEnd;
-
->>>>>>> Stashed changes
     for (final segment in segments) {
       sequence++;
       lastNightEnd = segment.end;
@@ -970,7 +918,6 @@ class RestoreFixService {
   ) async {
     if (nightsResult.roomLastOccupied.isEmpty) {
       return _RoomsUpdateResult(roomsTouched: 0);
-<<<<<<< Updated upstream
     }
 
     final int stamp = Time.nowEpoch();
@@ -1006,43 +953,6 @@ class RestoreFixService {
     if (ledgerResult.ledgerEntryCount > 0) {
       changeLog.add('📊 تحديث دفتر HotelDayLedger: ${ledgerResult.ledgerEntryCount} يوم');
     }
-=======
-    }
-
-    final int stamp = Time.nowEpoch();
-    final String stampIso = DateTime.now().toUtc().toIso8601String();
-    await db.batch((batch) {
-      nightsResult.roomLastOccupied.forEach((roomId, hotelDayKey) {
-        batch.update(
-          db.rooms,
-          RoomsCompanion(
-            lastOccupiedHotelDay: Value(hotelDayKey),
-            updatedAt: Value(stamp),
-            lastModified: Value(stamp),
-            updatedAtIso: Value(stampIso),
-            lastModifiedEpoch: Value(stamp),
-          ),
-          where: (tbl) => tbl.id.equals(roomId),
-        );
-      });
-    });
-
-    return _RoomsUpdateResult(roomsTouched: nightsResult.roomLastOccupied.length);
-  }
-
-  _BookingStructuresResult _combineResults(
-    _NightsRebuildResult nightsResult,
-    _LedgerRebuildResult ledgerResult,
-    _RoomsUpdateResult roomsResult,
-  ) {
-    final List<String> changeLog = [...nightsResult.changes];
-    if (nightsResult.bookingNightCount > 0) {
-      changeLog.add('🔁 إعادة بناء جدول الليالي: ${nightsResult.bookingNightCount} سجل');
-    }
-    if (ledgerResult.ledgerEntryCount > 0) {
-      changeLog.add('📊 تحديث دفتر HotelDayLedger: ${ledgerResult.ledgerEntryCount} يوم');
-    }
->>>>>>> Stashed changes
     if (nightsResult.paymentsProcessed > 0) {
       changeLog.add('💰 تحديث مؤشرات المدفوعات: معالجة ${nightsResult.paymentsProcessed} دفعة');
     }
@@ -1184,7 +1094,6 @@ class RestoreFixService {
       
       _validateSnapshotData(snapshotData);
       
-<<<<<<< Updated upstream
       await db.transaction(() async {
         // مسح الجداول المتأثرة (احذف children أولًا لتفادي كسر قيود FK)
         await db.delete(db.payments).go();
@@ -1193,19 +1102,6 @@ class RestoreFixService {
         await db.delete(db.hotelDayLedger).go();
         await db.delete(db.bookings).go();
         await db.delete(db.rooms).go();
-=======
-      await db.customStatement('PRAGMA foreign_keys = OFF');
-      debugPrint('🔓 تم إيقاف FOREIGN KEYS مؤقتاً');
-      try {
-        await db.transaction(() async {
-          // مسح الجداول المتأثرة (احذف children أولًا لتفادي كسر قيود FK)
-          await db.delete(db.payments).go();
-          await db.delete(db.debts).go();
-          await db.delete(db.bookingNights).go();
-          await db.delete(db.hotelDayLedger).go();
-          await db.delete(db.bookings).go();
-          await db.delete(db.rooms).go();
->>>>>>> Stashed changes
 
         // استعادة البيانات (أدخل parents أولًا ثم children)
         if (snapshotData.containsKey('rooms')) {
