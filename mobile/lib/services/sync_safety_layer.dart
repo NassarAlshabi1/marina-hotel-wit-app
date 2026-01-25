@@ -321,10 +321,19 @@ class SyncSafetyLayer {
 
     if (rows.isEmpty) return;
 
+    final existingColumns = await _tableColumns(db, tableName);
+
     await db.batch((batch) {
       for (final row in rows) {
-        final columns = row.keys.toList();
-        final values = row.values.toList();
+        final filtered = Map<String, dynamic>.fromEntries(
+          row.entries.where((e) => existingColumns.contains(e.key)),
+        );
+        if (filtered.isEmpty) {
+          debugPrint('⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة');
+          continue;
+        }
+        final columns = filtered.keys.toList();
+        final values = filtered.values.toList();
         final placeholders = List.filled(values.length, '?').join(', ');
         final columnNames = columns.join(', ');
 
@@ -335,6 +344,11 @@ class SyncSafetyLayer {
       }
     });
     debugPrint('✅ تم استعادة ${rows.length} سجل من $tableName');
+  }
+
+  Future<Set<String>> _tableColumns(AppDatabase db, String tableName) async {
+    final result = await db.customSelect('PRAGMA table_info($tableName)').get();
+    return result.map((r) => r.data['name'] as String).toSet();
   }
 
   Future<bool> _attemptFileRestore(AppDatabase db, String snapshotPath) async {
