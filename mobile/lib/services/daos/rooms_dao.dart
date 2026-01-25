@@ -2,13 +2,14 @@ import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
-import '../sync_core/optimistic_lock_exception.dart';
+import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 
 part 'rooms_dao.g.dart';
 
 @DriftAccessor(tables: [Rooms])
-class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin {
+class RoomsDao extends DatabaseAccessor<AppDatabase>
+    with _$RoomsDaoMixin, OptimisticLockDaoMixin<Rooms, Room> {
   RoomsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
@@ -208,55 +209,16 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin {
     await delete(rooms).go();
   }
 
-  Future<bool> updateWithOptimisticLock(
-    String localUuid,
-    RoomsCompanion update,
-    int expectedVersion,
-  ) async {
-    return db.transaction(() async {
-      final existing = await (select(rooms)
-            ..where((t) => t.localUuid.equals(localUuid)))
-          .getSingleOrNull();
+  @override
+  TableInfo<Rooms, Room> get optimisticTable => rooms;
 
-      if (existing == null) {
-        throw OptimisticLockException(
-          table: 'rooms',
-          uuid: localUuid,
-          expectedVersion: expectedVersion,
-          actualVersion: null,
-        );
-      }
+  @override
+  String get optimisticTableName => 'rooms';
 
-      if (existing.version != expectedVersion) {
-        throw OptimisticLockException(
-          table: 'rooms',
-          uuid: localUuid,
-          expectedVersion: expectedVersion,
-          actualVersion: existing.version,
-        );
-      }
+  @override
+  GeneratedColumn<String> get optimisticLocalUuid => rooms.localUuid;
 
-      final updated = await (db.update(rooms)
-            ..where((t) =>
-                t.localUuid.equals(localUuid) &
-                t.version.equals(expectedVersion)))
-          .write(update.copyWith(version: Value(expectedVersion + 1)));
-
-      if (updated == 0) {
-        throw OptimisticLockException(
-          table: 'rooms',
-          uuid: localUuid,
-          expectedVersion: expectedVersion,
-          actualVersion: existing.version,
-        );
-      }
-
-      return true;
-    });
-  }
-
-  Future<Room?> getByUuid(String uuid) async {
-    return (select(rooms)..where((t) => t.localUuid.equals(uuid)))
-        .getSingleOrNull();
-  }
+  @override
+  GeneratedColumn<int> get optimisticVersion => rooms.version;
 }
+

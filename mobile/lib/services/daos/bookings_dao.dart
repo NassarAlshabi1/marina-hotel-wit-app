@@ -2,14 +2,14 @@ import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
-import '../sync_core/optimistic_lock_exception.dart';
+import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 
 part 'bookings_dao.g.dart';
 
 @DriftAccessor(tables: [Bookings])
 class BookingsDao extends DatabaseAccessor<AppDatabase>
-    with _$BookingsDaoMixin {
+    with _$BookingsDaoMixin, OptimisticLockDaoMixin<Bookings, Booking> {
   BookingsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
@@ -273,55 +273,15 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     await delete(bookings).go();
   }
 
-  Future<bool> updateWithOptimisticLock(
-    String localUuid,
-    BookingsCompanion update,
-    int expectedVersion,
-  ) async {
-    return db.transaction(() async {
-      final existing = await (select(bookings)
-            ..where((t) => t.localUuid.equals(localUuid)))
-          .getSingleOrNull();
+  @override
+  TableInfo<Bookings, Booking> get optimisticTable => bookings;
 
-      if (existing == null) {
-        throw OptimisticLockException(
-          table: 'bookings',
-          uuid: localUuid,
-          expectedVersion: expectedVersion,
-          actualVersion: null,
-        );
-      }
+  @override
+  String get optimisticTableName => 'bookings';
 
-      if (existing.version != expectedVersion) {
-        throw OptimisticLockException(
-          table: 'bookings',
-          uuid: localUuid,
-          expectedVersion: expectedVersion,
-          actualVersion: existing.version,
-        );
-      }
+  @override
+  GeneratedColumn<String> get optimisticLocalUuid => bookings.localUuid;
 
-      final updated = await (db.update(bookings)
-            ..where((t) =>
-                t.localUuid.equals(localUuid) &
-                t.version.equals(expectedVersion)))
-          .write(update.copyWith(version: Value(expectedVersion + 1)));
-
-      if (updated == 0) {
-        throw OptimisticLockException(
-          table: 'bookings',
-          uuid: localUuid,
-          expectedVersion: expectedVersion,
-          actualVersion: existing.version,
-        );
-      }
-
-      return true;
-    });
-  }
-
-  Future<Booking?> getByUuid(String uuid) async {
-    return (select(bookings)..where((t) => t.localUuid.equals(uuid)))
-        .getSingleOrNull();
-  }
+  @override
+  GeneratedColumn<int> get optimisticVersion => bookings.version;
 }

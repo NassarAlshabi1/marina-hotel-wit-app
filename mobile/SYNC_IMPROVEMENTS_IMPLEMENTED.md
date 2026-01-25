@@ -236,7 +236,7 @@ Future<void> fixIssue(AppDatabase db, IntegrityIssue issue)
 
 ## الملفات المتأثرة
 
-### ملفات معدلة (8):
+### ملفات معدلة (9):
 1. `lib/services/local_db.dart` - إضافة vectorClock + migration
 2. `lib/services/daos/bookings_dao.dart` - optimistic locking
 3. `lib/services/daos/payments_dao.dart` - optimistic locking

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/sync_dashboard_provider.dart';
 import '../../services/sync_health_monitor.dart';
 import '../../services/sync_core/circuit_breaker.dart';
+import '../../services/sync_integrity_checker.dart';
 import 'package:intl/intl.dart';
 
 class SyncHealthDashboardScreen extends ConsumerStatefulWidget {
@@ -635,24 +636,16 @@ class _SyncHealthDashboardScreenState
     );
   }
 
-  String _getIssueTypeLabel(dynamic issueType) {
-    final typeStr = issueType.toString().split('.').last;
-    switch (typeStr) {
-      case 'orphanedRecord':
-        return 'سجلات يتيمة';
-      case 'duplicateUuid':
-        return 'معرّفات مكررة';
-      case 'versionInconsistency':
-        return 'عدم تطابق الإصدارات';
-      case 'amountMismatch':
-        return 'عدم تطابق المبالغ';
-      case 'missingReference':
-        return 'مراجع مفقودة';
-      case 'invalidStatus':
-        return 'حالات غير صالحة';
-      default:
-        return typeStr;
-    }
+  String _getIssueTypeLabel(IssueType issueType) {
+    const labels = {
+      IssueType.orphanedRecord: 'سجلات يتيمة',
+      IssueType.duplicateUuid: 'معرّفات مكررة',
+      IssueType.versionInconsistency: 'عدم تطابق الإصدارات',
+      IssueType.amountMismatch: 'عدم تطابق المبالغ',
+      IssueType.missingReference: 'مراجع مفقودة',
+      IssueType.invalidStatus: 'حالات غير صالحة',
+    };
+    return labels[issueType] ?? issueType.toString().split('.').last;
   }
 }
 

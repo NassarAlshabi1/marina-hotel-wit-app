@@ -2,14 +2,14 @@ import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
-import '../sync_core/optimistic_lock_exception.dart';
+import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 
 part 'payments_dao.g.dart';
 
 @DriftAccessor(tables: [Payments])
 class PaymentsDao extends DatabaseAccessor<AppDatabase>
-    with _$PaymentsDaoMixin {
+    with _$PaymentsDaoMixin, OptimisticLockDaoMixin<Payments, Payment> {
   PaymentsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
@@ -251,55 +251,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     await delete(payments).go();
   }
 
-  Future<bool> updateWithOptimisticLock(
-    String localUuid,
-    PaymentsCompanion update,
-    int expectedVersion,
-  ) async {
-    return db.transaction(() async {
-      final existing = await (select(payments)
-            ..where((t) => t.localUuid.equals(localUuid)))
-          .getSingleOrNull();
+  @override
+  TableInfo<Payments, Payment> get optimisticTable => payments;
 
-      if (existing == null) {
-        throw OptimisticLockException(
-          table: 'payments',
-          uuid: localUuid,
-          expectedVersion: expectedVersion,
-          actualVersion: null,
-        );
-      }
+  @override
+  String get optimisticTableName => 'payments';
 
-      if (existing.version != expectedVersion) {
-        throw OptimisticLockException(
-          table: 'payments',
-          uuid: localUuid,
-          expectedVersion: expectedVersion,
-          actualVersion: existing.version,
-        );
-      }
+  @override
+  GeneratedColumn<String> get optimisticLocalUuid => payments.localUuid;
 
-      final updated = await (db.update(payments)
-            ..where((t) =>
-                t.localUuid.equals(localUuid) &
-                t.version.equals(expectedVersion)))
-          .write(update.copyWith(version: Value(expectedVersion + 1)));
-
-      if (updated == 0) {
-        throw OptimisticLockException(
-          table: 'payments',
-          uuid: localUuid,
-          expectedVersion: expectedVersion,
-          actualVersion: existing.version,
-        );
-      }
-
-      return true;
-    });
-  }
-
-  Future<Payment?> getByUuid(String uuid) async {
-    return (select(payments)..where((t) => t.localUuid.equals(uuid)))
-        .getSingleOrNull();
-  }
+  @override
+  GeneratedColumn<int> get optimisticVersion => payments.version;
 }
