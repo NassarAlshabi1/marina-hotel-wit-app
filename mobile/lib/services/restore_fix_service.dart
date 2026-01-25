@@ -358,8 +358,8 @@ class RestoreFixService {
       final checkinDate = DateTime.parse(booking.checkinDate);
       final checkoutDate = booking.actualCheckout != null
           ? DateTime.parse(booking.actualCheckout!)
-          : (booking.checkoutDate.isNotEmpty
-              ? DateTime.parse(booking.checkoutDate)
+          : (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty
+              ? DateTime.parse(booking.checkoutDate!)
               : now);
 
       // حساب الليالي باستخدام قاعدة الساعة 14:00
