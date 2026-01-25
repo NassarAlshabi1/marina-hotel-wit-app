@@ -99,7 +99,7 @@ class EnhancedPdfHelper {
           final nowMillis = now.millisecondsSinceEpoch;
           final nowIso = now.toIso8601String();
           return Booking(
-            localUuid: 'fallback-${payment.id ?? nowMillis}',
+            localUuid: 'fallback-${payment.id}',
             serverId: null,
             createdAt: nowMillis,
             updatedAt: nowMillis,
@@ -142,6 +142,7 @@ class EnhancedPdfHelper {
             isFullyPaid: false,
             hotelDayCheckin: null,
             hotelDayCheckout: null,
+            vectorClock: '{}',
           );
         },
       );

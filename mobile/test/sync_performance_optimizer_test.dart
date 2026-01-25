@@ -182,6 +182,7 @@ extension SyncPerformanceOptimizerTestExtension on SyncPerformanceOptimizer {
     // ولكن للاختبار نحتاج للوصول إليها
 
     // نسخ منطق الدالة للاختبار
+    // ignore: unused_local_variable
     final wasOnWiFi = isOnWiFi;
 
     if (results.isEmpty) {
@@ -189,6 +190,7 @@ extension SyncPerformanceOptimizerTestExtension on SyncPerformanceOptimizer {
       return;
     }
 
+    // ignore: unused_local_variable
     bool newIsOnWiFi = false;
 
     if (results.contains(ConnectivityResult.wifi)) {

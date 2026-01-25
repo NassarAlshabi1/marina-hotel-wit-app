@@ -981,6 +981,7 @@ String? _asString(dynamic value) {
   return value.toString();
 }
 
+// ignore: unused_element
 DateTime? _parseTimestamp(dynamic value) {
   if (value == null) return null;
   if (value is DateTime) return value;

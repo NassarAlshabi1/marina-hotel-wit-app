@@ -79,6 +79,7 @@ class RealtimeSyncNotifier {
     required String changeType,
   }) async {
     try {
+      // ignore: unused_local_variable
       final metadata = {
         'last_sync_id': syncId,
         'source_device': SmartSyncManager.instance.deviceId,

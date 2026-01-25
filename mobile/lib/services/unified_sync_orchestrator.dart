@@ -77,7 +77,9 @@ class UnifiedSyncOrchestrator {
 
   bool _initialized = false;
   bool _syncing = false;
+  // ignore: unused_field
   DateTime? _lastSyncTime;
+  // ignore: unused_field
   int _syncCount = 0;
 
   final _stateController = StreamController<UnifiedSyncState>.broadcast();

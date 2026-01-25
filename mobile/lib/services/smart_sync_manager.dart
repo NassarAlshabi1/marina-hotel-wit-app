@@ -458,7 +458,7 @@ class SmartSyncManager {
         for (final noteData in notes) {
           if (noteData is Map<String, dynamic>) {
             // التحقق من تاريخ الملاحظة
-            String? createdAtStr = noteData['created_at'];
+            final String? createdAtStr = noteData['created_at'];
             // في بعض الأحيان يكون التاريخ بتنسيق مختلف، نحاول التحليل
             if (createdAtStr != null) {
               try {

@@ -90,7 +90,7 @@ abstract class BaseSyncManager {
   /// توليد معرف فريد للجهاز
   Future<String> _initializeDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
-    String? savedId = prefs.getString(_prefsDeviceIdKey);
+    final String? savedId = prefs.getString(_prefsDeviceIdKey);
 
     if (savedId != null) {
       _log('🆔 معرف الجهاز: $savedId');

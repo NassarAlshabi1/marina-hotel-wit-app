@@ -141,6 +141,7 @@ class ConflictResolver {
         return conflict.isLocalNewer ? conflict.localData : conflict.remoteData;
 
       case ConflictStrategy.devicePriority:
+        // ignore: unused_local_variable
         final remoteDevice = conflict.remoteData['device_id'] as String?;
         final remotePriority =
             conflict.remoteData['device_priority'] as int? ?? 100;

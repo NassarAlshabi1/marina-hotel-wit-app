@@ -46,6 +46,7 @@ class AppwriteAutoSyncTask {
   AppwriteAutoSyncTask._();
 
   static int _debounceToken = 0;
+  // ignore: unused_field
   static Future<void>? _pendingDebounce;
   static bool _initialized = false;
 

@@ -380,6 +380,7 @@ class SyncManager {
     return localChecksum == remote.metadata.checksum;
   }
 
+  // ignore: unused_element
   /// حساب checksum باستخدام stream لتجنب memory issues
   Future<String> _computeStreamChecksum() async {
     final output = AccumulatorSink<Digest>();

@@ -629,19 +629,19 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(debts, debts.vectorClock as GeneratedColumn<Object?>);
             } catch (_) {}
             try {
-              await m.addColumn(bookingNotes, bookingNotes.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(bookingNotes, bookingNotes.vectorClock as GeneratedColumn<Object>);
             } catch (_) {}
             try {
-              await m.addColumn(bookingNights, bookingNights.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(bookingNights, bookingNights.vectorClock as GeneratedColumn<Object>);
             } catch (_) {}
             try {
-              await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock as GeneratedColumn<Object>);
             } catch (_) {}
             try {
-              await m.addColumn(salaryCycles, salaryCycles.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(salaryCycles, salaryCycles.vectorClock as GeneratedColumn<Object>);
             } catch (_) {}
             try {
-              await m.addColumn(salaryPayments, salaryPayments.vectorClock as GeneratedColumn<Object?>);
+              await m.addColumn(salaryPayments, salaryPayments.vectorClock as GeneratedColumn<Object>);
             } catch (_) {}
           }
         },

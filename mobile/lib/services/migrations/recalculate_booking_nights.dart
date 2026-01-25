@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import '../local_db.dart';
 import '../booking_derived_fields_service.dart';
 
