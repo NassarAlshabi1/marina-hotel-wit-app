@@ -154,12 +154,8 @@ class SyncSafetyLayer {
     try {
       final content = await file.readAsString();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
-      tables = Map<String, dynamic>.from(decoded['tables'] as Map);
-      final localTables = tables;
-
-      if (localTables == null) {
-        throw StateError('Snapshot tables missing');
-      }
+      final localTables = Map<String, dynamic>.from(decoded['tables'] as Map);
+      tables = localTables;
 
       try {
         await db.transaction(() async {
