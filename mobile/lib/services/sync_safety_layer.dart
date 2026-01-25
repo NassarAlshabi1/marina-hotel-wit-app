@@ -329,7 +329,9 @@ class SyncSafetyLayer {
           row.entries.where((e) => existingColumns.contains(e.key)),
         );
         if (filtered.isEmpty) {
-          debugPrint('⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة');
+          debugPrint(
+            '⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة',
+          );
           continue;
         }
         final columns = filtered.keys.toList();
