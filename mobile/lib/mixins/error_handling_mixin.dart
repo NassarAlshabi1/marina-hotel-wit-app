@@ -21,12 +21,14 @@ mixin ErrorHandlingMixin {
   T? trySync<T>(
     T Function() operation, {
     String? operationName,
+    void Function(dynamic error, StackTrace stack)? onError,
   }) {
     try {
       return operation();
     } catch (e, stack) {
       debugPrint('❌ [$logTag] ${operationName ?? 'Operation'} failed: $e');
       debugPrint('$stack');
+      onError?.call(e, stack);
       return null;
     }
   }

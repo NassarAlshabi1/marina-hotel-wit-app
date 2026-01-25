@@ -55,14 +55,14 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   static const _idTypes = [
     AppStrings.idTypePersonal,
     AppStrings.idTypePassport,
-    'رخصة قيادة',
-    'بطاقة عسكرية',
-    'استبيان',
-    'شهادة ميلاد'
+    AppStrings.idTypeDrivingLicense,
+    AppStrings.idTypeMilitaryId,
+    AppStrings.idTypeSurvey,
+    AppStrings.idTypeBirthCertificate,
   ];
   static const _statusOptions = [
     AppStrings.statusBooked,
-    'شاغرة',
+    AppStrings.statusVacant,
     AppStrings.statusCompleted,
     AppStrings.statusCancelled,
   ];
