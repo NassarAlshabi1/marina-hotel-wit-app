@@ -358,7 +358,9 @@ class RestoreFixService {
       final checkinDate = DateTime.parse(booking.checkinDate);
       final checkoutDate = booking.actualCheckout != null
           ? DateTime.parse(booking.actualCheckout!)
-          : now;
+          : (booking.checkoutDate.isNotEmpty
+              ? DateTime.parse(booking.checkoutDate)
+              : now);
 
       // حساب الليالي باستخدام قاعدة الساعة 14:00
       final calculatedNights = Time.nightsWithCutoff(
@@ -1122,9 +1124,10 @@ class RestoreFixService {
     required String reason,
     required String fixType,
   }) async {
+    final logId = IdGen.uuid();
     await db.into(db.restoreFixLog).insert(
           RestoreFixLogCompanion(
-            fixId: Value(fixId),
+            fixId: Value(logId),
             executedAt: Value(Time.nowEpoch()),
             targetTable: Value(targetTable),
             targetRecordId: Value(targetRecordId),

@@ -720,6 +720,7 @@ class AppDatabase extends _$AppDatabase {
     final roomsData = await select(rooms).get();
     final bookingsData = await select(bookings).get();
     final bookingNotesData = await select(bookingNotes).get();
+    final shiftNotesData = await select(shiftNotes).get();
     final employeesData = await select(employees).get();
     final expensesData = await select(expenses).get();
     final cashTransactionsData = await select(cashTransactions).get();
@@ -737,6 +738,7 @@ class AppDatabase extends _$AppDatabase {
       'rooms': roomsData.map((e) => e.toJson()).toList(),
       'bookings': bookingsData.map((e) => e.toJson()).toList(),
       'booking_notes': bookingNotesData.map((e) => e.toJson()).toList(),
+      'shift_notes': shiftNotesData.map((e) => e.toJson()).toList(),
       'employees': employeesData.map((e) => e.toJson()).toList(),
       'expenses': expensesData.map((e) => e.toJson()).toList(),
       'cash_transactions': cashTransactionsData.map((e) => e.toJson()).toList(),
@@ -816,6 +818,11 @@ class AppDatabase extends _$AppDatabase {
         bookingNotes,
         'booking_notes',
         (row) => BookingNote.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<ShiftNote>(
+        shiftNotes,
+        'shift_notes',
+        (row) => ShiftNote.fromJson(row),
       );
       await replaceTableIfNonEmpty<Employee>(
         employees,
