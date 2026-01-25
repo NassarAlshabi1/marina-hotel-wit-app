@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
+import '../sync_core/optimistic_lock_exception.dart';
 import 'outbox_dao.dart';
 
 part 'bookings_dao.g.dart';
@@ -270,5 +271,57 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await delete(bookings).go();
+  }
+
+  Future<bool> updateWithOptimisticLock(
+    String localUuid,
+    BookingsCompanion update,
+    int expectedVersion,
+  ) async {
+    return db.transaction(() async {
+      final existing = await (select(bookings)
+            ..where((t) => t.localUuid.equals(localUuid)))
+          .getSingleOrNull();
+
+      if (existing == null) {
+        throw OptimisticLockException(
+          table: 'bookings',
+          uuid: localUuid,
+          expectedVersion: expectedVersion,
+          actualVersion: null,
+        );
+      }
+
+      if (existing.version != expectedVersion) {
+        throw OptimisticLockException(
+          table: 'bookings',
+          uuid: localUuid,
+          expectedVersion: expectedVersion,
+          actualVersion: existing.version,
+        );
+      }
+
+      final updated = await (db.update(bookings)
+            ..where((t) =>
+                t.localUuid.equals(localUuid) &
+                t.version.equals(expectedVersion)))
+          .write(update.copyWith(version: Value(expectedVersion + 1)));
+
+      if (updated == 0) {
+        throw OptimisticLockException(
+          table: 'bookings',
+          uuid: localUuid,
+          expectedVersion: expectedVersion,
+          actualVersion: existing.version,
+        );
+      }
+
+      return true;
+    });
+  }
+
+  Future<Booking?> getByUuid(String uuid) async {
+    return (select(bookings)..where((t) => t.localUuid.equals(uuid)))
+        .getSingleOrNull();
   }
 }

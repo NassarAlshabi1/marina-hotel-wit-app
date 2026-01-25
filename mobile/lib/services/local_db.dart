@@ -27,6 +27,7 @@ mixin SyncFields on Table {
   IntColumn get lastModifiedEpoch => integer().withDefault(const Constant(0))();
   IntColumn get version => integer().withDefault(const Constant(1))();
   TextColumn get origin => text().withDefault(const Constant('local'))();
+  TextColumn get vectorClock => text().withDefault(const Constant('{}'))();
 }
 
 class Rooms extends Table with SyncFields {
@@ -456,7 +457,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -598,6 +599,20 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(outbox, outbox.processingStatus);
             await m.addColumn(outbox, outbox.processingStartedAt);
             await m.addColumn(outbox, outbox.processingWorker);
+          }
+          if (from < 19) {
+            await m.addColumn(bookings, bookings.vectorClock);
+            await m.addColumn(rooms, rooms.vectorClock);
+            await m.addColumn(employees, employees.vectorClock);
+            await m.addColumn(expenses, expenses.vectorClock);
+            await m.addColumn(cashTransactions, cashTransactions.vectorClock);
+            await m.addColumn(payments, payments.vectorClock);
+            await m.addColumn(debts, debts.vectorClock);
+            await m.addColumn(bookingNotes, bookingNotes.vectorClock);
+            await m.addColumn(bookingNights, bookingNights.vectorClock);
+            await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock);
+            await m.addColumn(salaryCycles, salaryCycles.vectorClock);
+            await m.addColumn(salaryPayments, salaryPayments.vectorClock);
           }
         },
       );

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
+import '../sync_core/optimistic_lock_exception.dart';
 import 'outbox_dao.dart';
 
 part 'expenses_dao.g.dart';
@@ -320,5 +321,50 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await delete(expenses).go();
+  }
+
+  Future<bool> updateWithOptimisticLock(
+    String localUuid,
+    ExpensesCompanion update,
+    int expectedVersion,
+  ) async {
+    return db.transaction(() async {
+      final existing = await getByLocalUuid(localUuid);
+
+      if (existing == null) {
+        throw OptimisticLockException(
+          table: 'expenses',
+          uuid: localUuid,
+          expectedVersion: expectedVersion,
+          actualVersion: null,
+        );
+      }
+
+      if (existing.version != expectedVersion) {
+        throw OptimisticLockException(
+          table: 'expenses',
+          uuid: localUuid,
+          expectedVersion: expectedVersion,
+          actualVersion: existing.version,
+        );
+      }
+
+      final updated = await (db.update(expenses)
+            ..where((t) =>
+                t.localUuid.equals(localUuid) &
+                t.version.equals(expectedVersion)))
+          .write(update.copyWith(version: Value(expectedVersion + 1)));
+
+      if (updated == 0) {
+        throw OptimisticLockException(
+          table: 'expenses',
+          uuid: localUuid,
+          expectedVersion: expectedVersion,
+          actualVersion: existing.version,
+        );
+      }
+
+      return true;
+    });
   }
 }

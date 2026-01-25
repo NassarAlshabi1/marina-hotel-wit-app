@@ -278,25 +278,82 @@ class EnhancedConflictResolver {
         'checkout_date',
         'actual_checkout',
         'room_number',
-        'total_amount',
-        'paid_amount',
-        'remaining_amount'
+        'total_due_cached',
+        'total_paid_cached',
+        'remaining_balance_cached',
+        'guest_name',
+        'is_fully_paid'
       },
-      'payments': {'amount', 'payment_date', 'payment_method', 'booking_uuid'},
-      'rooms': {'status', 'price', 'room_number', 'floor', 'type'},
-      'expenses': {'amount', 'date', 'category', 'description'},
-      'debts': {'amount', 'status', 'due_date', 'paid_amount'},
-      'guests': {'name', 'phone', 'id_number', 'nationality'},
-      'employees': {'name', 'phone', 'salary', 'role', 'status'},
-      'services': {'name', 'price', 'is_active'},
-      'room_services': {
-        'service_uuid',
+      'payments': {
+        'amount',
+        'payment_date',
+        'payment_method',
         'booking_uuid',
-        'quantity',
-        'total_price'
+        'status',
+        'revenue_type'
       },
-      'shifts': {'start_time', 'end_time', 'employee_uuid', 'total_amount'},
-      'settings': {'value'},
+      'rooms': {
+        'status',
+        'price',
+        'room_number',
+        'floor',
+        'type',
+        'is_active',
+        'cleaning_status'
+      },
+      'expenses': {
+        'amount',
+        'date',
+        'category',
+        'description',
+        'status',
+        'expense_type'
+      },
+      'debts': {
+        'amount',
+        'status',
+        'due_date',
+        'paid_amount',
+        'guest_name',
+        'remaining_amount',
+        'is_settled'
+      },
+      'employees': {
+        'name',
+        'phone',
+        'salary',
+        'role',
+        'status',
+        'is_active',
+        'basic_salary'
+      },
+      'guests': {
+        'name',
+        'phone',
+        'id_number',
+        'nationality',
+        'is_blacklisted'
+      },
+      'cash_transactions': {
+        'amount',
+        'type',
+        'date',
+        'status',
+        'transaction_type'
+      },
+      'shift_notes': {
+        'content',
+        'is_read',
+        'priority',
+        'status'
+      },
+      'booking_notes': {
+        'note',
+        'is_alert',
+        'alert_date',
+        'status',
+        'note_text'
+      },
     };
 
     return fieldsByTable[table] ?? {};
