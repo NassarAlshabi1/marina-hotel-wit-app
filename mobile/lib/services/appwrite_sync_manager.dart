@@ -876,9 +876,24 @@ class AppwriteSyncManager {
           calculatedNights: d.Value(calculatedNights),
         );
 
-        await database
-            .into(database.bookings)
-            .insertOnConflictUpdate(companion);
+        final existingByUuid = await (database.select(database.bookings)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+
+        if (existingByUuid != null) {
+          await (database.update(database.bookings)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .write(companion);
+        } else {
+          try {
+            await database.into(database.bookings).insert(companion);
+          } catch (_) {
+            await (database.update(database.bookings)
+                  ..where((t) => t.localUuid.equals(localUuid)))
+                .write(companion);
+          }
+        }
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
@@ -1105,9 +1120,24 @@ class AppwriteSyncManager {
               _nullableValue<String>(_asString(data['referenceNumber'])),
         );
 
-        await database
-            .into(database.payments)
-            .insertOnConflictUpdate(companion);
+        final existingPayment = await (database.select(database.payments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+
+        if (existingPayment != null) {
+          await (database.update(database.payments)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .write(companion);
+        } else {
+          try {
+            await database.into(database.payments).insert(companion);
+          } catch (_) {
+            await (database.update(database.payments)
+                  ..where((t) => t.localUuid.equals(localUuid)))
+                .write(companion);
+          }
+        }
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
