@@ -1,0 +1,42 @@
+name: Auto-fix & analyse
+
+on:
+  pull_request:
+  push:
+    branches: [capy/S]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: 📦 Install dependencies
+        working-directory: mobile          # <-- المجلد الفرعي
+        run: flutter pub get
+
+      - name: 🔧 dart fix & format
+        working-directory: mobile
+        run: |
+          dart fix --apply
+          dart format .
+        continue-on-error: true
+
+      - name: 🤖 Commit auto-fixes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-fix lint/format issues"
+          file_pattern: "mobile/**/*.dart"
+
+      - name: 🔍 flutter analyse
+        working-directory: mobile
+        run: flutter analyze --no-fatal-infos
+        

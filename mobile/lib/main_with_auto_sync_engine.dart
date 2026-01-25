@@ -7,7 +7,7 @@ import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_logger.dart';
-import 'services/google_drive_sync_service.dart';
+import 'services/unified_sync_orchestrator.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
@@ -16,14 +16,14 @@ import 'utils/auto_sync_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   await _initializeFullyAutomatedSyncSystem();
-  
+
   runApp(const ProviderScope(child: MarinaHotelApp()));
 }
 
@@ -31,7 +31,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
   debugPrint('═══════════════════════════════════════════════════════');
   debugPrint('🚀 Initializing Fully Automated Sync System');
   debugPrint('═══════════════════════════════════════════════════════');
-  
+
   try {
     debugPrint('📝 [1/6] Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
@@ -41,10 +41,10 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       enableFile: false,
     );
     debugPrint('✅ Logger initialized');
-    
+
     debugPrint('🔐 [2/6] Initializing Google Drive Backup Service...');
     final backupService = GoogleDriveBackupService();
-    
+
     try {
       final account = await backupService.attemptSilentSignIn();
       if (account != null) {
@@ -55,11 +55,11 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     } catch (e) {
       debugPrint('⚠️ Silent sign-in failed: $e');
     }
-    
+
     debugPrint('🔧 [3/6] Initializing Database...');
     final database = DatabaseManager.instance;
     debugPrint('✅ Database ready');
-    
+
     debugPrint('🎯 [4/6] Initializing Unified Sync Coordinator...');
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
     await coordinator.initialize(
@@ -67,45 +67,49 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       database: database,
       logger: driveLogger,
     );
+    final unifiedOrchestrator = UnifiedSyncOrchestrator.instance;
+    await unifiedOrchestrator.initialize(
+      driveCoordinator: coordinator,
+      database: database,
+    );
     debugPrint('✅ Coordinator initialized');
-    
+
     debugPrint('🤝 [5/6] Initializing Conflict Resolver...');
     final conflictResolver = GoogleDriveConflictResolver.instance;
     conflictResolver.initialize(driveLogger);
-    
+
     await conflictResolver.setStrategy(ConflictResolutionStrategy.newerWins);
     await conflictResolver.setConflictThreshold(30);
     debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
-    
+
     debugPrint('🛡️ Initializing SyncGuardian...');
     final guardian = SyncGuardian.instance;
     await guardian.initialize(
       database: database,
-      driveService: GoogleDriveSyncService(),
     );
     debugPrint('✅ SyncGuardian initialized');
-    
+
     debugPrint('🤖 Initializing & Starting Auto Sync Engine...');
     final autoSyncEngine = AutoSyncEngine.instance;
-    
+
     await autoSyncEngine.initialize(
       backupService: backupService,
       database: database,
       logger: driveLogger,
     );
-    
+
     await _configureAutoSyncEngine(autoSyncEngine);
-    
+
     await autoSyncEngine.start();
-    
+
     if (backupService.isSignedIn) {
       await autoSyncEngine.onSignInChanged(true);
     }
-    
+
     _setupEngineMonitoring(autoSyncEngine);
-    
+
     debugPrint('✅ Auto Sync Engine started');
-    
+
     debugPrint('═══════════════════════════════════════════════════════');
     debugPrint('✅ Fully Automated Sync System Ready!');
     debugPrint('═══════════════════════════════════════════════════════');
@@ -115,7 +119,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     debugPrint('❤️ Health checks: ACTIVE (every 5 minutes)');
     debugPrint('🔁 Auto-retry: ACTIVE (exponential backoff)');
     debugPrint('═══════════════════════════════════════════════════════');
-    
   } catch (e, stackTrace) {
     debugPrint('═══════════════════════════════════════════════════════');
     debugPrint('❌ CRITICAL ERROR in Sync System Initialization');
@@ -128,16 +131,16 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
 Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   debugPrint('⚙️ Configuring Auto Sync Engine...');
-  
+
   const engineDebounceKey = 'auto_sync_engine_debounce';
   const legacyDebounceKey = 'auto_sync_debounce';
   const enginePullIntervalKey = 'auto_sync_engine_pull_interval';
   const legacyPullIntervalKey = 'auto_sync_pull_interval';
   const engineRetryKey = 'auto_sync_engine_retry_enabled';
   const legacyRetryKey = 'auto_sync_retry_enabled';
-  
+
   final prefs = await SharedPreferences.getInstance();
-  
+
   final debounceSeconds = await migrateAutoSyncPreference<int>(
     prefs: prefs,
     newKey: engineDebounceKey,
@@ -146,7 +149,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     apply: (value) => engine.setDebounceSeconds(value),
   );
   debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
-  
+
   final pullInterval = await migrateAutoSyncPreference<int>(
     prefs: prefs,
     newKey: enginePullIntervalKey,
@@ -155,7 +158,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     apply: (value) => engine.setPullInterval(value),
   );
   debugPrint('   ⏰ Pull interval: ${pullInterval}min');
-  
+
   final retryEnabled = await migrateAutoSyncPreference<bool>(
     prefs: prefs,
     newKey: engineRetryKey,
@@ -164,7 +167,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     apply: (value) => engine.setRetryEnabled(value),
   );
   debugPrint('   🔁 Auto-retry: $retryEnabled');
-  
+
   final conflictStrategy = prefs.getString('conflict_strategy') ?? 'newerWins';
   final strategy = ConflictResolutionStrategy.values.firstWhere(
     (s) => s.name == conflictStrategy,
@@ -172,18 +175,18 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   );
   await engine.setConflictStrategy(strategy);
   debugPrint('   🤝 Conflict strategy: ${strategy.name}');
-  
+
   debugPrint('✅ Configuration complete');
 }
 
 void _setupEngineMonitoring(AutoSyncEngine engine) {
   debugPrint('📊 Setting up engine state monitoring...');
-  
+
   engine.stateStream.listen((state) {
     final statusIcon = state.isRunning ? '🟢' : '🔴';
     final networkIcon = state.hasNetworkConnection ? '🌐' : '📴';
     final authIcon = state.isSignedIn ? '🔐' : '🔓';
-    
+
     debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     debugPrint('📊 ENGINE STATE UPDATE');
     debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -191,21 +194,23 @@ void _setupEngineMonitoring(AutoSyncEngine engine) {
     debugPrint('$networkIcon Network: ${state.hasNetworkConnection}');
     debugPrint('$authIcon Signed in: ${state.isSignedIn}');
     debugPrint('📦 Pending changes: ${state.pendingChangesCount}');
-    debugPrint('✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}');
+    debugPrint(
+        '✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}');
     debugPrint('❌ Failed attempts: ${state.failedAttempts}');
-    
+
     if (state.nextRetryAt != null) {
-      final secondsUntil = state.nextRetryAt!.difference(DateTime.now()).inSeconds;
+      final secondsUntil =
+          state.nextRetryAt!.difference(DateTime.now()).inSeconds;
       debugPrint('⏰ Next retry in: ${secondsUntil}s');
     }
-    
+
     if (state.lastError != null) {
       debugPrint('⚠️ Last error: ${state.lastError}');
     }
-    
+
     debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   });
-  
+
   debugPrint('✅ Monitoring setup complete');
 }
 
@@ -249,7 +254,7 @@ class HomeScreen extends StatelessWidget {
   Future<void> _showSyncStatus(BuildContext context) async {
     final engine = AutoSyncEngine.instance;
     final status = await engine.getEngineStatus();
-    
+
     if (context.mounted) {
       showDialog(
         context: context,
@@ -261,15 +266,18 @@ class HomeScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildStatusRow('المحرك يعمل', status['engine']['running']),
-                _buildStatusRow('متصل بالشبكة', status['engine']['network_connected']),
+                _buildStatusRow(
+                    'متصل بالشبكة', status['engine']['network_connected']),
                 _buildStatusRow('مسجل الدخول', status['engine']['signed_in']),
                 const Divider(),
                 Text('تغييرات معلقة: ${status['engine']['pending_changes']}'),
                 Text('محاولات فاشلة: ${status['engine']['failed_attempts']}'),
                 if (status['engine']['last_successful_sync'] != null)
-                  Text('آخر مزامنة: ${_formatTimestamp(status['engine']['last_successful_sync'])}'),
+                  Text(
+                      'آخر مزامنة: ${_formatTimestamp(status['engine']['last_successful_sync'])}'),
                 if (status['engine']['next_retry'] != null)
-                  Text('إعادة محاولة بعد: ${_formatTimestamp(status['engine']['next_retry'])}'),
+                  Text(
+                      'إعادة محاولة بعد: ${_formatTimestamp(status['engine']['next_retry'])}'),
               ],
             ),
           ),
@@ -286,8 +294,11 @@ class HomeScreen extends StatelessWidget {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(result.success ? '✅ ${result.message}' : '❌ ${result.message}'),
-                        backgroundColor: result.success ? Colors.green : Colors.red,
+                        content: Text(result.success
+                            ? '✅ ${result.message}'
+                            : '❌ ${result.message}'),
+                        backgroundColor:
+                            result.success ? Colors.green : Colors.red,
                       ),
                     );
                   }
@@ -321,7 +332,7 @@ class HomeScreen extends StatelessWidget {
       final dt = DateTime.parse(iso);
       final now = DateTime.now();
       final diff = now.difference(dt);
-      
+
       if (diff.inMinutes < 1) {
         return 'منذ ${diff.inSeconds} ثانية';
       } else if (diff.inHours < 1) {

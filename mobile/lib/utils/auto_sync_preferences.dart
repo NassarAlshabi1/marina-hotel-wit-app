@@ -13,9 +13,8 @@ Future<T> migrateAutoSyncPreference<T>({
 
   T value;
   if (T == int) {
-    final resolved = prefs.getInt(newKey) ??
-        prefs.getInt(legacyKey) ??
-        defaultValue as int;
+    final resolved =
+        prefs.getInt(newKey) ?? prefs.getInt(legacyKey) ?? defaultValue as int;
     await prefs.setInt(newKey, resolved);
     value = resolved as T;
   } else {

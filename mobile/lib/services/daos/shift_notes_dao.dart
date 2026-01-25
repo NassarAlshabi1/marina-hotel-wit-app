@@ -4,18 +4,19 @@ import '../local_db.dart';
 part 'shift_notes_dao.g.dart';
 
 @DriftAccessor(tables: [ShiftNotes])
-class ShiftNotesDao extends DatabaseAccessor<AppDatabase> with _$ShiftNotesDaoMixin {
+class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
+    with _$ShiftNotesDaoMixin {
   ShiftNotesDao(super.db);
 
   // جلب جميع الملاحظات
   Future<List<ShiftNote>> getAllNotes() => select(shiftNotes).get();
 
   // جلب الملاحظات غير المقروءة فقط
-  Future<List<ShiftNote>> getUnreadNotes() => 
+  Future<List<ShiftNote>> getUnreadNotes() =>
       (select(shiftNotes)..where((t) => t.isRead.equals(0))).get();
 
   // جلب الملاحظات عالية الأولوية
-  Future<List<ShiftNote>> getHighPriorityNotes() => 
+  Future<List<ShiftNote>> getHighPriorityNotes() =>
       (select(shiftNotes)..where((t) => t.priority.equals('high'))).get();
 
   // إضافة ملاحظة جديدة
@@ -39,7 +40,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase> with _$ShiftNotesDaoMi
   }
 
   // تحديث ملاحظة
-  Future<bool> updateNote(int id, {
+  Future<bool> updateNote(
+    int id, {
     String? title,
     String? content,
     String? priority,
@@ -53,8 +55,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase> with _$ShiftNotesDaoMi
       shiftType: shiftType != null ? Value(shiftType) : const Value.absent(),
       expiresAt: expiresAt != null ? Value(expiresAt) : const Value.absent(),
     );
-    
-    final rows = await (update(shiftNotes)..where((t) => t.id.equals(id))).write(companion);
+
+    final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
+        .write(companion);
     return rows > 0;
   }
 
@@ -95,6 +98,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase> with _$ShiftNotesDaoMi
     final query = selectOnly(shiftNotes)
       ..addColumns([shiftNotes.id.count()])
       ..where(shiftNotes.isRead.equals(0));
-    return query.watchSingle().map((row) => row.read(shiftNotes.id.count()) ?? 0);
+    return query
+        .watchSingle()
+        .map((row) => row.read(shiftNotes.id.count()) ?? 0);
   }
 }

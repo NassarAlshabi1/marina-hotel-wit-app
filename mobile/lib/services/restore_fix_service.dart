@@ -14,6 +14,16 @@ import '../utils/time.dart';
 import '../utils/status_utils.dart';
 import '../utils/id.dart';
 
+/// استثناء يُرمى عند فشل التحقق من صحة بيانات النسخة الاحتياطية
+class RestoreValidationException implements Exception {
+  final String message;
+  
+  RestoreValidationException(this.message);
+  
+  @override
+  String toString() => 'RestoreValidationException: $message';
+}
+
 /// نموذج لتخزين معلومات اللقطة الاحتياطية
 class RestoreSnapshot {
   final String filePath;
@@ -105,11 +115,17 @@ class RestoreFixService {
     paymentsDao = PaymentsDao(db, OutboxDao(db)),
     debtsDao = DebtsDao(db, OutboxDao(db));
 
+  /// تحويل المبلغ إلى cents (أعداد صحيحة)
+  int _toCents(double amount) => (amount * 100).round();
+  
+  /// تحويل من cents إلى double
+  double _fromCents(int cents) => cents / 100;
+
   /// إنشاء لقطة احتياطية محلية قبل بدء عملية الإصلاح
-  Future<RestoreSnapshot> createLocalSnapshot(String prefix) async {
+  Future<RestoreSnapshot> createLocalSnapshot(String prefix, {bool useTransaction = true}) async {
     debugPrint('📸 إنشاء لقطة احتياطية أمان: ${prefix}_restore_snapshot_${Time.nowEpoch()}.json');
     
-    return await db.transaction<RestoreSnapshot>(() async {
+    Future<RestoreSnapshot> doCreate() async {
       final directory = await getApplicationCacheDirectory();
       final timestamp = Time.nowEpoch();
       final filename = '${prefix}_restore_snapshot_$timestamp.json';
@@ -156,7 +172,12 @@ class RestoreFixService {
         debugPrint('❌ خطأ في إنشاء اللقطة الاحتياطية: $e');
         rethrow;
       }
-    });
+    }
+    
+    if (useTransaction) {
+      return await db.transaction<RestoreSnapshot>(doCreate);
+    }
+    return doCreate();
   }
 
   /// الدالة الرئيسية لتشغيل الإصلاح التلقائي
@@ -171,11 +192,10 @@ class RestoreFixService {
     RestoreSnapshot? snapshot;
 
     try {
-      // إنشاء لقطة احتياطية للأمان
-      snapshot = await createLocalSnapshot('auto_fix');
-      
       // تنفيذ الإصلاح داخل معاملة واحدة
       await db.transaction(() async {
+        // إنشاء لقطة احتياطية للأمان داخل نفس المعاملة
+        snapshot = await createLocalSnapshot('auto_fix', useTransaction: false);
         final now = DateTime.now();
         final fixId = IdGen.uuid();
         
@@ -219,8 +239,11 @@ class RestoreFixService {
       });
       
       // حذف اللقطة الاحتياطية عند النجاح
-      await _deleteSnapshot(snapshot.filePath);
-      
+      final snapshotPath = snapshot?.filePath;
+      if (snapshotPath != null) {
+        await _deleteSnapshot(snapshotPath);
+      }
+
       final duration = DateTime.now().difference(startTime).inMilliseconds;
       
       debugPrint('✅ اكتمل الإصلاح التلقائي بنجاح');
@@ -245,9 +268,10 @@ class RestoreFixService {
       debugPrint('Stack trace: $stackTrace');
       
       // استعادة اللقطة الاحتياطية في حالة الفشل
-      if (snapshot != null) {
+      final snapshotPath = snapshot?.filePath;
+      if (snapshotPath != null) {
         try {
-          await _restoreFromSnapshot(snapshot.filePath);
+          await _restoreFromSnapshot(snapshotPath);
           debugPrint('✅ تم استعادة البيانات من اللقطة الاحتياطية');
         } catch (restoreError) {
           debugPrint('❌ فشل في استعادة اللقطة الاحتياطية: $restoreError');
@@ -365,15 +389,22 @@ class RestoreFixService {
             ..where((p) => p.bookingLocalId.equals(booking.id))
             ..where((p) => p.deletedAt.isNull()))
           .get();
-      final totalPaid = payments.fold<double>(0.0, (sum, payment) => sum + payment.amount);
+      
+      final totalPaidCents = payments.fold<int>(0, (sum, payment) => sum + _toCents(payment.amount));
+      final totalPaid = _fromCents(totalPaidCents);
+      
       final room = await (db.select(db.rooms)
             ..where((r) => r.roomNumber.equals(booking.roomNumber)))
           .getSingleOrNull();
       double? expectedTotal;
+      int? expectedTotalCents;
       if (room != null) {
-        expectedTotal = booking.calculatedNights * room.price;
-        final remainingBalance = expectedTotal - totalPaid;
-        final isFullyPaid = remainingBalance <= 0;
+        expectedTotalCents = _toCents(booking.calculatedNights * room.price);
+        expectedTotal = _fromCents(expectedTotalCents);
+        
+        final remainingBalanceCents = expectedTotalCents - totalPaidCents;
+        final remainingBalance = _fromCents(remainingBalanceCents);
+        final isFullyPaid = remainingBalanceCents <= 0;
         
         if (booking.totalDueCached != expectedTotal ||
             booking.totalPaidCached != totalPaid ||
@@ -396,7 +427,7 @@ class RestoreFixService {
           debugPrint('💰 ${changes.last}');
         }
         
-        if ((totalPaid - expectedTotal).abs() > 0.01) {
+        if ((totalPaidCents - expectedTotalCents).abs() > 1) {
           await _logChange(
             fixId: fixId,
             targetTable: 'payments',
@@ -429,17 +460,15 @@ class RestoreFixService {
             ..where((d) => d.bookingLocalId.equals(booking.id))
             ..where((d) => d.deletedAt.isNull()))
           .get();
-      if (debts.isNotEmpty && expectedTotal != null) {
-        final expectedCents = (expectedTotal * 100).round();
-        final paidCents = (totalPaid * 100).round();
-        final remainingCents = expectedCents - paidCents;
+      if (debts.isNotEmpty && expectedTotal != null && expectedTotalCents != null) {
+        final remainingCents = expectedTotalCents - totalPaidCents;
         final isSettled = remainingCents <= 0 ? 1 : 0;
         for (final debt in debts) {
-          final debtTotalCents = (debt.totalAmount * 100).round();
-          final debtPaidCents = (debt.paidAmount * 100).round();
-          final debtRemainingCents = (debt.remainingAmount * 100).round();
-          final shouldUpdate = debtTotalCents != expectedCents ||
-              debtPaidCents != paidCents ||
+          final debtTotalCents = _toCents(debt.totalAmount);
+          final debtPaidCents = _toCents(debt.paidAmount);
+          final debtRemainingCents = _toCents(debt.remainingAmount);
+          final shouldUpdate = debtTotalCents != expectedTotalCents ||
+              debtPaidCents != totalPaidCents ||
               debtRemainingCents != remainingCents ||
               debt.isSettled != isSettled;
           if (shouldUpdate) {
@@ -457,19 +486,19 @@ class RestoreFixService {
               newData: {
                 'total_amount': expectedTotal,
                 'paid_amount': totalPaid,
-                'remaining_amount': remainingCents / 100,
+                'remaining_amount': _fromCents(remainingCents),
                 'is_settled': isSettled,
               },
             );
             await (db.update(db.debts)..where((t) => t.id.equals(debt.id))).write(DebtsCompanion(
-              totalAmount: Value(expectedCents / 100),
-              paidAmount: Value(paidCents / 100),
-              remainingAmount: Value(remainingCents / 100),
+              totalAmount: Value(_fromCents(expectedTotalCents)),
+              paidAmount: Value(_fromCents(totalPaidCents)),
+              remainingAmount: Value(_fromCents(remainingCents)),
               isSettled: Value(isSettled),
               updatedAt: Value(Time.nowEpoch()),
               lastModified: Value(Time.nowEpoch()),
             ));
-            changes.add('إعادة احتساب الدين للحجز #${booking.id}: المتبقي ${(remainingCents / 100).toStringAsFixed(2)}، تم ${isSettled == 1 ? 'إغلاق الدين' : 'تحديثه'}');
+            changes.add('إعادة احتساب الدين للحجز #${booking.id}: المتبقي ${_fromCents(remainingCents).toStringAsFixed(2)}، تم ${isSettled == 1 ? 'إغلاق الدين' : 'تحديثه'}');
           }
         }
       }
@@ -555,6 +584,20 @@ class RestoreFixService {
   Future<_BookingStructuresResult> _rebuildBookingStructures(
     DateTime restoreMoment,
   ) async {
+    final context = await _prepareRebuildContext(restoreMoment);
+    
+    if (context.bookings.isEmpty) {
+      return await _handleEmptyBookings();
+    }
+
+    final nightsResult = await _rebuildBookingNights(context);
+    final ledgerResult = await _rebuildHotelDayLedger(context, nightsResult);
+    final roomsResult = await _updateRoomsLastOccupied(context, nightsResult);
+
+    return _combineResults(nightsResult, ledgerResult, roomsResult);
+  }
+
+  Future<_RebuildContext> _prepareRebuildContext(DateTime restoreMoment) async {
     final bookings = await (db.select(db.bookings)
           ..where((b) => b.deletedAt.isNull()))
         .get();
@@ -563,162 +606,65 @@ class RestoreFixService {
           ..where((r) => r.deletedAt.isNull()))
         .get();
 
-    if (bookings.isEmpty) {
-      await db.delete(db.bookingNights).go();
-      await db.delete(db.hotelDayLedger).go();
-      return const _BookingStructuresResult(
-        changes: [],
-        paymentsProcessed: 0,
-        roomsTouched: 0,
-        bookingNightCount: 0,
-        ledgerEntryCount: 0,
-      );
-    }
-
     final roomsByNumber = <String, Room>{
       for (final room in rooms) room.roomNumber: room,
     };
 
     final int totalRooms = math.max(rooms.length, 1);
+
+    return _RebuildContext(
+      bookings: bookings,
+      rooms: rooms,
+      roomsByNumber: roomsByNumber,
+      totalRooms: totalRooms,
+      restoreMoment: restoreMoment,
+    );
+  }
+
+  Future<_BookingStructuresResult> _handleEmptyBookings() async {
+    await db.delete(db.bookingNights).go();
+    await db.delete(db.hotelDayLedger).go();
+    return const _BookingStructuresResult(
+      changes: [],
+      paymentsProcessed: 0,
+      roomsTouched: 0,
+      bookingNightCount: 0,
+      ledgerEntryCount: 0,
+    );
+  }
+
+  Future<_NightsRebuildResult> _rebuildBookingNights(_RebuildContext context) async {
     final Map<String, _LedgerAccumulator> ledger = {};
     final List<BookingNightsCompanion> nightRows = [];
     final Map<int, String> roomLastOccupied = {};
-    int paymentsProcessed = 0;
+    final List<String> changes = [];
     int bookingNightCount = 0;
+    int paymentsProcessed = 0;
 
     await db.delete(db.bookingNights).go();
 
-    for (final booking in bookings) {
-      final room = roomsByNumber[booking.roomNumber];
-      final bool bookingActive = booking.actualCheckout == null &&
-          (StatusUtils.isBookingActive(booking) || booking.checkoutDate == null);
-
-      final DateTime checkin = _parseDate(booking.checkinDate) ?? restoreMoment;
-      DateTime checkout =
-          _parseDate(booking.actualCheckout) ?? _parseDate(booking.checkoutDate) ?? restoreMoment;
-
-      if (bookingActive && restoreMoment.isAfter(checkin)) {
-        checkout = restoreMoment;
+    for (final booking in context.bookings) {
+      final room = context.roomsByNumber[booking.roomNumber];
+      
+      if (room == null) {
+        debugPrint('⚠️ تحذير: الغرفة ${booking.roomNumber} غير موجودة للحجز #${booking.id}');
+        changes.add('تحذير: حجز #${booking.id} مرتبط بغرفة غير موجودة (${booking.roomNumber})');
+        continue;
       }
-
-      if (!checkout.isAfter(checkin)) {
-        checkout = checkin.add(const Duration(hours: 12));
-      }
-
-      final segments = _buildNightSegments(checkin, checkout);
-      final double nightlyRate = room?.price ?? 0.0;
-
-      int sequence = 0;
-      DateTime? lastNightEnd;
-
-      for (final segment in segments) {
-        sequence++;
-        lastNightEnd = segment.end;
-
-        final int rowEpoch = Time.nowEpoch();
-        final String rowIso = DateTime.now().toUtc().toIso8601String();
-        nightRows.add(
-          BookingNightsCompanion(
-            localUuid: Value(IdGen.uuid()),
-            serverId: const Value.absent(),
-            createdAt: Value(rowEpoch),
-            updatedAt: Value(rowEpoch),
-            deletedAt: const Value.absent(),
-            lastModified: Value(rowEpoch),
-            createdAtIso: Value(rowIso),
-            updatedAtIso: Value(rowIso),
-            deletedAtIso: const Value.absent(),
-            createdAtEpoch: Value(rowEpoch),
-            lastModifiedEpoch: Value(rowEpoch),
-            version: const Value(1),
-            origin: const Value('auto_fix'),
-            bookingLocalId: Value(booking.id),
-            hotelDayKey: Value(segment.hotelDayKey),
-            nightStart: Value(segment.start.toIso8601String()),
-            nightEnd: Value(segment.end.toIso8601String()),
-            nightlyRate: Value(nightlyRate),
-            sequence: Value(sequence),
-            isProcessedByAutoFix: const Value(true),
-          ),
-        );
-
-        final accumulator =
-            ledger.putIfAbsent(segment.hotelDayKey, () => _LedgerAccumulator());
-        accumulator.totalIncome += nightlyRate;
-        accumulator.bookingsProcessed += 1;
-        if (bookingActive) {
-          accumulator.occupiedRooms.add(booking.roomNumber);
-        }
-      }
-
-      bookingNightCount += segments.length;
-
-      final int totalNights = math.max(segments.length, 1);
-      final double totalDue = nightlyRate * totalNights;
-      final String stayDurationIso =
-          '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
-      final int? lastNightEpoch =
-          lastNightEnd != null ? lastNightEnd.millisecondsSinceEpoch ~/ 1000 : null;
-      final String hotelDayCheckin = _hotelDayKey(checkin);
-      final String hotelDayCheckout = _hotelDayKey(checkout);
-      final bool isOverdue =
-          bookingActive && checkout.isBefore(restoreMoment) && segments.isNotEmpty;
-
-      final paymentRows = await (db.select(db.payments)
-            ..where((p) => p.bookingLocalId.equals(booking.id))
-            ..where((p) => p.deletedAt.isNull()))
-          .get();
-      double totalPaid = 0;
-      for (final payment in paymentRows) {
-        totalPaid += payment.amount;
-        final String key =
-            payment.hotelDayKey ?? _hotelDayKey(_parseDate(payment.paymentDate) ?? restoreMoment);
-        final accumulator =
-            ledger.putIfAbsent(key, () => _LedgerAccumulator());
-        accumulator.paymentsProcessed += 1;
-        accumulator.paymentsTotal += payment.amount;
-      }
-      paymentsProcessed += paymentRows.length;
-      final double totalDueRounded = (totalDue * 100).round() / 100;
-      final double totalPaidRounded = (totalPaid * 100).round() / 100;
-      double remaining = ((totalDueRounded - totalPaidRounded) * 100).round() / 100;
-      if (remaining < 0) remaining = 0;
-      final bool isFullyPaid = remaining <= 0.009;
-      final bool needsReview = isOverdue || remaining > 0.009;
-
-      final pendingAccumulator =
-          ledger.putIfAbsent(hotelDayCheckout, () => _LedgerAccumulator());
-      if (remaining > 0.009) {
-        pendingAccumulator.pendingBalance += remaining;
-        pendingAccumulator.debtsProcessed += 1;
-      }
-
-      final int stamp = Time.nowEpoch();
-      final String stampIso = DateTime.now().toUtc().toIso8601String();
-      await (db.update(db.bookings)..where((tbl) => tbl.id.equals(booking.id))).write(
-        BookingsCompanion(
-          calculatedNights: Value(totalNights),
-          expectedNights: Value(totalNights),
-          totalNightsCached: Value(totalNights),
-          stayDurationIso: Value(stayDurationIso),
-          lastNightEpoch: Value(lastNightEpoch),
-          isOverdue: Value(isOverdue),
-          needsCheckoutReview: Value(needsReview),
-          totalDueCached: Value(totalDueRounded),
-          totalPaidCached: Value(totalPaidRounded),
-          remainingBalanceCached: Value(remaining),
-          isFullyPaid: Value(isFullyPaid),
-          hotelDayCheckin: Value(hotelDayCheckin),
-          hotelDayCheckout: Value(hotelDayCheckout),
-          updatedAt: Value(stamp),
-          lastModified: Value(stamp),
-          updatedAtIso: Value(stampIso),
-          lastModifiedEpoch: Value(stamp),
-        ),
+      
+      final bookingResult = await _processBookingForNights(
+        booking: booking,
+        room: room,
+        restoreMoment: context.restoreMoment,
+        ledger: ledger,
       );
-
-      if (room != null && segments.isNotEmpty) {
-        roomLastOccupied[room.id] = segments.last.hotelDayKey;
+      
+      nightRows.addAll(bookingResult.nightRows);
+      bookingNightCount += bookingResult.nightCount;
+      paymentsProcessed += bookingResult.paymentsCount;
+      
+      if (bookingResult.lastOccupiedDay != null) {
+        roomLastOccupied[room.id] = bookingResult.lastOccupiedDay!;
       }
     }
 
@@ -730,47 +676,192 @@ class RestoreFixService {
       });
     }
 
+    await _processExpenses(context, ledger);
+
+    return _NightsRebuildResult(
+      ledger: ledger,
+      nightRows: nightRows,
+      roomLastOccupied: roomLastOccupied,
+      changes: changes,
+      bookingNightCount: bookingNightCount,
+      paymentsProcessed: paymentsProcessed,
+    );
+  }
+
+  Future<_BookingProcessingResult> _processBookingForNights({
+    required Booking booking,
+    required Room room,
+    required DateTime restoreMoment,
+    required Map<String, _LedgerAccumulator> ledger,
+  }) async {
+    final bool bookingActive = booking.actualCheckout == null &&
+        (StatusUtils.isBookingActive(booking) || booking.checkoutDate == null);
+
+    final DateTime checkin = _parseDate(booking.checkinDate) ?? restoreMoment;
+    DateTime checkout =
+        _parseDate(booking.actualCheckout) ?? _parseDate(booking.checkoutDate) ?? restoreMoment;
+
+    if (bookingActive && restoreMoment.isAfter(checkin)) {
+      checkout = restoreMoment;
+    }
+
+    if (!checkout.isAfter(checkin)) {
+      checkout = checkin.add(const Duration(hours: 12));
+    }
+
+    final segments = _buildNightSegments(checkin, checkout);
+    final double nightlyRate = room.price;
+    final List<BookingNightsCompanion> nightRows = [];
+
+    int sequence = 0;
+    DateTime? lastNightEnd;
+
+    for (final segment in segments) {
+      sequence++;
+      lastNightEnd = segment.end;
+
+      final int rowEpoch = Time.nowEpoch();
+      final String rowIso = DateTime.now().toUtc().toIso8601String();
+      nightRows.add(
+        BookingNightsCompanion(
+          localUuid: Value(IdGen.uuid()),
+          serverId: const Value.absent(),
+          createdAt: Value(rowEpoch),
+          updatedAt: Value(rowEpoch),
+          deletedAt: const Value.absent(),
+          lastModified: Value(rowEpoch),
+          createdAtIso: Value(rowIso),
+          updatedAtIso: Value(rowIso),
+          deletedAtIso: const Value.absent(),
+          createdAtEpoch: Value(rowEpoch),
+          lastModifiedEpoch: Value(rowEpoch),
+          version: const Value(1),
+          origin: const Value('auto_fix'),
+          bookingLocalId: Value(booking.id),
+          hotelDayKey: Value(segment.hotelDayKey),
+          nightStart: Value(segment.start.toIso8601String()),
+          nightEnd: Value(segment.end.toIso8601String()),
+          nightlyRate: Value(nightlyRate),
+          sequence: Value(sequence),
+          isProcessedByAutoFix: const Value(true),
+        ),
+      );
+
+      final accumulator =
+          ledger.putIfAbsent(segment.hotelDayKey, () => _LedgerAccumulator());
+      accumulator.totalIncome += nightlyRate;
+      accumulator.bookingsProcessed += 1;
+      if (bookingActive) {
+        accumulator.occupiedRooms.add(booking.roomNumber);
+      }
+    }
+
+    final int totalNights = math.max(segments.length, 1);
+    final double totalDue = nightlyRate * totalNights;
+    final String stayDurationIso =
+        '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
+    final int? lastNightEpoch =
+        lastNightEnd != null ? lastNightEnd.millisecondsSinceEpoch ~/ 1000 : null;
+    final String hotelDayCheckin = _hotelDayKey(checkin);
+    final String hotelDayCheckout = _hotelDayKey(checkout);
+    final bool isOverdue =
+        bookingActive && checkout.isBefore(restoreMoment) && segments.isNotEmpty;
+
+    final paymentRows = await (db.select(db.payments)
+          ..where((p) => p.bookingLocalId.equals(booking.id))
+          ..where((p) => p.deletedAt.isNull()))
+        .get();
+    int totalPaidCents = 0;
+    for (final payment in paymentRows) {
+      totalPaidCents += _toCents(payment.amount);
+      final String key =
+          payment.hotelDayKey ?? _hotelDayKey(_parseDate(payment.paymentDate) ?? restoreMoment);
+      final accumulator =
+          ledger.putIfAbsent(key, () => _LedgerAccumulator());
+      accumulator.paymentsProcessed += 1;
+      accumulator.paymentsTotal += payment.amount;
+    }
+    
+    final int totalDueCents = _toCents(totalDue);
+    int remainingCents = totalDueCents - totalPaidCents;
+    if (remainingCents < 0) remainingCents = 0;
+    
+    final double totalDueRounded = _fromCents(totalDueCents);
+    final double totalPaidRounded = _fromCents(totalPaidCents);
+    final double remaining = _fromCents(remainingCents);
+    
+    final bool isFullyPaid = remainingCents <= 0;
+    final bool needsReview = isOverdue || remainingCents > 0;
+
+    final pendingAccumulator =
+        ledger.putIfAbsent(hotelDayCheckout, () => _LedgerAccumulator());
+    if (remainingCents > 0) {
+      pendingAccumulator.pendingBalance += remaining;
+      pendingAccumulator.debtsProcessed += 1;
+    }
+
+    final int stamp = Time.nowEpoch();
+    final String stampIso = DateTime.now().toUtc().toIso8601String();
+    await (db.update(db.bookings)..where((tbl) => tbl.id.equals(booking.id))).write(
+      BookingsCompanion(
+        calculatedNights: Value(totalNights),
+        expectedNights: Value(totalNights),
+        totalNightsCached: Value(totalNights),
+        stayDurationIso: Value(stayDurationIso),
+        lastNightEpoch: Value(lastNightEpoch),
+        isOverdue: Value(isOverdue),
+        needsCheckoutReview: Value(needsReview),
+        totalDueCached: Value(totalDueRounded),
+        totalPaidCached: Value(totalPaidRounded),
+        remainingBalanceCached: Value(remaining),
+        isFullyPaid: Value(isFullyPaid),
+        hotelDayCheckin: Value(hotelDayCheckin),
+        hotelDayCheckout: Value(hotelDayCheckout),
+        updatedAt: Value(stamp),
+        lastModified: Value(stamp),
+        updatedAtIso: Value(stampIso),
+        lastModifiedEpoch: Value(stamp),
+      ),
+    );
+
+    return _BookingProcessingResult(
+      nightRows: nightRows,
+      nightCount: segments.length,
+      paymentsCount: paymentRows.length,
+      lastOccupiedDay: segments.isNotEmpty ? segments.last.hotelDayKey : null,
+    );
+  }
+
+  Future<void> _processExpenses(
+    _RebuildContext context,
+    Map<String, _LedgerAccumulator> ledger,
+  ) async {
     final expenses = await (db.select(db.expenses)
           ..where((e) => e.deletedAt.isNull()))
         .get();
     for (final expense in expenses) {
       final String key =
-          expense.hotelDayKey ?? _hotelDayKey(_parseDate(expense.date) ?? restoreMoment);
+          expense.hotelDayKey ?? _hotelDayKey(_parseDate(expense.date) ?? context.restoreMoment);
       final accumulator =
           ledger.putIfAbsent(key, () => _LedgerAccumulator());
       accumulator.totalExpenses += expense.amount;
       accumulator.expensesProcessed += 1;
     }
+  }
 
-    if (roomLastOccupied.isNotEmpty) {
-      final int stamp = Time.nowEpoch();
-      final String stampIso = DateTime.now().toUtc().toIso8601String();
-      await db.batch((batch) {
-        roomLastOccupied.forEach((roomId, hotelDayKey) {
-          batch.update(
-            db.rooms,
-            RoomsCompanion(
-              lastOccupiedHotelDay: Value(hotelDayKey),
-              updatedAt: Value(stamp),
-              lastModified: Value(stamp),
-              updatedAtIso: Value(stampIso),
-              lastModifiedEpoch: Value(stamp),
-            ),
-            where: (tbl) => tbl.id.equals(roomId),
-          );
-        });
-      });
-    }
-
+  Future<_LedgerRebuildResult> _rebuildHotelDayLedger(
+    _RebuildContext context,
+    _NightsRebuildResult nightsResult,
+  ) async {
     await db.delete(db.hotelDayLedger).go();
 
     final List<HotelDayLedgerCompanion> ledgerRows = [];
-    ledger.forEach((key, accumulator) {
+    nightsResult.ledger.forEach((key, accumulator) {
       final int stamp = Time.nowEpoch();
       final String stampIso = DateTime.now().toUtc().toIso8601String();
       final double occupancy = accumulator.occupiedRooms.isEmpty
           ? 0
-          : accumulator.occupiedRooms.length / totalRooms;
+          : accumulator.occupiedRooms.length / context.totalRooms;
       ledgerRows.add(
         HotelDayLedgerCompanion(
           localUuid: Value(IdGen.uuid()),
@@ -816,23 +907,62 @@ class RestoreFixService {
       });
     }
 
-    final List<String> changeLog = [];
-    if (bookingNightCount > 0) {
-      changeLog.add('🔁 إعادة بناء جدول الليالي: $bookingNightCount سجل');
+    return _LedgerRebuildResult(
+      ledgerEntryCount: ledgerRows.length,
+    );
+  }
+
+  Future<_RoomsUpdateResult> _updateRoomsLastOccupied(
+    _RebuildContext context,
+    _NightsRebuildResult nightsResult,
+  ) async {
+    if (nightsResult.roomLastOccupied.isEmpty) {
+      return _RoomsUpdateResult(roomsTouched: 0);
     }
-    if (ledgerRows.isNotEmpty) {
-      changeLog.add('📊 تحديث دفتر HotelDayLedger: ${ledgerRows.length} يوم');
+
+    final int stamp = Time.nowEpoch();
+    final String stampIso = DateTime.now().toUtc().toIso8601String();
+    await db.batch((batch) {
+      nightsResult.roomLastOccupied.forEach((roomId, hotelDayKey) {
+        batch.update(
+          db.rooms,
+          RoomsCompanion(
+            lastOccupiedHotelDay: Value(hotelDayKey),
+            updatedAt: Value(stamp),
+            lastModified: Value(stamp),
+            updatedAtIso: Value(stampIso),
+            lastModifiedEpoch: Value(stamp),
+          ),
+          where: (tbl) => tbl.id.equals(roomId),
+        );
+      });
+    });
+
+    return _RoomsUpdateResult(roomsTouched: nightsResult.roomLastOccupied.length);
+  }
+
+  _BookingStructuresResult _combineResults(
+    _NightsRebuildResult nightsResult,
+    _LedgerRebuildResult ledgerResult,
+    _RoomsUpdateResult roomsResult,
+  ) {
+    final List<String> changeLog = [...nightsResult.changes];
+    if (nightsResult.bookingNightCount > 0) {
+      changeLog.add('🔁 إعادة بناء جدول الليالي: ${nightsResult.bookingNightCount} سجل');
     }
-    if (paymentsProcessed > 0) {
-      changeLog.add('💰 تحديث مؤشرات المدفوعات: معالجة $paymentsProcessed دفعة');
+    if (ledgerResult.ledgerEntryCount > 0) {
+      changeLog.add('📊 تحديث دفتر HotelDayLedger: ${ledgerResult.ledgerEntryCount} يوم');
+    }
+    if (nightsResult.paymentsProcessed > 0) {
+      changeLog.add('💰 تحديث مؤشرات المدفوعات: معالجة ${nightsResult.paymentsProcessed} دفعة');
     }
 
     return _BookingStructuresResult(
       changes: changeLog,
-      paymentsProcessed: paymentsProcessed,
-      roomsTouched: roomLastOccupied.length,
-      bookingNightCount: bookingNightCount,
-      ledgerEntryCount: ledgerRows.length,
+      paymentsProcessed: nightsResult.paymentsProcessed,
+      roomsTouched: roomsResult.roomsTouched,
+      bookingNightCount: nightsResult.bookingNightCount,
+      ledgerEntryCount: ledgerResult.ledgerEntryCount,
     );
   }
 
@@ -956,11 +1086,13 @@ class RestoreFixService {
     try {
       final file = File(snapshotPath);
       if (!await file.exists()) {
-        throw Exception('ملف اللقطة الاحتياطية غير موجود: $snapshotPath');
+        throw RestoreValidationException('ملف اللقطة الاحتياطية غير موجود: $snapshotPath');
       }
       
       final jsonString = await file.readAsString();
       final snapshotData = jsonDecode(jsonString) as Map<String, dynamic>;
+      
+      _validateSnapshotData(snapshotData);
       
       await db.transaction(() async {
         // مسح الجداول المتأثرة (احذف children أولًا لتفادي كسر قيود FK)
@@ -1004,6 +1136,30 @@ class RestoreFixService {
     } catch (e) {
       debugPrint('❌ فشل في استعادة اللقطة الاحتياطية: $e');
       rethrow;
+    }
+  }
+
+  /// التحقق من صحة بيانات النسخة الاحتياطية قبل الاستعادة
+  void _validateSnapshotData(Map<String, dynamic> data) {
+    final requiredTables = ['bookings', 'rooms', 'payments'];
+    for (final table in requiredTables) {
+      if (!data.containsKey(table)) {
+        throw RestoreValidationException('جدول $table مفقود من النسخة الاحتياطية');
+      }
+      
+      if (data[table] is! List) {
+        throw RestoreValidationException('بيانات جدول $table غير صحيحة (يجب أن تكون قائمة)');
+      }
+    }
+    
+    if (data.containsKey('metadata')) {
+      final metadata = data['metadata'];
+      if (metadata is! Map) {
+        throw RestoreValidationException('بيانات metadata غير صحيحة');
+      }
+      if (!metadata.containsKey('timestamp')) {
+        throw RestoreValidationException('timestamp مفقود من metadata');
+      }
     }
   }
 
@@ -1107,4 +1263,68 @@ class _RoomStatusUpdate {
 
   final Room room;
   final String status;
+}
+
+class _RebuildContext {
+  const _RebuildContext({
+    required this.bookings,
+    required this.rooms,
+    required this.roomsByNumber,
+    required this.totalRooms,
+    required this.restoreMoment,
+  });
+
+  final List<Booking> bookings;
+  final List<Room> rooms;
+  final Map<String, Room> roomsByNumber;
+  final int totalRooms;
+  final DateTime restoreMoment;
+}
+
+class _NightsRebuildResult {
+  const _NightsRebuildResult({
+    required this.ledger,
+    required this.nightRows,
+    required this.roomLastOccupied,
+    required this.changes,
+    required this.bookingNightCount,
+    required this.paymentsProcessed,
+  });
+
+  final Map<String, _LedgerAccumulator> ledger;
+  final List<BookingNightsCompanion> nightRows;
+  final Map<int, String> roomLastOccupied;
+  final List<String> changes;
+  final int bookingNightCount;
+  final int paymentsProcessed;
+}
+
+class _LedgerRebuildResult {
+  const _LedgerRebuildResult({
+    required this.ledgerEntryCount,
+  });
+
+  final int ledgerEntryCount;
+}
+
+class _RoomsUpdateResult {
+  const _RoomsUpdateResult({
+    required this.roomsTouched,
+  });
+
+  final int roomsTouched;
+}
+
+class _BookingProcessingResult {
+  const _BookingProcessingResult({
+    required this.nightRows,
+    required this.nightCount,
+    required this.paymentsCount,
+    required this.lastOccupiedDay,
+  });
+
+  final List<BookingNightsCompanion> nightRows;
+  final int nightCount;
+  final int paymentsCount;
+  final String? lastOccupiedDay;
 }

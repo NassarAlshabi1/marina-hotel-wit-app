@@ -310,8 +310,9 @@ class DebtsRepositoryAutomated {
   final DebtsDao dao;
 
   Stream<List<Debt>> watchAll() => dao.watchList();
-  Stream<List<Debt>> watchUnsettled() =>
-      dao.watchList().map((debts) => debts.where((d) => d.isSettled == 0).toList());
+  Stream<List<Debt>> watchUnsettled() => dao
+      .watchList()
+      .map((debts) => debts.where((d) => d.isSettled == 0).toList());
 
   Future<int> create({
     required String guestName,
@@ -355,7 +356,8 @@ class DebtsRepositoryAutomated {
     return result;
   }
 
-  Future<int> recordPayment(int debtId, double paymentAmount, String paymentDate) async {
+  Future<int> recordPayment(
+      int debtId, double paymentAmount, String paymentDate) async {
     final debt = await dao.getById(debtId);
     if (debt == null) return 0;
 
@@ -391,8 +393,8 @@ class EmployeesRepositoryAutomated {
   final EmployeesDao dao;
 
   Stream<List<Employee>> watchAll() => dao.watchList();
-  Stream<List<Employee>> watchActive() =>
-      dao.watchList().map((employees) => employees.where((e) => e.status == 'active').toList());
+  Stream<List<Employee>> watchActive() => dao.watchList().map(
+      (employees) => employees.where((e) => e.status == 'active').toList());
 
   Future<int> create({
     required String name,
@@ -643,7 +645,8 @@ class AutomatedRepositoryFactory {
   ExpensesRepositoryAutomated get expenses => ExpensesRepositoryAutomated(db);
   RoomsRepositoryAutomated get rooms => RoomsRepositoryAutomated(db);
   DebtsRepositoryAutomated get debts => DebtsRepositoryAutomated(db);
-  EmployeesRepositoryAutomated get employees => EmployeesRepositoryAutomated(db);
+  EmployeesRepositoryAutomated get employees =>
+      EmployeesRepositoryAutomated(db);
   CashTransactionsRepositoryAutomated get cashTransactions =>
       CashTransactionsRepositoryAutomated(db);
 }

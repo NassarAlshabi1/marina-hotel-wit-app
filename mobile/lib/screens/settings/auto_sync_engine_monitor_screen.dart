@@ -169,7 +169,8 @@ class _AutoSyncEngineMonitorScreenState
             ),
             const Divider(),
             _buildStatusRow('المحرك يعمل', state.isRunning, Icons.settings),
-            _buildStatusRow('متصل بالشبكة', state.hasNetworkConnection, Icons.wifi),
+            _buildStatusRow(
+                'متصل بالشبكة', state.hasNetworkConnection, Icons.wifi),
             _buildStatusRow('مسجل الدخول', state.isSignedIn, Icons.login),
           ],
         ),
@@ -192,7 +193,7 @@ class _AutoSyncEngineMonitorScreenState
 
   Widget _buildPendingChangesCard(AutoSyncEngineState state) {
     final hasPending = state.pendingChangesCount > 0;
-    
+
     return Card(
       elevation: 2,
       color: hasPending ? Colors.orange.shade50 : Colors.green.shade50,
@@ -250,10 +251,10 @@ class _AutoSyncEngineMonitorScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
-                const Icon(Icons.error, color: Colors.red),
-                const SizedBox(width: 8),
-                const Text(
+              children: const [
+                Icon(Icons.error, color: Colors.red),
+                SizedBox(width: 8),
+                Text(
                   'إعادة المحاولة التلقائية',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -293,7 +294,8 @@ class _AutoSyncEngineMonitorScreenState
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, size: 16, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 16, color: Colors.red),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -420,7 +422,8 @@ class _AutoSyncEngineMonitorScreenState
                       padding: EdgeInsets.all(16.0),
                       child: Column(
                         children: [
-                          Icon(Icons.check_circle, size: 48, color: Colors.green),
+                          Icon(Icons.check_circle,
+                              size: 48, color: Colors.green),
                           SizedBox(height: 8),
                           Text('لا توجد تضاربات مسجلة'),
                         ],
@@ -516,9 +519,8 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Widget _buildActionsCard(BuildContext context, AutoSyncEngineState state) {
-    final canSync = state.isRunning &&
-        state.hasNetworkConnection &&
-        state.isSignedIn;
+    final canSync =
+        state.isRunning && state.hasNetworkConnection && state.isSignedIn;
 
     return Card(
       elevation: 2,
@@ -846,7 +848,7 @@ class _AutoSyncEngineMonitorScreenState
             children: [
               const Text('فترة تجميع التغييرات قبل الرفع'),
               const SizedBox(height: 16),
-              ...[ 2, 5, 10, 15 ].map((seconds) => RadioListTile<int>(
+              ...[2, 5, 10, 15].map((seconds) => RadioListTile<int>(
                     title: Text('$seconds ثانية'),
                     subtitle: Text(_getDebounceDescription(seconds)),
                     value: seconds,
@@ -857,7 +859,9 @@ class _AutoSyncEngineMonitorScreenState
                         if (context.mounted) Navigator.pop(context);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('✅ تم تعيين Debounce إلى $value ثانية')),
+                            SnackBar(
+                                content: Text(
+                                    '✅ تم تعيين Debounce إلى $value ثانية')),
                           );
                         }
                       }
@@ -897,8 +901,8 @@ class _AutoSyncEngineMonitorScreenState
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                                content:
-                                    Text('✅ تم تعيين Pull Interval إلى $value دقيقة')),
+                                content: Text(
+                                    '✅ تم تعيين Pull Interval إلى $value دقيقة')),
                           );
                         }
                       }
@@ -936,8 +940,8 @@ class _AutoSyncEngineMonitorScreenState
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                              content:
-                                  Text('✅ تم تعيين الاستراتيجية: ${_getStrategyName(value)}')),
+                              content: Text(
+                                  '✅ تم تعيين الاستراتيجية: ${_getStrategyName(value)}')),
                         );
                       }
                     }

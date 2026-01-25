@@ -57,10 +57,11 @@ class RoomsDashboard extends ConsumerWidget {
     );
   }
 
-  Widget _buildFloorsView(BuildContext context, WidgetRef ref, List<Room> rooms) {
+  Widget _buildFloorsView(
+      BuildContext context, WidgetRef ref, List<Room> rooms) {
     // تنظيم الغرف حسب الطوابق
     final Map<String, List<Room>> floorMap = {};
-    
+
     for (final room in rooms) {
       // استخراج رقم الطابق من رقم الغرفة (الرقم الأول)
       String floorNumber;
@@ -69,17 +70,18 @@ class RoomsDashboard extends ConsumerWidget {
       } else {
         floorNumber = '0'; // طابق افتراضي للغرف بدون رقم واضح
       }
-      
+
       if (!floorMap.containsKey(floorNumber)) {
         floorMap[floorNumber] = [];
       }
       floorMap[floorNumber]!.add(room);
     }
-    
+
     // ترتيب الطوابق والغرف
     final sortedFloors = floorMap.keys.toList()..sort();
     for (final floor in sortedFloors) {
-      floorMap[floor]!.sort((a, b) => _compareRoomNumbers(a.roomNumber, b.roomNumber));
+      floorMap[floor]!
+          .sort((a, b) => _compareRoomNumbers(a.roomNumber, b.roomNumber));
     }
 
     return ListView.builder(
@@ -88,7 +90,7 @@ class RoomsDashboard extends ConsumerWidget {
       itemBuilder: (context, index) {
         final floorNumber = sortedFloors[index];
         final floorRooms = floorMap[floorNumber]!;
-        
+
         return FloorSection(
           floorNumber: floorNumber,
           rooms: floorRooms,
@@ -100,30 +102,20 @@ class RoomsDashboard extends ConsumerWidget {
     );
   }
 
-
-
-
-
-
-
-
-
-
-
   void _handleRoomTap(BuildContext context, WidgetRef ref, Room room) {
     showDialog(
       context: context,
       builder: (context) => RoomDetailsDialog(
         room: room,
-        onBookRoom: StatusUtils.isRoomAvailable(room.status) ? () => _navigateToBooking(context, room.roomNumber) : null,
-        onViewBookings: !StatusUtils.isRoomAvailable(room.status) ? () => _showRoomBookings(context, ref, room.roomNumber) : null,
+        onBookRoom: StatusUtils.isRoomAvailable(room.status)
+            ? () => _navigateToBooking(context, room.roomNumber)
+            : null,
+        onViewBookings: !StatusUtils.isRoomAvailable(room.status)
+            ? () => _showRoomBookings(context, ref, room.roomNumber)
+            : null,
       ),
     );
   }
-
-
-
-
 
   void _navigateToBooking(BuildContext context, String roomNumber) {
     Navigator.of(context).push(
@@ -133,10 +125,12 @@ class RoomsDashboard extends ConsumerWidget {
     );
   }
 
-  Future<void> _showRoomBookings(BuildContext context, WidgetRef ref, String roomNumber) async {
+  Future<void> _showRoomBookings(
+      BuildContext context, WidgetRef ref, String roomNumber) async {
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
+      final activeBooking =
+          await bookingsRepo.getActiveBookingForRoom(roomNumber);
 
       if (activeBooking == null) {
         if (context.mounted) {
@@ -176,11 +170,11 @@ class RoomsDashboard extends ConsumerWidget {
     // محاولة مقارنة رقمية إذا كانت الأرقام
     final aNum = int.tryParse(a);
     final bNum = int.tryParse(b);
-    
+
     if (aNum != null && bNum != null) {
       return aNum.compareTo(bNum);
     }
-    
+
     // مقارنة أبجدية إذا لم تكن أرقام
     return a.compareTo(b);
   }

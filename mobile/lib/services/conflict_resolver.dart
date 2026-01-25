@@ -58,12 +58,23 @@ class EnhancedConflictResolver {
   EnhancedConflictResolver({
     this.defaultStrategy = ConflictStrategy.lastWriteWins,
     this.tableStrategies = const {},
+    this.tableHooks = const {},
+    this.devicePriorityResolver,
+    this.criticalFieldsOverrides = const {},
   });
 
   final ConflictStrategy defaultStrategy;
   final Map<String, ConflictStrategy> tableStrategies;
+  final Map<String, ConflictResolution Function(ConflictContext)> tableHooks;
+  final int Function(String deviceId)? devicePriorityResolver;
+  final Map<String, Set<String>> criticalFieldsOverrides;
 
   ConflictResolution resolve(ConflictContext context) {
+    final hook = tableHooks[context.table];
+    if (hook != null) {
+      return hook(context);
+    }
+
     final strategy = tableStrategies[context.table] ?? defaultStrategy;
 
     if (context.localVectorClock != null && context.remoteVectorClock != null) {
@@ -119,10 +130,12 @@ class EnhancedConflictResolver {
   }
 
   ConflictResolution _handleConcurrentConflict(ConflictContext context) {
-    final timeDiff = context.localTimestamp.difference(context.remoteTimestamp).abs();
-    
+    final timeDiff =
+        context.localTimestamp.difference(context.remoteTimestamp).abs();
+
     if (timeDiff.inSeconds < 30) {
-      debugPrint('🔀 تعارض متزامن (${timeDiff.inSeconds}s) - استخدام field-level merge');
+      debugPrint(
+          '🔀 تعارض متزامن (${timeDiff.inSeconds}s) - استخدام field-level merge');
       return _fieldLevelMerge(context);
     }
 
@@ -132,7 +145,7 @@ class EnhancedConflictResolver {
 
   ConflictResolution _lastWriteWins(ConflictContext context) {
     final localNewer = context.localTimestamp.isAfter(context.remoteTimestamp);
-    
+
     if (localNewer) {
       return ConflictResolution(
         winner: context.localData,
@@ -145,7 +158,16 @@ class EnhancedConflictResolver {
       );
     }
 
-    if (context.localDevicePriority >= context.remoteDevicePriority) {
+    final localPriority = _priorityForDevice(
+      context.localDeviceId,
+      context.localDevicePriority,
+    );
+    final remotePriority = _priorityForDevice(
+      context.remoteDeviceId,
+      context.remoteDevicePriority,
+    );
+
+    if (localPriority >= remotePriority) {
       return ConflictResolution(
         winner: context.localData,
         strategy: ConflictStrategy.customPriority,
@@ -160,7 +182,7 @@ class EnhancedConflictResolver {
 
   ConflictResolution _firstWriteWins(ConflictContext context) {
     final localOlder = context.localTimestamp.isBefore(context.remoteTimestamp);
-    
+
     return ConflictResolution(
       winner: localOlder ? context.localData : context.remoteData,
       strategy: ConflictStrategy.firstWriteWins,
@@ -169,10 +191,18 @@ class EnhancedConflictResolver {
 
   ConflictResolution _fieldLevelMerge(ConflictContext context) {
     final merged = Map<String, dynamic>.from(context.localData);
-    
+
     final criticalFields = _getCriticalFields(context.table);
-    final systemFields = {'local_uuid', 'server_id', 'created_at', 'created_at_iso', 
-                         'created_at_epoch', 'version', 'origin', 'vector_clock'};
+    final systemFields = {
+      'local_uuid',
+      'server_id',
+      'created_at',
+      'created_at_iso',
+      'created_at_epoch',
+      'version',
+      'origin',
+      'vector_clock'
+    };
 
     for (final key in context.remoteData.keys) {
       if (systemFields.contains(key)) continue;
@@ -187,8 +217,9 @@ class EnhancedConflictResolver {
           merged[key] = remoteValue;
         }
       } else {
-        if (remoteValue != null && 
-            (localValue == null || context.remoteTimestamp.isAfter(context.localTimestamp))) {
+        if (remoteValue != null &&
+            (localValue == null ||
+                context.remoteTimestamp.isAfter(context.localTimestamp))) {
           merged[key] = remoteValue;
         }
       }
@@ -206,8 +237,14 @@ class EnhancedConflictResolver {
   }
 
   ConflictResolution _customPriority(ConflictContext context) {
-    final localPriority = context.localDevicePriority;
-    final remotePriority = context.remoteDevicePriority;
+    final localPriority = _priorityForDevice(
+      context.localDeviceId,
+      context.localDevicePriority,
+    );
+    final remotePriority = _priorityForDevice(
+      context.remoteDeviceId,
+      context.remoteDevicePriority,
+    );
 
     if (localPriority > remotePriority) {
       return ConflictResolution(
@@ -224,9 +261,27 @@ class EnhancedConflictResolver {
     return _lastWriteWins(context);
   }
 
+  int _priorityForDevice(String deviceId, int fallback) {
+    if (devicePriorityResolver == null) return fallback;
+    return devicePriorityResolver!(deviceId) ?? fallback;
+  }
+
   Set<String> _getCriticalFields(String table) {
+    final override = criticalFieldsOverrides[table];
+    if (override != null) {
+      return override;
+    }
+
     const fieldsByTable = <String, Set<String>>{
-      'bookings': {'status', 'checkout_date', 'actual_checkout', 'room_number', 'total_amount', 'paid_amount', 'remaining_amount'},
+      'bookings': {
+        'status',
+        'checkout_date',
+        'actual_checkout',
+        'room_number',
+        'total_amount',
+        'paid_amount',
+        'remaining_amount'
+      },
       'payments': {'amount', 'payment_date', 'payment_method', 'booking_uuid'},
       'rooms': {'status', 'price', 'room_number', 'floor', 'type'},
       'expenses': {'amount', 'date', 'category', 'description'},
@@ -234,7 +289,12 @@ class EnhancedConflictResolver {
       'guests': {'name', 'phone', 'id_number', 'nationality'},
       'employees': {'name', 'phone', 'salary', 'role', 'status'},
       'services': {'name', 'price', 'is_active'},
-      'room_services': {'service_uuid', 'booking_uuid', 'quantity', 'total_price'},
+      'room_services': {
+        'service_uuid',
+        'booking_uuid',
+        'quantity',
+        'total_price'
+      },
       'shifts': {'start_time', 'end_time', 'employee_uuid', 'total_amount'},
       'settings': {'value'},
     };

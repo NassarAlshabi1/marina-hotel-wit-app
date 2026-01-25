@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'unified_lock_manager.dart';
 
 /// مسؤول عن جدولة المزامنة فقط - لا يعرف تفاصيل المزامنة
-/// 
+///
 /// الاستخدام:
 /// ```dart
 /// final scheduler = SyncScheduler(
@@ -38,12 +38,13 @@ class SyncScheduler {
       holder: 'SyncScheduler.start',
       priority: LockPriority.normal,
     );
-    
+
     if (!lockResult.acquired) {
-      debugPrint('❌ SyncScheduler: فشل الحصول على القفل: ${lockResult.failureReason}');
+      debugPrint(
+          '❌ SyncScheduler: فشل الحصول على القفل: ${lockResult.failureReason}');
       return;
     }
-    
+
     if (_isRunning) {
       UnifiedLockManager.instance.release(
         category: LockCategory.mainSync,
@@ -51,14 +52,14 @@ class SyncScheduler {
       );
       return;
     }
-    
+
     _isRunning = true;
-    
+
     UnifiedLockManager.instance.release(
       category: LockCategory.mainSync,
       holder: 'SyncScheduler.start',
     );
-    
+
     _quickCheckTimer = Timer.periodic(quickCheckInterval, (_) async {
       if (isEnabled()) {
         await _safelyTriggerSync();
@@ -71,7 +72,8 @@ class SyncScheduler {
       }
     });
 
-    debugPrint('📅 SyncScheduler: بدأت الجدولة - فحص كل ${quickCheckInterval.inMinutes} دقيقة');
+    debugPrint(
+        '📅 SyncScheduler: بدأت الجدولة - فحص كل ${quickCheckInterval.inMinutes} دقيقة');
   }
 
   /// إيقاف الجدولة
@@ -81,12 +83,13 @@ class SyncScheduler {
       holder: 'SyncScheduler.stop',
       priority: LockPriority.critical,
     );
-    
+
     if (!lockResult.acquired) {
-      debugPrint('❌ SyncScheduler: فشل الحصول على القفل: ${lockResult.failureReason}');
+      debugPrint(
+          '❌ SyncScheduler: فشل الحصول على القفل: ${lockResult.failureReason}');
       return;
     }
-    
+
     try {
       _quickCheckTimer?.cancel();
       _fullSyncTimer?.cancel();
@@ -96,7 +99,7 @@ class SyncScheduler {
       debugPrint('🛑 SyncScheduler: توقفت الجدولة');
     } finally {
       // إصلاح: await على release لضمان إطلاق القفل بشكل صحيح
-      await UnifiedLockManager.instance.release(
+      UnifiedLockManager.instance.release(
         category: LockCategory.mainSync,
         holder: 'SyncScheduler.stop',
       );
@@ -113,7 +116,8 @@ class SyncScheduler {
   }
 
   /// تعديل الفترة الزمنية ديناميكياً
-  Future<void> updateInterval(Duration newQuickInterval, {Duration? newFullInterval}) async {
+  Future<void> updateInterval(Duration newQuickInterval,
+      {Duration? newFullInterval}) async {
     if (_isRunning) {
       await stop();
     }

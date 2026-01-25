@@ -2,20 +2,20 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'smart_sync_manager.dart';
-import 'sync_queue_service.dart' hide RetryConfig;
+import 'sync_queue_service.dart';
 import 'sync_core/sync_error_handler.dart';
 import 'sync_core/retry_strategy.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_core/sync_validator.dart';
-import 'sync_core/unified_lock_manager.dart';
+import 'sync_locks.dart';
 
 class ScreenSyncController {
   final String screenId;
   final Duration debounceDelay;
-  
+
   late final CircuitBreaker _circuitBreaker;
   late final RetryStrategy _retryStrategy;
-  
+
   ScreenSyncController({
     required this.screenId,
     this.debounceDelay = const Duration(seconds: 15),
@@ -28,29 +28,29 @@ class ScreenSyncController {
         resetTimeout: Duration(minutes: 2),
       ),
     );
-    
+
     _retryStrategy = RetryStrategy(
       config: RetryConfig.balanced,
     );
   }
-  
+
   bool _hasChanges = false;
   Timer? _debounceTimer;
   bool _isSyncing = false;
-  
+
   final _syncStatusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncStatusController.stream;
-  
+
   bool get hasChanges => _hasChanges;
   bool get isSyncing => _isSyncing;
-  
+
   void markChanged() {
     _hasChanges = true;
     _emitStatus(SyncStatus.pending);
     _resetDebounceTimer();
     debugPrint('📝 [$screenId] تم تسجيل تغيير - إعادة ضبط المؤقت');
   }
-  
+
   void _resetDebounceTimer() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(debounceDelay, () {
@@ -58,69 +58,63 @@ class ScreenSyncController {
       syncNow();
     });
   }
-  
+
   void cancelTimer() {
     _debounceTimer?.cancel();
     _debounceTimer = null;
   }
-  
+
   Future<bool> syncNow() async {
     if (!_hasChanges) {
       debugPrint('✓ [$screenId] لا توجد تغييرات للمزامنة');
       return true;
     }
-    
-    final lockResult = await UnifiedLockManager.instance.acquire(
-      category: LockCategory.screenSync,
-      holder: 'ScreenSyncController.$screenId',
-      priority: LockPriority.normal,
-    );
-    
-    if (!lockResult.acquired) {
-      debugPrint('⏳ [$screenId] فشل الحصول على القفل: ${lockResult.failureReason}');
-      return false;
-    }
-    
-    if (_isSyncing) {
-      UnifiedLockManager.instance.release(
-        category: LockCategory.screenSync,
-        holder: 'ScreenSyncController.$screenId',
-      );
+
+    final canStart = await SyncLocks.screenSyncLock.synchronized(() async {
+      if (_isSyncing) {
+        return false;
+      }
+      _isSyncing = true;
+      return true;
+    });
+
+    if (!canStart) {
       debugPrint('⏳ [$screenId] المزامنة جارية بالفعل');
       return false;
     }
-    
-    _isSyncing = true;
-    
+
     cancelTimer();
     _emitStatus(SyncStatus.syncing);
-    
+
     try {
       final connectivityResults = await Connectivity().checkConnectivity();
-      final hasConnection = connectivityResults.any((r) => r != ConnectivityResult.none);
-      
-      final networkValidation = SyncValidator.instance.validateNetworkConditions(
+      final hasConnection =
+          connectivityResults.any((r) => r != ConnectivityResult.none);
+
+      final networkValidation =
+          SyncValidator.instance.validateNetworkConditions(
         hasConnection: hasConnection,
       );
-      
+
       if (!networkValidation.isValid) {
         debugPrint('📴 [$screenId] ${networkValidation.error}');
         await _addToQueue();
         return false;
       }
-      
+
       if (!SmartSyncManager.instance.isDriveSignedIn) {
-        debugPrint('🔒 [$screenId] المستخدم غير مسجل في Google Drive - إضافة التغيير للطابور');
+        debugPrint(
+            '🔒 [$screenId] المستخدم غير مسجل في Google Drive - إضافة التغيير للطابور');
         await _addToQueue();
         return false;
       }
-      
+
       if (networkValidation.warnings.isNotEmpty) {
         for (final warning in networkValidation.warnings) {
           debugPrint('⚠️ [$screenId] $warning');
         }
       }
-      
+
       final success = await _retryStrategy.executeWithFallback(
         operation: () async {
           return await _circuitBreaker.execute(() async {
@@ -136,14 +130,15 @@ class ScreenSyncController {
           return syncError.isRetryable;
         },
         fallback: () {
-          debugPrint('⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات');
+          debugPrint(
+              '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات');
           return false;
         },
         onRetry: (attempt, error) {
           debugPrint('🔄 [$screenId] إعادة المحاولة $attempt');
         },
       );
-      
+
       if (success == true) {
         _hasChanges = false;
         _emitStatus(SyncStatus.synced);
@@ -170,27 +165,28 @@ class ScreenSyncController {
       await _addToQueue();
       return false;
     } finally {
-      _isSyncing = false;
-      UnifiedLockManager.instance.release(
-        category: LockCategory.screenSync,
-        holder: 'ScreenSyncController.$screenId',
-      );
+      await SyncLocks.screenSyncLock.synchronized(() async {
+        _isSyncing = false;
+      });
     }
   }
-  
+
   Future<void> _addToQueue() async {
     try {
-      final data = {'timestamp': DateTime.now().toIso8601String(), 'screenId': screenId};
-      
+      final data = {
+        'timestamp': DateTime.now().toIso8601String(),
+        'screenId': screenId
+      };
+
       final validation = SyncValidator.instance.validateSyncData(data);
       SyncValidator.instance.logValidationResult('Queue data', validation);
-      
+
       if (!validation.isValid) {
         debugPrint('❌ [$screenId] بيانات غير صالحة: ${validation.error}');
         _emitStatus(SyncStatus.error);
         return;
       }
-      
+
       await SyncQueueService.instance.addToQueue(
         screenId: screenId,
         data: data,
@@ -206,17 +202,17 @@ class ScreenSyncController {
       _emitStatus(SyncStatus.error);
     }
   }
-  
+
   void _emitStatus(SyncStatus status) {
     _syncStatusController.add(status);
   }
-  
+
   Future<bool> syncOnExit() async {
     debugPrint('🚪 [$screenId] الخروج من الشاشة...');
     cancelTimer();
     return await syncNow();
   }
-  
+
   Map<String, dynamic> getHealthStatus() {
     return {
       'screenId': screenId,
@@ -228,7 +224,7 @@ class ScreenSyncController {
 
   void dispose() {
     cancelTimer();
-    
+
     // إغلاق الموارد فوراً
     // المزامنة عند الخروج تتم عبر WillPopScope في SyncOnExitMixin
     if (!_syncStatusController.isClosed) {

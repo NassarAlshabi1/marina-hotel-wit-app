@@ -7,27 +7,33 @@ import 'outbox_dao.dart';
 part 'booking_notes_dao.g.dart';
 
 @DriftAccessor(tables: [BookingNotes])
-class BookingNotesDao extends DatabaseAccessor<AppDatabase> with _$BookingNotesDaoMixin {
+class BookingNotesDao extends DatabaseAccessor<AppDatabase>
+    with _$BookingNotesDaoMixin {
   BookingNotesDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<BookingNote>> list({int? bookingId, bool includeDeleted = false}) async {
+  Future<List<BookingNote>> list(
+      {int? bookingId, bool includeDeleted = false}) async {
     final q = select(bookingNotes);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (bookingId != null) q.where((t) => t.bookingId.equals(bookingId));
     return q.get();
   }
 
-  Stream<List<BookingNote>> watchByBooking(int bookingId, {bool includeDeleted = false}) {
+  Stream<List<BookingNote>> watchByBooking(int bookingId,
+      {bool includeDeleted = false}) {
     final q = select(bookingNotes)..where((t) => t.bookingId.equals(bookingId));
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     return q.watch();
   }
 
-  Future<BookingNote?> getById(int id) => (select(bookingNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<BookingNote?> watchById(int id) => (select(bookingNotes)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<BookingNote?> getById(int id) =>
+      (select(bookingNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<BookingNote?> watchById(int id) =>
+      (select(bookingNotes)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
-  Future<int> insertOne(BookingNotesCompanion data, {bool originIsServer = false}) async {
+  Future<int> insertOne(BookingNotesCompanion data,
+      {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -53,13 +59,16 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase> with _$BookingNotesD
     });
   }
 
-  Future<int> updateById(int id, BookingNotesCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateById(int id, BookingNotesCompanion data,
+      {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
-      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id))).write(comp);
+      final comp =
+          data.copyWith(updatedAt: Value(now), lastModified: Value(now));
+      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id)))
+          .write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'booking_notes',
@@ -79,7 +88,8 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase> with _$BookingNotesD
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id))).write(BookingNotesCompanion(
+      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id)))
+          .write(BookingNotesCompanion(
         deletedAt: Value(now),
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -98,7 +108,8 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase> with _$BookingNotesD
     });
   }
 
-  Map<String, dynamic> _payloadFrom(BookingNotesCompanion comp, {BookingNote? base}) {
+  Map<String, dynamic> _payloadFrom(BookingNotesCompanion comp,
+      {BookingNote? base}) {
     final m = <String, dynamic>{};
     if (comp.bookingId.present) m['booking_id'] = comp.bookingId.value;
     if (comp.noteText.present) m['note_text'] = comp.noteText.value;
@@ -117,7 +128,8 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase> with _$BookingNotesD
   }
 
   /// استيراد ملاحظات الحجوزات من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+  Future<void> importFromJson(List<Map<String, dynamic>> data,
+      {bool clearExisting = false}) async {
     if (clearExisting) {
       await delete(bookingNotes).go();
     }
@@ -144,7 +156,8 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase> with _$BookingNotesD
 
   /// الحصول على عدد السجلات
   Future<int> getRecordCount() async {
-    final query = selectOnly(bookingNotes)..addColumns([bookingNotes.id.count()]);
+    final query = selectOnly(bookingNotes)
+      ..addColumns([bookingNotes.id.count()]);
     final result = await query.getSingle();
     return result.read(bookingNotes.id.count()) ?? 0;
   }

@@ -29,7 +29,8 @@ class SqliteBackupRestore {
   /// Default database file name used by Drift/sqflite. Change if the DB name differs.
   /// The current app uses 'marina_hotel.db' in `SqfliteQueryExecutor.inDatabaseFolder`.
   static const String kDefaultDbFileName = 'marina_hotel.db';
-  static const String kAndroidDocumentsBackupPath = '/storage/emulated/0/Documents/MarinaHotelBackups';
+  static const String kAndroidDocumentsBackupPath =
+      '/storage/emulated/0/Documents/MarinaHotelBackups';
 
   static Future<String> _resolveDefaultDbPath() async {
     final dbDir = await sqflite.getDatabasesPath();
@@ -54,11 +55,14 @@ class SqliteBackupRestore {
           }
           return documentsTarget;
         } catch (e) {
-          debugPrint('⚠️ Failed to access default backup dir, falling back: $e');
+          debugPrint(
+              '⚠️ Failed to access default backup dir, falling back: $e');
         }
-        final fallbackDirs = await getExternalStorageDirectories(type: StorageDirectory.documents);
+        final fallbackDirs = await getExternalStorageDirectories(
+            type: StorageDirectory.documents);
         if (fallbackDirs != null && fallbackDirs.isNotEmpty) {
-          final fallbackTarget = Directory(p.join(fallbackDirs.first.path, 'MarinaHotelBackups'));
+          final fallbackTarget =
+              Directory(p.join(fallbackDirs.first.path, 'MarinaHotelBackups'));
           if (!await fallbackTarget.exists()) {
             await fallbackTarget.create(recursive: true);
           }
@@ -137,12 +141,8 @@ class SqliteBackupRestore {
       // Ensure parent directory exists
       await dstFile.parent.create(recursive: true);
 
-      debugPrint('🔒 إيقاف وإغلاق قاعدة البيانات بشكل آمن...');
-      
-      // Close database safely with sync operations stopped
-      await DatabaseManager.closeForRestore();
-      
-      debugPrint('📋 استبدال ملف قاعدة البيانات...');
+      // Close any open connections to avoid file locking
+      await DatabaseManager.close();
 
       // Replace the database file
       if (await dstFile.exists()) {
@@ -150,28 +150,16 @@ class SqliteBackupRestore {
       }
       await srcFile.copy(dstPath);
 
-      debugPrint('🔄 إعادة فتح قاعدة البيانات وتشغيل المزامنة...');
-      
-      // Reopen database and restart sync operations
+      // Reopen the database so the app can continue working
       if (reopenCallback != null) {
         await reopenCallback();
       } else {
-        await DatabaseManager.reopenAfterRestore();
+        await DatabaseManager.reopen();
       }
 
-      debugPrint('✅ SQLite database restored successfully');
+      debugPrint('✅ SQLite database restored from: $sourcePath');
     } catch (e, st) {
       debugPrint('❌ Failed to restore database: $e\n$st');
-      
-      // في حالة الفشل، محاولة إعادة الفتح
-      try {
-        debugPrint('🔄 Attempting to reopen database after failed restore...');
-        await DatabaseManager.reopenAfterRestore();
-        debugPrint('✅ Database reopened after failed restore');
-      } catch (e2) {
-        debugPrint('❌ Failed to reopen after failed restore: $e2');
-      }
-      
       rethrow;
     }
   }

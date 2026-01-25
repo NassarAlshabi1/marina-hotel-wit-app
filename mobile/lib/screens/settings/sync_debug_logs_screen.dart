@@ -10,7 +10,8 @@ class SyncDebugLogsScreen extends ConsumerStatefulWidget {
   const SyncDebugLogsScreen({super.key});
 
   @override
-  ConsumerState<SyncDebugLogsScreen> createState() => _SyncDebugLogsScreenState();
+  ConsumerState<SyncDebugLogsScreen> createState() =>
+      _SyncDebugLogsScreenState();
 }
 
 class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
@@ -120,7 +121,8 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
                       dense: true,
                       title: SelectableText(
                         entry,
-                        style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                        style: const TextStyle(
+                            fontSize: 12, fontFamily: 'monospace'),
                       ),
                       trailing: IconButton(
                         icon: const Icon(Icons.copy, size: 18),
@@ -150,7 +152,8 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.memory, color: Theme.of(context).colorScheme.primary),
+                      Icon(Icons.memory,
+                          color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 8),
                       const Text(
                         'حالة مدير المزامنة',
@@ -160,10 +163,17 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
                   ),
                   const SizedBox(height: 12),
                   _buildStatusRow('معرف الجهاز', status['device_id'] ?? '---'),
-                  _buildStatusRow('تفعيل المزامنة', (status['enabled'] ?? false) ? 'مفعل' : 'معطل'),
-                  _buildStatusRow('تسجيل الدخول', (status['signed_in'] ?? false) ? 'متصل' : 'غير متصل'),
-                  _buildStatusRow('المراقبة الدورية', (status['monitoring_active'] ?? false) ? 'نشطة' : 'متوقفة'),
-                  _buildStatusRow('آخر فحص', status['last_sync_check'] ?? '---'),
+                  _buildStatusRow('تفعيل المزامنة',
+                      (status['enabled'] ?? false) ? 'مفعل' : 'معطل'),
+                  _buildStatusRow('تسجيل الدخول',
+                      (status['signed_in'] ?? false) ? 'متصل' : 'غير متصل'),
+                  _buildStatusRow(
+                      'المراقبة الدورية',
+                      (status['monitoring_active'] ?? false)
+                          ? 'نشطة'
+                          : 'متوقفة'),
+                  _buildStatusRow(
+                      'آخر فحص', status['last_sync_check'] ?? '---'),
                 ],
               ),
       ),
@@ -175,7 +185,8 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(color: Colors.grey))),
+          Expanded(
+              child: Text(label, style: const TextStyle(color: Colors.grey))),
           Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
@@ -197,11 +208,15 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
     );
   }
 
-  Widget _buildActionButton(IconData icon, String label, Future<void> Function() onPressed) {
+  Widget _buildActionButton(
+      IconData icon, String label, Future<void> Function() onPressed) {
     return ElevatedButton.icon(
       onPressed: _isBusy ? null : () => onPressed(),
       icon: _isBusy
-          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+          ? const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2))
           : Icon(icon, size: 18),
       label: Text(label),
     );

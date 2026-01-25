@@ -9,15 +9,13 @@ abstract class SyncConfig {
   static const int defaultSyncIntervalMinutes = 2;
   static const int periodicFullSyncHours = 24;
   static const Duration syncMutexTimeout = Duration(seconds: 5);
-  
-  static const int maxRecordsInMemory = 5000;
-  static const int streamingBatchSize = 100;
-  static const int streamingThreshold = 1000;
-  
-  static const String _prefsConflictThresholdKey = 'sync_config_conflict_threshold_seconds';
-  static const String _prefsSnapshotIntervalKey = 'sync_config_snapshot_interval_minutes';
+
+  static const String _prefsConflictThresholdKey =
+      'sync_config_conflict_threshold_seconds';
+  static const String _prefsSnapshotIntervalKey =
+      'sync_config_snapshot_interval_minutes';
   static const String _prefsDevicePriorityKey = 'sync_config_device_priority';
-  
+
   static Future<Duration> getAdaptiveConflictThreshold() async {
     final prefs = await SharedPreferences.getInstance();
     final seconds = prefs.getInt(_prefsConflictThresholdKey);
@@ -26,12 +24,12 @@ abstract class SyncConfig {
     }
     return conflictThreshold;
   }
-  
+
   static Future<void> setConflictThreshold(Duration duration) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsConflictThresholdKey, duration.inSeconds);
   }
-  
+
   static Future<Duration> getSnapshotInterval() async {
     final prefs = await SharedPreferences.getInstance();
     final minutes = prefs.getInt(_prefsSnapshotIntervalKey);
@@ -40,22 +38,22 @@ abstract class SyncConfig {
     }
     return snapshotInterval;
   }
-  
+
   static Future<void> setSnapshotInterval(Duration duration) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsSnapshotIntervalKey, duration.inMinutes);
   }
-  
+
   static Future<int> getDevicePriority() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_prefsDevicePriorityKey) ?? defaultDevicePriority;
   }
-  
+
   static Future<void> setDevicePriority(int priority) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsDevicePriorityKey, priority);
   }
-  
+
   static Future<Map<String, dynamic>> getAllSettings() async {
     return {
       'conflictThreshold': (await getAdaptiveConflictThreshold()).inSeconds,
@@ -66,12 +64,9 @@ abstract class SyncConfig {
       'defaultSyncIntervalMinutes': defaultSyncIntervalMinutes,
       'periodicFullSyncHours': periodicFullSyncHours,
       'syncMutexTimeout': syncMutexTimeout.inSeconds,
-      'maxRecordsInMemory': maxRecordsInMemory,
-      'streamingBatchSize': streamingBatchSize,
-      'streamingThreshold': streamingThreshold,
     };
   }
-  
+
   static Future<void> resetToDefaults() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsConflictThresholdKey);

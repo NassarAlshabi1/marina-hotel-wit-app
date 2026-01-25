@@ -14,16 +14,21 @@ class PaymentsListScreen extends ConsumerWidget {
       body: StreamBuilder(
         stream: repo.watchAll(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final list = snapshot.data!;
           return ListView.builder(
             itemCount: list.length,
             itemBuilder: (c, i) {
               final p = list[i];
               return ListTile(
-                title: Text('${CurrencyFormatter.formatAmount(p.amount)} • ${p.paymentMethod}'),
+                title: Text(
+                    '${CurrencyFormatter.formatAmount(p.amount)} • ${p.paymentMethod}'),
                 subtitle: Text('${p.paymentDate} • ${p.revenueType}'),
-                trailing: p.roomNumber != null ? Chip(label: Text(p.roomNumber!)) : null,
+                trailing: p.roomNumber != null
+                    ? Chip(label: Text(p.roomNumber!))
+                    : null,
               );
             },
           );
