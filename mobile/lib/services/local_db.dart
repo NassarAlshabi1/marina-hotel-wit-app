@@ -713,7 +713,9 @@ class AppDatabase extends _$AppDatabase {
       return value.map((row) => Map<String, dynamic>.from(row as Map)).toList();
     }
 
-    await transaction(() async {
+    await customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      await transaction(() async {
       Future<void> replaceTableIfNonEmpty<T extends Insertable<dynamic>>(
         TableInfo<Table, dynamic> table,
         String key,
@@ -761,6 +763,9 @@ class AppDatabase extends _$AppDatabase {
       await replaceTableIfNonEmpty<SalaryPayment>(salaryPayments,
           'salary_payments', (row) => SalaryPayment.fromJson(row));
     });
+    } finally {
+      await customStatement('PRAGMA foreign_keys = ON');
+    }
   }
 }
 
