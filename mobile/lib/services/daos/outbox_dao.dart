@@ -133,7 +133,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
       await (update(outbox)..where((t) => t.id.isIn(ids))).write(
         RawValuesInsertable({
-          'processing_status': const Variable<String>('processing'),
+          'processing_status': Variable<String>('processing'),
           'processing_started_at':
               Variable<int?>(DateTime.now().millisecondsSinceEpoch),
           'processing_worker': Variable<String?>(worker),
@@ -161,10 +161,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<void> markCompleted(List<int> ids) async {
     if (ids.isEmpty) return;
     await (update(outbox)..where((t) => t.id.isIn(ids))).write(
-      const RawValuesInsertable({
+      RawValuesInsertable({
         'processing_status': Variable<String>('completed'),
-        'processing_started_at': Variable<int?>(null),
-        'processing_worker': Variable<String?>(null),
+        'processing_started_at': const Variable<int?>(null),
+        'processing_worker': const Variable<String?>(null),
       }),
     );
   }
@@ -172,7 +172,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<void> markFailed(List<int> ids) async {
     if (ids.isEmpty) return;
     await (update(outbox)..where((t) => t.id.isIn(ids))).write(
-      const RawValuesInsertable({
+      RawValuesInsertable({
         'processing_status': Variable<String>('failed'),
       }),
     );
@@ -180,12 +180,12 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   Future<void> retryFailed() async {
     await (update(outbox)..where((t) => t.processingStatus.equals('failed')))
-        .write(const OutboxCompanion(
-      processingStatus: Value('pending'),
-      processingStartedAt: Value.absent(),
-      processingWorker: Value.absent(),
-      attempts: Value(0),
-    ));
+        .write(RawValuesInsertable({
+      'processing_status': Variable<String>('pending'),
+      'processing_started_at': const Variable<int?>(null),
+      'processing_worker': const Variable<String?>(null),
+      'attempts': const Variable<int>(0),
+    }));
   }
 
   Future<int> cleanupStuckEntries(
@@ -197,11 +197,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ..where((t) =>
               t.processingStatus.equals('processing') &
               t.processingStartedAt.isSmallerThanValue(thresholdTime)))
-        .write(const OutboxCompanion(
-      processingStatus: Value('pending'),
-      processingStartedAt: Value.absent(),
-      processingWorker: Value.absent(),
-    ));
+        .write(RawValuesInsertable({
+      'processing_status': Variable<String>('pending'),
+      'processing_started_at': const Variable<int?>(null),
+      'processing_worker': const Variable<String?>(null),
+    }));
   }
 
   Future<int> cleanupCompleted(

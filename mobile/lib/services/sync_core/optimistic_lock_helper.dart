@@ -12,7 +12,7 @@ mixin OptimisticLockDaoMixin<T extends Table, D extends DataClass>
 
   Future<bool> updateWithOptimisticLock(
     String localUuid,
-    UpdateCompanion<D> update,
+    UpdateCompanion<D> companion,
     int expectedVersion,
   ) async {
     return transaction(() async {
@@ -39,7 +39,7 @@ mixin OptimisticLockDaoMixin<T extends Table, D extends DataClass>
         );
       }
 
-      final data = update.toColumns(false);
+      final data = companion.toColumns(false);
       data[optimisticVersion.$name] = Variable<int>(expectedVersion + 1);
 
       final updated = await (update(optimisticTable)
