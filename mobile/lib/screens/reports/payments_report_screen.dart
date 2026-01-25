@@ -25,7 +25,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   // ignore: unused_element
-String _formatNumber(num value) => _currencyFmt.format(value);
+  String _formatNumber(num value) => _currencyFmt.format(value);
 
   DateTime? _fromDate;
   DateTime? _toDate;
@@ -53,8 +53,11 @@ String _formatNumber(num value) => _currencyFmt.format(value);
 
   Future<void> _initializeDefaults() async {
     final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month, now.day)
-        .subtract(const Duration(days: 30));
+    _fromDate = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 30));
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
     await _loadRooms();
     await _fetchReport();
@@ -75,8 +78,9 @@ String _formatNumber(num value) => _currencyFmt.format(value);
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate =
-        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initialDate = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -121,13 +125,15 @@ String _formatNumber(num value) => _currencyFmt.format(value);
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
     final payments = await (db.select(db.payments)).get();
 
-    final bookingIds =
-        payments.map((p) => p.bookingLocalId).whereType<int>().toSet();
+    final bookingIds = payments
+        .map((p) => p.bookingLocalId)
+        .whereType<int>()
+        .toSet();
     final bookings = bookingIds.isEmpty
         ? <Booking>[]
-        : await (db.select(db.bookings)
-              ..where((tbl) => tbl.id.isIn(bookingIds)))
-            .get();
+        : await (db.select(
+            db.bookings,
+          )..where((tbl) => tbl.id.isIn(bookingIds))).get();
     final bookingMap = {for (final b in bookings) b.id: b};
 
     final roomNumbers = <String>{};
@@ -139,9 +145,9 @@ String _formatNumber(num value) => _currencyFmt.format(value);
     }
     final rooms = roomNumbers.isEmpty
         ? <Room>[]
-        : await (db.select(db.rooms)
-              ..where((tbl) => tbl.roomNumber.isIn(roomNumbers.toList())))
-            .get();
+        : await (db.select(
+            db.rooms,
+          )..where((tbl) => tbl.roomNumber.isIn(roomNumbers.toList()))).get();
     final roomsMap = {for (final r in rooms) r.roomNumber: r};
 
     final filteredPayments = <Payment>[];
@@ -175,25 +181,29 @@ String _formatNumber(num value) => _currencyFmt.format(value);
 
     for (final payment in filteredPayments) {
       final booking = bookingMap[payment.bookingLocalId];
-      final roomNumber = booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
+      final roomNumber =
+          booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
       final payerName = booking?.guestName ?? payment.revenueType;
       final paymentDate = _parseDateTime(payment.paymentDate);
-      final bookingCode =
-          booking != null ? _formatBookingCode(booking.id) : null;
+      final bookingCode = booking != null
+          ? _formatBookingCode(booking.id)
+          : null;
       totalPaid += payment.amount;
       if (booking != null) {
         relevantBookingIds.add(booking.id);
       }
-      rows.add(_PaymentReportRow(
-        paymentDate: paymentDate,
-        amount: payment.amount,
-        roomNumber: roomNumber,
-        payerName: payerName,
-        bookingId: booking?.id,
-        bookingCode: bookingCode ?? 'غير متوفر',
-        booking: booking,
-        payment: payment,
-      ));
+      rows.add(
+        _PaymentReportRow(
+          paymentDate: paymentDate,
+          amount: payment.amount,
+          roomNumber: roomNumber,
+          payerName: payerName,
+          bookingId: booking?.id,
+          bookingCode: bookingCode ?? 'غير متوفر',
+          booking: booking,
+          payment: payment,
+        ),
+      );
     }
 
     double totalRemaining = 0;
@@ -208,10 +218,11 @@ String _formatNumber(num value) => _currencyFmt.format(value);
         bookingTotals[bookingId] = nights * pricePerNight;
       }
 
-      final allPaymentsForBookings = await (db.select(db.payments)
-            ..where(
-                (tbl) => tbl.bookingLocalId.isIn(relevantBookingIds.toList())))
-          .get();
+      final allPaymentsForBookings =
+          await (db.select(db.payments)..where(
+                (tbl) => tbl.bookingLocalId.isIn(relevantBookingIds.toList()),
+              ))
+              .get();
       final paidByBooking = <int, double>{};
       for (final p in allPaymentsForBookings) {
         final id = p.bookingLocalId;
@@ -229,7 +240,10 @@ String _formatNumber(num value) => _currencyFmt.format(value);
     }
 
     return _PaymentsReportResult(
-        rows: rows, totalPaid: totalPaid, totalRemaining: totalRemaining);
+      rows: rows,
+      totalPaid: totalPaid,
+      totalRemaining: totalRemaining,
+    );
   }
 
   Future<void> _exportPdf() async {
@@ -242,8 +256,9 @@ String _formatNumber(num value) => _currencyFmt.format(value);
     final toLabel = _toDate != null
         ? DateFormat('yyyy-MM-dd').format(_toDate!)
         : 'غير محدد';
-    final selectedRoomLabel =
-        _selectedRoom?.isNotEmpty == true ? _selectedRoom! : '';
+    final selectedRoomLabel = _selectedRoom?.isNotEmpty == true
+        ? _selectedRoom!
+        : '';
 
     final dataRows = [
       for (final entry in _rows.asMap().entries)
@@ -328,7 +343,7 @@ String _formatNumber(num value) => _currencyFmt.format(value);
           'الغرفة',
           'طريقة الدفع',
           'التاريخ',
-          'المبلغ'
+          'المبلغ',
         ],
         data: dataRows,
         fonts: fonts,
@@ -351,12 +366,18 @@ String _formatNumber(num value) => _currencyFmt.format(value);
             pw.Text(
               'الإجمالي الكلي: ',
               style: pw.TextStyle(
-                  font: fonts.bold, fontSize: 12, color: PdfColors.textDark),
+                font: fonts.bold,
+                fontSize: 12,
+                color: PdfColors.textDark,
+              ),
             ),
             pw.Text(
               EnhancedPdfUtils.formatNumber(_totalPaid),
               style: pw.TextStyle(
-                  font: fonts.bold, fontSize: 14, color: PdfColors.secondary),
+                font: fonts.bold,
+                fontSize: 14,
+                color: PdfColors.secondary,
+              ),
             ),
           ],
         ),
@@ -417,13 +438,15 @@ String _formatNumber(num value) => _currencyFmt.format(value);
               runSpacing: 12,
               children: [
                 _buildDateSelector(
-                    label: 'من تاريخ',
-                    value: _fromDate,
-                    onPressed: () => _pickDate(isFrom: true)),
+                  label: 'من تاريخ',
+                  value: _fromDate,
+                  onPressed: () => _pickDate(isFrom: true),
+                ),
                 _buildDateSelector(
-                    label: 'إلى تاريخ',
-                    value: _toDate,
-                    onPressed: () => _pickDate(isFrom: false)),
+                  label: 'إلى تاريخ',
+                  value: _toDate,
+                  onPressed: () => _pickDate(isFrom: false),
+                ),
                 SizedBox(
                   width: 200,
                   child: DropdownButtonFormField<String?>(
@@ -464,59 +487,56 @@ String _formatNumber(num value) => _currencyFmt.format(value);
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _rows.isEmpty
-                      ? const EmptyState(
-                          title: 'لا توجد بيانات',
-                          message:
-                              'لم يتم العثور على دفوعات ضمن النطاق المحدد.',
-                          icon: Icons.receipt_long,
-                        )
-                      : ListView.separated(
-                          itemCount: _rows.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final row = _rows[index];
-                            return Card(
-                              elevation: 1,
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                  ? const EmptyState(
+                      title: 'لا توجد بيانات',
+                      message: 'لم يتم العثور على دفوعات ضمن النطاق المحدد.',
+                      icon: Icons.receipt_long,
+                    )
+                  : ListView.separated(
+                      itemCount: _rows.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final row = _rows[index];
+                        return Card(
+                          elevation: 1,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          _dateLabelFormat
-                                              .format(row.paymentDate),
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        Text(
-                                            '${_currencyFmt.format(row.amount)}'),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text('الغرفة: ${row.roomNumber}'),
-                                    const SizedBox(height: 4),
-                                    Text('اسم الدافع: ${row.payerName}'),
-                                    const SizedBox(height: 4),
                                     Text(
-                                        'طريقة الدفع: ${row.payment.paymentMethod}'),
-                                    const SizedBox(height: 4),
-                                    Text('رقم الحجز: ${row.bookingCode}'),
-                                    if (row.booking != null) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                          'اسم الضيف: ${row.booking!.guestName}'),
-                                    ],
+                                      _dateLabelFormat.format(row.paymentDate),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text('${_currencyFmt.format(row.amount)}'),
                                   ],
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                                const SizedBox(height: 8),
+                                Text('الغرفة: ${row.roomNumber}'),
+                                const SizedBox(height: 4),
+                                Text('اسم الدافع: ${row.payerName}'),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'طريقة الدفع: ${row.payment.paymentMethod}',
+                                ),
+                                const SizedBox(height: 4),
+                                Text('رقم الحجز: ${row.bookingCode}'),
+                                if (row.booking != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text('اسم الضيف: ${row.booking!.guestName}'),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -532,14 +552,20 @@ String _formatNumber(num value) => _currencyFmt.format(value);
         child: Row(
           children: [
             Expanded(
-                child: _buildSummaryTile(
-                    'إجمالي المدفوع', _currencyFmt.format(_totalPaid))),
+              child: _buildSummaryTile(
+                'إجمالي المدفوع',
+                _currencyFmt.format(_totalPaid),
+              ),
+            ),
             Expanded(
-                child: _buildSummaryTile(
-                    'الإجمالي المتبقي', _currencyFmt.format(_totalRemaining))),
+              child: _buildSummaryTile(
+                'الإجمالي المتبقي',
+                _currencyFmt.format(_totalRemaining),
+              ),
+            ),
             Expanded(
-                child:
-                    _buildSummaryTile('عدد السجلات', _rows.length.toString())),
+              child: _buildSummaryTile('عدد السجلات', _rows.length.toString()),
+            ),
           ],
         ),
       ),
@@ -574,12 +600,14 @@ String _formatNumber(num value) => _currencyFmt.format(value);
     );
   }
 
-  Widget _buildDateSelector(
-      {required String label,
-      required DateTime? value,
-      required VoidCallback onPressed}) {
-    final text =
-        value != null ? DateFormat('yyyy-MM-dd').format(value) : 'غير محدد';
+  Widget _buildDateSelector({
+    required String label,
+    required DateTime? value,
+    required VoidCallback onPressed,
+  }) {
+    final text = value != null
+        ? DateFormat('yyyy-MM-dd').format(value)
+        : 'غير محدد';
     return SizedBox(
       width: 180,
       child: OutlinedButton.icon(
@@ -591,8 +619,9 @@ String _formatNumber(num value) => _currencyFmt.format(value);
   }
 
   DateTime _parseDateTime(String value) {
-    final normalized =
-        value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized = value.contains('T')
+        ? value
+        : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {
@@ -624,10 +653,11 @@ class _PaymentReportRow {
 }
 
 class _PaymentsReportResult {
-  _PaymentsReportResult(
-      {required this.rows,
-      required this.totalPaid,
-      required this.totalRemaining});
+  _PaymentsReportResult({
+    required this.rows,
+    required this.totalPaid,
+    required this.totalRemaining,
+  });
 
   final List<_PaymentReportRow> rows;
   final double totalPaid;

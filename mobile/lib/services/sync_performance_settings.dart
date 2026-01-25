@@ -70,9 +70,13 @@ class SyncPerformanceSettings {
       await prefs.setInt('sync_interval_minutes', profile['interval'] as int);
       await prefs.setBool('wifi_only_sync', profile['wifi_only'] as bool);
       await prefs.setBool(
-          'low_power_mode_enabled', profile['low_power_mode'] as bool);
+        'low_power_mode_enabled',
+        profile['low_power_mode'] as bool,
+      );
       await prefs.setInt(
-          'daily_data_limit_mb', profile['daily_limit_mb'] as int);
+        'daily_data_limit_mb',
+        profile['daily_limit_mb'] as int,
+      );
 
       // تطبيق إعدادات إضافية حسب ملف التعريف
       await _applyProfileSpecificSettings(profileKey, profile);
@@ -92,16 +96,22 @@ class SyncPerformanceSettings {
 
   /// تطبيق إعدادات خاصة بكل ملف تعريف
   static Future<void> _applyProfileSpecificSettings(
-      String profileKey, Map<String, dynamic> profile) async {
+    String profileKey,
+    Map<String, dynamic> profile,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
 
     switch (profileKey) {
       case 'performance':
         // إعدادات الأداء العالي
         await prefs.setBool(
-            'adaptive_interval_enabled', false); // فترة ثابتة للأداء
+          'adaptive_interval_enabled',
+          false,
+        ); // فترة ثابتة للأداء
         await prefs.setBool(
-            'battery_optimization_enabled', false); // تعطيل تحسين البطارية
+          'battery_optimization_enabled',
+          false,
+        ); // تعطيل تحسين البطارية
         await prefs.setInt('batch_size', 100); // حجم دفعة أكبر
         await prefs.setInt('connection_timeout_seconds', 30);
         break;
@@ -110,7 +120,9 @@ class SyncPerformanceSettings {
         // إعدادات متوازنة
         await prefs.setBool('adaptive_interval_enabled', true); // فترة تكيفية
         await prefs.setBool(
-            'battery_optimization_enabled', true); // تحسين البطارية معتدل
+          'battery_optimization_enabled',
+          true,
+        ); // تحسين البطارية معتدل
         await prefs.setInt('batch_size', 50); // حجم دفعة متوسط
         await prefs.setInt('connection_timeout_seconds', 20);
         break;
@@ -118,9 +130,13 @@ class SyncPerformanceSettings {
       case 'battery_saver':
         // إعدادات توفير البطارية
         await prefs.setBool(
-            'adaptive_interval_enabled', true); // فترة تكيفية طويلة
+          'adaptive_interval_enabled',
+          true,
+        ); // فترة تكيفية طويلة
         await prefs.setBool(
-            'battery_optimization_enabled', true); // أقصى تحسين للبطارية
+          'battery_optimization_enabled',
+          true,
+        ); // أقصى تحسين للبطارية
         await prefs.setInt('batch_size', 25); // حجم دفعة صغير
         await prefs.setInt('connection_timeout_seconds', 10);
         // إعدادات إضافية لتوفير البطارية

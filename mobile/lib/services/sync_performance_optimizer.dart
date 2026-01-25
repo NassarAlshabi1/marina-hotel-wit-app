@@ -174,7 +174,8 @@ class SyncPerformanceOptimizer {
 
       if (timeSinceLastSync < minInterval) {
         debugPrint(
-            '⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد (${timeSinceLastSync.inSeconds}/${minInterval.inSeconds} ثانية)');
+          '⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد (${timeSinceLastSync.inSeconds}/${minInterval.inSeconds} ثانية)',
+        );
         return true;
       }
     }
@@ -192,8 +193,9 @@ class SyncPerformanceOptimizer {
   /// التحقق من وجود اتصال إنترنت فعلي
   Future<bool> _hasInternetConnection() async {
     try {
-      final result = await InternetAddress.lookup('google.com')
-          .timeout(const Duration(seconds: 5));
+      final result = await InternetAddress.lookup(
+        'google.com',
+      ).timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
     } on SocketException catch (_) {
       return false;
@@ -225,7 +227,8 @@ class SyncPerformanceOptimizer {
     } else {
       _syncAttempts++;
       debugPrint(
-          '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)');
+        '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)',
+      );
     }
   }
 
@@ -352,7 +355,8 @@ class SyncPerformanceOptimizer {
       }
 
       debugPrint(
-          '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)');
+        '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)',
+      );
       return optimizedInterval;
     } catch (e) {
       debugPrint('❌ خطأ في حساب الفترة المحسنة: $e');

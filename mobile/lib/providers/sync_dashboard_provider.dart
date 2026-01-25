@@ -7,8 +7,9 @@ import '../services/sync_integrity_checker.dart';
 import '../services/local_db.dart';
 import 'repository_providers.dart';
 
-final syncDashboardProvider =
-    FutureProvider.autoDispose<SyncDashboardData>((ref) async {
+final syncDashboardProvider = FutureProvider.autoDispose<SyncDashboardData>((
+  ref,
+) async {
   final guardian = ref.watch(syncGuardianProvider);
   final orchestrator = SyncOrchestrator.instance;
   final queueService = SyncQueueService.instance;
@@ -28,18 +29,18 @@ final syncDashboardProvider =
   final integrityReport = results[3] as IntegrityReport;
 
   final guardianHealthSnapshot = await guardian.watchHealth().first.timeout(
-        const Duration(seconds: 2),
-        onTimeout: () => const SyncHealthSnapshot(
-          lastSyncAt: null,
-          failedAttempts: 0,
-          pendingEvents: false,
-          isInitialized: false,
-          lastError: null,
-          monitoringActive: false,
-          priorityOverridden: false,
-          status: null,
-        ),
-      );
+    const Duration(seconds: 2),
+    onTimeout: () => const SyncHealthSnapshot(
+      lastSyncAt: null,
+      failedAttempts: 0,
+      pendingEvents: false,
+      isInitialized: false,
+      lastError: null,
+      monitoringActive: false,
+      priorityOverridden: false,
+      status: null,
+    ),
+  );
 
   return SyncDashboardData(
     guardianHealth: guardianHealthSnapshot,

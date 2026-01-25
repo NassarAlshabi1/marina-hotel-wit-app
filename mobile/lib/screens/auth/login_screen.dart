@@ -63,12 +63,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       children: [
                         Row(
                           children: const [
-                            Icon(Icons.lock,
-                                size: 28, color: AppColors.primaryColor),
+                            Icon(
+                              Icons.lock,
+                              size: 28,
+                              color: AppColors.primaryColor,
+                            ),
                             SizedBox(width: 8),
-                            Text('تسجيل الدخول',
-                                style: TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(
+                              'تسجيل الدخول',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -90,9 +97,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             labelText: 'كلمة المرور',
                             hintText: 'أدخل كلمة المرور',
                             suffixIcon: IconButton(
-                              icon: Icon(_obscure
-                                  ? Icons.visibility
-                                  : Icons.visibility_off),
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
                               onPressed: () =>
                                   setState(() => _obscure = !_obscure),
                             ),
@@ -114,9 +123,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(height: 8),
                         if (auth.error != null) ...[
-                          Text(auth.error!,
-                              style: const TextStyle(
-                                  color: AppColors.dangerColor)),
+                          Text(
+                            auth.error!,
+                            style: const TextStyle(
+                              color: AppColors.dangerColor,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                         ],
                         ElevatedButton(
@@ -126,7 +138,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   height: 18,
                                   width: 18,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
                               : const Text('دخول'),
                         ),
                       ],
@@ -144,7 +159,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _onSubmit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
-    await ref.read(authProvider.notifier).login(
+    await ref
+        .read(authProvider.notifier)
+        .login(
           _usernameCtrl.text.trim(),
           _passwordCtrl.text,
           rememberMe: _rememberMe,

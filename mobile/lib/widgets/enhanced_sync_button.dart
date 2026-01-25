@@ -64,19 +64,20 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       }
     });
 
-    _healthSubscription =
-        SyncOrchestrator.instance.healthStream.listen((health) {
+    _healthSubscription = SyncOrchestrator.instance.healthStream.listen((
+      health,
+    ) {
       if (mounted) {
         setState(() => _health = health);
       }
     });
 
-    _connectivitySubscription =
-        ConnectivityService.instance.statusStream.listen((status) {
-      if (mounted) {
-        setState(() => _isOnline = status.isOnline);
-      }
-    });
+    _connectivitySubscription = ConnectivityService.instance.statusStream
+        .listen((status) {
+          if (mounted) {
+            setState(() => _isOnline = status.isOnline);
+          }
+        });
 
     _isOnline = ConnectivityService.instance.isOnline;
   }
@@ -296,7 +297,8 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                   leading: Icon(Icons.history, color: Colors.red),
                   title: Text('سجل الأخطاء'),
                   subtitle: Text(
-                      '${SyncErrorRecovery.instance.recentErrors.length} خطأ'),
+                    '${SyncErrorRecovery.instance.recentErrors.length} خطأ',
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     _showErrorLog();
@@ -339,8 +341,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 health.isHealthy
                     ? 'النظام يعمل بشكل صحيح'
                     : 'يوجد مشاكل في النظام',
-                style:
-                    TextStyle(fontWeight: FontWeight.bold, color: healthColor),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: healthColor,
+                ),
               ),
             ],
           ),
@@ -349,9 +353,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildStatChip(
-                  'نجاح',
-                  '${(health.successRate * 100).toStringAsFixed(0)}%',
-                  Colors.green),
+                'نجاح',
+                '${(health.successRate * 100).toStringAsFixed(0)}%',
+                Colors.green,
+              ),
               _buildStatChip('معلق', '${health.pendingTasks}', Colors.orange),
               _buildStatChip('Outbox', '${health.outboxCount}', Colors.blue),
             ],
@@ -373,9 +378,14 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         children: [
           Text(label, style: TextStyle(fontSize: 10, color: color)),
           SizedBox(width: 4),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
@@ -478,16 +488,17 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: checks
-                  .map((check) => ListTile(
-                        leading: Icon(Icons.table_chart, color: Colors.blue),
-                        title: Text(check.tableName),
-                        subtitle: Text('${check.recordCount} سجل'),
-                        trailing: Text(
-                          check.checksum.substring(0, 8),
-                          style:
-                              TextStyle(fontFamily: 'monospace', fontSize: 10),
-                        ),
-                      ))
+                  .map(
+                    (check) => ListTile(
+                      leading: Icon(Icons.table_chart, color: Colors.blue),
+                      title: Text(check.tableName),
+                      subtitle: Text('${check.recordCount} سجل'),
+                      trailing: Text(
+                        check.checksum.substring(0, 8),
+                        style: TextStyle(fontFamily: 'monospace', fontSize: 10),
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
           ),
@@ -503,7 +514,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('❌ خطأ في الفحص: $e'), backgroundColor: Colors.red),
+          content: Text('❌ خطأ في الفحص: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -533,13 +546,13 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                   error.severity == ErrorSeverity.critical
                       ? Icons.error
                       : error.severity == ErrorSeverity.high
-                          ? Icons.warning
-                          : Icons.info,
+                      ? Icons.warning
+                      : Icons.info,
                   color: error.severity == ErrorSeverity.critical
                       ? Colors.red
                       : error.severity == ErrorSeverity.high
-                          ? Colors.orange
-                          : Colors.blue,
+                      ? Colors.orange
+                      : Colors.blue,
                 ),
                 title: Text(error.operation),
                 subtitle: Text(
@@ -645,8 +658,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                         _isSyncing
                             ? RotationTransition(
                                 turns: _animationController,
-                                child: Icon(buttonIcon,
-                                    size: 20, color: Colors.white),
+                                child: Icon(
+                                  buttonIcon,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
                               )
                             : Icon(buttonIcon, size: 20, color: Colors.white),
                         SizedBox(width: 8),

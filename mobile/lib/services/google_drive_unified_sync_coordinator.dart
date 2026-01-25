@@ -16,19 +16,9 @@ import 'sync_constants.dart';
 import 'sync_performance_optimizer.dart';
 import 'logging/log_models.dart';
 
-enum SyncTrigger {
-  manual,
-  appForeground,
-  localChange,
-  periodic,
-  scheduled,
-}
+enum SyncTrigger { manual, appForeground, localChange, periodic, scheduled }
 
-enum SyncMode {
-  deltaOnly,
-  fullBackup,
-  smart,
-}
+enum SyncMode { deltaOnly, fullBackup, smart }
 
 enum SyncPhase {
   idle,
@@ -41,12 +31,7 @@ enum SyncPhase {
 }
 
 // ignore: unused_element
-enum _SyncStartResult {
-  ok,
-  notInitialized,
-  notSignedIn,
-  alreadySyncing,
-}
+enum _SyncStartResult { ok, notInitialized, notSignedIn, alreadySyncing }
 
 sealed class _PerformSyncStartResult {}
 
@@ -199,8 +184,9 @@ class GoogleDriveUnifiedSyncCoordinator {
     final prefs = await SharedPreferences.getInstance();
     _lastPushTime = _parseTimestamp(prefs.getString(_prefsLastPushKey));
     _lastPullTime = _parseTimestamp(prefs.getString(_prefsLastPullKey));
-    _lastFullBackupTime =
-        _parseTimestamp(prefs.getString(_prefsLastFullBackupKey));
+    _lastFullBackupTime = _parseTimestamp(
+      prefs.getString(_prefsLastFullBackupKey),
+    );
 
     if (backupService.isSignedIn) {
       await _startMonitoring();
@@ -263,11 +249,12 @@ class GoogleDriveUnifiedSyncCoordinator {
     // مراقبة تغييرات outbox للمزامنة التلقائية
     _outboxSubscription?.cancel();
     if (_pushEnabled && _database != null) {
-      _outboxSubscription =
-          (_database!.select(_database!.outbox)).watch().listen((_) {
-        _log('📦 Detected change in outbox', level: LogLevel.debug);
-        notifyLocalChange();
-      });
+      _outboxSubscription = (_database!.select(_database!.outbox))
+          .watch()
+          .listen((_) {
+            _log('📦 Detected change in outbox', level: LogLevel.debug);
+            notifyLocalChange();
+          });
       _log('✅ Started outbox monitoring for auto-sync');
     }
 
@@ -278,7 +265,8 @@ class GoogleDriveUnifiedSyncCoordinator {
         (_) => _handlePeriodicPull(),
       );
       _log(
-          '⏰ Started periodic pull monitoring (every $_pullIntervalMinutes minutes)');
+        '⏰ Started periodic pull monitoring (every $_pullIntervalMinutes minutes)',
+      );
     }
 
     _scheduleFullBackup();
@@ -311,12 +299,16 @@ class GoogleDriveUnifiedSyncCoordinator {
     _periodicSyncTimer?.cancel();
     _periodicSyncTimer = Timer(delay, () async {
       await performSync(
-          trigger: SyncTrigger.scheduled, mode: SyncMode.fullBackup);
+        trigger: SyncTrigger.scheduled,
+        mode: SyncMode.fullBackup,
+      );
 
       _periodicSyncTimer = Timer.periodic(
         Duration(hours: _fullBackupIntervalHours),
         (_) => performSync(
-            trigger: SyncTrigger.scheduled, mode: SyncMode.fullBackup),
+          trigger: SyncTrigger.scheduled,
+          mode: SyncMode.fullBackup,
+        ),
       );
     });
   }
@@ -345,8 +337,10 @@ class GoogleDriveUnifiedSyncCoordinator {
 
       if (!_hasPendingChanges) {
         _firstChangeTime = now;
-        _log('💾 Save action detected: ${table ?? "unknown"} ($operation)',
-            level: LogLevel.debug);
+        _log(
+          '💾 Save action detected: ${table ?? "unknown"} ($operation)',
+          level: LogLevel.debug,
+        );
       }
 
       _hasPendingChanges = true;
@@ -362,8 +356,9 @@ class GoogleDriveUnifiedSyncCoordinator {
 
     final effectiveDebounce = _debounceSeconds;
     _log(
-        '🚀 Triggering sync in ${effectiveDebounce}s (${_pendingChangesCount} changes pending)',
-        level: LogLevel.debug);
+      '🚀 Triggering sync in ${effectiveDebounce}s (${_pendingChangesCount} changes pending)',
+      level: LogLevel.debug,
+    );
 
     _debounceTimer = Timer(Duration(seconds: effectiveDebounce), () async {
       if (_hasPendingChanges) {
@@ -404,7 +399,9 @@ class GoogleDriveUnifiedSyncCoordinator {
 
     Future.delayed(SyncConstants.appForegroundDelay, () async {
       await performSync(
-          trigger: SyncTrigger.appForeground, mode: SyncMode.smart);
+        trigger: SyncTrigger.appForeground,
+        mode: SyncMode.smart,
+      );
     });
   }
 
@@ -413,7 +410,9 @@ class GoogleDriveUnifiedSyncCoordinator {
       if (_pullEnabled) {
         _log('🔄 Periodic pull check triggered');
         await performSync(
-            trigger: SyncTrigger.periodic, mode: SyncMode.deltaOnly);
+          trigger: SyncTrigger.periodic,
+          mode: SyncMode.deltaOnly,
+        );
       }
     }
   }
@@ -433,7 +432,8 @@ class GoogleDriveUnifiedSyncCoordinator {
           final elapsed = DateTime.now().difference(_syncStartTime!);
           if (elapsed > _syncTimeout) {
             _log(
-                '⚠️ Sync timeout detected (${elapsed.inSeconds}s) - resetting state');
+              '⚠️ Sync timeout detected (${elapsed.inSeconds}s) - resetting state',
+            );
             _isSyncing = false;
             _syncStartTime = null;
             _currentPhase = SyncPhase.idle;
@@ -442,7 +442,8 @@ class GoogleDriveUnifiedSyncCoordinator {
           }
         } else {
           _log(
-              '⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting');
+            '⚠️ Inconsistent state: _isSyncing=true but _syncStartTime=null - resetting',
+          );
           _isSyncing = false;
         }
       }
@@ -466,7 +467,8 @@ class GoogleDriveUnifiedSyncCoordinator {
         );
       case _PerformSyncAlreadyInProgress(elapsedSeconds: final elapsed):
         _log(
-            '⏸️ Sync already in progress (${elapsed}s elapsed) - skipping $trigger');
+          '⏸️ Sync already in progress (${elapsed}s elapsed) - skipping $trigger',
+        );
         if (trigger == SyncTrigger.periodic ||
             trigger == SyncTrigger.scheduled) {
           return SyncResult.success(
@@ -502,7 +504,8 @@ class GoogleDriveUnifiedSyncCoordinator {
           );
         } else {
           _log(
-              '⚠️ Optimizer suggested skipping but trigger $trigger requires immediate sync');
+            '⚠️ Optimizer suggested skipping but trigger $trigger requires immediate sync',
+          );
         }
       }
 
@@ -524,7 +527,9 @@ class GoogleDriveUnifiedSyncCoordinator {
         _lastFullBackupTime = DateTime.now();
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(
-            _prefsLastFullBackupKey, _lastFullBackupTime!.toIso8601String());
+          _prefsLastFullBackupKey,
+          _lastFullBackupTime!.toIso8601String(),
+        );
       } else if (effectiveMode == SyncMode.deltaOnly) {
         pulled = await _performDeltaPull();
       } else {
@@ -595,7 +600,9 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   SyncMode _determineEffectiveMode(
-      SyncMode requestedMode, SyncTrigger trigger) {
+    SyncMode requestedMode,
+    SyncTrigger trigger,
+  ) {
     if (requestedMode != SyncMode.smart) {
       return requestedMode;
     }
@@ -608,8 +615,9 @@ class GoogleDriveUnifiedSyncCoordinator {
       return SyncMode.fullBackup;
     }
 
-    final hoursSinceFullBackup =
-        DateTime.now().difference(_lastFullBackupTime!).inHours;
+    final hoursSinceFullBackup = DateTime.now()
+        .difference(_lastFullBackupTime!)
+        .inHours;
     if (hoursSinceFullBackup >= _fullBackupIntervalHours) {
       return SyncMode.fullBackup;
     }
@@ -632,7 +640,9 @@ class GoogleDriveUnifiedSyncCoordinator {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(
-            _prefsLastPushKey, _lastPushTime!.toIso8601String());
+          _prefsLastPushKey,
+          _lastPushTime!.toIso8601String(),
+        );
 
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
@@ -666,7 +676,9 @@ class GoogleDriveUnifiedSyncCoordinator {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(
-            _prefsLastPullKey, _lastPullTime!.toIso8601String());
+          _prefsLastPullKey,
+          _lastPullTime!.toIso8601String(),
+        );
 
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(

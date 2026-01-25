@@ -59,8 +59,9 @@ class DeltaSyncService {
   bool _mirrorTableReady = false;
 
   Future<DeltaSyncComputation> compute({int? since}) async {
-    final state = await (db.select(db.syncState)..where((t) => t.id.equals(1)))
-        .getSingleOrNull();
+    final state = await (db.select(
+      db.syncState,
+    )..where((t) => t.id.equals(1))).getSingleOrNull();
     final baseSince = since ?? state?.lastPushTs ?? 0;
     final normalizedSince = _normalizeTimestamp(baseSince);
     final previousMirror = await _loadMirror();
@@ -77,7 +78,8 @@ class DeltaSyncService {
       if (!hasMirror) {
         fallbackTables.add(config.entity);
         debugPrint(
-            '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط');
+          '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',
+        );
       }
       final tableSnapshot = <String, MirrorRow>{};
       final seen = <String>{};
@@ -100,14 +102,16 @@ class DeltaSyncService {
 
         if (deletedAt != null && deletedAt > normalizedSince) {
           payload['deleted_at'] = deletedAt;
-          changes.add(DeltaSyncChange(
-            entity: config.entity,
-            operation: 'delete',
-            data: payload,
-            rowHash: rowHash,
-            localUuid: localUuid,
-            clientTimestamp: clientTs,
-          ));
+          changes.add(
+            DeltaSyncChange(
+              entity: config.entity,
+              operation: 'delete',
+              data: payload,
+              rowHash: rowHash,
+              localUuid: localUuid,
+              clientTimestamp: clientTs,
+            ),
+          );
           debugPrint('إرسال كـ DELETE: ${config.entity}/$localUuid');
         } else {
           final isFirstSyncForTable = !hasMirror;
@@ -115,31 +119,36 @@ class DeltaSyncService {
           final createdAfterLastSync =
               createdAt != null && createdAt > normalizedSince;
 
-          final shouldInsert = isFirstSyncForTable ||
+          final shouldInsert =
+              isFirstSyncForTable ||
               (hasMirror && isNewRecordInMirror) ||
               createdAfterLastSync;
 
           if (shouldInsert) {
-            changes.add(DeltaSyncChange(
-              entity: config.entity,
-              operation: 'insert',
-              data: payload,
-              rowHash: rowHash,
-              localUuid: localUuid,
-              clientTimestamp: clientTs,
-            ));
+            changes.add(
+              DeltaSyncChange(
+                entity: config.entity,
+                operation: 'insert',
+                data: payload,
+                rowHash: rowHash,
+                localUuid: localUuid,
+                clientTimestamp: clientTs,
+              ),
+            );
             debugPrint('إرسال كـ INSERT: ${config.entity}/$localUuid');
           } else if (previous != null &&
               lastModified != null &&
               lastModified > normalizedSince) {
-            changes.add(DeltaSyncChange(
-              entity: config.entity,
-              operation: 'update',
-              data: payload,
-              rowHash: rowHash,
-              localUuid: localUuid,
-              clientTimestamp: clientTs,
-            ));
+            changes.add(
+              DeltaSyncChange(
+                entity: config.entity,
+                operation: 'update',
+                data: payload,
+                rowHash: rowHash,
+                localUuid: localUuid,
+                clientTimestamp: clientTs,
+              ),
+            );
             debugPrint('إرسال كـ UPDATE: ${config.entity}/$localUuid');
           }
         }
@@ -153,8 +162,9 @@ class DeltaSyncService {
         seen.add(localUuid);
       }
 
-      final missing =
-          existingMirror.keys.where((uuid) => !seen.contains(uuid)).toList();
+      final missing = existingMirror.keys
+          .where((uuid) => !seen.contains(uuid))
+          .toList();
       for (final uuid in missing) {
         final previous = existingMirror[uuid];
         if (previous == null) {
@@ -165,14 +175,16 @@ class DeltaSyncService {
         final deleteStamp = previousDeletedAt ?? nowTs;
         payload['deleted_at'] = deleteStamp;
         payload['row_hash'] = previous.rowHash;
-        changes.add(DeltaSyncChange(
-          entity: config.entity,
-          operation: 'delete',
-          data: payload,
-          rowHash: previous.rowHash,
-          localUuid: uuid,
-          clientTimestamp: deleteStamp,
-        ));
+        changes.add(
+          DeltaSyncChange(
+            entity: config.entity,
+            operation: 'delete',
+            data: payload,
+            rowHash: previous.rowHash,
+            localUuid: uuid,
+            clientTimestamp: deleteStamp,
+          ),
+        );
         debugPrint('إرسال كـ DELETE: ${config.entity}/$uuid');
       }
 
@@ -192,8 +204,10 @@ class DeltaSyncService {
     return computation;
   }
 
-  Future<void> persistMirror(DeltaSyncComputation computation,
-      {bool useExistingTransaction = false}) async {
+  Future<void> persistMirror(
+    DeltaSyncComputation computation, {
+    bool useExistingTransaction = false,
+  }) async {
     final snapshot = computation.mirrorSnapshot;
     await _ensureMirrorTable();
     if (useExistingTransaction) {
@@ -206,11 +220,13 @@ class DeltaSyncService {
   }
 
   Future<void> _persistMirrorSnapshot(
-      Map<String, Map<String, MirrorRow>> snapshot) async {
+    Map<String, Map<String, MirrorRow>> snapshot,
+  ) async {
     for (final entry in snapshot.entries) {
       final table = entry.key;
-      await db.customStatement(
-          'DELETE FROM sync_mirror WHERE table_name = ?', [table]);
+      await db.customStatement('DELETE FROM sync_mirror WHERE table_name = ?', [
+        table,
+      ]);
       for (final row in entry.value.values) {
         await db.customStatement(
           'REPLACE INTO sync_mirror (table_name, local_uuid, row_hash, payload, last_seen_at) VALUES (?, ?, ?, ?, ?)',
@@ -231,7 +247,8 @@ class DeltaSyncService {
       return;
     }
     await db.customStatement(
-        'CREATE TABLE IF NOT EXISTS sync_mirror (table_name TEXT NOT NULL, local_uuid TEXT NOT NULL, row_hash TEXT NOT NULL, payload TEXT NOT NULL, last_seen_at INTEGER NOT NULL, PRIMARY KEY(table_name, local_uuid))');
+      'CREATE TABLE IF NOT EXISTS sync_mirror (table_name TEXT NOT NULL, local_uuid TEXT NOT NULL, row_hash TEXT NOT NULL, payload TEXT NOT NULL, last_seen_at INTEGER NOT NULL, PRIMARY KEY(table_name, local_uuid))',
+    );
     _mirrorTableReady = true;
   }
 
@@ -239,7 +256,8 @@ class DeltaSyncService {
     await _ensureMirrorTable();
     final rows = await db
         .customSelect(
-            'SELECT table_name, local_uuid, row_hash, payload, last_seen_at FROM sync_mirror')
+          'SELECT table_name, local_uuid, row_hash, payload, last_seen_at FROM sync_mirror',
+        )
         .get();
     final result = <String, Map<String, MirrorRow>>{};
     for (final row in rows) {
@@ -248,10 +266,11 @@ class DeltaSyncService {
       final payload =
           jsonDecode(row.read<String>('payload')) as Map<String, dynamic>;
       result.putIfAbsent(table, () => {})[uuid] = MirrorRow(
-          localUuid: uuid,
-          rowHash: row.read<String>('row_hash'),
-          payload: payload,
-          lastSeenAt: row.read<int>('last_seen_at'));
+        localUuid: uuid,
+        rowHash: row.read<String>('row_hash'),
+        payload: payload,
+        lastSeenAt: row.read<int>('last_seen_at'),
+      );
     }
     return result;
   }
@@ -269,7 +288,8 @@ class DeltaSyncService {
 
         if (currentRows.length != tableMirror.length) {
           issues.add(
-              '${config.entity}: row count mismatch (current: ${currentRows.length}, mirror: ${tableMirror.length})');
+            '${config.entity}: row count mismatch (current: ${currentRows.length}, mirror: ${tableMirror.length})',
+          );
         }
 
         final int sampleSize = (currentRows.length * 0.1).ceil().clamp(1, 50);
@@ -336,17 +356,12 @@ class DeltaSyncService {
 
           await db.customStatement(
             'REPLACE INTO sync_mirror (table_name, local_uuid, row_hash, payload, last_seen_at) VALUES (?, ?, ?, ?, ?)',
-            [
-              config.entity,
-              uuid,
-              rowHash,
-              jsonEncode(sanitized),
-              nowTs,
-            ],
+            [config.entity, uuid, rowHash, jsonEncode(sanitized), nowTs],
           );
         }
         debugPrint(
-            '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)');
+          '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
+        );
       } catch (e) {
         debugPrint('❌ Failed to rebuild mirror for ${config.entity}: $e');
       }
@@ -443,7 +458,8 @@ class DeltaSyncService {
         fetchAll: () => db.select(db.hotelDayLedger).get(),
         localUuid: (dynamic row) => (row as HotelDayLedgerEntry).localUuid,
         createdAt: (dynamic row) => (row as HotelDayLedgerEntry).createdAt,
-        lastModified: (dynamic row) => (row as HotelDayLedgerEntry).lastModified,
+        lastModified: (dynamic row) =>
+            (row as HotelDayLedgerEntry).lastModified,
         deletedAt: (dynamic row) => (row as HotelDayLedgerEntry).deletedAt,
         toJson: (dynamic row) => (row as HotelDayLedgerEntry).toJson(),
       ),
@@ -544,14 +560,15 @@ Map<String, dynamic> _sortedMap(Map<String, dynamic> source) {
       normalized = value;
     }
     return MapEntry(entry.key, normalized);
-  }).toList()
-    ..sort((a, b) => a.key.compareTo(b.key));
+  }).toList()..sort((a, b) => a.key.compareTo(b.key));
   return Map<String, dynamic>.fromEntries(entries);
 }
 
 String _toSnakeCase(String input) {
-  final snake = input.replaceAllMapped(RegExp('([a-z0-9])([A-Z])'),
-      (match) => '${match.group(1)}_${match.group(2)}');
+  final snake = input.replaceAllMapped(
+    RegExp('([a-z0-9])([A-Z])'),
+    (match) => '${match.group(1)}_${match.group(2)}',
+  );
   return snake.replaceAll('-', '_').toLowerCase();
 }
 

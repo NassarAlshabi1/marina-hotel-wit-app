@@ -43,7 +43,8 @@ Future<void> main() async {
 
     // حفظ التقرير في ملف JSON
     final reportFile = File(
-        'recalculation_report_${DateTime.now().millisecondsSinceEpoch}.json');
+      'recalculation_report_${DateTime.now().millisecondsSinceEpoch}.json',
+    );
     await reportFile.writeAsString(
       const JsonEncoder.withIndent('  ').convert(report.toJson()),
     );

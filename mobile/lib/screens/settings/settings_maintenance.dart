@@ -27,7 +27,9 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                       Text(
                         'معلومات النظام',
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -93,7 +95,10 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
           const Text(
             'أدوات متقدمة',
             style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -133,7 +138,9 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                     Text(
                       'تحذير مهم',
                       style: TextStyle(
-                          fontWeight: FontWeight.bold, color: Colors.red),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
                     ),
                   ],
                 ),
@@ -173,7 +180,9 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             child: Text(
               label,
               style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Colors.grey),
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
             ),
           ),
           Expanded(child: Text(value)),
@@ -232,7 +241,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                    content: Text('تم تنظيف البيانات المؤقتة (قيد التطوير)')),
+                  content: Text('تم تنظيف البيانات المؤقتة (قيد التطوير)'),
+                ),
               );
             },
             child: const Text('تنظيف'),
@@ -307,7 +317,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                 await ref.read(syncServiceProvider).runSync();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                      content: Text('تم إعادة تعيين المزامنة بنجاح')),
+                    content: Text('تم إعادة تعيين المزامنة بنجاح'),
+                  ),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -385,7 +396,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                    content: Text('اختيار ملف الاستيراد (قيد التطوير)')),
+                  content: Text('اختيار ملف الاستيراد (قيد التطوير)'),
+                ),
               );
             },
             child: const Text('اختيار ملف'),
@@ -485,7 +497,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                    content: Text('إعادة تعيين التطبيق (قيد التطوير)')),
+                  content: Text('إعادة تعيين التطبيق (قيد التطوير)'),
+                ),
               );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -515,9 +528,9 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
     // محاكاة عملية
     Future.delayed(const Duration(seconds: 3), () {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تمت العملية بنجاح')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تمت العملية بنجاح')));
     });
   }
 }

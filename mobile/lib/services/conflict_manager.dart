@@ -106,32 +106,39 @@ class ConflictManager {
   Future<void> _persistConflict(PendingConflict conflict) async {
     try {
       final existingQuery = db.select(db.syncConflicts)
-        ..where((t) =>
-            t.targetTable.equals(conflict.table) &
-            t.uuid.equals(conflict.uuid));
+        ..where(
+          (t) =>
+              t.targetTable.equals(conflict.table) &
+              t.uuid.equals(conflict.uuid),
+        );
 
       final existing = await existingQuery.getSingleOrNull();
 
       if (existing != null) {
-        await (db.update(db.syncConflicts)
-              ..where((t) => t.id.equals(existing.id)))
-            .write(
+        await (db.update(
+          db.syncConflicts,
+        )..where((t) => t.id.equals(existing.id))).write(
           SyncConflictsCompanion(
             localPayload: Value(jsonEncode(conflict.localData)),
             remotePayload: Value(jsonEncode(conflict.remoteData)),
-            resolution: Value(conflict.resolution != null
-                ? jsonEncode(conflict.resolution)
-                : ''),
+            resolution: Value(
+              conflict.resolution != null
+                  ? jsonEncode(conflict.resolution)
+                  : '',
+            ),
           ),
         );
       } else {
         // Get latest sync log ID or use 0
-        final latestLog = await (db.select(db.syncLog)
-              ..orderBy([(t) => OrderingTerm.desc(t.id)])
-              ..limit(1))
-            .getSingleOrNull();
+        final latestLog =
+            await (db.select(db.syncLog)
+                  ..orderBy([(t) => OrderingTerm.desc(t.id)])
+                  ..limit(1))
+                .getSingleOrNull();
 
-        await db.into(db.syncConflicts).insert(
+        await db
+            .into(db.syncConflicts)
+            .insert(
               SyncConflictsCompanion.insert(
                 logId: latestLog?.id ?? 0,
                 targetTable: conflict.table,
@@ -151,7 +158,9 @@ class ConflictManager {
   }
 
   Future<void> _updateConflictResolution(
-      String conflictId, Map<String, dynamic> resolution) async {
+    String conflictId,
+    Map<String, dynamic> resolution,
+  ) async {
     try {
       final parts = conflictId.split('_');
       if (parts.length < 2) return;
@@ -164,12 +173,10 @@ class ConflictManager {
 
       final existing = await query.getSingleOrNull();
       if (existing != null) {
-        await (db.update(db.syncConflicts)
-              ..where((t) => t.id.equals(existing.id)))
-            .write(
-          SyncConflictsCompanion(
-            resolution: Value(jsonEncode(resolution)),
-          ),
+        await (db.update(
+          db.syncConflicts,
+        )..where((t) => t.id.equals(existing.id))).write(
+          SyncConflictsCompanion(resolution: Value(jsonEncode(resolution))),
         );
       }
     } catch (e) {
@@ -179,10 +186,11 @@ class ConflictManager {
 
   Future<void> loadPendingConflicts() async {
     try {
-      final conflicts = await (db.select(db.syncConflicts)
-            ..where((t) => t.resolution.equals(''))
-            ..orderBy([(t) => OrderingTerm.desc(t.id)]))
-          .get();
+      final conflicts =
+          await (db.select(db.syncConflicts)
+                ..where((t) => t.resolution.equals(''))
+                ..orderBy([(t) => OrderingTerm.desc(t.id)]))
+              .get();
 
       _pendingConflicts.clear();
 
@@ -201,15 +209,17 @@ class ConflictManager {
           debugPrint('❌ فشل في فك ترميز بيانات التعارض: $e');
         }
 
-        _pendingConflicts.add(PendingConflict(
-          id: '${row.targetTable}_${row.uuid}_${DateTime.parse(row.createdAt).millisecondsSinceEpoch}',
-          table: row.targetTable,
-          uuid: row.uuid,
-          localData: localData,
-          remoteData: remoteData,
-          detectedAt: DateTime.parse(row.createdAt),
-          resolution: resolutionData,
-        ));
+        _pendingConflicts.add(
+          PendingConflict(
+            id: '${row.targetTable}_${row.uuid}_${DateTime.parse(row.createdAt).millisecondsSinceEpoch}',
+            table: row.targetTable,
+            uuid: row.uuid,
+            localData: localData,
+            remoteData: remoteData,
+            detectedAt: DateTime.parse(row.createdAt),
+            resolution: resolutionData,
+          ),
+        );
       }
 
       _conflictsController.add(_pendingConflicts);

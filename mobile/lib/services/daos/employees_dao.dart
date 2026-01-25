@@ -12,8 +12,10 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
   EmployeesDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<Employee>> list(
-      {String? search, bool includeDeleted = false}) async {
+  Future<List<Employee>> list({
+    String? search,
+    bool includeDeleted = false,
+  }) async {
     final q = select(employees);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (search != null && search.trim().isNotEmpty) {
@@ -23,8 +25,10 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
-  Stream<List<Employee>> watchList(
-      {String? search, bool includeDeleted = false}) {
+  Stream<List<Employee>> watchList({
+    String? search,
+    bool includeDeleted = false,
+  }) {
     final q = select(employees);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (search != null && search.trim().isNotEmpty) {
@@ -38,15 +42,17 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       (select(employees)..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<Employee?> watchById(int id) =>
       (select(employees)..where((t) => t.id.equals(id))).watchSingleOrNull();
-  Future<Employee?> getByLocalUuid(String localUuid) =>
-      (select(employees)..where((t) => t.localUuid.equals(localUuid)))
-          .getSingleOrNull();
-  Stream<Employee?> watchByLocalUuid(String localUuid) =>
-      (select(employees)..where((t) => t.localUuid.equals(localUuid)))
-          .watchSingleOrNull();
+  Future<Employee?> getByLocalUuid(String localUuid) => (select(
+    employees,
+  )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  Stream<Employee?> watchByLocalUuid(String localUuid) => (select(
+    employees,
+  )..where((t) => t.localUuid.equals(localUuid))).watchSingleOrNull();
 
-  Future<int> insertOne(EmployeesCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> insertOne(
+    EmployeesCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -72,8 +78,11 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateById(int id, EmployeesCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> updateById(
+    int id,
+    EmployeesCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
@@ -83,8 +92,9 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
         lastModified: Value(now),
         version: Value(existing.version + 1),
       );
-      final rows =
-          await (update(employees)..where((t) => t.id.equals(id))).write(comp);
+      final rows = await (update(
+        employees,
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'employees',
@@ -99,8 +109,11 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateByLocalUuid(String localUuid, EmployeesCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> updateByLocalUuid(
+    String localUuid,
+    EmployeesCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByLocalUuid(localUuid);
@@ -110,9 +123,9 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
         lastModified: Value(now),
         version: Value(existing.version + 1),
       );
-      final rows = await (update(employees)
-            ..where((t) => t.localUuid.equals(localUuid)))
-          .write(comp);
+      final rows = await (update(
+        employees,
+      )..where((t) => t.localUuid.equals(localUuid))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'employees',
@@ -133,11 +146,13 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       final existing = await getById(id);
       if (existing == null) return 0;
       final rows = await (update(employees)..where((t) => t.id.equals(id)))
-          .write(EmployeesCompanion(
-        deletedAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+          .write(
+            EmployeesCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'employees',
@@ -152,24 +167,27 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateByServerId(String? serverId, EmployeesCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> updateByServerId(
+    String? serverId,
+    EmployeesCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final parsedServerId = _parseServerId(serverId);
       if (parsedServerId == null) return 0;
       final now = Time.nowEpoch();
-      final existing = await (select(employees)
-            ..where((t) => t.serverId.equals(parsedServerId)))
-          .getSingleOrNull();
+      final existing = await (select(
+        employees,
+      )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
       if (existing == null) return 0;
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
         version: Value(existing.version + 1),
       );
-      final rows = await (update(employees)
-            ..where((t) => t.serverId.equals(parsedServerId)))
-          .write(comp);
+      final rows = await (update(
+        employees,
+      )..where((t) => t.serverId.equals(parsedServerId))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'employees',
@@ -191,8 +209,9 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
   Future<Employee?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
     if (parsedServerId == null) return Future.value(null);
-    return (select(employees)..where((t) => t.serverId.equals(parsedServerId)))
-        .getSingleOrNull();
+    return (select(
+      employees,
+    )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
   }
 
   int? _parseServerId(String? value) {
@@ -259,30 +278,34 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد الموظفين من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data,
-      {bool clearExisting = false}) async {
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
     if (clearExisting) {
       await delete(employees).go();
     }
 
     for (final employeeJson in data) {
       final employee = Employee.fromJson(employeeJson);
-      await into(employees).insertOnConflictUpdate(EmployeesCompanion(
-        name: Value(employee.name),
-        basicSalary: Value(employee.basicSalary),
-        position: Value(employee.position),
-        phone: Value(employee.phone),
-        hireDate: Value(employee.hireDate),
-        status: Value(employee.status),
-        localUuid: Value(employee.localUuid),
-        serverId: Value(employee.serverId),
-        createdAt: Value(employee.createdAt),
-        updatedAt: Value(employee.updatedAt),
-        deletedAt: Value(employee.deletedAt),
-        lastModified: Value(employee.lastModified),
-        version: Value(employee.version),
-        origin: Value(employee.origin),
-      ));
+      await into(employees).insertOnConflictUpdate(
+        EmployeesCompanion(
+          name: Value(employee.name),
+          basicSalary: Value(employee.basicSalary),
+          position: Value(employee.position),
+          phone: Value(employee.phone),
+          hireDate: Value(employee.hireDate),
+          status: Value(employee.status),
+          localUuid: Value(employee.localUuid),
+          serverId: Value(employee.serverId),
+          createdAt: Value(employee.createdAt),
+          updatedAt: Value(employee.updatedAt),
+          deletedAt: Value(employee.deletedAt),
+          lastModified: Value(employee.lastModified),
+          version: Value(employee.version),
+          origin: Value(employee.origin),
+        ),
+      );
     }
   }
 

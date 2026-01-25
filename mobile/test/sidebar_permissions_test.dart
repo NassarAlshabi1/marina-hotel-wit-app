@@ -11,8 +11,11 @@ class FakeAuthNotifier extends AuthNotifier {
   @override
   Future<void> restoreSession() async {}
   @override
-  Future<void> login(String username, String password,
-      {bool rememberMe = false}) async {}
+  Future<void> login(
+    String username,
+    String password, {
+    bool rememberMe = false,
+  }) async {}
   @override
   Future<void> logout() async {}
 }
@@ -27,21 +30,28 @@ void main() {
       permissions: const [],
     );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        authProvider.overrideWith((ref) => FakeAuthNotifier(
-            AuthState(isAuthenticated: true, currentUser: user))),
-      ],
-      child: const Directionality(
-        textDirection: TextDirection.rtl,
-        child: MaterialApp(
-          home: Scaffold(
-            body: AdminSidebar(
-                currentRoute: '/dashboard', onRouteSelected: _noop),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith(
+            (ref) => FakeAuthNotifier(
+              AuthState(isAuthenticated: true, currentUser: user),
+            ),
+          ),
+        ],
+        child: const Directionality(
+          textDirection: TextDirection.rtl,
+          child: MaterialApp(
+            home: Scaffold(
+              body: AdminSidebar(
+                currentRoute: '/dashboard',
+                onRouteSelected: _noop,
+              ),
+            ),
           ),
         ),
       ),
-    ));
+    );
 
     expect(find.text('إدارة الغرف'), findsNothing);
     expect(find.text('لوحة التحكم'), findsOneWidget);

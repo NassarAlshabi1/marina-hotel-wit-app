@@ -58,7 +58,10 @@ class RoomsDashboard extends ConsumerWidget {
   }
 
   Widget _buildFloorsView(
-      BuildContext context, WidgetRef ref, List<Room> rooms) {
+    BuildContext context,
+    WidgetRef ref,
+    List<Room> rooms,
+  ) {
     // تنظيم الغرف حسب الطوابق
     final Map<String, List<Room>> floorMap = {};
 
@@ -80,8 +83,9 @@ class RoomsDashboard extends ConsumerWidget {
     // ترتيب الطوابق والغرف
     final sortedFloors = floorMap.keys.toList()..sort();
     for (final floor in sortedFloors) {
-      floorMap[floor]!
-          .sort((a, b) => _compareRoomNumbers(a.roomNumber, b.roomNumber));
+      floorMap[floor]!.sort(
+        (a, b) => _compareRoomNumbers(a.roomNumber, b.roomNumber),
+      );
     }
 
     return ListView.builder(
@@ -126,11 +130,15 @@ class RoomsDashboard extends ConsumerWidget {
   }
 
   Future<void> _showRoomBookings(
-      BuildContext context, WidgetRef ref, String roomNumber) async {
+    BuildContext context,
+    WidgetRef ref,
+    String roomNumber,
+  ) async {
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final activeBooking =
-          await bookingsRepo.getActiveBookingForRoom(roomNumber);
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(
+        roomNumber,
+      );
 
       if (activeBooking == null) {
         if (context.mounted) {

@@ -9,11 +9,7 @@ class CacheEntry<T> {
   final DateTime timestamp;
   final Duration ttl;
 
-  CacheEntry({
-    required this.data,
-    required this.timestamp,
-    required this.ttl,
-  });
+  CacheEntry({required this.data, required this.timestamp, required this.ttl});
 
   bool get isExpired => DateTime.now().difference(timestamp) > ttl;
 
@@ -172,8 +168,9 @@ class AppwriteCacheManager {
   /// مسح العناصر بناءً على نمط (pattern)
   int clearByPattern(String pattern) {
     final regex = RegExp(pattern);
-    final keysToRemove =
-        _cache.keys.where((key) => regex.hasMatch(key)).toList();
+    final keysToRemove = _cache.keys
+        .where((key) => regex.hasMatch(key))
+        .toList();
 
     for (final key in keysToRemove) {
       _cache.remove(key);
@@ -188,7 +185,8 @@ class AppwriteCacheManager {
       // إزالة أقدم عنصر
       final oldestKey = _cache.entries
           .reduce(
-              (a, b) => a.value.timestamp.isBefore(b.value.timestamp) ? a : b)
+            (a, b) => a.value.timestamp.isBefore(b.value.timestamp) ? a : b,
+          )
           .key;
       _cache.remove(oldestKey);
     }
@@ -196,10 +194,7 @@ class AppwriteCacheManager {
 
   /// الحصول على الحجم الكلي
   int _getTotalSize() {
-    return _cache.values.fold<int>(
-      0,
-      (sum, entry) => sum + entry.sizeInBytes,
-    );
+    return _cache.values.fold<int>(0, (sum, entry) => sum + entry.sizeInBytes);
   }
 
   /// بدء التنظيف التلقائي

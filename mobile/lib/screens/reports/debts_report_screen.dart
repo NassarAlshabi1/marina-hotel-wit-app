@@ -27,7 +27,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   final NumberFormat _currencyFormat = NumberFormat('#,##0', 'en_US');
 
   // ignore: unused_element
-String _formatNumber(num value) => _currencyFormat.format(value);
+  String _formatNumber(num value) => _currencyFormat.format(value);
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
 
   DateTime? _fromDate;
@@ -52,15 +52,19 @@ String _formatNumber(num value) => _currencyFormat.format(value);
 
   Future<void> _initializeDefaults() async {
     final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month, now.day)
-        .subtract(const Duration(days: 90));
+    _fromDate = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 90));
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
     await _fetchReport();
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initial =
-        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initial = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -100,8 +104,11 @@ String _formatNumber(num value) => _currencyFormat.format(value);
         }
         filtered.add(debt);
       }
-      filtered.sort((a, b) => _parseDateTime(b.paymentDate)
-          .compareTo(_parseDateTime(a.paymentDate)));
+      filtered.sort(
+        (a, b) => _parseDateTime(
+          b.paymentDate,
+        ).compareTo(_parseDateTime(a.paymentDate)),
+      );
       final guestMap = <String, _GuestDebtSummary>{};
       final monthlyMap = <String, _MonthlyDebtSummary>{};
       double totalDebt = 0;
@@ -124,7 +131,9 @@ String _formatNumber(num value) => _currencyFormat.format(value);
         final monthEntry = monthlyMap.putIfAbsent(
           monthKey,
           () => _MonthlyDebtSummary(
-              label: monthKey, month: DateTime(date.year, date.month)),
+            label: monthKey,
+            month: DateTime(date.year, date.month),
+          ),
         );
         monthEntry.totalAmount += debt.totalAmount;
         monthEntry.paidAmount += debt.paidAmount;
@@ -159,8 +168,9 @@ String _formatNumber(num value) => _currencyFormat.format(value);
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
-    final fromLabel =
-        _fromDate != null ? _dateFormat.format(_fromDate!) : 'غير محدد';
+    final fromLabel = _fromDate != null
+        ? _dateFormat.format(_fromDate!)
+        : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
     final totalGuests = _guestSummaries.length;
 
@@ -171,8 +181,10 @@ String _formatNumber(num value) => _currencyFormat.format(value);
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-            pw.Text(value,
-                style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+            pw.Text(
+              value,
+              style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+            ),
           ],
         ),
       );
@@ -201,21 +213,28 @@ String _formatNumber(num value) => _currencyFormat.format(value);
             pw.Text(
               'فندق مارينا بلازا',
               style: pw.TextStyle(
-                  font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
+                font: fonts.bold,
+                fontSize: 22,
+                color: PdfColors.textWhite,
+              ),
             ),
             pw.SizedBox(height: 8),
             pw.Text(
               'تقرير الديون',
               style: pw.TextStyle(
-                  font: fonts.bold, fontSize: 20, color: PdfColors.textWhite),
+                font: fonts.bold,
+                fontSize: 20,
+                color: PdfColors.textWhite,
+              ),
             ),
             pw.SizedBox(height: 8),
             pw.Text(
               periodText,
               style: pw.TextStyle(
-                  font: fonts.regular,
-                  fontSize: 12,
-                  color: PdfColors.textWhite),
+                font: fonts.regular,
+                fontSize: 12,
+                color: PdfColors.textWhite,
+              ),
               textAlign: pw.TextAlign.center,
             ),
           ],
@@ -230,15 +249,21 @@ String _formatNumber(num value) => _currencyFormat.format(value);
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.end,
             children: [
-              pw.Text('$title: ',
-                  style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 11,
-                      color: PdfColors.textDark)),
+              pw.Text(
+                '$title: ',
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 11,
+                  color: PdfColors.textDark,
+                ),
+              ),
               pw.Text(
                 value,
-                style:
-                    pw.TextStyle(font: fonts.bold, fontSize: 12, color: color),
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 12,
+                  color: color,
+                ),
               ),
             ],
           ),
@@ -255,14 +280,21 @@ String _formatNumber(num value) => _currencyFormat.format(value);
         child: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
-            buildLine('الإجمالي الكلي للديون',
-                EnhancedPdfUtils.formatNumber(_totalDebt), PdfColors.danger),
-            buildLine('المبالغ المدفوعة',
-                EnhancedPdfUtils.formatNumber(_totalPaid), PdfColors.success),
             buildLine(
-                'المبالغ المتبقية',
-                EnhancedPdfUtils.formatNumber(_totalRemaining),
-                PdfColors.warning),
+              'الإجمالي الكلي للديون',
+              EnhancedPdfUtils.formatNumber(_totalDebt),
+              PdfColors.danger,
+            ),
+            buildLine(
+              'المبالغ المدفوعة',
+              EnhancedPdfUtils.formatNumber(_totalPaid),
+              PdfColors.success,
+            ),
+            buildLine(
+              'المبالغ المتبقية',
+              EnhancedPdfUtils.formatNumber(_totalRemaining),
+              PdfColors.warning,
+            ),
           ],
         ),
       );
@@ -270,12 +302,14 @@ String _formatNumber(num value) => _currencyFormat.format(value);
 
     final guestHeaders = ['النزيل', 'إجمالي الدين', 'المدفوع', 'المتبقي'];
     final guestData = _guestSummaries
-        .map((guest) => [
-              guest.guestName,
-              EnhancedPdfUtils.formatNumber(guest.totalAmount),
-              EnhancedPdfUtils.formatNumber(guest.paidAmount),
-              EnhancedPdfUtils.formatNumber(guest.remainingAmount),
-            ])
+        .map(
+          (guest) => [
+            guest.guestName,
+            EnhancedPdfUtils.formatNumber(guest.totalAmount),
+            EnhancedPdfUtils.formatNumber(guest.paidAmount),
+            EnhancedPdfUtils.formatNumber(guest.remainingAmount),
+          ],
+        )
         .toList();
 
     final detailHeaders = [
@@ -287,15 +321,15 @@ String _formatNumber(num value) => _currencyFormat.format(value);
       'المتبقي',
       'سبب الدين',
       'مسدد؟',
-      'رهون غير مُعادة'
+      'رهون غير مُعادة',
     ];
     final detailData = [
       for (final debt in _rows)
         [
           debt.guestName,
-          Time.safeIsoToDateString(debt.dateRecorded.isNotEmpty
-              ? debt.dateRecorded
-              : debt.paymentDate),
+          Time.safeIsoToDateString(
+            debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate,
+          ),
           Time.safeIsoToDateString(debt.checkoutDate),
           EnhancedPdfUtils.formatNumber(debt.totalAmount),
           EnhancedPdfUtils.formatNumber(debt.paidAmount),
@@ -412,13 +446,15 @@ String _formatNumber(num value) => _currencyFormat.format(value);
               runSpacing: 12,
               children: [
                 _buildDateSelector(
-                    label: 'من تاريخ',
-                    value: _fromDate,
-                    onPressed: () => _pickDate(isFrom: true)),
+                  label: 'من تاريخ',
+                  value: _fromDate,
+                  onPressed: () => _pickDate(isFrom: true),
+                ),
                 _buildDateSelector(
-                    label: 'إلى تاريخ',
-                    value: _toDate,
-                    onPressed: () => _pickDate(isFrom: false)),
+                  label: 'إلى تاريخ',
+                  value: _toDate,
+                  onPressed: () => _pickDate(isFrom: false),
+                ),
                 ElevatedButton.icon(
                   onPressed: _loading ? null : _fetchReport,
                   icon: const Icon(Icons.search),
@@ -435,20 +471,20 @@ String _formatNumber(num value) => _currencyFormat.format(value);
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _rows.isEmpty
-                      ? const EmptyState(
-                          title: 'لا توجد بيانات',
-                          message: 'لم يتم العثور على ديون ضمن النطاق المحدد.',
-                          icon: Icons.assessment_outlined,
-                        )
-                      : ListView(
-                          children: [
-                            _buildChartsSection(),
-                            const SizedBox(height: 16),
-                            _buildGuestsTable(),
-                            const SizedBox(height: 16),
-                            _buildDebtsTable(),
-                          ],
-                        ),
+                  ? const EmptyState(
+                      title: 'لا توجد بيانات',
+                      message: 'لم يتم العثور على ديون ضمن النطاق المحدد.',
+                      icon: Icons.assessment_outlined,
+                    )
+                  : ListView(
+                      children: [
+                        _buildChartsSection(),
+                        const SizedBox(height: 16),
+                        _buildGuestsTable(),
+                        const SizedBox(height: 16),
+                        _buildDebtsTable(),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -464,17 +500,26 @@ String _formatNumber(num value) => _currencyFormat.format(value);
         child: Row(
           children: [
             Expanded(
-                child: _buildSummaryTile(
-                    'إجمالي الديون', '${_currencyFormat.format(_totalDebt)}')),
+              child: _buildSummaryTile(
+                'إجمالي الديون',
+                '${_currencyFormat.format(_totalDebt)}',
+              ),
+            ),
             Expanded(
-                child: _buildSummaryTile('المبالغ المدفوعة',
-                    '${_currencyFormat.format(_totalPaid)}')),
+              child: _buildSummaryTile(
+                'المبالغ المدفوعة',
+                '${_currencyFormat.format(_totalPaid)}',
+              ),
+            ),
             Expanded(
-                child: _buildSummaryTile('المبالغ المتبقية',
-                    '${_currencyFormat.format(_totalRemaining)}')),
+              child: _buildSummaryTile(
+                'المبالغ المتبقية',
+                '${_currencyFormat.format(_totalRemaining)}',
+              ),
+            ),
             Expanded(
-                child:
-                    _buildSummaryTile('عدد السجلات', _rows.length.toString())),
+              child: _buildSummaryTile('عدد السجلات', _rows.length.toString()),
+            ),
           ],
         ),
       ),
@@ -507,12 +552,12 @@ String _formatNumber(num value) => _currencyFormat.format(value);
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('توزيع المبالغ المتبقية حسب النزيل',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: _buildGuestPieChart(),
+                  const Text(
+                    'توزيع المبالغ المتبقية حسب النزيل',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
+                  const SizedBox(height: 12),
+                  Expanded(child: _buildGuestPieChart()),
                 ],
               ),
             ),
@@ -528,8 +573,10 @@ String _formatNumber(num value) => _currencyFormat.format(value);
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('تطور المبلغ المتبقي شهريًا',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    'تطور المبلغ المتبقي شهريًا',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 12),
                   Expanded(child: _buildMonthlyBarChart()),
                 ],
@@ -570,7 +617,10 @@ String _formatNumber(num value) => _currencyFormat.format(value);
               '${(guest.remainingAmount / _totalRemaining * 100).toStringAsFixed(1)}%',
           radius: 70,
           titleStyle: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
         ),
       );
     }
@@ -582,7 +632,10 @@ String _formatNumber(num value) => _currencyFormat.format(value);
           title: '${(others / _totalRemaining * 100).toStringAsFixed(1)}%',
           radius: 70,
           titleStyle: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
         ),
       );
     }
@@ -605,11 +658,13 @@ String _formatNumber(num value) => _currencyFormat.format(value);
               for (var i = 0; i < topGuests.length; i++)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading:
-                      CircleAvatar(backgroundColor: colors[i % colors.length]),
+                  leading: CircleAvatar(
+                    backgroundColor: colors[i % colors.length],
+                  ),
                   title: Text(topGuests[i].guestName),
                   subtitle: Text(
-                      'المتبقي: ${_currencyFormat.format(topGuests[i].remainingAmount)}'),
+                    'المتبقي: ${_currencyFormat.format(topGuests[i].remainingAmount)}',
+                  ),
                 ),
               if (others > 0)
                 ListTile(
@@ -639,7 +694,8 @@ String _formatNumber(num value) => _currencyFormat.format(value);
             BarChartRodData(
               toY: month.remainingAmount,
               gradient: const LinearGradient(
-                  colors: [Colors.indigo, Colors.blueAccent]),
+                colors: [Colors.indigo, Colors.blueAccent],
+              ),
               width: 18,
             ),
           ],
@@ -656,19 +712,21 @@ String _formatNumber(num value) => _currencyFormat.format(value);
           topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
           leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 40,
-                  getTitlesWidget: (value, meta) {
-                    if (value == 0) {
-                      return const Text('0');
-                    }
-                    final amount = value / 1000;
-                    if (amount >= 1) {
-                      return Text('${amount.toStringAsFixed(0)}k');
-                    }
-                    return Text(value.toStringAsFixed(0));
-                  })),
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 40,
+              getTitlesWidget: (value, meta) {
+                if (value == 0) {
+                  return const Text('0');
+                }
+                final amount = value / 1000;
+                if (amount >= 1) {
+                  return Text('${amount.toStringAsFixed(0)}k');
+                }
+                return Text(value.toStringAsFixed(0));
+              },
+            ),
+          ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -679,8 +737,10 @@ String _formatNumber(num value) => _currencyFormat.format(value);
                 }
                 return Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: Text(_monthlySummaries[index].label,
-                      style: const TextStyle(fontSize: 12)),
+                  child: Text(
+                    _monthlySummaries[index].label,
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 );
               },
             ),
@@ -725,7 +785,7 @@ String _formatNumber(num value) => _currencyFormat.format(value);
           'تاريخ الدفع',
           'حالة السداد',
           'الرهن',
-          'نوع الرهن'
+          'نوع الرهن',
         ],
         rows: _rows
             .map(
@@ -741,9 +801,9 @@ String _formatNumber(num value) => _currencyFormat.format(value);
                 Text(Time.safeIsoToDateString(debt.paymentDate)),
                 Text(_formatSettlement(debt.isSettled)),
                 Text(debt.pledge?.isNotEmpty == true ? debt.pledge! : '-'),
-                Text(debt.pledgeType?.isNotEmpty == true
-                    ? debt.pledgeType!
-                    : '-'),
+                Text(
+                  debt.pledgeType?.isNotEmpty == true ? debt.pledgeType! : '-',
+                ),
               ],
             )
             .toList(),
@@ -751,10 +811,11 @@ String _formatNumber(num value) => _currencyFormat.format(value);
     );
   }
 
-  Widget _buildDateSelector(
-      {required String label,
-      required DateTime? value,
-      required VoidCallback onPressed}) {
+  Widget _buildDateSelector({
+    required String label,
+    required DateTime? value,
+    required VoidCallback onPressed,
+  }) {
     final text = value != null ? _dateFormat.format(value) : 'غير محدد';
     return SizedBox(
       width: 180,
@@ -767,8 +828,9 @@ String _formatNumber(num value) => _currencyFormat.format(value);
   }
 
   DateTime _parseDateTime(String value) {
-    final normalized =
-        value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized = value.contains('T')
+        ? value
+        : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {

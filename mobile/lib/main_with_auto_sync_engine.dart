@@ -84,9 +84,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     debugPrint('🛡️ Initializing SyncGuardian...');
     final guardian = SyncGuardian.instance;
-    await guardian.initialize(
-      database: database,
-    );
+    await guardian.initialize(database: database);
     debugPrint('✅ SyncGuardian initialized');
 
     debugPrint('🤖 Initializing & Starting Auto Sync Engine...');
@@ -195,12 +193,14 @@ void _setupEngineMonitoring(AutoSyncEngine engine) {
     debugPrint('$authIcon Signed in: ${state.isSignedIn}');
     debugPrint('📦 Pending changes: ${state.pendingChangesCount}');
     debugPrint(
-        '✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}');
+      '✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}',
+    );
     debugPrint('❌ Failed attempts: ${state.failedAttempts}');
 
     if (state.nextRetryAt != null) {
-      final secondsUntil =
-          state.nextRetryAt!.difference(DateTime.now()).inSeconds;
+      final secondsUntil = state.nextRetryAt!
+          .difference(DateTime.now())
+          .inSeconds;
       debugPrint('⏰ Next retry in: ${secondsUntil}s');
     }
 
@@ -221,10 +221,7 @@ class MarinaHotelApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'Marina Hotel',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Tajawal',
-      ),
+      theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Tajawal'),
       home: const HomeScreen(),
     );
   }
@@ -245,9 +242,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: const Center(
-        child: Text('Marina Hotel Management System'),
-      ),
+      body: const Center(child: Text('Marina Hotel Management System')),
     );
   }
 
@@ -267,17 +262,21 @@ class HomeScreen extends StatelessWidget {
               children: [
                 _buildStatusRow('المحرك يعمل', status['engine']['running']),
                 _buildStatusRow(
-                    'متصل بالشبكة', status['engine']['network_connected']),
+                  'متصل بالشبكة',
+                  status['engine']['network_connected'],
+                ),
                 _buildStatusRow('مسجل الدخول', status['engine']['signed_in']),
                 const Divider(),
                 Text('تغييرات معلقة: ${status['engine']['pending_changes']}'),
                 Text('محاولات فاشلة: ${status['engine']['failed_attempts']}'),
                 if (status['engine']['last_successful_sync'] != null)
                   Text(
-                      'آخر مزامنة: ${_formatTimestamp(status['engine']['last_successful_sync'])}'),
+                    'آخر مزامنة: ${_formatTimestamp(status['engine']['last_successful_sync'])}',
+                  ),
                 if (status['engine']['next_retry'] != null)
                   Text(
-                      'إعادة محاولة بعد: ${_formatTimestamp(status['engine']['next_retry'])}'),
+                    'إعادة محاولة بعد: ${_formatTimestamp(status['engine']['next_retry'])}',
+                  ),
               ],
             ),
           ),
@@ -294,11 +293,14 @@ class HomeScreen extends StatelessWidget {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(result.success
-                            ? '✅ ${result.message}'
-                            : '❌ ${result.message}'),
-                        backgroundColor:
-                            result.success ? Colors.green : Colors.red,
+                        content: Text(
+                          result.success
+                              ? '✅ ${result.message}'
+                              : '❌ ${result.message}',
+                        ),
+                        backgroundColor: result.success
+                            ? Colors.green
+                            : Colors.red,
                       ),
                     );
                   }

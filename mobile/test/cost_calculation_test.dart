@@ -11,9 +11,12 @@ void main() {
       const roomPrice = 15000.0;
       final totalCost = nights * roomPrice;
 
-      expect(nights, 2,
-          reason:
-              'يجب أن يكون يومين: يوم من 05/11 إلى 06/11، ويوم إضافي لأن المغادرة بعد 14:00');
+      expect(
+        nights,
+        2,
+        reason:
+            'يجب أن يكون يومين: يوم من 05/11 إلى 06/11، ويوم إضافي لأن المغادرة بعد 14:00',
+      );
       expect(totalCost, 30000, reason: 'التكلفة = 2 أيام × 15000 = 30000');
     });
 
@@ -41,8 +44,11 @@ void main() {
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
-      expect(nights, 2,
-          reason: 'يومان: يوم أساسي + يوم إضافي للمغادرة بعد 14:00');
+      expect(
+        nights,
+        2,
+        reason: 'يومان: يوم أساسي + يوم إضافي للمغادرة بعد 14:00',
+      );
     });
 
     test('إقامة في نفس اليوم - يوم واحد على الأقل', () {
@@ -69,8 +75,11 @@ void main() {
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
-      expect(nights, 2,
-          reason: 'يومان: من 05/11 إلى 06/11، ومن 06/11 إلى 07/11');
+      expect(
+        nights,
+        2,
+        reason: 'يومان: من 05/11 إلى 06/11، ومن 06/11 إلى 07/11',
+      );
     });
 
     test('إقامة يومين كاملين مع مغادرة بعد 14:00', () {
@@ -97,8 +106,11 @@ void main() {
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
-      expect(nights, 1,
-          reason: 'يوم واحد للانتقال من يوم إلى آخر مع مغادرة قبل 14:00');
+      expect(
+        nights,
+        1,
+        reason: 'يوم واحد للانتقال من يوم إلى آخر مع مغادرة قبل 14:00',
+      );
     });
 
     test('حالة خاصة: دخول وخروج في ساعات الصباح الباكر', () {
@@ -118,7 +130,7 @@ void main() {
           'expectedDays': 2,
           'roomPrice': 15000.0,
           'expectedCost': 30000.0,
-          'description': 'المثال الأصلي'
+          'description': 'المثال الأصلي',
         },
         {
           'checkin': DateTime(2024, 11, 5, 19, 0),
@@ -126,7 +138,7 @@ void main() {
           'expectedDays': 4,
           'roomPrice': 20000.0,
           'expectedCost': 80000.0,
-          'description': 'إقامة 3 أيام + يوم إضافي'
+          'description': 'إقامة 3 أيام + يوم إضافي',
         },
         {
           'checkin': DateTime(2024, 11, 5, 10, 0),
@@ -134,7 +146,7 @@ void main() {
           'expectedDays': 2,
           'roomPrice': 12000.0,
           'expectedCost': 24000.0,
-          'description': 'نفس اليوم مع مغادرة بعد 14:00'
+          'description': 'نفس اليوم مع مغادرة بعد 14:00',
         },
       ];
 
@@ -149,10 +161,16 @@ void main() {
         final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
         final totalCost = nights * roomPrice;
 
-        expect(nights, expectedDays,
-            reason: '$description - عدد الأيام غير صحيح');
-        expect(totalCost, expectedCost,
-            reason: '$description - التكلفة الإجمالية غير صحيحة');
+        expect(
+          nights,
+          expectedDays,
+          reason: '$description - عدد الأيام غير صحيح',
+        );
+        expect(
+          totalCost,
+          expectedCost,
+          reason: '$description - التكلفة الإجمالية غير صحيحة',
+        );
       }
     });
 
@@ -161,18 +179,27 @@ void main() {
       final checkout = DateTime(2024, 11, 6, 15, 1);
 
       // اختبار مع ساعة قطع 14:00 (الافتراضية)
-      final nights14 =
-          Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14);
+      final nights14 = Time.nightsWithCutoff(
+        checkin,
+        checkout: checkout,
+        cutoffHour: 14,
+      );
       expect(nights14, 2, reason: 'مع ساعة قطع 14:00 يجب أن يكون يومين');
 
       // اختبار مع ساعة قطع 16:00
-      final nights16 =
-          Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 16);
+      final nights16 = Time.nightsWithCutoff(
+        checkin,
+        checkout: checkout,
+        cutoffHour: 16,
+      );
       expect(nights16, 1, reason: 'مع ساعة قطع 16:00 يجب أن يكون يوم واحد');
 
       // اختبار مع ساعة قطع 12:00
-      final nights12 =
-          Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 12);
+      final nights12 = Time.nightsWithCutoff(
+        checkin,
+        checkout: checkout,
+        cutoffHour: 12,
+      );
       expect(nights12, 2, reason: 'مع ساعة قطع 12:00 يجب أن يكون يومين');
     });
 
@@ -181,32 +208,41 @@ void main() {
 
       final nights = Time.nightsWithCutoff(checkin);
 
-      expect(nights, greaterThanOrEqualTo(2),
-          reason: 'يجب أن يكون على الأقل يومين للإقامة التي بدأت منذ يومين');
+      expect(
+        nights,
+        greaterThanOrEqualTo(2),
+        reason: 'يجب أن يكون على الأقل يومين للإقامة التي بدأت منذ يومين',
+      );
     });
 
     test('حالات حدية للأوقات', () {
       final testCases = [
         {
-          'checkout':
-              DateTime(2024, 11, 6, 13, 59, 59), // قبل 14:00 بثانية واحدة
+          'checkout': DateTime(
+            2024,
+            11,
+            6,
+            13,
+            59,
+            59,
+          ), // قبل 14:00 بثانية واحدة
           'expectedDays': 1,
-          'description': 'قبل 14:00 بثانية واحدة'
+          'description': 'قبل 14:00 بثانية واحدة',
         },
         {
           'checkout': DateTime(2024, 11, 6, 14, 0, 0), // تمام 14:00
           'expectedDays': 1,
-          'description': 'تمام الساعة 14:00'
+          'description': 'تمام الساعة 14:00',
         },
         {
           'checkout': DateTime(2024, 11, 6, 14, 0, 1), // بعد 14:00 بثانية واحدة
           'expectedDays': 2,
-          'description': 'بعد 14:00 بثانية واحدة'
+          'description': 'بعد 14:00 بثانية واحدة',
         },
         {
           'checkout': DateTime(2024, 11, 6, 23, 59, 59), // آخر ثانية في اليوم
           'expectedDays': 2,
-          'description': 'آخر ثانية في اليوم'
+          'description': 'آخر ثانية في اليوم',
         },
       ];
 
@@ -218,8 +254,11 @@ void main() {
 
         final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
-        expect(nights, expectedDays,
-            reason: '$description - النتيجة غير صحيحة');
+        expect(
+          nights,
+          expectedDays,
+          reason: '$description - النتيجة غير صحيحة',
+        );
       }
     });
   });

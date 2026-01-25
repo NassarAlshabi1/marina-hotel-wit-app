@@ -27,7 +27,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   static const String _salaryDeductionAction = 'خصم من الراتب';
   static const List<String> _salaryActions = [
     _salaryWithdrawAction,
-    _salaryDeductionAction
+    _salaryDeductionAction,
   ];
   static const List<String> availableTypes = [
     'رواتب',
@@ -36,7 +36,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     'فواتير كهرباء ومياه',
     'مستلزمات',
     'مساعدة محتاج',
-    'اخرى'
+    'اخرى',
   ];
 
   @override
@@ -60,7 +60,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         body: employeesAsync.when(
           data: (employees) {
             final employeeNames = {
-              for (final emp in employees) emp.id: emp.name
+              for (final emp in employees) emp.id: emp.name,
             };
             return Column(
               children: [
@@ -71,7 +71,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
                         return const Center(
-                            child: Text('حدث خطأ أثناء تحميل المصروفات.'));
+                          child: Text('حدث خطأ أثناء تحميل المصروفات.'),
+                        );
                       }
                       if (!snapshot.hasData) {
                         return const Center(child: CircularProgressIndicator());
@@ -79,13 +80,16 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       var expenses = snapshot.data!;
                       if (_selectedEmployeeId != null) {
                         expenses = expenses
-                            .where((expense) =>
-                                expense.relatedId == _selectedEmployeeId)
+                            .where(
+                              (expense) =>
+                                  expense.relatedId == _selectedEmployeeId,
+                            )
                             .toList();
                       }
                       if (expenses.isEmpty) {
                         return const Center(
-                            child: Text('لا توجد مصروفات مطابقة للعرض.'));
+                          child: Text('لا توجد مصروفات مطابقة للعرض.'),
+                        );
                       }
                       return ListView.builder(
                         itemCount: expenses.length,
@@ -97,9 +101,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           return ListTile(
                             title: Text(expense.description),
                             subtitle: Text(
-                                '${expense.expenseType} • ${employeeName ?? 'بدون موظف'} • ${Time.safeIsoToDateString(expense.date)}'),
+                              '${expense.expenseType} • ${employeeName ?? 'بدون موظف'} • ${Time.safeIsoToDateString(expense.date)}',
+                            ),
                             trailing: Text(
-                                CurrencyFormatter.formatAmount(expense.amount)),
+                              CurrencyFormatter.formatAmount(expense.amount),
+                            ),
                             onTap: () =>
                                 _edit(existing: expense, employees: employees),
                           );
@@ -133,7 +139,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               ),
               items: [
                 const DropdownMenuItem<int?>(
-                    value: null, child: Text('جميع الموظفين')),
+                  value: null,
+                  child: Text('جميع الموظفين'),
+                ),
                 ...employees.map(
                   (employee) => DropdownMenuItem<int?>(
                     value: employee.id,
@@ -165,14 +173,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
-    final description =
-        TextEditingController(text: existing?.description ?? '');
+    final description = TextEditingController(
+      text: existing?.description ?? '',
+    );
     final amount = TextEditingController(
-        text: existing != null
-            ? CurrencyFormatter.formatAmount(existing.amount)
-            : '');
-    final date =
-        TextEditingController(text: existing?.date ?? Time.hotelDayKey());
+      text: existing != null
+          ? CurrencyFormatter.formatAmount(existing.amount)
+          : '',
+    );
+    final date = TextEditingController(
+      text: existing?.date ?? Time.hotelDayKey(),
+    );
 
     String dialogSalaryAction = _salaryWithdrawAction;
     selectedType = existing?.expenseType ?? 'اخرى';
@@ -192,8 +203,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         textDirection: TextDirection.rtl,
         child: StatefulBuilder(
           builder: (ctx, setState) {
-            final dropdownTextStyle =
-                Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontSize: 14);
+            final dropdownTextStyle = Theme.of(
+              ctx,
+            ).textTheme.bodyMedium?.copyWith(fontSize: 14);
             return AlertDialog(
               title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
               content: SingleChildScrollView(
@@ -213,14 +225,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: selectedType,
-                      decoration:
-                          const InputDecoration(labelText: 'نوع المصروف'),
+                      decoration: const InputDecoration(
+                        labelText: 'نوع المصروف',
+                      ),
                       style: dropdownTextStyle,
                       items: availableTypes
-                          .map((type) => DropdownMenuItem<String>(
-                                value: type,
-                                child: Text(type, style: dropdownTextStyle),
-                              ))
+                          .map(
+                            (type) => DropdownMenuItem<String>(
+                              value: type,
+                              child: Text(type, style: dropdownTextStyle),
+                            ),
+                          )
                           .toList(),
                       onChanged: (value) {
                         if (value == null) return;
@@ -245,13 +260,16 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       if (availableEmployees.isNotEmpty) ...[
                         DropdownButtonFormField<int>(
                           value: selectedEmployeeId,
-                          decoration:
-                              const InputDecoration(labelText: 'اسم الموظف'),
+                          decoration: const InputDecoration(
+                            labelText: 'اسم الموظف',
+                          ),
                           items: availableEmployees
-                              .map((employee) => DropdownMenuItem<int>(
-                                    value: employee.id,
-                                    child: Text(employee.name),
-                                  ))
+                              .map(
+                                (employee) => DropdownMenuItem<int>(
+                                  value: employee.id,
+                                  child: Text(employee.name),
+                                ),
+                              )
                               .toList(),
                           onChanged: (value) =>
                               setState(() => selectedEmployeeId = value),
@@ -259,8 +277,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           value: dialogSalaryAction,
-                          decoration:
-                              const InputDecoration(labelText: 'نوع المعاملة'),
+                          decoration: const InputDecoration(
+                            labelText: 'نوع المعاملة',
+                          ),
                           items: _salaryActions
                               .map(
                                 (action) => DropdownMenuItem<String>(
@@ -280,8 +299,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     TextField(
                       controller: amount,
                       decoration: const InputDecoration(labelText: 'المبلغ'),
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -292,15 +312,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     TextField(
                       controller: date,
                       decoration: const InputDecoration(
-                          labelText: 'التاريخ YYYY-MM-DD'),
+                        labelText: 'التاريخ YYYY-MM-DD',
+                      ),
                     ),
                   ],
                 ),
               ),
               actions: [
                 TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('إلغاء')),
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('إلغاء'),
+                ),
                 FilledButton(
                   onPressed: () {
                     // Validate salary expenses must have employee selected
@@ -309,7 +331,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       ScaffoldMessenger.of(ctx).showSnackBar(
                         SnackBar(
                           content: const Text(
-                              'يجب اختيار موظف عند اختيار نوع المصروف "رواتب"'),
+                            'يجب اختيار موظف عند اختيار نوع المصروف "رواتب"',
+                          ),
                           backgroundColor: Theme.of(ctx).colorScheme.error,
                         ),
                       );
@@ -337,8 +360,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
     final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedDate =
-        date.text.trim().isEmpty ? Time.hotelDayKey() : date.text.trim();
+    final trimmedDate = date.text.trim().isEmpty
+        ? Time.hotelDayKey()
+        : date.text.trim();
     final isSalaryExpense = selectedType == _salaryType;
     final savedType = isSalaryExpense
         ? _deriveSalaryExpenseType(dialogSalaryAction)

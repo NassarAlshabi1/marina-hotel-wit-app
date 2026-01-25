@@ -7,8 +7,8 @@ import '../../utils/time.dart';
 
 class ExpensesRepository {
   ExpensesRepository(this.db)
-      : outbox = OutboxDao(db),
-        dao = ExpensesDao(db, OutboxDao(db));
+    : outbox = OutboxDao(db),
+      dao = ExpensesDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final ExpensesDao dao;
@@ -16,15 +16,17 @@ class ExpensesRepository {
   Stream<List<Expense>> watchAll() => dao.watchList();
   Stream<Expense?> watchOne(int id) => dao.watchById(id);
 
-  Future<int> create(
-      {required String expenseType,
-      int? relatedId,
-      required String description,
-      required double amount,
-      required String date}) async {
+  Future<int> create({
+    required String expenseType,
+    int? relatedId,
+    required String description,
+    required double amount,
+    required String date,
+  }) async {
     final normalizedDate = Time.safeIsoToDateString(date);
-    final hotelDayKey =
-        normalizedDate.isNotEmpty ? normalizedDate : Time.hotelDayKey();
+    final hotelDayKey = normalizedDate.isNotEmpty
+        ? normalizedDate
+        : Time.hotelDayKey();
     final result = await dao.insertOne(
       ExpensesCompanion(
         expenseType: d.Value(expenseType),
@@ -35,26 +37,33 @@ class ExpensesRepository {
         hotelDayKey: d.Value(hotelDayKey),
       ),
     );
-    AutoBackupManager.instance
-        .onDataChange('expenses', 'INSERT', recordData: {'amount': amount});
+    AutoBackupManager.instance.onDataChange(
+      'expenses',
+      'INSERT',
+      recordData: {'amount': amount},
+    );
     return result;
   }
 
-  Future<int> update(int id,
-      {String? expenseType,
-      int? relatedId,
-      String? description,
-      double? amount,
-      String? date}) async {
+  Future<int> update(
+    int id, {
+    String? expenseType,
+    int? relatedId,
+    String? description,
+    double? amount,
+    String? date,
+  }) async {
     final normalizedDate = date != null ? Time.safeIsoToDateString(date) : null;
     final result = await dao.updateById(
       id,
       ExpensesCompanion(
-        expenseType:
-            expenseType != null ? d.Value(expenseType) : const d.Value.absent(),
+        expenseType: expenseType != null
+            ? d.Value(expenseType)
+            : const d.Value.absent(),
         relatedId: d.Value(relatedId),
-        description:
-            description != null ? d.Value(description) : const d.Value.absent(),
+        description: description != null
+            ? d.Value(description)
+            : const d.Value.absent(),
         amount: amount != null ? d.Value(amount) : const d.Value.absent(),
         date: normalizedDate != null
             ? d.Value(normalizedDate)
@@ -65,8 +74,11 @@ class ExpensesRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance
-          .onDataChange('expenses', 'UPDATE', recordData: {'id': id});
+      AutoBackupManager.instance.onDataChange(
+        'expenses',
+        'UPDATE',
+        recordData: {'id': id},
+      );
     }
     return result;
   }
@@ -74,8 +86,11 @@ class ExpensesRepository {
   Future<int> delete(int id) async {
     final result = await dao.softDelete(id);
     if (result > 0) {
-      AutoBackupManager.instance
-          .onDataChange('expenses', 'DELETE', recordData: {'id': id});
+      AutoBackupManager.instance.onDataChange(
+        'expenses',
+        'DELETE',
+        recordData: {'id': id},
+      );
     }
     return result;
   }
@@ -87,11 +102,7 @@ class ExpensesRepository {
     final expensesData = await dao.exportToJson();
     final recordCount = await dao.getRecordCount();
 
-    return {
-      'data': expensesData,
-      'count': recordCount,
-      'entity': 'expenses',
-    };
+    return {'data': expensesData, 'count': recordCount, 'entity': 'expenses'};
   }
 
   /// استيراد بيانات المصروفات

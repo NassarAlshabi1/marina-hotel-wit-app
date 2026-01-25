@@ -20,8 +20,10 @@ final appwriteServiceProvider = Provider<AppwriteService>((ref) {
 final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
   final service = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
-  final manager =
-      AppwriteSyncManager(appwriteService: service, database: database);
+  final manager = AppwriteSyncManager(
+    appwriteService: service,
+    database: database,
+  );
 
   ref.onDispose(() {
     manager.dispose();
@@ -30,8 +32,9 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
   return manager;
 });
 
-final unifiedSyncOrchestratorProvider =
-    Provider<UnifiedSyncOrchestrator>((ref) {
+final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
+  ref,
+) {
   final appwriteSync = ref.watch(appwriteSyncManagerProvider);
   final db = ref.watch(databaseProvider);
   final smart = SmartSyncManager.instance;
@@ -66,8 +69,8 @@ final appwriteErrorHandlerProvider = Provider<AppwriteErrorHandler>((ref) {
 /// مزود حالة الاتصال
 final connectionStatusProvider =
     StateNotifierProvider<ConnectionStatusNotifier, ConnectionState>((ref) {
-  return ConnectionStatusNotifier(ref);
-});
+      return ConnectionStatusNotifier(ref);
+    });
 
 class ConnectionState {
   final bool isConnected;
@@ -97,7 +100,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
   final Ref ref;
 
   ConnectionStatusNotifier(this.ref)
-      : super(ConnectionState(isConnected: false));
+    : super(ConnectionState(isConnected: false));
 
   Future<void> checkConnection() async {
     state = state.copyWith(isChecking: true, errorMessage: null);

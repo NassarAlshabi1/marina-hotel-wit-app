@@ -12,40 +12,46 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
   CashTransactionsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<CashTransaction>> list(
-      {String? type,
-      String? from,
-      String? to,
-      bool includeDeleted = false}) async {
+  Future<List<CashTransaction>> list({
+    String? type,
+    String? from,
+    String? to,
+    bool includeDeleted = false,
+  }) async {
     final q = select(cashTransactions);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (type != null && type.isNotEmpty) {
       q.where((t) => t.transactionType.equals(type));
     }
     if (from != null && to != null) {
-      q.where((t) =>
-          t.transactionTime.isBiggerOrEqualValue(from) &
-          t.transactionTime.isSmallerOrEqualValue(to));
+      q.where(
+        (t) =>
+            t.transactionTime.isBiggerOrEqualValue(from) &
+            t.transactionTime.isSmallerOrEqualValue(to),
+      );
     }
     q.orderBy([
       (t) =>
-          OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc)
+          OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc),
     ]);
     return q.get();
   }
 
-  Future<List<CashTransaction>> listByReference(
-      {required String referenceType,
-      required int referenceId,
-      bool includeDeleted = false}) async {
+  Future<List<CashTransaction>> listByReference({
+    required String referenceType,
+    required int referenceId,
+    bool includeDeleted = false,
+  }) async {
     final q = select(cashTransactions)
-      ..where((t) =>
-          t.referenceType.equals(referenceType) &
-          t.referenceId.equals(referenceId));
+      ..where(
+        (t) =>
+            t.referenceType.equals(referenceType) &
+            t.referenceId.equals(referenceId),
+      );
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     q.orderBy([
       (t) =>
-          OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc)
+          OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc),
     ]);
     return q.get();
   }
@@ -56,25 +62,27 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     return q.watch();
   }
 
-  Future<CashTransaction?> getById(int id) =>
-      (select(cashTransactions)..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
-  Stream<CashTransaction?> watchById(int id) =>
-      (select(cashTransactions)..where((t) => t.id.equals(id)))
-          .watchSingleOrNull();
-  Future<CashTransaction?> getByLocalUuid(String localUuid) =>
-      (select(cashTransactions)..where((t) => t.localUuid.equals(localUuid)))
-          .getSingleOrNull();
+  Future<CashTransaction?> getById(int id) => (select(
+    cashTransactions,
+  )..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<CashTransaction?> watchById(int id) => (select(
+    cashTransactions,
+  )..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<CashTransaction?> getByLocalUuid(String localUuid) => (select(
+    cashTransactions,
+  )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   Future<CashTransaction?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
     if (parsedServerId == null) return Future.value(null);
-    return (select(cashTransactions)
-          ..where((t) => t.serverId.equals(parsedServerId)))
-        .getSingleOrNull();
+    return (select(
+      cashTransactions,
+    )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
   }
 
-  Future<int> insertOne(CashTransactionsCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> insertOne(
+    CashTransactionsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -100,8 +108,11 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateById(int id, CashTransactionsCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> updateById(
+    int id,
+    CashTransactionsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
@@ -111,9 +122,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
         lastModified: Value(now),
         version: Value(existing.version + 1),
       );
-      final rows = await (update(cashTransactions)
-            ..where((t) => t.id.equals(id)))
-          .write(comp);
+      final rows = await (update(
+        cashTransactions,
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'cash_transactions',
@@ -129,8 +140,10 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<int> updateByLocalUuid(
-      String localUuid, CashTransactionsCompanion data,
-      {bool originIsServer = false}) async {
+    String localUuid,
+    CashTransactionsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByLocalUuid(localUuid);
@@ -140,9 +153,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
         lastModified: Value(now),
         version: Value(existing.version + 1),
       );
-      final rows = await (update(cashTransactions)
-            ..where((t) => t.localUuid.equals(localUuid)))
-          .write(comp);
+      final rows = await (update(
+        cashTransactions,
+      )..where((t) => t.localUuid.equals(localUuid))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'cash_transactions',
@@ -157,24 +170,27 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateByServerId(String? serverId, CashTransactionsCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> updateByServerId(
+    String? serverId,
+    CashTransactionsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final parsedServerId = _parseServerId(serverId);
       if (parsedServerId == null) return 0;
       final now = Time.nowEpoch();
-      final existing = await (select(cashTransactions)
-            ..where((t) => t.serverId.equals(parsedServerId)))
-          .getSingleOrNull();
+      final existing = await (select(
+        cashTransactions,
+      )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
       if (existing == null) return 0;
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
         version: Value(existing.version + 1),
       );
-      final rows = await (update(cashTransactions)
-            ..where((t) => t.serverId.equals(parsedServerId)))
-          .write(comp);
+      final rows = await (update(
+        cashTransactions,
+      )..where((t) => t.serverId.equals(parsedServerId))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'cash_transactions',
@@ -198,13 +214,14 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows = await (update(cashTransactions)
-            ..where((t) => t.id.equals(id)))
-          .write(CashTransactionsCompanion(
-        deletedAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+      final rows =
+          await (update(cashTransactions)..where((t) => t.id.equals(id))).write(
+            CashTransactionsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'cash_transactions',
@@ -219,8 +236,10 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Map<String, dynamic> _payloadFrom(CashTransactionsCompanion comp,
-      {CashTransaction? base}) {
+  Map<String, dynamic> _payloadFrom(
+    CashTransactionsCompanion comp, {
+    CashTransaction? base,
+  }) {
     final m = <String, dynamic>{};
 
     if (comp.registerId.present) {
@@ -296,33 +315,36 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد معاملات النقدية من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data,
-      {bool clearExisting = false}) async {
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
     if (clearExisting) {
       await delete(cashTransactions).go();
     }
 
     for (final transactionJson in data) {
       final transaction = CashTransaction.fromJson(transactionJson);
-      await into(cashTransactions)
-          .insertOnConflictUpdate(CashTransactionsCompanion(
-        registerId: Value(transaction.registerId),
-        transactionType: Value(transaction.transactionType),
-        amount: Value(transaction.amount),
-        referenceType: Value(transaction.referenceType),
-        referenceId: Value(transaction.referenceId),
-        description: Value(transaction.description),
-        transactionTime: Value(transaction.transactionTime),
-        createdBy: Value(transaction.createdBy),
-        localUuid: Value(transaction.localUuid),
-        serverId: Value(transaction.serverId),
-        createdAt: Value(transaction.createdAt),
-        updatedAt: Value(transaction.updatedAt),
-        deletedAt: Value(transaction.deletedAt),
-        lastModified: Value(transaction.lastModified),
-        version: Value(transaction.version),
-        origin: Value(transaction.origin),
-      ));
+      await into(cashTransactions).insertOnConflictUpdate(
+        CashTransactionsCompanion(
+          registerId: Value(transaction.registerId),
+          transactionType: Value(transaction.transactionType),
+          amount: Value(transaction.amount),
+          referenceType: Value(transaction.referenceType),
+          referenceId: Value(transaction.referenceId),
+          description: Value(transaction.description),
+          transactionTime: Value(transaction.transactionTime),
+          createdBy: Value(transaction.createdBy),
+          localUuid: Value(transaction.localUuid),
+          serverId: Value(transaction.serverId),
+          createdAt: Value(transaction.createdAt),
+          updatedAt: Value(transaction.updatedAt),
+          deletedAt: Value(transaction.deletedAt),
+          lastModified: Value(transaction.lastModified),
+          version: Value(transaction.version),
+          origin: Value(transaction.origin),
+        ),
+      );
     }
   }
 

@@ -99,8 +99,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
       final smartEnabled = await smartSyncManager.isEnabled();
-      final isGoogleDriveSignedIn =
-          ref.read(smartSyncGoogleDriveSignInStatusProvider);
+      final isGoogleDriveSignedIn = ref.read(
+        smartSyncGoogleDriveSignInStatusProvider,
+      );
       final appwriteEnabled = await _isAppwriteSyncEnabled();
 
       if (!smartEnabled && !appwriteEnabled) {
@@ -112,8 +113,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   Icon(Icons.info_outline, color: Colors.white),
                   SizedBox(width: 8),
                   Expanded(
-                      child: Text(
-                          'ℹ️ المزامنة معطلة - يرجى تفعيلها من الإعدادات')),
+                    child: Text(
+                      'ℹ️ المزامنة معطلة - يرجى تفعيلها من الإعدادات',
+                    ),
+                  ),
                 ],
               ),
               backgroundColor: Colors.orange,
@@ -133,8 +136,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   Icon(Icons.cloud_off, color: Colors.white),
                   SizedBox(width: 8),
                   Expanded(
-                      child:
-                          Text('⚠️ يرجى تسجيل الدخول إلى Google Drive أولاً')),
+                    child: Text('⚠️ يرجى تسجيل الدخول إلى Google Drive أولاً'),
+                  ),
                 ],
               ),
               backgroundColor: Colors.orange,
@@ -147,7 +150,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const GoogleDriveBackupScreen()),
+                      builder: (_) => const GoogleDriveBackupScreen(),
+                    ),
                   );
                 },
               ),
@@ -179,7 +183,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                      '📤 رفع $_pendingChangesCount تغيير إلى $targetText...'),
+                    '📤 رفع $_pendingChangesCount تغيير إلى $targetText...',
+                  ),
                 ),
               ],
             ),
@@ -217,10 +222,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       await _loadPendingChangesCount();
 
-      final successTargets =
-          results.entries.where((e) => e.value).map((e) => e.key).toList();
-      final failedTargets =
-          results.entries.where((e) => !e.value).map((e) => e.key).toList();
+      final successTargets = results.entries
+          .where((e) => e.value)
+          .map((e) => e.key)
+          .toList();
+      final failedTargets = results.entries
+          .where((e) => !e.value)
+          .map((e) => e.key)
+          .toList();
 
       if (mounted) {
         if (failedTargets.isEmpty) {
@@ -232,7 +241,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                        '✅ تم رفع التغييرات إلى ${successTargets.join(' + ')}'),
+                      '✅ تم رفع التغييرات إلى ${successTargets.join(' + ')}',
+                    ),
                   ),
                 ],
               ),
@@ -249,7 +259,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                        '❌ فشل رفع التغييرات إلى ${failedTargets.join(' + ')}'),
+                      '❌ فشل رفع التغييرات إلى ${failedTargets.join(' + ')}',
+                    ),
                   ),
                 ],
               ),
@@ -277,10 +288,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     ],
                   ),
                   SizedBox(height: 4),
-                  Text('✅ نجح: ${successTargets.join(', ')}',
-                      style: TextStyle(fontSize: 12)),
-                  Text('❌ فشل: ${failedTargets.join(', ')}',
-                      style: TextStyle(fontSize: 12)),
+                  Text(
+                    '✅ نجح: ${successTargets.join(', ')}',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  Text(
+                    '❌ فشل: ${failedTargets.join(', ')}',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ],
               ),
               backgroundColor: Colors.orange,
@@ -340,8 +355,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   @override
   Widget build(BuildContext context) {
-    final isGoogleDriveSignedIn =
-        ref.watch(smartSyncGoogleDriveSignInStatusProvider);
+    final isGoogleDriveSignedIn = ref.watch(
+      smartSyncGoogleDriveSignInStatusProvider,
+    );
     final hasChanges = _pendingChangesCount > 0;
 
     Color buttonColor;
@@ -384,10 +400,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 duration: const Duration(milliseconds: 300),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      buttonColor.withOpacity(0.85),
-                      buttonColor,
-                    ],
+                    colors: [buttonColor.withOpacity(0.85), buttonColor],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -395,7 +408,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   boxShadow: [
                     BoxShadow(
                       color: buttonColor.withOpacity(
-                          hasChanges || !isGoogleDriveSignedIn ? 0.4 : 0.2),
+                        hasChanges || !isGoogleDriveSignedIn ? 0.4 : 0.2,
+                      ),
                       blurRadius: hasChanges || !isGoogleDriveSignedIn ? 8 : 4,
                       offset: const Offset(0, 2),
                     ),
@@ -412,8 +426,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) =>
-                                        const GoogleDriveBackupScreen()),
+                                  builder: (_) =>
+                                      const GoogleDriveBackupScreen(),
+                                ),
                               );
                             } else if (hasChanges) {
                               _uploadChanges(context);
@@ -421,7 +436,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                           },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -435,11 +452,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                               ),
                             )
                           else
-                            Icon(
-                              buttonIcon,
-                              size: 18,
-                              color: Colors.white,
-                            ),
+                            Icon(buttonIcon, size: 18, color: Colors.white),
                           const SizedBox(width: 8),
                           Text(
                             buttonText,
@@ -501,15 +514,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             color: _isUploading
                 ? Colors.blue.shade50
                 : hasChanges
-                    ? Colors.purple.shade50
-                    : Colors.green.shade50,
+                ? Colors.purple.shade50
+                : Colors.green.shade50,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: _isUploading
                   ? Colors.blue.shade200
                   : hasChanges
-                      ? Colors.purple.shade200
-                      : Colors.green.shade200,
+                  ? Colors.purple.shade200
+                  : Colors.green.shade200,
               width: 1.5,
             ),
           ),
@@ -524,8 +537,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 color: _isUploading
                     ? Colors.blue
                     : hasChanges
-                        ? Colors.purple
-                        : Colors.green,
+                    ? Colors.purple
+                    : Colors.green,
               ),
               const SizedBox(width: 5),
               Column(
@@ -541,16 +554,17 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                       color: _isUploading
                           ? Colors.blue.shade900
                           : hasChanges
-                              ? Colors.purple.shade900
-                              : Colors.green.shade900,
+                          ? Colors.purple.shade900
+                          : Colors.green.shade900,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   if (!_isUploading)
                     Consumer(
                       builder: (context, ref, _) {
-                        final isGoogleDriveSignedIn =
-                            ref.watch(smartSyncGoogleDriveSignInStatusProvider);
+                        final isGoogleDriveSignedIn = ref.watch(
+                          smartSyncGoogleDriveSignInStatusProvider,
+                        );
 
                         if (!hasChanges && _lastUploadTime != null) {
                           return Text(

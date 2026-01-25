@@ -2,12 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum SyncHealthStatus {
-  healthy,
-  warning,
-  critical,
-  error,
-}
+enum SyncHealthStatus { healthy, warning, critical, error }
 
 class SyncHealthMetrics {
   const SyncHealthMetrics({
@@ -56,8 +51,10 @@ class SyncHealthMonitor {
   Future<void> initialize() async {
     await _loadMetrics();
 
-    _healthCheckTimer =
-        Timer.periodic(_healthCheckInterval, (_) => _performHealthCheck());
+    _healthCheckTimer = Timer.periodic(
+      _healthCheckInterval,
+      (_) => _performHealthCheck(),
+    );
 
     debugPrint('🏥 بدء مراقبة صحة المزامنة');
   }
@@ -109,7 +106,8 @@ class SyncHealthMonitor {
     if (_consecutiveFailures >= _maxFailuresBeforeCritical) {
       status = SyncHealthStatus.critical;
       recommendations.add(
-          'فشل المزامنة $_consecutiveFailures مرات متتالية - تحقق من الاتصال');
+        'فشل المزامنة $_consecutiveFailures مرات متتالية - تحقق من الاتصال',
+      );
       recommendations.add('جرب إعادة تسجيل الدخول في Google Drive');
     } else if (_consecutiveFailures >= _maxFailuresBeforeWarning) {
       status = SyncHealthStatus.warning;
@@ -121,8 +119,9 @@ class SyncHealthMonitor {
       final timeSinceSuccess = DateTime.now().difference(_lastSuccessAt!);
       if (timeSinceSuccess.inHours > 24) {
         status = SyncHealthStatus.warning;
-        recommendations
-            .add('آخر مزامنة ناجحة منذ ${timeSinceSuccess.inHours} ساعة');
+        recommendations.add(
+          'آخر مزامنة ناجحة منذ ${timeSinceSuccess.inHours} ساعة',
+        );
       } else {
         status = SyncHealthStatus.healthy;
       }
@@ -131,7 +130,8 @@ class SyncHealthMonitor {
     final avgDuration = _syncDurations.isEmpty
         ? Duration.zero
         : Duration(
-            milliseconds: _syncDurations
+            milliseconds:
+                _syncDurations
                     .map((d) => d.inMilliseconds)
                     .reduce((a, b) => a + b) ~/
                 _syncDurations.length,
@@ -144,14 +144,16 @@ class SyncHealthMonitor {
     if (conflictRate > 0.3) {
       if (!recommendations.contains('معدل تعارضات مرتفع')) {
         recommendations.add(
-            'معدل تعارضات مرتفع (${(conflictRate * 100).toStringAsFixed(0)}%) - راجع أولويات الأجهزة');
+          'معدل تعارضات مرتفع (${(conflictRate * 100).toStringAsFixed(0)}%) - راجع أولويات الأجهزة',
+        );
       }
     }
 
     final dataLossRisk = _calculateDataLossRisk();
     if (dataLossRisk > 0.5) {
-      recommendations
-          .add('خطر فقدان بيانات مرتفع - راجع استراتيجية حل التعارضات');
+      recommendations.add(
+        'خطر فقدان بيانات مرتفع - راجع استراتيجية حل التعارضات',
+      );
     }
 
     return SyncHealthMetrics(
@@ -197,12 +199,16 @@ class SyncHealthMonitor {
 
     if (_lastSuccessAt != null) {
       await prefs.setString(
-          'sync_health_last_success', _lastSuccessAt!.toIso8601String());
+        'sync_health_last_success',
+        _lastSuccessAt!.toIso8601String(),
+      );
     }
 
     if (_lastFailureAt != null) {
       await prefs.setString(
-          'sync_health_last_failure', _lastFailureAt!.toIso8601String());
+        'sync_health_last_failure',
+        _lastFailureAt!.toIso8601String(),
+      );
     }
   }
 

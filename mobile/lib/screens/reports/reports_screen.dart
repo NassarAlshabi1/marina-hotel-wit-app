@@ -19,8 +19,9 @@ class ReportsScreen extends ConsumerWidget {
       title: 'التقارير',
       actions: [
         IconButton(
-            onPressed: () => ref.read(coreProviders.syncProvider).runSync(),
-            icon: const Icon(Icons.sync))
+          onPressed: () => ref.read(coreProviders.syncProvider).runSync(),
+          icon: const Icon(Icons.sync),
+        ),
       ],
       body: FutureBuilder(
         future: _prepareData(db),
@@ -32,8 +33,10 @@ class ReportsScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              const Text('التقارير التفصيلية',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text(
+                'التقارير التفصيلية',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
               const SizedBox(height: 12),
               LayoutBuilder(
                 builder: (context, constraints) {
@@ -45,7 +48,8 @@ class ReportsScreen extends ConsumerWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const PaymentsReportScreen()),
+                          builder: (_) => const PaymentsReportScreen(),
+                        ),
                       ),
                     ),
                     _ReportShortcut(
@@ -55,7 +59,8 @@ class ReportsScreen extends ConsumerWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const DebtsReportScreen()),
+                          builder: (_) => const DebtsReportScreen(),
+                        ),
                       ),
                     ),
                     _ReportShortcut(
@@ -65,7 +70,8 @@ class ReportsScreen extends ConsumerWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const ExpensesReportScreen()),
+                          builder: (_) => const ExpensesReportScreen(),
+                        ),
                       ),
                     ),
                     _ReportShortcut(
@@ -75,8 +81,8 @@ class ReportsScreen extends ConsumerWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) =>
-                                const SalaryWithdrawalsReportScreen()),
+                          builder: (_) => const SalaryWithdrawalsReportScreen(),
+                        ),
                       ),
                     ),
                     _ReportShortcut(
@@ -86,7 +92,8 @@ class ReportsScreen extends ConsumerWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const IncomeExpenseReportScreen()),
+                          builder: (_) => const IncomeExpenseReportScreen(),
+                        ),
                       ),
                     ),
                   ];
@@ -98,8 +105,9 @@ class ReportsScreen extends ConsumerWidget {
                   final rows = <Widget>[];
                   for (int i = 0; i < shortcuts.length; i += 2) {
                     final first = shortcuts[i];
-                    final second =
-                        i + 1 < shortcuts.length ? shortcuts[i + 1] : null;
+                    final second = i + 1 < shortcuts.length
+                        ? shortcuts[i + 1]
+                        : null;
                     rows.add(
                       Row(
                         children: [
@@ -121,23 +129,32 @@ class ReportsScreen extends ConsumerWidget {
                 },
               ),
               const SizedBox(height: 24),
-              const Text('الإشغال اليومي (آخر 7 أيام)',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'الإشغال اليومي (آخر 7 أيام)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               SizedBox(
-                  height: 200,
-                  child: BarChart(BarChartData(barGroups: d['dailyOcc']))),
+                height: 200,
+                child: BarChart(BarChartData(barGroups: d['dailyOcc'])),
+              ),
               const SizedBox(height: 16),
-              const Text('الإيرادات مقابل المصروفات (الشهر)',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'الإيرادات مقابل المصروفات (الشهر)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               SizedBox(
-                  height: 200,
-                  child: BarChart(BarChartData(barGroups: d['revExp']))),
+                height: 200,
+                child: BarChart(BarChartData(barGroups: d['revExp'])),
+              ),
               const SizedBox(height: 16),
-              const Text('أعلى الغرف إشغالاً',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'أعلى الغرف إشغالاً',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               SizedBox(
-                  height: 200,
-                  child: BarChart(BarChartData(barGroups: d['topRooms']))),
+                height: 200,
+                child: BarChart(BarChartData(barGroups: d['topRooms'])),
+              ),
             ],
           );
         },
@@ -151,11 +168,14 @@ class ReportsScreen extends ConsumerWidget {
 
     // dummy last 7 days occupancy by current status
     final daily = List.generate(7, (i) {
-      final busy =
-          rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
+      final busy = rooms
+          .where((r) => StatusUtils.isRoomOccupied(r.status))
+          .length;
       final occ = (busy * 100 / total).round();
       return BarChartGroupData(
-          x: i, barRods: [BarChartRodData(toY: occ.toDouble())]);
+        x: i,
+        barRods: [BarChartRodData(toY: occ.toDouble())],
+      );
     });
 
     // month revenue vs expense: placeholder from local
@@ -180,7 +200,12 @@ class ReportsScreen extends ConsumerWidget {
     for (var i = 0; i < topRooms.length; i++) {
       final r = topRooms[i];
       final v = StatusUtils.isRoomOccupied(r.status) ? 100.0 : 20.0;
-      topBars.add(BarChartGroupData(x: i, barRods: [BarChartRodData(toY: v)]));
+      topBars.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [BarChartRodData(toY: v)],
+        ),
+      );
     }
 
     return {'dailyOcc': daily, 'revExp': revExp, 'topRooms': topBars};

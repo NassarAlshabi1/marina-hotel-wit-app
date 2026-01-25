@@ -26,8 +26,10 @@ import 'vector_clock.dart';
 
 /// واجهة اختيارية لإرسال إشعارات FCM عند اكتمال الرفع
 abstract class SyncTriggerDispatcher {
-  Future<void> sendTrigger(
-      {required String syncId, required String sourceDeviceId});
+  Future<void> sendTrigger({
+    required String syncId,
+    required String sourceDeviceId,
+  });
 }
 
 class _SyncJob {
@@ -57,8 +59,8 @@ class SyncManager {
     required this.db,
     required this.driveService,
     this.triggerDispatcher,
-  })  : _statusController = StreamController<SyncStatus>.broadcast(),
-        _auditDao = SyncAuditDao(db);
+  }) : _statusController = StreamController<SyncStatus>.broadcast(),
+       _auditDao = SyncAuditDao(db);
 
   final AppDatabase db;
   final GoogleDriveSyncService driveService;
@@ -82,8 +84,9 @@ class SyncManager {
     if (_syncJobs.length >= SyncConfig.maxQueueSize) {
       debugPrint('⚠️ طابور المزامنة ممتلئ، حذف أقدم عملية');
       final dropped = _syncJobs.removeFirst();
-      dropped.completer
-          .completeError(StateError('Sync job dropped due to queue overflow'));
+      dropped.completer.completeError(
+        StateError('Sync job dropped due to queue overflow'),
+      );
     }
     _syncJobs.add(job);
   }
@@ -116,8 +119,9 @@ class SyncManager {
     _deviceId = await _resolveDeviceId();
     await _loadSyncHistory();
     _isInitialized = true;
-    _statusController
-        .add(SyncStatus(phase: SyncPhase.idle, message: 'المزامنة جاهزة'));
+    _statusController.add(
+      SyncStatus(phase: SyncPhase.idle, message: 'المزامنة جاهزة'),
+    );
   }
 
   /// تغيير أولوية الجهاز في حالة التضارب (قيمة افتراضية 100)
@@ -127,7 +131,10 @@ class SyncManager {
 
   /// إضافة تغيير محلي إلى طابور المزامنة
   Future<void> pushLocalChange(
-      String table, Map<String, dynamic> row, String operation) async {
+    String table,
+    Map<String, dynamic> row,
+    String operation,
+  ) async {
     await _ensureReady();
     final nowIso = DateTime.now().toUtc().toIso8601String();
     final uuid = _extractUuid(row) ?? _generateUuid();
@@ -135,7 +142,9 @@ class SyncManager {
     final deviceId = await _ensureDeviceId();
     final payload = jsonEncode(row);
 
-    await db.into(db.syncQueue).insertOnConflictUpdate(
+    await db
+        .into(db.syncQueue)
+        .insertOnConflictUpdate(
           SyncQueueCompanion(
             uuid: drift.Value(uuid),
             targetTable: drift.Value(table),
@@ -165,9 +174,12 @@ class SyncManager {
     return _withSyncLock(() async {
       final online = await _hasConnectivity();
       if (!online) {
-        _statusController.add(SyncStatus(
+        _statusController.add(
+          SyncStatus(
             phase: SyncPhase.idle,
-            message: 'لا يوجد اتصال - تم تخطي المزامنة'));
+            message: 'لا يوجد اتصال - تم تخطي المزامنة',
+          ),
+        );
         return;
       }
 
@@ -187,8 +199,9 @@ class SyncManager {
   }
 
   /// تشغيل مزامنة تلقائية في الواجهة الأمامية عند تغيّر Outbox مع Debounce.
-  void startOutboxDebouncedSync(
-      {Duration debounce = const Duration(seconds: 30)}) {
+  void startOutboxDebouncedSync({
+    Duration debounce = const Duration(seconds: 30),
+  }) {
     if (_outboxWatchSub != null) {
       return;
     }
@@ -227,8 +240,10 @@ class SyncManager {
 
   Future<void> _persistLastDriveSyncTime() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsLastDriveSyncEpochKey,
-        DateTime.now().toUtc().millisecondsSinceEpoch);
+    await prefs.setInt(
+      _prefsLastDriveSyncEpochKey,
+      DateTime.now().toUtc().millisecondsSinceEpoch,
+    );
   }
 
   Future<void> _withSyncLock(Future<void> Function() work) {
@@ -272,15 +287,23 @@ class SyncManager {
       return;
     }
     _pullInProgress = true;
-    _statusController.add(SyncStatus(
-        phase: SyncPhase.pulling, message: 'جلب أحدث النسخ من Google Drive'));
+    _statusController.add(
+      SyncStatus(
+        phase: SyncPhase.pulling,
+        message: 'جلب أحدث النسخ من Google Drive',
+      ),
+    );
 
     SyncSafetySnapshot? safetySnapshot;
     try {
       final remoteResult = await driveService.downloadLatestSnapshot();
       if (remoteResult == null) {
-        _statusController.add(SyncStatus(
-            phase: SyncPhase.idle, message: 'لا توجد نسخة مزامنة على Drive'));
+        _statusController.add(
+          SyncStatus(
+            phase: SyncPhase.idle,
+            message: 'لا توجد نسخة مزامنة على Drive',
+          ),
+        );
         return;
       }
 
@@ -290,31 +313,44 @@ class SyncManager {
       if (!force &&
           remoteSyncId.isNotEmpty &&
           remoteSyncId == _lastRemoteSyncId) {
-        _statusController.add(SyncStatus(
-            phase: SyncPhase.idle, message: 'لا تغييرات جديدة منذ آخر سحب'));
+        _statusController.add(
+          SyncStatus(
+            phase: SyncPhase.idle,
+            message: 'لا تغييرات جديدة منذ آخر سحب',
+          ),
+        );
         return;
       }
 
       if (!force &&
           remoteResult.metadata.lastDeviceId == deviceId &&
           remoteResult.metadata.checksum == _lastUploadedChecksum) {
-        _statusController.add(SyncStatus(
+        _statusController.add(
+          SyncStatus(
             phase: SyncPhase.idle,
-            message: 'البيانات على الجهاز محدثة بالفعل'));
+            message: 'البيانات على الجهاز محدثة بالفعل',
+          ),
+        );
         return;
       }
 
       final localTables = await db.getAllTablesAsJson();
       if (!force && compareChecksum(remoteResult.snapshot, localTables)) {
-        _statusController.add(SyncStatus(
+        _statusController.add(
+          SyncStatus(
             phase: SyncPhase.idle,
-            message: 'لا تغييرات بعد التحقق من checksum'));
+            message: 'لا تغييرات بعد التحقق من checksum',
+          ),
+        );
         return;
       }
 
       final syncId = _generateSyncId();
       safetySnapshot = await _safetyLayer.captureSnapshot(
-          db: db, syncId: syncId, phase: 'pull');
+        db: db,
+        syncId: syncId,
+        phase: 'pull',
+      );
 
       final mergeResult = _mergeSnapshots(
         remoteSnapshot: remoteResult.snapshot,
@@ -355,24 +391,35 @@ class SyncManager {
       }
       await _persistSyncHistory(syncId);
 
-      _statusController.add(SyncStatus(
-          phase: SyncPhase.completing, message: 'تم تطبيق التغييرات الواردة'));
+      _statusController.add(
+        SyncStatus(
+          phase: SyncPhase.completing,
+          message: 'تم تطبيق التغييرات الواردة',
+        ),
+      );
     } catch (error, stack) {
       if (safetySnapshot != null) {
         await _safetyLayer.rollbackSnapshot(
-            db: db, snapshot: safetySnapshot, error: error);
+          db: db,
+          snapshot: safetySnapshot,
+          error: error,
+        );
       }
       debugPrint('❌ فشل سحب البيانات: $error');
       debugPrint('$stack');
-      _statusController.add(SyncStatus(
+      _statusController.add(
+        SyncStatus(
           phase: SyncPhase.error,
           message: 'خطأ أثناء سحب البيانات',
-          error: error));
+          error: error,
+        ),
+      );
       rethrow;
     } finally {
       _pullInProgress = false;
-      _statusController
-          .add(SyncStatus(phase: SyncPhase.idle, message: 'انتهى السحب'));
+      _statusController.add(
+        SyncStatus(phase: SyncPhase.idle, message: 'انتهى السحب'),
+      );
     }
   }
 
@@ -413,8 +460,10 @@ class SyncManager {
   }
 
   /// stream صفوف الجدول على دفعات لتجنب تحميل كل البيانات في الذاكرة
-  Stream<List<Map<String, dynamic>>> _streamTableRows(String table,
-      {int batchSize = 100}) async* {
+  Stream<List<Map<String, dynamic>>> _streamTableRows(
+    String table, {
+    int batchSize = 100,
+  }) async* {
     // Whitelist validation for security
     const allowedTables = {
       'rooms',
@@ -438,18 +487,21 @@ class SyncManager {
     int offset = 0;
     while (true) {
       try {
-        final batch = await db.customSelect(
-          'SELECT * FROM $table ORDER BY local_uuid LIMIT ? OFFSET ?',
-          variables: [
-            drift.Variable.withInt(batchSize),
-            drift.Variable.withInt(offset)
-          ],
-        ).get();
+        final batch = await db
+            .customSelect(
+              'SELECT * FROM $table ORDER BY local_uuid LIMIT ? OFFSET ?',
+              variables: [
+                drift.Variable.withInt(batchSize),
+                drift.Variable.withInt(offset),
+              ],
+            )
+            .get();
 
         if (batch.isEmpty) break;
 
-        final mappedBatch =
-            batch.map((row) => Map<String, dynamic>.from(row.data)).toList();
+        final mappedBatch = batch
+            .map((row) => Map<String, dynamic>.from(row.data))
+            .toList();
 
         yield mappedBatch;
         offset += batchSize;
@@ -465,7 +517,9 @@ class SyncManager {
     final prefix = await _historyPrefix();
     await prefs.setString('${prefix}_id', syncId);
     await prefs.setInt(
-        '${prefix}_epoch', DateTime.now().millisecondsSinceEpoch);
+      '${prefix}_epoch',
+      DateTime.now().millisecondsSinceEpoch,
+    );
     _lastSyncId = syncId;
   }
 
@@ -501,20 +555,26 @@ class SyncManager {
       return;
     }
 
-    final pending = await (db.select(db.syncQueue)
-          ..where((tbl) => tbl.status.equals('pending'))
-          ..orderBy([(tbl) => drift.OrderingTerm(expression: tbl.createdAt)]))
-        .get();
+    final pending =
+        await (db.select(db.syncQueue)
+              ..where((tbl) => tbl.status.equals('pending'))
+              ..orderBy([
+                (tbl) => drift.OrderingTerm(expression: tbl.createdAt),
+              ]))
+            .get();
 
     if (pending.isEmpty && !force) {
       return;
     }
 
     _isDrainingQueue = true;
-    _statusController.add(SyncStatus(
+    _statusController.add(
+      SyncStatus(
         phase: SyncPhase.pushing,
         message: 'رفع التغييرات المعلقة',
-        progress: 0));
+        progress: 0,
+      ),
+    );
 
     SyncSafetySnapshot? safetySnapshot;
     try {
@@ -530,14 +590,23 @@ class SyncManager {
           remoteResult.metadata.lastDeviceId == deviceId &&
           compareChecksum(remoteResult.snapshot, localTables)) {
         await _markQueueStatus(
-            pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
-        _statusController.add(SyncStatus(
-            phase: SyncPhase.idle, message: 'لا توجد تغييرات جديدة للرفع'));
+          pending.map((e) => e.id).toList(),
+          SyncQueueStatus.synced.value,
+        );
+        _statusController.add(
+          SyncStatus(
+            phase: SyncPhase.idle,
+            message: 'لا توجد تغييرات جديدة للرفع',
+          ),
+        );
         return;
       }
 
       safetySnapshot = await _safetyLayer.captureSnapshot(
-          db: db, syncId: syncId, phase: 'push');
+        db: db,
+        syncId: syncId,
+        phase: 'push',
+      );
 
       final mergeResult = _mergeSnapshots(
         remoteSnapshot: remoteSnapshot,
@@ -554,7 +623,9 @@ class SyncManager {
 
       await db.applyMergedData(mergeResult.mergedSnapshot.tables);
       await _markQueueStatus(
-          pending.map((e) => e.id).toList(), SyncQueueStatus.synced.value);
+        pending.map((e) => e.id).toList(),
+        SyncQueueStatus.synced.value,
+      );
 
       await _auditDao.insertSyncLog(
         syncId: syncId,
@@ -594,23 +665,36 @@ class SyncManager {
       await _persistRemoteSignature(uploadIndex.lastSyncId);
 
       if (triggerDispatcher != null && _lastSyncId != null) {
-        await triggerDispatcher!
-            .sendTrigger(syncId: _lastSyncId!, sourceDeviceId: deviceId);
+        await triggerDispatcher!.sendTrigger(
+          syncId: _lastSyncId!,
+          sourceDeviceId: deviceId,
+        );
       }
 
-      _statusController.add(SyncStatus(
+      _statusController.add(
+        SyncStatus(
           phase: SyncPhase.completing,
           message: 'تم رفع التغييرات بنجاح',
-          progress: 1));
+          progress: 1,
+        ),
+      );
     } catch (error, stack) {
       if (safetySnapshot != null) {
         await _safetyLayer.rollbackSnapshot(
-            db: db, snapshot: safetySnapshot, error: error);
+          db: db,
+          snapshot: safetySnapshot,
+          error: error,
+        );
       }
       debugPrint('❌ فشل رفع التغييرات: $error');
       debugPrint('$stack');
-      _statusController.add(SyncStatus(
-          phase: SyncPhase.error, message: 'تعذر رفع التغييرات', error: error));
+      _statusController.add(
+        SyncStatus(
+          phase: SyncPhase.error,
+          message: 'تعذر رفع التغييرات',
+          error: error,
+        ),
+      );
       rethrow;
     } finally {
       _isDrainingQueue = false;
@@ -666,13 +750,15 @@ class SyncManager {
 
         if (remoteRow == null && localRow != null) {
           mergedList.add(localRow);
-          operations.add(SyncOperation(
-            table: table,
-            uuid: key,
-            operation: 'insert',
-            payload: localRow,
-            timestamp: _extractUpdatedAt(localRow) ?? nowIso,
-          ));
+          operations.add(
+            SyncOperation(
+              table: table,
+              uuid: key,
+              operation: 'insert',
+              payload: localRow,
+              timestamp: _extractUpdatedAt(localRow) ?? nowIso,
+            ),
+          );
           continue;
         }
 
@@ -694,9 +780,11 @@ class SyncManager {
         String operation;
 
         if (remoteDeleted != null || localDeleted != null) {
-          final remoteTs = remoteDeleted ??
+          final remoteTs =
+              remoteDeleted ??
               DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-          final localTs = localDeleted ??
+          final localTs =
+              localDeleted ??
               DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
           if (localTs.isAfter(remoteTs)) {
             winner = localRow;
@@ -706,9 +794,11 @@ class SyncManager {
             operation = 'delete';
           }
         } else {
-          final remoteUpdatedTs = remoteUpdated ??
+          final remoteUpdatedTs =
+              remoteUpdated ??
               DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-          final localUpdatedTs = localUpdated ??
+          final localUpdatedTs =
+              localUpdated ??
               DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
           if (localUpdatedTs.isAfter(remoteUpdatedTs)) {
             winner = localRow;
@@ -717,8 +807,10 @@ class SyncManager {
             winner = remoteRow;
             operation = 'remote';
           } else {
-            final equality =
-                const DeepCollectionEquality().equals(remoteRow, localRow);
+            final equality = const DeepCollectionEquality().equals(
+              remoteRow,
+              localRow,
+            );
             if (equality) {
               winner = remoteRow;
               operation = 'noop';
@@ -768,37 +860,43 @@ class SyncManager {
               final resolution = conflictResolver.resolve(context);
               winner = resolution.mergedData ?? resolution.winner;
 
-              final isLocalWinner = winner == localRow ||
+              final isLocalWinner =
+                  winner == localRow ||
                   (resolution.mergedData != null &&
                       resolution.strategy == ConflictStrategy.fieldLevel);
 
               operation = isLocalWinner ? 'conflict-local' : 'conflict-remote';
 
-              conflicts.add(SyncConflictModel(
-                table: table,
-                uuid: key,
-                localPayload: localRow,
-                remotePayload: remoteRow,
-                resolution: resolution.needsManualReview
-                    ? 'pending'
-                    : (isLocalWinner ? 'local-merged' : 'remote'),
-              ));
+              conflicts.add(
+                SyncConflictModel(
+                  table: table,
+                  uuid: key,
+                  localPayload: localRow,
+                  remotePayload: remoteRow,
+                  resolution: resolution.needsManualReview
+                      ? 'pending'
+                      : (isLocalWinner ? 'local-merged' : 'remote'),
+                ),
+              );
 
               debugPrint(
-                  '🔀 تعارض [$table/$key]: استراتيجية ${resolution.strategy.name}');
+                '🔀 تعارض [$table/$key]: استراتيجية ${resolution.strategy.name}',
+              );
             }
           }
         }
 
         mergedList.add(winner);
         if (operation != 'noop' && !operation.startsWith('remote')) {
-          operations.add(SyncOperation(
-            table: table,
-            uuid: key,
-            operation: operation,
-            payload: winner,
-            timestamp: _extractUpdatedAt(winner) ?? nowIso,
-          ));
+          operations.add(
+            SyncOperation(
+              table: table,
+              uuid: key,
+              operation: operation,
+              payload: winner,
+              timestamp: _extractUpdatedAt(winner) ?? nowIso,
+            ),
+          );
         }
       }
 
@@ -875,27 +973,31 @@ class SyncManager {
   SyncSnapshot _emptySnapshot() {
     final metadata = SyncMetadata(
       version: 0,
-      lastUpdatedAt:
-          DateTime.fromMillisecondsSinceEpoch(0).toUtc().toIso8601String(),
+      lastUpdatedAt: DateTime.fromMillisecondsSinceEpoch(
+        0,
+      ).toUtc().toIso8601String(),
       devicePriority: 0,
       snapshotSize: 0,
       lastSyncId: '',
       checksum: '',
       lastDeviceId: '',
     );
-    return SyncSnapshot(metadata: metadata, tables: {
-      'rooms': <Map<String, dynamic>>[],
-      'bookings': <Map<String, dynamic>>[],
-      'booking_notes': <Map<String, dynamic>>[],
-      'guests': <Map<String, dynamic>>[],
-      'payments': <Map<String, dynamic>>[],
-      'employees': <Map<String, dynamic>>[],
-      'services': <Map<String, dynamic>>[],
-      'settings': <Map<String, dynamic>>[],
-      'expenses': <Map<String, dynamic>>[],
-      'cash_transactions': <Map<String, dynamic>>[],
-      'debts': <Map<String, dynamic>>[],
-    });
+    return SyncSnapshot(
+      metadata: metadata,
+      tables: {
+        'rooms': <Map<String, dynamic>>[],
+        'bookings': <Map<String, dynamic>>[],
+        'booking_notes': <Map<String, dynamic>>[],
+        'guests': <Map<String, dynamic>>[],
+        'payments': <Map<String, dynamic>>[],
+        'employees': <Map<String, dynamic>>[],
+        'services': <Map<String, dynamic>>[],
+        'settings': <Map<String, dynamic>>[],
+        'expenses': <Map<String, dynamic>>[],
+        'cash_transactions': <Map<String, dynamic>>[],
+        'debts': <Map<String, dynamic>>[],
+      },
+    );
   }
 
   String _generateSyncId() {

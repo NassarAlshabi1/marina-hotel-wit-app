@@ -54,11 +54,15 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     children: [
                       Icon(Icons.error, size: 64, color: Colors.red.shade400),
                       const SizedBox(height: 16),
-                      Text('حدث خطأ في تحميل البيانات',
-                          style: TextStyle(color: Colors.red.shade700)),
+                      Text(
+                        'حدث خطأ في تحميل البيانات',
+                        style: TextStyle(color: Colors.red.shade700),
+                      ),
                       const SizedBox(height: 8),
-                      Text(error.toString(),
-                          style: const TextStyle(color: Colors.grey)),
+                      Text(
+                        error.toString(),
+                        style: const TextStyle(color: Colors.grey),
+                      ),
                     ],
                   ),
                 ),
@@ -85,8 +89,10 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(25),
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
             onChanged: (value) => setState(() => _searchQuery = value),
           ),
@@ -132,26 +138,38 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           data: (debts) {
             final totalDebts = debts.length;
             final pendingDebts = debts.where((d) => d.isSettled == 0).length;
-            final totalAmount =
-                debts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+            final totalAmount = debts.fold(
+              0.0,
+              (sum, debt) => sum + debt.remainingAmount,
+            );
 
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
                   Expanded(
-                      child: _buildStatCard(
-                          'إجمالي الديون', totalDebts.toString(), Colors.blue)),
+                    child: _buildStatCard(
+                      'إجمالي الديون',
+                      totalDebts.toString(),
+                      Colors.blue,
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
-                      child: _buildStatCard(
-                          'معلق', pendingDebts.toString(), Colors.orange)),
+                    child: _buildStatCard(
+                      'معلق',
+                      pendingDebts.toString(),
+                      Colors.orange,
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
-                      child: _buildStatCard(
-                          'القيمة الإجمالية',
-                          CurrencyFormatter.formatAmount(totalAmount),
-                          Colors.red)),
+                    child: _buildStatCard(
+                      'القيمة الإجمالية',
+                      CurrencyFormatter.formatAmount(totalAmount),
+                      Colors.red,
+                    ),
+                  ),
                 ],
               ),
             );
@@ -182,10 +200,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 10,
-              color: color.withOpacity(0.8),
-            ),
+            style: TextStyle(fontSize: 10, color: color.withOpacity(0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -197,7 +212,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     // تطبيق البحث والتصفية
     final filteredDebts = allDebts.where((debt) {
       // البحث
-      final matchesSearch = _searchQuery.isEmpty ||
+      final matchesSearch =
+          _searchQuery.isEmpty ||
           debt.guestName.toLowerCase().contains(_searchQuery.toLowerCase());
 
       // التصفية حسب الحالة
@@ -217,7 +233,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           final debtDate = DateTime.tryParse(debtDateStr);
           if (debtDate != null) {
             final daysPassed = DateTime.now().difference(debtDate).inDays;
-            matchesFilter = daysPassed > 30 &&
+            matchesFilter =
+                daysPassed > 30 &&
                 debt.isSettled == 0 &&
                 debt.remainingAmount > 0;
           } else {
@@ -251,14 +268,21 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.account_balance_outlined,
-                size: 64, color: Colors.grey.shade400),
+            Icon(
+              Icons.account_balance_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 16),
-            Text(emptyMessage,
-                style: const TextStyle(fontSize: 18, color: Colors.grey)),
+            Text(
+              emptyMessage,
+              style: const TextStyle(fontSize: 18, color: Colors.grey),
+            ),
             const SizedBox(height: 8),
-            const Text('اضغط على + لإضافة دين جديد',
-                style: TextStyle(color: Colors.grey)),
+            const Text(
+              'اضغط على + لإضافة دين جديد',
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       );
@@ -277,9 +301,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   Widget _buildDebtCard(Debt debt) {
     final isSettled = debt.isSettled == 1 || debt.remainingAmount <= 0;
     final debtDate = DateTime.tryParse(
-        debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate);
-    final daysPassed =
-        debtDate != null ? DateTime.now().difference(debtDate).inDays : 0;
+      debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate,
+    );
+    final daysPassed = debtDate != null
+        ? DateTime.now().difference(debtDate).inDays
+        : 0;
     final isOverdue = daysPassed > 30 && !isSettled;
 
     Color cardColor = Colors.white;
@@ -331,11 +357,17 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               children: [
                 Expanded(
                   child: _buildInfoRow(
-                      Icons.login, 'الدخول', _formatDate(debt.checkinDate)),
+                    Icons.login,
+                    'الدخول',
+                    _formatDate(debt.checkinDate),
+                  ),
                 ),
                 Expanded(
                   child: _buildInfoRow(
-                      Icons.logout, 'الخروج', _formatDate(debt.checkoutDate)),
+                    Icons.logout,
+                    'الخروج',
+                    _formatDate(debt.checkoutDate),
+                  ),
                 ),
               ],
             ),
@@ -354,11 +386,17 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('إجمالي المبلغ',
-                          style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 12)),
-                      Text(CurrencyFormatter.formatAmount(debt.totalAmount),
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(
+                        'إجمالي المبلغ',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        CurrencyFormatter.formatAmount(debt.totalAmount),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ],
                   ),
                 ),
@@ -366,13 +404,20 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('المدفوع',
-                          style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 12)),
-                      Text(CurrencyFormatter.formatAmount(debt.paidAmount),
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green.shade700)),
+                      Text(
+                        'المدفوع',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        CurrencyFormatter.formatAmount(debt.paidAmount),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade700,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -380,13 +425,20 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('المتبقي',
-                          style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 12)),
-                      Text(CurrencyFormatter.formatAmount(debt.remainingAmount),
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red.shade700)),
+                      Text(
+                        'المتبقي',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        CurrencyFormatter.formatAmount(debt.remainingAmount),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -408,11 +460,15 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   children: [
                     Icon(Icons.security, size: 16, color: Colors.blue.shade700),
                     const SizedBox(width: 8),
-                    Text('رهن: ${debt.pledge}',
-                        style: TextStyle(color: Colors.blue.shade700)),
+                    Text(
+                      'رهن: ${debt.pledge}',
+                      style: TextStyle(color: Colors.blue.shade700),
+                    ),
                     if (debt.pledgeType?.isNotEmpty == true)
-                      Text(' (${debt.pledgeType})',
-                          style: TextStyle(color: Colors.blue.shade600)),
+                      Text(
+                        ' (${debt.pledgeType})',
+                        style: TextStyle(color: Colors.blue.shade600),
+                      ),
                   ],
                 ),
               ),
@@ -478,11 +534,13 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
   Widget _buildStatusBadge(Debt debt) {
     final isSettled = debt.isSettled == 1 || debt.remainingAmount <= 0;
-    final debtDateStr =
-        debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate;
+    final debtDateStr = debt.dateRecorded.isNotEmpty
+        ? debt.dateRecorded
+        : debt.checkoutDate;
     final debtDate = DateTime.tryParse(debtDateStr);
-    final daysPassed =
-        debtDate != null ? DateTime.now().difference(debtDate).inDays : 0;
+    final daysPassed = debtDate != null
+        ? DateTime.now().difference(debtDate).inDays
+        : 0;
     final isOverdue = daysPassed > 30 && !isSettled && debt.remainingAmount > 0;
 
     String text;
@@ -525,12 +583,15 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       children: [
         Icon(icon, size: 14, color: Colors.grey.shade600),
         const SizedBox(width: 4),
-        Text('$label: ',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+        Text(
+          '$label: ',
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+        ),
         Expanded(
-          child: Text(value,
-              style:
-                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
         ),
       ],
     );
@@ -552,16 +613,19 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             ListTile(
               leading: const Icon(Icons.hotel_outlined, color: Colors.blue),
               title: const Text('دين من حجز موجود'),
-              subtitle:
-                  const Text('اختر حجز وأنشئ دين بناء على الأيام المتبقية'),
+              subtitle: const Text(
+                'اختر حجز وأنشئ دين بناء على الأيام المتبقية',
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _createDebtFromBooking();
               },
             ),
             ListTile(
-              leading:
-                  const Icon(Icons.add_circle_outline, color: Colors.green),
+              leading: const Icon(
+                Icons.add_circle_outline,
+                color: Colors.green,
+              ),
               title: const Text('دين يدوي'),
               subtitle: const Text('أدخل تفاصيل الدين يدوياً'),
               onTap: () {
@@ -632,29 +696,37 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   }
 
   Future<void> _openDebtForm(BuildContext context, {Debt? existing}) async {
-    final guestNameCtrl =
-        TextEditingController(text: existing?.guestName ?? '');
+    final guestNameCtrl = TextEditingController(
+      text: existing?.guestName ?? '',
+    );
     final checkinCtrl = TextEditingController(
-        text: Time.safeIsoToDateString(existing?.checkinDate));
+      text: Time.safeIsoToDateString(existing?.checkinDate),
+    );
     final checkoutCtrl = TextEditingController(
-        text: Time.safeIsoToDateString(existing?.checkoutDate));
+      text: Time.safeIsoToDateString(existing?.checkoutDate),
+    );
     final totalCtrl = TextEditingController(
-        text: existing != null
-            ? CurrencyFormatter.formatAmount(existing.totalAmount)
-            : '0');
+      text: existing != null
+          ? CurrencyFormatter.formatAmount(existing.totalAmount)
+          : '0',
+    );
     final paidCtrl = TextEditingController(
-        text: existing != null
-            ? CurrencyFormatter.formatAmount(existing.paidAmount)
-            : '0');
+      text: existing != null
+          ? CurrencyFormatter.formatAmount(existing.paidAmount)
+          : '0',
+    );
     final remainingCtrl = TextEditingController(
-        text: existing != null
-            ? CurrencyFormatter.formatAmount(existing.remainingAmount)
-            : '0');
+      text: existing != null
+          ? CurrencyFormatter.formatAmount(existing.remainingAmount)
+          : '0',
+    );
     final debtReasonCtrl = TextEditingController(
-        text: existing?.debtReason ?? 'عدم سداد قيمة أيام إضافية');
+      text: existing?.debtReason ?? 'عدم سداد قيمة أيام إضافية',
+    );
     final pledgeCtrl = TextEditingController(text: existing?.pledge ?? '');
-    final pledgeTypeCtrl =
-        TextEditingController(text: existing?.pledgeType ?? '');
+    final pledgeTypeCtrl = TextEditingController(
+      text: existing?.pledgeType ?? '',
+    );
     final noteCtrl = TextEditingController(text: existing?.note ?? '');
 
     void recalculate() {
@@ -817,9 +889,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     final guestName = guestNameCtrl.text.trim();
     if (guestName.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('يرجى إدخال اسم النزيل')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('يرجى إدخال اسم النزيل')));
       }
       return;
     }
@@ -833,10 +905,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     final totalAmount = CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
     final paidAmount = CurrencyFormatter.parseAmount(paidCtrl.text) ?? 0;
     final debtReason = debtReasonCtrl.text.trim();
-    final pledge =
-        pledgeCtrl.text.trim().isEmpty ? null : pledgeCtrl.text.trim();
-    final pledgeType =
-        pledgeTypeCtrl.text.trim().isEmpty ? null : pledgeTypeCtrl.text.trim();
+    final pledge = pledgeCtrl.text.trim().isEmpty
+        ? null
+        : pledgeCtrl.text.trim();
+    final pledgeType = pledgeTypeCtrl.text.trim().isEmpty
+        ? null
+        : pledgeTypeCtrl.text.trim();
     final note = noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim();
 
     final repo = ref.read(debtsRepoProvider);
@@ -874,9 +948,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(existing == null
-              ? 'تم إضافة الدين بنجاح'
-              : 'تم تحديث الدين بنجاح'),
+          content: Text(
+            existing == null ? 'تم إضافة الدين بنجاح' : 'تم تحديث الدين بنجاح',
+          ),
         ),
       );
     }
@@ -889,7 +963,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         return AlertDialog(
           title: const Text('تأكيد الحذف'),
           content: Text(
-              'هل أنت متأكد من حذف دين "${debt.guestName}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.'),
+            'هل أنت متأكد من حذف دين "${debt.guestName}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
@@ -912,9 +987,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     markDataChanged();
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم حذف دين ${debt.guestName}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('تم حذف دين ${debt.guestName}')));
     }
   }
 }

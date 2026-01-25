@@ -57,14 +57,19 @@ class DebtsListScreen extends ConsumerWidget {
                           Text(_formatAmount(debt.paidAmount)),
                           Text(_formatAmount(debt.remainingAmount)),
                           Text(_formatDate(debt.paymentDate)),
-                          Text(debt.pledge?.isNotEmpty == true
-                              ? debt.pledge!
-                              : '-'),
-                          Text(debt.pledgeType?.isNotEmpty == true
-                              ? debt.pledgeType!
-                              : '-'),
                           Text(
-                              debt.note?.isNotEmpty == true ? debt.note! : '-'),
+                            debt.pledge?.isNotEmpty == true
+                                ? debt.pledge!
+                                : '-',
+                          ),
+                          Text(
+                            debt.pledgeType?.isNotEmpty == true
+                                ? debt.pledgeType!
+                                : '-',
+                          ),
+                          Text(
+                            debt.note?.isNotEmpty == true ? debt.note! : '-',
+                          ),
                           Row(
                             children: [
                               IconButton(
@@ -101,31 +106,42 @@ class DebtsListScreen extends ConsumerWidget {
     return CurrencyFormatter.formatAmount(value);
   }
 
-  Future<void> _openDebtForm(BuildContext context, WidgetRef ref,
-      {Debt? existing}) async {
-    final guestNameCtrl =
-        TextEditingController(text: existing?.guestName ?? '');
+  Future<void> _openDebtForm(
+    BuildContext context,
+    WidgetRef ref, {
+    Debt? existing,
+  }) async {
+    final guestNameCtrl = TextEditingController(
+      text: existing?.guestName ?? '',
+    );
     final checkinCtrl = TextEditingController(
-        text: Time.safeIsoToDateString(existing?.checkinDate));
+      text: Time.safeIsoToDateString(existing?.checkinDate),
+    );
     final checkoutCtrl = TextEditingController(
-        text: Time.safeIsoToDateString(existing?.checkoutDate));
+      text: Time.safeIsoToDateString(existing?.checkoutDate),
+    );
     final totalCtrl = TextEditingController(
-        text: existing != null
-            ? CurrencyFormatter.formatAmount(existing.totalAmount)
-            : '0');
+      text: existing != null
+          ? CurrencyFormatter.formatAmount(existing.totalAmount)
+          : '0',
+    );
     final paidCtrl = TextEditingController(
-        text: existing != null
-            ? CurrencyFormatter.formatAmount(existing.paidAmount)
-            : '0');
+      text: existing != null
+          ? CurrencyFormatter.formatAmount(existing.paidAmount)
+          : '0',
+    );
     final remainingCtrl = TextEditingController(
-        text: existing != null
-            ? CurrencyFormatter.formatAmount(existing.remainingAmount)
-            : '0');
+      text: existing != null
+          ? CurrencyFormatter.formatAmount(existing.remainingAmount)
+          : '0',
+    );
     final paymentDateCtrl = TextEditingController(
-        text: Time.safeIsoToDateString(existing?.paymentDate));
+      text: Time.safeIsoToDateString(existing?.paymentDate),
+    );
     final pledgeCtrl = TextEditingController(text: existing?.pledge ?? '');
-    final pledgeTypeCtrl =
-        TextEditingController(text: existing?.pledgeType ?? '');
+    final pledgeTypeCtrl = TextEditingController(
+      text: existing?.pledgeType ?? '',
+    );
     final noteCtrl = TextEditingController(text: existing?.note ?? '');
 
     void recalculate() {
@@ -157,36 +173,42 @@ class DebtsListScreen extends ConsumerWidget {
                   TextField(
                     controller: checkinCtrl,
                     decoration: const InputDecoration(
-                        labelText: 'تاريخ الدخول YYYY-MM-DD'),
+                      labelText: 'تاريخ الدخول YYYY-MM-DD',
+                    ),
                   ),
                   TextField(
                     controller: checkoutCtrl,
                     decoration: const InputDecoration(
-                        labelText: 'تاريخ الخروج YYYY-MM-DD'),
+                      labelText: 'تاريخ الخروج YYYY-MM-DD',
+                    ),
                   ),
                   TextField(
                     controller: totalCtrl,
-                    decoration:
-                        const InputDecoration(labelText: 'إجمالي الدين'),
+                    decoration: const InputDecoration(
+                      labelText: 'إجمالي الدين',
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                   TextField(
                     controller: paidCtrl,
-                    decoration:
-                        const InputDecoration(labelText: 'المبلغ المدفوع'),
+                    decoration: const InputDecoration(
+                      labelText: 'المبلغ المدفوع',
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                   TextField(
                     controller: remainingCtrl,
-                    decoration:
-                        const InputDecoration(labelText: 'المبلغ المتبقي'),
+                    decoration: const InputDecoration(
+                      labelText: 'المبلغ المتبقي',
+                    ),
                     readOnly: true,
                     enableInteractiveSelection: false,
                   ),
                   TextField(
                     controller: paymentDateCtrl,
                     decoration: const InputDecoration(
-                        labelText: 'تاريخ الدفع YYYY-MM-DD'),
+                      labelText: 'تاريخ الدفع YYYY-MM-DD',
+                    ),
                   ),
                   TextField(
                     controller: pledgeCtrl,
@@ -236,16 +258,19 @@ class DebtsListScreen extends ConsumerWidget {
     final paymentDate = paymentDateCtrl.text.trim().isEmpty
         ? Time.nowDateString()
         : paymentDateCtrl.text.trim();
-    final pledge =
-        pledgeCtrl.text.trim().isEmpty ? null : pledgeCtrl.text.trim();
-    final pledgeType =
-        pledgeTypeCtrl.text.trim().isEmpty ? null : pledgeTypeCtrl.text.trim();
+    final pledge = pledgeCtrl.text.trim().isEmpty
+        ? null
+        : pledgeCtrl.text.trim();
+    final pledgeType = pledgeTypeCtrl.text.trim().isEmpty
+        ? null
+        : pledgeTypeCtrl.text.trim();
     final note = noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim();
 
     if (guestName.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('يرجى إدخال اسم النزيل')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('يرجى إدخال اسم النزيل')));
       }
       return;
     }
@@ -279,13 +304,17 @@ class DebtsListScreen extends ConsumerWidget {
     }
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('تم حفظ البيانات بنجاح')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم حفظ البيانات بنجاح')));
     }
   }
 
   Future<void> _deleteDebt(
-      BuildContext context, WidgetRef ref, Debt debt) async {
+    BuildContext context,
+    WidgetRef ref,
+    Debt debt,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -293,8 +322,9 @@ class DebtsListScreen extends ConsumerWidget {
           textDirection: TextDirection.rtl,
           child: AlertDialog(
             title: const Text('تأكيد الحذف'),
-            content:
-                Text('هل أنت متأكد من حذف الدين الخاص بـ ${debt.guestName}?'),
+            content: Text(
+              'هل أنت متأكد من حذف الدين الخاص بـ ${debt.guestName}?',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
@@ -317,8 +347,9 @@ class DebtsListScreen extends ConsumerWidget {
     final repo = ref.read(debtsRepoProvider);
     await repo.delete(debt.id);
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('تم حذف الدين')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم حذف الدين')));
     }
   }
 }

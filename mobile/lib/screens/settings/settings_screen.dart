@@ -40,8 +40,13 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // بطاقة الإحصائيات السريعة
-          _buildQuickStatsCard(context, roomsAsync, bookingsAsync,
-              employeesAsync, usersCountAsync),
+          _buildQuickStatsCard(
+            context,
+            roomsAsync,
+            bookingsAsync,
+            employeesAsync,
+            usersCountAsync,
+          ),
 
           const SizedBox(height: 20),
 
@@ -56,7 +61,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const SettingsEmployeesScreen()),
+                  builder: (context) => const SettingsEmployeesScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -67,7 +73,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const SettingsGuestsScreen()),
+                  builder: (context) => const SettingsGuestsScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -78,7 +85,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const SettingsUsersScreen()),
+                  builder: (context) => const SettingsUsersScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -89,7 +97,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const SettingsMaintenanceScreen()),
+                  builder: (context) => const SettingsMaintenanceScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -100,7 +109,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const BlacklistScreen()),
+                  builder: (context) => const BlacklistScreen(),
+                ),
               ),
             ),
           ]),
@@ -125,7 +135,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const DataProtectionScreen()),
+                  builder: (context) => const DataProtectionScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -136,8 +147,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) =>
-                        const SyncPerformanceSettingsScreen()),
+                  builder: (context) => const SyncPerformanceSettingsScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -148,7 +159,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const AppwriteSettingsScreen()),
+                  builder: (context) => const AppwriteSettingsScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -159,7 +171,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const SyncDebugLogsScreen()),
+                  builder: (context) => const SyncDebugLogsScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -170,7 +183,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const WhatsAppSettingsScreen()),
+                  builder: (context) => const WhatsAppSettingsScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -216,8 +230,11 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.dashboard,
-                    color: Theme.of(context).primaryColor, size: 28),
+                Icon(
+                  Icons.dashboard,
+                  color: Theme.of(context).primaryColor,
+                  size: 28,
+                ),
                 const SizedBox(width: 12),
                 const Text(
                   'إحصائيات سريعة',
@@ -241,7 +258,8 @@ class SettingsScreen extends ConsumerWidget {
                     'الحجوزات النشطة',
                     bookingsAsync.value
                             ?.where(
-                                (b) => StatusUtils.isActiveBooking(b.status))
+                              (b) => StatusUtils.isActiveBooking(b.status),
+                            )
                             .length
                             .toString() ??
                         '---',
@@ -274,7 +292,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildStatItem(
-      String title, String value, IconData icon, Color color) {
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 32),
@@ -339,11 +361,7 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    item.icon,
-                    size: 32,
-                    color: item.color,
-                  ),
+                  Icon(item.icon, size: 32, color: item.color),
                   const SizedBox(height: 12),
                   Text(
                     item.title,
@@ -356,10 +374,7 @@ class SettingsScreen extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     item.subtitle,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -435,8 +450,10 @@ class SettingsScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _infoRow('تسجيل Google Drive',
-                    backupState.isSignedIn ? 'متصل' : 'غير متصل'),
+                _infoRow(
+                  'تسجيل Google Drive',
+                  backupState.isSignedIn ? 'متصل' : 'غير متصل',
+                ),
                 const SizedBox(height: 6),
                 _infoRow('عدد النسخ الاحتياطية', '$totalBackups'),
                 const SizedBox(height: 6),
@@ -445,13 +462,16 @@ class SettingsScreen extends ConsumerWidget {
                 _infoRow('آخر نسخة محلية', lastLocal?.toString() ?? '—'),
                 const SizedBox(height: 6),
                 _infoRow(
-                    'حجم قاعدة البيانات',
-                    dbSize != null
-                        ? '${(dbSize / (1024 * 1024)).toStringAsFixed(2)} MB'
-                        : '—'),
+                  'حجم قاعدة البيانات',
+                  dbSize != null
+                      ? '${(dbSize / (1024 * 1024)).toStringAsFixed(2)} MB'
+                      : '—',
+                ),
                 const Divider(height: 16),
-                Text(backupState.message ?? '',
-                    style: const TextStyle(fontSize: 12)),
+                Text(
+                  backupState.message ?? '',
+                  style: const TextStyle(fontSize: 12),
+                ),
               ],
             ),
             actions: [
@@ -473,9 +493,7 @@ class SettingsScreen extends ConsumerWidget {
         applicationName: 'تطبيق إدارة الفندق',
         applicationVersion: '1.0.0',
         applicationLegalese: '© 2024 Marina Hotel',
-        children: const [
-          Text('تطبيق شامل لإدارة العمليات الفندقية'),
-        ],
+        children: const [Text('تطبيق شامل لإدارة العمليات الفندقية')],
       ),
     );
   }

@@ -130,12 +130,14 @@ class EnhancedConflictResolver {
   }
 
   ConflictResolution _handleConcurrentConflict(ConflictContext context) {
-    final timeDiff =
-        context.localTimestamp.difference(context.remoteTimestamp).abs();
+    final timeDiff = context.localTimestamp
+        .difference(context.remoteTimestamp)
+        .abs();
 
     if (timeDiff.inSeconds < 30) {
       debugPrint(
-          '🔀 تعارض متزامن (${timeDiff.inSeconds}s) - استخدام field-level merge');
+        '🔀 تعارض متزامن (${timeDiff.inSeconds}s) - استخدام field-level merge',
+      );
       return _fieldLevelMerge(context);
     }
 
@@ -201,7 +203,7 @@ class EnhancedConflictResolver {
       'created_at_epoch',
       'version',
       'origin',
-      'vector_clock'
+      'vector_clock',
     };
 
     for (final key in context.remoteData.keys) {
@@ -282,7 +284,7 @@ class EnhancedConflictResolver {
         'total_paid_cached',
         'remaining_balance_cached',
         'guest_name',
-        'is_fully_paid'
+        'is_fully_paid',
       },
       'payments': {
         'amount',
@@ -290,7 +292,7 @@ class EnhancedConflictResolver {
         'payment_method',
         'booking_uuid',
         'status',
-        'revenue_type'
+        'revenue_type',
       },
       'rooms': {
         'status',
@@ -299,7 +301,7 @@ class EnhancedConflictResolver {
         'floor',
         'type',
         'is_active',
-        'cleaning_status'
+        'cleaning_status',
       },
       'expenses': {
         'amount',
@@ -307,7 +309,7 @@ class EnhancedConflictResolver {
         'category',
         'description',
         'status',
-        'expense_type'
+        'expense_type',
       },
       'debts': {
         'amount',
@@ -316,7 +318,7 @@ class EnhancedConflictResolver {
         'paid_amount',
         'guest_name',
         'remaining_amount',
-        'is_settled'
+        'is_settled',
       },
       'employees': {
         'name',
@@ -325,34 +327,23 @@ class EnhancedConflictResolver {
         'role',
         'status',
         'is_active',
-        'basic_salary'
+        'basic_salary',
       },
-      'guests': {
-        'name',
-        'phone',
-        'id_number',
-        'nationality',
-        'is_blacklisted'
-      },
+      'guests': {'name', 'phone', 'id_number', 'nationality', 'is_blacklisted'},
       'cash_transactions': {
         'amount',
         'type',
         'date',
         'status',
-        'transaction_type'
+        'transaction_type',
       },
-      'shift_notes': {
-        'content',
-        'is_read',
-        'priority',
-        'status'
-      },
+      'shift_notes': {'content', 'is_read', 'priority', 'status'},
       'booking_notes': {
         'note',
         'is_alert',
         'alert_date',
         'status',
-        'note_text'
+        'note_text',
       },
     };
 

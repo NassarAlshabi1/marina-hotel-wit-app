@@ -71,7 +71,9 @@ class ConflictResolutionResult {
   });
 
   factory ConflictResolutionResult.selectLocal(
-      Map<String, dynamic> record, String reason) {
+    Map<String, dynamic> record,
+    String reason,
+  ) {
     return ConflictResolutionResult(
       resolved: true,
       selectedRecord: record,
@@ -80,7 +82,9 @@ class ConflictResolutionResult {
   }
 
   factory ConflictResolutionResult.selectRemote(
-      Map<String, dynamic> record, String reason) {
+    Map<String, dynamic> record,
+    String reason,
+  ) {
     return ConflictResolutionResult(
       resolved: true,
       selectedRecord: record,
@@ -129,7 +133,8 @@ class GoogleDriveConflictResolver {
 
   Future<ConflictResolutionStrategy> getStrategy() async {
     final prefs = await SharedPreferences.getInstance();
-    final strategyName = prefs.getString(_prefsStrategyKey) ??
+    final strategyName =
+        prefs.getString(_prefsStrategyKey) ??
         ConflictResolutionStrategy.newerWins.name;
 
     return ConflictResolutionStrategy.values.firstWhere(
@@ -169,15 +174,9 @@ class GoogleDriveConflictResolver {
     final conflicts = <ConflictDetails>[];
     final threshold = await getConflictThreshold();
 
-    final tables = tablesToCheck ??
-        [
-          'bookings',
-          'payments',
-          'expenses',
-          'rooms',
-          'debts',
-          'employees',
-        ];
+    final tables =
+        tablesToCheck ??
+        ['bookings', 'payments', 'expenses', 'rooms', 'debts', 'employees'];
 
     for (final tableName in tables) {
       final localRecords = _getRecordsMap(localData[tableName]);
@@ -210,20 +209,24 @@ class GoogleDriveConflictResolver {
             );
 
             conflicts.add(conflict);
-            _log('⚠️ Detected conflict: ${conflict.toString()}',
-                level: LogLevel.warning);
+            _log(
+              '⚠️ Detected conflict: ${conflict.toString()}',
+              level: LogLevel.warning,
+            );
           }
         }
       }
     }
 
     _log(
-        '🔍 Detected ${conflicts.length} conflicts across ${tables.length} tables');
+      '🔍 Detected ${conflicts.length} conflicts across ${tables.length} tables',
+    );
     return conflicts;
   }
 
   Future<ConflictResolutionResult> resolveConflict(
-      ConflictDetails conflict) async {
+    ConflictDetails conflict,
+  ) async {
     final strategy = await getStrategy();
 
     _log('🔧 Resolving conflict using strategy: ${strategy.name}');
@@ -282,7 +285,8 @@ class GoogleDriveConflictResolver {
   }
 
   Future<ConflictResolutionResult> _resolveByDevicePriority(
-      ConflictDetails conflict) async {
+    ConflictDetails conflict,
+  ) async {
     final localPriority = await getDevicePriority();
 
     if (conflict.isLocalNewer && conflict.timeDifference.inMinutes > 5) {
@@ -401,7 +405,9 @@ class GoogleDriveConflictResolver {
   }
 
   String? _findTableName(
-      Map<String, dynamic> record, Map<String, dynamic> data) {
+    Map<String, dynamic> record,
+    Map<String, dynamic> data,
+  ) {
     for (final entry in data.entries) {
       if (entry.value is List) {
         final list = entry.value as List;
@@ -416,7 +422,9 @@ class GoogleDriveConflictResolver {
   }
 
   Future<void> logConflictHistory(
-      ConflictDetails conflict, ConflictResolutionResult result) async {
+    ConflictDetails conflict,
+    ConflictResolutionResult result,
+  ) async {
     final historyEntry = {
       'timestamp': DateTime.now().toIso8601String(),
       'table': conflict.tableName,
@@ -440,8 +448,9 @@ class GoogleDriveConflictResolver {
     _log('📝 Logged conflict resolution: ${result.reason}');
   }
 
-  Future<List<Map<String, dynamic>>> getConflictHistory(
-      {int limit = 20}) async {
+  Future<List<Map<String, dynamic>>> getConflictHistory({
+    int limit = 20,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final history = prefs.getStringList('conflict_history') ?? [];
 

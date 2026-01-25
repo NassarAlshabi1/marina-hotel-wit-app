@@ -34,10 +34,7 @@ class _SyncHealthDashboardScreenState
           centerTitle: true,
           elevation: 0,
           actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _refreshAll,
-            ),
+            IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshAll),
           ],
         ),
         body: dashboardAsync.when(
@@ -97,7 +94,7 @@ class _SyncHealthDashboardScreenState
   }
 
   // ignore: unused_element
-String _getLocalizedErrorMessage(Object error) {
+  String _getLocalizedErrorMessage(Object error) {
     final errorStr = error.toString().toLowerCase();
     if (errorStr.contains('network') ||
         errorStr.contains('socket') ||
@@ -133,17 +130,17 @@ String _getLocalizedErrorMessage(Object error) {
             const SizedBox(height: 12),
             Text(
               'الحالة العامة',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.grey[700],
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: Colors.grey[700]),
             ),
             const SizedBox(height: 4),
             Text(
               statusText,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             StatusIndicator(status: status),
@@ -164,9 +161,9 @@ String _getLocalizedErrorMessage(Object error) {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           child: Text(
             'المقاييس الرئيسية',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
         GridView.count(
@@ -229,9 +226,9 @@ String _getLocalizedErrorMessage(Object error) {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           child: Text(
             'حالة Circuit Breakers',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
         Card(
@@ -239,10 +236,7 @@ String _getLocalizedErrorMessage(Object error) {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: circuitStates.entries.map((entry) {
-                return CircuitBreakerCard(
-                  name: entry.key,
-                  state: entry.value,
-                );
+                return CircuitBreakerCard(name: entry.key, state: entry.value);
               }).toList(),
             ),
           ),
@@ -261,9 +255,9 @@ String _getLocalizedErrorMessage(Object error) {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           child: Text(
             'حالة طابور المزامنة',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
         Card(
@@ -271,34 +265,47 @@ String _getLocalizedErrorMessage(Object error) {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                _buildQueueRow('إجمالي العناصر',
-                    queueStats.totalItems.toString(), Icons.list),
+                _buildQueueRow(
+                  'إجمالي العناصر',
+                  queueStats.totalItems.toString(),
+                  Icons.list,
+                ),
                 const Divider(),
                 _buildQueueRow(
-                    'في الانتظار',
-                    queueStats.pendingItems.toString(),
-                    Icons.pending,
-                    Colors.orange),
+                  'في الانتظار',
+                  queueStats.pendingItems.toString(),
+                  Icons.pending,
+                  Colors.orange,
+                ),
                 const Divider(),
                 _buildQueueRow(
-                    'جاهز للمحاولة',
-                    queueStats.retriableItems.toString(),
-                    Icons.refresh,
-                    Colors.blue),
+                  'جاهز للمحاولة',
+                  queueStats.retriableItems.toString(),
+                  Icons.refresh,
+                  Colors.blue,
+                ),
                 const Divider(),
-                _buildQueueRow('فاشل', queueStats.failedItems.toString(),
-                    Icons.error, Colors.red),
+                _buildQueueRow(
+                  'فاشل',
+                  queueStats.failedItems.toString(),
+                  Icons.error,
+                  Colors.red,
+                ),
                 if (queueStats.oldestItem != null) ...[
                   const Divider(),
                   _buildQueueRow(
-                      'أقدم عنصر',
-                      _formatDateTime(queueStats.oldestItem!),
-                      Icons.calendar_today),
+                    'أقدم عنصر',
+                    _formatDateTime(queueStats.oldestItem!),
+                    Icons.calendar_today,
+                  ),
                 ],
                 if (queueStats.lastProcessed != null) ...[
                   const Divider(),
-                  _buildQueueRow('آخر معالجة',
-                      _formatDateTime(queueStats.lastProcessed!), Icons.update),
+                  _buildQueueRow(
+                    'آخر معالجة',
+                    _formatDateTime(queueStats.lastProcessed!),
+                    Icons.update,
+                  ),
                 ],
               ],
             ),
@@ -308,8 +315,12 @@ String _getLocalizedErrorMessage(Object error) {
     );
   }
 
-  Widget _buildQueueRow(String label, String value, IconData icon,
-      [Color? color]) {
+  Widget _buildQueueRow(
+    String label,
+    String value,
+    IconData icon, [
+    Color? color,
+  ]) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -351,9 +362,9 @@ String _getLocalizedErrorMessage(Object error) {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           child: Text(
             'التوصيات',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
         Card(
@@ -377,29 +388,31 @@ String _getLocalizedErrorMessage(Object error) {
                   ],
                 ),
                 const SizedBox(height: 12),
-                ...recommendations.map((recommendation) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.arrow_left,
-                            size: 20,
-                            color: Colors.orange.shade700,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              recommendation,
-                              style: TextStyle(
-                                color: Colors.orange.shade900,
-                                fontSize: 13,
-                              ),
+                ...recommendations.map(
+                  (recommendation) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.arrow_left,
+                          size: 20,
+                          color: Colors.orange.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            recommendation,
+                            style: TextStyle(
+                              color: Colors.orange.shade900,
+                              fontSize: 13,
                             ),
                           ),
-                        ],
-                      ),
-                    )),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -481,7 +494,7 @@ String _getLocalizedErrorMessage(Object error) {
 
   Widget _buildIntegrityReportCard(SyncDashboardData dashboard) {
     final report = dashboard.integrityReport;
-    
+
     if (report == null) {
       return const SizedBox.shrink();
     }
@@ -505,9 +518,9 @@ String _getLocalizedErrorMessage(Object error) {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           child: Text(
             'فحص سلامة البيانات',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
         Card(
@@ -588,7 +601,9 @@ String _getLocalizedErrorMessage(Object error) {
                             Text(typeLabel),
                             Text(
                               entry.value.toString(),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -600,10 +615,7 @@ String _getLocalizedErrorMessage(Object error) {
                   const Divider(height: 24),
                   Text(
                     'جميع الفحوصات نجحت ✓',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
                 ],
               ],
@@ -615,23 +627,21 @@ String _getLocalizedErrorMessage(Object error) {
   }
 
   Widget _buildIntegrityMetricsRow(
-      String label, String value, IconData icon, Color color) {
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Row(
       children: [
         Icon(icon, size: 20, color: color),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            label,
-            style: TextStyle(color: Colors.grey[700]),
-          ),
+          child: Text(label, style: TextStyle(color: Colors.grey[700])),
         ),
         Text(
           value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: color),
         ),
       ],
     );
@@ -689,10 +699,7 @@ class MetricCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey[700],
-              ),
+              style: TextStyle(fontSize: 11, color: Colors.grey[700]),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -707,10 +714,7 @@ class MetricCard extends StatelessWidget {
 class StatusIndicator extends StatelessWidget {
   final SyncHealthStatus status;
 
-  const StatusIndicator({
-    super.key,
-    required this.status,
-  });
+  const StatusIndicator({super.key, required this.status});
 
   Color get color {
     switch (status) {
@@ -740,18 +744,12 @@ class StatusIndicator extends StatelessWidget {
           Container(
             width: 12,
             height: 12,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 8),
           Text(
             _getStatusLabel(),
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: color, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -815,10 +813,7 @@ class CircuitBreakerCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   statusText,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
               ],
             ),

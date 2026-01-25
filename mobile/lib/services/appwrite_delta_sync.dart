@@ -43,13 +43,17 @@ class AppwriteDeltaSync {
   static const deltaSyncCollectionId = 'delta_sync_records';
 
   Future<void> initialize(
-      AppwriteService appwriteService, AppDatabase db) async {
+    AppwriteService appwriteService,
+    AppDatabase db,
+  ) async {
     _appwriteService = appwriteService;
     _database = db;
     _deltaSyncService = DeltaSyncService(db);
     await _initializeDeviceId();
-    _logger.info('تم تهيئة خدمة المزامنة التفاضلية لـ Appwrite',
-        tag: 'DELTA_SYNC');
+    _logger.info(
+      'تم تهيئة خدمة المزامنة التفاضلية لـ Appwrite',
+      tag: 'DELTA_SYNC',
+    );
   }
 
   Future<void> _initializeDeviceId() async {
@@ -93,8 +97,10 @@ class AppwriteDeltaSync {
     }
 
     try {
-      _logger.info('📤 بدء المزامنة التفاضلية إلى Appwrite...',
-          tag: 'DELTA_SYNC');
+      _logger.info(
+        '📤 بدء المزامنة التفاضلية إلى Appwrite...',
+        tag: 'DELTA_SYNC',
+      );
 
       final lastSyncTs = await _getLastDeltaSyncTimestamp();
       final computation = await _deltaSyncService!.compute(since: lastSyncTs);
@@ -118,8 +124,9 @@ class AppwriteDeltaSync {
         } catch (e) {
           failedChanges.add(change);
           _logger.warning(
-              'فشل رفع تغيير: ${change.entity}/${change.localUuid} - $e',
-              tag: 'DELTA_SYNC');
+            'فشل رفع تغيير: ${change.entity}/${change.localUuid} - $e',
+            tag: 'DELTA_SYNC',
+          );
         }
       }
 
@@ -246,16 +253,21 @@ class AppwriteDeltaSync {
       };
 
       for (final entry in entitiesToPull.entries) {
-        pulledCount +=
-            await _pullEntityChanges(entry.key, entry.value, lastPullTs);
+        pulledCount += await _pullEntityChanges(
+          entry.key,
+          entry.value,
+          lastPullTs,
+        );
       }
 
       if (pulledCount > 0) {
         await _updateLastDeltaSyncTimestamp();
       }
 
-      _logger.info('✅ تم سحب $pulledCount تغيير من Appwrite',
-          tag: 'DELTA_SYNC');
+      _logger.info(
+        '✅ تم سحب $pulledCount تغيير من Appwrite',
+        tag: 'DELTA_SYNC',
+      );
 
       return AppwriteDeltaSyncResult(
         success: true,
@@ -273,7 +285,10 @@ class AppwriteDeltaSync {
   }
 
   Future<int> _pullEntityChanges(
-      String entity, String collectionId, int lastPullTs) async {
+    String entity,
+    String collectionId,
+    int lastPullTs,
+  ) async {
     try {
       final documents = await _appwriteService!.listDocuments(
         collectionId: collectionId,
@@ -294,8 +309,10 @@ class AppwriteDeltaSync {
           await _applyRemoteChange(entity, doc.$id, data);
           applied++;
         } catch (e) {
-          _logger.warning('فشل تطبيق تغيير: $entity/${doc.$id} - $e',
-              tag: 'DELTA_SYNC');
+          _logger.warning(
+            'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
+            tag: 'DELTA_SYNC',
+          );
         }
       }
 
@@ -307,7 +324,10 @@ class AppwriteDeltaSync {
   }
 
   Future<void> _applyRemoteChange(
-      String entity, String documentId, Map<String, dynamic> data) async {
+    String entity,
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     final db = _database!;
 
     switch (entity) {
@@ -333,7 +353,10 @@ class AppwriteDeltaSync {
   }
 
   Future<void> _applyRoomChange(
-      AppDatabase db, String localUuid, Map<String, dynamic> data) async {
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
     final roomNumber = _asString(data['roomNumber']);
     if (roomNumber == null || roomNumber.isEmpty) return;
 
@@ -356,27 +379,30 @@ class AppwriteDeltaSync {
       origin: d.Value('appwrite_delta'),
     );
 
-    final existingByUuid = await (db.select(db.rooms)
-          ..where((t) => t.localUuid.equals(localUuid))
-          ..limit(1))
-        .getSingleOrNull();
+    final existingByUuid =
+        await (db.select(db.rooms)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
 
     if (existingByUuid != null) {
-      await (db.update(db.rooms)..where((t) => t.localUuid.equals(localUuid)))
-          .write(companion);
+      await (db.update(
+        db.rooms,
+      )..where((t) => t.localUuid.equals(localUuid))).write(companion);
       return;
     }
 
-    final existingByNumber = await (db.select(db.rooms)
-          ..where((t) => t.roomNumber.equals(roomNumber))
-          ..limit(1))
-        .getSingleOrNull();
+    final existingByNumber =
+        await (db.select(db.rooms)
+              ..where((t) => t.roomNumber.equals(roomNumber))
+              ..limit(1))
+            .getSingleOrNull();
 
     if (existingByNumber != null) {
       if (incomingLastModified >= existingByNumber.lastModified) {
-        await (db.update(db.rooms)
-              ..where((t) => t.roomNumber.equals(roomNumber)))
-            .write(companion);
+        await (db.update(
+          db.rooms,
+        )..where((t) => t.roomNumber.equals(roomNumber))).write(companion);
       }
       return;
     }
@@ -385,7 +411,10 @@ class AppwriteDeltaSync {
   }
 
   Future<void> _applyBookingChange(
-      AppDatabase db, String localUuid, Map<String, dynamic> data) async {
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
     final roomNumber = _asString(data['roomNumber']);
     if (roomNumber == null || roomNumber.isEmpty) return;
 
@@ -404,10 +433,12 @@ class AppwriteDeltaSync {
       guestPhone: d.Value(_asString(data['guestPhone']) ?? ''),
       guestIdType: d.Value(_asString(data['guestIdType']) ?? ''),
       guestIdNumber: d.Value(_asString(data['guestIdNumber']) ?? ''),
-      guestIdIssueDate:
-          _nullableValue<String>(_asString(data['guestIdIssueDate'])),
-      guestIdIssuePlace:
-          _nullableValue<String>(_asString(data['guestIdIssuePlace'])),
+      guestIdIssueDate: _nullableValue<String>(
+        _asString(data['guestIdIssueDate']),
+      ),
+      guestIdIssuePlace: _nullableValue<String>(
+        _asString(data['guestIdIssuePlace']),
+      ),
       guestNationality: d.Value(_asString(data['guestNationality']) ?? ''),
       guestEmail: _nullableValue<String>(_asString(data['guestEmail'])),
       guestAddress: _nullableValue<String>(_asString(data['guestAddress'])),
@@ -424,7 +455,10 @@ class AppwriteDeltaSync {
   }
 
   Future<void> _applyPaymentChange(
-      AppDatabase db, String localUuid, Map<String, dynamic> data) async {
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
     final companion = PaymentsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
@@ -443,19 +477,25 @@ class AppwriteDeltaSync {
       notes: _nullableValue<String>(_asString(data['notes'])),
       paymentMethod: d.Value(_asString(data['paymentMethod']) ?? ''),
       revenueType: d.Value(_asString(data['revenueType']) ?? ''),
-      cashTransactionLocalId:
-          _nullableValue<int>(_asInt(data['cashTransactionLocalId'])),
-      cashTransactionServerId:
-          _nullableValue<int>(_asInt(data['cashTransactionServerId'])),
-      referenceNumber:
-          _nullableValue<String>(_asString(data['referenceNumber'])),
+      cashTransactionLocalId: _nullableValue<int>(
+        _asInt(data['cashTransactionLocalId']),
+      ),
+      cashTransactionServerId: _nullableValue<int>(
+        _asInt(data['cashTransactionServerId']),
+      ),
+      referenceNumber: _nullableValue<String>(
+        _asString(data['referenceNumber']),
+      ),
     );
 
     await db.into(db.payments).insertOnConflictUpdate(companion);
   }
 
   Future<void> _applyExpenseChange(
-      AppDatabase db, String localUuid, Map<String, dynamic> data) async {
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
     final expenseType = _asString(data['expenseType']);
     if (expenseType == null || expenseType.isEmpty) return;
 
@@ -480,7 +520,10 @@ class AppwriteDeltaSync {
   }
 
   Future<void> _applyDebtChange(
-      AppDatabase db, String localUuid, Map<String, dynamic> data) async {
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
     final guestName =
         _asString(data['guestName']) ?? _asString(data['debtorName']);
     if (guestName == null || guestName.isEmpty) return;
@@ -505,7 +548,8 @@ class AppwriteDeltaSync {
       remainingAmount: d.Value(_asDouble(data['remainingAmount'])),
       paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
       isSettled: d.Value(
-          _asInt(data['isSettled']) ?? (data['status'] == 'settled' ? 1 : 0)),
+        _asInt(data['isSettled']) ?? (data['status'] == 'settled' ? 1 : 0),
+      ),
       pledge: _nullableValue<String>(_asString(data['pledge'])),
       pledgeType: _nullableValue<String>(_asString(data['pledgeType'])),
       note: _nullableValue<String>(_asString(data['note'])),
@@ -515,7 +559,10 @@ class AppwriteDeltaSync {
   }
 
   Future<void> _applyEmployeeChange(
-      AppDatabase db, String localUuid, Map<String, dynamic> data) async {
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
     final name = _asString(data['name']);
     if (name == null || name.isEmpty) return;
 
@@ -607,8 +654,9 @@ class AppwriteDeltaSync {
       'device_id': _deviceId,
       'last_sync_epoch': lastSync,
       'last_sync_time': lastSync > 0
-          ? DateTime.fromMillisecondsSinceEpoch(lastSync * 1000)
-              .toIso8601String()
+          ? DateTime.fromMillisecondsSinceEpoch(
+              lastSync * 1000,
+            ).toIso8601String()
           : null,
     };
   }

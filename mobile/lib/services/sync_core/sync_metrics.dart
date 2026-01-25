@@ -24,23 +24,22 @@ class SyncSession {
   Duration get duration => (endTime ?? DateTime.now()).difference(startTime);
 
   Map<String, dynamic> toJson() => {
-        'startTime': startTime.toIso8601String(),
-        'endTime': endTime?.toIso8601String(),
-        'success': success,
-        'error': error,
-        'recordsSynced': recordsSynced,
-        'conflictsResolved': conflictsResolved,
-      };
+    'startTime': startTime.toIso8601String(),
+    'endTime': endTime?.toIso8601String(),
+    'success': success,
+    'error': error,
+    'recordsSynced': recordsSynced,
+    'conflictsResolved': conflictsResolved,
+  };
 
   factory SyncSession.fromJson(Map<String, dynamic> json) => SyncSession(
-        startTime: DateTime.parse(json['startTime']),
-        endTime:
-            json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
-        success: json['success'] ?? false,
-        error: json['error'],
-        recordsSynced: json['recordsSynced'] ?? 0,
-        conflictsResolved: json['conflictsResolved'] ?? 0,
-      );
+    startTime: DateTime.parse(json['startTime']),
+    endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
+    success: json['success'] ?? false,
+    error: json['error'],
+    recordsSynced: json['recordsSynced'] ?? 0,
+    conflictsResolved: json['conflictsResolved'] ?? 0,
+  );
 }
 
 /// إحصائيات المزامنة
@@ -132,8 +131,10 @@ class SyncMetrics {
     _addToHistory(session);
     _updateStats();
 
-    debugPrint('✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
-        'السجلات: $recordsSynced، التضارب: $conflictsResolved');
+    debugPrint(
+      '✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
+      'السجلات: $recordsSynced، التضارب: $conflictsResolved',
+    );
   }
 
   /// تسجيل فشل المزامنة
@@ -151,7 +152,8 @@ class SyncMetrics {
     _updateStats();
 
     debugPrint(
-        '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error');
+      '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error',
+    );
   }
 
   /// إضافة إلى السجل
@@ -202,8 +204,10 @@ class SyncMetrics {
       averageDuration: avgDuration,
       successRate: successful.length / _history.length,
       totalRecordsSynced: _history.fold(0, (sum, s) => sum + s.recordsSynced),
-      totalConflictsResolved:
-          _history.fold(0, (sum, s) => sum + s.conflictsResolved),
+      totalConflictsResolved: _history.fold(
+        0,
+        (sum, s) => sum + s.conflictsResolved,
+      ),
       lastSync: _history.last,
     );
   }

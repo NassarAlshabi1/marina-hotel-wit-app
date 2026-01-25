@@ -178,13 +178,15 @@ class EnhancedPdfHelper {
     required String generatedBy,
   }) async {
     final reportItems = expenses
-        .map((expense) => ExpenseReportItem(
-              description: expense.description,
-              category: expense.expenseType,
-              amount: expense.amount,
-              date: DateTime.parse(expense.date),
-              notes: null,
-            ))
+        .map(
+          (expense) => ExpenseReportItem(
+            description: expense.description,
+            category: expense.expenseType,
+            amount: expense.amount,
+            date: DateTime.parse(expense.date),
+            notes: null,
+          ),
+        )
         .toList();
 
     final report = EnhancedExpensesReport(
@@ -216,17 +218,15 @@ class EnhancedPdfHelper {
     final totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
     final netProfit = totalRevenue - totalExpenses;
     final totalBookings = bookings.length;
-    final checkedInGuests =
-        bookings.where((b) => b.status == 'checked_in').length;
+    final checkedInGuests = bookings
+        .where((b) => b.status == 'checked_in')
+        .length;
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(
-          base: fonts.regular,
-          bold: fonts.bold,
-        ),
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         header: (context) => pw.Column(
           children: [
             EnhancedPdfUtils.buildProfessionalHeader(
@@ -335,32 +335,43 @@ class EnhancedPdfHelper {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('إجمالي الحجوزات:',
-                      style: PdfTextStyles.bodyBold(fonts.bold)),
-                  pw.Text('$totalBookings حجز',
-                      style: PdfTextStyles.body(fonts.regular)),
+                  pw.Text(
+                    'إجمالي الحجوزات:',
+                    style: PdfTextStyles.bodyBold(fonts.bold),
+                  ),
+                  pw.Text(
+                    '$totalBookings حجز',
+                    style: PdfTextStyles.body(fonts.regular),
+                  ),
                 ],
               ),
               pw.SizedBox(height: 6),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('النزلاء الحاليون:',
-                      style: PdfTextStyles.bodyBold(fonts.bold)),
-                  pw.Text('$checkedInGuests نزيل',
-                      style: PdfTextStyles.body(fonts.regular)),
+                  pw.Text(
+                    'النزلاء الحاليون:',
+                    style: PdfTextStyles.bodyBold(fonts.bold),
+                  ),
+                  pw.Text(
+                    '$checkedInGuests نزيل',
+                    style: PdfTextStyles.body(fonts.regular),
+                  ),
                 ],
               ),
               pw.SizedBox(height: 6),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('متوسط الإيراد لكل حجز:',
-                      style: PdfTextStyles.bodyBold(fonts.bold)),
+                  pw.Text(
+                    'متوسط الإيراد لكل حجز:',
+                    style: PdfTextStyles.bodyBold(fonts.bold),
+                  ),
                   pw.Text(
                     totalBookings > 0
                         ? EnhancedPdfUtils.formatCurrency(
-                            totalRevenue / totalBookings)
+                            totalRevenue / totalBookings,
+                          )
                         : '0',
                     style: PdfTextStyles.body(fonts.regular),
                   ),

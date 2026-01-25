@@ -13,11 +13,12 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
   RoomsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<Room>> list(
-      {String? search,
-      bool includeDeleted = false,
-      int? limit,
-      int? offset}) async {
+  Future<List<Room>> list({
+    String? search,
+    bool includeDeleted = false,
+    int? limit,
+    int? offset,
+  }) async {
     final q = select(rooms);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (search != null && search.trim().isNotEmpty) {
@@ -42,15 +43,17 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
       (select(rooms)..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<Room?> watchById(int id) =>
       (select(rooms)..where((t) => t.id.equals(id))).watchSingleOrNull();
-  Future<Room?> getByNumber(String roomNumber) =>
-      (select(rooms)..where((t) => t.roomNumber.equals(roomNumber)))
-          .getSingleOrNull();
-  Stream<Room?> watchByNumber(String roomNumber) =>
-      (select(rooms)..where((t) => t.roomNumber.equals(roomNumber)))
-          .watchSingleOrNull();
+  Future<Room?> getByNumber(String roomNumber) => (select(
+    rooms,
+  )..where((t) => t.roomNumber.equals(roomNumber))).getSingleOrNull();
+  Stream<Room?> watchByNumber(String roomNumber) => (select(
+    rooms,
+  )..where((t) => t.roomNumber.equals(roomNumber))).watchSingleOrNull();
 
-  Future<String> insertOne(RoomsCompanion data,
-      {bool originIsServer = false}) async {
+  Future<String> insertOne(
+    RoomsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -76,68 +79,84 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateById(int id, RoomsCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> updateById(
+    int id,
+    RoomsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final comp =
-          data.copyWith(updatedAt: Value(now), lastModified: Value(now));
-      final rows =
-          await (update(rooms)..where((t) => t.id.equals(id))).write(comp);
-      if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'rooms',
-          op: 'update',
-          localUuid: existing.localUuid,
-          serverId: existing.serverId,
-          payload: _payloadFromRoom(comp, base: existing),
-          clientTs: now,
-        );
-      }
-      return rows;
-    });
-  }
-
-  Future<int> updateByNumber(String roomNumber, RoomsCompanion data,
-      {bool originIsServer = false}) async {
-    return db.transaction(() async {
-      final now = Time.nowEpoch();
-      final existing = await getByNumber(roomNumber);
-      if (existing == null) return 0;
-      final comp =
-          data.copyWith(updatedAt: Value(now), lastModified: Value(now));
-      final rows = await (update(rooms)
-            ..where((t) => t.roomNumber.equals(roomNumber)))
-          .write(comp);
-      if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'rooms',
-          op: 'update',
-          localUuid: existing.localUuid,
-          serverId: existing.serverId,
-          payload: _payloadFromRoom(comp, base: existing),
-          clientTs: now,
-        );
-      }
-      return rows;
-    });
-  }
-
-  Future<int> softDelete(String roomNumber,
-      {bool originIsServer = false}) async {
-    return db.transaction(() async {
-      final now = Time.nowEpoch();
-      final existing = await getByNumber(roomNumber);
-      if (existing == null) return 0;
-      final rows = await (update(rooms)
-            ..where((t) => t.roomNumber.equals(roomNumber)))
-          .write(RoomsCompanion(
-        deletedAt: Value(now),
+      final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
-      ));
+      );
+      final rows = await (update(
+        rooms,
+      )..where((t) => t.id.equals(id))).write(comp);
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'rooms',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: _payloadFromRoom(comp, base: existing),
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
+  }
+
+  Future<int> updateByNumber(
+    String roomNumber,
+    RoomsCompanion data, {
+    bool originIsServer = false,
+  }) async {
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getByNumber(roomNumber);
+      if (existing == null) return 0;
+      final comp = data.copyWith(
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      );
+      final rows = await (update(
+        rooms,
+      )..where((t) => t.roomNumber.equals(roomNumber))).write(comp);
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'rooms',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: _payloadFromRoom(comp, base: existing),
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
+  }
+
+  Future<int> softDelete(
+    String roomNumber, {
+    bool originIsServer = false,
+  }) async {
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getByNumber(roomNumber);
+      if (existing == null) return 0;
+      final rows =
+          await (update(
+            rooms,
+          )..where((t) => t.roomNumber.equals(roomNumber))).write(
+            RoomsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'rooms',
@@ -171,29 +190,33 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد الغرف من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data,
-      {bool clearExisting = false}) async {
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
     if (clearExisting) {
       await delete(rooms).go();
     }
 
     for (final roomJson in data) {
       final room = Room.fromJson(roomJson);
-      await into(rooms).insertOnConflictUpdate(RoomsCompanion(
-        roomNumber: Value(room.roomNumber),
-        type: Value(room.type),
-        price: Value(room.price),
-        status: Value(room.status),
-        imageUrl: Value(room.imageUrl),
-        localUuid: Value(room.localUuid),
-        serverId: Value(room.serverId),
-        createdAt: Value(room.createdAt),
-        updatedAt: Value(room.updatedAt),
-        deletedAt: Value(room.deletedAt),
-        lastModified: Value(room.lastModified),
-        version: Value(room.version),
-        origin: Value(room.origin),
-      ));
+      await into(rooms).insertOnConflictUpdate(
+        RoomsCompanion(
+          roomNumber: Value(room.roomNumber),
+          type: Value(room.type),
+          price: Value(room.price),
+          status: Value(room.status),
+          imageUrl: Value(room.imageUrl),
+          localUuid: Value(room.localUuid),
+          serverId: Value(room.serverId),
+          createdAt: Value(room.createdAt),
+          updatedAt: Value(room.updatedAt),
+          deletedAt: Value(room.deletedAt),
+          lastModified: Value(room.lastModified),
+          version: Value(room.version),
+          origin: Value(room.origin),
+        ),
+      );
     }
   }
 
@@ -221,4 +244,3 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
   @override
   GeneratedColumn<int> get optimisticVersion => rooms.version;
 }
-

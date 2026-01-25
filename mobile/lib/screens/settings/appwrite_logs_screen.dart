@@ -108,28 +108,35 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                     children: [
                       _buildFilterChip('الكل', null, filteredLogs.length),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Debug', LogLevel.debug,
-                          logs.where((l) => l.level == LogLevel.debug).length),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Info', LogLevel.info,
-                          logs.where((l) => l.level == LogLevel.info).length),
+                      _buildFilterChip(
+                        'Debug',
+                        LogLevel.debug,
+                        logs.where((l) => l.level == LogLevel.debug).length,
+                      ),
                       const SizedBox(width: 8),
                       _buildFilterChip(
-                          'Warning',
-                          LogLevel.warning,
-                          logs
-                              .where((l) => l.level == LogLevel.warning)
-                              .length),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Error', LogLevel.error,
-                          logs.where((l) => l.level == LogLevel.error).length),
+                        'Info',
+                        LogLevel.info,
+                        logs.where((l) => l.level == LogLevel.info).length,
+                      ),
                       const SizedBox(width: 8),
                       _buildFilterChip(
-                          'Critical',
-                          LogLevel.critical,
-                          logs
-                              .where((l) => l.level == LogLevel.critical)
-                              .length),
+                        'Warning',
+                        LogLevel.warning,
+                        logs.where((l) => l.level == LogLevel.warning).length,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        'Error',
+                        LogLevel.error,
+                        logs.where((l) => l.level == LogLevel.error).length,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        'Critical',
+                        LogLevel.critical,
+                        logs.where((l) => l.level == LogLevel.critical).length,
+                      ),
                     ],
                   ),
                 ),
@@ -144,8 +151,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.article_outlined,
-                            size: 64, color: Colors.grey),
+                        Icon(
+                          Icons.article_outlined,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
                         SizedBox(height: 16),
                         Text(
                           'لا توجد سجلات',
@@ -160,8 +170,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                     separatorBuilder: (context, index) =>
                         const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      final log = filteredLogs[
-                          filteredLogs.length - 1 - index]; // عكس الترتيب
+                      final log =
+                          filteredLogs[filteredLogs.length -
+                              1 -
+                              index]; // عكس الترتيب
                       return _buildLogEntry(log);
                     },
                   ),
@@ -239,8 +251,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
               if (log.tag.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(4),
@@ -264,8 +278,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline,
-                          color: Colors.red.shade700, size: 16),
+                      Icon(
+                        Icons.error_outline,
+                        color: Colors.red.shade700,
+                        size: 16,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -348,8 +365,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(_getIconForLevel(log.level),
-                color: _getColorForLevel(log.level)),
+            Icon(
+              _getIconForLevel(log.level),
+              color: _getColorForLevel(log.level),
+            ),
             const SizedBox(width: 8),
             Text(log.level.name.toUpperCase()),
           ],
@@ -359,8 +378,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow('الوقت',
-                  DateFormat('yyyy-MM-dd HH:mm:ss').format(log.timestamp)),
+              _buildDetailRow(
+                'الوقت',
+                DateFormat('yyyy-MM-dd HH:mm:ss').format(log.timestamp),
+              ),
               _buildDetailRow('Tag', log.tag),
               const SizedBox(height: 12),
               const Text(
@@ -373,8 +394,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                 const SizedBox(height: 12),
                 const Text(
                   'الخطأ:',
-                  style:
-                      TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Container(
@@ -404,8 +427,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                   ),
                   child: Text(
                     log.stackTrace.toString(),
-                    style:
-                        const TextStyle(fontSize: 10, fontFamily: 'monospace'),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontFamily: 'monospace',
+                    ),
                   ),
                 ),
               ],
@@ -413,10 +438,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => _copyLog(log),
-            child: const Text('نسخ'),
-          ),
+          TextButton(onPressed: () => _copyLog(log), child: const Text('نسخ')),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
@@ -436,12 +458,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
             '$label: ',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 12))),
         ],
       ),
     );
@@ -449,9 +466,9 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
 
   void _copyLog(LogEntry log) {
     Clipboard.setData(ClipboardData(text: log.toFormattedString()));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم نسخ السجل إلى الحافظة')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم نسخ السجل إلى الحافظة')));
   }
 
   Future<void> _exportLogs() async {
@@ -459,17 +476,17 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
     final file = await logger.exportLogs();
 
     if (file != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم التصدير إلى: ${file.path}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('تم التصدير إلى: ${file.path}')));
     }
   }
 
   Future<void> _shareLogs(List<LogEntry> logs) async {
     if (logs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا توجد سجلات للمشاركة')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا توجد سجلات للمشاركة')));
       return;
     }
 
@@ -477,7 +494,8 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
     buffer.writeln('Appwrite Logs Export');
     buffer.writeln('═' * 50);
     buffer.writeln(
-        'Generated: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}');
+      'Generated: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}',
+    );
     buffer.writeln('Total Logs: ${logs.length}');
     buffer.writeln('═' * 50);
     buffer.writeln();
@@ -518,9 +536,9 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       ref.read(appwriteLoggerProvider).clearLogs();
       setState(() {});
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم مسح السجلات')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
       }
     }
   }

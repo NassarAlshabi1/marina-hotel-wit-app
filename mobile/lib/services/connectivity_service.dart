@@ -2,15 +2,7 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
-enum ConnectionType {
-  none,
-  wifi,
-  mobile,
-  ethernet,
-  vpn,
-  bluetooth,
-  other,
-}
+enum ConnectionType { none, wifi, mobile, ethernet, vpn, bluetooth, other }
 
 class ConnectionStatus {
   final bool isOnline;
@@ -24,13 +16,14 @@ class ConnectionStatus {
   });
 
   factory ConnectionStatus.offline() => ConnectionStatus(
-        isOnline: false,
-        type: ConnectionType.none,
-        timestamp: DateTime.now(),
-      );
+    isOnline: false,
+    type: ConnectionType.none,
+    timestamp: DateTime.now(),
+  );
 
   factory ConnectionStatus.fromConnectivityResult(
-      List<ConnectivityResult> results) {
+    List<ConnectivityResult> results,
+  ) {
     final isOnline = results.any((r) => r != ConnectivityResult.none);
     ConnectionType type = ConnectionType.none;
 

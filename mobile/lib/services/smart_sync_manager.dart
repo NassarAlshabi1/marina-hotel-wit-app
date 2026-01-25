@@ -92,7 +92,8 @@ class SmartSyncManager {
           deviceIdentifier = androidInfo.id;
         } else if (Platform.isIOS) {
           final iosInfo = await deviceInfo.iosInfo;
-          deviceIdentifier = iosInfo.identifierForVendor ??
+          deviceIdentifier =
+              iosInfo.identifierForVendor ??
               'ios-${DateTime.now().millisecondsSinceEpoch}';
         }
       } catch (e) {
@@ -197,7 +198,8 @@ class SmartSyncManager {
 
     _log('🔔 تغيرت حالة تسجيل الدخول Google Drive: $isSignedIn');
     _log(
-        '🔍 Debug: _backupService?.isSignedIn = ${_backupService?.isSignedIn}');
+      '🔍 Debug: _backupService?.isSignedIn = ${_backupService?.isSignedIn}',
+    );
     _log('🔍 Debug: _isEnabled = $_isEnabled');
 
     _isLoggedIn = isSignedIn;
@@ -392,21 +394,25 @@ class SmartSyncManager {
           final remoteTimestamp = remoteRecord['last_modified'] as int?;
 
           if (localTimestamp != null && remoteTimestamp != null) {
-            final localTime =
-                DateTime.fromMillisecondsSinceEpoch(localTimestamp);
-            final remoteTime =
-                DateTime.fromMillisecondsSinceEpoch(remoteTimestamp);
+            final localTime = DateTime.fromMillisecondsSinceEpoch(
+              localTimestamp,
+            );
+            final remoteTime = DateTime.fromMillisecondsSinceEpoch(
+              remoteTimestamp,
+            );
 
             // فرق أكثر من 30 ثانية يعتبر تضارب
             if ((localTime.difference(remoteTime).inSeconds).abs() > 30) {
-              conflicts.add(DataConflict(
-                tableName: tableName,
-                recordId: uuid,
-                localRecord: localRecord,
-                remoteRecord: remoteRecord,
-                localTimestamp: localTime,
-                remoteTimestamp: remoteTime,
-              ));
+              conflicts.add(
+                DataConflict(
+                  tableName: tableName,
+                  recordId: uuid,
+                  localRecord: localRecord,
+                  remoteRecord: remoteRecord,
+                  localTimestamp: localTime,
+                  remoteTimestamp: remoteTime,
+                ),
+              );
             }
           }
         }
@@ -426,21 +432,27 @@ class SmartSyncManager {
     for (final conflict in conflicts) {
       if (conflict.remoteTimestamp.isAfter(conflict.localTimestamp)) {
         _log(
-            '📥 استبدال ${conflict.tableName}/${conflict.recordId} بالنسخة الأحدث');
+          '📥 استبدال ${conflict.tableName}/${conflict.recordId} بالنسخة الأحدث',
+        );
         // النسخة البعيدة أحدث، سيتم استيرادها
       } else {
         _log(
-            '📱 الاحتفاظ بالنسخة المحلية لـ ${conflict.tableName}/${conflict.recordId}');
+          '📱 الاحتفاظ بالنسخة المحلية لـ ${conflict.tableName}/${conflict.recordId}',
+        );
         // إزالة السجل من بيانات النسخ الاحتياطي ليتم تجاهله
         await _removeRecordFromBackupData(
-            backupData, conflict.tableName, conflict.recordId);
+          backupData,
+          conflict.tableName,
+          conflict.recordId,
+        );
       }
     }
   }
 
   /// التحقق من وجود ملاحظات إدارية جديدة وإرسال إشعارات
   Future<void> _checkForNewNotesAndNotify(
-      Map<String, dynamic> backupData) async {
+    Map<String, dynamic> backupData,
+  ) async {
     try {
       // التحقق من وجود ملاحظات جديدة في ShiftNotes
       if (backupData.containsKey('shift_notes')) {
@@ -500,7 +512,8 @@ class SmartSyncManager {
   Future<void> _mergeBackupData(Map<String, dynamic> backupData) async {
     // استخدام خدمة النسخ الاحتياطي الموجودة
     await DatabaseManager.runWithRestoreGuard(
-        () => _backupService!.restoreFromBackup(backupData));
+      () => _backupService!.restoreFromBackup(backupData),
+    );
   }
 
   /// إزالة سجل من بيانات النسخ الاحتياطي
@@ -511,8 +524,10 @@ class SmartSyncManager {
   ) async {
     if (backupData.containsKey(tableName)) {
       final records = backupData[tableName] as List<dynamic>;
-      records.removeWhere((record) =>
-          record is Map<String, dynamic> && record['local_uuid'] == recordId);
+      records.removeWhere(
+        (record) =>
+            record is Map<String, dynamic> && record['local_uuid'] == recordId,
+      );
     }
   }
 
@@ -616,7 +631,9 @@ class SmartSyncManager {
   Future<void> _setLastRemoteTimestamp(DateTime timestamp) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-        _prefsLastRemoteTimestampKey, timestamp.toIso8601String());
+      _prefsLastRemoteTimestampKey,
+      timestamp.toIso8601String(),
+    );
   }
 
   Future<void> _updateLastSyncTime() async {
@@ -627,7 +644,9 @@ class SmartSyncManager {
   Future<void> _updateLastPushTime() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(
-        'smart_sync_last_push_ts', DateTime.now().millisecondsSinceEpoch);
+      'smart_sync_last_push_ts',
+      DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   Future<DateTime?> getLastSyncTime() async {
@@ -648,7 +667,8 @@ class SmartSyncManager {
           _silentSignInRetryCount < SyncConfig.maxSilentSignInRetries) {
         _silentSignInRetryCount++;
         _log(
-            '🔐 محاولة تسجيل الدخول الصامت (المحاولة $_silentSignInRetryCount/${SyncConfig.maxSilentSignInRetries})...');
+          '🔐 محاولة تسجيل الدخول الصامت (المحاولة $_silentSignInRetryCount/${SyncConfig.maxSilentSignInRetries})...',
+        );
         try {
           final account = await _backupService!.attemptSilentSignIn();
           if (account != null) {
@@ -737,8 +757,9 @@ class SmartSyncManager {
   Future<bool> pushLocalChanges() async {
     int retries = 0;
     while (retries < 10) {
-      final isSyncing =
-          await SyncLocks.smartSyncLock.synchronized(() => _isSyncing);
+      final isSyncing = await SyncLocks.smartSyncLock.synchronized(
+        () => _isSyncing,
+      );
       if (!isSyncing) break;
       await Future.delayed(SyncConstants.shortPollingDelay);
       retries++;
@@ -770,8 +791,8 @@ class SmartSyncManager {
       // محاولة استخدام Delta Sync أولاً (أسرع وأخف)
       if (GoogleDriveDeltaSync.instance.isInitialized) {
         _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
-        final deltaResult =
-            await GoogleDriveDeltaSync.instance.pushDeltaChanges();
+        final deltaResult = await GoogleDriveDeltaSync.instance
+            .pushDeltaChanges();
 
         if (deltaResult.success) {
           await _updateLastSyncTime();
@@ -849,8 +870,8 @@ class SmartSyncManager {
 
       if (GoogleDriveDeltaSync.instance.isInitialized) {
         _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
-        final deltaResult =
-            await GoogleDriveDeltaSync.instance.pullDeltaChanges();
+        final deltaResult = await GoogleDriveDeltaSync.instance
+            .pullDeltaChanges();
 
         if (deltaResult.success && deltaResult.changesCount > 0) {
           await _updateLastSyncTime();
@@ -891,10 +912,12 @@ class SmartSyncManager {
         _log('🆕 تم العثور على نسخة جديدة من جهاز: $backupDeviceId');
 
         // تحميل وتطبيق النسخة الاحتياطية
-        final backupData =
-            await _backupService!.downloadBackup(latestBackup.fileId);
+        final backupData = await _backupService!.downloadBackup(
+          latestBackup.fileId,
+        );
         await DatabaseManager.runWithRestoreGuard(
-            () => _backupService!.restoreFromBackup(backupData));
+          () => _backupService!.restoreFromBackup(backupData),
+        );
 
         // تحديث timestamp
         await _setLastRemoteTimestamp(latestBackup.createdTime);
@@ -924,7 +947,8 @@ class SmartSyncManager {
 
   /// معالجة طلب حل التضارب اليدوي (placeholder)
   Future<void> _requestManualConflictResolution(
-      List<DataConflict> conflicts) async {
+    List<DataConflict> conflicts,
+  ) async {
     _log('🤔 يتطلب تدخل المستخدم لحل ${conflicts.length} تضارب');
     // يمكن إضافة واجهة لحل التضارب يدوياً
   }
@@ -942,7 +966,8 @@ class SmartSyncManager {
   Future<void> _restoreLocalBackup(Map<String, dynamic> localData) async {
     _log('🔄 استعادة النسخة المحلية...');
     await DatabaseManager.runWithRestoreGuard(
-        () => _backupService!.restoreFromBackup(localData));
+      () => _backupService!.restoreFromBackup(localData),
+    );
   }
 }
 

@@ -13,15 +13,16 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   BookingsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<Booking>> list(
-      {String? search,
-      String? roomNumber,
-      String? status,
-      String? from,
-      String? to,
-      bool includeDeleted = false,
-      int? limit,
-      int? offset}) async {
+  Future<List<Booking>> list({
+    String? search,
+    String? roomNumber,
+    String? status,
+    String? from,
+    String? to,
+    bool includeDeleted = false,
+    int? limit,
+    int? offset,
+  }) async {
     final q = select(bookings);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (roomNumber != null && roomNumber.isNotEmpty) {
@@ -31,23 +32,28 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.status.equals(status));
     }
     if (from != null && to != null) {
-      q.where((t) =>
-          t.checkinDate.isBiggerOrEqualValue(from) &
-          t.checkinDate.isSmallerOrEqualValue(to));
+      q.where(
+        (t) =>
+            t.checkinDate.isBiggerOrEqualValue(from) &
+            t.checkinDate.isSmallerOrEqualValue(to),
+      );
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.guestName.like(s) | t.guestPhone.like(s));
     }
     q.orderBy([
-      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)
+      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
     ]);
     if (limit != null) q.limit(limit, offset: offset ?? 0);
     return q.get();
   }
 
-  Stream<List<Booking>> watchList(
-      {String? roomNumber, String? status, bool includeDeleted = false}) {
+  Stream<List<Booking>> watchList({
+    String? roomNumber,
+    String? status,
+    bool includeDeleted = false,
+  }) {
     final q = select(bookings);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (roomNumber != null && roomNumber.isNotEmpty) {
@@ -57,7 +63,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.status.equals(status));
     }
     q.orderBy([
-      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)
+      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
     ]);
     return q.watch();
   }
@@ -67,8 +73,10 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   Stream<Booking?> watchById(int id) =>
       (select(bookings)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
-  Future<int> insertOne(BookingsCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> insertOne(
+    BookingsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -94,16 +102,22 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateById(int id, BookingsCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> updateById(
+    int id,
+    BookingsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final comp =
-          data.copyWith(updatedAt: Value(now), lastModified: Value(now));
-      final rows =
-          await (update(bookings)..where((t) => t.id.equals(id))).write(comp);
+      final comp = data.copyWith(
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      );
+      final rows = await (update(
+        bookings,
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'bookings',
@@ -124,11 +138,13 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       final existing = await getById(id);
       if (existing == null) return 0;
       final rows = await (update(bookings)..where((t) => t.id.equals(id)))
-          .write(BookingsCompanion(
-        deletedAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+          .write(
+            BookingsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'bookings',
@@ -154,8 +170,10 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     return query.get();
   }
 
-  Future<List<Booking>> getByRoomNumber(String roomNumber,
-      {bool includeDeleted = false}) {
+  Future<List<Booking>> getByRoomNumber(
+    String roomNumber, {
+    bool includeDeleted = false,
+  }) {
     final query = select(bookings)
       ..where((t) => t.roomNumber.equals(roomNumber));
     if (!includeDeleted) {
@@ -164,8 +182,10 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     return query.get();
   }
 
-  Future<List<Booking>> getByStatus(String status,
-      {bool includeDeleted = false}) {
+  Future<List<Booking>> getByStatus(
+    String status, {
+    bool includeDeleted = false,
+  }) {
     final query = select(bookings)..where((t) => t.status.equals(status));
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
@@ -221,43 +241,47 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد الحجوزات من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data,
-      {bool clearExisting = false}) async {
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
     if (clearExisting) {
       await delete(bookings).go();
     }
 
     for (final bookingJson in data) {
       final booking = Booking.fromJson(bookingJson);
-      await into(bookings).insertOnConflictUpdate(BookingsCompanion(
-        id: Value(booking.id),
-        serverBookingId: Value(booking.serverBookingId),
-        roomNumber: Value(booking.roomNumber),
-        guestName: Value(booking.guestName),
-        guestPhone: Value(booking.guestPhone),
-        guestIdType: Value(booking.guestIdType),
-        guestIdNumber: Value(booking.guestIdNumber),
-        guestIdIssueDate: Value(booking.guestIdIssueDate),
-        guestIdIssuePlace: Value(booking.guestIdIssuePlace),
-        guestNationality: Value(booking.guestNationality),
-        guestEmail: Value(booking.guestEmail),
-        guestAddress: Value(booking.guestAddress),
-        checkinDate: Value(booking.checkinDate),
-        checkoutDate: Value(booking.checkoutDate),
-        actualCheckout: Value(booking.actualCheckout),
-        status: Value(booking.status),
-        notes: Value(booking.notes),
-        expectedNights: Value(booking.expectedNights),
-        calculatedNights: Value(booking.calculatedNights),
-        localUuid: Value(booking.localUuid),
-        serverId: Value(booking.serverId),
-        createdAt: Value(booking.createdAt),
-        updatedAt: Value(booking.updatedAt),
-        deletedAt: Value(booking.deletedAt),
-        lastModified: Value(booking.lastModified),
-        version: Value(booking.version),
-        origin: Value(booking.origin),
-      ));
+      await into(bookings).insertOnConflictUpdate(
+        BookingsCompanion(
+          id: Value(booking.id),
+          serverBookingId: Value(booking.serverBookingId),
+          roomNumber: Value(booking.roomNumber),
+          guestName: Value(booking.guestName),
+          guestPhone: Value(booking.guestPhone),
+          guestIdType: Value(booking.guestIdType),
+          guestIdNumber: Value(booking.guestIdNumber),
+          guestIdIssueDate: Value(booking.guestIdIssueDate),
+          guestIdIssuePlace: Value(booking.guestIdIssuePlace),
+          guestNationality: Value(booking.guestNationality),
+          guestEmail: Value(booking.guestEmail),
+          guestAddress: Value(booking.guestAddress),
+          checkinDate: Value(booking.checkinDate),
+          checkoutDate: Value(booking.checkoutDate),
+          actualCheckout: Value(booking.actualCheckout),
+          status: Value(booking.status),
+          notes: Value(booking.notes),
+          expectedNights: Value(booking.expectedNights),
+          calculatedNights: Value(booking.calculatedNights),
+          localUuid: Value(booking.localUuid),
+          serverId: Value(booking.serverId),
+          createdAt: Value(booking.createdAt),
+          updatedAt: Value(booking.updatedAt),
+          deletedAt: Value(booking.deletedAt),
+          lastModified: Value(booking.lastModified),
+          version: Value(booking.version),
+          origin: Value(booking.origin),
+        ),
+      );
     }
   }
 

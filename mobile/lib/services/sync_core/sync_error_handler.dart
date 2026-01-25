@@ -26,8 +26,8 @@ class SyncError {
     this.originalError,
     this.stackTrace,
     Map<String, dynamic>? context,
-  })  : timestamp = DateTime.now(),
-        context = context;
+  }) : timestamp = DateTime.now(),
+       context = context;
 
   bool get isRetryable {
     switch (type) {
@@ -46,12 +46,12 @@ class SyncError {
   }
 
   Map<String, dynamic> toJson() => {
-        'type': type.name,
-        'message': message,
-        'timestamp': timestamp.toIso8601String(),
-        'context': context,
-        'isRetryable': isRetryable,
-      };
+    'type': type.name,
+    'message': message,
+    'timestamp': timestamp.toIso8601String(),
+    'context': context,
+    'isRetryable': isRetryable,
+  };
 }
 
 class SyncErrorHandler {
@@ -73,8 +73,11 @@ class SyncErrorHandler {
     StackTrace? stackTrace,
     Map<String, dynamic>? context,
   }) {
-    final syncError =
-        _classifyError(error, stackTrace: stackTrace, context: context);
+    final syncError = _classifyError(
+      error,
+      stackTrace: stackTrace,
+      context: context,
+    );
 
     _recordError(syncError);
     _emitError(syncError);
@@ -204,8 +207,9 @@ class SyncErrorHandler {
   }
 
   List<SyncError> getRecentErrors({int limit = 10}) {
-    final start =
-        _errorHistory.length > limit ? _errorHistory.length - limit : 0;
+    final start = _errorHistory.length > limit
+        ? _errorHistory.length - limit
+        : 0;
     return _errorHistory.sublist(start);
   }
 

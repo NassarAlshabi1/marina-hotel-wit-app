@@ -94,7 +94,9 @@ class DataUsageManager {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble(_keyTodayUsage, _todayUsageMB);
       await prefs.setString(
-          _keyLastResetDate, _lastResetDate!.toIso8601String());
+        _keyLastResetDate,
+        _lastResetDate!.toIso8601String(),
+      );
 
       debugPrint('🔄 تم إعادة تعيين الاستخدام اليومي للبيانات');
     } catch (e) {
@@ -111,7 +113,8 @@ class DataUsageManager {
       await prefs.setDouble(_keyTodayUsage, _todayUsageMB);
 
       debugPrint(
-          '📊 تم إضافة ${megabytes.toStringAsFixed(2)} MB للاستخدام اليومي');
+        '📊 تم إضافة ${megabytes.toStringAsFixed(2)} MB للاستخدام اليومي',
+      );
     } catch (e) {
       debugPrint('❌ خطأ في إضافة استخدام البيانات: $e');
     }
@@ -268,7 +271,8 @@ class DataUsageManager {
   Future<void> recordDataUsage(double megabytes) async {
     await addUsage(megabytes);
     debugPrint(
-        '📊 تم تسجيل استخدام البيانات: ${megabytes.toStringAsFixed(2)} MB');
+      '📊 تم تسجيل استخدام البيانات: ${megabytes.toStringAsFixed(2)} MB',
+    );
   }
 
   /// التحقق من تجاوز حد البيانات اليومي (مطلوب لـ SmartSyncManager)

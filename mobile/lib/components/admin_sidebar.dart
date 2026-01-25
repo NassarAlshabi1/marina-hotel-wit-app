@@ -37,12 +37,7 @@ class AdminSidebar extends ConsumerWidget {
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: headerColor,
-              border: Border(
-                bottom: BorderSide(
-                  color: dividerColor,
-                  width: 1,
-                ),
-              ),
+              border: Border(bottom: BorderSide(color: dividerColor, width: 1)),
             ),
             child: Column(
               children: [
@@ -87,10 +82,7 @@ class AdminSidebar extends ConsumerWidget {
                     children: [
                       CircleAvatar(
                         backgroundColor: Colors.white.withOpacity(0.2),
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                        ),
+                        child: const Icon(Icons.person, color: Colors.white),
                       ),
                       const SizedBox(width: 12),
                       Expanded(

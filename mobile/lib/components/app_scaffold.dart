@@ -6,12 +6,13 @@ import '../providers/repository_providers.dart';
 import 'widgets/sync_action_button.dart';
 
 class AppScaffold extends ConsumerWidget {
-  const AppScaffold(
-      {super.key,
-      required this.title,
-      required this.body,
-      this.actions,
-      this.fab});
+  const AppScaffold({
+    super.key,
+    required this.title,
+    required this.body,
+    this.actions,
+    this.fab,
+  });
   final String title;
   final Widget body;
   final List<Widget>? actions;
@@ -20,8 +21,10 @@ class AppScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unreadCountAsync = ref.watch(simpleNotesUnreadCountProvider);
-    final unreadCount =
-        unreadCountAsync.maybeWhen(data: (count) => count, orElse: () => 0);
+    final unreadCount = unreadCountAsync.maybeWhen(
+      data: (count) => count,
+      orElse: () => 0,
+    );
     final hasUnread = unreadCount > 0;
 
     return Directionality(
@@ -32,16 +35,19 @@ class AppScaffold extends ConsumerWidget {
           actions: [
             IconButton(
               onPressed: () {
-                Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const NotesScreen()));
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const NotesScreen()));
               },
               tooltip: 'التنبيهات',
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Icon(hasUnread
-                      ? Icons.notifications_active
-                      : Icons.notifications_none),
+                  Icon(
+                    hasUnread
+                        ? Icons.notifications_active
+                        : Icons.notifications_none,
+                  ),
                   if (hasUnread)
                     Positioned(
                       right: -2,
@@ -74,9 +80,7 @@ class AppScaffold extends ConsumerWidget {
             if (actions != null) ...actions!,
           ],
         ),
-        body: SafeArea(
-          child: body,
-        ),
+        body: SafeArea(child: body),
         floatingActionButton: fab,
       ),
     );

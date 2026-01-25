@@ -1,11 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
-enum CircuitState {
-  closed,
-  open,
-  halfOpen,
-}
+enum CircuitState { closed, open, halfOpen }
 
 class CircuitBreakerConfig {
   final int failureThreshold;
@@ -34,10 +30,8 @@ class CircuitBreaker {
   final _stateController = StreamController<CircuitState>.broadcast();
   Stream<CircuitState> get stateStream => _stateController.stream;
 
-  CircuitBreaker({
-    required this.name,
-    CircuitBreakerConfig? config,
-  }) : config = config ?? const CircuitBreakerConfig();
+  CircuitBreaker({required this.name, CircuitBreakerConfig? config})
+    : config = config ?? const CircuitBreakerConfig();
 
   CircuitState get state => _state;
   int get failureCount => _failureCount;
@@ -91,7 +85,8 @@ class CircuitBreaker {
     if (_state == CircuitState.halfOpen) {
       _successCount++;
       debugPrint(
-          '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}');
+        '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',
+      );
 
       if (_successCount >= config.successThreshold) {
         _transitionTo(CircuitState.closed);
@@ -106,7 +101,8 @@ class CircuitBreaker {
     _successCount = 0;
 
     debugPrint(
-        '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}');
+      '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}',
+    );
 
     if (_state == CircuitState.halfOpen) {
       _transitionTo(CircuitState.open);
@@ -193,8 +189,10 @@ class CircuitBreakerTimeoutException implements Exception {
   final String message;
   final TimeoutException originalException;
 
-  CircuitBreakerTimeoutException(this.message,
-      {required this.originalException});
+  CircuitBreakerTimeoutException(
+    this.message, {
+    required this.originalException,
+  });
 
   @override
   String toString() => message;

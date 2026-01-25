@@ -59,7 +59,8 @@ class SalaryWithdrawalsRepository {
     await _ensureTable();
     final rows = await _db
         .customSelect(
-            'SELECT * FROM salary_withdrawals ORDER BY created_at DESC')
+          'SELECT * FROM salary_withdrawals ORDER BY created_at DESC',
+        )
         .get();
     return rows.map((row) => row.data).toList();
   }

@@ -178,10 +178,7 @@ class AppwriteErrorHandler {
             ),
             if (error.details != null) ...[
               const SizedBox(height: 4),
-              Text(
-                error.details!,
-                style: const TextStyle(fontSize: 12),
-              ),
+              Text(error.details!, style: const TextStyle(fontSize: 12)),
             ],
           ],
         ),

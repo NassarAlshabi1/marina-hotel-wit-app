@@ -16,9 +16,9 @@ class RecalculateBookingNightsMigration {
     final derivedFieldsService = BookingDerivedFieldsService(db);
 
     // الحصول على جميع الحجوزات النشطة (غير المحذوفة)
-    final bookings = await (db.select(db.bookings)
-          ..where((b) => b.deletedAt.isNull()))
-        .get();
+    final bookings = await (db.select(
+      db.bookings,
+    )..where((b) => b.deletedAt.isNull())).get();
 
     if (bookings.isEmpty) {
       print('✅ No bookings found');
@@ -58,9 +58,9 @@ class RecalculateBookingNightsMigration {
 
       final derivedFieldsService = BookingDerivedFieldsService(db);
 
-      final bookings = await (db.select(db.bookings)
-            ..where((b) => b.deletedAt.isNull()))
-          .get();
+      final bookings = await (db.select(
+        db.bookings,
+      )..where((b) => b.deletedAt.isNull())).get();
 
       report.totalBookingsFound = bookings.length;
 
@@ -81,33 +81,37 @@ class RecalculateBookingNightsMigration {
           await derivedFieldsService.refreshForBooking(booking);
 
           // الحصول على القيم الجديدة
-          final updatedBooking = await (db.select(db.bookings)
-                ..where((b) => b.id.equals(booking.id)))
-              .getSingleOrNull();
+          final updatedBooking = await (db.select(
+            db.bookings,
+          )..where((b) => b.id.equals(booking.id))).getSingleOrNull();
 
           if (updatedBooking != null) {
-            report.recalculatedBookings.add(BookingRecalculationDetails(
-              bookingId: booking.id,
-              guestName: booking.guestName,
-              roomNumber: booking.roomNumber,
-              checkinDate: booking.checkinDate,
-              checkoutDate: booking.checkoutDate,
-              oldExpectedNights: oldExpectedNights,
-              newExpectedNights: updatedBooking.expectedNights,
-              oldCalculatedNights: oldCalculatedNights,
-              newCalculatedNights: updatedBooking.calculatedNights,
-              oldTotalDue: oldTotalDue,
-              newTotalDue: updatedBooking.totalDueCached,
-              changed: oldExpectedNights != updatedBooking.expectedNights ||
-                  oldCalculatedNights != updatedBooking.calculatedNights ||
-                  (oldTotalDue - updatedBooking.totalDueCached).abs() > 0.01,
-            ));
+            report.recalculatedBookings.add(
+              BookingRecalculationDetails(
+                bookingId: booking.id,
+                guestName: booking.guestName,
+                roomNumber: booking.roomNumber,
+                checkinDate: booking.checkinDate,
+                checkoutDate: booking.checkoutDate,
+                oldExpectedNights: oldExpectedNights,
+                newExpectedNights: updatedBooking.expectedNights,
+                oldCalculatedNights: oldCalculatedNights,
+                newCalculatedNights: updatedBooking.calculatedNights,
+                oldTotalDue: oldTotalDue,
+                newTotalDue: updatedBooking.totalDueCached,
+                changed:
+                    oldExpectedNights != updatedBooking.expectedNights ||
+                    oldCalculatedNights != updatedBooking.calculatedNights ||
+                    (oldTotalDue - updatedBooking.totalDueCached).abs() > 0.01,
+              ),
+            );
 
             report.bookingsRecalculated++;
           }
         } catch (e) {
           report.errors.add(
-              'Failed to recalculate booking ${booking.id} (${booking.guestName}): $e');
+            'Failed to recalculate booking ${booking.id} (${booking.guestName}): $e',
+          );
         }
       }
 
@@ -153,8 +157,9 @@ class RecalculationReport {
       'changedBookings': changedBookingsCount,
       'errors': errors,
       'duration': duration?.inMilliseconds,
-      'recalculatedBookings':
-          recalculatedBookings.map((b) => b.toJson()).toList(),
+      'recalculatedBookings': recalculatedBookings
+          .map((b) => b.toJson())
+          .toList(),
     };
   }
 
@@ -180,32 +185,38 @@ class RecalculationReport {
       }
     }
 
-    final changedBookings =
-        recalculatedBookings.where((b) => b.changed).toList();
+    final changedBookings = recalculatedBookings
+        .where((b) => b.changed)
+        .toList();
     if (changedBookings.isNotEmpty) {
       buffer.writeln('\n🔄 Changed Bookings (${changedBookings.length}):');
       for (var booking in changedBookings) {
-        buffer
-            .writeln('  • ${booking.guestName} (Room ${booking.roomNumber}):');
+        buffer.writeln(
+          '  • ${booking.guestName} (Room ${booking.roomNumber}):',
+        );
         if (booking.oldExpectedNights != booking.newExpectedNights) {
           buffer.writeln(
-              '    expectedNights: ${booking.oldExpectedNights} → ${booking.newExpectedNights}');
+            '    expectedNights: ${booking.oldExpectedNights} → ${booking.newExpectedNights}',
+          );
         }
         if (booking.oldCalculatedNights != booking.newCalculatedNights) {
           buffer.writeln(
-              '    calculatedNights: ${booking.oldCalculatedNights} → ${booking.newCalculatedNights}');
+            '    calculatedNights: ${booking.oldCalculatedNights} → ${booking.newCalculatedNights}',
+          );
         }
         if ((booking.oldTotalDue - booking.newTotalDue).abs() > 0.01) {
           buffer.writeln(
-              '    totalDue: ${booking.oldTotalDue.toStringAsFixed(2)} → ${booking.newTotalDue.toStringAsFixed(2)}');
+            '    totalDue: ${booking.oldTotalDue.toStringAsFixed(2)} → ${booking.newTotalDue.toStringAsFixed(2)}',
+          );
         }
       }
     }
 
     final unchangedCount = recalculatedBookings.length - changedBookings.length;
     if (unchangedCount > 0) {
-      buffer
-          .writeln('\n✅ Unchanged Bookings: $unchangedCount (already correct)');
+      buffer.writeln(
+        '\n✅ Unchanged Bookings: $unchangedCount (already correct)',
+      );
     }
 
     buffer.writeln('=' * 80);

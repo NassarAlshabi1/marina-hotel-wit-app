@@ -49,8 +49,11 @@ class AppwriteNetworkHelper {
 
         // إذا وصلنا للحد الأقصى من المحاولات
         if (attempt >= retries) {
-          _logger.error('$opName - Max retries ($retries) reached',
-              error: e, tag: 'RETRY');
+          _logger.error(
+            '$opName - Max retries ($retries) reached',
+            error: e,
+            tag: 'RETRY',
+          );
           rethrow;
         }
 
@@ -63,7 +66,8 @@ class AppwriteNetworkHelper {
 
         await Future.delayed(waitTime);
         currentDelay = Duration(
-            milliseconds: (currentDelay.inMilliseconds * multiplier).round());
+          milliseconds: (currentDelay.inMilliseconds * multiplier).round(),
+        );
       }
     }
   }
@@ -82,16 +86,21 @@ class AppwriteNetworkHelper {
     final opName = operationName ?? 'Operation';
 
     try {
-      _logger.debug('$opName - Starting with ${maxDuration.inSeconds}s timeout',
-          tag: 'TIMEOUT');
+      _logger.debug(
+        '$opName - Starting with ${maxDuration.inSeconds}s timeout',
+        tag: 'TIMEOUT',
+      );
 
       return await operation().timeout(
         maxDuration,
         onTimeout: () {
-          _logger.error('$opName - Timeout after ${maxDuration.inSeconds}s',
-              tag: 'TIMEOUT');
+          _logger.error(
+            '$opName - Timeout after ${maxDuration.inSeconds}s',
+            tag: 'TIMEOUT',
+          );
           throw TimeoutException(
-              '$opName تجاوز الوقت المحدد (${maxDuration.inSeconds} ثانية)');
+            '$opName تجاوز الوقت المحدد (${maxDuration.inSeconds} ثانية)',
+          );
         },
       );
     } catch (e) {
@@ -180,7 +189,8 @@ class AppwriteNetworkHelper {
 
     // إضافة jitter (تذبذب عشوائي بين 0-20%)
     if (addJitter) {
-      final jitter = (exponentialDelay *
+      final jitter =
+          (exponentialDelay *
           0.2 *
           (0.5 + (DateTime.now().millisecond % 100) / 100));
       return Duration(milliseconds: (exponentialDelay + jitter).round());

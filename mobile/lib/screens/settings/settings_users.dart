@@ -48,8 +48,11 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  const Icon(Icons.account_circle,
-                      size: 32, color: Colors.blue),
+                  const Icon(
+                    Icons.account_circle,
+                    size: 32,
+                    color: Colors.blue,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -58,11 +61,15 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                         Text(
                           auth.currentUser?.name ?? 'غير معروف',
                           style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        Text(isAdmin
-                            ? 'مدير النظام'
-                            : (auth.currentUser?.userType ?? '')),
+                        Text(
+                          isAdmin
+                              ? 'مدير النظام'
+                              : (auth.currentUser?.userType ?? ''),
+                        ),
                       ],
                     ),
                   ),
@@ -91,9 +98,10 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('صلاحيات المستخدمين',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'صلاحيات المستخدمين',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 ElevatedButton.icon(
                   onPressed: _openAddUserDialog,
                   icon: const Icon(Icons.person_add),
@@ -171,39 +179,43 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                     children: [
                       TextFormField(
                         controller: fullNameCtrl,
-                        decoration:
-                            const InputDecoration(labelText: 'الاسم الكامل'),
+                        decoration: const InputDecoration(
+                          labelText: 'الاسم الكامل',
+                        ),
                         validator: (value) =>
                             (value == null || value.trim().isEmpty)
-                                ? 'الاسم مطلوب'
-                                : null,
+                            ? 'الاسم مطلوب'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: usernameCtrl,
-                        decoration:
-                            const InputDecoration(labelText: 'اسم المستخدم'),
+                        decoration: const InputDecoration(
+                          labelText: 'اسم المستخدم',
+                        ),
                         validator: (value) =>
                             (value == null || value.trim().isEmpty)
-                                ? 'اسم المستخدم مطلوب'
-                                : null,
+                            ? 'اسم المستخدم مطلوب'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: passwordCtrl,
-                        decoration:
-                            const InputDecoration(labelText: 'كلمة المرور'),
+                        decoration: const InputDecoration(
+                          labelText: 'كلمة المرور',
+                        ),
                         obscureText: true,
                         validator: (value) =>
                             (value == null || value.length < 4)
-                                ? 'أدخل 4 أرقام/رموز على الأقل'
-                                : null,
+                            ? 'أدخل 4 أرقام/رموز على الأقل'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: confirmCtrl,
                         decoration: const InputDecoration(
-                            labelText: 'تأكيد كلمة المرور'),
+                          labelText: 'تأكيد كلمة المرور',
+                        ),
                         obscureText: true,
                         validator: (value) => value != passwordCtrl.text
                             ? 'كلمتا المرور غير متطابقتين'
@@ -212,17 +224,26 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         value: userType,
-                        decoration:
-                            const InputDecoration(labelText: 'نوع المستخدم'),
+                        decoration: const InputDecoration(
+                          labelText: 'نوع المستخدم',
+                        ),
                         items: const [
                           DropdownMenuItem(
-                              value: 'employee', child: Text('موظف')),
+                            value: 'employee',
+                            child: Text('موظف'),
+                          ),
                           DropdownMenuItem(
-                              value: 'supervisor', child: Text('مشرف')),
+                            value: 'supervisor',
+                            child: Text('مشرف'),
+                          ),
                           DropdownMenuItem(
-                              value: 'accountant', child: Text('محاسب')),
+                            value: 'accountant',
+                            child: Text('محاسب'),
+                          ),
                           DropdownMenuItem(
-                              value: 'manager', child: Text('مدير')),
+                            value: 'manager',
+                            child: Text('مدير'),
+                          ),
                         ],
                         onChanged: (value) {
                           if (value != null) {
@@ -233,8 +254,10 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       const SizedBox(height: 16),
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: Text('الصلاحيات',
-                            style: Theme.of(context).textTheme.titleMedium),
+                        child: Text(
+                          'الصلاحيات',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Wrap(
@@ -260,8 +283,10 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       if (localError != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
-                          child: Text(localError!,
-                              style: const TextStyle(color: Colors.red)),
+                          child: Text(
+                            localError!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
                         ),
                     ],
                   ),
@@ -280,8 +305,9 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                             return;
                           }
                           if (selectedPerms.isEmpty) {
-                            setStateDialog(() =>
-                                localError = 'اختر صلاحية واحدة على الأقل');
+                            setStateDialog(
+                              () => localError = 'اختر صلاحية واحدة على الأقل',
+                            );
                             return;
                           }
                           setStateDialog(() {
@@ -289,7 +315,9 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                             localError = null;
                           });
                           try {
-                            await ref.read(authProvider.notifier).addUser(
+                            await ref
+                                .read(authProvider.notifier)
+                                .addUser(
                                   username: usernameCtrl.text.trim(),
                                   password: passwordCtrl.text,
                                   fullName: fullNameCtrl.text.trim(),
@@ -300,15 +328,18 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                               Navigator.pop(dialogContext);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                    content: Text('تم إضافة المستخدم بنجاح')),
+                                  content: Text('تم إضافة المستخدم بنجاح'),
+                                ),
                               );
                               _refreshAccounts();
                             }
                           } catch (e) {
                             setStateDialog(() {
                               saving = false;
-                              localError =
-                                  e.toString().replaceAll('Exception: ', '');
+                              localError = e.toString().replaceAll(
+                                'Exception: ',
+                                '',
+                              );
                             });
                           }
                         },
@@ -316,7 +347,8 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       ? const SizedBox(
                           height: 18,
                           width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('حفظ'),
                 ),
               ],
@@ -412,17 +444,25 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.displayName,
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Text('@${widget.username}',
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.grey)),
+                      Text(
+                        widget.displayName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '@${widget.username}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 Chip(
-                    label: Text(
-                        widget.userType.isEmpty ? 'مستخدم' : widget.userType)),
+                  label: Text(
+                    widget.userType.isEmpty ? 'مستخدم' : widget.userType,
+                  ),
+                ),
                 if (widget.isFixedAccount)
                   const Padding(
                     padding: EdgeInsets.only(right: 8),

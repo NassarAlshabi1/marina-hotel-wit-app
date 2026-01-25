@@ -31,7 +31,7 @@ enum BackupStatus {
   success,
   error,
   checkingPermissions,
-  importingFile
+  importingFile,
 }
 
 // نوع النسخ الاحتياطي
@@ -169,8 +169,10 @@ class BackupState {
 // Notifier للتحكم في حالة النسخ الاحتياطي
 class BackupStatusNotifier extends StateNotifier<BackupState> {
   BackupStatusNotifier(
-      this._backupService, this._localBackupService, this._fileService)
-      : super(BackupState()) {
+    this._backupService,
+    this._localBackupService,
+    this._fileService,
+  ) : super(BackupState()) {
     _initialize();
   }
 
@@ -186,8 +188,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final lastBackup = await _backupService.getLastBackupTime();
 
       // جلب آخر وقت نسخ احتياطي محلي
-      final lastLocalBackup =
-          await _localBackupService.getLastLocalBackupTime();
+      final lastLocalBackup = await _localBackupService
+          .getLastLocalBackupTime();
 
       // جلب حجم قاعدة البيانات
       final dbSize = await _backupService.estimateDatabaseSize();
@@ -215,10 +217,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final resolvedBackupType = enableLocal && autoEnabled
           ? BackupType.both
           : enableLocal
-              ? BackupType.local
-              : autoEnabled
-                  ? BackupType.googleDrive
-                  : BackupType.both;
+          ? BackupType.local
+          : autoEnabled
+          ? BackupType.googleDrive
+          : BackupType.both;
 
       // محاولة استعادة جلسة Google Drive تلقائياً
       GoogleSignInAccount? account;
@@ -470,8 +472,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.0,
       );
 
-      final downloaded =
-          await _backupService.downloadBackup(driveBackup.fileId);
+      final downloaded = await _backupService.downloadBackup(
+        driveBackup.fileId,
+      );
 
       state = state.copyWith(
         status: BackupStatus.restoring,
@@ -480,7 +483,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       );
 
       await DatabaseManager.runWithRestoreGuard(
-          () => _backupService.restoreFromBackup(downloaded));
+        () => _backupService.restoreFromBackup(downloaded),
+      );
 
       // تشغيل الإصلاح التلقائي
       state = state.copyWith(
@@ -496,7 +500,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
       } else {
         debugPrint(
-            '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
+          '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
+        );
       }
 
       state = state.copyWith(
@@ -583,10 +588,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final updatedBackupType = enableDrive && enableLocal
           ? BackupType.both
           : enableLocal
-              ? BackupType.local
-              : enableDrive
-                  ? BackupType.googleDrive
-                  : settings.backupType;
+          ? BackupType.local
+          : enableDrive
+          ? BackupType.googleDrive
+          : settings.backupType;
 
       state = state.copyWith(
         autoSettings: settings.copyWith(
@@ -669,10 +674,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
         }
 
-        state = state.copyWith(
-          signedInAccount: null,
-          availableBackups: [],
-        );
+        state = state.copyWith(signedInAccount: null, availableBackups: []);
 
         debugPrint('✅ تم تحديث حالة تسجيل الخروج');
       } else {
@@ -746,15 +748,12 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         format: state.autoSettings.backupFormat,
       );
 
-      state = state.copyWith(
-        message: 'تحديث قائمة النسخ...',
-        progress: 0.8,
-      );
+      state = state.copyWith(message: 'تحديث قائمة النسخ...', progress: 0.8);
 
       // تحديث قائمة النسخ المحلية
       final localBackups = await _localBackupService.listLocalBackups();
-      final lastLocalBackup =
-          await _localBackupService.getLastLocalBackupTime();
+      final lastLocalBackup = await _localBackupService
+          .getLastLocalBackupTime();
       final folderInfo = await _localBackupService.getBackupFolderInfo();
 
       state = state.copyWith(
@@ -802,7 +801,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
       } else {
         debugPrint(
-            '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
+          '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
+        );
       }
 
       state = state.copyWith(
@@ -873,7 +873,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
       } else {
         debugPrint(
-            '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
+          '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
+        );
       }
 
       state = state.copyWith(
@@ -919,10 +920,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       final importedPath = await _localBackupService.importBackupFromFile();
 
-      state = state.copyWith(
-        message: 'تحديث قائمة النسخ...',
-        progress: 0.8,
-      );
+      state = state.copyWith(message: 'تحديث قائمة النسخ...', progress: 0.8);
 
       // تحديث قائمة النسخ المحلية
       final localBackups = await _localBackupService.listLocalBackups();
@@ -1056,7 +1054,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           progress: 0.2,
         );
         localBackupPath = await _localBackupService.createLocalBackup(
-            format: state.autoSettings.backupFormat);
+          format: state.autoSettings.backupFormat,
+        );
       }
 
       // ثم النسخة السحابية إذا كان المستخدم مسجل الدخول
@@ -1069,12 +1068,14 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           final backupData = await _backupService.exportDatabaseToJson();
           await _backupService.uploadBackup(backupData);
         } else {
-          final sqlitePath = localBackupPath ??
+          final sqlitePath =
+              localBackupPath ??
               (tempSqlitePath = await SqliteBackupRestore.backupDatabase());
           final sqliteFile = File(sqlitePath);
           if (!await sqliteFile.exists()) {
             throw Exception(
-                'تعذر العثور على ملف النسخة الاحتياطية SQLite لرفعه');
+              'تعذر العثور على ملف النسخة الاحتياطية SQLite لرفعه',
+            );
           }
           final bytes = await sqliteFile.readAsBytes();
           final timestamp = DateTime.now();
@@ -1084,22 +1085,22 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
             'format': BackupFormat.sqlite.name,
             'backup_type': 'manual',
           };
-          await _backupService.uploadBackupWithName(fileName, bytes,
-              appProperties: appProps);
+          await _backupService.uploadBackupWithName(
+            fileName,
+            bytes,
+            appProperties: appProps,
+          );
         }
       }
 
       // تحديث جميع القوائم
-      state = state.copyWith(
-        message: 'تحديث القوائم...',
-        progress: 0.9,
-      );
+      state = state.copyWith(message: 'تحديث القوائم...', progress: 0.9);
 
       await refreshLocalBackups();
       await refreshBackupsList();
 
-      final lastLocalBackup =
-          await _localBackupService.getLastLocalBackupTime();
+      final lastLocalBackup = await _localBackupService
+          .getLastLocalBackupTime();
       final lastDriveBackup = await _backupService.getLastBackupTime();
 
       state = state.copyWith(
@@ -1208,7 +1209,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
   /// دمج نسخ متعددة
   Future<void> mergeBackups(
-      List<String> backupPaths, String mergedFileName) async {
+    List<String> backupPaths,
+    String mergedFileName,
+  ) async {
     try {
       state = state.copyWith(
         status: BackupStatus.uploading,
@@ -1216,8 +1219,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.0,
       );
 
-      final mergedPath =
-          await _fileService.mergeBackupFiles(backupPaths, mergedFileName);
+      final mergedPath = await _fileService.mergeBackupFiles(
+        backupPaths,
+        mergedFileName,
+      );
 
       // تحديث قائمة النسخ المحلية
       await refreshLocalBackups();
@@ -1277,8 +1282,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 }
 
 // Provider للخدمة مع الحفاظ على حالة واحدة (Singleton)
-final googleDriveBackupServiceProvider =
-    Provider<GoogleDriveBackupService>((ref) {
+final googleDriveBackupServiceProvider = Provider<GoogleDriveBackupService>((
+  ref,
+) {
   ref.keepAlive(); // المحافظة على الخدمة في الذاكرة
   return GoogleDriveBackupService();
 });
@@ -1294,11 +1300,11 @@ final fileManagementServiceProvider = Provider<FileManagementService>((ref) {
 // Provider للحالة
 final backupStatusProvider =
     StateNotifierProvider<BackupStatusNotifier, BackupState>((ref) {
-  final driveService = ref.watch(googleDriveBackupServiceProvider);
-  final localService = ref.watch(localBackupServiceProvider);
-  final fileService = ref.watch(fileManagementServiceProvider);
-  return BackupStatusNotifier(driveService, localService, fileService);
-});
+      final driveService = ref.watch(googleDriveBackupServiceProvider);
+      final localService = ref.watch(localBackupServiceProvider);
+      final fileService = ref.watch(fileManagementServiceProvider);
+      return BackupStatusNotifier(driveService, localService, fileService);
+    });
 
 // Provider للنسخ المتاحة (Google Drive)
 final availableBackupsProvider = Provider<List<DriveBackupFile>>((ref) {
@@ -1381,8 +1387,9 @@ final backupStatusSummaryProvider = Provider<String>((ref) {
   }
 });
 
-final googleDriveLoggerProvider =
-    ChangeNotifierProvider<GoogleDriveLogger>((ref) {
+final googleDriveLoggerProvider = ChangeNotifierProvider<GoogleDriveLogger>((
+  ref,
+) {
   final logger = GoogleDriveLogger();
   ref.onDispose(() => logger.dispose());
   return logger;

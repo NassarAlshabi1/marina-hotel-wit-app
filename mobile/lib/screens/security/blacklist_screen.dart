@@ -30,14 +30,18 @@ class BlacklistScreen extends ConsumerWidget {
               return Card(
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor:
-                        e.active ? Colors.red.shade100 : Colors.grey.shade300,
-                    child: Icon(Icons.gavel,
-                        color: e.active ? Colors.red : Colors.grey),
+                    backgroundColor: e.active
+                        ? Colors.red.shade100
+                        : Colors.grey.shade300,
+                    child: Icon(
+                      Icons.gavel,
+                      color: e.active ? Colors.red : Colors.grey,
+                    ),
                   ),
                   title: Text(
-                      '${e.name}${e.nationality != null && e.nationality!.isNotEmpty ? ' • ${e.nationality}' : ''}',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                    '${e.name}${e.nationality != null && e.nationality!.isNotEmpty ? ' • ${e.nationality}' : ''}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -64,8 +68,9 @@ class BlacklistScreen extends ConsumerWidget {
                     },
                     itemBuilder: (context) => [
                       PopupMenuItem(
-                          value: 'toggle',
-                          child: Text(e.active ? 'تعطيل' : 'تفعيل')),
+                        value: 'toggle',
+                        child: Text(e.active ? 'تعطيل' : 'تفعيل'),
+                      ),
                       const PopupMenuItem(value: 'delete', child: Text('حذف')),
                     ],
                   ),
@@ -103,8 +108,9 @@ class BlacklistScreen extends ConsumerWidget {
               children: [
                 TextFormField(
                   controller: name,
-                  decoration:
-                      const InputDecoration(labelText: 'الاسم الكامل *'),
+                  decoration: const InputDecoration(
+                    labelText: 'الاسم الكامل *',
+                  ),
                   validator: (v) =>
                       v == null || v.trim().isEmpty ? 'مطلوب' : null,
                 ),
@@ -141,8 +147,9 @@ class BlacklistScreen extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
@@ -180,9 +187,10 @@ class _EmptyState extends StatelessWidget {
           const Text('لا توجد أسماء في القائمة السوداء'),
           const SizedBox(height: 8),
           ElevatedButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add),
-              label: const Text('إضافة اسم')),
+            onPressed: onAdd,
+            icon: const Icon(Icons.add),
+            label: const Text('إضافة اسم'),
+          ),
         ],
       ),
     );

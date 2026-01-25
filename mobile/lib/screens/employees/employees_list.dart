@@ -28,11 +28,13 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         title: 'الموظفون',
         actions: [
           IconButton(
-              onPressed: () => ref.read(syncServiceProvider).runSync(),
-              icon: const Icon(Icons.sync)),
+            onPressed: () => ref.read(syncServiceProvider).runSync(),
+            icon: const Icon(Icons.sync),
+          ),
           IconButton(
-              onPressed: () => _edit(context, ref),
-              icon: const Icon(Icons.add)),
+            onPressed: () => _edit(context, ref),
+            icon: const Icon(Icons.add),
+          ),
         ],
         body: StreamBuilder(
           stream: repo.watchAll(),
@@ -48,7 +50,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                 return ListTile(
                   title: Text(e.name),
                   subtitle: Text(
-                      'الراتب: ${CurrencyFormatter.formatAmount(e.basicSalary)} • ${e.status}'),
+                    'الراتب: ${CurrencyFormatter.formatAmount(e.basicSalary)} • ${e.status}',
+                  ),
                   onTap: () => _edit(context, ref, existing: e),
                 );
               },
@@ -59,13 +62,17 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     );
   }
 
-  Future<void> _edit(BuildContext context, WidgetRef ref,
-      {Employee? existing}) async {
+  Future<void> _edit(
+    BuildContext context,
+    WidgetRef ref, {
+    Employee? existing,
+  }) async {
     final name = TextEditingController(text: existing?.name ?? '');
     final salary = TextEditingController(
-        text: existing != null
-            ? CurrencyFormatter.formatAmount(existing.basicSalary)
-            : '');
+      text: existing != null
+          ? CurrencyFormatter.formatAmount(existing.basicSalary)
+          : '',
+    );
     String status = existing?.status ?? 'active';
 
     final ok = await showDialog<bool>(
@@ -74,31 +81,38 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: Text(existing == null ? 'إضافة موظف' : 'تعديل موظف'),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
                 controller: name,
-                decoration: const InputDecoration(labelText: 'الاسم')),
-            TextField(
+                decoration: const InputDecoration(labelText: 'الاسم'),
+              ),
+              TextField(
                 controller: salary,
                 decoration: const InputDecoration(labelText: 'الراتب'),
-                keyboardType: TextInputType.number),
-            DropdownButtonFormField<String>(
-              value: status,
-              items: const [
-                DropdownMenuItem(value: 'active', child: Text('نشط')),
-                DropdownMenuItem(value: 'inactive', child: Text('غير نشط'))
-              ],
-              onChanged: (v) => status = v ?? status,
-              decoration: const InputDecoration(labelText: 'الحالة'),
-            )
-          ]),
+                keyboardType: TextInputType.number,
+              ),
+              DropdownButtonFormField<String>(
+                value: status,
+                items: const [
+                  DropdownMenuItem(value: 'active', child: Text('نشط')),
+                  DropdownMenuItem(value: 'inactive', child: Text('غير نشط')),
+                ],
+                onChanged: (v) => status = v ?? status,
+                decoration: const InputDecoration(labelText: 'الحالة'),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('إلغاء')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('حفظ'))
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('حفظ'),
+            ),
           ],
         ),
       ),
@@ -108,14 +122,17 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     final repo = ref.read(employeesRepoProvider);
     if (existing == null) {
       await repo.create(
-          name: name.text.trim(),
-          basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
-          status: status);
+        name: name.text.trim(),
+        basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
+        status: status,
+      );
     } else {
-      await repo.update(existing.id,
-          name: name.text.trim(),
-          basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
-          status: status);
+      await repo.update(
+        existing.id,
+        name: name.text.trim(),
+        basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
+        status: status,
+      );
     }
 
     markDataChanged();

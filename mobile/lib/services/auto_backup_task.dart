@@ -40,10 +40,7 @@ class AutoBackupTask {
           requiresBatteryNotLow: true,
           requiresStorageNotLow: true,
         ),
-        inputData: {
-          'frequency': 'daily',
-          'time': time,
-        },
+        inputData: {'frequency': 'daily', 'time': time},
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
@@ -54,8 +51,10 @@ class AutoBackupTask {
   }
 
   /// جدولة النسخ الأسبوعي
-  static Future<void> scheduleWeekly(
-      {String time = '02:00', int weekday = 1}) async {
+  static Future<void> scheduleWeekly({
+    String time = '02:00',
+    int weekday = 1,
+  }) async {
     try {
       await _cancelExisting();
 
@@ -72,11 +71,7 @@ class AutoBackupTask {
           requiresBatteryNotLow: true,
           requiresStorageNotLow: true,
         ),
-        inputData: {
-          'frequency': 'weekly',
-          'time': time,
-          'weekday': weekday,
-        },
+        inputData: {'frequency': 'weekly', 'time': time, 'weekday': weekday},
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
@@ -87,8 +82,10 @@ class AutoBackupTask {
   }
 
   /// جدولة النسخ الشهري
-  static Future<void> scheduleMonthly(
-      {String time = '02:00', int day = 1}) async {
+  static Future<void> scheduleMonthly({
+    String time = '02:00',
+    int day = 1,
+  }) async {
     try {
       await _cancelExisting();
 
@@ -105,11 +102,7 @@ class AutoBackupTask {
           requiresBatteryNotLow: true,
           requiresStorageNotLow: true,
         ),
-        inputData: {
-          'frequency': 'monthly',
-          'time': time,
-          'day': day,
-        },
+        inputData: {'frequency': 'monthly', 'time': time, 'day': day},
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
@@ -220,9 +213,7 @@ class AutoBackupTask {
       await Workmanager().registerOneOffTask(
         'immediateBackup',
         taskName,
-        constraints: Constraints(
-          networkType: NetworkType.connected,
-        ),
+        constraints: Constraints(networkType: NetworkType.connected),
         inputData: {
           'frequency': 'immediate',
           'time': DateTime.now().toIso8601String(),
@@ -278,7 +269,8 @@ void callbackDispatcher() {
             debugPrint('✅ تم النسخ الاحتياطي السحابي بنجاح');
           } else {
             debugPrint(
-                '⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي');
+              '⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي',
+            );
           }
         } catch (e) {
           debugPrint('❌ خطأ في النسخ الاحتياطي السحابي: $e');

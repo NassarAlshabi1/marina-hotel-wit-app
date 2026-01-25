@@ -27,7 +27,11 @@ String _convertNumberToArabicWords(int number) {
 }
 
 String _formatWithScale(
-    int value, String singular, String dual, String plural) {
+  int value,
+  String singular,
+  String dual,
+  String plural,
+) {
   if (value == 1) {
     return singular;
   }

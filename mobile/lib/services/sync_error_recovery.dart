@@ -2,20 +2,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'local_db.dart';
 
-enum RecoveryAction {
-  retry,
-  skip,
-  rollback,
-  escalate,
-  pause,
-}
+enum RecoveryAction { retry, skip, rollback, escalate, pause }
 
-enum ErrorSeverity {
-  low,
-  medium,
-  high,
-  critical,
-}
+enum ErrorSeverity { low, medium, high, critical }
 
 class SyncError {
   final String id;
@@ -43,16 +32,16 @@ class SyncError {
   }) : timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'operation': operation,
-        'table': table,
-        'recordId': recordId,
-        'message': message,
-        'severity': severity.name,
-        'isRetriable': isRetriable,
-        'timestamp': timestamp.toIso8601String(),
-        'retryCount': retryCount,
-      };
+    'id': id,
+    'operation': operation,
+    'table': table,
+    'recordId': recordId,
+    'message': message,
+    'severity': severity.name,
+    'isRetriable': isRetriable,
+    'timestamp': timestamp.toIso8601String(),
+    'retryCount': retryCount,
+  };
 }
 
 class RecoveryResult {
@@ -293,7 +282,8 @@ class SyncErrorRecovery {
         description: description,
         timestamp: DateTime.now(),
         snapshot: snapshot.map(
-            (k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v as List))),
+          (k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v as List)),
+        ),
       );
 
       _rollbackPoints.insert(0, rollbackPoint);
@@ -308,7 +298,9 @@ class SyncErrorRecovery {
   }
 
   Future<bool> restoreFromRollbackPoint(
-      String pointId, AppDatabase database) async {
+    String pointId,
+    AppDatabase database,
+  ) async {
     final point = _rollbackPoints.firstWhere(
       (p) => p.id == pointId,
       orElse: () => throw Exception('نقطة الاستعادة غير موجودة'),

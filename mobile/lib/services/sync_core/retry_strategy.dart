@@ -2,11 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 
-enum RetryBackoffType {
-  linear,
-  exponential,
-  fibonacci,
-}
+enum RetryBackoffType { linear, exponential, fibonacci }
 
 class RetryConfig {
   final int maxAttempts;
@@ -132,7 +128,8 @@ class RetryStrategy {
 
         final delay = calculateDelay(attempt);
         debugPrint(
-            '⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية');
+          '⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية',
+        );
 
         if (onRetry != null) {
           onRetry(attempt, error);

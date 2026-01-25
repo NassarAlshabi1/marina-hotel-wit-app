@@ -58,9 +58,7 @@ class SyncGuardian {
 
   Stream<SyncHealthSnapshot> watchHealth() => _healthController.stream;
 
-  Future<void> initialize({
-    required AppDatabase database,
-  }) async {
+  Future<void> initialize({required AppDatabase database}) async {
     if (_initialized || _initializing) {
       return;
     }
@@ -71,7 +69,8 @@ class SyncGuardian {
       await _orchestrator!.initialize(database: database);
       await AutoSyncTask.initialize(debug: kDebugMode);
       await AutoSyncTask.schedulePeriodicSync(
-          SyncConstants.defaultAutoSyncInterval);
+        SyncConstants.defaultAutoSyncInterval,
+      );
       await _restoreDevicePriority();
       _startPendingMonitor();
       await _refreshPendingFlag();
@@ -95,7 +94,8 @@ class SyncGuardian {
     _debounceTimer = Timer(SyncConstants.guardianLocalChangeDebounce, () async {
       try {
         debugPrint(
-            '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
+          '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation',
+        );
         final ok = await _orchestrator!.syncNow(
           push: true,
           pull: true,
@@ -152,7 +152,10 @@ class SyncGuardian {
   Future<void> forceSync() async {
     await _consumePending(force: true);
     await _orchestrator?.syncNow(
-        push: true, pull: true, reason: 'guardian_force');
+      push: true,
+      pull: true,
+      reason: 'guardian_force',
+    );
   }
 
   Future<void> setDevicePriority(int priority) async {

@@ -69,14 +69,17 @@ class AutoSyncTask {
       return;
     }
     WidgetsFlutterBinding.ensureInitialized();
-    await Workmanager()
-        .initialize(autoSyncCallbackDispatcher, isInDebugMode: debug);
+    await Workmanager().initialize(
+      autoSyncCallbackDispatcher,
+      isInDebugMode: debug,
+    );
     _initialized = true;
   }
 
   /// جدولة مزامنة فورية مع Debounce لمنع التكرار المتتابع
-  static Future<void> scheduleImmediateSync(
-      {Duration delay = _kDebounceWindow}) async {
+  static Future<void> scheduleImmediateSync({
+    Duration delay = _kDebounceWindow,
+  }) async {
     if (!_initialized) {
       throw StateError('لم يتم تهيئة AutoSyncTask. استدع initialize أولاً.');
     }
@@ -130,8 +133,11 @@ class AutoSyncTask {
     if (!pending && !force) {
       return;
     }
-    await UnifiedSyncOrchestrator.instance
-        .syncNow(push: true, pull: true, reason: 'pending_sync');
+    await UnifiedSyncOrchestrator.instance.syncNow(
+      push: true,
+      pull: true,
+      reason: 'pending_sync',
+    );
     await prefs.setBool(_kPendingFlagKey, false);
   }
 }

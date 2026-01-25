@@ -40,8 +40,9 @@ class _WhatsAppSettingsScreenState
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('تم حفظ إعدادات الرسالة بنجاح'),
-            backgroundColor: Colors.green),
+          content: Text('تم حفظ إعدادات الرسالة بنجاح'),
+          backgroundColor: Colors.green,
+        ),
       );
     }
   }
@@ -78,7 +79,9 @@ class _WhatsAppSettingsScreenState
                           Text(
                             'المتغيرات المتاحة:',
                             style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                           SizedBox(height: 8),
                           Text('{name} : اسم الضيف'),
@@ -86,9 +89,11 @@ class _WhatsAppSettingsScreenState
                           Text('{room} : رقم الغرفة'),
                           Text('{remaining} : المبلغ المتبقي'),
                           Text(
-                              '{extra_nights} : تفاصيل الليالي الإضافية (إن وجد)'),
+                            '{extra_nights} : تفاصيل الليالي الإضافية (إن وجد)',
+                          ),
                           Text(
-                              '{new_checkout} : تاريخ المغادرة الجديد (إن وجد)'),
+                            '{new_checkout} : تاريخ المغادرة الجديد (إن وجد)',
+                          ),
                         ],
                       ),
                     ),
@@ -124,10 +129,12 @@ class _WhatsAppSettingsScreenState
                           icon: const Icon(Icons.save),
                           label: const Text('حفظ التغييرات'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primary,
-                            foregroundColor:
-                                Theme.of(context).colorScheme.onPrimary,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.onPrimary,
                           ),
                         ),
                       ),

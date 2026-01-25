@@ -128,8 +128,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               ),
               indicatorSize: TabBarIndicatorSize.tab,
               labelColor: Theme.of(context).colorScheme.onPrimary,
-              unselectedLabelColor:
-                  Theme.of(context).colorScheme.onSurfaceVariant,
+              unselectedLabelColor: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant,
               dividerColor: Colors.transparent,
               tabs: const [
                 Tab(text: 'جميع الملاحظات'),
@@ -257,8 +258,12 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     );
   }
 
-  Widget _buildStatChip(String label, int? count, Color color,
-      {bool isLoading = false}) {
+  Widget _buildStatChip(
+    String label,
+    int? count,
+    Color color, {
+    bool isLoading = false,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
@@ -289,10 +294,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 10,
-              color: color.withOpacity(0.8),
-            ),
+            style: TextStyle(fontSize: 10, color: color.withOpacity(0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -442,9 +444,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border(
-            left: BorderSide(color: priorityColor, width: 4),
-          ),
+          border: Border(left: BorderSide(color: priorityColor, width: 4)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -499,8 +499,10 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                     const SizedBox(width: 4),
                     Text(
                       'ينتهي: ${_formatDate(note.expiresAt!)}',
-                      style:
-                          const TextStyle(fontSize: 12, color: Colors.orange),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange,
+                      ),
                     ),
                   ],
                   const Spacer(),
@@ -662,8 +664,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   Future<void> _markAsRead(ShiftNote note) async {
     setState(() => _isProcessing = true);
     try {
-      final success =
-          await ref.read(shiftNotesRepoProvider).markAsRead(note.id);
+      final success = await ref
+          .read(shiftNotesRepoProvider)
+          .markAsRead(note.id);
       if (success) {
         // إعادة تحديث البيانات
         ref.invalidate(activeShiftNotesProvider);
@@ -671,9 +674,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         ref.invalidate(unreadNotesCountProvider);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم وضع علامة مقروء')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('تم وضع علامة مقروء')));
         }
       } else {
         setState(() => _errorMessage = 'فشل في تحديث الملاحظة');
@@ -717,9 +720,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           ref.invalidate(unreadNotesCountProvider);
 
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('تم حذف الملاحظة')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('تم حذف الملاحظة')));
           }
         } else {
           setState(() => _errorMessage = 'فشل في حذف الملاحظة');
@@ -785,11 +788,17 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                       ),
                       items: const [
                         DropdownMenuItem(
-                            value: NotePriority.high, child: Text('عالية')),
+                          value: NotePriority.high,
+                          child: Text('عالية'),
+                        ),
                         DropdownMenuItem(
-                            value: NotePriority.medium, child: Text('متوسطة')),
+                          value: NotePriority.medium,
+                          child: Text('متوسطة'),
+                        ),
                         DropdownMenuItem(
-                            value: NotePriority.low, child: Text('منخفضة')),
+                          value: NotePriority.low,
+                          child: Text('منخفضة'),
+                        ),
                       ],
                       onChanged: (value) =>
                           setState(() => priority = value ?? priority),
@@ -803,16 +812,21 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                       ),
                       items: const [
                         DropdownMenuItem(
-                            value: ShiftType.all, child: Text('جميع النوبات')),
+                          value: ShiftType.all,
+                          child: Text('جميع النوبات'),
+                        ),
                         DropdownMenuItem(
-                            value: ShiftType.morning,
-                            child: Text('النوبة الصباحية')),
+                          value: ShiftType.morning,
+                          child: Text('النوبة الصباحية'),
+                        ),
                         DropdownMenuItem(
-                            value: ShiftType.evening,
-                            child: Text('النوبة المسائية')),
+                          value: ShiftType.evening,
+                          child: Text('النوبة المسائية'),
+                        ),
                         DropdownMenuItem(
-                            value: ShiftType.night,
-                            child: Text('النوبة الليلية')),
+                          value: ShiftType.night,
+                          child: Text('النوبة الليلية'),
+                        ),
                       ],
                       onChanged: (value) =>
                           setState(() => shiftType = value ?? shiftType),
@@ -822,7 +836,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                       leading: const Icon(Icons.schedule),
                       title: const Text('تاريخ انتهاء الصلاحية'),
                       subtitle: Text(
-                          expiresAt?.toString().split(' ')[0] ?? 'غير محدد'),
+                        expiresAt?.toString().split(' ')[0] ?? 'غير محدد',
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -836,11 +851,13 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                             onPressed: () async {
                               final date = await showDatePicker(
                                 context: context,
-                                initialDate: expiresAt ??
+                                initialDate:
+                                    expiresAt ??
                                     DateTime.now().add(const Duration(days: 7)),
                                 firstDate: DateTime.now(),
-                                lastDate: DateTime.now()
-                                    .add(const Duration(days: 365)),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 365),
+                                ),
                               );
                               if (date != null) {
                                 setState(() => expiresAt = date);
@@ -916,9 +933,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         await ref.read(shiftNotesRepoProvider).create(newNote);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم إضافة الملاحظة')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('تم إضافة الملاحظة')));
         }
       } else {
         // تحديث ملاحظة موجودة
@@ -935,13 +952,14 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           createdBy: existingNote.createdBy,
         );
 
-        final success =
-            await ref.read(shiftNotesRepoProvider).update(updatedNote);
+        final success = await ref
+            .read(shiftNotesRepoProvider)
+            .update(updatedNote);
 
         if (success && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم تحديث الملاحظة')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('تم تحديث الملاحظة')));
         } else if (!success) {
           setState(() => _errorMessage = 'فشل في تحديث الملاحظة');
         }

@@ -56,7 +56,9 @@ class AuthLocalStore {
         return decoded.map((key, value) {
           if (value is Map) {
             return MapEntry(
-                key.toString(), value.map((k, v) => MapEntry(k.toString(), v)));
+              key.toString(),
+              value.map((k, v) => MapEntry(k.toString(), v)),
+            );
           }
           return MapEntry(key.toString(), <String, dynamic>{});
         });
@@ -109,7 +111,9 @@ class AuthLocalStore {
   }
 
   Future<Map<String, dynamic>?> validateCredentials(
-      String username, String password) async {
+    String username,
+    String password,
+  ) async {
     final normalized = username.trim();
     Map<String, dynamic>? account = _fixedAccounts[normalized];
     account ??= await _getCustomAccount(normalized);
@@ -121,8 +125,9 @@ class AuthLocalStore {
       return null;
     }
 
-    final perms =
-        normalized == 'admin' ? ['all'] : await getPermissions(normalized);
+    final perms = normalized == 'admin'
+        ? ['all']
+        : await getPermissions(normalized);
     return {
       'id': account['id'] ?? 0,
       'username': normalized,

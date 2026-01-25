@@ -85,26 +85,24 @@ class SyncTaskResult {
     int conflicts = 0,
     required Duration duration,
     Map<String, dynamic>? metadata,
-  }) =>
-      SyncTaskResult(
-        success: true,
-        recordsProcessed: recordsProcessed,
-        conflicts: conflicts,
-        duration: duration,
-        metadata: metadata,
-      );
+  }) => SyncTaskResult(
+    success: true,
+    recordsProcessed: recordsProcessed,
+    conflicts: conflicts,
+    duration: duration,
+    metadata: metadata,
+  );
 
   factory SyncTaskResult.failure({
     required String error,
     required Duration duration,
     Map<String, dynamic>? metadata,
-  }) =>
-      SyncTaskResult(
-        success: false,
-        duration: duration,
-        error: error,
-        metadata: metadata,
-      );
+  }) => SyncTaskResult(
+    success: false,
+    duration: duration,
+    error: error,
+    metadata: metadata,
+  );
 }
 
 class SyncHealth {
@@ -131,16 +129,16 @@ class SyncHealth {
   });
 
   Map<String, dynamic> toJson() => {
-        'isHealthy': isHealthy,
-        'successRate': successRate,
-        'consecutiveFailures': consecutiveFailures,
-        'avgSyncDurationMs': avgSyncDuration.inMilliseconds,
-        'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
-        'lastFailedSync': lastFailedSync?.toIso8601String(),
-        'pendingTasks': pendingTasks,
-        'outboxCount': outboxCount,
-        'circuitStates': circuitStates.map((k, v) => MapEntry(k, v.name)),
-      };
+    'isHealthy': isHealthy,
+    'successRate': successRate,
+    'consecutiveFailures': consecutiveFailures,
+    'avgSyncDurationMs': avgSyncDuration.inMilliseconds,
+    'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
+    'lastFailedSync': lastFailedSync?.toIso8601String(),
+    'pendingTasks': pendingTasks,
+    'outboxCount': outboxCount,
+    'circuitStates': circuitStates.map((k, v) => MapEntry(k, v.name)),
+  };
 }
 
 class SyncMetricsData {
@@ -159,8 +157,10 @@ class SyncMetricsData {
 
   Duration get avgDuration {
     if (recentDurations.isEmpty) return Duration.zero;
-    final total =
-        recentDurations.fold<int>(0, (sum, d) => sum + d.inMilliseconds);
+    final total = recentDurations.fold<int>(
+      0,
+      (sum, d) => sum + d.inMilliseconds,
+    );
     return Duration(milliseconds: total ~/ recentDurations.length);
   }
 
@@ -192,17 +192,17 @@ class SyncMetricsData {
   }
 
   Map<String, dynamic> toJson() => {
-        'totalSyncs': totalSyncs,
-        'successfulSyncs': successfulSyncs,
-        'failedSyncs': failedSyncs,
-        'successRate': successRate,
-        'totalRecordsProcessed': totalRecordsProcessed,
-        'totalConflicts': totalConflicts,
-        'avgDurationMs': avgDuration.inMilliseconds,
-        'consecutiveFailures': consecutiveFailures,
-        'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
-        'lastFailedSync': lastFailedSync?.toIso8601String(),
-      };
+    'totalSyncs': totalSyncs,
+    'successfulSyncs': successfulSyncs,
+    'failedSyncs': failedSyncs,
+    'successRate': successRate,
+    'totalRecordsProcessed': totalRecordsProcessed,
+    'totalConflicts': totalConflicts,
+    'avgDurationMs': avgDuration.inMilliseconds,
+    'consecutiveFailures': consecutiveFailures,
+    'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
+    'lastFailedSync': lastFailedSync?.toIso8601String(),
+  };
 }
 
 class DataIntegrityCheck {
@@ -219,11 +219,11 @@ class DataIntegrityCheck {
   });
 
   Map<String, dynamic> toJson() => {
-        'tableName': tableName,
-        'checksum': checksum,
-        'recordCount': recordCount,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'tableName': tableName,
+    'checksum': checksum,
+    'recordCount': recordCount,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 class SyncOrchestrator {
@@ -289,15 +289,15 @@ class SyncOrchestrator {
 
     await ConnectivityService.instance.initialize();
 
-    _connectivitySubscription =
-        ConnectivityService.instance.statusStream.listen((status) {
-      if (status.isOnline && _state == OrchestratorState.paused) {
-        _setState(OrchestratorState.idle);
-        _processTasks();
-      } else if (!status.isOnline && _state == OrchestratorState.syncing) {
-        _setState(OrchestratorState.paused);
-      }
-    });
+    _connectivitySubscription = ConnectivityService.instance.statusStream
+        .listen((status) {
+          if (status.isOnline && _state == OrchestratorState.paused) {
+            _setState(OrchestratorState.idle);
+            _processTasks();
+          } else if (!status.isOnline && _state == OrchestratorState.syncing) {
+            _setState(OrchestratorState.paused);
+          }
+        });
 
     _healthCheckTimer = Timer.periodic(
       const Duration(minutes: 1),
@@ -330,7 +330,8 @@ class SyncOrchestrator {
     _taskQueue.sort((a, b) => a.priority.index.compareTo(b.priority.index));
 
     debugPrint(
-        '📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})');
+      '📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})',
+    );
 
     if (_state == OrchestratorState.idle) {
       _processTasks();
@@ -362,8 +363,9 @@ class SyncOrchestrator {
       SyncTaskResult result;
 
       if (circuitBreaker != null) {
-        result = await circuitBreaker
-            .execute(() => task.execute().timeout(task.timeout));
+        result = await circuitBreaker.execute(
+          () => task.execute().timeout(task.timeout),
+        );
       } else {
         result = await task.execute().timeout(task.timeout);
       }
@@ -372,9 +374,13 @@ class SyncOrchestrator {
 
       if (result.success) {
         _metrics.recordSuccess(
-            duration, result.recordsProcessed, result.conflicts);
+          duration,
+          result.recordsProcessed,
+          result.conflicts,
+        );
         debugPrint(
-            '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms');
+          '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms',
+        );
       } else {
         _metrics.recordFailure(duration);
         debugPrint('❌ [Orchestrator] ${task.name}: ${result.error}');
@@ -394,10 +400,7 @@ class SyncOrchestrator {
     } catch (e) {
       final duration = DateTime.now().difference(startTime);
       _metrics.recordFailure(duration);
-      return SyncTaskResult.failure(
-        error: e.toString(),
-        duration: duration,
-      );
+      return SyncTaskResult.failure(error: e.toString(), duration: duration);
     }
   }
 
@@ -428,7 +431,8 @@ class SyncOrchestrator {
         } else {
           _taskQueue.removeAt(0);
           debugPrint(
-              '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}');
+            '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}',
+          );
         }
       }
 
@@ -442,7 +446,8 @@ class SyncOrchestrator {
     final outboxCount = await _outboxDao.count();
 
     return SyncHealth(
-      isHealthy: _metrics.consecutiveFailures < 3 &&
+      isHealthy:
+          _metrics.consecutiveFailures < 3 &&
           _circuitBreakers.values.every((cb) => cb.state != CircuitState.open),
       successRate: _metrics.successRate,
       consecutiveFailures: _metrics.consecutiveFailures,
@@ -493,7 +498,7 @@ class SyncOrchestrator {
       'employees',
       'expenses',
       'payments',
-      'debts'
+      'debts',
     ];
 
     for (final table in tables) {
@@ -515,12 +520,14 @@ class SyncOrchestrator {
         final dataString = dataResult.map((r) => jsonEncode(r.data)).join();
         final checksum = md5.convert(utf8.encode(dataString)).toString();
 
-        checks.add(DataIntegrityCheck(
-          tableName: table,
-          checksum: checksum,
-          recordCount: count,
-          timestamp: DateTime.now(),
-        ));
+        checks.add(
+          DataIntegrityCheck(
+            tableName: table,
+            checksum: checksum,
+            recordCount: count,
+            timestamp: DateTime.now(),
+          ),
+        );
       } catch (e) {
         debugPrint('⚠️ [Orchestrator] خطأ في فحص $table: $e');
       }
@@ -550,7 +557,9 @@ class SyncOrchestrator {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-          'sync_orchestrator_metrics', jsonEncode(_metrics.toJson()));
+        'sync_orchestrator_metrics',
+        jsonEncode(_metrics.toJson()),
+      );
     } catch (e) {
       debugPrint('⚠️ [Orchestrator] خطأ في حفظ المقاييس: $e');
     }

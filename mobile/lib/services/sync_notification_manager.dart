@@ -19,8 +19,9 @@ class SyncNotificationManager {
   Future<void> _initLocalNotifications() async {
     if (_isInitialized) return;
 
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const initSettings = InitializationSettings(android: androidSettings);
 
     await _localNotifications.initialize(
@@ -55,13 +56,7 @@ class SyncNotificationManager {
     // نستخدم رقم عشوائي أو ثابت للـ ID
     final id = DateTime.now().millisecondsSinceEpoch % 100000;
 
-    await _localNotifications.show(
-      id,
-      title,
-      body,
-      details,
-      payload: payload,
-    );
+    await _localNotifications.show(id, title, body, details, payload: payload);
   }
 
   /// إشعار نجاح المزامنة
@@ -242,8 +237,11 @@ class SyncNotificationManager {
                     ),
                     IconButton(
                       onPressed: () => overlayEntry.remove(),
-                      icon: const Icon(Icons.close,
-                          color: Colors.white, size: 20),
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -393,8 +391,11 @@ class SyncNotificationManager {
                     ),
                     IconButton(
                       onPressed: () => overlayEntry.remove(),
-                      icon: const Icon(Icons.close,
-                          color: Colors.white, size: 20),
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -429,7 +430,9 @@ class SyncNotificationManager {
                           backgroundColor: Colors.white.withOpacity(0.2),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
-                              vertical: 8, horizontal: 12),
+                            vertical: 8,
+                            horizontal: 12,
+                          ),
                         ),
                         child: const Text('تفاصيل'),
                       ),

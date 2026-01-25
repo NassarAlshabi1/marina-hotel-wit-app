@@ -34,8 +34,10 @@ void main() {
       const List<ConnectivityResult> emptyResults = [];
 
       // يجب ألا ترمي خطأ عند تمرير قائمة فارغة
-      expect(() => optimizer._updateConnectivityStatus(emptyResults),
-          returnsNormally);
+      expect(
+        () => optimizer._updateConnectivityStatus(emptyResults),
+        returnsNormally,
+      );
 
       // بعد معالجة قائمة فارغة، يجب أن يكون isOnWiFi = false
       expect(optimizer.isOnWiFi, false);
@@ -57,7 +59,7 @@ void main() {
 
     test('should handle single mobile connection', () {
       const List<ConnectivityResult> mobileResults = [
-        ConnectivityResult.mobile
+        ConnectivityResult.mobile,
       ];
 
       optimizer._updateConnectivityStatus(mobileResults);
@@ -118,7 +120,7 @@ void main() {
 
       // اختبار إعدادات الأداء للـ Mobile Data
       const List<ConnectivityResult> mobileResults = [
-        ConnectivityResult.mobile
+        ConnectivityResult.mobile,
       ];
       optimizer._updateConnectivityStatus(mobileResults);
 

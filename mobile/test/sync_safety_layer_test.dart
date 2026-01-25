@@ -23,11 +23,15 @@ void main() {
   });
 
   test('snapshot rollback restores data after simulated failure', () async {
-    await db.into(db.shiftNotes).insert(ShiftNotesCompanion.insert(
-          title: 'ملاحظة اختبار',
-          content: 'قبل المزامنة',
-          createdAt: DateTime.now().toIso8601String(),
-        ));
+    await db
+        .into(db.shiftNotes)
+        .insert(
+          ShiftNotesCompanion.insert(
+            title: 'ملاحظة اختبار',
+            content: 'قبل المزامنة',
+            createdAt: DateTime.now().toIso8601String(),
+          ),
+        );
 
     final snapshot = await SyncSafetyLayer.instance.captureSnapshot(
       db: db,

@@ -38,7 +38,8 @@ class _SyncPerformanceSettingsScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              '✅ تم تطبيق ملف التعريف: ${SyncPerformanceSettings.predefinedProfiles[profileKey]!['name']}'),
+            '✅ تم تطبيق ملف التعريف: ${SyncPerformanceSettings.predefinedProfiles[profileKey]!['name']}',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -184,7 +185,9 @@ class _SyncPerformanceSettingsScreenState
                 if (profile['low_power_mode'] as bool)
                   _buildProfileBadge('توفير طاقة', Icons.battery_saver),
                 _buildProfileBadge(
-                    '${profile['daily_limit_mb']} MB', Icons.data_usage),
+                  '${profile['daily_limit_mb']} MB',
+                  Icons.data_usage,
+                ),
               ],
             ),
           ],
@@ -229,10 +232,11 @@ class _SyncPerformanceSettingsScreenState
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Card(
-              child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
-          ));
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
         }
 
         final settings = snapshot.data!;
@@ -250,8 +254,9 @@ class _SyncPerformanceSettingsScreenState
                 const SizedBox(height: 16),
                 SwitchListTile(
                   title: const Text('الفترة التكيفية'),
-                  subtitle:
-                      const Text('تعديل فترة المزامنة حسب الاستخدام والاتصال'),
+                  subtitle: const Text(
+                    'تعديل فترة المزامنة حسب الاستخدام والاتصال',
+                  ),
                   value: settings['adaptive_interval'] ?? true,
                   onChanged: _isLoading
                       ? null
@@ -299,10 +304,11 @@ class _SyncPerformanceSettingsScreenState
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Card(
-              child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
-          ));
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
         }
 
         final stats = snapshot.data!;
@@ -389,7 +395,9 @@ class _SyncPerformanceSettingsScreenState
                       Text(
                         '${stats['consecutive_failures']} مرات',
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, color: Colors.orange),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
                       ),
                     ],
                   ),
@@ -413,13 +421,10 @@ class _SyncPerformanceSettingsScreenState
   }
 
   Future<Map<String, dynamic>> _loadPerformanceStats() async {
-    final performanceStats =
-        SyncPerformanceOptimizer.instance.getPerformanceStatus();
+    final performanceStats = SyncPerformanceOptimizer.instance
+        .getPerformanceStatus();
     final usageStats = await DataUsageManager.instance.getUsageStats();
 
-    return {
-      ...performanceStats,
-      ...usageStats,
-    };
+    return {...performanceStats, ...usageStats};
   }
 }

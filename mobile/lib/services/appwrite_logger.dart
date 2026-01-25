@@ -126,28 +126,49 @@ class AppwriteLogger {
     log(message, level: LogLevel.info, tag: tag);
   }
 
-  void warning(String message,
-      {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
-    log(message,
-        level: LogLevel.warning,
-        tag: tag,
-        error: error,
-        stackTrace: stackTrace);
+  void warning(
+    String message, {
+    String tag = 'APPWRITE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.warning,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
-  void error(String message,
-      {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
-    log(message,
-        level: LogLevel.error, tag: tag, error: error, stackTrace: stackTrace);
+  void error(
+    String message, {
+    String tag = 'APPWRITE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.error,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
-  void critical(String message,
-      {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
-    log(message,
-        level: LogLevel.critical,
-        tag: tag,
-        error: error,
-        stackTrace: stackTrace);
+  void critical(
+    String message, {
+    String tag = 'APPWRITE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.critical,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   /// الحصول على جميع السجلات

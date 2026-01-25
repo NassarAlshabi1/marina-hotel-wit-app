@@ -15,8 +15,9 @@ class AlarmBackup {
   static Future<void> initAlarmSystem() async {
     await AndroidAlarmManager.initialize();
     // تهيئة الإشعارات
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     final initSettings = InitializationSettings(android: androidSettings);
     await _notif.initialize(initSettings);
     debugPrint('✅ Alarm system initialized');

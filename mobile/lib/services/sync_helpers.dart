@@ -4,11 +4,12 @@ import '../utils/time.dart';
 import 'local_db.dart';
 import 'appwrite_logger.dart';
 
-typedef DocumentMapper<T extends d.Insertable> = T? Function(
-  Map<String, dynamic> data,
-  String localUuid,
-  SyncFieldsHelper helper,
-);
+typedef DocumentMapper<T extends d.Insertable> =
+    T? Function(
+      Map<String, dynamic> data,
+      String localUuid,
+      SyncFieldsHelper helper,
+    );
 
 typedef DocumentValidator = bool Function(Map<String, dynamic> data);
 
@@ -123,8 +124,8 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
     required this.database,
     required this.tableName,
     required this.table,
-  })  : helper = SyncFieldsHelper(database),
-        _logger = AppwriteLogger();
+  }) : helper = SyncFieldsHelper(database),
+       _logger = AppwriteLogger();
 
   Future<SyncResult> syncDocuments({
     required List<models.Document> documents,
@@ -173,10 +174,9 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
           continue;
         }
 
-        await database.into(table).insert(
-              companion,
-              mode: d.InsertMode.insertOrReplace,
-            );
+        await database
+            .into(table)
+            .insert(companion, mode: d.InsertMode.insertOrReplace);
         processed++;
       } catch (e) {
         failed++;
@@ -228,11 +228,7 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
               continue;
             }
 
-            batch.insert(
-              table,
-              companion,
-              mode: d.InsertMode.insertOrReplace,
-            );
+            batch.insert(table, companion, mode: d.InsertMode.insertOrReplace);
             processed++;
           } catch (e) {
             failed++;
@@ -307,7 +303,10 @@ class SyncProcessorFactory {
 }
 
 RoomsCompanion mapRoom(
-    Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
+  Map<String, dynamic> data,
+  String localUuid,
+  SyncFieldsHelper h,
+) {
   final roomNumber = h.asString(data['roomNumber']);
   if (roomNumber == null || roomNumber.isEmpty) {
     throw ArgumentError('roomNumber is required');
@@ -331,7 +330,10 @@ RoomsCompanion mapRoom(
 }
 
 EmployeesCompanion mapEmployee(
-    Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
+  Map<String, dynamic> data,
+  String localUuid,
+  SyncFieldsHelper h,
+) {
   final name = h.asString(data['name']);
   if (name == null || name.isEmpty) {
     throw ArgumentError('name is required');
@@ -356,7 +358,10 @@ EmployeesCompanion mapEmployee(
 }
 
 ExpensesCompanion mapExpense(
-    Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
+  Map<String, dynamic> data,
+  String localUuid,
+  SyncFieldsHelper h,
+) {
   final expenseType = h.asString(data['expenseType']);
   if (expenseType == null || expenseType.isEmpty) {
     throw ArgumentError('expenseType is required');
@@ -376,8 +381,9 @@ ExpensesCompanion mapExpense(
     description: d.Value(h.asStringRequired(data['description'])),
     amount: d.Value(h.asDouble(data['amount'])),
     date: d.Value(h.asStringRequired(data['date'])),
-    cashTransactionId:
-        h.nullableValue(h.asIntNullable(data['cashTransactionId'])),
+    cashTransactionId: h.nullableValue(
+      h.asIntNullable(data['cashTransactionId']),
+    ),
   );
 }
 

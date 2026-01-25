@@ -19,10 +19,7 @@ class CentralSyncCoordinator {
   static const Duration unifiedDebounce = Duration(seconds: 3);
   static const Duration syncCooldown = Duration(seconds: 10);
 
-  void notifyLocalChange({
-    required String table,
-    required String operation,
-  }) {
+  void notifyLocalChange({required String table, required String operation}) {
     debugPrint('🔔 CentralSyncCoordinator: تغيير في $table ($operation)');
 
     _debounceTimer?.cancel();
@@ -37,11 +34,7 @@ class CentralSyncCoordinator {
     String reason = 'manual',
   }) async {
     _debounceTimer?.cancel();
-    return await _performSync(
-      push: push,
-      pull: pull,
-      reason: reason,
-    );
+    return await _performSync(push: push, pull: pull, reason: reason);
   }
 
   Future<bool> _performSync({
@@ -54,12 +47,16 @@ class CentralSyncCoordinator {
       if (elapsed < syncCooldown) {
         final remaining = syncCooldown - elapsed;
         debugPrint(
-            '⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining');
+          '⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining',
+        );
 
         _debounceTimer?.cancel();
         _debounceTimer = Timer(remaining, () async {
           await _performSync(
-              push: push, pull: pull, reason: 'cooldown_delayed:$reason');
+            push: push,
+            pull: pull,
+            reason: 'cooldown_delayed:$reason',
+          );
         });
 
         return true;
@@ -74,11 +71,15 @@ class CentralSyncCoordinator {
     _isSyncing = true;
     _syncCount++;
     debugPrint(
-        '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)');
+      '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)',
+    );
 
     try {
-      final success = await UnifiedSyncOrchestrator.instance
-          .syncNow(push: push, pull: pull, reason: reason);
+      final success = await UnifiedSyncOrchestrator.instance.syncNow(
+        push: push,
+        pull: pull,
+        reason: reason,
+      );
 
       if (success) {
         _lastSyncTime = DateTime.now();
@@ -110,7 +111,7 @@ class CentralSyncCoordinator {
       'sync_count': _syncCount,
       'cooldown_remaining': _lastSyncTime != null
           ? syncCooldown.inSeconds -
-              DateTime.now().difference(_lastSyncTime!).inSeconds
+                DateTime.now().difference(_lastSyncTime!).inSeconds
           : 0,
     };
   }

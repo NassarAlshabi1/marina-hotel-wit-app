@@ -44,8 +44,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
           children: [
             TabBar(
               controller: _tabController,
-              labelStyle:
-                  const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              labelStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
               unselectedLabelStyle: const TextStyle(fontSize: 12),
               tabs: const [
                 Tab(text: 'نظرة عامة', icon: Icon(Icons.dashboard, size: 20)),
@@ -136,8 +138,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         return false;
       }
     }).toList();
-    final weeklyAmount =
-        weeklyPayments.fold<double>(0, (sum, p) => sum + p.amount);
+    final weeklyAmount = weeklyPayments.fold<double>(
+      0,
+      (sum, p) => sum + p.amount,
+    );
 
     final monthlyPayments = payments.where((p) {
       try {
@@ -147,8 +151,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         return false;
       }
     }).toList();
-    final monthlyAmount =
-        monthlyPayments.fold<double>(0, (sum, p) => sum + p.amount);
+    final monthlyAmount = monthlyPayments.fold<double>(
+      0,
+      (sum, p) => sum + p.amount,
+    );
 
     return Row(
       children: [
@@ -183,7 +189,11 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   }
 
   Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
@@ -194,19 +204,13 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             const SizedBox(height: 6),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 2),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
           ],
@@ -291,21 +295,24 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
               ],
             ),
             const SizedBox(height: 8),
-            ...recentPayments.map((payment) => ListTile(
-                  leading: Icon(
-                    _getPaymentMethodIcon(payment.paymentMethod),
-                    color: _getPaymentMethodColor(payment.paymentMethod),
-                  ),
-                  title: Text(CurrencyFormatter.formatAmount(payment.amount)),
-                  subtitle:
-                      Text('${payment.paymentMethod} • ${payment.paymentDate}'),
-                  trailing: payment.roomNumber != null
-                      ? Chip(
-                          label: Text(payment.roomNumber!),
-                          backgroundColor: Colors.blue.shade50,
-                        )
-                      : null,
-                )),
+            ...recentPayments.map(
+              (payment) => ListTile(
+                leading: Icon(
+                  _getPaymentMethodIcon(payment.paymentMethod),
+                  color: _getPaymentMethodColor(payment.paymentMethod),
+                ),
+                title: Text(CurrencyFormatter.formatAmount(payment.amount)),
+                subtitle: Text(
+                  '${payment.paymentMethod} • ${payment.paymentDate}',
+                ),
+                trailing: payment.roomNumber != null
+                    ? Chip(
+                        label: Text(payment.roomNumber!),
+                        backgroundColor: Colors.blue.shade50,
+                      )
+                    : null,
+              ),
+            ),
           ],
         ),
       ),
@@ -407,8 +414,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                 ),
                 isThreeLine: true,

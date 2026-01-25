@@ -3,8 +3,11 @@ import 'local_db.dart';
 import 'package:drift/drift.dart' as d;
 
 class OptimisticLockException implements Exception {
-  OptimisticLockException(this.message,
-      {this.currentVersion, this.expectedVersion});
+  OptimisticLockException(
+    this.message, {
+    this.currentVersion,
+    this.expectedVersion,
+  });
 
   final String message;
   final int? currentVersion;
@@ -71,10 +74,12 @@ class OptimisticLockManager {
     }
 
     try {
-      final result = await db.customSelect(
-        'SELECT version FROM $table WHERE local_uuid = ?',
-        variables: [d.Variable.withString(uuid)],
-      ).getSingleOrNull();
+      final result = await db
+          .customSelect(
+            'SELECT version FROM $table WHERE local_uuid = ?',
+            variables: [d.Variable.withString(uuid)],
+          )
+          .getSingleOrNull();
 
       return result?.read<int?>('version');
     } catch (e) {

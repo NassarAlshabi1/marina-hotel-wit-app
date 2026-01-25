@@ -75,10 +75,7 @@ class SmartSyncStatusWidget extends ConsumerWidget {
 class SmartSyncNotificationListener extends ConsumerStatefulWidget {
   final Widget child;
 
-  const SmartSyncNotificationListener({
-    super.key,
-    required this.child,
-  });
+  const SmartSyncNotificationListener({super.key, required this.child});
 
   @override
   ConsumerState<SmartSyncNotificationListener> createState() =>
@@ -91,8 +88,10 @@ class _SmartSyncNotificationListenerState
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<Map<String, dynamic>>>(smartSyncStatusProvider,
-        (previous, next) {
+    ref.listen<AsyncValue<Map<String, dynamic>>>(smartSyncStatusProvider, (
+      previous,
+      next,
+    ) {
       if (next.hasValue) {
         final status = next.value!;
         final lastSyncString = status['last_sync_check'] as String?;
@@ -257,12 +256,14 @@ class _SmartSyncDashboardCardState
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isEnabled
-                    ? 'مُفعلة - فحص كل $syncInterval دقائق'
-                    : 'معطلة'),
+                Text(
+                  isEnabled ? 'مُفعلة - فحص كل $syncInterval دقائق' : 'معطلة',
+                ),
                 if (isSyncing)
-                  const Text('🔄 جارِ المزامنة...',
-                      style: TextStyle(color: Colors.blue)),
+                  const Text(
+                    '🔄 جارِ المزامنة...',
+                    style: TextStyle(color: Colors.blue),
+                  ),
                 if (lastSync != null && !isSyncing)
                   Text('آخر فحص: ${_formatLastSync(DateTime.parse(lastSync))}'),
               ],

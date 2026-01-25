@@ -36,9 +36,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<int> clearStale({int attemptsThreshold = 3}) async {
-    return (delete(outbox)
-          ..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold)))
-        .go();
+    return (delete(
+      outbox,
+    )..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold))).go();
   }
 
   Future<int> merge({
@@ -52,9 +52,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final data = jsonEncode(payload);
 
     final id = await transaction(() async {
-      final existing = await (select(outbox)
-            ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
-          .getSingleOrNull();
+      final existing =
+          await (select(outbox)
+                ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
+              .getSingleOrNull();
 
       String idempotencyKey;
       if (existing != null) {
@@ -119,11 +120,12 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final worker = workerId ?? const Uuid().v4();
 
     return transaction(() async {
-      final entries = await (select(outbox)
-            ..where((t) => t.processingStatus.equals('pending'))
-            ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
-            ..limit(limit))
-          .get();
+      final entries =
+          await (select(outbox)
+                ..where((t) => t.processingStatus.equals('pending'))
+                ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
+                ..limit(limit))
+              .get();
 
       if (entries.isEmpty) {
         return [];
@@ -134,8 +136,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       await (update(outbox)..where((t) => t.id.isIn(ids))).write(
         OutboxCompanion(
           processingStatus: const Value('processing'),
-          processingStartedAt:
-              Value(DateTime.now().millisecondsSinceEpoch),
+          processingStartedAt: Value(DateTime.now().millisecondsSinceEpoch),
           processingWorker: Value(worker),
         ),
       );
@@ -155,8 +156,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<void> setError(int id, String message, int attempts) =>
-      (update(outbox)..where((t) => t.id.equals(id))).write(OutboxCompanion(
-          lastError: Value(message), attempts: Value(attempts)));
+      (update(outbox)..where((t) => t.id.equals(id))).write(
+        OutboxCompanion(lastError: Value(message), attempts: Value(attempts)),
+      );
 
   Future<void> markCompleted(List<int> ids) async {
     if (ids.isEmpty) return;
@@ -172,47 +174,56 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<void> markFailed(List<int> ids) async {
     if (ids.isEmpty) return;
     await (update(outbox)..where((t) => t.id.isIn(ids))).write(
-      const OutboxCompanion(
-        processingStatus: Value('failed'),
-      ),
+      const OutboxCompanion(processingStatus: Value('failed')),
     );
   }
 
   Future<void> retryFailed() async {
-    await (update(outbox)..where((t) => t.processingStatus.equals('failed')))
-        .write(const OutboxCompanion(
-      processingStatus: Value('pending'),
-      processingStartedAt: Value(null),
-      processingWorker: Value(null),
-      attempts: Value(0),
-    ));
+    await (update(
+      outbox,
+    )..where((t) => t.processingStatus.equals('failed'))).write(
+      const OutboxCompanion(
+        processingStatus: Value('pending'),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+        attempts: Value(0),
+      ),
+    );
   }
 
-  Future<int> cleanupStuckEntries(
-      {Duration timeout = const Duration(minutes: 5)}) async {
-    final thresholdTime =
-        DateTime.now().subtract(timeout).millisecondsSinceEpoch;
+  Future<int> cleanupStuckEntries({
+    Duration timeout = const Duration(minutes: 5),
+  }) async {
+    final thresholdTime = DateTime.now()
+        .subtract(timeout)
+        .millisecondsSinceEpoch;
 
-    return await (update(outbox)
-          ..where((t) =>
+    return await (update(outbox)..where(
+          (t) =>
               t.processingStatus.equals('processing') &
-              t.processingStartedAt.isSmallerThanValue(thresholdTime)))
-        .write(const OutboxCompanion(
-      processingStatus: Value('pending'),
-      processingStartedAt: Value(null),
-      processingWorker: Value(null),
-    ));
+              t.processingStartedAt.isSmallerThanValue(thresholdTime),
+        ))
+        .write(
+          const OutboxCompanion(
+            processingStatus: Value('pending'),
+            processingStartedAt: Value(null),
+            processingWorker: Value(null),
+          ),
+        );
   }
 
-  Future<int> cleanupCompleted(
-      {Duration olderThan = const Duration(days: 7)}) async {
-    final thresholdTime =
-        DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
+  Future<int> cleanupCompleted({
+    Duration olderThan = const Duration(days: 7),
+  }) async {
+    final thresholdTime = DateTime.now()
+        .subtract(olderThan)
+        .millisecondsSinceEpoch;
 
-    return await (delete(outbox)
-          ..where((t) =>
+    return await (delete(outbox)..where(
+          (t) =>
               t.processingStatus.equals('completed') &
-              t.processingStartedAt.isSmallerThanValue(thresholdTime)))
+              t.processingStartedAt.isSmallerThanValue(thresholdTime),
+        ))
         .go();
   }
 }

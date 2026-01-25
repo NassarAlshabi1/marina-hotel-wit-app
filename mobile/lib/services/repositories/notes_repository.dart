@@ -5,8 +5,8 @@ import '../daos/booking_notes_dao.dart';
 
 class NotesRepository {
   NotesRepository(this.db)
-      : outbox = OutboxDao(db),
-        dao = BookingNotesDao(db, OutboxDao(db));
+    : outbox = OutboxDao(db),
+      dao = BookingNotesDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final BookingNotesDao dao;
@@ -27,8 +27,9 @@ class NotesRepository {
         bookingId: d.Value(bookingId),
         noteText: d.Value(noteText),
         alertType: d.Value(alertType),
-        alertUntil:
-            alertUntil != null ? d.Value(alertUntil) : const d.Value.absent(),
+        alertUntil: alertUntil != null
+            ? d.Value(alertUntil)
+            : const d.Value.absent(),
         isActive: d.Value(isActive ? 1 : 0),
       ),
     );
@@ -45,10 +46,12 @@ class NotesRepository {
       id,
       BookingNotesCompanion(
         noteText: noteText != null ? d.Value(noteText) : const d.Value.absent(),
-        alertType:
-            alertType != null ? d.Value(alertType) : const d.Value.absent(),
-        alertUntil:
-            alertUntil != null ? d.Value(alertUntil) : const d.Value.absent(),
+        alertType: alertType != null
+            ? d.Value(alertType)
+            : const d.Value.absent(),
+        alertUntil: alertUntil != null
+            ? d.Value(alertUntil)
+            : const d.Value.absent(),
         isActive: isActive != null
             ? d.Value(isActive ? 1 : 0)
             : const d.Value.absent(),
@@ -65,11 +68,7 @@ class NotesRepository {
     final notesData = await dao.exportToJson();
     final recordCount = await dao.getRecordCount();
 
-    return {
-      'data': notesData,
-      'count': recordCount,
-      'entity': 'booking_notes',
-    };
+    return {'data': notesData, 'count': recordCount, 'entity': 'booking_notes'};
   }
 
   /// استيراد بيانات الملاحظات

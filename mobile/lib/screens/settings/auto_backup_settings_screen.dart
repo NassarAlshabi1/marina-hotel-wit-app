@@ -53,7 +53,9 @@ class _AutoBackupSettingsScreenState
       _maxBackupsController.text = maxBackups.toString();
       _retentionDaysController.text = retentionDays.toString();
       _scheduledTime = TimeOfDay(
-          hour: int.parse(timeParts[0]), minute: int.parse(timeParts[1]));
+        hour: int.parse(timeParts[0]),
+        minute: int.parse(timeParts[1]),
+      );
       _isScheduledBackupEnabled = scheduledEnabled;
     });
   }
@@ -98,9 +100,11 @@ class _AutoBackupSettingsScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(enabled
-              ? '✅ تم تفعيل النسخ التلقائي'
-              : '⏸️ تم إيقاف النسخ التلقائي'),
+          content: Text(
+            enabled
+                ? '✅ تم تفعيل النسخ التلقائي'
+                : '⏸️ تم إيقاف النسخ التلقائي',
+          ),
           backgroundColor: enabled ? Colors.green : Colors.orange,
         ),
       );
@@ -189,7 +193,12 @@ class _AutoBackupSettingsScreenState
         children: [
           // معلومات الحالة
           _buildStatusCard(
-              isEnabled, isBackingUp, pendingChanges, lastBackup, isSignedIn),
+            isEnabled,
+            isBackingUp,
+            pendingChanges,
+            lastBackup,
+            isSignedIn,
+          ),
 
           const SizedBox(height: 20),
 
@@ -215,8 +224,13 @@ class _AutoBackupSettingsScreenState
     );
   }
 
-  Widget _buildStatusCard(bool isEnabled, bool isBackingUp, int pendingChanges,
-      String? lastBackup, bool isSignedIn) {
+  Widget _buildStatusCard(
+    bool isEnabled,
+    bool isBackingUp,
+    int pendingChanges,
+    String? lastBackup,
+    bool isSignedIn,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -239,14 +253,18 @@ class _AutoBackupSettingsScreenState
             const SizedBox(height: 12),
             _buildStatusRow('الحالة', isEnabled ? 'مُفعل ✅' : 'معطل ⏸️'),
             _buildStatusRow(
-                'تسجيل الدخول', isSignedIn ? 'متصل ✅' : 'غير متصل ❌'),
+              'تسجيل الدخول',
+              isSignedIn ? 'متصل ✅' : 'غير متصل ❌',
+            ),
             if (isBackingUp)
               _buildStatusRow('النشاط', 'جارِ إنشاء نسخة احتياطية... 🔄'),
             if (pendingChanges > 0)
               _buildStatusRow('تغييرات معلقة', '$pendingChanges تغيير 📝'),
             if (lastBackup != null)
-              _buildStatusRow('آخر نسخة تلقائية',
-                  _formatDateTime(DateTime.parse(lastBackup))),
+              _buildStatusRow(
+                'آخر نسخة تلقائية',
+                _formatDateTime(DateTime.parse(lastBackup)),
+              ),
           ],
         ),
       ),
@@ -285,9 +303,11 @@ class _AutoBackupSettingsScreenState
             const SizedBox(height: 12),
             SwitchListTile(
               title: const Text('تفعيل النسخ التلقائي'),
-              subtitle: Text(isEnabled
-                  ? 'مُفعل - ينشئ نسخ تلقائية'
-                  : 'معطل - لا ينشئ نسخ تلقائية'),
+              subtitle: Text(
+                isEnabled
+                    ? 'مُفعل - ينشئ نسخ تلقائية'
+                    : 'معطل - لا ينشئ نسخ تلقائية',
+              ),
               value: isEnabled,
               onChanged: _isLoading ? null : _toggleAutoBackup,
             ),
@@ -410,9 +430,11 @@ class _AutoBackupSettingsScreenState
             const SizedBox(height: 12),
             SwitchListTile(
               title: const Text('تفعيل النسخ المجدول'),
-              subtitle: Text(_isScheduledBackupEnabled
-                  ? 'مُفعل - نسخة يومية في ${_scheduledTime.format(context)}'
-                  : 'معطل - لا توجد نسخ مجدولة'),
+              subtitle: Text(
+                _isScheduledBackupEnabled
+                    ? 'مُفعل - نسخة يومية في ${_scheduledTime.format(context)}'
+                    : 'معطل - لا توجد نسخ مجدولة',
+              ),
               value: _isScheduledBackupEnabled,
               onChanged: _isLoading ? null : _toggleScheduledBackup,
             ),
@@ -431,14 +453,19 @@ class _AutoBackupSettingsScreenState
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline,
-                        size: 16, color: Colors.blue),
+                    const Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Colors.blue,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'سيتم إنشاء نسخة احتياطية يومياً في الساعة ${_scheduledTime.format(context)}',
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.blue),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue,
+                        ),
                       ),
                     ),
                   ],
@@ -459,10 +486,7 @@ class _AutoBackupSettingsScreenState
       context: context,
       initialTime: _scheduledTime,
       builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: child!,
-        );
+        return Directionality(textDirection: TextDirection.rtl, child: child!);
       },
     );
 
@@ -486,7 +510,8 @@ class _AutoBackupSettingsScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '✅ تم تحديث وقت النسخ الاحتياطي إلى ${picked.format(context)}'),
+              '✅ تم تحديث وقت النسخ الاحتياطي إلى ${picked.format(context)}',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -506,14 +531,17 @@ class _AutoBackupSettingsScreenState
       if (enabled) {
         // تفعيل الجدولة
         await AlarmBackup.scheduleDailyAlarm(
-            _scheduledTime.hour, _scheduledTime.minute);
+          _scheduledTime.hour,
+          _scheduledTime.minute,
+        );
         await AutoBackupTask.scheduleDaily(time: formatted);
         await driveService.setAutoBackupEnabled(true);
         await driveService.setAutoBackupTime(formatted);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '✅ تم جدولة النسخ الاحتياطي يومياً في ${_scheduledTime.format(context)} (محلي + WorkManager)'),
+              '✅ تم جدولة النسخ الاحتياطي يومياً في ${_scheduledTime.format(context)} (محلي + WorkManager)',
+            ),
             backgroundColor: Colors.green,
           ),
         );

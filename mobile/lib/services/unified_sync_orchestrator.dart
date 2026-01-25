@@ -127,30 +127,44 @@ class UnifiedSyncOrchestrator {
       _appwriteSub = _appwrite!.syncStatusStream.listen((status) async {
         switch (status) {
           case SyncStatus.syncing:
-            _emit(_state.copyWith(
+            _emit(
+              _state.copyWith(
                 phase: 'pushing',
                 message: 'مزامنة الدلتا مع Appwrite',
-                timestamp: DateTime.now()));
+                timestamp: DateTime.now(),
+              ),
+            );
             break;
           case SyncStatus.success:
-            _emit(_state.copyWith(
+            _emit(
+              _state.copyWith(
                 phase: 'pulling',
                 message: 'سحب التغييرات وإنهاء الدمج',
                 timestamp: DateTime.now(),
-                lastPushAt: DateTime.now()));
+                lastPushAt: DateTime.now(),
+              ),
+            );
             await _snapshotIfNeeded();
             break;
           case SyncStatus.failed:
-            _emit(_state.copyWith(
+            _emit(
+              _state.copyWith(
                 phase: 'error',
                 message: 'فشل مزامنة Appwrite',
                 timestamp: DateTime.now(),
-                lastError: 'Appwrite sync failed'));
+                lastError: 'Appwrite sync failed',
+              ),
+            );
             break;
           case SyncStatus.idle:
           case SyncStatus.partial:
-            _emit(_state.copyWith(
-                phase: 'idle', message: 'جاهز', timestamp: DateTime.now()));
+            _emit(
+              _state.copyWith(
+                phase: 'idle',
+                message: 'جاهز',
+                timestamp: DateTime.now(),
+              ),
+            );
             break;
         }
       });
@@ -159,26 +173,30 @@ class UnifiedSyncOrchestrator {
     if (_driveCoordinator != null) {
       _driveSub = _driveCoordinator!.syncResults.listen((result) {
         if (result.success) {
-          _emit(_state.copyWith(
-            phase: 'completing',
-            message: result.message,
-            timestamp: DateTime.now(),
-            lastPushAt:
-                result.pushedChanges != null && result.pushedChanges! > 0
-                    ? DateTime.now()
-                    : _state.lastPushAt,
-            lastPullAt:
-                result.pulledChanges != null && result.pulledChanges! > 0
-                    ? DateTime.now()
-                    : _state.lastPullAt,
-          ));
+          _emit(
+            _state.copyWith(
+              phase: 'completing',
+              message: result.message,
+              timestamp: DateTime.now(),
+              lastPushAt:
+                  result.pushedChanges != null && result.pushedChanges! > 0
+                  ? DateTime.now()
+                  : _state.lastPushAt,
+              lastPullAt:
+                  result.pulledChanges != null && result.pulledChanges! > 0
+                  ? DateTime.now()
+                  : _state.lastPullAt,
+            ),
+          );
         } else {
-          _emit(_state.copyWith(
-            phase: 'error',
-            message: result.message,
-            timestamp: DateTime.now(),
-            lastError: result.error,
-          ));
+          _emit(
+            _state.copyWith(
+              phase: 'error',
+              message: result.message,
+              timestamp: DateTime.now(),
+              lastError: result.error,
+            ),
+          );
         }
       });
     }
@@ -216,11 +234,13 @@ class UnifiedSyncOrchestrator {
     _syncing = true;
     _syncCount++;
 
-    _emit(_state.copyWith(
-      phase: push ? 'pushing' : 'pulling',
-      message: 'تشغيل المزامنة الموحدة',
-      timestamp: DateTime.now(),
-    ));
+    _emit(
+      _state.copyWith(
+        phase: push ? 'pushing' : 'pulling',
+        message: 'تشغيل المزامنة الموحدة',
+        timestamp: DateTime.now(),
+      ),
+    );
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -237,7 +257,7 @@ class UnifiedSyncOrchestrator {
       if (googleDriveEnabled) {
         success =
             await _syncGoogleDrive(push: push, pull: pull, reason: reason) &&
-                success;
+            success;
       }
 
       if (forceSnapshot) {
@@ -250,20 +270,24 @@ class UnifiedSyncOrchestrator {
 
       _lastSyncTime = DateTime.now();
 
-      _emit(_state.copyWith(
-        phase: success ? 'completing' : 'error',
-        message: success ? 'اكتملت الدورة' : 'فشل في مزامنة واحدة أو أكثر',
-        timestamp: DateTime.now(),
-      ));
+      _emit(
+        _state.copyWith(
+          phase: success ? 'completing' : 'error',
+          message: success ? 'اكتملت الدورة' : 'فشل في مزامنة واحدة أو أكثر',
+          timestamp: DateTime.now(),
+        ),
+      );
 
       return success;
     } catch (e) {
-      _emit(_state.copyWith(
-        phase: 'error',
-        message: 'فشل تشغيل المزامنة',
-        timestamp: DateTime.now(),
-        lastError: e.toString(),
-      ));
+      _emit(
+        _state.copyWith(
+          phase: 'error',
+          message: 'فشل تشغيل المزامنة',
+          timestamp: DateTime.now(),
+          lastError: e.toString(),
+        ),
+      );
       return false;
     } finally {
       _syncing = false;
@@ -304,19 +328,24 @@ class UnifiedSyncOrchestrator {
 
   Future<void> _takeSnapshot() async {
     if (_smart == null || _database == null) return;
-    _emit(_state.copyWith(
+    _emit(
+      _state.copyWith(
         phase: 'snapshotting',
         message: 'إنشاء Snapshot على Google Drive',
-        timestamp: DateTime.now()));
+        timestamp: DateTime.now(),
+      ),
+    );
     await _smart!.forceSyncNow();
     final checksum = await _computeUnifiedChecksum();
-    _emit(_state.copyWith(
-      phase: 'completing',
-      message: 'تم إنشاء Snapshot',
-      timestamp: DateTime.now(),
-      checksum: checksum,
-      lastSnapshotAt: DateTime.now(),
-    ));
+    _emit(
+      _state.copyWith(
+        phase: 'completing',
+        message: 'تم إنشاء Snapshot',
+        timestamp: DateTime.now(),
+        checksum: checksum,
+        lastSnapshotAt: DateTime.now(),
+      ),
+    );
   }
 
   Future<String> _computeUnifiedChecksum() async {
@@ -445,41 +474,52 @@ class UnifiedSyncOrchestrator {
     if (_database == null) return;
 
     try {
-      _emit(_state.copyWith(
-        phase: 'verifying',
-        message: 'التحقق من سلامة البيانات',
-        timestamp: DateTime.now(),
-      ));
+      _emit(
+        _state.copyWith(
+          phase: 'verifying',
+          message: 'التحقق من سلامة البيانات',
+          timestamp: DateTime.now(),
+        ),
+      );
 
       final report = await SyncIntegrityChecker.instance.verify(_database!);
 
       if (report.hasCriticalIssues) {
-        _emit(_state.copyWith(
-          phase: 'completing',
-          message: 'تم اكتشاف ${report.criticalIssueCount} مشاكل حرجة',
-          timestamp: DateTime.now(),
-          lastError: 'Found ${report.criticalIssueCount} critical integrity issues',
-        ));
+        _emit(
+          _state.copyWith(
+            phase: 'completing',
+            message: 'تم اكتشاف ${report.criticalIssueCount} مشاكل حرجة',
+            timestamp: DateTime.now(),
+            lastError:
+                'Found ${report.criticalIssueCount} critical integrity issues',
+          ),
+        );
       } else if (report.hasIssues) {
-        _emit(_state.copyWith(
-          phase: 'completing',
-          message: 'تم اكتشاف ${report.issueCount} مشاكل غير حرجة',
-          timestamp: DateTime.now(),
-        ));
+        _emit(
+          _state.copyWith(
+            phase: 'completing',
+            message: 'تم اكتشاف ${report.issueCount} مشاكل غير حرجة',
+            timestamp: DateTime.now(),
+          ),
+        );
       } else {
-        _emit(_state.copyWith(
-          phase: 'completing',
-          message: 'سلامة البيانات جيدة',
-          timestamp: DateTime.now(),
-        ));
+        _emit(
+          _state.copyWith(
+            phase: 'completing',
+            message: 'سلامة البيانات جيدة',
+            timestamp: DateTime.now(),
+          ),
+        );
       }
     } catch (e) {
-      _emit(_state.copyWith(
-        phase: 'error',
-        message: 'فشل التحقق من سلامة البيانات',
-        timestamp: DateTime.now(),
-        lastError: e.toString(),
-      ));
+      _emit(
+        _state.copyWith(
+          phase: 'error',
+          message: 'فشل التحقق من سلامة البيانات',
+          timestamp: DateTime.now(),
+          lastError: e.toString(),
+        ),
+      );
     }
   }
 

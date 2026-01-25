@@ -16,9 +16,9 @@ mixin OptimisticLockDaoMixin<T extends Table, D extends DataClass>
     int expectedVersion,
   ) async {
     return transaction(() async {
-      final existing = await (select(optimisticTable)
-            ..where((_) => optimisticLocalUuid.equals(localUuid)))
-          .getSingleOrNull();
+      final existing = await (select(
+        optimisticTable,
+      )..where((_) => optimisticLocalUuid.equals(localUuid))).getSingleOrNull();
 
       if (existing == null) {
         throw OptimisticLockException(
@@ -42,10 +42,13 @@ mixin OptimisticLockDaoMixin<T extends Table, D extends DataClass>
       final data = companion.toColumns(false);
       data[optimisticVersion.$name] = Variable<int>(expectedVersion + 1);
 
-      final updated = await (update(optimisticTable)
-            ..where((_) => optimisticLocalUuid.equals(localUuid) &
-                optimisticVersion.equals(expectedVersion)))
-          .write(RawValuesInsertable(data));
+      final updated =
+          await (update(optimisticTable)..where(
+                (_) =>
+                    optimisticLocalUuid.equals(localUuid) &
+                    optimisticVersion.equals(expectedVersion),
+              ))
+              .write(RawValuesInsertable(data));
 
       if (updated == 0) {
         throw OptimisticLockException(
@@ -61,8 +64,8 @@ mixin OptimisticLockDaoMixin<T extends Table, D extends DataClass>
   }
 
   Future<D?> getByUuid(String uuid) async {
-    return (select(optimisticTable)
-          ..where((_) => optimisticLocalUuid.equals(uuid)))
-        .getSingleOrNull();
+    return (select(
+      optimisticTable,
+    )..where((_) => optimisticLocalUuid.equals(uuid))).getSingleOrNull();
   }
 }

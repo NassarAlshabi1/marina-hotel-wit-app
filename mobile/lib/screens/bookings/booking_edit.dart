@@ -30,8 +30,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _guestNationality = TextEditingController(text: 'يمني');
   final _guestAddress = TextEditingController();
   final _guestIdNumber = TextEditingController();
-  final _idNumberFormatter =
-      FilteringTextInputFormatter.allow(RegExp(r'[0-9]'));
+  final _idNumberFormatter = FilteringTextInputFormatter.allow(
+    RegExp(r'[0-9]'),
+  );
   final _guestIdIssueDate = TextEditingController();
   final _guestIdIssuePlace = TextEditingController();
   final _roomNumber = TextEditingController();
@@ -57,7 +58,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     'رخصة قيادة',
     'بطاقة عسكرية',
     'استبيان',
-    'شهادة ميلاد'
+    'شهادة ميلاد',
   ];
   static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
 
@@ -84,8 +85,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     if (b != null) {
       _guestName.text = b.guestName;
       _guestPhone.text = b.guestPhone;
-      _guestNationality.text =
-          b.guestNationality.isEmpty ? 'يمني' : b.guestNationality;
+      _guestNationality.text = b.guestNationality.isEmpty
+          ? 'يمني'
+          : b.guestNationality;
       _guestAddress.text = b.guestAddress ?? '';
       _guestIdNumber.text = b.guestIdNumber;
       _guestIdIssueDate.text = b.guestIdIssueDate ?? '';
@@ -106,8 +108,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       }
       _checkin.text = _formatDateTime(DateTime.now());
     }
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _recalculateExpectedNights());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _recalculateExpectedNights(),
+    );
   }
 
   @override
@@ -177,15 +180,17 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       children: [
                         TextFormField(
                           controller: _guestName,
-                          decoration:
-                              const InputDecoration(labelText: 'اسم النزيل *'),
+                          decoration: const InputDecoration(
+                            labelText: 'اسم النزيل *',
+                          ),
                           validator: _req,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _guestPhone,
-                          decoration:
-                              const InputDecoration(labelText: 'رقم الهاتف *'),
+                          decoration: const InputDecoration(
+                            labelText: 'رقم الهاتف *',
+                          ),
                           keyboardType: TextInputType.phone,
                           validator: _req,
                         ),
@@ -193,19 +198,23 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         DropdownButtonFormField<String>(
                           value: _idType,
                           items: _idTypes
-                              .map((t) =>
-                                  DropdownMenuItem(value: t, child: Text(t)))
+                              .map(
+                                (t) =>
+                                    DropdownMenuItem(value: t, child: Text(t)),
+                              )
                               .toList(),
                           onChanged: (value) =>
                               setState(() => _idType = value ?? _idType),
-                          decoration:
-                              const InputDecoration(labelText: 'نوع الهوية'),
+                          decoration: const InputDecoration(
+                            labelText: 'نوع الهوية',
+                          ),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _guestIdNumber,
-                          decoration:
-                              const InputDecoration(labelText: 'رقم الهوية'),
+                          decoration: const InputDecoration(
+                            labelText: 'رقم الهوية',
+                          ),
                           keyboardType: TextInputType.number,
                           inputFormatters: [_idNumberFormatter],
                         ),
@@ -220,8 +229,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                   labelText: 'تاريخ إصدار الهوية',
                                   suffixIcon: Icon(Icons.calendar_today),
                                 ),
-                                onTap: () => _pickDate(_guestIdIssueDate,
-                                    onlyDate: true),
+                                onTap: () => _pickDate(
+                                  _guestIdIssueDate,
+                                  onlyDate: true,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -229,7 +240,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               child: TextFormField(
                                 controller: _guestIdIssuePlace,
                                 decoration: const InputDecoration(
-                                    labelText: 'جهة الإصدار'),
+                                  labelText: 'جهة الإصدار',
+                                ),
                               ),
                             ),
                           ],
@@ -237,15 +249,17 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _guestNationality,
-                          decoration:
-                              const InputDecoration(labelText: 'الجنسية *'),
+                          decoration: const InputDecoration(
+                            labelText: 'الجنسية *',
+                          ),
                           validator: _req,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _guestAddress,
-                          decoration:
-                              const InputDecoration(labelText: 'العنوان'),
+                          decoration: const InputDecoration(
+                            labelText: 'العنوان',
+                          ),
                         ),
                       ],
                     ),
@@ -288,13 +302,16 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         DropdownButtonFormField<String>(
                           value: _status,
                           items: _statusOptions
-                              .map((s) =>
-                                  DropdownMenuItem(value: s, child: Text(s)))
+                              .map(
+                                (s) =>
+                                    DropdownMenuItem(value: s, child: Text(s)),
+                              )
                               .toList(),
                           onChanged: (value) =>
                               setState(() => _status = value ?? _status),
-                          decoration:
-                              const InputDecoration(labelText: 'حالة الحجز'),
+                          decoration: const InputDecoration(
+                            labelText: 'حالة الحجز',
+                          ),
                         ),
                         if (widget.existing?.actualCheckout != null) ...[
                           const SizedBox(height: 12),
@@ -323,12 +340,15 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       children: [
                         CheckboxListTile(
                           title: const Text('هل تم استلام دفعة مقدمة؟'),
-                          subtitle: Text(_hasAdvancePayment
-                              ? 'سيتم تسجيل الدفعة مع الحجز مباشرة'
-                              : 'يمكن تسجيل الدفعات لاحقاً من شاشة المدفوعات'),
+                          subtitle: Text(
+                            _hasAdvancePayment
+                                ? 'سيتم تسجيل الدفعة مع الحجز مباشرة'
+                                : 'يمكن تسجيل الدفعات لاحقاً من شاشة المدفوعات',
+                          ),
                           value: _hasAdvancePayment,
                           onChanged: (value) => setState(
-                              () => _hasAdvancePayment = value ?? false),
+                            () => _hasAdvancePayment = value ?? false,
+                          ),
                           activeColor: Colors.green,
                         ),
                         if (_hasAdvancePayment) ...[
@@ -358,13 +378,19 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           DropdownButtonFormField<String>(
                             value: _paymentMethod,
                             items: _paymentMethods
-                                .map((method) => DropdownMenuItem(
-                                    value: method, child: Text(method)))
+                                .map(
+                                  (method) => DropdownMenuItem(
+                                    value: method,
+                                    child: Text(method),
+                                  ),
+                                )
                                 .toList(),
                             onChanged: (value) => setState(
-                                () => _paymentMethod = value ?? _paymentMethod),
-                            decoration:
-                                const InputDecoration(labelText: 'طريقة الدفع'),
+                              () => _paymentMethod = value ?? _paymentMethod,
+                            ),
+                            decoration: const InputDecoration(
+                              labelText: 'طريقة الدفع',
+                            ),
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
@@ -387,8 +413,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     child: TextFormField(
                       controller: _notes,
                       maxLines: 4,
-                      decoration:
-                          const InputDecoration(labelText: 'ملاحظات إضافية'),
+                      decoration: const InputDecoration(
+                        labelText: 'ملاحظات إضافية',
+                      ),
                     ),
                   ),
                 ),
@@ -411,18 +438,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     final expectedNights =
                         int.tryParse(_expectedNights.text.trim()) ?? 1;
                     final checkinDt = _parseDateTime(checkin);
-                    final checkoutDt =
-                        checkout != null ? _parseDateTime(checkout) : null;
+                    final checkoutDt = checkout != null
+                        ? _parseDateTime(checkout)
+                        : null;
                     final calculatedNights = checkinDt == null
                         ? expectedNights
-                        : Time.nightsWithCutoff(checkinDt,
-                            checkout: checkoutDt);
+                        : Time.nightsWithCutoff(
+                            checkinDt,
+                            checkout: checkoutDt,
+                          );
                     final notes = _optionalText(_notes.text);
                     const String? email = null;
 
                     final blacklist = ref.read(blacklistRepoProvider);
-                    final isBlacklisted =
-                        await blacklist.isNameBlacklisted(name);
+                    final isBlacklisted = await blacklist.isNameBlacklisted(
+                      name,
+                    );
                     if (isBlacklisted && mounted) {
                       final proceed = await showDialog<bool>(
                         context: context,
@@ -430,15 +461,18 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         builder: (context) => AlertDialog(
                           title: const Text('تحذير أمني'),
                           content: Text(
-                              'الاسم "$name" موجود في القائمة السوداء ومطلوب أمنياً. هل ترغب بمتابعة تسجيل الحجز؟'),
+                            'الاسم "$name" موجود في القائمة السوداء ومطلوب أمنياً. هل ترغب بمتابعة تسجيل الحجز؟',
+                          ),
                           icon: const Icon(Icons.warning, color: Colors.red),
                           actions: [
                             TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: const Text('إلغاء')),
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('إلغاء'),
+                            ),
                             ElevatedButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: const Text('متابعة')),
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('متابعة'),
+                            ),
                           ],
                         ),
                       );
@@ -508,8 +542,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       case SyncStatus.pending:
         return const Padding(
           padding: EdgeInsets.all(8),
-          child:
-              Icon(Icons.cloud_upload_outlined, color: Colors.orange, size: 20),
+          child: Icon(
+            Icons.cloud_upload_outlined,
+            color: Colors.orange,
+            size: 20,
+          ),
         );
       case SyncStatus.syncing:
         return const Padding(
@@ -517,8 +554,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           child: SizedBox(
             width: 20,
             height: 20,
-            child:
-                CircularProgressIndicator(strokeWidth: 2, color: Colors.blue),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.blue,
+            ),
           ),
         );
       case SyncStatus.synced:
@@ -546,8 +585,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     );
   }
 
-  Future<void> _pickDate(TextEditingController controller,
-      {bool onlyDate = false}) async {
+  Future<void> _pickDate(
+    TextEditingController controller, {
+    bool onlyDate = false,
+  }) async {
     final initial = _parseDateTime(controller.text) ?? DateTime.now();
     final date = await showDatePicker(
       context: context,
@@ -557,9 +598,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     );
     if (date == null) return;
     if (onlyDate) {
-      controller.text =
-          _formatDateTime(DateTime(date.year, date.month, date.day, 0, 0, 0))
-              .substring(0, 10);
+      controller.text = _formatDateTime(
+        DateTime(date.year, date.month, date.day, 0, 0, 0),
+      ).substring(0, 10);
       return;
     }
     final time = await showTimePicker(
@@ -567,8 +608,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       initialTime: TimeOfDay.fromDateTime(initial),
     );
     if (time == null) return;
-    final selected =
-        DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final selected = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
     setState(() {
       controller.text = _formatDateTime(selected);
     });
@@ -603,10 +649,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         validator: _req,
       ),
       data: (rooms) {
-        final availableRooms = rooms
-            .where((room) => StatusUtils.isRoomAvailable(room.status))
-            .toList()
-          ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+        final availableRooms =
+            rooms
+                .where((room) => StatusUtils.isRoomAvailable(room.status))
+                .toList()
+              ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
 
         final currentValue = _roomNumber.text.trim();
         if (!_roomInitialized &&
@@ -627,14 +674,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         final items = <DropdownMenuItem<String>>[];
         if (currentValue.isNotEmpty &&
             !availableRooms.any((room) => room.roomNumber == currentValue)) {
-          items.add(DropdownMenuItem(
-              value: currentValue, child: Text('$currentValue (الحالي)')));
+          items.add(
+            DropdownMenuItem(
+              value: currentValue,
+              child: Text('$currentValue (الحالي)'),
+            ),
+          );
         }
         items.addAll(
-          availableRooms.map((room) => DropdownMenuItem(
-                value: room.roomNumber,
-                child: Text('${room.roomNumber} • ${room.type}'),
-              )),
+          availableRooms.map(
+            (room) => DropdownMenuItem(
+              value: room.roomNumber,
+              child: Text('${room.roomNumber} • ${room.type}'),
+            ),
+          ),
         );
 
         if (items.isEmpty) {
@@ -668,9 +721,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   Future<void> _refreshRoomOccupancy(WidgetRef ref) async {
     final db = ref.read(databaseProvider);
     final roomsRepo = ref.read(roomsRepoProvider);
-    final bookings = await (db.select(db.bookings)
-          ..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
+    final bookings = await (db.select(
+      db.bookings,
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
     final occupiedRooms = <String>{};
     for (final booking in bookings) {
       if (StatusUtils.isActiveBooking(booking.status)) {
@@ -678,9 +731,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       }
     }
 
-    final rooms = await (db.select(db.rooms)
-          ..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
+    final rooms = await (db.select(
+      db.rooms,
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
     for (final room in rooms) {
       final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
       final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
@@ -697,8 +750,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   DateTime? _parseDateTime(String value) {
     if (value.isEmpty) return null;
     final normalized = value.contains('T') ? value : value.replaceAll(' ', 'T');
-    final withSeconds =
-        normalized.length == 16 ? '${normalized}:00' : normalized;
+    final withSeconds = normalized.length == 16
+        ? '${normalized}:00'
+        : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {

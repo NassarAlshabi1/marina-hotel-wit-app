@@ -121,19 +121,34 @@ class GoogleDriveLogger extends ChangeNotifier {
     log(message, level: LogLevel.warning, tag: tag, error: error);
   }
 
-  void error(String message,
-      {String tag = 'DRIVE', dynamic error, StackTrace? stackTrace}) {
-    log(message,
-        level: LogLevel.error, tag: tag, error: error, stackTrace: stackTrace);
+  void error(
+    String message, {
+    String tag = 'DRIVE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.error,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
-  void critical(String message,
-      {String tag = 'DRIVE', dynamic error, StackTrace? stackTrace}) {
-    log(message,
-        level: LogLevel.critical,
-        tag: tag,
-        error: error,
-        stackTrace: stackTrace);
+  void critical(
+    String message, {
+    String tag = 'DRIVE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.critical,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   List<LogEntry> getLogs({LogLevel? filterLevel}) {

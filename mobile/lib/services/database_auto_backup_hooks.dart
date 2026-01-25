@@ -4,8 +4,8 @@ import 'auto_backup_manager.dart';
 import 'local_db.dart';
 
 /// مدد لتتبع التغييرات في قاعدة البيانات للنسخ التلقائي
-typedef TablePredicate<TTable extends Table> = Expression<bool> Function(
-    TTable table);
+typedef TablePredicate<TTable extends Table> =
+    Expression<bool> Function(TTable table);
 
 extension DatabaseAutoBackupExtension on AppDatabase {
   /// تهيئة تتبع التغييرات للنسخ التلقائي
@@ -18,14 +18,15 @@ extension DatabaseAutoBackupExtension on AppDatabase {
 
   /// تتبع إدراج سجل جديد
   Future<int>
-      insertWithBackupTrigger<TTable extends Table, TData extends DataClass>(
+  insertWithBackupTrigger<TTable extends Table, TData extends DataClass>(
     TableInfo<TTable, TData> table,
     Insertable<TData> entity, {
     InsertMode? mode,
     UpsertClause<TTable, TData>? onConflict,
   }) async {
-    final result =
-        await into(table).insert(entity, mode: mode, onConflict: onConflict);
+    final result = await into(
+      table,
+    ).insert(entity, mode: mode, onConflict: onConflict);
 
     // تسجيل التغيير للنسخ التلقائي
     AutoBackupManager.instance.onDataChange(
@@ -39,7 +40,7 @@ extension DatabaseAutoBackupExtension on AppDatabase {
 
   /// تتبع تحديث سجل
   Future<bool>
-      updateWithBackupTrigger<TTable extends Table, TData extends DataClass>(
+  updateWithBackupTrigger<TTable extends Table, TData extends DataClass>(
     TableInfo<TTable, TData> table,
     Insertable<TData> entity, {
     TablePredicate<TTable>? where,
@@ -65,7 +66,7 @@ extension DatabaseAutoBackupExtension on AppDatabase {
 
   /// تتبع حذف سجل
   Future<int>
-      deleteWithBackupTrigger<TTable extends Table, TData extends DataClass>(
+  deleteWithBackupTrigger<TTable extends Table, TData extends DataClass>(
     TableInfo<TTable, TData> table, {
     TablePredicate<TTable>? where,
     Map<String, dynamic>? recordData,
@@ -98,7 +99,8 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertBooking(BookingsCompanion booking) async {
     final result = await _db.insertWithBackupTrigger(_db.bookings, booking);
     debugPrint(
-        '📝 تم إضافة حجز جديد (${booking.guestName.value}) - سيتم النسخ التلقائي');
+      '📝 تم إضافة حجز جديد (${booking.guestName.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
@@ -128,7 +130,8 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertRoom(RoomsCompanion room) async {
     final result = await _db.insertWithBackupTrigger(_db.rooms, room);
     debugPrint(
-        '🏠 تم إضافة غرفة جديدة (${room.roomNumber.value}) - سيتم النسخ التلقائي');
+      '🏠 تم إضافة غرفة جديدة (${room.roomNumber.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
@@ -146,7 +149,8 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertPayment(PaymentsCompanion payment) async {
     final result = await _db.insertWithBackupTrigger(_db.payments, payment);
     debugPrint(
-        '💰 تم إضافة دفعة جديدة (${payment.amount.value}) - سيتم النسخ التلقائي');
+      '💰 تم إضافة دفعة جديدة (${payment.amount.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
@@ -164,7 +168,8 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertExpense(ExpensesCompanion expense) async {
     final result = await _db.insertWithBackupTrigger(_db.expenses, expense);
     debugPrint(
-        '🧾 تم إضافة مصروف جديد (${expense.amount.value}) - سيتم النسخ التلقائي');
+      '🧾 تم إضافة مصروف جديد (${expense.amount.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
@@ -180,11 +185,15 @@ class AutoBackupDatabaseHelper {
 
   // طرق مساعدة للمعاملات النقدية
   static Future<int> insertCashTransaction(
-      CashTransactionsCompanion transaction) async {
-    final result =
-        await _db.insertWithBackupTrigger(_db.cashTransactions, transaction);
+    CashTransactionsCompanion transaction,
+  ) async {
+    final result = await _db.insertWithBackupTrigger(
+      _db.cashTransactions,
+      transaction,
+    );
     debugPrint(
-        '💳 تم إضافة معاملة نقدية (${transaction.amount.value}) - سيتم النسخ التلقائي');
+      '💳 تم إضافة معاملة نقدية (${transaction.amount.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
@@ -192,12 +201,15 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertEmployee(EmployeesCompanion employee) async {
     final result = await _db.insertWithBackupTrigger(_db.employees, employee);
     debugPrint(
-        '👤 تم إضافة موظف جديد (${employee.name.value}) - سيتم النسخ التلقائي');
+      '👤 تم إضافة موظف جديد (${employee.name.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
   static Future<bool> updateEmployee(
-      int id, EmployeesCompanion employee) async {
+    int id,
+    EmployeesCompanion employee,
+  ) async {
     final result = await _db.updateWithBackupTrigger(
       _db.employees,
       employee,
@@ -215,7 +227,9 @@ class AutoBackupDatabaseHelper {
   }
 
   static Future<bool> updateBookingNote(
-      int id, BookingNotesCompanion note) async {
+    int id,
+    BookingNotesCompanion note,
+  ) async {
     final result = await _db.updateWithBackupTrigger(
       _db.bookingNotes,
       note,
@@ -231,7 +245,8 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertDebt(DebtsCompanion debt) async {
     final result = await _db.insertWithBackupTrigger(_db.debts, debt);
     debugPrint(
-        '💳 تم إضافة دين جديد (${debt.totalAmount.value}) - سيتم النسخ التلقائي');
+      '💳 تم إضافة دين جديد (${debt.totalAmount.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 

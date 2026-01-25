@@ -158,17 +158,13 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     final priorityColor = note.priority == 'high'
         ? Colors.red
         : note.priority == 'medium'
-            ? Colors.orange
-            : Colors.green;
+        ? Colors.orange
+        : Colors.green;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: Container(
-          width: 4,
-          height: 50,
-          color: priorityColor,
-        ),
+        leading: Container(width: 4, height: 50, color: priorityColor),
         title: Text(
           note.title,
           style: TextStyle(
@@ -206,14 +202,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                     value: 'read',
                     child: Text('وضع علامة مقروء'),
                   ),
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Text('تعديل'),
-                ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Text('حذف'),
-                ),
+                const PopupMenuItem(value: 'edit', child: Text('تعديل')),
+                const PopupMenuItem(value: 'delete', child: Text('حذف')),
               ],
               onSelected: (value) => _handleNoteAction(value, note),
             ),
@@ -350,8 +340,13 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     );
   }
 
-  void _saveNote(ShiftNote? note, String title, String content, String priority,
-      String shiftType) async {
+  void _saveNote(
+    ShiftNote? note,
+    String title,
+    String content,
+    String priority,
+    String shiftType,
+  ) async {
     final repo = ref.read(simpleNotesRepoProvider);
 
     if (note == null) {

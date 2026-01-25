@@ -123,8 +123,11 @@ class _AppwriteSettingsScreenState
   }
 
   // ==================== قسم حالة الاتصال ====================
-  Widget _buildConnectionSection(BuildContext context, ap.ConnectionState state,
-      Map<String, String> info) {
+  Widget _buildConnectionSection(
+    BuildContext context,
+    ap.ConnectionState state,
+    Map<String, String> info,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -173,8 +176,9 @@ class _AppwriteSettingsScreenState
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color:
-                                state.isConnected ? Colors.green : Colors.red,
+                            color: state.isConnected
+                                ? Colors.green
+                                : Colors.red,
                           ),
                         ),
                         if (state.errorMessage != null) ...[
@@ -182,7 +186,9 @@ class _AppwriteSettingsScreenState
                           Text(
                             state.errorMessage!,
                             style: TextStyle(
-                                fontSize: 12, color: Colors.red.shade700),
+                              fontSize: 12,
+                              color: Colors.red.shade700,
+                            ),
                           ),
                         ],
                       ],
@@ -212,8 +218,9 @@ class _AppwriteSettingsScreenState
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh),
-                label:
-                    Text(state.isChecking ? 'جاري الفحص...' : 'اختبار الاتصال'),
+                label: Text(
+                  state.isChecking ? 'جاري الفحص...' : 'اختبار الاتصال',
+                ),
               ),
             ),
           ],
@@ -224,7 +231,9 @@ class _AppwriteSettingsScreenState
 
   // ==================== قسم المزامنة ====================
   Widget _buildSyncSection(
-      BuildContext context, AsyncValue<Map<String, dynamic>> statsAsync) {
+    BuildContext context,
+    AsyncValue<Map<String, dynamic>> statsAsync,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -252,7 +261,9 @@ class _AppwriteSettingsScreenState
                 setState(() => _syncEnabled = value);
                 _saveSettings();
                 if (value) {
-                  ref.read(ap.appwriteSyncManagerProvider).startAutoSync(
+                  ref
+                      .read(ap.appwriteSyncManagerProvider)
+                      .startAutoSync(
                         interval: Duration(minutes: _syncInterval),
                       );
                 } else {
@@ -278,9 +289,9 @@ class _AppwriteSettingsScreenState
                     setState(() => _syncInterval = value);
                     _saveSettings();
                     if (_syncEnabled) {
-                      ref.read(ap.appwriteSyncManagerProvider).startAutoSync(
-                            interval: Duration(minutes: value),
-                          );
+                      ref
+                          .read(ap.appwriteSyncManagerProvider)
+                          .startAutoSync(interval: Duration(minutes: value));
                     }
                   }
                 },
@@ -576,8 +587,9 @@ class _AppwriteSettingsScreenState
               subtitle: Text(_logLevel.toUpperCase()),
               trailing: DropdownButton<String>(
                 value: _logLevel,
-                items: ['debug', 'info', 'warning', 'error', 'critical']
-                    .map((String value) {
+                items: ['debug', 'info', 'warning', 'error', 'critical'].map((
+                  String value,
+                ) {
                   return DropdownMenuItem<String>(
                     value: value,
                     child: Text(value.toUpperCase()),
@@ -681,8 +693,9 @@ class _AppwriteSettingsScreenState
                     onPressed: _clearLogs,
                     icon: const Icon(Icons.delete),
                     label: const Text('مسح'),
-                    style:
-                        ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
                   ),
                 ),
               ],
@@ -728,11 +741,14 @@ class _AppwriteSettingsScreenState
                     return ListTile(
                       leading: Icon(Icons.phone_android, color: Colors.teal),
                       title: Text(device.deviceName),
-                      subtitle:
-                          Text('${device.deviceModel} - ${device.osVersion}'),
+                      subtitle: Text(
+                        '${device.deviceModel} - ${device.osVersion}',
+                      ),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: device.status == 'active'
                               ? Colors.green
@@ -742,7 +758,9 @@ class _AppwriteSettingsScreenState
                         child: Text(
                           device.status == 'active' ? 'نشط' : 'غير نشط',
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 12),
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     );
@@ -869,10 +887,7 @@ class _AppwriteSettingsScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 14, color: Colors.grey),
-          ),
+          Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
           Expanded(
             child: Text(
               value,
@@ -924,10 +939,7 @@ class _AppwriteSettingsScreenState
               color: color,
             ),
           ),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
-          ),
+          Text(title, style: const TextStyle(fontSize: 10, color: Colors.grey)),
         ],
       ),
     );
@@ -974,7 +986,8 @@ class _AppwriteSettingsScreenState
         final fixService = RestoreFixService(DatabaseManager.instance);
         final fixReport = await fixService.runAutoFixAfterRestore();
         debugPrint(
-            'Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed');
+          'Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed',
+        );
       }
 
       if (mounted) {
@@ -1024,9 +1037,9 @@ class _AppwriteSettingsScreenState
     if (confirmed == true) {
       ref.read(ap.appwriteCacheManagerProvider).clear();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم مسح الذاكرة المؤقتة')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم مسح الذاكرة المؤقتة')));
       }
     }
   }
@@ -1054,9 +1067,9 @@ class _AppwriteSettingsScreenState
     if (confirmed == true) {
       ref.read(ap.appwriteLoggerProvider).clearLogs();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم مسح السجلات')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
       }
     }
   }
@@ -1069,7 +1082,8 @@ class _AppwriteSettingsScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                file != null ? 'تم التصدير إلى: ${file.path}' : 'فشل التصدير'),
+              file != null ? 'تم التصدير إلى: ${file.path}' : 'فشل التصدير',
+            ),
             backgroundColor: file != null ? Colors.green : Colors.red,
           ),
         );
@@ -1108,9 +1122,9 @@ class _AppwriteSettingsScreenState
 
     if (confirmed == true) {
       // TODO: تنفيذ رفع البيانات
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('هذه الميزة قيد التطوير')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('هذه الميزة قيد التطوير')));
     }
   }
 
@@ -1137,9 +1151,9 @@ class _AppwriteSettingsScreenState
 
     if (confirmed == true) {
       // TODO: تنفيذ تحميل البيانات
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('هذه الميزة قيد التطوير')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('هذه الميزة قيد التطوير')));
     }
   }
 
@@ -1179,9 +1193,9 @@ class _AppwriteSettingsScreenState
   }
 
   Future<void> _testSync() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('اختبار المزامنة...')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
     await _syncNow();
   }
 
@@ -1200,7 +1214,8 @@ class _AppwriteSettingsScreenState
             Text('العناصر منتهية: ${stats.expiredEntries}'),
             Text('الحجم المستخدم: ${stats.totalSizeMB} MB'),
             Text(
-                'نسبة الاستخدام: ${stats.usagePercentage.toStringAsFixed(1)}%'),
+              'نسبة الاستخدام: ${stats.usagePercentage.toStringAsFixed(1)}%',
+            ),
             Text('معدل الإصابة: ${(stats.hitRate * 100).toStringAsFixed(1)}%'),
           ],
         ),

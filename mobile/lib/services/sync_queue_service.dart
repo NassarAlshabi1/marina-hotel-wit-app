@@ -23,20 +23,20 @@ class SyncQueueItem {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'screenId': screenId,
-        'data': data,
-        'createdAt': createdAt.toIso8601String(),
-        'attempts': attempts,
-      };
+    'id': id,
+    'screenId': screenId,
+    'data': data,
+    'createdAt': createdAt.toIso8601String(),
+    'attempts': attempts,
+  };
 
   factory SyncQueueItem.fromJson(Map<String, dynamic> json) => SyncQueueItem(
-        id: json['id'],
-        screenId: json['screenId'],
-        data: json['data'],
-        createdAt: DateTime.parse(json['createdAt']),
-        attempts: json['attempts'] ?? 0,
-      );
+    id: json['id'],
+    screenId: json['screenId'],
+    data: json['data'],
+    createdAt: DateTime.parse(json['createdAt']),
+    attempts: json['attempts'] ?? 0,
+  );
 }
 
 class QueueStats {
@@ -84,8 +84,9 @@ class SyncQueueService {
     if (_initialized) return;
     _initialized = true;
 
-    _connectivitySubscription =
-        Connectivity().onConnectivityChanged.listen((results) {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      results,
+    ) {
       final hasConnection = results.any((r) => r != ConnectivityResult.none);
       if (hasConnection) {
         debugPrint('🌐 [SyncQueue] الإنترنت متصل - معالجة الطابور...');
@@ -199,14 +200,16 @@ class SyncQueueService {
             await removeFromQueue(item.id);
           }
           debugPrint(
-              '✅ [SyncQueue] تم رفع جميع العناصر بنجاح (${itemsToProcess.length} عنصر)');
+            '✅ [SyncQueue] تم رفع جميع العناصر بنجاح (${itemsToProcess.length} عنصر)',
+          );
         } else {
           for (final item in itemsToProcess) {
             item.attempts++;
             await updateQueueItem(item);
           }
           debugPrint(
-              '⚠️ [SyncQueue] فشل الرفع - تحديث محاولات ${itemsToProcess.length} عنصر');
+            '⚠️ [SyncQueue] فشل الرفع - تحديث محاولات ${itemsToProcess.length} عنصر',
+          );
         }
       } catch (e) {
         for (final item in itemsToProcess) {
@@ -256,7 +259,8 @@ class SyncQueueService {
 
     if (!SmartSyncManager.instance.isDriveSignedIn) {
       debugPrint(
-          '🔓 [SyncQueue] Google Drive غير مسجل الدخول - لا يمكن رفع الطابور');
+        '🔓 [SyncQueue] Google Drive غير مسجل الدخول - لا يمكن رفع الطابور',
+      );
       return false;
     }
 

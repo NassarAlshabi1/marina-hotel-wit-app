@@ -65,10 +65,7 @@ class AdminLayout extends StatelessWidget {
             currentRoute: currentRoute,
             onRouteSelected: onRouteSelected ?? (route) {},
           ),
-          body: Container(
-            color: AppColors.backgroundColor,
-            child: body,
-          ),
+          body: Container(color: AppColors.backgroundColor, child: body),
           floatingActionButton: floatingActionButton,
         ),
       );
@@ -117,9 +114,7 @@ class AdminLayout extends StatelessWidget {
       backgroundColor: AppColors.primaryColor,
       foregroundColor: Colors.white,
       elevation: 0,
-      actions: [
-        if (actions != null) ...actions!,
-      ],
+      actions: [if (actions != null) ...actions!],
     );
   }
 }
@@ -149,9 +144,7 @@ class AdminCard extends StatelessWidget {
       elevation: elevation ?? 1,
       color: color ?? Colors.white,
       margin: const EdgeInsets.all(8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -181,10 +174,7 @@ class AdminCard extends StatelessWidget {
               ),
             ),
           ],
-          Padding(
-            padding: padding ?? const EdgeInsets.all(16),
-            child: child,
-          ),
+          Padding(padding: padding ?? const EdgeInsets.all(16), child: child),
         ],
       ),
     );
@@ -219,10 +209,7 @@ class StatCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
-            colors: [
-              color,
-              color.withOpacity(0.8),
-            ],
+            colors: [color, color.withOpacity(0.8)],
           ),
         ),
         child: Row(
@@ -266,11 +253,7 @@ class StatCard extends StatelessWidget {
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                size: 32,
-                color: Colors.white,
-              ),
+              child: Icon(icon, size: 32, color: Colors.white),
             ),
           ],
         ),
@@ -310,20 +293,21 @@ class AdminTable extends StatelessWidget {
               )
             : null,
         columns: headers
-            .map((header) => DataColumn(
-                  label: Text(header),
-                ))
+            .map((header) => DataColumn(label: Text(header)))
             .toList(),
         rows: rows
             .asMap()
             .entries
-            .map((entry) => DataRow(
-                  color: striped && entry.key % 2 == 1
-                      ? WidgetStateProperty.all(
-                          AppColors.lightGray.withOpacity(0.3))
-                      : null,
-                  cells: entry.value.map((cell) => DataCell(cell)).toList(),
-                ))
+            .map(
+              (entry) => DataRow(
+                color: striped && entry.key % 2 == 1
+                    ? WidgetStateProperty.all(
+                        AppColors.lightGray.withOpacity(0.3),
+                      )
+                    : null,
+                cells: entry.value.map((cell) => DataCell(cell)).toList(),
+              ),
+            )
             .toList(),
       ),
     );
@@ -334,11 +318,7 @@ class StatusBadge extends StatelessWidget {
   final String text;
   final Color color;
 
-  const StatusBadge({
-    super.key,
-    required this.text,
-    required this.color,
-  });
+  const StatusBadge({super.key, required this.text, required this.color});
 
   factory StatusBadge.success(String text) {
     return StatusBadge(text: text, color: Colors.green);

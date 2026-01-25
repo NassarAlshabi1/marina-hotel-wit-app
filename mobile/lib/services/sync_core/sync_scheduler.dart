@@ -41,7 +41,8 @@ class SyncScheduler {
 
     if (!lockResult.acquired) {
       debugPrint(
-          '❌ SyncScheduler: فشل الحصول على القفل: ${lockResult.failureReason}');
+        '❌ SyncScheduler: فشل الحصول على القفل: ${lockResult.failureReason}',
+      );
       return;
     }
 
@@ -73,7 +74,8 @@ class SyncScheduler {
     });
 
     debugPrint(
-        '📅 SyncScheduler: بدأت الجدولة - فحص كل ${quickCheckInterval.inMinutes} دقيقة');
+      '📅 SyncScheduler: بدأت الجدولة - فحص كل ${quickCheckInterval.inMinutes} دقيقة',
+    );
   }
 
   /// إيقاف الجدولة
@@ -86,7 +88,8 @@ class SyncScheduler {
 
     if (!lockResult.acquired) {
       debugPrint(
-          '❌ SyncScheduler: فشل الحصول على القفل: ${lockResult.failureReason}');
+        '❌ SyncScheduler: فشل الحصول على القفل: ${lockResult.failureReason}',
+      );
       return;
     }
 
@@ -116,8 +119,10 @@ class SyncScheduler {
   }
 
   /// تعديل الفترة الزمنية ديناميكياً
-  Future<void> updateInterval(Duration newQuickInterval,
-      {Duration? newFullInterval}) async {
+  Future<void> updateInterval(
+    Duration newQuickInterval, {
+    Duration? newFullInterval,
+  }) async {
     if (_isRunning) {
       await stop();
     }

@@ -16,9 +16,9 @@ final autoSyncEngineStateProvider = StreamProvider<AutoSyncEngineState>((ref) {
 
 final unifiedSyncCoordinatorProvider =
     Provider<GoogleDriveUnifiedSyncCoordinator>((ref) {
-  ref.keepAlive();
-  return GoogleDriveUnifiedSyncCoordinator.instance;
-});
+      ref.keepAlive();
+      return GoogleDriveUnifiedSyncCoordinator.instance;
+    });
 
 final syncResultsStreamProvider = StreamProvider<SyncResult>((ref) {
   final coordinator = ref.watch(unifiedSyncCoordinatorProvider);
@@ -30,20 +30,23 @@ final conflictResolverProvider = Provider<GoogleDriveConflictResolver>((ref) {
   return GoogleDriveConflictResolver.instance;
 });
 
-final autoSyncEngineStatusProvider =
-    FutureProvider<Map<String, dynamic>>((ref) async {
+final autoSyncEngineStatusProvider = FutureProvider<Map<String, dynamic>>((
+  ref,
+) async {
   final engine = ref.watch(autoSyncEngineProvider);
   return await engine.getEngineStatus();
 });
 
-final conflictStatisticsProvider =
-    FutureProvider<Map<String, dynamic>>((ref) async {
+final conflictStatisticsProvider = FutureProvider<Map<String, dynamic>>((
+  ref,
+) async {
   final resolver = ref.watch(conflictResolverProvider);
   return await resolver.getConflictStatistics();
 });
 
-final conflictHistoryProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final conflictHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final resolver = ref.watch(conflictResolverProvider);
   return await resolver.getConflictHistory(limit: 50);
 });
@@ -100,11 +103,14 @@ class AutoSyncEngineController
   }
 }
 
-final autoSyncEngineControllerProvider = StateNotifierProvider<
-    AutoSyncEngineController, AsyncValue<Map<String, dynamic>>>((ref) {
-  final engine = ref.watch(autoSyncEngineProvider);
-  return AutoSyncEngineController(engine);
-});
+final autoSyncEngineControllerProvider =
+    StateNotifierProvider<
+      AutoSyncEngineController,
+      AsyncValue<Map<String, dynamic>>
+    >((ref) {
+      final engine = ref.watch(autoSyncEngineProvider);
+      return AutoSyncEngineController(engine);
+    });
 
 final isSyncingProvider = Provider<bool>((ref) {
   final coordinatorState = ref.watch(unifiedSyncCoordinatorProvider);

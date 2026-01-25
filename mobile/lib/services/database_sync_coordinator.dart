@@ -25,58 +25,74 @@ class DatabaseSyncCoordinator {
     );
 
     _initialized = true;
-    developer.log('✅ DatabaseSyncCoordinator initialized',
-        name: 'DatabaseSyncCoordinator');
+    developer.log(
+      '✅ DatabaseSyncCoordinator initialized',
+      name: 'DatabaseSyncCoordinator',
+    );
   }
 
   /// Register a service's stop callback
   static void registerStopCallback(Future<void> Function() callback) {
     _stopCallbacks.add(callback);
     developer.log(
-        '📝 Registered stop callback (total: ${_stopCallbacks.length})',
-        name: 'DatabaseSyncCoordinator');
+      '📝 Registered stop callback (total: ${_stopCallbacks.length})',
+      name: 'DatabaseSyncCoordinator',
+    );
   }
 
   /// Register a service's restart callback
   static void registerRestartCallback(Future<void> Function() callback) {
     _restartCallbacks.add(callback);
     developer.log(
-        '📝 Registered restart callback (total: ${_restartCallbacks.length})',
-        name: 'DatabaseSyncCoordinator');
+      '📝 Registered restart callback (total: ${_restartCallbacks.length})',
+      name: 'DatabaseSyncCoordinator',
+    );
   }
 
   /// Stop all sync services
   static Future<void> _stopAllSyncServices() async {
-    developer.log('⏸️ Stopping all sync services...',
-        name: 'DatabaseSyncCoordinator');
+    developer.log(
+      '⏸️ Stopping all sync services...',
+      name: 'DatabaseSyncCoordinator',
+    );
 
     final errors = <String>[];
 
     for (var i = 0; i < _stopCallbacks.length; i++) {
       try {
         await _stopCallbacks[i]();
-        developer.log('  ✓ Stopped service ${i + 1}/${_stopCallbacks.length}',
-            name: 'DatabaseSyncCoordinator');
+        developer.log(
+          '  ✓ Stopped service ${i + 1}/${_stopCallbacks.length}',
+          name: 'DatabaseSyncCoordinator',
+        );
       } catch (e) {
         errors.add('Service $i: $e');
-        developer.log('  ⚠️ Error stopping service $i: $e',
-            name: 'DatabaseSyncCoordinator');
+        developer.log(
+          '  ⚠️ Error stopping service $i: $e',
+          name: 'DatabaseSyncCoordinator',
+        );
       }
     }
 
     if (errors.isEmpty) {
-      developer.log('✅ All sync services stopped successfully',
-          name: 'DatabaseSyncCoordinator');
+      developer.log(
+        '✅ All sync services stopped successfully',
+        name: 'DatabaseSyncCoordinator',
+      );
     } else {
-      developer.log('⚠️ Stopped sync services with ${errors.length} errors',
-          name: 'DatabaseSyncCoordinator');
+      developer.log(
+        '⚠️ Stopped sync services with ${errors.length} errors',
+        name: 'DatabaseSyncCoordinator',
+      );
     }
   }
 
   /// Restart all sync services
   static Future<void> _restartAllSyncServices() async {
-    developer.log('▶️ Restarting all sync services...',
-        name: 'DatabaseSyncCoordinator');
+    developer.log(
+      '▶️ Restarting all sync services...',
+      name: 'DatabaseSyncCoordinator',
+    );
 
     final errors = <String>[];
 
@@ -84,21 +100,28 @@ class DatabaseSyncCoordinator {
       try {
         await _restartCallbacks[i]();
         developer.log(
-            '  ✓ Restarted service ${i + 1}/${_restartCallbacks.length}',
-            name: 'DatabaseSyncCoordinator');
+          '  ✓ Restarted service ${i + 1}/${_restartCallbacks.length}',
+          name: 'DatabaseSyncCoordinator',
+        );
       } catch (e) {
         errors.add('Service $i: $e');
-        developer.log('  ⚠️ Error restarting service $i: $e',
-            name: 'DatabaseSyncCoordinator');
+        developer.log(
+          '  ⚠️ Error restarting service $i: $e',
+          name: 'DatabaseSyncCoordinator',
+        );
       }
     }
 
     if (errors.isEmpty) {
-      developer.log('✅ All sync services restarted successfully',
-          name: 'DatabaseSyncCoordinator');
+      developer.log(
+        '✅ All sync services restarted successfully',
+        name: 'DatabaseSyncCoordinator',
+      );
     } else {
-      developer.log('⚠️ Restarted sync services with ${errors.length} errors',
-          name: 'DatabaseSyncCoordinator');
+      developer.log(
+        '⚠️ Restarted sync services with ${errors.length} errors',
+        name: 'DatabaseSyncCoordinator',
+      );
     }
   }
 }

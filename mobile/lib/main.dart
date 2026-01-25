@@ -258,12 +258,14 @@ void _setupEngineMonitoring(AutoSyncEngine engine) {
     debugPrint('$authIcon Signed in: ${state.isSignedIn}');
     debugPrint('📦 Pending changes: ${state.pendingChangesCount}');
     debugPrint(
-        '✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}');
+      '✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}',
+    );
     debugPrint('❌ Failed attempts: ${state.failedAttempts}');
 
     if (state.nextRetryAt != null) {
-      final secondsUntil =
-          state.nextRetryAt!.difference(DateTime.now()).inSeconds;
+      final secondsUntil = state.nextRetryAt!
+          .difference(DateTime.now())
+          .inSeconds;
       debugPrint('⏰ Next retry in: ${secondsUntil}s');
     }
 
@@ -293,17 +295,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    ref.listen<AppDatabase>(
-      databaseProvider,
-      (previous, database) {
-        if (_sessionConfigured &&
-            previous != null &&
-            identical(previous, database)) {
-          return;
-        }
-        _enqueueDatabase(database);
-      },
-    );
+    ref.listen<AppDatabase>(databaseProvider, (previous, database) {
+      if (_sessionConfigured &&
+          previous != null &&
+          identical(previous, database)) {
+        return;
+      }
+      _enqueueDatabase(database);
+    });
   }
 
   void _enqueueDatabase(AppDatabase database) {
@@ -358,22 +357,31 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.resumed) {
       debugPrint('📱 التطبيق عاد للواجهة...');
-      AppSessionManager.onAppOpen()
-          .catchError((e, s) => debugPrint('Error in onAppOpen: $e\n$s'));
-      ref.read(backupStatusProvider.notifier).refreshSignInStatus().catchError(
-          (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'));
+      AppSessionManager.onAppOpen().catchError(
+        (e, s) => debugPrint('Error in onAppOpen: $e\n$s'),
+      );
+      ref
+          .read(backupStatusProvider.notifier)
+          .refreshSignInStatus()
+          .catchError(
+            (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
+          );
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
-          (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'));
-      SyncGuardian.instance.onAppForeground().catchError((e, s) =>
-          debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'));
+        (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
+      );
+      SyncGuardian.instance.onAppForeground().catchError(
+        (e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
+      );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
-      Future.microtask(() => AppSessionManager.onAppCloseOrBackground())
-          .catchError(
-              (e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'));
+      Future.microtask(
+        () => AppSessionManager.onAppCloseOrBackground(),
+      ).catchError(
+        (e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
+      );
     }
   }
 
@@ -381,30 +389,32 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Consumer(builder: (context, ref, _) {
-        final isDark = ref.watch(themeSettingsProvider);
-        return MaterialApp(
-          title: 'مارينا هوتيل',
-          theme: buildTheme(),
-          darkTheme: buildDarkTheme(),
-          themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-          ],
-          supportedLocales: const [Locale('ar')],
-          routes: {
-            '/employees': (_) => const EmployeesListScreen(),
-            '/expenses': (_) => const ExpensesListScreen(),
-            '/finance/cash-register': (_) => const FinanceScreen(),
-            '/finance/cash-transactions': (_) => const FinanceScreen(),
-            '/debts': (_) => const DebtsListScreen(),
-            '/reports': (_) => const ReportsScreen(),
-          },
-          home: const RootRouter(),
-        );
-      }),
+      child: Consumer(
+        builder: (context, ref, _) {
+          final isDark = ref.watch(themeSettingsProvider);
+          return MaterialApp(
+            title: 'مارينا هوتيل',
+            theme: buildTheme(),
+            darkTheme: buildDarkTheme(),
+            themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+            ],
+            supportedLocales: const [Locale('ar')],
+            routes: {
+              '/employees': (_) => const EmployeesListScreen(),
+              '/expenses': (_) => const ExpensesListScreen(),
+              '/finance/cash-register': (_) => const FinanceScreen(),
+              '/finance/cash-transactions': (_) => const FinanceScreen(),
+              '/debts': (_) => const DebtsListScreen(),
+              '/reports': (_) => const ReportsScreen(),
+            },
+            home: const RootRouter(),
+          );
+        },
+      ),
     );
   }
 }
@@ -418,9 +428,7 @@ class RootRouter extends ConsumerWidget {
     if (auth.isRestoring) {
       return const Directionality(
         textDirection: TextDirection.rtl,
-        child: Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
+        child: Scaffold(body: Center(child: CircularProgressIndicator())),
       );
     }
     if (!auth.isAuthenticated && backup.requiresDriveLogin) {
@@ -485,23 +493,26 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   List<Widget> _buildGlobalActions(BuildContext context) {
     final unreadCountAsync = ref.watch(simpleNotesUnreadCountProvider);
-    final unreadCount =
-        unreadCountAsync.maybeWhen(data: (count) => count, orElse: () => 0);
+    final unreadCount = unreadCountAsync.maybeWhen(
+      data: (count) => count,
+      orElse: () => 0,
+    );
     final hasUnread = unreadCount > 0;
 
     return [
       IconButton(
         onPressed: () {
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const NotesScreen()));
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const NotesScreen()));
         },
         tooltip: 'التنبيهات',
         icon: Stack(
           clipBehavior: Clip.none,
           children: [
-            Icon(hasUnread
-                ? Icons.notifications_active
-                : Icons.notifications_none),
+            Icon(
+              hasUnread ? Icons.notifications_active : Icons.notifications_none,
+            ),
             if (hasUnread)
               Positioned(
                 right: -2,

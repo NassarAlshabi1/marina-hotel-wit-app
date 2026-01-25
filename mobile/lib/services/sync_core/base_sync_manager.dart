@@ -106,7 +106,8 @@ abstract class BaseSyncManager {
         deviceIdentifier = androidInfo.id;
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
-        deviceIdentifier = iosInfo.identifierForVendor ??
+        deviceIdentifier =
+            iosInfo.identifierForVendor ??
             'ios-${DateTime.now().millisecondsSinceEpoch}';
       }
     } catch (e) {
@@ -217,13 +218,16 @@ abstract class BaseSyncManager {
     }
 
     _log('📥 تحميل النسخة الاحتياطية الجديدة...');
-    final backupData =
-        await _backupService!.downloadBackup(latestBackup.fileId);
+    final backupData = await _backupService!.downloadBackup(
+      latestBackup.fileId,
+    );
 
     final localData = await _getLocalData();
 
-    final conflicts =
-        await _conflictResolver.detectConflicts(localData, backupData);
+    final conflicts = await _conflictResolver.detectConflicts(
+      localData,
+      backupData,
+    );
 
     int conflictsResolved = 0;
     if (conflicts.isNotEmpty) {
@@ -260,7 +264,8 @@ abstract class BaseSyncManager {
 
   /// دمج البيانات المحلولة من التضارب - يجب تنفيذها في الكلاس الموروث
   Future<void> _mergeResolvedData(
-      Map<String, Map<String, dynamic>> resolvedData);
+    Map<String, Map<String, dynamic>> resolvedData,
+  );
 
   /// حساب عدد السجلات
   int _countRecords(Map<String, dynamic> data) {

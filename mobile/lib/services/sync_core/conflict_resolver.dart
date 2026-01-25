@@ -2,11 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:collection/collection.dart';
 
 /// استراتيجية حل التضارب
-enum ConflictStrategy {
-  newerWins,
-  devicePriority,
-  manualResolve,
-}
+enum ConflictStrategy { newerWins, devicePriority, manualResolve }
 
 /// معلومات التضارب
 class DataConflict {
@@ -80,15 +76,21 @@ class ConflictResolver {
 
         if (localUpdated != null && remoteUpdated != null) {
           if (_hasConflict(
-              localRecord, remoteRecord, localUpdated, remoteUpdated)) {
-            conflicts.add(DataConflict(
-              table: table,
-              uuid: uuid,
-              localData: localRecord,
-              remoteData: remoteRecord,
-              localTimestamp: localUpdated,
-              remoteTimestamp: remoteUpdated,
-            ));
+            localRecord,
+            remoteRecord,
+            localUpdated,
+            remoteUpdated,
+          )) {
+            conflicts.add(
+              DataConflict(
+                table: table,
+                uuid: uuid,
+                localData: localRecord,
+                remoteData: remoteRecord,
+                localTimestamp: localUpdated,
+                remoteTimestamp: remoteUpdated,
+              ),
+            );
           }
         }
       }
@@ -128,7 +130,8 @@ class ConflictResolver {
 
       final winnerType = winner == conflict.localData ? 'محلي' : 'بعيد';
       debugPrint(
-          '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType');
+        '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType',
+      );
     }
 
     return resolved;
@@ -175,10 +178,7 @@ class ConflictResolver {
   }
 
   /// تغيير الاستراتيجية ديناميكياً
-  ConflictResolver copyWith({
-    ConflictStrategy? strategy,
-    int? devicePriority,
-  }) {
+  ConflictResolver copyWith({ConflictStrategy? strategy, int? devicePriority}) {
     return ConflictResolver(
       deviceId: deviceId,
       strategy: strategy ?? this.strategy,

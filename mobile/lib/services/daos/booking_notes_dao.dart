@@ -12,16 +12,20 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
   BookingNotesDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<BookingNote>> list(
-      {int? bookingId, bool includeDeleted = false}) async {
+  Future<List<BookingNote>> list({
+    int? bookingId,
+    bool includeDeleted = false,
+  }) async {
     final q = select(bookingNotes);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (bookingId != null) q.where((t) => t.bookingId.equals(bookingId));
     return q.get();
   }
 
-  Stream<List<BookingNote>> watchByBooking(int bookingId,
-      {bool includeDeleted = false}) {
+  Stream<List<BookingNote>> watchByBooking(
+    int bookingId, {
+    bool includeDeleted = false,
+  }) {
     final q = select(bookingNotes)..where((t) => t.bookingId.equals(bookingId));
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     return q.watch();
@@ -32,8 +36,10 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
   Stream<BookingNote?> watchById(int id) =>
       (select(bookingNotes)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
-  Future<int> insertOne(BookingNotesCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> insertOne(
+    BookingNotesCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -59,16 +65,22 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateById(int id, BookingNotesCompanion data,
-      {bool originIsServer = false}) async {
+  Future<int> updateById(
+    int id,
+    BookingNotesCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final comp =
-          data.copyWith(updatedAt: Value(now), lastModified: Value(now));
-      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id)))
-          .write(comp);
+      final comp = data.copyWith(
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      );
+      final rows = await (update(
+        bookingNotes,
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'booking_notes',
@@ -89,11 +101,13 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
       final existing = await getById(id);
       if (existing == null) return 0;
       final rows = await (update(bookingNotes)..where((t) => t.id.equals(id)))
-          .write(BookingNotesCompanion(
-        deletedAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+          .write(
+            BookingNotesCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'booking_notes',
@@ -108,8 +122,10 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Map<String, dynamic> _payloadFrom(BookingNotesCompanion comp,
-      {BookingNote? base}) {
+  Map<String, dynamic> _payloadFrom(
+    BookingNotesCompanion comp, {
+    BookingNote? base,
+  }) {
     final m = <String, dynamic>{};
     if (comp.bookingId.present) m['booking_id'] = comp.bookingId.value;
     if (comp.noteText.present) m['note_text'] = comp.noteText.value;
@@ -128,29 +144,33 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد ملاحظات الحجوزات من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data,
-      {bool clearExisting = false}) async {
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
     if (clearExisting) {
       await delete(bookingNotes).go();
     }
 
     for (final noteJson in data) {
       final note = BookingNote.fromJson(noteJson);
-      await into(bookingNotes).insertOnConflictUpdate(BookingNotesCompanion(
-        bookingId: Value(note.bookingId),
-        noteText: Value(note.noteText),
-        alertType: Value(note.alertType),
-        alertUntil: Value(note.alertUntil),
-        isActive: Value(note.isActive),
-        localUuid: Value(note.localUuid),
-        serverId: Value(note.serverId),
-        createdAt: Value(note.createdAt),
-        updatedAt: Value(note.updatedAt),
-        deletedAt: Value(note.deletedAt),
-        lastModified: Value(note.lastModified),
-        version: Value(note.version),
-        origin: Value(note.origin),
-      ));
+      await into(bookingNotes).insertOnConflictUpdate(
+        BookingNotesCompanion(
+          bookingId: Value(note.bookingId),
+          noteText: Value(note.noteText),
+          alertType: Value(note.alertType),
+          alertUntil: Value(note.alertUntil),
+          isActive: Value(note.isActive),
+          localUuid: Value(note.localUuid),
+          serverId: Value(note.serverId),
+          createdAt: Value(note.createdAt),
+          updatedAt: Value(note.updatedAt),
+          deletedAt: Value(note.deletedAt),
+          lastModified: Value(note.lastModified),
+          version: Value(note.version),
+          origin: Value(note.origin),
+        ),
+      );
     }
   }
 

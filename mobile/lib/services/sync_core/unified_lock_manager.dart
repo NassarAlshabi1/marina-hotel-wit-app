@@ -1,19 +1,9 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
-enum LockCategory {
-  mainSync,
-  deltaSync,
-  queueProcessing,
-  screenSync,
-}
+enum LockCategory { mainSync, deltaSync, queueProcessing, screenSync }
 
-enum LockPriority {
-  critical,
-  high,
-  normal,
-  low,
-}
+enum LockPriority { critical, high, normal, low }
 
 class LockAcquisitionResult {
   final bool acquired;
@@ -95,8 +85,9 @@ class _LockEvent {
   @override
   String toString() {
     final categoryName = category.name;
-    final durationStr =
-        duration != null ? ' (${duration!.inMilliseconds}ms)' : '';
+    final durationStr = duration != null
+        ? ' (${duration!.inMilliseconds}ms)'
+        : '';
     return '${timestamp.toIso8601String().substring(11, 23)} - $action: $holder on $categoryName$durationStr';
   }
 }
@@ -137,16 +128,19 @@ class UnifiedLockManager {
         failureReason: 'Potential deadlock detected',
       );
 
-      _addEvent(_LockEvent(
-        timestamp: DateTime.now(),
-        category: category,
-        holder: holder,
-        action: 'deadlock-detected',
-        duration: result.waitTime,
-      ));
+      _addEvent(
+        _LockEvent(
+          timestamp: DateTime.now(),
+          category: category,
+          holder: holder,
+          action: 'deadlock-detected',
+          duration: result.waitTime,
+        ),
+      );
 
       debugPrint(
-          '🔒⚠️ [UnifiedLockManager] Deadlock detected: $holder requesting ${category.name} (held by ${lock.currentHolder})');
+        '🔒⚠️ [UnifiedLockManager] Deadlock detected: $holder requesting ${category.name} (held by ${lock.currentHolder})',
+      );
 
       return result;
     }
@@ -160,13 +154,15 @@ class UnifiedLockManager {
 
       final waitTime = DateTime.now().difference(startTime);
 
-      _addEvent(_LockEvent(
-        timestamp: DateTime.now(),
-        category: category,
-        holder: holder,
-        action: 'acquire',
-        duration: waitTime,
-      ));
+      _addEvent(
+        _LockEvent(
+          timestamp: DateTime.now(),
+          category: category,
+          holder: holder,
+          action: 'acquire',
+          duration: waitTime,
+        ),
+      );
 
       return LockAcquisitionResult(
         acquired: true,
@@ -179,27 +175,33 @@ class UnifiedLockManager {
     lock.waitingHolders.add(holder);
 
     try {
-      await lock.available.timeout(timeout, onTimeout: () {
-        final result = LockAcquisitionResult(
-          acquired: false,
-          holder: lock.currentHolder,
-          waitTime: DateTime.now().difference(startTime),
-          failureReason: 'Timeout after ${timeout.inSeconds}s',
-        );
+      await lock.available.timeout(
+        timeout,
+        onTimeout: () {
+          final result = LockAcquisitionResult(
+            acquired: false,
+            holder: lock.currentHolder,
+            waitTime: DateTime.now().difference(startTime),
+            failureReason: 'Timeout after ${timeout.inSeconds}s',
+          );
 
-        _addEvent(_LockEvent(
-          timestamp: DateTime.now(),
-          category: category,
-          holder: holder,
-          action: 'timeout',
-          duration: result.waitTime,
-        ));
+          _addEvent(
+            _LockEvent(
+              timestamp: DateTime.now(),
+              category: category,
+              holder: holder,
+              action: 'timeout',
+              duration: result.waitTime,
+            ),
+          );
 
-        debugPrint(
-            '🔒⏱️ [UnifiedLockManager] Timeout: $holder waiting for ${category.name} after ${timeout.inSeconds}s');
+          debugPrint(
+            '🔒⏱️ [UnifiedLockManager] Timeout: $holder waiting for ${category.name} after ${timeout.inSeconds}s',
+          );
 
-        throw TimeoutException('Lock acquisition timeout');
-      });
+          throw TimeoutException('Lock acquisition timeout');
+        },
+      );
 
       // إعادة فحص حالة القفل بعد await لتجنب Race Condition
       // قد يكون caller آخر قد حصل على القفل أثناء انتظارنا
@@ -218,17 +220,20 @@ class UnifiedLockManager {
 
       final waitTime = DateTime.now().difference(startTime);
 
-      _addEvent(_LockEvent(
-        timestamp: DateTime.now(),
-        category: category,
-        holder: holder,
-        action: 'acquire',
-        duration: waitTime,
-      ));
+      _addEvent(
+        _LockEvent(
+          timestamp: DateTime.now(),
+          category: category,
+          holder: holder,
+          action: 'acquire',
+          duration: waitTime,
+        ),
+      );
 
       if (waitTime.inMilliseconds > 100) {
         debugPrint(
-            '🔒⏳ [UnifiedLockManager] Lock acquired: $holder on ${category.name} after ${waitTime.inMilliseconds}ms');
+          '🔒⏳ [UnifiedLockManager] Lock acquired: $holder on ${category.name} after ${waitTime.inMilliseconds}ms',
+        );
       }
 
       return LockAcquisitionResult(
@@ -249,21 +254,20 @@ class UnifiedLockManager {
     }
   }
 
-  void release({
-    required LockCategory category,
-    required String holder,
-  }) {
+  void release({required LockCategory category, required String holder}) {
     final lock = _locks[category]!;
 
     if (!lock.isLocked) {
       debugPrint(
-          '🔒⚠️ [UnifiedLockManager] Attempted to release unlocked ${category.name} by $holder');
+        '🔒⚠️ [UnifiedLockManager] Attempted to release unlocked ${category.name} by $holder',
+      );
       return;
     }
 
     if (lock.currentHolder != holder) {
       debugPrint(
-          '🔒⚠️ [UnifiedLockManager] Lock mismatch: $holder trying to release ${category.name} held by ${lock.currentHolder}');
+        '🔒⚠️ [UnifiedLockManager] Lock mismatch: $holder trying to release ${category.name} held by ${lock.currentHolder}',
+      );
       return;
     }
 
@@ -271,17 +275,20 @@ class UnifiedLockManager {
         ? DateTime.now().difference(lock.acquiredAt!)
         : Duration.zero;
 
-    _addEvent(_LockEvent(
-      timestamp: DateTime.now(),
-      category: category,
-      holder: holder,
-      action: 'release',
-      duration: heldDuration,
-    ));
+    _addEvent(
+      _LockEvent(
+        timestamp: DateTime.now(),
+        category: category,
+        holder: holder,
+        action: 'release',
+        duration: heldDuration,
+      ),
+    );
 
     if (heldDuration.inSeconds > 5) {
       debugPrint(
-          '🔒⏱️ [UnifiedLockManager] Lock held for ${heldDuration.inSeconds}s: $holder on ${category.name}');
+        '🔒⏱️ [UnifiedLockManager] Lock held for ${heldDuration.inSeconds}s: $holder on ${category.name}',
+      );
     }
 
     // إصلاح race condition: إعادة تعيين الحالة قبل إشعار المنتظرين
@@ -304,7 +311,8 @@ class UnifiedLockManager {
 
     if (!result.acquired) {
       debugPrint(
-          '🔒❌ [UnifiedLockManager] Failed to acquire lock: $holder on ${category.name} - ${result.failureReason}');
+        '🔒❌ [UnifiedLockManager] Failed to acquire lock: $holder on ${category.name} - ${result.failureReason}',
+      );
       return null;
     }
 
@@ -317,15 +325,17 @@ class UnifiedLockManager {
 
   Map<LockCategory, LockStatus> getStatus() {
     return Map.fromEntries(
-      _locks.entries.map((entry) => MapEntry(
-            entry.key,
-            LockStatus(
-              isLocked: entry.value.isLocked,
-              currentHolder: entry.value.currentHolder,
-              acquiredAt: entry.value.acquiredAt,
-              waitingCount: entry.value.waitingCount,
-            ),
-          )),
+      _locks.entries.map(
+        (entry) => MapEntry(
+          entry.key,
+          LockStatus(
+            isLocked: entry.value.isLocked,
+            currentHolder: entry.value.currentHolder,
+            acquiredAt: entry.value.acquiredAt,
+            waitingCount: entry.value.waitingCount,
+          ),
+        ),
+      ),
     );
   }
 
@@ -350,8 +360,9 @@ class UnifiedLockManager {
 
     if (heldByHolder.isEmpty) return false;
 
-    return heldByHolder.any((cat) =>
-        _locks[cat]?.waitingHolders.contains(blockedByHolder) ?? false);
+    return heldByHolder.any(
+      (cat) => _locks[cat]?.waitingHolders.contains(blockedByHolder) ?? false,
+    );
   }
 
   void _addEvent(_LockEvent event) {
@@ -370,7 +381,8 @@ class UnifiedLockManager {
       if (s.isLocked) {
         final duration = s.heldDuration?.inSeconds ?? 0;
         debugPrint(
-            '  $categoryName: LOCKED by ${s.currentHolder} for ${duration}s (${s.waitingCount} waiting)');
+          '  $categoryName: LOCKED by ${s.currentHolder} for ${duration}s (${s.waitingCount} waiting)',
+        );
       } else {
         debugPrint('  $categoryName: FREE');
       }

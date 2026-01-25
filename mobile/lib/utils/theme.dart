@@ -90,13 +90,8 @@ ThemeData buildTheme() {
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
 
@@ -105,13 +100,8 @@ ThemeData buildTheme() {
         foregroundColor: AppColors.primaryColor,
         side: const BorderSide(color: AppColors.primaryColor),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
 
@@ -142,10 +132,7 @@ ThemeData buildTheme() {
         fontWeight: FontWeight.w600,
         fontSize: 14,
       ),
-      dataTextStyle: TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 14,
-      ),
+      dataTextStyle: TextStyle(color: AppColors.textPrimary, fontSize: 14),
       columnSpacing: 24,
       horizontalMargin: 16,
       dataRowMinHeight: 44,
@@ -210,13 +197,8 @@ ThemeData buildDarkTheme() {
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -224,13 +206,8 @@ ThemeData buildDarkTheme() {
         foregroundColor: AppColors.primaryLight,
         side: const BorderSide(color: AppColors.primaryLight),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
     inputDecorationTheme: const InputDecorationTheme(
@@ -257,10 +234,7 @@ ThemeData buildDarkTheme() {
         fontWeight: FontWeight.w600,
         fontSize: 14,
       ),
-      dataTextStyle: TextStyle(
-        color: Colors.white,
-        fontSize: 14,
-      ),
+      dataTextStyle: TextStyle(color: Colors.white, fontSize: 14),
       columnSpacing: 24,
       horizontalMargin: 16,
       dataRowMinHeight: 44,

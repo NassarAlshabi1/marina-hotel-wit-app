@@ -17,8 +17,10 @@ class ShiftNotesRepository {
     return dao
         .list(bookingId: ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID)
         .asStream()
-        .map((bookingNotes) =>
-            bookingNotes.map(ShiftNoteAdapter.fromBookingNote).toList());
+        .map(
+          (bookingNotes) =>
+              bookingNotes.map(ShiftNoteAdapter.fromBookingNote).toList(),
+        );
   }
 
   /// جلب جميع الملاحظات العامة النشطة

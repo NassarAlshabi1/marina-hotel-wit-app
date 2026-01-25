@@ -80,11 +80,7 @@ class AutoSyncEngineState {
   }
 }
 
-enum _StartResult {
-  ok,
-  notInitialized,
-  alreadyRunning,
-}
+enum _StartResult { ok, notInitialized, alreadyRunning }
 
 class AutoSyncEngine with WidgetsBindingObserver {
   AutoSyncEngine._();
@@ -130,15 +126,15 @@ class AutoSyncEngine with WidgetsBindingObserver {
   Stream<AutoSyncEngineState> get stateStream => _stateController.stream;
 
   AutoSyncEngineState get currentState => AutoSyncEngineState(
-        isRunning: _isRunning,
-        hasNetworkConnection: _hasNetworkConnection,
-        isSignedIn: _isSignedIn,
-        pendingChangesCount: _pendingChangesCount,
-        lastSuccessfulSync: _lastSuccessfulSync,
-        failedAttempts: _failedAttempts,
-        nextRetryAt: _nextRetryAt,
-        lastError: _lastError,
-      );
+    isRunning: _isRunning,
+    hasNetworkConnection: _hasNetworkConnection,
+    isSignedIn: _isSignedIn,
+    pendingChangesCount: _pendingChangesCount,
+    lastSuccessfulSync: _lastSuccessfulSync,
+    failedAttempts: _failedAttempts,
+    nextRetryAt: _nextRetryAt,
+    lastError: _lastError,
+  );
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('AutoSyncEngine', message);
@@ -269,8 +265,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
       (List<ConnectivityResult> results) async {
         final wasConnected = _hasNetworkConnection;
-        _hasNetworkConnection =
-            results.any((r) => r != ConnectivityResult.none);
+        _hasNetworkConnection = results.any(
+          (r) => r != ConnectivityResult.none,
+        );
 
         _log('📡 Network status changed: $_hasNetworkConnection');
         _emitState();
@@ -307,12 +304,15 @@ class AutoSyncEngine with WidgetsBindingObserver {
           _lastError = null;
 
           if (result.pushedChanges != null && result.pushedChanges! > 0) {
-            _pendingChangesCount =
-                max(0, _pendingChangesCount - result.pushedChanges!);
+            _pendingChangesCount = max(
+              0,
+              _pendingChangesCount - result.pushedChanges!,
+            );
           }
 
           _log(
-              '✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
+            '✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}',
+          );
         } else {
           _failedAttempts++;
           _lastError = result.error ?? result.message;
@@ -321,8 +321,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
               ? '${result.message} - ${result.error}'
               : result.message;
 
-          _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails',
-              level: LogLevel.error);
+          _log(
+            '❌ Sync failed (attempt $_failedAttempts): $errorDetails',
+            level: LogLevel.error,
+          );
 
           final prefs = SharedPreferences.getInstance();
           prefs.then((p) async {
@@ -330,8 +332,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
             if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
               await _scheduleRetry();
             } else if (_failedAttempts >= _retryConfig.maxRetries) {
-              _log('🚫 Max retries reached - stopping automatic retries',
-                  level: LogLevel.warning);
+              _log(
+                '🚫 Max retries reached - stopping automatic retries',
+                level: LogLevel.warning,
+              );
             }
           });
         }
@@ -367,8 +371,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> _performHealthCheck() async {
-    final shouldRun =
-        await SyncLocks.autoEngineLock.synchronized(() => _isRunning);
+    final shouldRun = await SyncLocks.autoEngineLock.synchronized(
+      () => _isRunning,
+    );
     if (!shouldRun) return;
 
     _log('❤️ Performing health check...');
@@ -429,7 +434,8 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
     if (_pendingChangesCount > 0) {
       _log(
-          '📤 Syncing ${_pendingChangesCount} pending changes after network restore');
+        '📤 Syncing ${_pendingChangesCount} pending changes after network restore',
+      );
       await _orchestrator!.syncNow(
         push: true,
         pull: false,
@@ -508,18 +514,15 @@ class AutoSyncEngine with WidgetsBindingObserver {
       _log('💾 App paused with pending changes - quick sync before background');
 
       _orchestrator!
-          .syncNow(
-        push: true,
-        pull: false,
-        reason: 'app_paused',
-      )
+          .syncNow(push: true, pull: false, reason: 'app_paused')
           .then((result) {
-        if (result) {
-          _log('✅ Quick sync before background completed');
-        }
-      }).catchError((error) {
-        _log('⚠️ Quick sync before background failed: $error');
-      });
+            if (result) {
+              _log('✅ Quick sync before background completed');
+            }
+          })
+          .catchError((error) {
+            _log('⚠️ Quick sync before background failed: $error');
+          });
     }
   }
 
@@ -542,18 +545,18 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _emitState();
 
     _log(
-        '💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)');
-
-    _orchestrator!.notifyLocalChange(
-      table: table,
-      operation: operation,
+      '💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)',
     );
+
+    _orchestrator!.notifyLocalChange(table: table, operation: operation);
   }
 
   Future<void> _scheduleRetry() async {
     if (_failedAttempts >= _retryConfig.maxRetries) {
-      _log('🚫 Max retries reached - stopping retries',
-          level: LogLevel.warning);
+      _log(
+        '🚫 Max retries reached - stopping retries',
+        level: LogLevel.warning,
+      );
       return;
     }
 
@@ -655,7 +658,8 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
     final strategy = await _conflictResolver!.getStrategy();
     _log(
-        '⚙️ Settings loaded: debounce=${debounce}s, pull=${pullInterval}min, conflicts=$strategy');
+      '⚙️ Settings loaded: debounce=${debounce}s, pull=${pullInterval}min, conflicts=$strategy',
+    );
   }
 
   Future<void> setDebounceSeconds(int seconds) async {
@@ -720,9 +724,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     );
 
     if (ok) {
-      return SyncResult.success(
-        message: 'Sync completed successfully',
-      );
+      return SyncResult.success(message: 'Sync completed successfully');
     }
 
     return SyncResult.failure(

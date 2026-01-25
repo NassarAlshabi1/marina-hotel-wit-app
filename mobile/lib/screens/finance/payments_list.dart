@@ -24,7 +24,8 @@ class PaymentsListScreen extends ConsumerWidget {
               final p = list[i];
               return ListTile(
                 title: Text(
-                    '${CurrencyFormatter.formatAmount(p.amount)} • ${p.paymentMethod}'),
+                  '${CurrencyFormatter.formatAmount(p.amount)} • ${p.paymentMethod}',
+                ),
                 subtitle: Text('${p.paymentDate} • ${p.revenueType}'),
                 trailing: p.roomNumber != null
                     ? Chip(label: Text(p.roomNumber!))

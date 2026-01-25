@@ -29,9 +29,7 @@ class ScreenSyncController {
       ),
     );
 
-    _retryStrategy = RetryStrategy(
-      config: RetryConfig.balanced,
-    );
+    _retryStrategy = RetryStrategy(config: RetryConfig.balanced);
   }
 
   bool _hasChanges = false;
@@ -88,13 +86,12 @@ class ScreenSyncController {
 
     try {
       final connectivityResults = await Connectivity().checkConnectivity();
-      final hasConnection =
-          connectivityResults.any((r) => r != ConnectivityResult.none);
-
-      final networkValidation =
-          SyncValidator.instance.validateNetworkConditions(
-        hasConnection: hasConnection,
+      final hasConnection = connectivityResults.any(
+        (r) => r != ConnectivityResult.none,
       );
+
+      final networkValidation = SyncValidator.instance
+          .validateNetworkConditions(hasConnection: hasConnection);
 
       if (!networkValidation.isValid) {
         debugPrint('📴 [$screenId] ${networkValidation.error}');
@@ -104,7 +101,8 @@ class ScreenSyncController {
 
       if (!SmartSyncManager.instance.isDriveSignedIn) {
         debugPrint(
-            '🔒 [$screenId] المستخدم غير مسجل في Google Drive - إضافة التغيير للطابور');
+          '🔒 [$screenId] المستخدم غير مسجل في Google Drive - إضافة التغيير للطابور',
+        );
         await _addToQueue();
         return false;
       }
@@ -131,7 +129,8 @@ class ScreenSyncController {
         },
         fallback: () {
           debugPrint(
-              '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات');
+            '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات',
+          );
           return false;
         },
         onRetry: (attempt, error) {
@@ -175,7 +174,7 @@ class ScreenSyncController {
     try {
       final data = {
         'timestamp': DateTime.now().toIso8601String(),
-        'screenId': screenId
+        'screenId': screenId,
       };
 
       final validation = SyncValidator.instance.validateSyncData(data);
@@ -234,11 +233,4 @@ class ScreenSyncController {
   }
 }
 
-enum SyncStatus {
-  idle,
-  pending,
-  syncing,
-  synced,
-  queued,
-  error,
-}
+enum SyncStatus { idle, pending, syncing, synced, queued, error }

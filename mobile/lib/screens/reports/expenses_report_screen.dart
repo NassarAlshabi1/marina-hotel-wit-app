@@ -44,7 +44,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   // ignore: unused_element
-String _formatNumber(num value) => _currencyFmt.format(value);
+  String _formatNumber(num value) => _currencyFmt.format(value);
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd');
 
   DateTime? _fromDate;
@@ -70,8 +70,11 @@ String _formatNumber(num value) => _currencyFmt.format(value);
 
   Future<void> _initializeDefaults() async {
     final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month, now.day)
-        .subtract(const Duration(days: 30));
+    _fromDate = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 30));
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
@@ -104,8 +107,9 @@ String _formatNumber(num value) => _currencyFmt.format(value);
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate =
-        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initialDate = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -161,26 +165,30 @@ String _formatNumber(num value) => _currencyFmt.format(value);
 
     final employeeMap = <int, Employee>{};
     if (widget.includeEmployeeDetails) {
-      final employeeIds =
-          expenses.map((e) => e.relatedId).whereType<int>().toSet();
+      final employeeIds = expenses
+          .map((e) => e.relatedId)
+          .whereType<int>()
+          .toSet();
       if (employeeIds.isNotEmpty) {
-        final employees = await (db.select(db.employees)
-              ..where((tbl) => tbl.id.isIn(employeeIds.toList())))
-            .get();
+        final employees = await (db.select(
+          db.employees,
+        )..where((tbl) => tbl.id.isIn(employeeIds.toList()))).get();
         for (final employee in employees) {
           employeeMap[employee.id] = employee;
         }
       }
     }
 
-    expenses.sort((a, b) =>
-        _parseExpenseDate(b.date).compareTo(_parseExpenseDate(a.date)));
+    expenses.sort(
+      (a, b) => _parseExpenseDate(b.date).compareTo(_parseExpenseDate(a.date)),
+    );
 
     final rows = <_ExpenseReportRow>[];
     double totalAmount = 0;
     for (final expense in expenses) {
-      final employee =
-          expense.relatedId != null ? employeeMap[expense.relatedId!] : null;
+      final employee = expense.relatedId != null
+          ? employeeMap[expense.relatedId!]
+          : null;
       final date = _parseExpenseDate(expense.date);
       if (_fromDate != null && date.isBefore(_fromDate!)) {
         continue;
@@ -189,13 +197,15 @@ String _formatNumber(num value) => _currencyFmt.format(value);
         continue;
       }
       totalAmount += expense.amount;
-      rows.add(_ExpenseReportRow(
-        date: date,
-        amount: expense.amount,
-        type: expense.expenseType,
-        description: expense.description,
-        employee: employee,
-      ));
+      rows.add(
+        _ExpenseReportRow(
+          date: date,
+          amount: expense.amount,
+          type: expense.expenseType,
+          description: expense.description,
+          employee: employee,
+        ),
+      );
     }
 
     return _ExpensesReportResult(rows: rows, totalAmount: totalAmount);
@@ -211,8 +221,9 @@ String _formatNumber(num value) => _currencyFmt.format(value);
     final toLabel = _toDate != null
         ? DateFormat('yyyy-MM-dd').format(_toDate!)
         : 'غير محدد';
-    final selectedTypeLabel =
-        _selectedType?.isNotEmpty == true ? _selectedType! : 'الكل';
+    final selectedTypeLabel = _selectedType?.isNotEmpty == true
+        ? _selectedType!
+        : 'الكل';
 
     pw.Widget metaRow(String label, String value) {
       return pw.Padding(
@@ -221,8 +232,10 @@ String _formatNumber(num value) => _currencyFmt.format(value);
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-            pw.Text(value,
-                style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+            pw.Text(
+              value,
+              style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+            ),
           ],
         ),
       );
@@ -250,21 +263,28 @@ String _formatNumber(num value) => _currencyFmt.format(value);
             pw.Text(
               'فندق مارينا بلازا',
               style: pw.TextStyle(
-                  font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
+                font: fonts.bold,
+                fontSize: 22,
+                color: PdfColors.textWhite,
+              ),
             ),
             pw.SizedBox(height: 8),
             pw.Text(
               widget.title,
               style: pw.TextStyle(
-                  font: fonts.bold, fontSize: 20, color: PdfColors.textWhite),
+                font: fonts.bold,
+                fontSize: 20,
+                color: PdfColors.textWhite,
+              ),
             ),
             pw.SizedBox(height: 8),
             pw.Text(
               periodText,
               style: pw.TextStyle(
-                  font: fonts.regular,
-                  fontSize: 12,
-                  color: PdfColors.textWhite),
+                font: fonts.regular,
+                fontSize: 12,
+                color: PdfColors.textWhite,
+              ),
               textAlign: pw.TextAlign.center,
             ),
           ],
@@ -317,14 +337,20 @@ String _formatNumber(num value) => _currencyFmt.format(value);
         child: pw.Row(
           children: [
             pw.Expanded(
-                child: buildSummaryItem(
-                    widget.totalSummaryLabel,
-                    EnhancedPdfUtils.formatNumber(_totalAmount),
-                    PdfColors.secondary)),
+              child: buildSummaryItem(
+                widget.totalSummaryLabel,
+                EnhancedPdfUtils.formatNumber(_totalAmount),
+                PdfColors.secondary,
+              ),
+            ),
             pw.SizedBox(width: 8),
             pw.Expanded(
-                child: buildSummaryItem(
-                    'عدد السجلات', _rows.length.toString(), PdfColors.info)),
+              child: buildSummaryItem(
+                'عدد السجلات',
+                _rows.length.toString(),
+                PdfColors.info,
+              ),
+            ),
           ],
         ),
       );
@@ -422,13 +448,15 @@ String _formatNumber(num value) => _currencyFmt.format(value);
               runSpacing: 12,
               children: [
                 _buildDateSelector(
-                    label: 'من تاريخ',
-                    value: _fromDate,
-                    onPressed: () => _pickDate(isFrom: true)),
+                  label: 'من تاريخ',
+                  value: _fromDate,
+                  onPressed: () => _pickDate(isFrom: true),
+                ),
                 _buildDateSelector(
-                    label: 'إلى تاريخ',
-                    value: _toDate,
-                    onPressed: () => _pickDate(isFrom: false)),
+                  label: 'إلى تاريخ',
+                  value: _toDate,
+                  onPressed: () => _pickDate(isFrom: false),
+                ),
                 if (widget.showTypeFilter)
                   SizedBox(
                     width: 220,
@@ -470,53 +498,51 @@ String _formatNumber(num value) => _currencyFmt.format(value);
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _rows.isEmpty
-                      ? const EmptyState(
-                          title: 'لا توجد بيانات',
-                          message:
-                              'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
-                          icon: Icons.receipt_long,
-                        )
-                      : ListView.separated(
-                          itemCount: _rows.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final row = _rows[index];
-                            return Card(
-                              elevation: 1,
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                  ? const EmptyState(
+                      title: 'لا توجد بيانات',
+                      message: 'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
+                      icon: Icons.receipt_long,
+                    )
+                  : ListView.separated(
+                      itemCount: _rows.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final row = _rows[index];
+                        return Card(
+                          elevation: 1,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          _dateLabelFormat.format(row.date),
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        Text(
-                                            '${_currencyFmt.format(row.amount)}'),
-                                      ],
+                                    Text(
+                                      _dateLabelFormat.format(row.date),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    Text('النوع: ${row.type}'),
-                                    const SizedBox(height: 4),
-                                    Text('الوصف: ${row.description}'),
-                                    if (widget.includeEmployeeDetails &&
-                                        row.employee != null) ...[
-                                      const SizedBox(height: 4),
-                                      Text('الموظف: ${row.employee!.name}'),
-                                    ],
+                                    Text('${_currencyFmt.format(row.amount)}'),
                                   ],
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                                const SizedBox(height: 8),
+                                Text('النوع: ${row.type}'),
+                                const SizedBox(height: 4),
+                                Text('الوصف: ${row.description}'),
+                                if (widget.includeEmployeeDetails &&
+                                    row.employee != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text('الموظف: ${row.employee!.name}'),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -532,11 +558,14 @@ String _formatNumber(num value) => _currencyFmt.format(value);
         child: Row(
           children: [
             Expanded(
-                child: _buildSummaryTile(widget.totalSummaryLabel,
-                    _currencyFmt.format(_totalAmount))),
+              child: _buildSummaryTile(
+                widget.totalSummaryLabel,
+                _currencyFmt.format(_totalAmount),
+              ),
+            ),
             Expanded(
-                child:
-                    _buildSummaryTile('عدد السجلات', _rows.length.toString())),
+              child: _buildSummaryTile('عدد السجلات', _rows.length.toString()),
+            ),
           ],
         ),
       ),
@@ -554,12 +583,14 @@ String _formatNumber(num value) => _currencyFmt.format(value);
     );
   }
 
-  Widget _buildDateSelector(
-      {required String label,
-      required DateTime? value,
-      required VoidCallback onPressed}) {
-    final text =
-        value != null ? DateFormat('yyyy-MM-dd').format(value) : 'غير محدد';
+  Widget _buildDateSelector({
+    required String label,
+    required DateTime? value,
+    required VoidCallback onPressed,
+  }) {
+    final text = value != null
+        ? DateFormat('yyyy-MM-dd').format(value)
+        : 'غير محدد';
     return SizedBox(
       width: 180,
       child: OutlinedButton.icon(
@@ -573,8 +604,9 @@ String _formatNumber(num value) => _currencyFmt.format(value);
   DateTime _parseExpenseDate(String value) {
     final trimmed = value.trim();
     final hasTime = trimmed.length > 10;
-    final normalized =
-        hasTime ? trimmed.replaceFirst(' ', 'T') : '${trimmed}T00:00:00';
+    final normalized = hasTime
+        ? trimmed.replaceFirst(' ', 'T')
+        : '${trimmed}T00:00:00';
     try {
       return DateTime.parse(normalized);
     } catch (_) {

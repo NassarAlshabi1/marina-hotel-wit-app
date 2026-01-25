@@ -56,13 +56,16 @@ class SqliteBackupRestore {
           return documentsTarget;
         } catch (e) {
           debugPrint(
-              '⚠️ Failed to access default backup dir, falling back: $e');
+            '⚠️ Failed to access default backup dir, falling back: $e',
+          );
         }
         final fallbackDirs = await getExternalStorageDirectories(
-            type: StorageDirectory.documents);
+          type: StorageDirectory.documents,
+        );
         if (fallbackDirs != null && fallbackDirs.isNotEmpty) {
-          final fallbackTarget =
-              Directory(p.join(fallbackDirs.first.path, 'MarinaHotelBackups'));
+          final fallbackTarget = Directory(
+            p.join(fallbackDirs.first.path, 'MarinaHotelBackups'),
+          );
           if (!await fallbackTarget.exists()) {
             await fallbackTarget.create(recursive: true);
           }

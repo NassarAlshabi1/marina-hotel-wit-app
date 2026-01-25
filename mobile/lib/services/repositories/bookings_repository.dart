@@ -7,9 +7,9 @@ import '../auto_backup_manager.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
-      : outbox = OutboxDao(db),
-        dao = BookingsDao(db, OutboxDao(db)),
-        derivedFields = BookingDerivedFieldsService(db);
+    : outbox = OutboxDao(db),
+      dao = BookingsDao(db, OutboxDao(db)),
+      derivedFields = BookingDerivedFieldsService(db);
   final AppDatabase db;
   final OutboxDao outbox;
   final BookingsDao dao;
@@ -64,8 +64,11 @@ class BookingsRepository {
       ),
     );
     await derivedFields.refreshForBookingId(result);
-    AutoBackupManager.instance
-        .onDataChange('bookings', 'INSERT', recordData: {'id': result});
+    AutoBackupManager.instance.onDataChange(
+      'bookings',
+      'INSERT',
+      recordData: {'id': result},
+    );
     return result;
   }
 
@@ -92,14 +95,18 @@ class BookingsRepository {
     final result = await dao.updateById(
       id,
       BookingsCompanion(
-        roomNumber:
-            roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
-        guestName:
-            guestName != null ? d.Value(guestName) : const d.Value.absent(),
-        guestPhone:
-            guestPhone != null ? d.Value(guestPhone) : const d.Value.absent(),
-        guestIdType:
-            guestIdType != null ? d.Value(guestIdType) : const d.Value.absent(),
+        roomNumber: roomNumber != null
+            ? d.Value(roomNumber)
+            : const d.Value.absent(),
+        guestName: guestName != null
+            ? d.Value(guestName)
+            : const d.Value.absent(),
+        guestPhone: guestPhone != null
+            ? d.Value(guestPhone)
+            : const d.Value.absent(),
+        guestIdType: guestIdType != null
+            ? d.Value(guestIdType)
+            : const d.Value.absent(),
         guestIdNumber: guestIdNumber != null
             ? d.Value(guestIdNumber)
             : const d.Value.absent(),
@@ -112,13 +119,15 @@ class BookingsRepository {
         guestNationality: guestNationality != null
             ? d.Value(guestNationality)
             : const d.Value.absent(),
-        guestEmail:
-            guestEmail != null ? d.Value(guestEmail) : const d.Value.absent(),
+        guestEmail: guestEmail != null
+            ? d.Value(guestEmail)
+            : const d.Value.absent(),
         guestAddress: guestAddress != null
             ? d.Value(guestAddress)
             : const d.Value.absent(),
-        checkinDate:
-            checkinDate != null ? d.Value(checkinDate) : const d.Value.absent(),
+        checkinDate: checkinDate != null
+            ? d.Value(checkinDate)
+            : const d.Value.absent(),
         checkoutDate: checkoutDate != null
             ? d.Value(checkoutDate)
             : const d.Value.absent(),
@@ -137,8 +146,11 @@ class BookingsRepository {
     );
     if (result > 0) {
       await derivedFields.refreshForBookingId(id);
-      AutoBackupManager.instance
-          .onDataChange('bookings', 'UPDATE', recordData: {'id': id});
+      AutoBackupManager.instance.onDataChange(
+        'bookings',
+        'UPDATE',
+        recordData: {'id': id},
+      );
     }
     return result;
   }
@@ -146,8 +158,11 @@ class BookingsRepository {
   Future<int> delete(int id) async {
     final result = await dao.softDelete(id);
     if (result > 0) {
-      AutoBackupManager.instance
-          .onDataChange('bookings', 'DELETE', recordData: {'id': id});
+      AutoBackupManager.instance.onDataChange(
+        'bookings',
+        'DELETE',
+        recordData: {'id': id},
+      );
     }
     return result;
   }
@@ -159,11 +174,7 @@ class BookingsRepository {
     final bookingsData = await dao.exportToJson();
     final recordCount = await dao.getRecordCount();
 
-    return {
-      'data': bookingsData,
-      'count': recordCount,
-      'entity': 'bookings',
-    };
+    return {'data': bookingsData, 'count': recordCount, 'entity': 'bookings'};
   }
 
   /// استيراد بيانات الحجوزات

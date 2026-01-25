@@ -27,16 +27,18 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     String shiftType = 'all',
     String? expiresAt,
   }) {
-    return into(shiftNotes).insert(ShiftNotesCompanion(
-      title: Value(title),
-      content: Value(content),
-      priority: Value(priority),
-      shiftType: Value(shiftType),
-      createdAt: Value(DateTime.now().toIso8601String()),
-      expiresAt: Value(expiresAt),
-      isRead: const Value(0),
-      createdBy: const Value('user'),
-    ));
+    return into(shiftNotes).insert(
+      ShiftNotesCompanion(
+        title: Value(title),
+        content: Value(content),
+        priority: Value(priority),
+        shiftType: Value(shiftType),
+        createdAt: Value(DateTime.now().toIso8601String()),
+        expiresAt: Value(expiresAt),
+        isRead: const Value(0),
+        createdBy: const Value('user'),
+      ),
+    );
   }
 
   // تحديث ملاحظة
@@ -56,8 +58,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       expiresAt: expiresAt != null ? Value(expiresAt) : const Value.absent(),
     );
 
-    final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
-        .write(companion);
+    final rows = await (update(
+      shiftNotes,
+    )..where((t) => t.id.equals(id))).write(companion);
     return rows > 0;
   }
 
@@ -98,8 +101,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     final query = selectOnly(shiftNotes)
       ..addColumns([shiftNotes.id.count()])
       ..where(shiftNotes.isRead.equals(0));
-    return query
-        .watchSingle()
-        .map((row) => row.read(shiftNotes.id.count()) ?? 0);
+    return query.watchSingle().map(
+      (row) => row.read(shiftNotes.id.count()) ?? 0,
+    );
   }
 }

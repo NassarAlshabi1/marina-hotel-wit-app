@@ -28,8 +28,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   late final TextEditingController _addressController;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final _idNumberFormatter =
-      FilteringTextInputFormatter.allow(RegExp(r'[0-9]'));
+  final _idNumberFormatter = FilteringTextInputFormatter.allow(
+    RegExp(r'[0-9]'),
+  );
 
   bool _saving = false;
   String _idType = 'بطاقة شخصية';
@@ -52,16 +53,20 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     _nameController = TextEditingController(text: widget.guest.name);
     _phoneController = TextEditingController(text: widget.guest.phone);
     _emailController = TextEditingController(text: widget.guest.email);
-    _nationalityController =
-        TextEditingController(text: widget.guest.nationality);
+    _nationalityController = TextEditingController(
+      text: widget.guest.nationality,
+    );
     _idType = widget.guest.idType;
     _idNumberController = TextEditingController(text: widget.guest.idNumber);
-    _idIssueDateController =
-        TextEditingController(text: widget.guest.idIssueDate ?? '');
-    _idIssuePlaceController =
-        TextEditingController(text: widget.guest.idIssuePlace ?? '');
-    _addressController =
-        TextEditingController(text: widget.guest.address ?? '');
+    _idIssueDateController = TextEditingController(
+      text: widget.guest.idIssueDate ?? '',
+    );
+    _idIssuePlaceController = TextEditingController(
+      text: widget.guest.idIssuePlace ?? '',
+    );
+    _addressController = TextEditingController(
+      text: widget.guest.address ?? '',
+    );
 
     for (final booking in widget.guest.bookings) {
       _roomSelections[booking.id] = booking.roomNumber;
@@ -145,14 +150,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           );
 
           if (StatusUtils.isActiveBooking(booking.status)) {
-            await roomsRepo.updateByRoomNumber(
-              oldRoomNumber,
-              status: 'شاغرة',
-            );
-            await roomsRepo.updateByRoomNumber(
-              newRoomNumber,
-              status: 'محجوزة',
-            );
+            await roomsRepo.updateByRoomNumber(oldRoomNumber, status: 'شاغرة');
+            await roomsRepo.updateByRoomNumber(newRoomNumber, status: 'محجوزة');
           }
         }
       }
@@ -194,16 +193,14 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     required int bookingId,
     required String newRoomNumber,
   }) async {
-    final payments = await (db.select(db.payments)
-          ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
-          ..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
+    final payments =
+        await (db.select(db.payments)
+              ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
+              ..where((tbl) => tbl.deletedAt.isNull()))
+            .get();
 
     for (final payment in payments) {
-      await paymentsRepo.update(
-        payment.id,
-        roomNumber: newRoomNumber,
-      );
+      await paymentsRepo.update(payment.id, roomNumber: newRoomNumber);
     }
   }
 
@@ -288,8 +285,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.info_outline),
                   title: Text(widget.guest.name),
-                  subtitle:
-                      Text('عدد الحجوزات: ${widget.guest.bookings.length}'),
+                  subtitle: Text(
+                    'عدد الحجوزات: ${widget.guest.bookings.length}',
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -305,8 +303,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         icon: Icons.person,
                         validator: (value) =>
                             value == null || value.trim().isEmpty
-                                ? 'الاسم مطلوب'
-                                : null,
+                            ? 'الاسم مطلوب'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
@@ -316,8 +314,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         keyboardType: TextInputType.phone,
                         validator: (value) =>
                             value == null || value.trim().isEmpty
-                                ? 'رقم الهاتف مطلوب'
-                                : null,
+                            ? 'رقم الهاتف مطلوب'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
@@ -341,8 +339,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         icon: Icons.flag,
                         validator: (value) =>
                             value == null || value.trim().isEmpty
-                                ? 'الجنسية مطلوبة'
-                                : null,
+                            ? 'الجنسية مطلوبة'
+                            : null,
                       ),
                     ],
                   ),
@@ -358,8 +356,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       DropdownButtonFormField<String>(
                         value: _idType,
                         items: _idTypes
-                            .map((t) =>
-                                DropdownMenuItem(value: t, child: Text(t)))
+                            .map(
+                              (t) => DropdownMenuItem(value: t, child: Text(t)),
+                            )
                             .toList(),
                         onChanged: (value) =>
                             setState(() => _idType = value ?? _idType),
@@ -489,10 +488,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.hotel,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                Icon(Icons.hotel, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -504,10 +500,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       ),
                       Text(
                         'حالة: ${booking.status} • دخول: ${booking.checkinDate}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -530,20 +523,26 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 ),
               ),
               data: (rooms) {
-                final availableRooms = rooms
-                    .where((room) => StatusUtils.isRoomAvailable(room.status))
-                    .toList()
-                  ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+                final availableRooms =
+                    rooms
+                        .where(
+                          (room) => StatusUtils.isRoomAvailable(room.status),
+                        )
+                        .toList()
+                      ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
 
                 final currentValue = _roomSelections[booking.id]!;
                 final items = <DropdownMenuItem<String>>[];
 
-                if (!availableRooms
-                    .any((room) => room.roomNumber == currentValue)) {
-                  items.add(DropdownMenuItem(
-                    value: currentValue,
-                    child: Text('$currentValue (الحالي)'),
-                  ));
+                if (!availableRooms.any(
+                  (room) => room.roomNumber == currentValue,
+                )) {
+                  items.add(
+                    DropdownMenuItem(
+                      value: currentValue,
+                      child: Text('$currentValue (الحالي)'),
+                    ),
+                  );
                 }
 
                 items.addAll(
@@ -577,8 +576,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       ),
                       validator: (value) =>
                           value == null || value.trim().isEmpty
-                              ? 'مطلوب'
-                              : null,
+                          ? 'مطلوب'
+                          : null,
                     ),
                     if (isChanged)
                       Padding(
@@ -591,8 +590,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.info_outline,
-                                  size: 16, color: Colors.orange),
+                              const Icon(
+                                Icons.info_outline,
+                                size: 16,
+                                color: Colors.orange,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(

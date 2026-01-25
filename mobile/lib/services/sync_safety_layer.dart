@@ -182,7 +182,8 @@ class SyncSafetyLayer {
       return true;
     } catch (rollbackError, stack) {
       debugPrint(
-          '❌ CRITICAL: Rollback failed - attempting SQLite file restore');
+        '❌ CRITICAL: Rollback failed - attempting SQLite file restore',
+      );
       await _appendLog({
         'event': 'rollback-error',
         'syncId': snapshot.syncId,
@@ -229,8 +230,11 @@ class SyncSafetyLayer {
   Future<void> _appendLog(Map<String, dynamic> payload) async {
     try {
       final file = await _logFile();
-      await file.writeAsString('${jsonEncode(payload)}\n',
-          mode: FileMode.append, flush: true);
+      await file.writeAsString(
+        '${jsonEncode(payload)}\n',
+        mode: FileMode.append,
+        flush: true,
+      );
     } catch (_) {
       // تجاهل أخطاء السجل حتى لا تؤثر على سير المزامنة
     }

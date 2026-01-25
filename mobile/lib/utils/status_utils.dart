@@ -42,9 +42,11 @@ class StatusUtils {
   static bool isActiveBooking(String status) =>
       _activeBookingStatuses.contains(_normalize(status));
 
-  static String roomStatusForOccupancy(bool occupied,
-      {String fallbackAvailable = 'شاغرة',
-      String fallbackOccupied = 'محجوزة'}) {
+  static String roomStatusForOccupancy(
+    bool occupied, {
+    String fallbackAvailable = 'شاغرة',
+    String fallbackOccupied = 'محجوزة',
+  }) {
     return occupied ? fallbackOccupied : fallbackAvailable;
   }
 

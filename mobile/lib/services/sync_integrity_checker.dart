@@ -28,7 +28,8 @@ class IntegrityIssue {
   });
 
   @override
-  String toString() => 'IntegrityIssue($type): $table${uuid != null ? '/$uuid' : ''} - $description';
+  String toString() =>
+      'IntegrityIssue($type): $table${uuid != null ? '/$uuid' : ''} - $description';
 
   String toArabicMessage() {
     switch (type) {
@@ -118,13 +119,16 @@ class SyncIntegrityChecker {
     ''').get();
 
     for (final row in orphaned) {
-      issues.add(IntegrityIssue(
-        type: IssueType.orphanedRecord,
-        table: 'payments',
-        uuid: row.read<String>('local_uuid'),
-        description: 'Payment without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
-        isCritical: true,
-      ));
+      issues.add(
+        IntegrityIssue(
+          type: IssueType.orphanedRecord,
+          table: 'payments',
+          uuid: row.read<String>('local_uuid'),
+          description:
+              'Payment without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
+          isCritical: true,
+        ),
+      );
     }
 
     return issues;
@@ -143,13 +147,16 @@ class SyncIntegrityChecker {
     ''').get();
 
     for (final row in orphaned) {
-      issues.add(IntegrityIssue(
-        type: IssueType.orphanedRecord,
-        table: 'debts',
-        uuid: row.read<String>('local_uuid'),
-        description: 'Debt without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
-        isCritical: true,
-      ));
+      issues.add(
+        IntegrityIssue(
+          type: IssueType.orphanedRecord,
+          table: 'debts',
+          uuid: row.read<String>('local_uuid'),
+          description:
+              'Debt without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
+          isCritical: true,
+        ),
+      );
     }
 
     return issues;
@@ -165,7 +172,7 @@ class SyncIntegrityChecker {
       'expenses',
       'debts',
       'employees',
-      'booking_notes'
+      'booking_notes',
     ];
 
     for (final table in tables) {
@@ -181,13 +188,15 @@ class SyncIntegrityChecker {
         final uuid = row.read<String>('local_uuid');
         final count = row.read<int>('count');
 
-        issues.add(IntegrityIssue(
-          type: IssueType.duplicateUuid,
-          table: table,
-          uuid: uuid,
-          description: 'Duplicate UUID found $count times',
-          isCritical: true,
-        ));
+        issues.add(
+          IntegrityIssue(
+            type: IssueType.duplicateUuid,
+            table: table,
+            uuid: uuid,
+            description: 'Duplicate UUID found $count times',
+            isCritical: true,
+          ),
+        );
       }
     }
 
@@ -203,7 +212,7 @@ class SyncIntegrityChecker {
       'rooms',
       'expenses',
       'debts',
-      'employees'
+      'employees',
     ];
 
     for (final table in tables) {
@@ -214,13 +223,15 @@ class SyncIntegrityChecker {
       ''').get();
 
       for (final row in invalidVersions) {
-        issues.add(IntegrityIssue(
-          type: IssueType.versionInconsistency,
-          table: table,
-          uuid: row.read<String>('local_uuid'),
-          description: 'Invalid version: ${row.read<int?>('version')}',
-          isCritical: false,
-        ));
+        issues.add(
+          IntegrityIssue(
+            type: IssueType.versionInconsistency,
+            table: table,
+            uuid: row.read<String>('local_uuid'),
+            description: 'Invalid version: ${row.read<int?>('version')}',
+            isCritical: false,
+          ),
+        );
       }
     }
 
@@ -249,26 +260,29 @@ class SyncIntegrityChecker {
       final cachedPaid = row.read<double?>('total_paid_cached') ?? 0.0;
       final actualPaid = row.read<double>('actual_paid');
 
-      issues.add(IntegrityIssue(
-        type: IssueType.amountMismatch,
-        table: 'bookings',
-        uuid: uuid,
-        description:
-            'Payment amount mismatch: cached=$cachedPaid, actual=$actualPaid',
-        metadata: {
-          'cached_paid': cachedPaid,
-          'actual_paid': actualPaid,
-          'difference': (cachedPaid - actualPaid).abs(),
-        },
-        isCritical: true,
-      ));
+      issues.add(
+        IntegrityIssue(
+          type: IssueType.amountMismatch,
+          table: 'bookings',
+          uuid: uuid,
+          description:
+              'Payment amount mismatch: cached=$cachedPaid, actual=$actualPaid',
+          metadata: {
+            'cached_paid': cachedPaid,
+            'actual_paid': actualPaid,
+            'difference': (cachedPaid - actualPaid).abs(),
+          },
+          isCritical: true,
+        ),
+      );
     }
 
     return issues;
   }
 
   Future<List<IntegrityIssue>> _checkPaymentBookingReferences(
-      AppDatabase db) async {
+    AppDatabase db,
+  ) async {
     final issues = <IntegrityIssue>[];
 
     final invalidRefs = await db.customSelect('''
@@ -284,21 +298,24 @@ class SyncIntegrityChecker {
     ''').get();
 
     for (final row in invalidRefs) {
-      issues.add(IntegrityIssue(
-        type: IssueType.missingReference,
-        table: 'payments',
-        uuid: row.read<String>('local_uuid'),
-        description:
-            'Payment references non-existent or deleted booking (id: ${row.read<int?>('booking_local_id')})',
-        isCritical: true,
-      ));
+      issues.add(
+        IntegrityIssue(
+          type: IssueType.missingReference,
+          table: 'payments',
+          uuid: row.read<String>('local_uuid'),
+          description:
+              'Payment references non-existent or deleted booking (id: ${row.read<int?>('booking_local_id')})',
+          isCritical: true,
+        ),
+      );
     }
 
     return issues;
   }
 
   Future<List<IntegrityIssue>> _checkDebtBookingReferences(
-      AppDatabase db) async {
+    AppDatabase db,
+  ) async {
     final issues = <IntegrityIssue>[];
 
     final invalidRefs = await db.customSelect('''
@@ -314,14 +331,16 @@ class SyncIntegrityChecker {
     ''').get();
 
     for (final row in invalidRefs) {
-      issues.add(IntegrityIssue(
-        type: IssueType.missingReference,
-        table: 'debts',
-        uuid: row.read<String>('local_uuid'),
-        description:
-            'Debt references non-existent or deleted booking (id: ${row.read<int?>('booking_local_id')})',
-        isCritical: true,
-      ));
+      issues.add(
+        IntegrityIssue(
+          type: IssueType.missingReference,
+          table: 'debts',
+          uuid: row.read<String>('local_uuid'),
+          description:
+              'Debt references non-existent or deleted booking (id: ${row.read<int?>('booking_local_id')})',
+          isCritical: true,
+        ),
+      );
     }
 
     return issues;
@@ -343,22 +362,29 @@ class SyncIntegrityChecker {
     }
   }
 
-  Future<void> _fixOrphanedRecord(
-      AppDatabase db, IntegrityIssue issue) async {
-    await db.customStatement('''
+  Future<void> _fixOrphanedRecord(AppDatabase db, IntegrityIssue issue) async {
+    await db.customStatement(
+      '''
       UPDATE ${issue.table}
       SET deleted_at = ?
       WHERE local_uuid = ?
-    ''', [DateTime.now().millisecondsSinceEpoch ~/ 1000, issue.uuid]);
+    ''',
+      [DateTime.now().millisecondsSinceEpoch ~/ 1000, issue.uuid],
+    );
   }
 
   Future<void> _fixVersionInconsistency(
-      AppDatabase db, IntegrityIssue issue) async {
-    await db.customStatement('''
+    AppDatabase db,
+    IntegrityIssue issue,
+  ) async {
+    await db.customStatement(
+      '''
       UPDATE ${issue.table}
       SET version = 1
       WHERE local_uuid = ? AND (version IS NULL OR version < 1)
-    ''', [issue.uuid]);
+    ''',
+      [issue.uuid],
+    );
   }
 
   Future<void> _fixAmountMismatch(AppDatabase db, IntegrityIssue issue) async {
@@ -366,22 +392,24 @@ class SyncIntegrityChecker {
 
     final actualPaid = issue.metadata?['actual_paid'] as double? ?? 0.0;
 
-    final booking = await (db.select(db.bookings)
-          ..where((t) => t.localUuid.equals(issue.uuid!)))
-        .getSingleOrNull();
+    final booking = await (db.select(
+      db.bookings,
+    )..where((t) => t.localUuid.equals(issue.uuid!))).getSingleOrNull();
 
     if (booking == null) return;
 
     final totalDue = booking.totalDueCached;
     final remaining = totalDue - actualPaid;
 
-    await (db.update(db.bookings)
-          ..where((t) => t.localUuid.equals(issue.uuid!)))
-        .write(BookingsCompanion(
-      totalPaidCached: Value(actualPaid),
-      remainingBalanceCached: Value(remaining),
-      isFullyPaid: Value(remaining <= 0.01),
-      updatedAt: Value(DateTime.now().millisecondsSinceEpoch ~/ 1000),
-    ));
+    await (db.update(
+      db.bookings,
+    )..where((t) => t.localUuid.equals(issue.uuid!))).write(
+      BookingsCompanion(
+        totalPaidCached: Value(actualPaid),
+        remainingBalanceCached: Value(remaining),
+        isFullyPaid: Value(remaining <= 0.01),
+        updatedAt: Value(DateTime.now().millisecondsSinceEpoch ~/ 1000),
+      ),
+    );
   }
 }

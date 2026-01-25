@@ -7,8 +7,8 @@ import '../auto_backup_manager.dart';
 
 class RoomsRepository {
   RoomsRepository(this.db)
-      : outbox = OutboxDao(db),
-        dao = RoomsDao(db, OutboxDao(db));
+    : outbox = OutboxDao(db),
+      dao = RoomsDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final RoomsDao dao;
@@ -19,12 +19,13 @@ class RoomsRepository {
   Stream<Room?> watchByNumber(String roomNumber) =>
       dao.watchByNumber(roomNumber);
 
-  Future<String> create(
-      {required String roomNumber,
-      required String type,
-      required double price,
-      required String status,
-      String? imageUrl}) async {
+  Future<String> create({
+    required String roomNumber,
+    required String type,
+    required double price,
+    required String status,
+    String? imageUrl,
+  }) async {
     final result = await dao.insertOne(
       RoomsCompanion(
         roomNumber: d.Value(roomNumber),
@@ -34,13 +35,21 @@ class RoomsRepository {
         imageUrl: d.Value(imageUrl),
       ),
     );
-    AutoBackupManager.instance.onDataChange('rooms', 'INSERT',
-        recordData: {'room_number': roomNumber});
+    AutoBackupManager.instance.onDataChange(
+      'rooms',
+      'INSERT',
+      recordData: {'room_number': roomNumber},
+    );
     return result;
   }
 
-  Future<int> update(int id,
-      {String? type, double? price, String? status, String? imageUrl}) async {
+  Future<int> update(
+    int id, {
+    String? type,
+    double? price,
+    String? status,
+    String? imageUrl,
+  }) async {
     final result = await dao.updateById(
       id,
       RoomsCompanion(
@@ -51,14 +60,22 @@ class RoomsRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance
-          .onDataChange('rooms', 'UPDATE', recordData: {'id': id});
+      AutoBackupManager.instance.onDataChange(
+        'rooms',
+        'UPDATE',
+        recordData: {'id': id},
+      );
     }
     return result;
   }
 
-  Future<int> updateByRoomNumber(String roomNumber,
-      {String? type, double? price, String? status, String? imageUrl}) async {
+  Future<int> updateByRoomNumber(
+    String roomNumber, {
+    String? type,
+    double? price,
+    String? status,
+    String? imageUrl,
+  }) async {
     final result = await dao.updateByNumber(
       roomNumber,
       RoomsCompanion(
@@ -69,8 +86,11 @@ class RoomsRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange('rooms', 'UPDATE',
-          recordData: {'room_number': roomNumber});
+      AutoBackupManager.instance.onDataChange(
+        'rooms',
+        'UPDATE',
+        recordData: {'room_number': roomNumber},
+      );
     }
     return result;
   }
@@ -78,8 +98,11 @@ class RoomsRepository {
   Future<int> delete(String roomNumber) async {
     final result = await dao.softDelete(roomNumber);
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange('rooms', 'DELETE',
-          recordData: {'room_number': roomNumber});
+      AutoBackupManager.instance.onDataChange(
+        'rooms',
+        'DELETE',
+        recordData: {'room_number': roomNumber},
+      );
     }
     return result;
   }
@@ -91,11 +114,7 @@ class RoomsRepository {
     final roomsData = await dao.exportToJson();
     final recordCount = await dao.getRecordCount();
 
-    return {
-      'data': roomsData,
-      'count': recordCount,
-      'entity': 'rooms',
-    };
+    return {'data': roomsData, 'count': recordCount, 'entity': 'rooms'};
   }
 
   /// استيراد بيانات الغرف
@@ -119,9 +138,9 @@ class RoomsRepository {
   }
 
   Future<void> refreshAllRoomOccupancy() async {
-    final bookings = await (db.select(db.bookings)
-          ..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
+    final bookings = await (db.select(
+      db.bookings,
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
     final occupiedRooms = <String>{};
 
     for (final booking in bookings) {
@@ -130,9 +149,9 @@ class RoomsRepository {
       }
     }
 
-    final rooms = await (db.select(db.rooms)
-          ..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
+    final rooms = await (db.select(
+      db.rooms,
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
     for (final room in rooms) {
       final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
       final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);

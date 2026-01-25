@@ -20,8 +20,9 @@ class WhatsAppService {
     required String phoneE164,
     required String message,
   }) async {
-    final sanitizedPhone =
-        phoneE164.startsWith('+') ? phoneE164.substring(1) : phoneE164;
+    final sanitizedPhone = phoneE164.startsWith('+')
+        ? phoneE164.substring(1)
+        : phoneE164;
     final chatId = '$sanitizedPhone@c.us';
     final endpoint = Uri.parse('$baseUrl/$instanceId/sendMessage/$token');
 
@@ -29,16 +30,14 @@ class WhatsAppService {
       final response = await _client.post(
         endpoint,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'chatId': chatId,
-          'message': message,
-        }),
+        body: jsonEncode({'chatId': chatId, 'message': message}),
       );
       if (response.statusCode == 200) {
         return true;
       }
       debugPrint(
-          'WhatsApp send failed: ${response.statusCode} ${response.body}');
+        'WhatsApp send failed: ${response.statusCode} ${response.body}',
+      );
       return false;
     } catch (error, stackTrace) {
       debugPrint('WhatsApp send error: $error');

@@ -359,8 +359,9 @@ class _FloorSectionState extends State<FloorSection>
 
   @override
   Widget build(BuildContext context) {
-    final availableCount =
-        widget.rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).length;
+    final availableCount = widget.rooms
+        .where((r) => StatusUtils.isRoomAvailable(r.status))
+        .length;
     final occupiedCount = widget.rooms.length - availableCount;
 
     return Card(
@@ -378,10 +379,7 @@ class _FloorSectionState extends State<FloorSection>
             onToggle: widget.isCollapsible ? _toggle : null,
           ),
           if (widget.isCollapsible)
-            SizeTransition(
-              sizeFactor: _animation,
-              child: _buildRoomsContent(),
-            )
+            SizeTransition(sizeFactor: _animation, child: _buildRoomsContent())
           else
             _buildRoomsContent(),
         ],
@@ -392,10 +390,7 @@ class _FloorSectionState extends State<FloorSection>
   Widget _buildRoomsContent() {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: RoomsGrid(
-        rooms: widget.rooms,
-        onRoomTap: widget.onRoomTap,
-      ),
+      child: RoomsGrid(rooms: widget.rooms, onRoomTap: widget.onRoomTap),
     );
   }
 }
@@ -420,9 +415,7 @@ class RoomDetailsDialog extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Icon(
@@ -440,7 +433,9 @@ class RoomDetailsDialog extends StatelessWidget {
           children: [
             _buildDetailRow('النوع', room.type),
             _buildDetailRow(
-                'السعر', CurrencyFormatter.formatAmount(room.price)),
+              'السعر',
+              CurrencyFormatter.formatAmount(room.price),
+            ),
             _buildDetailRow('الحالة', room.status),
             if (room.imageUrl != null && room.imageUrl!.isNotEmpty) ...[
               const SizedBox(height: 12),

@@ -17,8 +17,9 @@ final restoreFixServiceProvider = Provider<RestoreFixService>(
 final lastFixReportProvider = StateProvider<RestoreFixReport?>((ref) => null);
 
 // مقدم لسجلات الإصلاح
-final fixLogsProvider =
-    FutureProvider.autoDispose<List<RestoreFixLogData>>((ref) async {
+final fixLogsProvider = FutureProvider.autoDispose<List<RestoreFixLogData>>((
+  ref,
+) async {
   final service = ref.read(restoreFixServiceProvider);
   return await service.getFixLogs(limit: 50);
 });
@@ -66,7 +67,10 @@ class RestoreFixScreen extends ConsumerWidget {
 
   /// بطاقة التحكم الرئيسية
   Widget _buildMainControlCard(
-      BuildContext context, WidgetRef ref, bool isLoading) {
+    BuildContext context,
+    WidgetRef ref,
+    bool isLoading,
+  ) {
     return Card(
       elevation: 4,
       child: Padding(
@@ -74,27 +78,17 @@ class RestoreFixScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
-              Icons.build_circle,
-              size: 48,
-              color: Colors.blue,
-            ),
+            const Icon(Icons.build_circle, size: 48, color: Colors.blue),
             const SizedBox(height: 16),
             const Text(
               'الإصلاح التلقائي',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             const Text(
               'يقوم بإعادة حساب الليالي، حالات الغرف، والمدفوعات لضمان اتساق البيانات',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -107,9 +101,9 @@ class RestoreFixScreen extends ConsumerWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.play_arrow),
-              label: Text(isLoading
-                  ? 'جاري التشغيل...'
-                  : 'تشغيل الإصلاح التلقائي يدوياً'),
+              label: Text(
+                isLoading ? 'جاري التشغيل...' : 'تشغيل الإصلاح التلقائي يدوياً',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
@@ -158,7 +152,9 @@ class RestoreFixScreen extends ConsumerWidget {
               _buildReportRow('الحجوزات المُصلحة', '${report.bookingsFixed}'),
               _buildReportRow('الغرف المحدثة', '${report.roomsUpdated}'),
               _buildReportRow(
-                  'المدفوعات المتحقق منها', '${report.paymentsRecalculated}'),
+                'المدفوعات المتحقق منها',
+                '${report.paymentsRecalculated}',
+              ),
               if (report.changes.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 const Text(
@@ -177,13 +173,15 @@ class RestoreFixScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: report.changes
                         .take(5)
-                        .map((change) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Text(
-                                '• $change',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ))
+                        .map(
+                          (change) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              '• $change',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                 ),
@@ -214,10 +212,7 @@ class RestoreFixScreen extends ConsumerWidget {
                 ),
                 child: Text(
                   report.error!,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.red,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.red),
                 ),
               ),
             ],
@@ -228,8 +223,11 @@ class RestoreFixScreen extends ConsumerWidget {
   }
 
   /// بطاقة سجلات الإصلاح
-  Widget _buildFixLogsCard(BuildContext context, WidgetRef ref,
-      AsyncValue<List<RestoreFixLogData>> fixLogsAsyncValue) {
+  Widget _buildFixLogsCard(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<List<RestoreFixLogData>> fixLogsAsyncValue,
+  ) {
     return Card(
       elevation: 4,
       child: Padding(
@@ -242,10 +240,7 @@ class RestoreFixScreen extends ConsumerWidget {
               children: [
                 const Text(
                   'سجلات الإصلاح',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 IconButton(
                   onPressed: () => _exportLogsAsJson(context, ref),
@@ -267,10 +262,7 @@ class RestoreFixScreen extends ConsumerWidget {
                           SizedBox(height: 16),
                           Text(
                             'لا توجد سجلات إصلاح',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                            ),
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
                           ),
                         ],
                       ),
@@ -279,8 +271,10 @@ class RestoreFixScreen extends ConsumerWidget {
                 }
 
                 return Column(
-                  children:
-                      logs.take(10).map((log) => _buildLogEntry(log)).toList(),
+                  children: logs
+                      .take(10)
+                      .map((log) => _buildLogEntry(log))
+                      .toList(),
                 );
               },
               loading: () => const Center(
@@ -298,10 +292,7 @@ class RestoreFixScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Text(
                         'خطأ في تحميل السجلات: $error',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.red,
-                        ),
+                        style: const TextStyle(fontSize: 14, color: Colors.red),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -374,19 +365,14 @@ class RestoreFixScreen extends ConsumerWidget {
               const Spacer(),
               Text(
                 _formatDateTime(
-                    DateTime.fromMillisecondsSinceEpoch(log.executedAt * 1000)),
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey,
+                  DateTime.fromMillisecondsSinceEpoch(log.executedAt * 1000),
                 ),
+                style: const TextStyle(fontSize: 10, color: Colors.grey),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            log.reason,
-            style: const TextStyle(fontSize: 12),
-          ),
+          Text(log.reason, style: const TextStyle(fontSize: 12)),
           if (log.oldValue != null && log.newValue != null) ...[
             const SizedBox(height: 4),
             Text(
@@ -410,10 +396,7 @@ class RestoreFixScreen extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            '$label:',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
+          Text('$label:', style: const TextStyle(fontWeight: FontWeight.w500)),
           Text(
             value,
             style: TextStyle(

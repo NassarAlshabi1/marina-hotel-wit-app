@@ -5,11 +5,8 @@ class ValidationResult {
   final String? error;
   final List<String> warnings;
 
-  ValidationResult({
-    required this.isValid,
-    this.error,
-    List<String>? warnings,
-  }) : warnings = warnings ?? [];
+  ValidationResult({required this.isValid, this.error, List<String>? warnings})
+    : warnings = warnings ?? [];
 
   factory ValidationResult.valid({List<String>? warnings}) {
     return ValidationResult(isValid: true, warnings: warnings);

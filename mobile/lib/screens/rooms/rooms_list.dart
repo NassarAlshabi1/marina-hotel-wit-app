@@ -27,7 +27,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
   Widget build(BuildContext context) {
     final roomsStream = ref.watch(roomsListProvider);
     final auth = ref.watch(authProvider);
-    final canRooms = auth.currentUser?.permissions.contains('all') == true ||
+    final canRooms =
+        auth.currentUser?.permissions.contains('all') == true ||
         auth.currentUser?.userType == 'admin' ||
         (auth.currentUser?.permissions.contains('rooms') ?? false);
     return wrapWithSyncOnExit(
@@ -40,7 +41,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                 await _editRoom(context, ref);
               },
               icon: const Icon(Icons.add),
-            )
+            ),
         ],
         body: roomsStream.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -53,7 +54,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                 return ListTile(
                   title: Text('${r.roomNumber} • ${r.type}'),
                   subtitle: Text(
-                      'السعر: ${CurrencyFormatter.formatAmount(r.price)} • الحالة: ${r.status}'),
+                    'السعر: ${CurrencyFormatter.formatAmount(r.price)} • الحالة: ${r.status}',
+                  ),
                   trailing: canRooms
                       ? IconButton(
                           icon: const Icon(Icons.edit),
@@ -69,15 +71,20 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     );
   }
 
-  Future<void> _editRoom(BuildContext context, WidgetRef ref,
-      {Room? existing}) async {
-    final roomNumberCtrl =
-        TextEditingController(text: existing?.roomNumber ?? '');
+  Future<void> _editRoom(
+    BuildContext context,
+    WidgetRef ref, {
+    Room? existing,
+  }) async {
+    final roomNumberCtrl = TextEditingController(
+      text: existing?.roomNumber ?? '',
+    );
     final typeCtrl = TextEditingController(text: existing?.type ?? '');
     final priceCtrl = TextEditingController(
-        text: existing != null
-            ? CurrencyFormatter.formatAmount(existing.price)
-            : '');
+      text: existing != null
+          ? CurrencyFormatter.formatAmount(existing.price)
+          : '',
+    );
     String status = existing?.status ?? 'شاغرة';
 
     String? imageUrl = existing?.imageUrl;
@@ -88,56 +95,64 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
         child: AlertDialog(
           title: Text(existing == null ? 'إضافة غرفة' : 'تعديل غرفة'),
           content: SingleChildScrollView(
-            child: Column(children: [
-              TextField(
+            child: Column(
+              children: [
+                TextField(
                   controller: roomNumberCtrl,
                   decoration: const InputDecoration(labelText: 'رقم الغرفة'),
-                  readOnly: existing != null),
-              TextField(
+                  readOnly: existing != null,
+                ),
+                TextField(
                   controller: typeCtrl,
-                  decoration: const InputDecoration(labelText: 'النوع')),
-              TextField(
+                  decoration: const InputDecoration(labelText: 'النوع'),
+                ),
+                TextField(
                   controller: priceCtrl,
                   decoration: const InputDecoration(labelText: 'السعر'),
-                  keyboardType: TextInputType.number),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: status,
-                items: const [
-                  DropdownMenuItem(value: 'شاغرة', child: Text('شاغرة')),
-                  DropdownMenuItem(value: 'محجوزة', child: Text('محجوزة')),
-                ],
-                onChanged: (v) => status = v ?? status,
-                decoration: const InputDecoration(labelText: 'الحالة'),
-              ),
-              const SizedBox(height: 8),
-              if (imageUrl != null)
-                Image.network(imageUrl!, height: 120, fit: BoxFit.cover),
-              TextButton.icon(
-                onPressed: () async {
-                  final picker = ImagePicker();
-                  final img = await picker.pickImage(
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: status,
+                  items: const [
+                    DropdownMenuItem(value: 'شاغرة', child: Text('شاغرة')),
+                    DropdownMenuItem(value: 'محجوزة', child: Text('محجوزة')),
+                  ],
+                  onChanged: (v) => status = v ?? status,
+                  decoration: const InputDecoration(labelText: 'الحالة'),
+                ),
+                const SizedBox(height: 8),
+                if (imageUrl != null)
+                  Image.network(imageUrl!, height: 120, fit: BoxFit.cover),
+                TextButton.icon(
+                  onPressed: () async {
+                    final picker = ImagePicker();
+                    final img = await picker.pickImage(
                       source: ImageSource.gallery,
                       maxWidth: 1600,
                       maxHeight: 1600,
-                      imageQuality: 85);
-                  if (img != null) {
-                    imageUrl = img.path;
-                    (ctx as Element).markNeedsBuild();
-                  }
-                },
-                icon: const Icon(Icons.image),
-                label: const Text('اختر صورة'),
-              ),
-            ]),
+                      imageQuality: 85,
+                    );
+                    if (img != null) {
+                      imageUrl = img.path;
+                      (ctx as Element).markNeedsBuild();
+                    }
+                  },
+                  icon: const Icon(Icons.image),
+                  label: const Text('اختر صورة'),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('إلغاء')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('حفظ')),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('حفظ'),
+            ),
           ],
         ),
       ),
@@ -166,24 +181,29 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
   }
 
   // ignore: unused_element
-Future<void> _uploadImage(BuildContext context, String roomNumber) async {
+  Future<void> _uploadImage(BuildContext context, String roomNumber) async {
     try {
       final picker = await _lazyPicker();
       final picked = await picker.pickImage(
-          source: ImageSource.gallery,
-          maxWidth: 1600,
-          maxHeight: 1600,
-          imageQuality: 85);
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
       if (picked == null) return;
       final url = await ApiService.I.uploadRoomImage(roomNumber, picked.path);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(url != null ? 'تم رفع الصورة' : 'فشل رفع الصورة')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(url != null ? 'تم رفع الصورة' : 'فشل رفع الصورة'),
+          ),
+        );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('خطأ: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
       }
     }
   }

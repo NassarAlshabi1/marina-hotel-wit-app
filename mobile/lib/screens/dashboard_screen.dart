@@ -57,10 +57,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: const [
               Text(
                 'لوحة التحكم - نظام إدارة الفندق',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               Spacer(),
               DashboardSyncButton(),
@@ -191,7 +188,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const ExpensesReportScreen()),
+                    builder: (_) => const ExpensesReportScreen(),
+                  ),
                 ),
               ),
             );
@@ -234,7 +232,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildRoomsStatusSection(BuildContext context, List<Room> rooms) {
     final Map<String, Room> roomsMap = {
-      for (final room in rooms) room.roomNumber: room
+      for (final room in rooms) room.roomNumber: room,
     };
 
     return Card(
@@ -245,10 +243,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           children: [
             const Text(
               'حالة الغرف',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -265,19 +260,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 final Color backgroundColor = isOccupied
                     ? Colors.red.shade600
                     : (isAvailable
-                        ? Colors.green.shade600
-                        : (isNewRoom
-                            ? Colors.blue.shade400 // لون أزرق للغرف الجديدة
-                            : Colors.grey.shade500));
+                          ? Colors.green.shade600
+                          : (isNewRoom
+                                ? Colors
+                                      .blue
+                                      .shade400 // لون أزرق للغرف الجديدة
+                                : Colors.grey.shade500));
                 final bool useDarkText =
                     backgroundColor.computeLuminance() > 0.5;
-                final Color foregroundColor =
-                    useDarkText ? Colors.black : Colors.white;
+                final Color foregroundColor = useDarkText
+                    ? Colors.black
+                    : Colors.white;
                 final String tooltipText = room != null
                     ? room.status
                     : (roomNumber == '503' || roomNumber == '504')
-                        ? 'غرفة جديدة - قيد التجهيز'
-                        : 'غير مسجل في النظام';
+                    ? 'غرفة جديدة - قيد التجهيز'
+                    : 'غير مسجل في النظام';
 
                 return Tooltip(
                   message: tooltipText,
@@ -291,7 +289,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         foregroundColor: foregroundColor,
                         minimumSize: const Size(60, 40), // تصغير الحجم
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         textStyle: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14, // تصغير الخط
@@ -311,7 +310,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   /// التعامل مع الضغط على أزرار الغرف
   void _handleRoomTap(
-      BuildContext context, String roomNumber, Room? room) async {
+    BuildContext context,
+    String roomNumber,
+    Room? room,
+  ) async {
     if (roomNumber == '503' || roomNumber == '504') {
       _showNewRoomDialog(context, roomNumber);
     } else if (room != null) {
@@ -339,22 +341,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => BookingEditScreen(
-          initialRoomNumber: roomNumber,
-        ),
+        builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
     );
   }
 
   /// الانتقال إلى شاشة إضافة دفعة للغرفة المحجوزة
   Future<void> _navigateToPaymentForRoom(
-      BuildContext context, String roomNumber) async {
+    BuildContext context,
+    String roomNumber,
+  ) async {
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
 
       // البحث عن الحجز النشط للغرفة
-      final activeBooking =
-          await bookingsRepo.getActiveBookingForRoom(roomNumber);
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(
+        roomNumber,
+      );
 
       if (activeBooking == null) {
         if (context.mounted) {
@@ -372,9 +375,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (context.mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => BookingPaymentScreen(
-              booking: activeBooking,
-            ),
+            builder: (context) => BookingPaymentScreen(booking: activeBooking),
           ),
         );
       }
@@ -392,11 +393,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   /// الانتقال إلى قائمة الحجوزات لغرفة محددة
   void _navigateToBookingsForRoom(BuildContext context, String roomNumber) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const BookingsListScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const BookingsListScreen()));
   }
 
   /// إظهار حوار للغرف الجديدة 503 و 504
@@ -409,18 +408,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
-              Icons.hotel,
-              size: 48,
-              color: Colors.blue,
-            ),
+            const Icon(Icons.hotel, size: 48, color: Colors.blue),
             const SizedBox(height: 16),
             const Text(
               'غرفة جديدة قيد التجهيز',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text('نوع الغرفة: سرير فردي'),
@@ -436,10 +428,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               child: const Text(
                 '💡 هذه الغرفة متوفرة في الواجهة فقط ولم تُضف إلى قاعدة البيانات بعد.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.blue,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.blue),
               ),
             ),
           ],
@@ -600,10 +589,7 @@ class _LoadingStatCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],
