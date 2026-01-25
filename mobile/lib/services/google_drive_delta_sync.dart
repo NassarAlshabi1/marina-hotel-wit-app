@@ -385,7 +385,34 @@ class GoogleDriveDeltaSync {
       origin: d.Value('google_drive_delta'),
     );
 
-    await db.into(db.rooms).insertOnConflictUpdate(companion);
+    final existingByUuid = await (db.select(db.rooms)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (existingByUuid != null) {
+      await (db.update(db.rooms)..where((t) => t.localUuid.equals(localUuid)))
+          .write(companion);
+      return;
+    }
+
+    final existingByNumber = await (db.select(db.rooms)
+          ..where((t) => t.roomNumber.equals(roomNumber))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (existingByNumber != null) {
+      await (db.update(db.rooms)..where((t) => t.roomNumber.equals(roomNumber)))
+          .write(companion);
+      return;
+    }
+
+    try {
+      await db.into(db.rooms).insert(companion);
+    } catch (_) {
+      await (db.update(db.rooms)..where((t) => t.roomNumber.equals(roomNumber)))
+          .write(companion);
+    }
   }
 
   Future<void> _applyBookingChange(AppDatabase db, String localUuid,
