@@ -149,18 +149,20 @@ class SyncSafetyLayer {
       return false;
     }
 
+    Map<String, dynamic>? tables;
+
     try {
       final content = await file.readAsString();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
-      final tables = Map<String, dynamic>.from(decoded['tables'] as Map);
+      tables = Map<String, dynamic>.from(decoded['tables'] as Map);
 
       try {
         await db.transaction(() async {
           await _clearAllTables(db);
 
           for (final tableName in SyncConstants.allTablesInOrder) {
-            if (tables.containsKey(tableName)) {
-              await _restoreTable(db, tableName, tables[tableName]);
+            if (tables!.containsKey(tableName)) {
+              await _restoreTable(db, tableName, tables![tableName]);
             }
           }
         });
@@ -192,6 +194,28 @@ class SyncSafetyLayer {
         'error': rollbackError.toString(),
         'stack': stack.toString(),
       });
+
+      // محاولة استعادة الجداول مباشرة قبل اللجوء لنسخة SQLite
+      if (tables != null) {
+        try {
+          await _clearAllTables(db);
+        } catch (_) {}
+        var restored = false;
+        for (final tableName in SyncConstants.allTablesInOrder) {
+          if (tables.containsKey(tableName)) {
+            try {
+              await _restoreTable(db, tableName, tables[tableName]);
+              restored = true;
+            } catch (e) {
+              debugPrint('⚠️ تعذر استعادة جدول $tableName: $e');
+            }
+          }
+        }
+        if (restored) {
+          _activeSnapshots.remove(snapshot.key);
+          return true;
+        }
+      }
 
       return await _attemptFileRestore(db, file.path);
     }
