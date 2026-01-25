@@ -6,15 +6,13 @@ const apiKey = process.env.APPWRITE_API_KEY;
 const databaseId = process.env.APPWRITE_DATABASE_ID || "hotel_db";
 
 if (!endpoint || !projectId || !apiKey) {
-  console.error("Missing required environment variables. Please set APPWRITE_ENDPOINT, APPWRITE_PROJECT, and APPWRITE_API_KEY.");
+  console.error(
+    "Missing required environment variables. Please set APPWRITE_ENDPOINT, APPWRITE_PROJECT, and APPWRITE_API_KEY."
+  );
   process.exit(1);
 }
 
-const client = new Client()
-  .setEndpoint(endpoint)
-  .setProject(projectId)
-  .setKey(apiKey);
-
+const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
 const databases = new Databases(client);
 
 const defaultPermissions = [
@@ -37,7 +35,10 @@ async function waitForAttribute(databaseId, collectionId, attributeKey) {
         return true;
       }
     } catch (error) {
-      console.warn(`Failed to list attributes for ${collectionId} (attempt ${attempt + 1})`, error);
+      console.warn(
+        `Failed to list attributes for ${collectionId} (attempt ${attempt + 1})`,
+        error
+      );
     }
     await sleep(WAIT_DELAY_MS);
   }
@@ -47,7 +48,11 @@ async function waitForAttribute(databaseId, collectionId, attributeKey) {
 async function ensureUniqueIndex(databaseId, collectionId, attributeKey) {
   try {
     const { indexes } = await databases.listIndexes(databaseId, collectionId);
-    if (indexes?.some((idx) => idx.type === "unique" && idx.attributes?.length === 1 && idx.attributes[0] === attributeKey)) {
+    if (
+      indexes?.some(
+        (idx) => idx.type === "unique" && idx.attributes?.length === 1 && idx.attributes[0] === attributeKey
+      )
+    ) {
       return;
     }
     const indexKey = `idx_${collectionId}_${attributeKey}`;
@@ -62,6 +67,23 @@ async function ensureUniqueIndex(databaseId, collectionId, attributeKey) {
   }
 }
 
+const syncFields = [
+  { key: "localUuid", type: "string", size: 100, required: true, unique: true },
+  { key: "serverId", type: "integer" },
+  { key: "createdAt", type: "integer", required: true },
+  { key: "updatedAt", type: "integer", required: true },
+  { key: "deletedAt", type: "integer" },
+  { key: "lastModified", type: "integer", required: true },
+  { key: "version", type: "integer", required: true, default: 1 },
+  { key: "origin", type: "string", size: 50, default: "local" },
+  { key: "createdAtIso", type: "string", size: 50 },
+  { key: "updatedAtIso", type: "string", size: 50 },
+  { key: "deletedAtIso", type: "string", size: 50 },
+  { key: "createdAtEpoch", type: "integer", default: 0 },
+  { key: "lastModifiedEpoch", type: "integer", default: 0 },
+  { key: "vectorClock", type: "string", size: 500, default: "{}" },
+];
+
 const collections = [
   {
     id: "rooms",
@@ -73,14 +95,11 @@ const collections = [
       { key: "price", type: "float", required: true },
       { key: "status", type: "string", size: 50, required: true },
       { key: "imageUrl", type: "string", size: 500 },
-      { key: "localUuid", type: "string", size: 100, required: true, unique: true },
-      { key: "serverId", type: "integer" },
-      { key: "createdAt", type: "integer", required: true },
-      { key: "updatedAt", type: "integer", required: true },
-      { key: "deletedAt", type: "integer" },
-      { key: "lastModified", type: "integer", required: true },
-      { key: "version", type: "integer", required: true },
-      { key: "origin", type: "string", size: 50 },
+      { key: "cleaningStatus", type: "string", size: 50, default: "clean" },
+      { key: "lastCleanedHotelDay", type: "string", size: 50 },
+      { key: "lastOccupiedHotelDay", type: "string", size: 50 },
+      { key: "requiresMaintenance", type: "boolean", default: false },
+      ...syncFields,
     ],
   },
   {
@@ -92,8 +111,8 @@ const collections = [
       { key: "roomNumber", type: "string", size: 50, required: true },
       { key: "guestName", type: "string", size: 200, required: true },
       { key: "guestPhone", type: "string", size: 20, required: true },
-      { key: "guestIdType", type: "string", size: 100, required: true },
-      { key: "guestIdNumber", type: "string", size: 50, required: true },
+      { key: "guestIdType", type: "string", size: 100, default: "بطاقة شخصية" },
+      { key: "guestIdNumber", type: "string", size: 50, default: "" },
       { key: "guestIdIssueDate", type: "string", size: 50 },
       { key: "guestIdIssuePlace", type: "string", size: 200 },
       { key: "guestNationality", type: "string", size: 100, required: true },
@@ -104,16 +123,20 @@ const collections = [
       { key: "actualCheckout", type: "string", size: 50 },
       { key: "status", type: "string", size: 50, required: true },
       { key: "notes", type: "string", size: 1000 },
-      { key: "expectedNights", type: "integer", required: true },
-      { key: "calculatedNights", type: "integer", required: true },
-      { key: "localUuid", type: "string", size: 100, required: true, unique: true },
-      { key: "serverId", type: "integer" },
-      { key: "createdAt", type: "integer", required: true },
-      { key: "updatedAt", type: "integer", required: true },
-      { key: "deletedAt", type: "integer" },
-      { key: "lastModified", type: "integer", required: true },
-      { key: "version", type: "integer", required: true },
-      { key: "origin", type: "string", size: 50 },
+      { key: "expectedNights", type: "integer", required: true, default: 1 },
+      { key: "calculatedNights", type: "integer", required: true, default: 1 },
+      { key: "totalNightsCached", type: "integer", required: true, default: 0 },
+      { key: "stayDurationIso", type: "string", size: 50 },
+      { key: "lastNightEpoch", type: "integer" },
+      { key: "isOverdue", type: "boolean", default: false },
+      { key: "needsCheckoutReview", type: "boolean", default: false },
+      { key: "totalDueCached", type: "float", required: true, default: 0 },
+      { key: "totalPaidCached", type: "float", required: true, default: 0 },
+      { key: "remainingBalanceCached", type: "float", required: true, default: 0 },
+      { key: "isFullyPaid", type: "boolean", default: false },
+      { key: "hotelDayCheckin", type: "string", size: 50 },
+      { key: "hotelDayCheckout", type: "string", size: 50 },
+      ...syncFields,
     ],
   },
   {
@@ -133,14 +156,11 @@ const collections = [
       { key: "cashTransactionLocalId", type: "integer" },
       { key: "cashTransactionServerId", type: "integer" },
       { key: "referenceNumber", type: "string", size: 100 },
-      { key: "localUuid", type: "string", size: 100, required: true, unique: true },
-      { key: "serverId", type: "integer" },
-      { key: "createdAt", type: "integer", required: true },
-      { key: "updatedAt", type: "integer", required: true },
-      { key: "deletedAt", type: "integer" },
-      { key: "lastModified", type: "integer", required: true },
-      { key: "version", type: "integer", required: true },
-      { key: "origin", type: "string", size: 50 },
+      { key: "hotelDayKey", type: "string", size: 50 },
+      { key: "isPendingBalance", type: "boolean", default: false },
+      { key: "linkedDebtUuid", type: "string", size: 100 },
+      { key: "bookingUuidCache", type: "string", size: 100 },
+      ...syncFields,
     ],
   },
   {
@@ -154,14 +174,11 @@ const collections = [
       { key: "amount", type: "float", required: true },
       { key: "date", type: "string", size: 50, required: true },
       { key: "cashTransactionId", type: "integer" },
-      { key: "localUuid", type: "string", size: 100, required: true, unique: true },
-      { key: "serverId", type: "integer" },
-      { key: "createdAt", type: "integer", required: true },
-      { key: "updatedAt", type: "integer", required: true },
-      { key: "deletedAt", type: "integer" },
-      { key: "lastModified", type: "integer", required: true },
-      { key: "version", type: "integer", required: true },
-      { key: "origin", type: "string", size: 50 },
+      { key: "hotelDayKey", type: "string", size: 50 },
+      { key: "categoryUuid", type: "string", size: 100 },
+      { key: "cashFlowUuid", type: "string", size: 100 },
+      { key: "isAutoGenerated", type: "boolean", default: false },
+      ...syncFields,
     ],
   },
   {
@@ -171,18 +188,11 @@ const collections = [
     attributes: [
       { key: "name", type: "string", size: 200, required: true },
       { key: "basicSalary", type: "float", required: true },
-      { key: "position", type: "string", size: 100, required: true },
-      { key: "phone", type: "string", size: 20, required: true },
-      { key: "hireDate", type: "string", size: 50, required: true },
+      { key: "position", type: "string", size: 100, default: "موظف" },
+      { key: "phone", type: "string", size: 20, default: "" },
+      { key: "hireDate", type: "string", size: 50, default: "" },
       { key: "status", type: "string", size: 50, required: true },
-      { key: "localUuid", type: "string", size: 100, required: true, unique: true },
-      { key: "serverId", type: "integer" },
-      { key: "createdAt", type: "integer", required: true },
-      { key: "updatedAt", type: "integer", required: true },
-      { key: "deletedAt", type: "integer" },
-      { key: "lastModified", type: "integer", required: true },
-      { key: "version", type: "integer", required: true },
-      { key: "origin", type: "string", size: 50 },
+      ...syncFields,
     ],
   },
   {
@@ -190,18 +200,26 @@ const collections = [
     name: "الديون",
     description: "جدول الديون",
     attributes: [
-      { key: "amount", type: "float", required: true },
-      { key: "debtorName", type: "string", size: 200, required: true },
-      { key: "dueDate", type: "string", size: 50, required: true },
-      { key: "status", type: "string", size: 50, required: true },
-      { key: "localUuid", type: "string", size: 100, required: true, unique: true },
-      { key: "serverId", type: "integer" },
-      { key: "createdAt", type: "integer", required: true },
-      { key: "updatedAt", type: "integer", required: true },
-      { key: "deletedAt", type: "integer" },
-      { key: "lastModified", type: "integer", required: true },
-      { key: "version", type: "integer", required: true },
-      { key: "origin", type: "string", size: 50 },
+      { key: "bookingLocalId", type: "integer" },
+      { key: "guestName", type: "string", size: 200, required: true },
+      { key: "checkinDate", type: "string", size: 50, required: true },
+      { key: "checkoutDate", type: "string", size: 50 },
+      { key: "dateRecorded", type: "string", size: 50, default: "" },
+      { key: "debtReason", type: "string", size: 200, default: "" },
+      { key: "totalAmount", type: "float", required: true },
+      { key: "paidAmount", type: "float", required: true },
+      { key: "remainingAmount", type: "float", required: true },
+      { key: "paymentDate", type: "string", size: 50 },
+      { key: "isSettled", type: "integer", default: 0 },
+      { key: "pledge", type: "string", size: 200 },
+      { key: "pledgeType", type: "string", size: 100 },
+      { key: "note", type: "string", size: 500 },
+      { key: "debtUuid", type: "string", size: 100 },
+      { key: "hotelDayOpened", type: "string", size: 50 },
+      { key: "hotelDayClosed", type: "string", size: 50 },
+      { key: "isFromAutoFix", type: "boolean", default: false },
+      { key: "settlementConfirmed", type: "boolean", default: false },
+      ...syncFields,
     ],
   },
   {
@@ -215,15 +233,8 @@ const collections = [
       { key: "osVersion", type: "string", size: 50 },
       { key: "status", type: "string", size: 50 },
       { key: "lastActive", type: "integer", required: true },
-      { key: "localUuid", type: "string", size: 100, required: true, unique: true },
-      { key: "serverId", type: "integer" },
-      { key: "createdAt", type: "integer", required: true },
-      { key: "updatedAt", type: "integer", required: true },
-      { key: "deletedAt", type: "integer" },
-      { key: "lastModified", type: "integer", required: true },
-      { key: "version", type: "integer", required: true },
-      { key: "origin", type: "string", size: 50 },
       { key: "lastSeen", type: "string", size: 50, required: true },
+      ...syncFields,
     ],
   },
   {
@@ -236,18 +247,11 @@ const collections = [
       { key: "timestamp", type: "integer", required: true },
       { key: "details", type: "string", size: 1000 },
       { key: "deviceId", type: "string", size: 100 },
-      { key: "serverId", type: "integer" },
-      { key: "createdAt", type: "integer", required: true },
-      { key: "updatedAt", type: "integer", required: true },
-      { key: "deletedAt", type: "integer" },
-      { key: "lastModified", type: "integer", required: true },
-      { key: "version", type: "integer", required: true },
-      { key: "origin", type: "string", size: 50 },
-      { key: "localUuid", type: "string", size: 100, required: true, unique: true },
       { key: "syncType", type: "string", size: 50, required: true },
       { key: "startTime", type: "string", size: 50, required: true },
       { key: "endTime", type: "string", size: 50 },
       { key: "errorMessage", type: "string", size: 500 },
+      ...syncFields,
     ],
   },
 ];
@@ -304,7 +308,6 @@ async function createAttribute(databaseId, collectionId, attribute) {
       default:
         console.warn(`Unsupported attribute type ${attribute.type} for ${attribute.key}`);
     }
-
   } catch (error) {
     if (error?.code === 409) {
       console.warn(`Attribute ${attribute.key} already exists in ${collectionId}.`);

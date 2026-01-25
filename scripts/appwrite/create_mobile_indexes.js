@@ -12,49 +12,45 @@ if (!endpoint || !projectId || !apiKey) {
   process.exit(1);
 }
 
-const client = new Client()
-  .setEndpoint(endpoint)
-  .setProject(projectId)
-  .setKey(apiKey);
-
+const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
 const databases = new Databases(client);
 
 const indexDefinitions = {
   rooms: [
-    { key: "idx_rooms_status", attributes: ["status"] },
-    { key: "idx_rooms_type", attributes: ["type"] },
-    { key: "idx_rooms_serverId", attributes: ["serverId"] },
+    { key: "idx_rooms_status_clean", attributes: ["status", "cleaningStatus"] },
+    { key: "idx_rooms_maintenance", attributes: ["requiresMaintenance"] },
     { key: "idx_rooms_lastModified", attributes: ["lastModified"] },
   ],
   bookings: [
-    { key: "idx_bookings_status", attributes: ["status"] },
-    { key: "idx_bookings_roomNumber", attributes: ["roomNumber"] },
-    { key: "idx_bookings_guestPhone", attributes: ["guestPhone"] },
-    { key: "idx_bookings_checkinDate", attributes: ["checkinDate"] },
-    { key: "idx_bookings_serverBookingId", attributes: ["serverBookingId"] },
+    { key: "idx_bookings_status_day", attributes: ["status", "hotelDayCheckin"] },
+    { key: "idx_bookings_room", attributes: ["roomNumber"] },
+    { key: "idx_bookings_guest", attributes: ["guestName"] },
+    { key: "idx_bookings_lastModified", attributes: ["lastModified"] },
   ],
   payments: [
-    { key: "idx_payments_bookingLocalId", attributes: ["bookingLocalId"] },
-    { key: "idx_payments_serverBookingId", attributes: ["serverBookingId"] },
-    { key: "idx_payments_roomNumber", attributes: ["roomNumber"] },
+    { key: "idx_payments_booking_day", attributes: ["bookingLocalId", "hotelDayKey"] },
+    { key: "idx_payments_room_day", attributes: ["roomNumber", "hotelDayKey"] },
     { key: "idx_payments_paymentDate", attributes: ["paymentDate"] },
+    { key: "idx_payments_lastModified", attributes: ["lastModified"] },
   ],
   expenses: [
     { key: "idx_expenses_date", attributes: ["date"] },
-    { key: "idx_expenses_expenseType", attributes: ["expenseType"] },
+    { key: "idx_expenses_hotelDay", attributes: ["hotelDayKey"] },
+    { key: "idx_expenses_category", attributes: ["categoryUuid"] },
   ],
   employees: [
     { key: "idx_employees_status", attributes: ["status"] },
     { key: "idx_employees_phone", attributes: ["phone"] },
   ],
   debts: [
-    { key: "idx_debts_status", attributes: ["status"] },
-    { key: "idx_debts_debtorName", attributes: ["debtorName"] },
+    { key: "idx_debts_status", attributes: ["isSettled", "isFromAutoFix"] },
+    { key: "idx_debts_guest", attributes: ["guestName"] },
   ],
   devices: [
     { key: "idx_devices_deviceName", attributes: ["deviceName"] },
     { key: "idx_devices_status", attributes: ["status"] },
     { key: "idx_devices_deviceType", attributes: ["deviceType"] },
+    { key: "idx_devices_lastActive", attributes: ["lastActive"] },
   ],
   sync_logs: [
     { key: "idx_sync_logs_deviceId", attributes: ["deviceId"] },
@@ -115,15 +111,7 @@ async function ensureIndex(collectionId, { key, attributes, type = "key", orders
       }
     }
 
-    await databases.createIndex(
-      databaseId,
-      collectionId,
-      key,
-      type,
-      attributes,
-      orders,
-      lengths
-    );
+    await databases.createIndex(databaseId, collectionId, key, type, attributes, orders, lengths);
     console.log(`✔ Created ${type} index ${key} on ${collectionId}`);
   } catch (error) {
     if (error?.code === 409) {
