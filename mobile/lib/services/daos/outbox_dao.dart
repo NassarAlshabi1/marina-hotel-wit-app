@@ -132,7 +132,6 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
       final ids = entries.map((e) => e.id).toList();
 
-      // ignore: undefined_named_parameter
       await (update(outbox)..where((t) => t.id.isIn(ids)))
           .write(OutboxCompanion(
         processingStatus: const Value('processing'),
@@ -160,7 +159,6 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   Future<void> markCompleted(List<int> ids) async {
     if (ids.isEmpty) return;
-    // ignore: undefined_named_parameter
     await (update(outbox)..where((t) => t.id.isIn(ids)))
         .write(const OutboxCompanion(
       processingStatus: Value('completed'),
@@ -178,7 +176,6 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<void> retryFailed() async {
-    // ignore: undefined_named_parameter
     await (update(outbox)..where((t) => t.processingStatus.equals('failed')))
         .write(const OutboxCompanion(
       processingStatus: Value('pending'),
@@ -193,7 +190,6 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final thresholdTime =
         DateTime.now().subtract(timeout).millisecondsSinceEpoch;
 
-    // ignore: undefined_named_parameter
     return await (update(outbox)
           ..where((t) =>
               t.processingStatus.equals('processing') &

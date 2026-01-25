@@ -596,11 +596,8 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(outbox, outbox.idempotencyKey);
           }
           if (from < 18) {
-            // ignore: argument_type_not_assignable
             await m.addColumn(outbox, outbox.processingStatus);
-            // ignore: argument_type_not_assignable
             await m.addColumn(outbox, outbox.processingStartedAt);
-            // ignore: argument_type_not_assignable
             await m.addColumn(outbox, outbox.processingWorker);
           }
         },

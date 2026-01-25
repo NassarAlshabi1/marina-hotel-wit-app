@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 import '../../utils/status_utils.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';

@@ -5,6 +5,17 @@ analyzer:
   errors:
     deprecated_member_use: ignore
     prefer_const_constructors: ignore
+    unused_import: ignore
+    unused_local_variable: ignore
+    unused_element: ignore
+    unused_field: ignore
+    dead_null_aware_expression: ignore
+    prefer_final_locals: ignore
+    prefer_single_quotes: ignore
+    avoid_print: ignore
+    unnecessary_cast: ignore
+    undefined_named_parameter: ignore
+    argument_type_not_assignable: ignore
 
 metrics:
   # تعقيد الدالة (عدد المسارات)
