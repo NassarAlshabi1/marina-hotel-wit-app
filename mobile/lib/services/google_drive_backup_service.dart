@@ -672,7 +672,8 @@ class GoogleDriveBackupService {
           orderBy: 'createdTime desc',
           spaces: 'drive',
           pageToken: pageToken,
-          $fields: 'nextPageToken,files(id,name,createdTime,size,appProperties)',
+          $fields:
+              'nextPageToken,files(id,name,createdTime,size,appProperties)',
         );
         if (response.files != null) {
           allFiles.addAll(response.files!);
@@ -787,7 +788,8 @@ class GoogleDriveBackupService {
             final roomsData = backupData['rooms'] as List<dynamic>;
             for (final roomJson in roomsData) {
               final map = Map<String, dynamic>.from(roomJson as Map);
-              final data = Room.fromJson(map, serializer: lenientValueSerializer);
+              final data =
+                  Room.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.rooms).insertOnConflictUpdate(data);
             }
           }
@@ -806,8 +808,8 @@ class GoogleDriveBackupService {
             final notesData = backupData['booking_notes'] as List<dynamic>;
             for (final noteJson in notesData) {
               final map = Map<String, dynamic>.from(noteJson as Map);
-              final data = BookingNote.fromJson(map,
-                  serializer: lenientValueSerializer);
+              final data =
+                  BookingNote.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.bookingNotes).insertOnConflictUpdate(data);
             }
           }
@@ -887,7 +889,8 @@ class GoogleDriveBackupService {
             final debtsList = backupData['debts'] as List<dynamic>;
             for (final debtJson in debtsList) {
               final map = Map<String, dynamic>.from(debtJson as Map);
-              final data = Debt.fromJson(map, serializer: lenientValueSerializer);
+              final data =
+                  Debt.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.debts).insertOnConflictUpdate(data);
             }
           }
@@ -896,8 +899,8 @@ class GoogleDriveBackupService {
             final runsList = backupData['auto_fix_runs'] as List<dynamic>;
             for (final runJson in runsList) {
               final map = Map<String, dynamic>.from(runJson as Map);
-              final data = AutoFixRun.fromJson(map,
-                  serializer: lenientValueSerializer);
+              final data =
+                  AutoFixRun.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.autoFixRuns).insertOnConflictUpdate(data);
             }
           }
@@ -909,7 +912,9 @@ class GoogleDriveBackupService {
               final map = Map<String, dynamic>.from(violationJson as Map);
               final data = IntegrityViolation.fromJson(map,
                   serializer: lenientValueSerializer);
-              await db.into(db.integrityViolations).insertOnConflictUpdate(data);
+              await db
+                  .into(db.integrityViolations)
+                  .insertOnConflictUpdate(data);
             }
           }
 
@@ -927,8 +932,8 @@ class GoogleDriveBackupService {
             final cyclesList = backupData['salary_cycles'] as List<dynamic>;
             for (final cycleJson in cyclesList) {
               final map = Map<String, dynamic>.from(cycleJson as Map);
-              final data = SalaryCycle.fromJson(map,
-                  serializer: lenientValueSerializer);
+              final data =
+                  SalaryCycle.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.salaryCycles).insertOnConflictUpdate(data);
             }
           }
@@ -967,8 +972,8 @@ class GoogleDriveBackupService {
             final logList = backupData['sync_log'] as List<dynamic>;
             for (final logJson in logList) {
               final map = Map<String, dynamic>.from(logJson as Map);
-              final data = SyncLogData.fromJson(map,
-                  serializer: lenientValueSerializer);
+              final data =
+                  SyncLogData.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.syncLog).insertOnConflictUpdate(data);
             }
           }
@@ -1030,8 +1035,10 @@ class GoogleDriveBackupService {
 
                 final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
                 final parts = timeStr.split(':');
-                final parsedHour = parts.isNotEmpty ? int.tryParse(parts[0]) : null;
-                final parsedMinute = parts.length > 1 ? int.tryParse(parts[1]) : null;
+                final parsedHour =
+                    parts.isNotEmpty ? int.tryParse(parts[0]) : null;
+                final parsedMinute =
+                    parts.length > 1 ? int.tryParse(parts[1]) : null;
 
                 final hour = (parsedHour ?? 21).clamp(0, 23);
                 final minute = (parsedMinute ?? 0).clamp(0, 59);

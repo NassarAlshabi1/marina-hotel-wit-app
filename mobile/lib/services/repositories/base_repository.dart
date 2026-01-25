@@ -5,16 +5,19 @@ abstract class BaseRepository<T, TCompanion> {
   String get tableName;
 
   @protected
-  Future<void> notifyBackup(String operation, Map<String, dynamic> recordData) async {
+  Future<void> notifyBackup(
+      String operation, Map<String, dynamic> recordData) async {
     try {
-      AutoBackupManager.instance.onDataChange(tableName, operation, recordData: recordData);
+      AutoBackupManager.instance
+          .onDataChange(tableName, operation, recordData: recordData);
     } catch (e) {
       debugPrint('⚠️ [$tableName] فشل إشعار النسخ الاحتياطي: $e');
     }
   }
 
   @protected
-  Future<R> safeExecute<R>(Future<R> Function() operation, {
+  Future<R> safeExecute<R>(
+    Future<R> Function() operation, {
     String? operationName,
     R? fallbackValue,
   }) async {

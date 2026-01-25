@@ -188,7 +188,8 @@ class AppwriteSyncManager {
             currentRemoteVersion =
                 _asInt(existingDoc.data['version'], fallback: 0);
           }
-          if (_deviceVersion == null || _deviceVersion! <= currentRemoteVersion) {
+          if (_deviceVersion == null ||
+              _deviceVersion! <= currentRemoteVersion) {
             _deviceVersion = currentRemoteVersion + 1;
           }
 
@@ -772,7 +773,8 @@ class AppwriteSyncManager {
           serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
           createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
           updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          deletedAt:
+              _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
           lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
           version: d.Value(_asInt(data['version'], fallback: 1)),
           origin: d.Value(_asString(data['origin']) ?? 'server'),
@@ -832,18 +834,18 @@ class AppwriteSyncManager {
         if (!existingRoomSet.contains(roomNumber)) {
           final now = Time.nowEpoch();
           await database.into(database.rooms).insertOnConflictUpdate(
-            RoomsCompanion(
-              roomNumber: d.Value(roomNumber),
-              type: const d.Value(''),
-              price: const d.Value(0),
-              status: const d.Value('available'),
-              localUuid: d.Value(IdGen.uuid()),
-              createdAt: d.Value(now),
-              updatedAt: d.Value(now),
-              lastModified: d.Value(now),
-              origin: const d.Value('appwrite_pull'),
-            ),
-          );
+                RoomsCompanion(
+                  roomNumber: d.Value(roomNumber),
+                  type: const d.Value(''),
+                  price: const d.Value(0),
+                  status: const d.Value('available'),
+                  localUuid: d.Value(IdGen.uuid()),
+                  createdAt: d.Value(now),
+                  updatedAt: d.Value(now),
+                  lastModified: d.Value(now),
+                  origin: const d.Value('appwrite_pull'),
+                ),
+              );
           existingRoomSet.add(roomNumber);
         }
 
@@ -879,7 +881,8 @@ class AppwriteSyncManager {
           serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
           createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
           updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          deletedAt:
+              _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
           lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
           version: d.Value(_asInt(data['version'], fallback: 1)),
           origin: d.Value(_asString(data['origin']) ?? 'server'),
@@ -1073,7 +1076,8 @@ class AppwriteSyncManager {
         }
 
         int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
-        if (bookingLocalId != null && !existingBookingIds.contains(bookingLocalId)) {
+        if (bookingLocalId != null &&
+            !existingBookingIds.contains(bookingLocalId)) {
           bookingLocalId = null;
         }
 
@@ -1128,7 +1132,8 @@ class AppwriteSyncManager {
           serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
           createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
           updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          deletedAt:
+              _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
           lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
           version: d.Value(_asInt(data['version'], fallback: 1)),
           origin: d.Value(_asString(data['origin']) ?? 'server'),
@@ -1180,8 +1185,7 @@ class AppwriteSyncManager {
           tag: 'SYNC');
     }
     if (cashFkWarnings > 0) {
-      _logger.warning(
-          'Sync payments: $cashFkWarnings cash links unresolved',
+      _logger.warning('Sync payments: $cashFkWarnings cash links unresolved',
           tag: 'SYNC');
     }
 
@@ -1419,7 +1423,8 @@ class AppwriteSyncManager {
       Map<String, dynamic> payload, OutboxData entry) {
     return {
       ...payload,
-      'idempotencyKey': '${entry.entity}:${entry.op}:${entry.localUuid}:${entry.id}',
+      'idempotencyKey':
+          '${entry.entity}:${entry.op}:${entry.localUuid}:${entry.id}',
     };
   }
 

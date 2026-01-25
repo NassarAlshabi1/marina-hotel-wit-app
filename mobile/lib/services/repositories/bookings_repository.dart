@@ -205,7 +205,8 @@ class BookingsRepository extends BaseRepository<Booking, BookingsCompanion> {
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
     return await (db.select(db.bookings)
           ..where((b) =>
-              b.roomNumber.equals(roomNumber) & b.status.equals(AppStrings.statusBooked))
+              b.roomNumber.equals(roomNumber) &
+              b.status.equals(AppStrings.statusBooked))
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
           ..limit(1))
         .getSingleOrNull();

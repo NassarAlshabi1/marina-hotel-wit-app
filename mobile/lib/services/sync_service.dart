@@ -740,8 +740,8 @@ class SyncService {
     final existing = await (db.select(db.bookingNights)
           ..where((t) => t.localUuid.equals(localUuid)))
         .getSingleOrNull();
-    final bool isDelete =
-        op == 'delete' || (data.containsKey('deleted_at') && data['deleted_at'] != null);
+    final bool isDelete = op == 'delete' ||
+        (data.containsKey('deleted_at') && data['deleted_at'] != null);
     final int normalizedServerTs =
         _normalizeTimestampField(serverTs, fallback: Time.nowEpoch());
     final int createdAt = _normalizeTimestampField(data['created_at'],
@@ -755,10 +755,11 @@ class SyncService {
     final int lastModifiedEpoch = _normalizeTimestampField(
         data['last_modified_epoch'],
         fallback: lastModified);
-    final int? deletedAt = data.containsKey('deleted_at') && data['deleted_at'] != null
-        ? _normalizeTimestampField(data['deleted_at'],
-            fallback: normalizedServerTs)
-        : null;
+    final int? deletedAt =
+        data.containsKey('deleted_at') && data['deleted_at'] != null
+            ? _normalizeTimestampField(data['deleted_at'],
+                fallback: normalizedServerTs)
+            : null;
     final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
     final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
     final String? deletedIso =
@@ -856,10 +857,11 @@ class SyncService {
     final int lastModifiedEpoch = _normalizeTimestampField(
         data['last_modified_epoch'],
         fallback: lastModified);
-    final int? deletedAt = data.containsKey('deleted_at') && data['deleted_at'] != null
-        ? _normalizeTimestampField(data['deleted_at'],
-            fallback: normalizedServerTs)
-        : null;
+    final int? deletedAt =
+        data.containsKey('deleted_at') && data['deleted_at'] != null
+            ? _normalizeTimestampField(data['deleted_at'],
+                fallback: normalizedServerTs)
+            : null;
     final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
     final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
     final String? deletedIso =
