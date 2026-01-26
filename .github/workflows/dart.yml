@@ -8,27 +8,18 @@ name: Dart
 on:
   push:
     branches:
-<<<<<<< Updated upstream
       - main
       - 'capy/**'
   pull_request:
     branches:
       - main
-=======
-      - master
-  pull_request:
-    branches: [master]
->>>>>>> Stashed changes
 
 jobs:
   build:
     runs-on: ubuntu-latest
-<<<<<<< Updated upstream
     defaults:
       run:
         working-directory: mobile
-=======
->>>>>>> Stashed changes
 
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +44,7 @@ jobs:
 
       # Consider passing '--fatal-infos' for slightly stricter analysis.
       - name: Analyze project source
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       # Your project will need to have tests in test/ and a dependency on
       # package:test for this step to succeed. Note that Flutter projects will

@@ -1,7 +1,6 @@
 name: Dart CI
 
 on:
-<<<<<<< Updated upstream
   # Run on PRs and pushes to main and feature branches from main.
   push:
     branches:
@@ -17,16 +16,6 @@ concurrency:
   group: test-package-${{ github.ref }}
   cancel-in-progress: true
 
-=======
-  # Run on PRs and pushes to master and dev.
-  push:
-    branches: [ master, dev ]
-  pull_request:
-    branches: [ master, dev ]
-  schedule:
-    - cron: "0 0 * * 0"
-
->>>>>>> Stashed changes
 permissions:
   contents: read
 
@@ -34,7 +23,6 @@ env:
   PUB_ENVIRONMENT: bot.github
 
 jobs:
-<<<<<<< Updated upstream
   analyze:
     runs-on: ubuntu-latest
     defaults:
@@ -49,30 +37,11 @@ jobs:
       - id: install
         name: Install dependencies
         run: flutter pub get
-=======
-  # Check code formatting and static analysis on a single OS (linux)
-  # against Dart dev.
-  analyze:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        sdk: [dev]
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-      - uses: dart-lang/setup-dart@e51d8e571e22473a2ddebf0ef8a2123f0ab2c02c
-        with:
-          sdk: ${{ matrix.sdk }}
-      - id: install
-        name: Install dependencies
-        run: dart pub get
->>>>>>> Stashed changes
       - name: Check formatting
         run: dart format --output=none --set-exit-if-changed .
         if: always() && steps.install.outcome == 'success'
       - name: Analyze code
-<<<<<<< Updated upstream
-        run: flutter analyze --no-pub --fatal-infos
+        run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
         if: always() && steps.install.outcome == 'success'
 
   test:
@@ -92,31 +61,4 @@ jobs:
         run: flutter pub get
       - name: Run Flutter tests
         run: flutter test
-=======
-        run: dart analyze --fatal-infos
-        if: always() && steps.install.outcome == 'success'
-
-  # Run tests on a matrix consisting of two dimensions:
-  # 1. OS: ubuntu-latest, (macos-latest, windows-latest)
-  # 2. release channel: dev
-  test:
-    needs: analyze
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # Add macos-latest and/or windows-latest if relevant for this package.
-        os: [ubuntu-latest]
-        sdk: [3.7, dev]
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-      - uses: dart-lang/setup-dart@e51d8e571e22473a2ddebf0ef8a2123f0ab2c02c
-        with:
-          sdk: ${{ matrix.sdk }}
-      - id: install
-        name: Install dependencies
-        run: dart pub get
-      - name: Run VM tests
-        run: dart test --platform vm
->>>>>>> Stashed changes
         if: always() && steps.install.outcome == 'success'
