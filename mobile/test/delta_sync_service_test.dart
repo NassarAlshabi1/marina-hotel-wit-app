@@ -16,7 +16,8 @@ void main() {
     await db.close();
   });
 
-  Booking _booking({required String uuid, required int created, required int id}) {
+  Booking _booking(
+      {required String uuid, required int created, required int id}) {
     return Booking(
       localUuid: uuid,
       serverId: null,
@@ -64,7 +65,9 @@ void main() {
     );
   }
 
-  test('compute produces insert/update/delete with mirror persistence and fallback', () async {
+  test(
+      'compute produces insert/update/delete with mirror persistence and fallback',
+      () async {
     final booking = _booking(uuid: 'b1', created: 1, id: 1);
     await db.into(db.bookings).insert(booking);
 

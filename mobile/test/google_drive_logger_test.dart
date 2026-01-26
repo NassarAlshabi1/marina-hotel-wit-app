@@ -6,7 +6,8 @@ void main() {
   test('GoogleDriveLogger stores entries by level', () {
     final logger = GoogleDriveLogger();
     logger.info('ok', tag: 'sync');
-    logger.error('failed', tag: 'sync', stackTrace: StackTrace.fromString('stack'));
+    logger.error('failed',
+        tag: 'sync', stackTrace: StackTrace.fromString('stack'));
     final entries = logger.getLogs();
     expect(entries.length, 2);
     expect(entries.first.level, LogLevel.info);
