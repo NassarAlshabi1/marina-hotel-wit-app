@@ -325,8 +325,12 @@ class SyncSafetyLayer {
 
     await db.batch((batch) {
       for (final row in rows) {
+        final normalized = <String, dynamic>{};
+        for (final entry in row.entries) {
+          normalized[_normalizeColumnName(entry.key)] = entry.value;
+        }
         final filtered = Map<String, dynamic>.fromEntries(
-          row.entries.where((e) => existingColumns.contains(e.key)),
+          normalized.entries.where((e) => existingColumns.contains(e.key)),
         );
         if (filtered.isEmpty) {
           debugPrint(
@@ -351,6 +355,16 @@ class SyncSafetyLayer {
   Future<Set<String>> _tableColumns(AppDatabase db, String tableName) async {
     final result = await db.customSelect('PRAGMA table_info($tableName)').get();
     return result.map((r) => r.data['name'] as String).toSet();
+  }
+
+  String _normalizeColumnName(String key) {
+    if (key.contains('_')) return key.toLowerCase();
+    return key
+        .replaceAllMapped(
+          RegExp('([a-z0-9])([A-Z])'),
+          (m) => '${m[1]}_${m[2]!.toLowerCase()}',
+        )
+        .toLowerCase();
   }
 
   Future<bool> _attemptFileRestore(AppDatabase db, String snapshotPath) async {
