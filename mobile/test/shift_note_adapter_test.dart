@@ -2,6 +2,38 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/models/shift_note_adapter.dart' as adapter;
 import 'package:marina_hotel_mobile/services/local_db.dart';
 
+BookingNote _bookingNote({
+  required String localUuid,
+  required int id,
+  required int bookingId,
+  required String noteText,
+  required String alertType,
+  int isActive = 1,
+  String? alertUntil,
+}) {
+  return BookingNote(
+    localUuid: localUuid,
+    serverId: null,
+    createdAt: 1,
+    updatedAt: 1,
+    deletedAt: null,
+    lastModified: 1,
+    createdAtIso: null,
+    updatedAtIso: null,
+    deletedAtIso: null,
+    createdAtEpoch: 1,
+    lastModifiedEpoch: 1,
+    version: 1,
+    origin: 'app',
+    id: id,
+    bookingId: bookingId,
+    noteText: noteText,
+    alertType: alertType,
+    alertUntil: alertUntil,
+    isActive: isActive,
+  );
+}
+
 void main() {
   test('toBookingNoteData encodes shift note for booking storage', () {
     final note = adapter.ShiftNote(
@@ -28,56 +60,13 @@ void main() {
   });
 
   test('fromBookingNote decodes booking note into shift note model', () {
-    final booking = BookingNote(
+    final booking = _bookingNote(
       localUuid: 'u1',
-      serverId: null,
-      createdAt: 1,
-      updatedAt: 2,
-      deletedAt: null,
-      lastModified: 3,
-      createdAtIso: null,
-      updatedAtIso: null,
-      deletedAtIso: null,
-      createdAtEpoch: 1,
-      lastModifiedEpoch: 3,
-      version: 1,
-      origin: 'app',
-      vectorClock: '{}',
       id: 7,
-      serverBookingId: null,
-      roomNumber: '101',
-      guestName: 'guest',
-      guestPhone: '123',
-      guestIdType: 'id',
-      guestIdNumber: '123',
-      guestIdIssueDate: null,
-      guestIdIssuePlace: null,
-      guestNationality: 'nat',
-      guestEmail: null,
-      guestAddress: null,
-      checkinDate: '2024-01-01',
-      checkoutDate: null,
-      actualCheckout: null,
-      status: 'active',
-      notes: null,
-      expectedNights: 1,
-      calculatedNights: 1,
-      totalNightsCached: 1,
-      stayDurationIso: null,
-      lastNightEpoch: null,
-      isOverdue: false,
-      needsCheckoutReview: false,
-      totalDueCached: 0,
-      totalPaidCached: 0,
-      remainingBalanceCached: 0,
-      isFullyPaid: true,
-      hotelDayCheckin: null,
-      hotelDayCheckout: null,
       bookingId: 1,
       noteText: 'عنوان|||محتوى',
       alertType: 'M-MOR',
       alertUntil: '2024-01-02T03:00:00Z',
-      isActive: 1,
     );
 
     final shift = adapter.ShiftNoteAdapter.fromBookingNote(booking);
@@ -94,46 +83,12 @@ void main() {
   });
 
   test('fromBookingNote falls back when delimiter or alertType missing', () {
-    final booking = BookingNote(
+    final booking = _bookingNote(
       localUuid: 'u2',
-      serverId: null,
-      createdAt: 1000,
-      updatedAt: 1000,
-      deletedAt: null,
-      lastModified: 1000,
-      createdAtIso: null,
-      updatedAtIso: null,
-      deletedAtIso: null,
-      createdAtEpoch: 1000,
-      lastModifiedEpoch: 1000,
-      version: 1,
-      origin: 'app',
-      vectorClock: '{}',
       id: 9,
-      serverBookingId: null,
-      roomNumber: '101',
-      guestName: 'guest',
-      guestPhone: '123',
-      guestIdType: 'id',
-      guestIdNumber: '123',
-      guestNationality: 'nat',
-      checkinDate: '2024-01-01',
-      status: 'active',
-      expectedNights: 1,
-      calculatedNights: 1,
-      totalNightsCached: 1,
-      isOverdue: false,
-      needsCheckoutReview: false,
-      totalDueCached: 0,
-      totalPaidCached: 0,
-      remainingBalanceCached: 0,
-      isFullyPaid: true,
-      hotelDayCheckin: null,
-      hotelDayCheckout: null,
       bookingId: 2,
       noteText: 'SoloNote',
       alertType: 'L-ALL',
-      alertUntil: null,
       isActive: 0,
     );
 
