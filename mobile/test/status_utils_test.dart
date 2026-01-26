@@ -20,7 +20,8 @@ void main() {
   test('roomStatusForOccupancy returns proper fallback', () {
     expect(StatusUtils.roomStatusForOccupancy(true), 'محجوزة');
     expect(StatusUtils.roomStatusForOccupancy(false), 'شاغرة');
-    expect(StatusUtils.roomStatusForOccupancy(true, fallbackOccupied: 'X'), 'X');
+    expect(
+        StatusUtils.roomStatusForOccupancy(true, fallbackOccupied: 'X'), 'X');
   });
 
   test('isBookingActive reads from booking model', () async {
@@ -28,43 +29,43 @@ void main() {
     addTearDown(() => database.close());
 
     await database.into(database.rooms).insert(
-      RoomsCompanion.insert(
-        localUuid: 'room-uuid',
-        createdAt: 1,
-        updatedAt: 1,
-        lastModified: 1,
-        roomNumber: '101',
-        type: 'std',
-        price: 100,
-        status: 'available',
-      ),
-    );
+          RoomsCompanion.insert(
+            localUuid: 'room-uuid',
+            createdAt: 1,
+            updatedAt: 1,
+            lastModified: 1,
+            roomNumber: '101',
+            type: 'std',
+            price: 100,
+            status: 'available',
+          ),
+        );
 
     final bookingId = await database.into(database.bookings).insert(
-      BookingsCompanion.insert(
-        localUuid: 'booking-uuid',
-        createdAt: 1,
-        updatedAt: 1,
-        lastModified: 1,
-        roomNumber: '101',
-        guestName: 'guest',
-        guestPhone: '123',
-        guestIdType: 'id',
-        guestIdNumber: '123',
-        guestNationality: 'nat',
-        checkinDate: '2024-01-01',
-        status: 'active',
-        expectedNights: 1,
-        calculatedNights: 1,
-        totalNightsCached: 1,
-        isOverdue: false,
-        needsCheckoutReview: false,
-        totalDueCached: 0,
-        totalPaidCached: 0,
-        remainingBalanceCached: 0,
-        isFullyPaid: true,
-      ),
-    );
+          BookingsCompanion.insert(
+            localUuid: 'booking-uuid',
+            createdAt: 1,
+            updatedAt: 1,
+            lastModified: 1,
+            roomNumber: '101',
+            guestName: 'guest',
+            guestPhone: '123',
+            guestIdType: 'id',
+            guestIdNumber: '123',
+            guestNationality: 'nat',
+            checkinDate: '2024-01-01',
+            status: 'active',
+            expectedNights: 1,
+            calculatedNights: 1,
+            totalNightsCached: 1,
+            isOverdue: false,
+            needsCheckoutReview: false,
+            totalDueCached: 0,
+            totalPaidCached: 0,
+            remainingBalanceCached: 0,
+            isFullyPaid: true,
+          ),
+        );
 
     final booking = await (database.select(database.bookings)
           ..where((tbl) => tbl.id.equals(bookingId)))
