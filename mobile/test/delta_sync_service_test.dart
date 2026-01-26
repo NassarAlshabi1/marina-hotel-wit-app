@@ -18,7 +18,9 @@ void main() {
     await db.close();
   });
 
-  test('compute produces insert/update/delete with mirror persistence and fallback', () async {
+  test(
+      'compute produces insert/update/delete with mirror persistence and fallback',
+      () async {
     // Seed bookings and mirror empty
     final booking = Booking(
       localUuid: 'b1',
@@ -168,7 +170,9 @@ void main() {
     expect(post.isValid, isTrue);
   });
 
-  test('_preparePayload and hashing normalize keys/timestamps deterministically', () async {
+  test(
+      '_preparePayload and hashing normalize keys/timestamps deterministically',
+      () async {
     final payload = {
       'localUuid': 'x',
       'createdAt': 123,
@@ -180,7 +184,8 @@ void main() {
     };
 
     final prepared = _preparePayload(payload);
-    expect(prepared.keys, containsAll(['local_uuid', 'created_at', 'child', 'list']));
+    expect(prepared.keys,
+        containsAll(['local_uuid', 'created_at', 'child', 'list']));
     expect(prepared['created_at'], 123000);
     final hash1 = _hashPayload(prepared);
     final hash2 = _hashPayload(prepared);

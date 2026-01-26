@@ -5,7 +5,7 @@ void main() {
   test('GoogleDriveLogger queues and formats entries', () {
     final logger = GoogleDriveLogger();
     logger.logInfo('sync', 'ok');
-    logger.logError('sync', 'failed', StackTrace.fromString('stack')); 
+    logger.logError('sync', 'failed', StackTrace.fromString('stack'));
     final entries = logger.dumpAndClear();
     expect(entries.length, 2);
     expect(entries.first['level'], 'info');
