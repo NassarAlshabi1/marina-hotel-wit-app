@@ -425,6 +425,51 @@ class AppwriteDeltaSync {
 
   Future<void> _applyPaymentChange(
       AppDatabase db, String localUuid, Map<String, dynamic> data) async {
+    final serverBookingId = _asInt(data['serverBookingId']);
+    final incomingBookingUuid = _asString(data['bookingUuidCache']) ??
+        _asString(data['booking_uuid_cache']) ??
+        _asString(data['bookingUuid']);
+
+    String? bookingUuidCache;
+    int? resolvedBookingLocalId;
+
+    if (incomingBookingUuid != null && incomingBookingUuid.isNotEmpty) {
+      bookingUuidCache = incomingBookingUuid;
+      final booking = await (db.select(db.bookings)
+            ..where((b) => b.localUuid.equals(incomingBookingUuid)))
+          .getSingleOrNull();
+      resolvedBookingLocalId = booking?.id;
+    }
+
+    if (resolvedBookingLocalId == null && serverBookingId != null) {
+      final booking = await (db.select(db.bookings)
+            ..where((b) => b.serverBookingId.equals(serverBookingId)))
+          .getSingleOrNull();
+      resolvedBookingLocalId = booking?.id;
+      bookingUuidCache = bookingUuidCache ?? booking?.localUuid;
+    }
+
+    if (resolvedBookingLocalId == null) {
+      final incomingLocalId = _asInt(data['bookingLocalId']);
+      if (incomingLocalId != null) {
+        final booking = await (db.select(db.bookings)
+              ..where((b) => b.id.equals(incomingLocalId)))
+            .getSingleOrNull();
+        if (booking != null) {
+          resolvedBookingLocalId = booking.id;
+          bookingUuidCache = bookingUuidCache ?? booking.localUuid;
+        }
+      }
+    }
+
+    dynamic pendingRaw = data['isPendingBalance'] ?? data['is_pending_balance'];
+    bool? isPendingBalance;
+    if (pendingRaw is bool) {
+      isPendingBalance = pendingRaw;
+    } else if (pendingRaw is num) {
+      isPendingBalance = pendingRaw != 0;
+    }
+
     final companion = PaymentsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
@@ -435,14 +480,24 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
       serverPaymentId: _nullableValue<int>(_asInt(data['serverPaymentId'])),
-      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
-      serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
+      bookingLocalId: resolvedBookingLocalId != null
+          ? d.Value(resolvedBookingLocalId)
+          : const d.Value.absent(),
+      bookingUuidCache: bookingUuidCache != null && bookingUuidCache.isNotEmpty
+          ? d.Value(bookingUuidCache)
+          : const d.Value.absent(),
+      serverBookingId: _nullableValue<int>(serverBookingId),
       roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
       amount: d.Value(_asDouble(data['amount'])),
       paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
       paymentMethod: d.Value(_asString(data['paymentMethod']) ?? ''),
       revenueType: d.Value(_asString(data['revenueType']) ?? ''),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+      isPendingBalance: isPendingBalance != null
+          ? d.Value(isPendingBalance)
+          : const d.Value.absent(),
+      linkedDebtUuid: _nullableValue<String>(_asString(data['linkedDebtUuid'])),
       cashTransactionLocalId:
           _nullableValue<int>(_asInt(data['cashTransactionLocalId'])),
       cashTransactionServerId:
