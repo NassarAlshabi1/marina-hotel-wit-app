@@ -1,3 +1,4 @@
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/utils/status_utils.dart';
@@ -19,65 +20,55 @@ void main() {
   test('roomStatusForOccupancy returns proper fallback', () {
     expect(StatusUtils.roomStatusForOccupancy(true), 'محجوزة');
     expect(StatusUtils.roomStatusForOccupancy(false), 'شاغرة');
-    expect(
-        StatusUtils.roomStatusForOccupancy(true, fallbackOccupied: 'X'), 'X');
+    expect(StatusUtils.roomStatusForOccupancy(true, fallbackOccupied: 'X'), 'X');
   });
 
-  test('isBookingActive reads from booking model', () {
-    final booking = Booking(
-      localUuid: 'u',
-      serverId: null,
-      createdAt: 1,
-      updatedAt: 1,
-      deletedAt: null,
-      lastModified: 1,
-      createdAtIso: null,
-      updatedAtIso: null,
-      deletedAtIso: null,
-      createdAtEpoch: 1,
-      lastModifiedEpoch: 1,
-      version: 1,
-      origin: 'app',
-      id: 1,
-      roomId: 1,
-      customerName: 'c',
-      customerPhone: 'p',
-      checkin: '2024-01-01',
-      checkout: '2024-01-02',
-      nights: 1,
-      totalAmount: 0,
-      paidAmount: 0,
-      remainingAmount: 0,
-      status: 'active',
-      createdBy: 'u',
-      updatedBy: 'u',
-      source: 'app',
-      roomType: 'std',
-      roomName: '101',
-      adultCount: 1,
-      childCount: 0,
-      city: null,
-      notes: null,
-      currency: 'usd',
-      pricePerNight: 0,
-      hotelDay: '2024-01-01',
-      bookingTime: '2024-01-01T00:00:00Z',
-      roomFloor: null,
-      discount: 0,
-      email: null,
-      nationalId: null,
-      country: null,
-      checkoutReason: null,
-      channel: null,
-      stayPurpose: null,
-      hasCar: 0,
-      carPlate: null,
-      carType: null,
-      carColor: null,
-      preference: null,
-      deviceId: null,
-      cancellationReason: null,
+  test('isBookingActive reads from booking model', () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(() => database.close());
+
+    await database.into(database.rooms).insert(
+      RoomsCompanion.insert(
+        localUuid: 'room-uuid',
+        createdAt: 1,
+        updatedAt: 1,
+        lastModified: 1,
+        roomNumber: '101',
+        type: 'std',
+        price: 100,
+        status: 'available',
+      ),
     );
+
+    final bookingId = await database.into(database.bookings).insert(
+      BookingsCompanion.insert(
+        localUuid: 'booking-uuid',
+        createdAt: 1,
+        updatedAt: 1,
+        lastModified: 1,
+        roomNumber: '101',
+        guestName: 'guest',
+        guestPhone: '123',
+        guestIdType: 'id',
+        guestIdNumber: '123',
+        guestNationality: 'nat',
+        checkinDate: '2024-01-01',
+        status: 'active',
+        expectedNights: 1,
+        calculatedNights: 1,
+        totalNightsCached: 1,
+        isOverdue: false,
+        needsCheckoutReview: false,
+        totalDueCached: 0,
+        totalPaidCached: 0,
+        remainingBalanceCached: 0,
+        isFullyPaid: true,
+      ),
+    );
+
+    final booking = await (database.select(database.bookings)
+          ..where((tbl) => tbl.id.equals(bookingId)))
+        .getSingle();
 
     expect(StatusUtils.isBookingActive(booking), isTrue);
   });
