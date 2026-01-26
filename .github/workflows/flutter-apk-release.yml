@@ -88,6 +88,15 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Determine dynamic build version
+        id: version
+        run: |
+          BASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          BUILD_NUMBER=${GITHUB_RUN_NUMBER}
+          BUILD_NAME="${BASE_VERSION}.${BUILD_NUMBER}"
+          echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+
       - name: Build runner - clean generated files
         run: flutter pub run build_runner clean
 
@@ -97,12 +106,12 @@ jobs:
 
       - name: Build release APK
         # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
-        run: flutter build apk --release
+        run: flutter build apk --release --build-name ${{ steps.version.outputs.build_name }} --build-number ${{ steps.version.outputs.build_number }}
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 'marina-hotel-release-${{ github.run_number }}'
+          name: 'marina-hotel-release-${{ steps.version.outputs.build_name }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
 
