@@ -336,10 +336,10 @@ class AppwriteService {
   }) async {
     _ensureInitialized();
     
+    final sanitizedData = _sanitizeData(collectionId, data);
+
     try {
       _logger.debug('Updating document $documentId in $collectionId', tag: 'CRUD');
-
-      final sanitizedData = _sanitizeData(collectionId, data);
 
       Future<models.Document> performOperation() {
         return _databases.updateDocument(
