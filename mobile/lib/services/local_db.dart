@@ -642,73 +642,73 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 bookings,
-                bookings.vectorClock as GeneratedColumn<Object>,
+                bookings.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
             try {
               await m.addColumn(
                 rooms,
-                rooms.vectorClock as GeneratedColumn<Object>,
+                rooms.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
             try {
               await m.addColumn(
                 employees,
-                employees.vectorClock as GeneratedColumn<Object>,
+                employees.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
             try {
               await m.addColumn(
                 expenses,
-                expenses.vectorClock as GeneratedColumn<Object>,
+                expenses.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
             try {
               await m.addColumn(
                 cashTransactions,
-                cashTransactions.vectorClock as GeneratedColumn<Object>,
+                cashTransactions.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
             try {
               await m.addColumn(
                 payments,
-                payments.vectorClock as GeneratedColumn<Object>,
+                payments.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
             try {
               await m.addColumn(
                 debts,
-                debts.vectorClock as GeneratedColumn<Object>,
+                debts.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
             try {
               await m.addColumn(
                 bookingNotes,
-                bookingNotes.vectorClock as GeneratedColumn<Object>,
+                bookingNotes.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
             try {
               await m.addColumn(
                 bookingNights,
-                bookingNights.vectorClock as GeneratedColumn<Object>,
+                bookingNights.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
             try {
               await m.addColumn(
                 hotelDayLedger,
-                hotelDayLedger.vectorClock as GeneratedColumn<Object>,
+                hotelDayLedger.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
             try {
               await m.addColumn(
                 salaryCycles,
-                salaryCycles.vectorClock as GeneratedColumn<Object>,
+                salaryCycles.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
             try {
               await m.addColumn(
                 salaryPayments,
-                salaryPayments.vectorClock as GeneratedColumn<Object>,
+                salaryPayments.vectorClock as GeneratedColumn<String>,
               );
             } catch (_) {}
           }

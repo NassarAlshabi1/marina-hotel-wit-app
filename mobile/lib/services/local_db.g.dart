@@ -19137,6 +19137,48 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _idempotencyKeyMeta =
+      const VerificationMeta('idempotencyKey');
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _processingStatusMeta =
+      const VerificationMeta('processingStatus');
+  @override
+  late final GeneratedColumn<String> processingStatus =
+      GeneratedColumn<String>(
+    'processing_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _processingStartedAtMeta =
+      const VerificationMeta('processingStartedAt');
+  @override
+  late final GeneratedColumn<int> processingStartedAt = GeneratedColumn<int>(
+    'processing_started_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _processingWorkerMeta =
+      const VerificationMeta('processingWorker');
+  @override
+  late final GeneratedColumn<String> processingWorker = GeneratedColumn<String>(
+    'processing_worker',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -19148,6 +19190,10 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         clientTs,
         attempts,
         lastError,
+        idempotencyKey,
+        processingStatus,
+        processingStartedAt,
+        processingWorker,
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -19219,6 +19265,42 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta),
       );
     }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('processing_status')) {
+      context.handle(
+        _processingStatusMeta,
+        processingStatus.isAcceptableOrUnknown(
+          data['processing_status']!,
+          _processingStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('processing_started_at')) {
+      context.handle(
+        _processingStartedAtMeta,
+        processingStartedAt.isAcceptableOrUnknown(
+          data['processing_started_at']!,
+          _processingStartedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('processing_worker')) {
+      context.handle(
+        _processingWorkerMeta,
+        processingWorker.isAcceptableOrUnknown(
+          data['processing_worker']!,
+          _processingWorkerMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -19264,6 +19346,22 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         DriftSqlType.string,
         data['${effectivePrefix}last_error'],
       ),
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
+      processingStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}processing_status'],
+      )!,
+      processingStartedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}processing_started_at'],
+      ),
+      processingWorker: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}processing_worker'],
+      ),
     );
   }
 
@@ -19283,6 +19381,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
   final int clientTs;
   final int attempts;
   final String? lastError;
+  final String? idempotencyKey;
+  final String processingStatus;
+  final int? processingStartedAt;
+  final String? processingWorker;
   const OutboxData({
     required this.id,
     required this.entity,
@@ -19293,6 +19395,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     required this.clientTs,
     required this.attempts,
     this.lastError,
+    this.idempotencyKey,
+    required this.processingStatus,
+    this.processingStartedAt,
+    this.processingWorker,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -19309,6 +19415,16 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     map['attempts'] = Variable<int>(attempts);
     if (!nullToAbsent || lastError != null) {
       map['last_error'] = Variable<String>(lastError);
+    }
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
+    map['processing_status'] = Variable<String>(processingStatus);
+    if (!nullToAbsent || processingStartedAt != null) {
+      map['processing_started_at'] = Variable<int>(processingStartedAt);
+    }
+    if (!nullToAbsent || processingWorker != null) {
+      map['processing_worker'] = Variable<String>(processingWorker);
     }
     return map;
   }
@@ -19328,6 +19444,16 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       lastError: lastError == null && nullToAbsent
           ? const Value.absent()
           : Value(lastError),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
+      processingStatus: Value(processingStatus),
+      processingStartedAt: processingStartedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processingStartedAt),
+      processingWorker: processingWorker == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processingWorker),
     );
   }
 
@@ -19346,6 +19472,11 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       clientTs: serializer.fromJson<int>(json['clientTs']),
       attempts: serializer.fromJson<int>(json['attempts']),
       lastError: serializer.fromJson<String?>(json['lastError']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
+      processingStatus: serializer.fromJson<String>(json['processingStatus']),
+      processingStartedAt:
+          serializer.fromJson<int?>(json['processingStartedAt']),
+      processingWorker: serializer.fromJson<String?>(json['processingWorker']),
     );
   }
   @override
@@ -19361,6 +19492,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       'clientTs': serializer.toJson<int>(clientTs),
       'attempts': serializer.toJson<int>(attempts),
       'lastError': serializer.toJson<String?>(lastError),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
+      'processingStatus': serializer.toJson<String>(processingStatus),
+      'processingStartedAt': serializer.toJson<int?>(processingStartedAt),
+      'processingWorker': serializer.toJson<String?>(processingWorker),
     };
   }
 
@@ -19374,6 +19509,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     int? clientTs,
     int? attempts,
     Value<String?> lastError = const Value.absent(),
+    Value<String?> idempotencyKey = const Value.absent(),
+    String? processingStatus,
+    Value<int?> processingStartedAt = const Value.absent(),
+    Value<String?> processingWorker = const Value.absent(),
   }) =>
       OutboxData(
         id: id ?? this.id,
@@ -19385,6 +19524,15 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
         clientTs: clientTs ?? this.clientTs,
         attempts: attempts ?? this.attempts,
         lastError: lastError.present ? lastError.value : this.lastError,
+        idempotencyKey:
+            idempotencyKey.present ? idempotencyKey.value : this.idempotencyKey,
+        processingStatus: processingStatus ?? this.processingStatus,
+        processingStartedAt: processingStartedAt.present
+            ? processingStartedAt.value
+            : this.processingStartedAt,
+        processingWorker: processingWorker.present
+            ? processingWorker.value
+            : this.processingWorker,
       );
   OutboxData copyWithCompanion(OutboxCompanion data) {
     return OutboxData(
@@ -19397,6 +19545,18 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       clientTs: data.clientTs.present ? data.clientTs.value : this.clientTs,
       attempts: data.attempts.present ? data.attempts.value : this.attempts,
       lastError: data.lastError.present ? data.lastError.value : this.lastError,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
+      processingStatus: data.processingStatus.present
+          ? data.processingStatus.value
+          : this.processingStatus,
+      processingStartedAt: data.processingStartedAt.present
+          ? data.processingStartedAt.value
+          : this.processingStartedAt,
+      processingWorker: data.processingWorker.present
+          ? data.processingWorker.value
+          : this.processingWorker,
     );
   }
 
@@ -19411,7 +19571,11 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           ..write('payload: $payload, ')
           ..write('clientTs: $clientTs, ')
           ..write('attempts: $attempts, ')
-          ..write('lastError: $lastError')
+          ..write('lastError: $lastError, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('processingStatus: $processingStatus, ')
+          ..write('processingStartedAt: $processingStartedAt, ')
+          ..write('processingWorker: $processingWorker')
           ..write(')'))
         .toString();
   }
@@ -19427,6 +19591,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
         clientTs,
         attempts,
         lastError,
+        idempotencyKey,
+        processingStatus,
+        processingStartedAt,
+        processingWorker,
       );
   @override
   bool operator ==(Object other) =>
@@ -19440,7 +19608,11 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           other.payload == this.payload &&
           other.clientTs == this.clientTs &&
           other.attempts == this.attempts &&
-          other.lastError == this.lastError);
+          other.lastError == this.lastError &&
+          other.idempotencyKey == this.idempotencyKey &&
+          other.processingStatus == this.processingStatus &&
+          other.processingStartedAt == this.processingStartedAt &&
+          other.processingWorker == this.processingWorker);
 }
 
 class OutboxCompanion extends UpdateCompanion<OutboxData> {
@@ -19453,6 +19625,10 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
   final Value<int> clientTs;
   final Value<int> attempts;
   final Value<String?> lastError;
+  final Value<String?> idempotencyKey;
+  final Value<String> processingStatus;
+  final Value<int?> processingStartedAt;
+  final Value<String?> processingWorker;
   const OutboxCompanion({
     this.id = const Value.absent(),
     this.entity = const Value.absent(),
@@ -19463,6 +19639,10 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.clientTs = const Value.absent(),
     this.attempts = const Value.absent(),
     this.lastError = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.processingStatus = const Value.absent(),
+    this.processingStartedAt = const Value.absent(),
+    this.processingWorker = const Value.absent(),
   });
   OutboxCompanion.insert({
     this.id = const Value.absent(),
@@ -19474,6 +19654,10 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     required int clientTs,
     this.attempts = const Value.absent(),
     this.lastError = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.processingStatus = const Value.absent(),
+    this.processingStartedAt = const Value.absent(),
+    this.processingWorker = const Value.absent(),
   })  : entity = Value(entity),
         op = Value(op),
         localUuid = Value(localUuid),
@@ -19489,6 +19673,10 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Expression<int>? clientTs,
     Expression<int>? attempts,
     Expression<String>? lastError,
+    Expression<String>? idempotencyKey,
+    Expression<String>? processingStatus,
+    Expression<int>? processingStartedAt,
+    Expression<String>? processingWorker,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -19500,6 +19688,11 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       if (clientTs != null) 'client_ts': clientTs,
       if (attempts != null) 'attempts': attempts,
       if (lastError != null) 'last_error': lastError,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      if (processingStatus != null) 'processing_status': processingStatus,
+      if (processingStartedAt != null)
+        'processing_started_at': processingStartedAt,
+      if (processingWorker != null) 'processing_worker': processingWorker,
     });
   }
 
@@ -19513,6 +19706,10 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Value<int>? clientTs,
     Value<int>? attempts,
     Value<String?>? lastError,
+    Value<String?>? idempotencyKey,
+    Value<String>? processingStatus,
+    Value<int?>? processingStartedAt,
+    Value<String?>? processingWorker,
   }) {
     return OutboxCompanion(
       id: id ?? this.id,
@@ -19524,6 +19721,10 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       clientTs: clientTs ?? this.clientTs,
       attempts: attempts ?? this.attempts,
       lastError: lastError ?? this.lastError,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      processingStatus: processingStatus ?? this.processingStatus,
+      processingStartedAt: processingStartedAt ?? this.processingStartedAt,
+      processingWorker: processingWorker ?? this.processingWorker,
     );
   }
 
@@ -19557,6 +19758,19 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     if (lastError.present) {
       map['last_error'] = Variable<String>(lastError.value);
     }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
+    if (processingStatus.present) {
+      map['processing_status'] = Variable<String>(processingStatus.value);
+    }
+    if (processingStartedAt.present) {
+      map['processing_started_at'] =
+          Variable<int>(processingStartedAt.value);
+    }
+    if (processingWorker.present) {
+      map['processing_worker'] = Variable<String>(processingWorker.value);
+    }
     return map;
   }
 
@@ -19571,7 +19785,11 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
           ..write('payload: $payload, ')
           ..write('clientTs: $clientTs, ')
           ..write('attempts: $attempts, ')
-          ..write('lastError: $lastError')
+          ..write('lastError: $lastError, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('processingStatus: $processingStatus, ')
+          ..write('processingStartedAt: $processingStartedAt, ')
+          ..write('processingWorker: $processingWorker')
           ..write(')'))
         .toString();
   }

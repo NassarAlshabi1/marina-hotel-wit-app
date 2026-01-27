@@ -900,13 +900,6 @@ class AppwriteSyncManager {
     return fallback ?? Time.nowEpoch();
   }
 
-  int? _normalizeEpochNullable(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-    return _normalizeEpoch(value);
-  }
-
   int _asInt(dynamic value, {int fallback = 0}) {
     final result = _asIntNullable(value);
     return result ?? fallback;
@@ -933,39 +926,6 @@ class AppwriteSyncManager {
       }
     }
     return null;
-  }
-
-  double _asDouble(dynamic value, {double fallback = 0.0}) {
-    if (value == null) {
-      return fallback;
-    }
-    if (value is double) {
-      return value;
-    }
-    if (value is int) {
-      return value.toDouble();
-    }
-    if (value is num) {
-      return value.toDouble();
-    }
-    if (value is String && value.isNotEmpty) {
-      final parsed = double.tryParse(value);
-      if (parsed != null) {
-        return parsed;
-      }
-    }
-    return fallback;
-  }
-
-  String? _asString(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-    final result = value.toString();
-    if (result.isEmpty) {
-      return null;
-    }
-    return result;
   }
 
   Future<int> _pushAllEntities() async {
