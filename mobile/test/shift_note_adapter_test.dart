@@ -53,7 +53,9 @@ void main() {
     final data = adapter.ShiftNoteAdapter.toBookingNoteData(note);
 
     expect(
-        data['booking_id'], adapter.ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID);
+      data['booking_id'],
+      adapter.ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID,
+    );
     expect(data['note_text'], 'Title|||Body');
     expect(data['alert_type'], 'H-NIG');
     expect(data['alert_until'], '2024-01-03T04:05:06.000Z');

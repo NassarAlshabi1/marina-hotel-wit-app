@@ -74,10 +74,12 @@ class OptimisticLockManager {
     }
 
     try {
-      final result = await db.customSelect(
-        'SELECT version FROM $table WHERE local_uuid = ?',
-        variables: [d.Variable.withString(uuid)],
-      ).getSingleOrNull();
+      final result = await db
+          .customSelect(
+            'SELECT version FROM $table WHERE local_uuid = ?',
+            variables: [d.Variable.withString(uuid)],
+          )
+          .getSingleOrNull();
 
       return result?.read<int?>('version');
     } catch (e) {

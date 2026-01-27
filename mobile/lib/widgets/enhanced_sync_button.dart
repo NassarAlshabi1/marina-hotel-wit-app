@@ -69,12 +69,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       }
     });
 
-    _connectivitySubscription =
-        ConnectivityService.instance.statusStream.listen((status) {
-      if (mounted) {
-        setState(() => _isOnline = status.isOnline);
-      }
-    });
+    _connectivitySubscription = ConnectivityService.instance.statusStream
+        .listen((status) {
+          if (mounted) {
+            setState(() => _isOnline = status.isOnline);
+          }
+        });
 
     _isOnline = ConnectivityService.instance.isOnline;
   }
@@ -543,13 +543,13 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                   error.severity == ErrorSeverity.critical
                       ? Icons.error
                       : error.severity == ErrorSeverity.high
-                          ? Icons.warning
-                          : Icons.info,
+                      ? Icons.warning
+                      : Icons.info,
                   color: error.severity == ErrorSeverity.critical
                       ? Colors.red
                       : error.severity == ErrorSeverity.high
-                          ? Colors.orange
-                          : Colors.blue,
+                      ? Colors.orange
+                      : Colors.blue,
                 ),
                 title: Text(error.operation),
                 subtitle: Text(

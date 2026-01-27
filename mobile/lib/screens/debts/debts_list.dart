@@ -212,7 +212,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     // تطبيق البحث والتصفية
     final filteredDebts = allDebts.where((debt) {
       // البحث
-      final matchesSearch = _searchQuery.isEmpty ||
+      final matchesSearch =
+          _searchQuery.isEmpty ||
           debt.guestName.toLowerCase().contains(_searchQuery.toLowerCase());
 
       // التصفية حسب الحالة
@@ -232,7 +233,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           final debtDate = DateTime.tryParse(debtDateStr);
           if (debtDate != null) {
             final daysPassed = DateTime.now().difference(debtDate).inDays;
-            matchesFilter = daysPassed > 30 &&
+            matchesFilter =
+                daysPassed > 30 &&
                 debt.isSettled == 0 &&
                 debt.remainingAmount > 0;
           } else {
@@ -301,8 +303,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     final debtDate = DateTime.tryParse(
       debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate,
     );
-    final daysPassed =
-        debtDate != null ? DateTime.now().difference(debtDate).inDays : 0;
+    final daysPassed = debtDate != null
+        ? DateTime.now().difference(debtDate).inDays
+        : 0;
     final isOverdue = daysPassed > 30 && !isSettled;
 
     Color cardColor = Colors.white;
@@ -531,11 +534,13 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
   Widget _buildStatusBadge(Debt debt) {
     final isSettled = debt.isSettled == 1 || debt.remainingAmount <= 0;
-    final debtDateStr =
-        debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate;
+    final debtDateStr = debt.dateRecorded.isNotEmpty
+        ? debt.dateRecorded
+        : debt.checkoutDate;
     final debtDate = DateTime.tryParse(debtDateStr);
-    final daysPassed =
-        debtDate != null ? DateTime.now().difference(debtDate).inDays : 0;
+    final daysPassed = debtDate != null
+        ? DateTime.now().difference(debtDate).inDays
+        : 0;
     final isOverdue = daysPassed > 30 && !isSettled && debt.remainingAmount > 0;
 
     String text;
@@ -900,10 +905,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     final totalAmount = CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
     final paidAmount = CurrencyFormatter.parseAmount(paidCtrl.text) ?? 0;
     final debtReason = debtReasonCtrl.text.trim();
-    final pledge =
-        pledgeCtrl.text.trim().isEmpty ? null : pledgeCtrl.text.trim();
-    final pledgeType =
-        pledgeTypeCtrl.text.trim().isEmpty ? null : pledgeTypeCtrl.text.trim();
+    final pledge = pledgeCtrl.text.trim().isEmpty
+        ? null
+        : pledgeCtrl.text.trim();
+    final pledgeType = pledgeTypeCtrl.text.trim().isEmpty
+        ? null
+        : pledgeTypeCtrl.text.trim();
     final note = noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim();
 
     final repo = ref.read(debtsRepoProvider);

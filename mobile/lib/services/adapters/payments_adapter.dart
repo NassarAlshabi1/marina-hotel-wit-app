@@ -22,17 +22,25 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   String get tableName => 'payments';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json,
-      {required Source src}) async {
-    final bookingUuid = _asString(json, 'bookingUuidCache', src) ??
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
+    final bookingUuid =
+        _asString(json, 'bookingUuidCache', src) ??
         _asString(json, 'booking_uuid_cache', src) ??
         _asString(json, 'booking_uuid', src);
     final serverBookingId =
         _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
-    final localId = _asInt(json, 'bookingLocalId', src) ??
+    final localId =
+        _asInt(json, 'bookingLocalId', src) ??
         _asInt(json, 'booking_local_id', src);
     final resolvedId = await resolver.resolveBooking(
-        localId: localId, serverId: serverBookingId, uuid: bookingUuid);
+      localId: localId,
+      serverId: serverBookingId,
+      uuid: bookingUuid,
+    );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -44,46 +52,86 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   }
 
   @override
-  PaymentsCompanion fromJson(Map<String, dynamic> json,
-      {required Source src, required ResolveResult refs}) {
+  PaymentsCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ??
+    final lastModified =
+        refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
     return PaymentsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ??
-          _asString(json, 'local_uuid', src) ??
-          IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
-      serverPaymentId:
-          _vInt(json, 'serverPaymentId', src, altKey: 'payment_id'),
+      serverPaymentId: _vInt(
+        json,
+        'serverPaymentId',
+        src,
+        altKey: 'payment_id',
+      ),
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId)
           : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
-      serverBookingId:
-          _vInt(json, 'serverBookingId', src, altKey: 'booking_id'),
+      serverBookingId: _vInt(
+        json,
+        'serverBookingId',
+        src,
+        altKey: 'booking_id',
+      ),
       roomNumber: _vStr(json, 'roomNumber', src, altKey: 'room_number'),
       amount: _vDouble(json, 'amount', src, fallback: 0.0),
-      paymentDate:
-          _vStr(json, 'paymentDate', src, altKey: 'payment_date', fallback: ''),
+      paymentDate: _vStr(
+        json,
+        'paymentDate',
+        src,
+        altKey: 'payment_date',
+        fallback: '',
+      ),
       notes: _vStr(json, 'notes', src),
-      paymentMethod: _vStr(json, 'paymentMethod', src,
-          altKey: 'payment_method', fallback: ''),
-      revenueType:
-          _vStr(json, 'revenueType', src, altKey: 'revenue_type', fallback: ''),
-      cashTransactionLocalId: _vInt(json, 'cashTransactionLocalId', src,
-          altKey: 'cash_transaction_local_id'),
-      cashTransactionServerId: _vInt(json, 'cashTransactionServerId', src,
-          altKey: 'cash_transaction_id'),
+      paymentMethod: _vStr(
+        json,
+        'paymentMethod',
+        src,
+        altKey: 'payment_method',
+        fallback: '',
+      ),
+      revenueType: _vStr(
+        json,
+        'revenueType',
+        src,
+        altKey: 'revenue_type',
+        fallback: '',
+      ),
+      cashTransactionLocalId: _vInt(
+        json,
+        'cashTransactionLocalId',
+        src,
+        altKey: 'cash_transaction_local_id',
+      ),
+      cashTransactionServerId: _vInt(
+        json,
+        'cashTransactionServerId',
+        src,
+        altKey: 'cash_transaction_id',
+      ),
       referenceNumber: _vStr(json, 'referenceNumber', src),
-      hotelDayKey:
-          _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
+      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       isPendingBalance: _vBool(json, 'isPendingBalance', src, fallback: false),
-      linkedDebtUuid:
-          _vStr(json, 'linkedDebtUuid', src, altKey: 'linked_debt_uuid'),
+      linkedDebtUuid: _vStr(
+        json,
+        'linkedDebtUuid',
+        src,
+        altKey: 'linked_debt_uuid',
+      ),
       bookingUuidCache: refs.bookingUuidCache != null
           ? d.Value(refs.bookingUuidCache)
           : _vStr(json, 'bookingUuidCache', src, altKey: 'booking_uuid_cache'),
@@ -93,8 +141,13 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       lastModified: d.Value(lastModified),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src,
-          altKey: 'vector_clock', fallback: '{}'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
     );
   }
 
@@ -133,33 +186,57 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   }
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src,
-    {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ??
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src,
-    {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ??
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src,
-    {String? altKey, double? fallback}) {
-  final v = _asDouble(json, key, src) ??
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
       (altKey != null ? _asDouble(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src,
-    {String? altKey, bool? fallback}) {
-  final v = _asBool(json, key, src) ??
+d.Value<bool> _vBool(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  bool? fallback,
+}) {
+  final v =
+      _asBool(json, key, src) ??
       (altKey != null ? _asBool(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);

@@ -32,10 +32,16 @@ void main() {
       'created_at': 100,
     };
 
-    final refs = await adapters.payments.adapter
-        .resolveRefs(db, json, src: Source.drive);
-    final comp =
-        adapters.payments.adapter.fromJson(json, src: Source.drive, refs: refs);
+    final refs = await adapters.payments.adapter.resolveRefs(
+      db,
+      json,
+      src: Source.drive,
+    );
+    final comp = adapters.payments.adapter.fromJson(
+      json,
+      src: Source.drive,
+      refs: refs,
+    );
     await db.into(db.payments).insert(comp);
 
     final row = await db.select(db.payments).getSingle();
@@ -60,10 +66,16 @@ void main() {
       'lastModified': 20,
     };
 
-    final refs = await adapters.bookings.adapter
-        .resolveRefs(db, json, src: Source.appwrite);
-    final comp = adapters.bookings.adapter
-        .fromJson(json, src: Source.appwrite, refs: refs);
+    final refs = await adapters.bookings.adapter.resolveRefs(
+      db,
+      json,
+      src: Source.appwrite,
+    );
+    final comp = adapters.bookings.adapter.fromJson(
+      json,
+      src: Source.appwrite,
+      refs: refs,
+    );
     await db.into(db.bookings).insert(comp);
 
     final row = await db.select(db.bookings).getSingle();

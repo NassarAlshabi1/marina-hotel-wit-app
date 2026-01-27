@@ -22,32 +22,48 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
   String get tableName => 'employees';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json,
-      {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
-        createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
+      createdAtEpoch: createdAt,
+      lastModifiedEpoch: lastModified,
+    );
   }
 
   @override
-  EmployeesCompanion fromJson(Map<String, dynamic> json,
-      {required Source src, required ResolveResult refs}) {
+  EmployeesCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ??
+    final lastModified =
+        refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
     return EmployeesCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ??
-          _asString(json, 'local_uuid', src) ??
-          IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
       name: _vStr(json, 'name', src, fallback: ''),
-      basicSalary: _vDouble(json, 'basicSalary', src,
-          altKey: 'basic_salary', fallback: 0.0),
+      basicSalary: _vDouble(
+        json,
+        'basicSalary',
+        src,
+        altKey: 'basic_salary',
+        fallback: 0.0,
+      ),
       position: _vStr(json, 'position', src, fallback: 'موظف'),
       phone: _vStr(json, 'phone', src, fallback: ''),
       hireDate: _vStr(json, 'hireDate', src, altKey: 'hire_date', fallback: ''),
@@ -60,12 +76,21 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch:
-          _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src,
-          altKey: 'vector_clock', fallback: '{}'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
     );
   }
 
@@ -92,25 +117,43 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
   }
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src,
-    {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ??
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src,
-    {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ??
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src,
-    {String? altKey, double? fallback}) {
-  final v = _asDouble(json, key, src) ??
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
       (altKey != null ? _asDouble(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);

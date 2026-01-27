@@ -86,8 +86,8 @@ class SimpleNotesRepository {
   // مراقبة التغييرات
   Stream<List<adapter.ShiftNote>> watchAllNotes() {
     return dao.watchAllNotes().map(
-          (dbNotes) => dbNotes.map(_convertToModel).toList(),
-        );
+      (dbNotes) => dbNotes.map(_convertToModel).toList(),
+    );
   }
 
   Stream<int> watchUnreadCount() => dao.watchUnreadCount();
@@ -97,15 +97,15 @@ class SimpleNotesRepository {
     final priority = dbNote.priority == 'high'
         ? adapter.NotePriority.high
         : dbNote.priority == 'medium'
-            ? adapter.NotePriority.medium
-            : adapter.NotePriority.low;
+        ? adapter.NotePriority.medium
+        : adapter.NotePriority.low;
     final shiftType = dbNote.shiftType == 'morning'
         ? adapter.ShiftType.morning
         : dbNote.shiftType == 'evening'
-            ? adapter.ShiftType.evening
-            : dbNote.shiftType == 'night'
-                ? adapter.ShiftType.night
-                : adapter.ShiftType.all;
+        ? adapter.ShiftType.evening
+        : dbNote.shiftType == 'night'
+        ? adapter.ShiftType.night
+        : adapter.ShiftType.all;
 
     return adapter.ShiftNote(
       id: dbNote.id.toString(),

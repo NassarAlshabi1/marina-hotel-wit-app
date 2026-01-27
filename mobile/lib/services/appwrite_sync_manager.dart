@@ -417,10 +417,10 @@ class AppwriteSyncManager {
         'syncType': push && pull
             ? 'full'
             : push
-                ? 'push'
-                : pull
-                    ? 'pull'
-                    : 'noop',
+            ? 'push'
+            : pull
+            ? 'pull'
+            : 'noop',
         'startTime': startTime.toIso8601String(),
         'status': SyncLogStatus.inProgress.value,
         'action': 'sync_start',
@@ -713,19 +713,21 @@ class AppwriteSyncManager {
         'totalSyncs': totalSyncs,
         'successfulSyncs': successfulSyncs,
         'failedSyncs': failedSyncs,
-        'successRate':
-            totalSyncs > 0 ? (successfulSyncs / totalSyncs * 100) : 0.0,
+        'successRate': totalSyncs > 0
+            ? (successfulSyncs / totalSyncs * 100)
+            : 0.0,
         'totalRecordsPushed': totalRecordsPushed,
         'totalRecordsPulled': totalRecordsPulled,
         'totalConflicts': totalConflicts,
         'lastSyncTime': _lastSyncTime?.toIso8601String(),
         'outboxCount': outboxCount,
-        'lastErrorMessage':
-            lastFailed != null ? (lastFailed['errorMessage'] ?? '') : null,
+        'lastErrorMessage': lastFailed != null
+            ? (lastFailed['errorMessage'] ?? '')
+            : null,
         'lastErrorTime': lastFailed != null
             ? (lastFailed['timestamp'] ??
-                lastFailed['endTime'] ??
-                lastFailed['startTime'])
+                  lastFailed['endTime'] ??
+                  lastFailed['startTime'])
             : null,
         'timeline': timeline,
       };
@@ -785,8 +787,10 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.bookings
-            .upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.bookings.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
@@ -802,8 +806,10 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.employees
-            .upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.employees.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync employee ${doc.$id}: $e', tag: 'SYNC');
@@ -819,8 +825,10 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.expenses
-            .upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.expenses.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync expense ${doc.$id}: $e', tag: 'SYNC');
@@ -836,8 +844,10 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.payments
-            .upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.payments.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
@@ -861,7 +871,6 @@ class AppwriteSyncManager {
     }
     return processed;
   }
-
 
   int _asInt(dynamic value, {int fallback = 0}) {
     final result = _asIntNullable(value);
@@ -1093,36 +1102,31 @@ class AppwriteSyncManager {
   Future<Room?> _getRoomByLocalUuid(String localUuid) {
     return (database.select(
       database.rooms,
-    )..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Booking?> _getBookingByLocalUuid(String localUuid) {
     return (database.select(
       database.bookings,
-    )..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Expense?> _getExpenseByLocalUuid(String localUuid) {
     return (database.select(
       database.expenses,
-    )..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Payment?> _getPaymentByLocalUuid(String localUuid) {
     return (database.select(
       database.payments,
-    )..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Debt?> _getDebtByLocalUuid(String localUuid) {
     return (database.select(
       database.debts,
-    )..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Map<String, dynamic> _roomToRemote(Room room) {

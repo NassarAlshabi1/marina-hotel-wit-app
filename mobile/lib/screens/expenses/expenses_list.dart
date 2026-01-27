@@ -360,8 +360,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
     final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedDate =
-        date.text.trim().isEmpty ? Time.hotelDayKey() : date.text.trim();
+    final trimmedDate = date.text.trim().isEmpty
+        ? Time.hotelDayKey()
+        : date.text.trim();
     final isSalaryExpense = selectedType == _salaryType;
     final savedType = isSalaryExpense
         ? _deriveSalaryExpenseType(dialogSalaryAction)

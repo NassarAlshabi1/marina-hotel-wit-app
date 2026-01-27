@@ -9,7 +9,8 @@ class Seeder {
   Future<void> seedIfEmpty() async {
     final roomsCount =
         (await db.customSelect('SELECT COUNT(*) c FROM rooms').getSingle())
-            .data['c'] as int;
+                .data['c']
+            as int;
     if (roomsCount > 0) return;
     final now = DateTime.now();
 
@@ -88,7 +89,9 @@ class Seeder {
 
     for (final r in roomsCompanions) {
       final t = Time.nowEpoch();
-      await db.into(db.rooms).insert(
+      await db
+          .into(db.rooms)
+          .insert(
             r.copyWith(
               createdAt: d.Value(t),
               updatedAt: d.Value(t),
@@ -99,7 +102,9 @@ class Seeder {
           );
     }
 
-    final b1 = await db.into(db.bookings).insert(
+    final b1 = await db
+        .into(db.bookings)
+        .insert(
           BookingsCompanion(
             roomNumber: d.Value('102'),
             guestName: d.Value('محمد علي'),
@@ -122,7 +127,9 @@ class Seeder {
           ),
         );
 
-    final b2 = await db.into(db.bookings).insert(
+    final b2 = await db
+        .into(db.bookings)
+        .insert(
           BookingsCompanion(
             roomNumber: d.Value('202'),
             guestName: d.Value('فايز صالح'),
@@ -143,7 +150,9 @@ class Seeder {
           ),
         );
 
-    await db.into(db.employees).insert(
+    await db
+        .into(db.employees)
+        .insert(
           EmployeesCompanion(
             name: d.Value('محمد احمد'),
             basicSalary: d.Value(0),
@@ -156,7 +165,9 @@ class Seeder {
             origin: const d.Value('local'),
           ),
         );
-    await db.into(db.employees).insert(
+    await db
+        .into(db.employees)
+        .insert(
           EmployeesCompanion(
             name: d.Value('عبدالله طه'),
             basicSalary: d.Value(0),
@@ -169,7 +180,9 @@ class Seeder {
             origin: const d.Value('local'),
           ),
         );
-    await db.into(db.employees).insert(
+    await db
+        .into(db.employees)
+        .insert(
           EmployeesCompanion(
             name: d.Value('عمار الشوب'),
             basicSalary: d.Value(0),
@@ -183,7 +196,9 @@ class Seeder {
           ),
         );
 
-    await db.into(db.expenses).insert(
+    await db
+        .into(db.expenses)
+        .insert(
           ExpensesCompanion(
             expenseType: d.Value('utilities'),
             description: d.Value('فاتورة كهرباء'),
@@ -199,7 +214,9 @@ class Seeder {
             origin: const d.Value('local'),
           ),
         );
-    await db.into(db.expenses).insert(
+    await db
+        .into(db.expenses)
+        .insert(
           ExpensesCompanion(
             expenseType: d.Value('other'),
             description: d.Value('ديزل'),
@@ -216,7 +233,9 @@ class Seeder {
           ),
         );
 
-    await db.into(db.cashTransactions).insert(
+    await db
+        .into(db.cashTransactions)
+        .insert(
           CashTransactionsCompanion(
             transactionType: d.Value('income'),
             amount: d.Value(640000),
@@ -231,7 +250,9 @@ class Seeder {
             origin: const d.Value('local'),
           ),
         );
-    await db.into(db.cashTransactions).insert(
+    await db
+        .into(db.cashTransactions)
+        .insert(
           CashTransactionsCompanion(
             transactionType: d.Value('income'),
             amount: d.Value(45000),
@@ -247,7 +268,9 @@ class Seeder {
           ),
         );
 
-    await db.into(db.payments).insert(
+    await db
+        .into(db.payments)
+        .insert(
           PaymentsCompanion(
             bookingLocalId: d.Value(b1),
             amount: d.Value(90000),
@@ -262,7 +285,9 @@ class Seeder {
             origin: const d.Value('local'),
           ),
         );
-    await db.into(db.payments).insert(
+    await db
+        .into(db.payments)
+        .insert(
           PaymentsCompanion(
             bookingLocalId: d.Value(b2),
             amount: d.Value(15000),
@@ -278,7 +303,9 @@ class Seeder {
           ),
         );
 
-    await db.into(db.debts).insert(
+    await db
+        .into(db.debts)
+        .insert(
           DebtsCompanion(
             bookingLocalId: d.Value(b1),
             guestName: d.Value('محمد علي'),

@@ -23,20 +23,20 @@ class SyncQueueItem {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'screenId': screenId,
-        'data': data,
-        'createdAt': createdAt.toIso8601String(),
-        'attempts': attempts,
-      };
+    'id': id,
+    'screenId': screenId,
+    'data': data,
+    'createdAt': createdAt.toIso8601String(),
+    'attempts': attempts,
+  };
 
   factory SyncQueueItem.fromJson(Map<String, dynamic> json) => SyncQueueItem(
-        id: json['id'],
-        screenId: json['screenId'],
-        data: json['data'],
-        createdAt: DateTime.parse(json['createdAt']),
-        attempts: json['attempts'] ?? 0,
-      );
+    id: json['id'],
+    screenId: json['screenId'],
+    data: json['data'],
+    createdAt: DateTime.parse(json['createdAt']),
+    attempts: json['attempts'] ?? 0,
+  );
 }
 
 class QueueStats {
