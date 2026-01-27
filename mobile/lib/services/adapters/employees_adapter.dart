@@ -45,16 +45,13 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
           _asString(json, 'local_uuid', src) ??
           IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
-      name: _vStr(json, 'name', src) ?? const d.Value.absent(),
-      basicSalary: _vDouble(json, 'basicSalary', src) ??
-          _vDouble(json, 'basic_salary', src) ??
-          const d.Value(0.0),
-      position: _vStr(json, 'position', src) ?? const d.Value(''),
-      phone: _vStr(json, 'phone', src) ?? const d.Value(''),
-      hireDate: _vStr(json, 'hireDate', src) ??
-          _vStr(json, 'hire_date', src) ??
-          const d.Value(''),
-      status: _vStr(json, 'status', src) ?? const d.Value(''),
+      name: _vStr(json, 'name', src, fallback: ''),
+      basicSalary: _vDouble(json, 'basicSalary', src,
+          altKey: 'basic_salary', fallback: 0.0),
+      position: _vStr(json, 'position', src, fallback: 'موظف'),
+      phone: _vStr(json, 'phone', src, fallback: ''),
+      hireDate: _vStr(json, 'hireDate', src, altKey: 'hire_date', fallback: ''),
+      status: _vStr(json, 'status', src, fallback: ''),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -62,14 +59,13 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
-      createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
+      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
       lastModifiedEpoch:
-          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
-      version: _vInt(json, 'version', src) ?? const d.Value(1),
-      origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ??
-          _vStr(json, 'vector_clock', src) ??
-          const d.Value('{}'),
+          _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
+      version: _vInt(json, 'version', src, fallback: 1),
+      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(json, 'vectorClock', src,
+          altKey: 'vector_clock', fallback: '{}'),
     );
   }
 
@@ -96,18 +92,35 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
   }
 }
 
-d.Value<int?> _vInt(Map<String, dynamic> json, String key, Source src) {
-  final v = _asInt(json, key, src);
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, int? fallback}) {
+  final v = _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String?> _vStr(Map<String, dynamic> json, String key, Source src) {
-  final v = _asString(json, key, src);
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, String? fallback}) {
+  final v = _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double?> _vDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _asDouble(json, key, src);
+d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, double? fallback}) {
+  final v = _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, bool? fallback}) {
+  final v = _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -133,6 +146,18 @@ double? _asDouble(Map<String, dynamic> json, String key, Source src) {
   if (v is int) return v.toDouble();
   if (v is num) return v.toDouble();
   if (v is String) return double.tryParse(v);
+  return null;
+}
+
+bool? _asBool(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v is bool) return v;
+  if (v is num) return v != 0;
+  if (v is String) {
+    final t = v.toLowerCase();
+    if (t == 'true' || t == '1') return true;
+    if (t == 'false' || t == '0') return false;
+  }
   return null;
 }
 

@@ -59,50 +59,42 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
           IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
       serverPaymentId:
-          _vInt(json, 'serverPaymentId', src) ?? _vInt(json, 'payment_id', src),
+          _vInt(json, 'serverPaymentId', src, altKey: 'payment_id'),
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId)
-          : _vInt(json, 'bookingLocalId', src) ??
-              _vInt(json, 'booking_local_id', src),
+          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
       serverBookingId:
-          _vInt(json, 'serverBookingId', src) ?? _vInt(json, 'booking_id', src),
-      roomNumber:
-          _vStr(json, 'roomNumber', src) ?? _vStr(json, 'room_number', src),
-      amount: _vDouble(json, 'amount', src) ?? const d.Value(0.0),
-      paymentDate: _vStr(json, 'paymentDate', src) ??
-          _vStr(json, 'payment_date', src) ??
-          const d.Value(''),
+          _vInt(json, 'serverBookingId', src, altKey: 'booking_id'),
+      roomNumber: _vStr(json, 'roomNumber', src, altKey: 'room_number'),
+      amount: _vDouble(json, 'amount', src, fallback: 0.0),
+      paymentDate:
+          _vStr(json, 'paymentDate', src, altKey: 'payment_date', fallback: ''),
       notes: _vStr(json, 'notes', src),
-      paymentMethod: _vStr(json, 'paymentMethod', src) ??
-          _vStr(json, 'payment_method', src) ??
-          const d.Value(''),
-      revenueType: _vStr(json, 'revenueType', src) ??
-          _vStr(json, 'revenue_type', src) ??
-          const d.Value(''),
-      cashTransactionLocalId: _vInt(json, 'cashTransactionLocalId', src) ??
-          _vInt(json, 'cash_transaction_local_id', src),
-      cashTransactionServerId: _vInt(json, 'cashTransactionServerId', src) ??
-          _vInt(json, 'cash_transaction_id', src),
+      paymentMethod: _vStr(json, 'paymentMethod', src,
+          altKey: 'payment_method', fallback: ''),
+      revenueType:
+          _vStr(json, 'revenueType', src, altKey: 'revenue_type', fallback: ''),
+      cashTransactionLocalId: _vInt(json, 'cashTransactionLocalId', src,
+          altKey: 'cash_transaction_local_id'),
+      cashTransactionServerId: _vInt(json, 'cashTransactionServerId', src,
+          altKey: 'cash_transaction_id'),
       referenceNumber: _vStr(json, 'referenceNumber', src),
       hotelDayKey:
-          _vStr(json, 'hotelDayKey', src) ?? _vStr(json, 'hotel_day_key', src),
-      isPendingBalance:
-          _vBool(json, 'isPendingBalance', src) ?? const d.Value(false),
-      linkedDebtUuid: _vStr(json, 'linkedDebtUuid', src) ??
-          _vStr(json, 'linked_debt_uuid', src),
+          _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
+      isPendingBalance: _vBool(json, 'isPendingBalance', src, fallback: false),
+      linkedDebtUuid:
+          _vStr(json, 'linkedDebtUuid', src, altKey: 'linked_debt_uuid'),
       bookingUuidCache: refs.bookingUuidCache != null
           ? d.Value(refs.bookingUuidCache)
-          : _vStr(json, 'bookingUuidCache', src) ??
-              _vStr(json, 'booking_uuid_cache', src),
+          : _vStr(json, 'bookingUuidCache', src, altKey: 'booking_uuid_cache'),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
       lastModified: d.Value(lastModified),
-      version: _vInt(json, 'version', src) ?? const d.Value(1),
-      origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ??
-          _vStr(json, 'vector_clock', src) ??
-          const d.Value('{}'),
+      version: _vInt(json, 'version', src, fallback: 1),
+      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(json, 'vectorClock', src,
+          altKey: 'vector_clock', fallback: '{}'),
     );
   }
 
@@ -141,23 +133,35 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   }
 }
 
-d.Value<int?> _vInt(Map<String, dynamic> json, String key, Source src) {
-  final v = _asInt(json, key, src);
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, int? fallback}) {
+  final v = _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String?> _vStr(Map<String, dynamic> json, String key, Source src) {
-  final v = _asString(json, key, src);
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, String? fallback}) {
+  final v = _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double?> _vDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _asDouble(json, key, src);
+d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, double? fallback}) {
+  final v = _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool?> _vBool(Map<String, dynamic> json, String key, Source src) {
-  final v = _asBool(json, key, src);
+d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, bool? fallback}) {
+  final v = _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 

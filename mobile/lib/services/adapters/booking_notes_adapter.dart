@@ -61,15 +61,13 @@ class BookingNotesAdapter
           _asInt(json, 'bookingId', src) ??
           _asInt(json, 'booking_id', src) ??
           0),
-      noteText: _vStr(json, 'noteText', src, fallback: '') ??
-          _vStr(json, 'note_text', src, fallback: '') ??
-          const d.Value(''),
-      alertType: _vStr(json, 'alertType', src, fallback: '') ??
-          _vStr(json, 'alert_type', src, fallback: '') ??
-          const d.Value(''),
+      noteText:
+          _vStr(json, 'noteText', src, altKey: 'note_text', fallback: ''),
+      alertType:
+          _vStr(json, 'alertType', src, altKey: 'alert_type', fallback: ''),
       alertUntil:
-          _vStr(json, 'alertUntil', src) ?? _vStr(json, 'alert_until', src),
-      isActive: _vInt(json, 'isActive', src) ?? const d.Value(1),
+          _vStr(json, 'alertUntil', src, altKey: 'alert_until'),
+      isActive: _vInt(json, 'isActive', src, fallback: 1),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -77,14 +75,13 @@ class BookingNotesAdapter
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
-      createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
+      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
       lastModifiedEpoch:
-          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
-      version: _vInt(json, 'version', src) ?? const d.Value(1),
-      origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ??
-          _vStr(json, 'vector_clock', src) ??
-          const d.Value('{}'),
+          _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
+      version: _vInt(json, 'version', src, fallback: 1),
+      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(json, 'vectorClock', src,
+          altKey: 'vector_clock', fallback: '{}'),
     );
   }
 
@@ -110,14 +107,19 @@ class BookingNotesAdapter
   }
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src) {
-  final v = _asInt(json, key, src);
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, int? fallback}) {
+  final v = _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
 d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src,
-    {String? fallback}) {
-  final v = _asString(json, key, src) ?? fallback;
+    {String? altKey, String? fallback}) {
+  final v = _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 

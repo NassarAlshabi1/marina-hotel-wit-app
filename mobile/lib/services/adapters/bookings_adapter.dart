@@ -92,16 +92,15 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
           _vStr(json, 'checkoutDate', src) ?? _vStr(json, 'checkout_date', src),
       actualCheckout: _vStr(json, 'actualCheckout', src) ??
           _vStr(json, 'actual_checkout', src),
-      status: _vStr(json, 'status', src, fallback: '') ?? const d.Value(''),
+      status: _vStr(json, 'status', src, fallback: ''),
       notes: _vStr(json, 'notes', src),
-      expectedNights: _vInt(json, 'expectedNights', src) ??
-          _vInt(json, 'expected_nights', src) ??
-          const d.Value.absent(),
-      calculatedNights: _vInt(json, 'calculatedNights', src) ??
-          _vInt(json, 'calculated_nights', src),
+      expectedNights: _vInt(json, 'expectedNights', src,
+          altKey: 'expected_nights', fallback: 1),
+      calculatedNights: _vInt(json, 'calculatedNights', src,
+          altKey: 'calculated_nights'),
       totalNightsCached: _vInt(json, 'totalNightsCached', src),
-      stayDurationIso: _vStr(json, 'stayDurationIso', src) ??
-          _vStr(json, 'stay_duration_iso', src),
+      stayDurationIso: _vStr(json, 'stayDurationIso', src,
+          altKey: 'stay_duration_iso'),
       lastNightEpoch: _vInt(json, 'lastNightEpoch', src),
       isOverdue: _vBool(json, 'isOverdue', src),
       needsCheckoutReview: _vBool(json, 'needsCheckoutReview', src),
@@ -109,10 +108,10 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       totalPaidCached: _vDouble(json, 'totalPaidCached', src),
       remainingBalanceCached: _vDouble(json, 'remainingBalanceCached', src),
       isFullyPaid: _vBool(json, 'isFullyPaid', src),
-      hotelDayCheckin: _vStr(json, 'hotelDayCheckin', src) ??
-          _vStr(json, 'hotel_day_checkin', src),
-      hotelDayCheckout: _vStr(json, 'hotelDayCheckout', src) ??
-          _vStr(json, 'hotel_day_checkout', src),
+      hotelDayCheckin: _vStr(json, 'hotelDayCheckin', src,
+          altKey: 'hotel_day_checkin'),
+      hotelDayCheckout: _vStr(json, 'hotelDayCheckout', src,
+          altKey: 'hotel_day_checkout'),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -120,14 +119,14 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
-      createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
+      createdAtEpoch:
+          _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
       lastModifiedEpoch:
-          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
-      version: _vInt(json, 'version', src) ?? const d.Value(1),
-      origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ??
-          _vStr(json, 'vector_clock', src) ??
-          const d.Value('{}'),
+          _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
+      version: _vInt(json, 'version', src, fallback: 1),
+      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(json, 'vectorClock', src,
+          altKey: 'vector_clock', fallback: '{}'),
     );
   }
 
@@ -182,26 +181,35 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
   }
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src) {
-  final v = _asInt(json, key, src);
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, int? fallback}) {
+  final v = _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
 d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src,
-    {String? fallback}) {
-  final v = _asString(json, key, src) ?? fallback;
+    {String? altKey, String? fallback}) {
+  final v = _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
 d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src,
-    {double? fallback}) {
-  final v = _asDouble(json, key, src) ?? fallback;
+    {String? altKey, double? fallback}) {
+  final v = _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
 d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src,
-    {bool? fallback}) {
-  final v = _asBool(json, key, src) ?? fallback;
+    {String? altKey, bool? fallback}) {
+  final v = _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
