@@ -74,7 +74,7 @@ class AppwriteSyncManager {
   AppwriteSyncManager._internal({
     required this.appwriteService,
     required this.database,
-  })  : outboxDao = OutboxDao(database) {
+  }) : outboxDao = OutboxDao(database) {
     _adapterRegistry = AdapterRegistry(database);
   }
 
@@ -786,7 +786,8 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.bookings.upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.bookings
+            .upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
@@ -802,7 +803,8 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.employees.upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.employees
+            .upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync employee ${doc.$id}: $e', tag: 'SYNC');
@@ -818,7 +820,8 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.expenses.upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.expenses
+            .upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync expense ${doc.$id}: $e', tag: 'SYNC');
@@ -834,7 +837,8 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.payments.upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.payments
+            .upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');

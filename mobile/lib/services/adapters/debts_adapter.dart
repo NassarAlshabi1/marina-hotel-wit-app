@@ -22,11 +22,17 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
   String get tableName => 'debts';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
-    final bookingUuid = _asString(json, 'bookingUuidCache', src) ?? _asString(json, 'booking_uuid_cache', src) ?? _asString(json, 'booking_uuid', src);
-    final serverBookingId = _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
-    final localId = _asInt(json, 'bookingLocalId', src) ?? _asInt(json, 'booking_local_id', src);
-    final resolvedId = await resolver.resolveBooking(localId: localId, serverId: serverBookingId, uuid: bookingUuid);
+  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json,
+      {required Source src}) async {
+    final bookingUuid = _asString(json, 'bookingUuidCache', src) ??
+        _asString(json, 'booking_uuid_cache', src) ??
+        _asString(json, 'booking_uuid', src);
+    final serverBookingId =
+        _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
+    final localId = _asInt(json, 'bookingLocalId', src) ??
+        _asInt(json, 'booking_local_id', src);
+    final resolvedId = await resolver.resolveBooking(
+        localId: localId, serverId: serverBookingId, uuid: bookingUuid);
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -38,33 +44,62 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
   }
 
   @override
-  DebtsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  DebtsCompanion fromJson(Map<String, dynamic> json,
+      {required Source src, required ResolveResult refs}) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified = refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     return DebtsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(_asString(json, 'localUuid', src) ??
+          _asString(json, 'local_uuid', src) ??
+          IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
-      bookingLocalId: refs.bookingLocalId != null ? d.Value(refs.bookingLocalId) : _vInt(json, 'bookingLocalId', src) ?? _vInt(json, 'booking_local_id', src),
+      bookingLocalId: refs.bookingLocalId != null
+          ? d.Value(refs.bookingLocalId)
+          : _vInt(json, 'bookingLocalId', src) ??
+              _vInt(json, 'booking_local_id', src),
       guestName: _vStr(json, 'guestName', src) ?? const d.Value.absent(),
-      checkinDate: _vStr(json, 'checkinDate', src) ?? _vStr(json, 'checkin_date', src) ?? const d.Value.absent(),
-      checkoutDate: _vStr(json, 'checkoutDate', src) ?? _vStr(json, 'checkout_date', src) ?? const d.Value.absent(),
-      dateRecorded: _vStr(json, 'dateRecorded', src) ?? _vStr(json, 'date_recorded', src) ?? const d.Value(''),
-      debtReason: _vStr(json, 'debtReason', src) ?? _vStr(json, 'debt_reason', src) ?? const d.Value(''),
-      totalAmount: _vDouble(json, 'totalAmount', src) ?? _vDouble(json, 'total_amount', src) ?? const d.Value(0.0),
-      paidAmount: _vDouble(json, 'paidAmount', src) ?? _vDouble(json, 'paid_amount', src) ?? const d.Value(0.0),
-      remainingAmount: _vDouble(json, 'remainingAmount', src) ?? _vDouble(json, 'remaining_amount', src) ?? const d.Value(0.0),
-      paymentDate: _vStr(json, 'paymentDate', src) ?? _vStr(json, 'payment_date', src) ?? const d.Value(''),
+      checkinDate: _vStr(json, 'checkinDate', src) ??
+          _vStr(json, 'checkin_date', src) ??
+          const d.Value.absent(),
+      checkoutDate: _vStr(json, 'checkoutDate', src) ??
+          _vStr(json, 'checkout_date', src) ??
+          const d.Value.absent(),
+      dateRecorded: _vStr(json, 'dateRecorded', src) ??
+          _vStr(json, 'date_recorded', src) ??
+          const d.Value(''),
+      debtReason: _vStr(json, 'debtReason', src) ??
+          _vStr(json, 'debt_reason', src) ??
+          const d.Value(''),
+      totalAmount: _vDouble(json, 'totalAmount', src) ??
+          _vDouble(json, 'total_amount', src) ??
+          const d.Value(0.0),
+      paidAmount: _vDouble(json, 'paidAmount', src) ??
+          _vDouble(json, 'paid_amount', src) ??
+          const d.Value(0.0),
+      remainingAmount: _vDouble(json, 'remainingAmount', src) ??
+          _vDouble(json, 'remaining_amount', src) ??
+          const d.Value(0.0),
+      paymentDate: _vStr(json, 'paymentDate', src) ??
+          _vStr(json, 'payment_date', src) ??
+          const d.Value(''),
       isSettled: _vInt(json, 'isSettled', src) ?? const d.Value(0),
       pledge: _vStr(json, 'pledge', src),
-      pledgeType: _vStr(json, 'pledgeType', src) ?? _vStr(json, 'pledge_type', src),
+      pledgeType:
+          _vStr(json, 'pledgeType', src) ?? _vStr(json, 'pledge_type', src),
       note: _vStr(json, 'note', src),
       debtUuid: _vStr(json, 'debtUuid', src) ?? _vStr(json, 'debt_uuid', src),
-      hotelDayOpened: _vStr(json, 'hotelDayOpened', src) ?? _vStr(json, 'hotel_day_opened', src),
-      hotelDayClosed: _vStr(json, 'hotelDayClosed', src) ?? _vStr(json, 'hotel_day_closed', src),
+      hotelDayOpened: _vStr(json, 'hotelDayOpened', src) ??
+          _vStr(json, 'hotel_day_opened', src),
+      hotelDayClosed: _vStr(json, 'hotelDayClosed', src) ??
+          _vStr(json, 'hotel_day_closed', src),
       isFromAutoFix: _vBool(json, 'isFromAutoFix', src) ?? const d.Value(false),
-      settlementConfirmed: _vBool(json, 'settlementConfirmed', src) ?? const d.Value(false),
+      settlementConfirmed:
+          _vBool(json, 'settlementConfirmed', src) ?? const d.Value(false),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -73,10 +108,13 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
-      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
+      lastModifiedEpoch:
+          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
       version: _vInt(json, 'version', src) ?? const d.Value(1),
       origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ?? _vStr(json, 'vector_clock', src) ?? const d.Value('{}'),
+      vectorClock: _vStr(json, 'vectorClock', src) ??
+          _vStr(json, 'vector_clock', src) ??
+          const d.Value('{}'),
     );
   }
 
@@ -104,7 +142,8 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'hotelDayOpened', 'hotel_day_opened'): model.hotelDayOpened,
       _k(src, 'hotelDayClosed', 'hotel_day_closed'): model.hotelDayClosed,
       _k(src, 'isFromAutoFix', 'is_from_auto_fix'): model.isFromAutoFix,
-      _k(src, 'settlementConfirmed', 'settlement_confirmed'): model.settlementConfirmed,
+      _k(src, 'settlementConfirmed', 'settlement_confirmed'):
+          model.settlementConfirmed,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
@@ -186,7 +225,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

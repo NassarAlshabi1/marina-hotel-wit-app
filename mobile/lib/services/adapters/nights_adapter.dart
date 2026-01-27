@@ -8,7 +8,8 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> {
+class NightsAdapter
+    extends EntityAdapter<BookingNight, BookingNightsCompanion> {
   NightsAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -22,11 +23,17 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
   String get tableName => 'booking_nights';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
-    final bookingUuid = _asString(json, 'bookingUuidCache', src) ?? _asString(json, 'booking_uuid_cache', src) ?? _asString(json, 'booking_uuid', src);
-    final serverBookingId = _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
-    final localId = _asInt(json, 'bookingLocalId', src) ?? _asInt(json, 'booking_local_id', src);
-    final resolvedId = await resolver.resolveBooking(localId: localId, serverId: serverBookingId, uuid: bookingUuid);
+  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json,
+      {required Source src}) async {
+    final bookingUuid = _asString(json, 'bookingUuidCache', src) ??
+        _asString(json, 'booking_uuid_cache', src) ??
+        _asString(json, 'booking_uuid', src);
+    final serverBookingId =
+        _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
+    final localId = _asInt(json, 'bookingLocalId', src) ??
+        _asInt(json, 'booking_local_id', src);
+    final resolvedId = await resolver.resolveBooking(
+        localId: localId, serverId: serverBookingId, uuid: bookingUuid);
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -38,21 +45,39 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
   }
 
   @override
-  BookingNightsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  BookingNightsCompanion fromJson(Map<String, dynamic> json,
+      {required Source src, required ResolveResult refs}) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified = refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     return BookingNightsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(_asString(json, 'localUuid', src) ??
+          _asString(json, 'local_uuid', src) ??
+          IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
-      bookingLocalId: refs.bookingLocalId != null ? d.Value(refs.bookingLocalId) : _vInt(json, 'bookingLocalId', src) ?? _vInt(json, 'booking_local_id', src),
-      hotelDayKey: _vStr(json, 'hotelDayKey', src) ?? _vStr(json, 'hotel_day_key', src) ?? const d.Value.absent(),
-      nightStart: _vStr(json, 'nightStart', src) ?? _vStr(json, 'night_start', src) ?? const d.Value.absent(),
-      nightEnd: _vStr(json, 'nightEnd', src) ?? _vStr(json, 'night_end', src) ?? const d.Value.absent(),
-      nightlyRate: _vDouble(json, 'nightlyRate', src) ?? _vDouble(json, 'nightly_rate', src) ?? const d.Value(0.0),
+      bookingLocalId: refs.bookingLocalId != null
+          ? d.Value(refs.bookingLocalId)
+          : _vInt(json, 'bookingLocalId', src) ??
+              _vInt(json, 'booking_local_id', src),
+      hotelDayKey: _vStr(json, 'hotelDayKey', src) ??
+          _vStr(json, 'hotel_day_key', src) ??
+          const d.Value.absent(),
+      nightStart: _vStr(json, 'nightStart', src) ??
+          _vStr(json, 'night_start', src) ??
+          const d.Value.absent(),
+      nightEnd: _vStr(json, 'nightEnd', src) ??
+          _vStr(json, 'night_end', src) ??
+          const d.Value.absent(),
+      nightlyRate: _vDouble(json, 'nightlyRate', src) ??
+          _vDouble(json, 'nightly_rate', src) ??
+          const d.Value(0.0),
       sequence: _vInt(json, 'sequence', src) ?? const d.Value(0),
-      isProcessedByAutoFix: _vBool(json, 'isProcessedByAutoFix', src) ?? const d.Value(false),
+      isProcessedByAutoFix:
+          _vBool(json, 'isProcessedByAutoFix', src) ?? const d.Value(false),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -61,10 +86,13 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
-      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
+      lastModifiedEpoch:
+          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
       version: _vInt(json, 'version', src) ?? const d.Value(1),
       origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ?? _vStr(json, 'vector_clock', src) ?? const d.Value('{}'),
+      vectorClock: _vStr(json, 'vectorClock', src) ??
+          _vStr(json, 'vector_clock', src) ??
+          const d.Value('{}'),
     );
   }
 
@@ -80,7 +108,8 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
       _k(src, 'nightEnd', 'night_end'): model.nightEnd,
       _k(src, 'nightlyRate', 'nightly_rate'): model.nightlyRate,
       _k(src, 'sequence', 'sequence'): model.sequence,
-      _k(src, 'isProcessedByAutoFix', 'is_processed_by_auto_fix'): model.isProcessedByAutoFix,
+      _k(src, 'isProcessedByAutoFix', 'is_processed_by_auto_fix'):
+          model.isProcessedByAutoFix,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
@@ -162,7 +191,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

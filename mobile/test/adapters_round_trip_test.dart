@@ -34,8 +34,8 @@ void main() {
 
     final refs = await adapters.payments.adapter
         .resolveRefs(db, json, src: Source.drive);
-    final comp = adapters.payments.adapter
-        .fromJson(json, src: Source.drive, refs: refs);
+    final comp =
+        adapters.payments.adapter.fromJson(json, src: Source.drive, refs: refs);
     await db.into(db.payments).insert(comp);
 
     final row = await db.select(db.payments).getSingle();

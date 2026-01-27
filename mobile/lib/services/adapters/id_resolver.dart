@@ -4,7 +4,8 @@ class IdResolver {
   IdResolver(this.db);
   final AppDatabase db;
 
-  Future<int?> resolveBooking({int? localId, int? serverId, String? uuid}) async {
+  Future<int?> resolveBooking(
+      {int? localId, int? serverId, String? uuid}) async {
     if (uuid != null && uuid.isNotEmpty) {
       final row = await (db.select(db.bookings)
             ..where((b) => b.localUuid.equals(uuid))

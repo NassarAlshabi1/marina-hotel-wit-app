@@ -373,7 +373,8 @@ class GoogleDriveDeltaSync {
         await registry.salaryCycles.upsertFromJson(payload, src: Source.drive);
         break;
       case 'salary_payments':
-        await registry.salaryPayments.upsertFromJson(payload, src: Source.drive);
+        await registry.salaryPayments
+            .upsertFromJson(payload, src: Source.drive);
         break;
       case 'cash_transactions':
         await _applyCashTransactionChange(db, localUuid, operation, payload);

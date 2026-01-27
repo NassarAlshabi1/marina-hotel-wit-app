@@ -8,7 +8,8 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class BookingNotesAdapter extends EntityAdapter<BookingNote, BookingNotesCompanion> {
+class BookingNotesAdapter
+    extends EntityAdapter<BookingNote, BookingNotesCompanion> {
   BookingNotesAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -22,10 +23,15 @@ class BookingNotesAdapter extends EntityAdapter<BookingNote, BookingNotesCompani
   String get tableName => 'booking_notes';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
-    final bookingUuid = _asString(json, 'bookingUuidCache', src) ?? _asString(json, 'booking_uuid_cache', src) ?? _asString(json, 'booking_uuid', src);
-    final bookingLocalId = _asInt(json, 'bookingId', src) ?? _asInt(json, 'booking_id', src);
-    final resolvedId = await resolver.resolveBooking(localId: bookingLocalId, serverId: null, uuid: bookingUuid);
+  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json,
+      {required Source src}) async {
+    final bookingUuid = _asString(json, 'bookingUuidCache', src) ??
+        _asString(json, 'booking_uuid_cache', src) ??
+        _asString(json, 'booking_uuid', src);
+    final bookingLocalId =
+        _asInt(json, 'bookingId', src) ?? _asInt(json, 'booking_id', src);
+    final resolvedId = await resolver.resolveBooking(
+        localId: bookingLocalId, serverId: null, uuid: bookingUuid);
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -37,18 +43,31 @@ class BookingNotesAdapter extends EntityAdapter<BookingNote, BookingNotesCompani
   }
 
   @override
-  BookingNotesCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  BookingNotesCompanion fromJson(Map<String, dynamic> json,
+      {required Source src, required ResolveResult refs}) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified = refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     return BookingNotesCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(_asString(json, 'localUuid', src) ??
+          _asString(json, 'local_uuid', src) ??
+          IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
-      bookingId: refs.bookingLocalId != null ? d.Value(refs.bookingLocalId!) : _vInt(json, 'bookingId', src) ?? _vInt(json, 'booking_id', src),
-      noteText: _vStr(json, 'noteText', src) ?? _vStr(json, 'note_text', src) ?? const d.Value(''),
-      alertType: _vStr(json, 'alertType', src) ?? _vStr(json, 'alert_type', src) ?? const d.Value(''),
-      alertUntil: _vStr(json, 'alertUntil', src) ?? _vStr(json, 'alert_until', src),
+      bookingId: refs.bookingLocalId != null
+          ? d.Value(refs.bookingLocalId!)
+          : _vInt(json, 'bookingId', src) ?? _vInt(json, 'booking_id', src),
+      noteText: _vStr(json, 'noteText', src) ??
+          _vStr(json, 'note_text', src) ??
+          const d.Value(''),
+      alertType: _vStr(json, 'alertType', src) ??
+          _vStr(json, 'alert_type', src) ??
+          const d.Value(''),
+      alertUntil:
+          _vStr(json, 'alertUntil', src) ?? _vStr(json, 'alert_until', src),
       isActive: _vInt(json, 'isActive', src) ?? const d.Value(1),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
@@ -58,10 +77,13 @@ class BookingNotesAdapter extends EntityAdapter<BookingNote, BookingNotesCompani
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
-      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
+      lastModifiedEpoch:
+          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
       version: _vInt(json, 'version', src) ?? const d.Value(1),
       origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ?? _vStr(json, 'vector_clock', src) ?? const d.Value('{}'),
+      vectorClock: _vStr(json, 'vectorClock', src) ??
+          _vStr(json, 'vector_clock', src) ??
+          const d.Value('{}'),
     );
   }
 
@@ -135,7 +157,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

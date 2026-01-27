@@ -22,26 +22,38 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
   String get tableName => 'employees';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
+  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json,
+      {required Source src}) async {
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
-    return ResolveResult(createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
+    return ResolveResult(
+        createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
   }
 
   @override
-  EmployeesCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  EmployeesCompanion fromJson(Map<String, dynamic> json,
+      {required Source src, required ResolveResult refs}) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified = refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     return EmployeesCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(_asString(json, 'localUuid', src) ??
+          _asString(json, 'local_uuid', src) ??
+          IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
       name: _vStr(json, 'name', src) ?? const d.Value.absent(),
-      basicSalary: _vDouble(json, 'basicSalary', src) ?? _vDouble(json, 'basic_salary', src) ?? const d.Value(0.0),
+      basicSalary: _vDouble(json, 'basicSalary', src) ??
+          _vDouble(json, 'basic_salary', src) ??
+          const d.Value(0.0),
       position: _vStr(json, 'position', src) ?? const d.Value(''),
       phone: _vStr(json, 'phone', src) ?? const d.Value(''),
-      hireDate: _vStr(json, 'hireDate', src) ?? _vStr(json, 'hire_date', src) ?? const d.Value(''),
+      hireDate: _vStr(json, 'hireDate', src) ??
+          _vStr(json, 'hire_date', src) ??
+          const d.Value(''),
       status: _vStr(json, 'status', src) ?? const d.Value(''),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
@@ -51,10 +63,13 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
-      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
+      lastModifiedEpoch:
+          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
       version: _vInt(json, 'version', src) ?? const d.Value(1),
       origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ?? _vStr(json, 'vector_clock', src) ?? const d.Value('{}'),
+      vectorClock: _vStr(json, 'vectorClock', src) ??
+          _vStr(json, 'vector_clock', src) ??
+          const d.Value('{}'),
     );
   }
 
@@ -134,7 +149,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

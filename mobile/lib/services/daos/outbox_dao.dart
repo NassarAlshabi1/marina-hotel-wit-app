@@ -54,7 +54,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     required Map<String, dynamic> payload,
     required int clientTs,
   }) async {
-    final normalizedPayload = await _payloadWithAdapter(entity, localUuid, payload);
+    final normalizedPayload =
+        await _payloadWithAdapter(entity, localUuid, payload);
     final data = jsonEncode(normalizedPayload);
 
     final id = await transaction(() async {
@@ -298,7 +299,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
               ..limit(1))
             .getSingleOrNull();
         if (row != null) {
-          return adapters.bookingNotes.toJsonForSource(row, src: Source.appwrite);
+          return adapters.bookingNotes
+              .toJsonForSource(row, src: Source.appwrite);
         }
         break;
       case 'booking_nights':
@@ -316,7 +318,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
               ..limit(1))
             .getSingleOrNull();
         if (row != null) {
-          return adapters.salaryCycles.toJsonForSource(row, src: Source.appwrite);
+          return adapters.salaryCycles
+              .toJsonForSource(row, src: Source.appwrite);
         }
         break;
       case 'salary_payments':
@@ -325,7 +328,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
               ..limit(1))
             .getSingleOrNull();
         if (row != null) {
-          return adapters.salaryPayments.toJsonForSource(row, src: Source.appwrite);
+          return adapters.salaryPayments
+              .toJsonForSource(row, src: Source.appwrite);
         }
         break;
     }

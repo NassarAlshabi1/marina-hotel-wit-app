@@ -22,30 +22,45 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
   String get tableName => 'rooms';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
+  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json,
+      {required Source src}) async {
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
-    return ResolveResult(createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
+    return ResolveResult(
+        createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
   }
 
   @override
-  RoomsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  RoomsCompanion fromJson(Map<String, dynamic> json,
+      {required Source src, required ResolveResult refs}) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified = refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     return RoomsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(_asString(json, 'localUuid', src) ??
+          _asString(json, 'local_uuid', src) ??
+          IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
-      roomNumber: _vStr(json, 'roomNumber', src) ?? _vStr(json, 'room_number', src) ?? const d.Value.absent(),
+      roomNumber: _vStr(json, 'roomNumber', src) ??
+          _vStr(json, 'room_number', src) ??
+          const d.Value.absent(),
       type: _vStr(json, 'type', src) ?? const d.Value.absent(),
       price: _vDouble(json, 'price', src) ?? const d.Value(0.0),
       status: _vStr(json, 'status', src) ?? const d.Value.absent(),
       imageUrl: _vStr(json, 'imageUrl', src) ?? _vStr(json, 'image_url', src),
-      cleaningStatus: _vStr(json, 'cleaningStatus', src) ?? _vStr(json, 'cleaning_status', src) ?? const d.Value('clean'),
-      lastCleanedHotelDay: _vStr(json, 'lastCleanedHotelDay', src) ?? _vStr(json, 'last_cleaned_hotel_day', src),
-      lastOccupiedHotelDay: _vStr(json, 'lastOccupiedHotelDay', src) ?? _vStr(json, 'last_occupied_hotel_day', src),
-      requiresMaintenance: _vBool(json, 'requiresMaintenance', src) ?? const d.Value(false),
+      cleaningStatus: _vStr(json, 'cleaningStatus', src) ??
+          _vStr(json, 'cleaning_status', src) ??
+          const d.Value('clean'),
+      lastCleanedHotelDay: _vStr(json, 'lastCleanedHotelDay', src) ??
+          _vStr(json, 'last_cleaned_hotel_day', src),
+      lastOccupiedHotelDay: _vStr(json, 'lastOccupiedHotelDay', src) ??
+          _vStr(json, 'last_occupied_hotel_day', src),
+      requiresMaintenance:
+          _vBool(json, 'requiresMaintenance', src) ?? const d.Value(false),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -54,10 +69,13 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
-      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
+      lastModifiedEpoch:
+          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
       version: _vInt(json, 'version', src) ?? const d.Value(1),
       origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ?? _vStr(json, 'vector_clock', src) ?? const d.Value('{}'),
+      vectorClock: _vStr(json, 'vectorClock', src) ??
+          _vStr(json, 'vector_clock', src) ??
+          const d.Value('{}'),
     );
   }
 
@@ -73,9 +91,12 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
       _k(src, 'status', 'status'): model.status,
       _k(src, 'imageUrl', 'image_url'): model.imageUrl,
       _k(src, 'cleaningStatus', 'cleaning_status'): model.cleaningStatus,
-      _k(src, 'lastCleanedHotelDay', 'last_cleaned_hotel_day'): model.lastCleanedHotelDay,
-      _k(src, 'lastOccupiedHotelDay', 'last_occupied_hotel_day'): model.lastOccupiedHotelDay,
-      _k(src, 'requiresMaintenance', 'requires_maintenance'): model.requiresMaintenance,
+      _k(src, 'lastCleanedHotelDay', 'last_cleaned_hotel_day'):
+          model.lastCleanedHotelDay,
+      _k(src, 'lastOccupiedHotelDay', 'last_occupied_hotel_day'):
+          model.lastOccupiedHotelDay,
+      _k(src, 'requiresMaintenance', 'requires_maintenance'):
+          model.requiresMaintenance,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
@@ -157,7 +178,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;
