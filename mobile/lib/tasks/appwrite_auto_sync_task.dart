@@ -46,8 +46,6 @@ class AppwriteAutoSyncTask {
   AppwriteAutoSyncTask._();
 
   static int _debounceToken = 0;
-  // ignore: unused_field
-  static Future<void>? _pendingDebounce;
   static bool _initialized = false;
 
   static Future<void> initialize({bool debug = false}) async {
@@ -67,7 +65,7 @@ class AppwriteAutoSyncTask {
       throw StateError('AppwriteAutoSyncTask not initialized');
     }
     final token = ++_debounceToken;
-    _pendingDebounce = Future<void>.delayed(delay, () async {
+    await Future<void>.delayed(delay, () async {
       if (token != _debounceToken) return;
       await Workmanager().registerOneOffTask(
         _kImmediateWorkName,
@@ -107,7 +105,6 @@ class AppwriteAutoSyncTask {
   static Future<void> cancelAll() async {
     if (!_initialized) return;
     _debounceToken++;
-    _pendingDebounce = null;
     await Workmanager().cancelByUniqueName(_kImmediateWorkName);
     await Workmanager().cancelByUniqueName(_kPeriodicWorkName);
   }

@@ -142,7 +142,6 @@ class EnhancedPdfHelper {
             isFullyPaid: false,
             hotelDayCheckin: null,
             hotelDayCheckout: null,
-            vectorClock: '{}',
           );
         },
       );

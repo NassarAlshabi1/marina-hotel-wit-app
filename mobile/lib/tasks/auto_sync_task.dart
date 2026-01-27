@@ -59,8 +59,6 @@ class AutoSyncTask {
   AutoSyncTask._();
 
   static int _debounceToken = 0;
-  // ignore: unused_field
-  static Future<void>? _pendingDebounce;
   static bool _initialized = false;
 
   /// تهيئة WorkManager وتسجيل callback
@@ -84,7 +82,7 @@ class AutoSyncTask {
       throw StateError('لم يتم تهيئة AutoSyncTask. استدع initialize أولاً.');
     }
     final token = ++_debounceToken;
-    _pendingDebounce = Future<void>.delayed(delay, () async {
+    await Future<void>.delayed(delay, () async {
       if (token != _debounceToken) {
         return;
       }
@@ -121,7 +119,6 @@ class AutoSyncTask {
       return;
     }
     _debounceToken++;
-    _pendingDebounce = null;
     await Workmanager().cancelByUniqueName(_kImmediateWorkName);
     await Workmanager().cancelByUniqueName(_kPeriodicWorkName);
   }

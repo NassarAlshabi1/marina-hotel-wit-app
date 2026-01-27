@@ -77,10 +77,6 @@ class UnifiedSyncOrchestrator {
 
   bool _initialized = false;
   bool _syncing = false;
-  // ignore: unused_field
-  DateTime? _lastSyncTime;
-  // ignore: unused_field
-  int _syncCount = 0;
 
   final _stateController = StreamController<UnifiedSyncState>.broadcast();
   Stream<UnifiedSyncState> get stateStream => _stateController.stream;
@@ -232,7 +228,6 @@ class UnifiedSyncOrchestrator {
     }
 
     _syncing = true;
-    _syncCount++;
 
     _emit(
       _state.copyWith(
@@ -268,15 +263,11 @@ class UnifiedSyncOrchestrator {
         await _verifySyncIntegrity();
       }
 
-      _lastSyncTime = DateTime.now();
-
-      _emit(
-        _state.copyWith(
-          phase: success ? 'completing' : 'error',
-          message: success ? 'اكتملت الدورة' : 'فشل في مزامنة واحدة أو أكثر',
-          timestamp: DateTime.now(),
-        ),
-      );
+      _emit(_state.copyWith(
+        phase: success ? 'completing' : 'error',
+        message: success ? 'اكتملت الدورة' : 'فشل في مزامنة واحدة أو أكثر',
+        timestamp: DateTime.now(),
+      ));
 
       return success;
     } catch (e) {

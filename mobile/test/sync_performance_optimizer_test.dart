@@ -162,7 +162,7 @@ void main() {
 
     test('should provide performance stats', () {
       const List<ConnectivityResult> wifiResults = [ConnectivityResult.wifi];
-      optimizer.simulateConnectivity(wifiResults);
+      optimizer.updateConnectivityStatusForTest(wifiResults);
       optimizer.recordSyncAttempt(success: false);
 
       final stats = optimizer.getPerformanceStats();
@@ -175,3 +175,7 @@ void main() {
     });
   });
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 060c58a (Fix mobile lint warnings)
