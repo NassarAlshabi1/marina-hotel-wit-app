@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:drift/drift.dart' as d;
 import 'package:appwrite/models.dart' as models;
 import 'package:device_info_plus/device_info_plus.dart';
 import '../utils/id.dart';
