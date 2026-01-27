@@ -31,6 +31,7 @@ BookingNote _bookingNote({
     alertType: alertType,
     alertUntil: alertUntil,
     isActive: isActive,
+    vectorClock: '{}',
   );
 }
 

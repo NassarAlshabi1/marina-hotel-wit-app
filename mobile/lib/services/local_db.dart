@@ -648,7 +648,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 bookings,
-                bookings.vectorClock as GeneratedColumn<String>,
+                bookings.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add bookings.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
@@ -656,7 +656,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 rooms,
-                rooms.vectorClock as GeneratedColumn<String>,
+                rooms.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add rooms.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
@@ -664,7 +664,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 employees,
-                employees.vectorClock as GeneratedColumn<String>,
+                employees.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add employees.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
@@ -672,7 +672,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 expenses,
-                expenses.vectorClock as GeneratedColumn<String>,
+                expenses.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add expenses.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
@@ -680,7 +680,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 cashTransactions,
-                cashTransactions.vectorClock as GeneratedColumn<String>,
+                cashTransactions.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add cashTransactions.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
@@ -688,7 +688,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 payments,
-                payments.vectorClock as GeneratedColumn<String>,
+                payments.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add payments.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
@@ -696,7 +696,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 debts,
-                debts.vectorClock as GeneratedColumn<String>,
+                debts.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add debts.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
@@ -704,7 +704,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 bookingNotes,
-                bookingNotes.vectorClock as GeneratedColumn<String>,
+                bookingNotes.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add bookingNotes.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
@@ -712,7 +712,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 bookingNights,
-                bookingNights.vectorClock as GeneratedColumn<String>,
+                bookingNights.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add bookingNights.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
@@ -720,7 +720,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 hotelDayLedger,
-                hotelDayLedger.vectorClock as GeneratedColumn<String>,
+                hotelDayLedger.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add hotelDayLedger.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
@@ -728,7 +728,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 salaryCycles,
-                salaryCycles.vectorClock as GeneratedColumn<String>,
+                salaryCycles.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add salaryCycles.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
@@ -736,7 +736,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               await m.addColumn(
                 salaryPayments,
-                salaryPayments.vectorClock as GeneratedColumn<String>,
+                salaryPayments.vectorClock,
               );
             } catch (e, st) {
               developer.log('Migration add salaryPayments.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');

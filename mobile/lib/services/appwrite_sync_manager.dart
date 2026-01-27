@@ -863,42 +863,6 @@ class AppwriteSyncManager {
     return processed;
   }
 
-  d.Value<T?> _nullableValue<T>(T? value) {
-    return value == null ? const d.Value.absent() : d.Value(value);
-  }
-
-  int _normalizeEpoch(dynamic value, {int? fallback}) {
-    if (value == null) {
-      return fallback ?? Time.nowEpoch();
-    }
-    if (value is int) {
-      return value;
-    }
-    if (value is double) {
-      return value.toInt();
-    }
-    if (value is DateTime) {
-      return value.toUtc().millisecondsSinceEpoch ~/ 1000;
-    }
-    if (value is String && value.isNotEmpty) {
-      final parsedInt = int.tryParse(value);
-      if (parsedInt != null) {
-        return parsedInt;
-      }
-      final parsedDouble = double.tryParse(value);
-      if (parsedDouble != null) {
-        return parsedDouble.toInt();
-      }
-      final parsedDate = DateTime.tryParse(value);
-      if (parsedDate != null) {
-        return parsedDate.toUtc().millisecondsSinceEpoch ~/ 1000;
-      }
-    }
-    if (value is num) {
-      return value.toInt();
-    }
-    return fallback ?? Time.nowEpoch();
-  }
 
   int _asInt(dynamic value, {int fallback = 0}) {
     final result = _asIntNullable(value);
