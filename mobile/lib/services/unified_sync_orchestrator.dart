@@ -77,8 +77,6 @@ class UnifiedSyncOrchestrator {
 
   bool _initialized = false;
   bool _syncing = false;
-  DateTime? _lastSyncTime;
-  int _syncCount = 0;
 
   final _stateController = StreamController<UnifiedSyncState>.broadcast();
   Stream<UnifiedSyncState> get stateStream => _stateController.stream;
@@ -212,7 +210,6 @@ class UnifiedSyncOrchestrator {
     }
 
     _syncing = true;
-    _syncCount++;
 
     _emit(_state.copyWith(
       phase: push ? 'pushing' : 'pulling',
@@ -245,8 +242,6 @@ class UnifiedSyncOrchestrator {
       if (success) {
         await _verifySyncIntegrity();
       }
-
-      _lastSyncTime = DateTime.now();
 
       _emit(_state.copyWith(
         phase: success ? 'completing' : 'error',
