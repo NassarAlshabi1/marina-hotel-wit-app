@@ -14,6 +14,7 @@ import 'data_protection_screen.dart';
 import 'sync_performance_settings_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'sync_debug_logs_screen.dart';
+import 'error_center_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import '../security/blacklist_screen.dart';
 
@@ -160,6 +161,18 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const AppwriteSettingsScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'مركز الأخطاء',
+              subtitle: 'Appwrite + Google Drive + مزامنة',
+              icon: Icons.error_outline,
+              color: Colors.redAccent,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ErrorCenterScreen(),
                 ),
               ),
             ),
