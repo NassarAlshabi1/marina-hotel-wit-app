@@ -106,8 +106,7 @@ abstract class BaseSyncManager {
         deviceIdentifier = androidInfo.id;
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
-        deviceIdentifier =
-            iosInfo.identifierForVendor ??
+        deviceIdentifier = iosInfo.identifierForVendor ??
             'ios-${DateTime.now().millisecondsSinceEpoch}';
       }
     } catch (e) {

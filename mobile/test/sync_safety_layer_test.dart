@@ -26,9 +26,7 @@ void main() {
   });
 
   test('snapshot rollback restores data after simulated failure', () async {
-    await db
-        .into(db.shiftNotes)
-        .insert(
+    await db.into(db.shiftNotes).insert(
           ShiftNotesCompanion.insert(
             title: 'ملاحظة اختبار',
             content: 'قبل المزامنة',

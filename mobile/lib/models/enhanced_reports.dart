@@ -468,9 +468,8 @@ class EnhancedExpensesReport {
   pw.Widget _buildExpenseReportInfo(ArabicPdfFonts fonts) {
     final periodLabel =
         '${EnhancedPdfUtils.formatDateTime(fromDate)} - ${EnhancedPdfUtils.formatDateTime(toDate)}';
-    final categoryLabel = categoryFilter != null
-        ? 'الفئة: $categoryFilter'
-        : 'جميع الفئات';
+    final categoryLabel =
+        categoryFilter != null ? 'الفئة: $categoryFilter' : 'جميع الفئات';
 
     return EnhancedPdfUtils.buildInfoCard(
       title: '📊 معلومات التقرير',

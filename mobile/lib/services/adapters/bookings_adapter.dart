@@ -27,8 +27,7 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    final bookingUuid =
-        _asString(json, 'localUuid', src) ??
+    final bookingUuid = _asString(json, 'localUuid', src) ??
         _asString(json, 'booking_uuid', src) ??
         _asString(json, 'bookingUuid', src);
     final serverBookingId =
@@ -58,8 +57,7 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified =
-        refs.lastModifiedEpoch ??
+    final lastModified = refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
     return BookingsCompanion(
@@ -271,8 +269,7 @@ d.Value<int> _vInt(
   String? altKey,
   int? fallback,
 }) {
-  final v =
-      _asInt(json, key, src) ??
+  final v = _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -285,8 +282,7 @@ d.Value<String> _vStr(
   String? altKey,
   String? fallback,
 }) {
-  final v =
-      _asString(json, key, src) ??
+  final v = _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -299,8 +295,7 @@ d.Value<double> _vDouble(
   String? altKey,
   double? fallback,
 }) {
-  final v =
-      _asDouble(json, key, src) ??
+  final v = _asDouble(json, key, src) ??
       (altKey != null ? _asDouble(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -313,8 +308,7 @@ d.Value<bool> _vBool(
   String? altKey,
   bool? fallback,
 }) {
-  final v =
-      _asBool(json, key, src) ??
+  final v = _asBool(json, key, src) ??
       (altKey != null ? _asBool(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);

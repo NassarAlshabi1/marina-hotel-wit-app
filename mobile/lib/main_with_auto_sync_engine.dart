@@ -198,9 +198,8 @@ void _setupEngineMonitoring(AutoSyncEngine engine) {
     debugPrint('❌ Failed attempts: ${state.failedAttempts}');
 
     if (state.nextRetryAt != null) {
-      final secondsUntil = state.nextRetryAt!
-          .difference(DateTime.now())
-          .inSeconds;
+      final secondsUntil =
+          state.nextRetryAt!.difference(DateTime.now()).inSeconds;
       debugPrint('⏰ Next retry in: ${secondsUntil}s');
     }
 
@@ -298,9 +297,8 @@ class HomeScreen extends StatelessWidget {
                               ? '✅ ${result.message}'
                               : '❌ ${result.message}',
                         ),
-                        backgroundColor: result.success
-                            ? Colors.green
-                            : Colors.red,
+                        backgroundColor:
+                            result.success ? Colors.green : Colors.red,
                       ),
                     );
                   }

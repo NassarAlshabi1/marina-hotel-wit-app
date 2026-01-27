@@ -222,14 +222,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       await _loadPendingChangesCount();
 
-      final successTargets = results.entries
-          .where((e) => e.value)
-          .map((e) => e.key)
-          .toList();
-      final failedTargets = results.entries
-          .where((e) => !e.value)
-          .map((e) => e.key)
-          .toList();
+      final successTargets =
+          results.entries.where((e) => e.value).map((e) => e.key).toList();
+      final failedTargets =
+          results.entries.where((e) => !e.value).map((e) => e.key).toList();
 
       if (mounted) {
         if (failedTargets.isEmpty) {
@@ -514,15 +510,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             color: _isUploading
                 ? Colors.blue.shade50
                 : hasChanges
-                ? Colors.purple.shade50
-                : Colors.green.shade50,
+                    ? Colors.purple.shade50
+                    : Colors.green.shade50,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: _isUploading
                   ? Colors.blue.shade200
                   : hasChanges
-                  ? Colors.purple.shade200
-                  : Colors.green.shade200,
+                      ? Colors.purple.shade200
+                      : Colors.green.shade200,
               width: 1.5,
             ),
           ),
@@ -537,8 +533,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 color: _isUploading
                     ? Colors.blue
                     : hasChanges
-                    ? Colors.purple
-                    : Colors.green,
+                        ? Colors.purple
+                        : Colors.green,
               ),
               const SizedBox(width: 5),
               Column(
@@ -554,8 +550,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                       color: _isUploading
                           ? Colors.blue.shade900
                           : hasChanges
-                          ? Colors.purple.shade900
-                          : Colors.green.shade900,
+                              ? Colors.purple.shade900
+                              : Colors.green.shade900,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

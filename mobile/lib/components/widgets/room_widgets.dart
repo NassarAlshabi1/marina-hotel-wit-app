@@ -359,9 +359,8 @@ class _FloorSectionState extends State<FloorSection>
 
   @override
   Widget build(BuildContext context) {
-    final availableCount = widget.rooms
-        .where((r) => StatusUtils.isRoomAvailable(r.status))
-        .length;
+    final availableCount =
+        widget.rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).length;
     final occupiedCount = widget.rooms.length - availableCount;
 
     return Card(
