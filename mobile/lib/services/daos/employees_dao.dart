@@ -3,14 +3,17 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
 
 part 'employees_dao.g.dart';
 
 @DriftAccessor(tables: [Employees])
 class EmployeesDao extends DatabaseAccessor<AppDatabase>
     with _$EmployeesDaoMixin {
-  EmployeesDao(super.db, this.outboxDao);
+  EmployeesDao(super.db, this.outboxDao) : adapters = AdapterRegistry(db);
   final OutboxDao outboxDao;
+  final AdapterRegistry adapters;
 
   Future<List<Employee>> list({
     String? search,
@@ -67,12 +70,10 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       );
       final id = await into(employees).insert(comp);
       if (!originIsServer) {
-        await outboxDao.merge(
-          entity: 'employees',
+        await _mergeOutbox(
           op: 'create',
           localUuid: uu,
           serverId: comp.serverId.present ? comp.serverId.value : null,
-          payload: _payloadFrom(comp),
           clientTs: now,
         );
       }
@@ -99,12 +100,10 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       )..where((t) => t.id.equals(id)))
           .write(comp);
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'employees',
+        await _mergeOutbox(
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
       }
@@ -131,12 +130,10 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       )..where((t) => t.localUuid.equals(localUuid)))
           .write(comp);
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'employees',
+        await _mergeOutbox(
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
       }
@@ -158,12 +155,10 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
         ),
       );
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'employees',
+        await _mergeOutbox(
           op: 'delete',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: {'id': id},
           clientTs: now,
         );
       }
@@ -195,12 +190,10 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       )..where((t) => t.serverId.equals(parsedServerId)))
           .write(comp);
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'employees',
+        await _mergeOutbox(
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
       }
@@ -228,52 +221,31 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     return int.tryParse(trimmed);
   }
 
-  Map<String, dynamic> _payloadFrom(EmployeesCompanion comp, {Employee? base}) {
-    final m = <String, dynamic>{};
+  Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
+    final row = await (select(employees)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    if (row == null) return null;
+    return adapters.employees.toJsonForSource(row, src: Source.appwrite);
+  }
 
-    if (comp.name.present) {
-      m['name'] = comp.name.value;
-    } else if (base != null) {
-      m['name'] = base.name;
-    }
-
-    if (comp.basicSalary.present) {
-      m['basic_salary'] = comp.basicSalary.value;
-    } else if (base != null) {
-      m['basic_salary'] = base.basicSalary;
-    }
-
-    if (comp.position.present) {
-      m['position'] = comp.position.value;
-    } else if (base != null) {
-      m['position'] = base.position;
-    }
-
-    if (comp.phone.present) {
-      m['phone'] = comp.phone.value;
-    } else if (base != null) {
-      m['phone'] = base.phone;
-    }
-
-    if (comp.hireDate.present) {
-      m['hire_date'] = comp.hireDate.value;
-    } else if (base != null) {
-      m['hire_date'] = base.hireDate;
-    }
-
-    if (comp.status.present) {
-      m['status'] = comp.status.value;
-    } else if (base != null) {
-      m['status'] = base.status;
-    }
-
-    if (base != null) {
-      m['local_uuid'] = base.localUuid;
-      m['server_id'] = base.serverId;
-      m['version'] = base.version + 1;
-    }
-
-    return m;
+  Future<void> _mergeOutbox({
+    required String op,
+    required String localUuid,
+    required int clientTs,
+    int? serverId,
+  }) async {
+    final payload = await _payloadForLocalUuid(localUuid);
+    if (payload == null) return;
+    await outboxDao.merge(
+      entity: 'employees',
+      op: op,
+      localUuid: localUuid,
+      serverId: serverId,
+      payload: payload,
+      clientTs: clientTs,
+    );
   }
 
   // دوال النسخ الاحتياطي

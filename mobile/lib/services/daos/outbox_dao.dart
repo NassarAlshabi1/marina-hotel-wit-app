@@ -4,6 +4,8 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../local_db.dart';
 import '../unified_sync_orchestrator.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
 
 part 'outbox_dao.g.dart';
 
@@ -11,7 +13,9 @@ const _uuid = Uuid();
 
 @DriftAccessor(tables: [Outbox])
 class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
-  OutboxDao(super.db);
+  OutboxDao(super.db) : adapters = AdapterRegistry(db);
+
+  final AdapterRegistry adapters;
 
   Stream<int> watchCount() {
     final countExpr = outbox.id.count();
@@ -50,7 +54,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     required Map<String, dynamic> payload,
     required int clientTs,
   }) async {
-    final data = jsonEncode(payload);
+    final normalizedPayload = await _payloadWithAdapter(entity, localUuid, payload);
+    final data = jsonEncode(normalizedPayload);
 
     final id = await transaction(() async {
       final existing = await (select(outbox)
@@ -225,5 +230,105 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
                 t.processingStartedAt.isSmallerThanValue(thresholdTime),
           ))
         .go();
+  }
+
+  Future<Map<String, dynamic>> _payloadWithAdapter(
+    String entity,
+    String localUuid,
+    Map<String, dynamic> fallback,
+  ) async {
+    switch (entity) {
+      case 'bookings':
+        final row = await (select(db.bookings)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.bookings.toJsonForSource(row, src: Source.appwrite);
+        }
+        break;
+      case 'payments':
+        final row = await (select(db.payments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.payments.toJsonForSource(row, src: Source.appwrite);
+        }
+        break;
+      case 'expenses':
+        final row = await (select(db.expenses)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.expenses.toJsonForSource(row, src: Source.appwrite);
+        }
+        break;
+      case 'debts':
+        final row = await (select(db.debts)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.debts.toJsonForSource(row, src: Source.appwrite);
+        }
+        break;
+      case 'rooms':
+        final row = await (select(db.rooms)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.rooms.toJsonForSource(row, src: Source.appwrite);
+        }
+        break;
+      case 'employees':
+        final row = await (select(db.employees)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.employees.toJsonForSource(row, src: Source.appwrite);
+        }
+        break;
+      case 'booking_notes':
+        final row = await (select(db.bookingNotes)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.bookingNotes.toJsonForSource(row, src: Source.appwrite);
+        }
+        break;
+      case 'booking_nights':
+        final row = await (select(db.bookingNights)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.nights.toJsonForSource(row, src: Source.appwrite);
+        }
+        break;
+      case 'salary_cycles':
+        final row = await (select(db.salaryCycles)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.salaryCycles.toJsonForSource(row, src: Source.appwrite);
+        }
+        break;
+      case 'salary_payments':
+        final row = await (select(db.salaryPayments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.salaryPayments.toJsonForSource(row, src: Source.appwrite);
+        }
+        break;
+    }
+    return fallback;
   }
 }

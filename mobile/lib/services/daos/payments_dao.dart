@@ -4,14 +4,17 @@ import '../../utils/time.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
 
 part 'payments_dao.g.dart';
 
 @DriftAccessor(tables: [Payments])
 class PaymentsDao extends DatabaseAccessor<AppDatabase>
     with _$PaymentsDaoMixin, OptimisticLockDaoMixin<Payments, Payment> {
-  PaymentsDao(super.db, this.outboxDao);
+  PaymentsDao(super.db, this.outboxDao) : adapters = AdapterRegistry(db);
   final OutboxDao outboxDao;
+  final AdapterRegistry adapters;
 
   Future<List<Payment>> list({
     int? bookingLocalId,
@@ -113,12 +116,10 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       );
       final id = await into(payments).insert(comp);
       if (!originIsServer) {
-        await outboxDao.merge(
-          entity: 'payments',
+        await _mergeOutbox(
           op: 'create',
           localUuid: uu,
           serverId: comp.serverId.present ? comp.serverId.value : null,
-          payload: _payloadFrom(comp),
           clientTs: now,
         );
       }
@@ -144,12 +145,10 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       )..where((t) => t.id.equals(id)))
           .write(comp);
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'payments',
+        await _mergeOutbox(
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
       }
@@ -171,12 +170,10 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
         ),
       );
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'payments',
+        await _mergeOutbox(
           op: 'delete',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: {'payment_id': existing.serverPaymentId},
           clientTs: now,
         );
       }
@@ -184,33 +181,31 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Map<String, dynamic> _payloadFrom(PaymentsCompanion comp, {Payment? base}) {
-    final m = <String, dynamic>{};
-    if (comp.serverPaymentId.present) {
-      m['payment_id'] = comp.serverPaymentId.value;
-    }
-    if (comp.bookingLocalId.present) {
-      m['booking_local_id'] = comp.bookingLocalId.value;
-    }
-    if (comp.serverBookingId.present) {
-      m['booking_id'] = comp.serverBookingId.value;
-    }
-    if (comp.roomNumber.present) m['room_number'] = comp.roomNumber.value;
-    if (comp.amount.present) m['amount'] = comp.amount.value;
-    if (comp.paymentDate.present) m['payment_date'] = comp.paymentDate.value;
-    if (comp.notes.present) m['notes'] = comp.notes.value;
-    if (comp.paymentMethod.present) {
-      m['payment_method'] = comp.paymentMethod.value;
-    }
-    if (comp.revenueType.present) m['revenue_type'] = comp.revenueType.value;
-    if (comp.hotelDayKey.present) m['hotel_day_key'] = comp.hotelDayKey.value;
-    if (comp.cashTransactionLocalId.present) {
-      m['cash_transaction_local_id'] = comp.cashTransactionLocalId.value;
-    }
-    if (comp.cashTransactionServerId.present) {
-      m['cash_transaction_id'] = comp.cashTransactionServerId.value;
-    }
-    return m;
+  Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
+    final row = await (select(payments)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    if (row == null) return null;
+    return adapters.payments.toJsonForSource(row, src: Source.appwrite);
+  }
+
+  Future<void> _mergeOutbox({
+    required String op,
+    required String localUuid,
+    required int clientTs,
+    int? serverId,
+  }) async {
+    final payload = await _payloadForLocalUuid(localUuid);
+    if (payload == null) return;
+    await outboxDao.merge(
+      entity: 'payments',
+      op: op,
+      localUuid: localUuid,
+      serverId: serverId,
+      payload: payload,
+      clientTs: clientTs,
+    );
   }
 
   // دوال النسخ الاحتياطي

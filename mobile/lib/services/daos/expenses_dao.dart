@@ -4,14 +4,17 @@ import '../../utils/time.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
 
 part 'expenses_dao.g.dart';
 
 @DriftAccessor(tables: [Expenses])
 class ExpensesDao extends DatabaseAccessor<AppDatabase>
     with _$ExpensesDaoMixin, OptimisticLockDaoMixin<Expenses, Expense> {
-  ExpensesDao(super.db, this.outboxDao);
+  ExpensesDao(super.db, this.outboxDao) : adapters = AdapterRegistry(db);
   final OutboxDao outboxDao;
+  final AdapterRegistry adapters;
 
   Future<List<Expense>> list({
     String? search,
@@ -100,12 +103,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       );
       final id = await into(expenses).insert(comp);
       if (!originIsServer) {
-        await outboxDao.merge(
-          entity: 'expenses',
+        await _mergeOutbox(
           op: 'create',
           localUuid: uu,
           serverId: comp.serverId.present ? comp.serverId.value : null,
-          payload: _payloadFrom(comp),
           clientTs: now,
         );
       }
@@ -132,12 +133,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       )..where((t) => t.id.equals(id)))
           .write(comp);
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'expenses',
+        await _mergeOutbox(
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
       }
@@ -164,12 +163,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       )..where((t) => t.localUuid.equals(localUuid)))
           .write(comp);
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'expenses',
+        await _mergeOutbox(
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
       }
@@ -201,12 +198,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       )..where((t) => t.serverId.equals(parsedServerId)))
           .write(comp);
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'expenses',
+        await _mergeOutbox(
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
       }
@@ -232,12 +227,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
         ),
       );
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'expenses',
+        await _mergeOutbox(
           op: 'delete',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: {'id': id},
           clientTs: now,
         );
       }
@@ -245,56 +238,31 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Map<String, dynamic> _payloadFrom(ExpensesCompanion comp, {Expense? base}) {
-    final m = <String, dynamic>{};
+  Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
+    final row = await (select(expenses)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    if (row == null) return null;
+    return adapters.expenses.toJsonForSource(row, src: Source.appwrite);
+  }
 
-    if (comp.expenseType.present) {
-      m['expense_type'] = comp.expenseType.value;
-    } else if (base != null) {
-      m['expense_type'] = base.expenseType;
-    }
-
-    if (comp.relatedId.present) {
-      m['related_id'] = comp.relatedId.value;
-    } else if (base != null) {
-      m['related_id'] = base.relatedId;
-    }
-
-    if (comp.description.present) {
-      m['description'] = comp.description.value;
-    } else if (base != null) {
-      m['description'] = base.description;
-    }
-
-    if (comp.amount.present) {
-      m['amount'] = comp.amount.value;
-    } else if (base != null) {
-      m['amount'] = base.amount;
-    }
-
-    if (comp.date.present) {
-      m['date'] = comp.date.value;
-    } else if (base != null) {
-      m['date'] = base.date;
-    }
-
-    if (comp.hotelDayKey.present) {
-      m['hotel_day_key'] = comp.hotelDayKey.value;
-    }
-
-    if (comp.cashTransactionId.present) {
-      m['cash_transaction_id'] = comp.cashTransactionId.value;
-    } else if (base != null) {
-      m['cash_transaction_id'] = base.cashTransactionId;
-    }
-
-    if (base != null) {
-      m['local_uuid'] = base.localUuid;
-      m['server_id'] = base.serverId;
-      m['version'] = base.version + 1;
-    }
-
-    return m;
+  Future<void> _mergeOutbox({
+    required String op,
+    required String localUuid,
+    required int clientTs,
+    int? serverId,
+  }) async {
+    final payload = await _payloadForLocalUuid(localUuid);
+    if (payload == null) return;
+    await outboxDao.merge(
+      entity: 'expenses',
+      op: op,
+      localUuid: localUuid,
+      serverId: serverId,
+      payload: payload,
+      clientTs: clientTs,
+    );
   }
 
   int? _parseServerId(String? value) {

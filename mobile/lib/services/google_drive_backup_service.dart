@@ -17,6 +17,8 @@ import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
 import 'google_drive_logger.dart';
 import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
+import 'adapters/adapter_registry.dart';
+import 'adapters/source.dart';
 
 enum BackupFormat { json, sqlite }
 
@@ -751,6 +753,7 @@ class GoogleDriveBackupService {
   ) async {
     try {
       final db = DatabaseManager.instance;
+      final adapterRegistry = AdapterRegistry(db);
 
       if (!backupData.containsKey('metadata')) {
         _log('⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية، سيتم تجاوزها');
@@ -816,48 +819,40 @@ class GoogleDriveBackupService {
           if (backupData.containsKey('rooms')) {
             final roomsData = backupData['rooms'] as List<dynamic>;
             for (final roomJson in roomsData) {
-              final map = Map<String, dynamic>.from(roomJson as Map);
-              final data = Room.fromJson(
-                map,
-                serializer: lenientValueSerializer,
+              await adapterRegistry.rooms.upsertFromJson(
+                Map<String, dynamic>.from(roomJson as Map),
+                src: Source.drive,
               );
-              await db.into(db.rooms).insertOnConflictUpdate(data);
             }
           }
 
           if (backupData.containsKey('bookings')) {
             final bookingsData = backupData['bookings'] as List<dynamic>;
             for (final bookingJson in bookingsData) {
-              final map = Map<String, dynamic>.from(bookingJson as Map);
-              final data = Booking.fromJson(
-                map,
-                serializer: lenientValueSerializer,
+              await adapterRegistry.bookings.upsertFromJson(
+                Map<String, dynamic>.from(bookingJson as Map),
+                src: Source.drive,
               );
-              await db.into(db.bookings).insertOnConflictUpdate(data);
             }
           }
 
           if (backupData.containsKey('booking_notes')) {
             final notesData = backupData['booking_notes'] as List<dynamic>;
             for (final noteJson in notesData) {
-              final map = Map<String, dynamic>.from(noteJson as Map);
-              final data = BookingNote.fromJson(
-                map,
-                serializer: lenientValueSerializer,
+              await adapterRegistry.bookingNotes.upsertFromJson(
+                Map<String, dynamic>.from(noteJson as Map),
+                src: Source.drive,
               );
-              await db.into(db.bookingNotes).insertOnConflictUpdate(data);
             }
           }
 
           if (backupData.containsKey('booking_nights')) {
             final nightsData = backupData['booking_nights'] as List<dynamic>;
             for (final nightJson in nightsData) {
-              final map = Map<String, dynamic>.from(nightJson as Map);
-              final data = BookingNight.fromJson(
-                map,
-                serializer: lenientValueSerializer,
+              await adapterRegistry.nights.upsertFromJson(
+                Map<String, dynamic>.from(nightJson as Map),
+                src: Source.drive,
               );
-              await db.into(db.bookingNights).insertOnConflictUpdate(data);
             }
           }
 
@@ -888,24 +883,20 @@ class GoogleDriveBackupService {
           if (backupData.containsKey('employees')) {
             final employeesData = backupData['employees'] as List<dynamic>;
             for (final employeeJson in employeesData) {
-              final map = Map<String, dynamic>.from(employeeJson as Map);
-              final data = Employee.fromJson(
-                map,
-                serializer: lenientValueSerializer,
+              await adapterRegistry.employees.upsertFromJson(
+                Map<String, dynamic>.from(employeeJson as Map),
+                src: Source.drive,
               );
-              await db.into(db.employees).insertOnConflictUpdate(data);
             }
           }
 
           if (backupData.containsKey('expenses')) {
             final expensesData = backupData['expenses'] as List<dynamic>;
             for (final expenseJson in expensesData) {
-              final map = Map<String, dynamic>.from(expenseJson as Map);
-              final data = Expense.fromJson(
-                map,
-                serializer: lenientValueSerializer,
+              await adapterRegistry.expenses.upsertFromJson(
+                Map<String, dynamic>.from(expenseJson as Map),
+                src: Source.drive,
               );
-              await db.into(db.expenses).insertOnConflictUpdate(data);
             }
           }
 
@@ -925,24 +916,20 @@ class GoogleDriveBackupService {
           if (backupData.containsKey('payments')) {
             final paymentsData = backupData['payments'] as List<dynamic>;
             for (final paymentJson in paymentsData) {
-              final map = Map<String, dynamic>.from(paymentJson as Map);
-              final data = Payment.fromJson(
-                map,
-                serializer: lenientValueSerializer,
+              await adapterRegistry.payments.upsertFromJson(
+                Map<String, dynamic>.from(paymentJson as Map),
+                src: Source.drive,
               );
-              await db.into(db.payments).insertOnConflictUpdate(data);
             }
           }
 
           if (backupData.containsKey('debts')) {
             final debtsList = backupData['debts'] as List<dynamic>;
             for (final debtJson in debtsList) {
-              final map = Map<String, dynamic>.from(debtJson as Map);
-              final data = Debt.fromJson(
-                map,
-                serializer: lenientValueSerializer,
+              await adapterRegistry.debts.upsertFromJson(
+                Map<String, dynamic>.from(debtJson as Map),
+                src: Source.drive,
               );
-              await db.into(db.debts).insertOnConflictUpdate(data);
             }
           }
 
@@ -988,24 +975,20 @@ class GoogleDriveBackupService {
           if (backupData.containsKey('salary_cycles')) {
             final cyclesList = backupData['salary_cycles'] as List<dynamic>;
             for (final cycleJson in cyclesList) {
-              final map = Map<String, dynamic>.from(cycleJson as Map);
-              final data = SalaryCycle.fromJson(
-                map,
-                serializer: lenientValueSerializer,
+              await adapterRegistry.salaryCycles.upsertFromJson(
+                Map<String, dynamic>.from(cycleJson as Map),
+                src: Source.drive,
               );
-              await db.into(db.salaryCycles).insertOnConflictUpdate(data);
             }
           }
 
           if (backupData.containsKey('salary_payments')) {
             final salaryList = backupData['salary_payments'] as List<dynamic>;
             for (final salaryJson in salaryList) {
-              final map = Map<String, dynamic>.from(salaryJson as Map);
-              final data = SalaryPayment.fromJson(
-                map,
-                serializer: lenientValueSerializer,
+              await adapterRegistry.salaryPayments.upsertFromJson(
+                Map<String, dynamic>.from(salaryJson as Map),
+                src: Source.drive,
               );
-              await db.into(db.salaryPayments).insertOnConflictUpdate(data);
             }
           }
 

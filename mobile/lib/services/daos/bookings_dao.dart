@@ -4,14 +4,17 @@ import '../../utils/time.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
 
 part 'bookings_dao.g.dart';
 
 @DriftAccessor(tables: [Bookings])
 class BookingsDao extends DatabaseAccessor<AppDatabase>
     with _$BookingsDaoMixin, OptimisticLockDaoMixin<Bookings, Booking> {
-  BookingsDao(super.db, this.outboxDao);
+  BookingsDao(super.db, this.outboxDao) : adapters = AdapterRegistry(db);
   final OutboxDao outboxDao;
+  final AdapterRegistry adapters;
 
   Future<List<Booking>> list({
     String? search,
@@ -89,12 +92,10 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       );
       final id = await into(bookings).insert(comp);
       if (!originIsServer) {
-        await outboxDao.merge(
-          entity: 'bookings',
+        await _mergeOutbox(
           op: 'create',
           localUuid: uu,
           serverId: comp.serverId.present ? comp.serverId.value : null,
-          payload: _payloadFrom(comp),
           clientTs: now,
         );
       }
@@ -120,12 +121,10 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       )..where((t) => t.id.equals(id)))
           .write(comp);
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'bookings',
+        await _mergeOutbox(
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
       }
@@ -147,12 +146,10 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
         ),
       );
       if (rows > 0 && !originIsServer) {
-        await outboxDao.merge(
-          entity: 'bookings',
+        await _mergeOutbox(
           op: 'delete',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: {'booking_id': existing.serverBookingId},
           clientTs: now,
         );
       }
@@ -194,43 +191,31 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     return query.get();
   }
 
-  Map<String, dynamic> _payloadFrom(BookingsCompanion comp, {Booking? base}) {
-    final m = <String, dynamic>{};
-    if (comp.serverBookingId.present) {
-      m['booking_id'] = comp.serverBookingId.value;
-    }
-    if (comp.roomNumber.present) m['room_number'] = comp.roomNumber.value;
-    if (comp.guestName.present) m['guest_name'] = comp.guestName.value;
-    if (comp.guestPhone.present) m['guest_phone'] = comp.guestPhone.value;
-    if (comp.guestIdType.present) m['guest_id_type'] = comp.guestIdType.value;
-    if (comp.guestIdNumber.present) {
-      m['guest_id_number'] = comp.guestIdNumber.value;
-    }
-    if (comp.guestIdIssueDate.present) {
-      m['guest_id_issue_date'] = comp.guestIdIssueDate.value;
-    }
-    if (comp.guestIdIssuePlace.present) {
-      m['guest_id_issue_place'] = comp.guestIdIssuePlace.value;
-    }
-    if (comp.guestNationality.present) {
-      m['guest_nationality'] = comp.guestNationality.value;
-    }
-    if (comp.guestEmail.present) m['guest_email'] = comp.guestEmail.value;
-    if (comp.guestAddress.present) m['guest_address'] = comp.guestAddress.value;
-    if (comp.checkinDate.present) m['checkin_date'] = comp.checkinDate.value;
-    if (comp.checkoutDate.present) m['checkout_date'] = comp.checkoutDate.value;
-    if (comp.actualCheckout.present) {
-      m['actual_checkout'] = comp.actualCheckout.value;
-    }
-    if (comp.status.present) m['status'] = comp.status.value;
-    if (comp.notes.present) m['notes'] = comp.notes.value;
-    if (comp.expectedNights.present) {
-      m['expected_nights'] = comp.expectedNights.value;
-    }
-    if (comp.calculatedNights.present) {
-      m['calculated_nights'] = comp.calculatedNights.value;
-    }
-    return m;
+  Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
+    final row = await (select(bookings)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    if (row == null) return null;
+    return adapters.bookings.toJsonForSource(row, src: Source.appwrite);
+  }
+
+  Future<void> _mergeOutbox({
+    required String op,
+    required String localUuid,
+    required int clientTs,
+    int? serverId,
+  }) async {
+    final payload = await _payloadForLocalUuid(localUuid);
+    if (payload == null) return;
+    await outboxDao.merge(
+      entity: 'bookings',
+      op: op,
+      localUuid: localUuid,
+      serverId: serverId,
+      payload: payload,
+      clientTs: clientTs,
+    );
   }
 
   // دوال النسخ الاحتياطي

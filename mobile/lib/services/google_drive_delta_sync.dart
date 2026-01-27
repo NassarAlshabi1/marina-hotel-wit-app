@@ -9,6 +9,8 @@ import 'sync_constants.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
 import 'sync_locks.dart';
+import 'adapters/adapter_registry.dart';
+import 'adapters/source.dart';
 
 enum SyncFileType { fullBackup, deltaSync }
 
@@ -21,6 +23,7 @@ class GoogleDriveDeltaSync {
   GoogleDriveBackupService? _driveService;
   DeltaSyncService? _deltaSyncService;
   AppDatabase? _database;
+  AdapterRegistry? _adapterRegistry;
   String? _deviceId;
   bool _isSyncing = false;
 
@@ -38,6 +41,7 @@ class GoogleDriveDeltaSync {
   ) async {
     _driveService = driveService;
     _database = db;
+    _adapterRegistry = AdapterRegistry(db);
     _deltaSyncService = DeltaSyncService(db);
     await _initializeDeviceId();
     debugPrint('✅ تم تهيئة خدمة المزامنة التفاضلية لـ Google Drive');
@@ -323,39 +327,119 @@ class GoogleDriveDeltaSync {
     String operation,
     Map<String, dynamic> data,
   ) async {
-    if (_database == null) return;
+    if (_database == null || _adapterRegistry == null) return;
     final db = _database!;
+    final registry = _adapterRegistry!;
     final localUuid =
         _asString(data['local_uuid']) ?? _asString(data['localUuid']) ?? '';
     if (localUuid.isEmpty) return;
 
     debugPrint('🔄 تطبيق $operation على $entity/$localUuid');
 
+    if (operation == 'delete') {
+      await _deleteEntity(db, entity, localUuid);
+      return;
+    }
+
+    final payload = Map<String, dynamic>.from(data);
+    payload.putIfAbsent('local_uuid', () => localUuid);
+
     switch (entity) {
       case 'rooms':
-        await _applyRoomChange(db, localUuid, operation, data);
+        await registry.rooms.upsertFromJson(payload, src: Source.drive);
         break;
       case 'bookings':
-        await _applyBookingChange(db, localUuid, operation, data);
+        await registry.bookings.upsertFromJson(payload, src: Source.drive);
         break;
       case 'payments':
-        await _applyPaymentChange(db, localUuid, operation, data);
+        await registry.payments.upsertFromJson(payload, src: Source.drive);
         break;
       case 'expenses':
-        await _applyExpenseChange(db, localUuid, operation, data);
+        await registry.expenses.upsertFromJson(payload, src: Source.drive);
         break;
       case 'debts':
-        await _applyDebtChange(db, localUuid, operation, data);
+        await registry.debts.upsertFromJson(payload, src: Source.drive);
         break;
       case 'employees':
-        await _applyEmployeeChange(db, localUuid, operation, data);
+        await registry.employees.upsertFromJson(payload, src: Source.drive);
         break;
       case 'booking_notes':
-        await _applyBookingNoteChange(db, localUuid, operation, data);
+        await registry.bookingNotes.upsertFromJson(payload, src: Source.drive);
+        break;
+      case 'booking_nights':
+        await registry.nights.upsertFromJson(payload, src: Source.drive);
+        break;
+      case 'salary_cycles':
+        await registry.salaryCycles.upsertFromJson(payload, src: Source.drive);
+        break;
+      case 'salary_payments':
+        await registry.salaryPayments.upsertFromJson(payload, src: Source.drive);
         break;
       case 'cash_transactions':
-        await _applyCashTransactionChange(db, localUuid, operation, data);
+        await _applyCashTransactionChange(db, localUuid, operation, payload);
         break;
+    }
+  }
+
+  Future<void> _deleteEntity(
+    AppDatabase db,
+    String entity,
+    String localUuid,
+  ) async {
+    switch (entity) {
+      case 'rooms':
+        await (db.delete(db.rooms)..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'bookings':
+        await (db.delete(db.bookings)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'payments':
+        await (db.delete(db.payments)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'expenses':
+        await (db.delete(db.expenses)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'debts':
+        await (db.delete(db.debts)..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'employees':
+        await (db.delete(db.employees)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'booking_notes':
+        await (db.delete(db.bookingNotes)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'booking_nights':
+        await (db.delete(db.bookingNights)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'salary_cycles':
+        await (db.delete(db.salaryCycles)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'salary_payments':
+        await (db.delete(db.salaryPayments)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'cash_transactions':
+        await (db.delete(db.cashTransactions)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
     }
   }
 
