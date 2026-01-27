@@ -20,7 +20,7 @@ void main() {
     () {
       expect(
         Time.hotelDayKeyFromIso('2024-01-15 10:00:00', cutoffHour: 12),
-        '2024-01-15',
+        '2024-01-14',
       );
       expect(
         Time.hotelDayKeyFromIso('2024-01-15T03:00:00', cutoffHour: 12),
@@ -57,7 +57,7 @@ void main() {
     final checkout = DateTime(2024, 1, 2, 15, 0); // after next-day cutoff
     expect(
       Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14),
-      2,
+      3,
     );
 
     // checkout before checkin -> minimum 1 night

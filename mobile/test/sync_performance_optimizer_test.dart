@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/sync_performance_optimizer.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('SyncPerformanceOptimizer', () {
     test('singleton instance is reused', () {
       final first = SyncPerformanceOptimizer();

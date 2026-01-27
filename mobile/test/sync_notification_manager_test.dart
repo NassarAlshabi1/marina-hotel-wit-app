@@ -17,6 +17,7 @@ void main() {
     await tester.pump();
     expect(find.textContaining('تم تحديث 3 سجل'), findsOneWidget);
     expect(find.byIcon(Icons.cloud_sync), findsOneWidget);
+    await tester.pump(const Duration(seconds: 6));
   });
 
   testWidgets('showSyncError builds overlay and retry button works', (
@@ -34,5 +35,6 @@ void main() {
     expect(find.textContaining('fail'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.refresh));
     expect(retried, isTrue);
+    await tester.pump(const Duration(seconds: 8));
   });
 }
