@@ -44,6 +44,16 @@ jobs:
       - name: Run tests
         run: flutter test --coverage
       
+      - name: Coverage summary
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y lcov
+          lcov --summary coverage/lcov.info | tee /tmp/coverage-summary.txt
+          {
+            echo "## Coverage summary";
+            tail -n 4 /tmp/coverage-summary.txt;
+          } >> "$GITHUB_STEP_SUMMARY"
+      
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
