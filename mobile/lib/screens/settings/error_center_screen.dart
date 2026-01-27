@@ -15,7 +15,7 @@ class ErrorCenterScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final appwriteLogs = ref.watch(logsProvider) as List<LogEntry>;
+    final appwriteLogs = ref.watch(logsProvider);
     final driveLogs = ref.watch(googleDriveLogsProvider);
 
     final appwriteErrors = _onlyErrors(appwriteLogs);

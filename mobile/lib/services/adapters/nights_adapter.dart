@@ -60,7 +60,7 @@ class NightsAdapter
           IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
       bookingLocalId: refs.bookingLocalId != null
-          ? d.Value(refs.bookingLocalId)
+          ? d.Value(refs.bookingLocalId!)
           : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
       hotelDayKey:
           _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),

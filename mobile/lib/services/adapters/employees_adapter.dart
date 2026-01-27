@@ -116,14 +116,6 @@ d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src,
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src,
-    {String? altKey, bool? fallback}) {
-  final v = _asBool(json, key, src) ??
-      (altKey != null ? _asBool(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
 int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
   if (v != null) return v;
@@ -146,18 +138,6 @@ double? _asDouble(Map<String, dynamic> json, String key, Source src) {
   if (v is int) return v.toDouble();
   if (v is num) return v.toDouble();
   if (v is String) return double.tryParse(v);
-  return null;
-}
-
-bool? _asBool(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is bool) return v;
-  if (v is num) return v != 0;
-  if (v is String) {
-    final t = v.toLowerCase();
-    if (t == 'true' || t == '1') return true;
-    if (t == 'false' || t == '0') return false;
-  }
   return null;
 }
 

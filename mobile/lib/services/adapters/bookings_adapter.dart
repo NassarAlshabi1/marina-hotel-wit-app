@@ -58,40 +58,33 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
           IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
       serverBookingId:
-          _vInt(json, 'serverBookingId', src) ?? _vInt(json, 'booking_id', src),
-      roomNumber: _vStr(json, 'roomNumber', src, fallback: '') ??
-          _vStr(json, 'room_number', src, fallback: '') ??
-          const d.Value(''),
-      guestName: _vStr(json, 'guestName', src, fallback: '') ??
-          _vStr(json, 'guest_name', src, fallback: '') ??
-          const d.Value(''),
-      guestPhone: _vStr(json, 'guestPhone', src, fallback: '') ??
-          _vStr(json, 'guest_phone', src, fallback: '') ??
-          const d.Value(''),
-      guestIdType: _vStr(json, 'guestIdType', src, fallback: 'بطاقة شخصية') ??
-          _vStr(json, 'guest_id_type', src, fallback: 'بطاقة شخصية') ??
-          const d.Value('بطاقة شخصية'),
-      guestIdNumber: _vStr(json, 'guestIdNumber', src, fallback: '') ??
-          _vStr(json, 'guest_id_number', src, fallback: '') ??
-          const d.Value(''),
-      guestIdIssueDate: _vStr(json, 'guestIdIssueDate', src) ??
-          _vStr(json, 'guest_id_issue_date', src),
-      guestIdIssuePlace: _vStr(json, 'guestIdIssuePlace', src) ??
-          _vStr(json, 'guest_id_issue_place', src),
-      guestNationality: _vStr(json, 'guestNationality', src, fallback: '') ??
-          _vStr(json, 'guest_nationality', src, fallback: '') ??
-          const d.Value(''),
+          _vInt(json, 'serverBookingId', src, altKey: 'booking_id'),
+      roomNumber:
+          _vStr(json, 'roomNumber', src, altKey: 'room_number', fallback: ''),
+      guestName:
+          _vStr(json, 'guestName', src, altKey: 'guest_name', fallback: ''),
+      guestPhone:
+          _vStr(json, 'guestPhone', src, altKey: 'guest_phone', fallback: ''),
+      guestIdType: _vStr(json, 'guestIdType', src,
+          altKey: 'guest_id_type', fallback: 'بطاقة شخصية'),
+      guestIdNumber: _vStr(json, 'guestIdNumber', src,
+          altKey: 'guest_id_number', fallback: ''),
+      guestIdIssueDate:
+          _vStr(json, 'guestIdIssueDate', src, altKey: 'guest_id_issue_date'),
+      guestIdIssuePlace:
+          _vStr(json, 'guestIdIssuePlace', src, altKey: 'guest_id_issue_place'),
+      guestNationality: _vStr(json, 'guestNationality', src,
+          altKey: 'guest_nationality', fallback: ''),
       guestEmail:
-          _vStr(json, 'guestEmail', src) ?? _vStr(json, 'guest_email', src),
+          _vStr(json, 'guestEmail', src, altKey: 'guest_email'),
       guestAddress:
-          _vStr(json, 'guestAddress', src) ?? _vStr(json, 'guest_address', src),
-      checkinDate: _vStr(json, 'checkinDate', src, fallback: '') ??
-          _vStr(json, 'checkin_date', src, fallback: '') ??
-          const d.Value(''),
+          _vStr(json, 'guestAddress', src, altKey: 'guest_address'),
+      checkinDate: _vStr(json, 'checkinDate', src,
+          altKey: 'checkin_date', fallback: ''),
       checkoutDate:
-          _vStr(json, 'checkoutDate', src) ?? _vStr(json, 'checkout_date', src),
-      actualCheckout: _vStr(json, 'actualCheckout', src) ??
-          _vStr(json, 'actual_checkout', src),
+          _vStr(json, 'checkoutDate', src, altKey: 'checkout_date'),
+      actualCheckout: _vStr(json, 'actualCheckout', src,
+          altKey: 'actual_checkout'),
       status: _vStr(json, 'status', src, fallback: ''),
       notes: _vStr(json, 'notes', src),
       expectedNights: _vInt(json, 'expectedNights', src,

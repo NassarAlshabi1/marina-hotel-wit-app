@@ -1,9 +1,11 @@
+import 'package:drift/drift.dart' as d;
+
 import '../local_db.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-abstract class EntityAdapter<D extends DataClass,
-    C extends UpdateCompanion<D>> {
+abstract class EntityAdapter<D extends d.DataClass,
+    C extends d.UpdateCompanion<D>> {
   String get collectionId;
   String get drivePath;
   String get tableName;
