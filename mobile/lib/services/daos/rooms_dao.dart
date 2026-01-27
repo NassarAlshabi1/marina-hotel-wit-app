@@ -221,4 +221,3 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
   @override
   GeneratedColumn<int> get optimisticVersion => rooms.version;
 }
-

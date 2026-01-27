@@ -1252,8 +1252,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final actualCheckout = widget.booking.actualCheckout != null
         ? DateTime.tryParse(widget.booking.actualCheckout!)
         : null;
-    final actualNights =
-        Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? plannedCheckout);
+    final actualNights = Time.nightsWithCutoff(checkin,
+        checkout: actualCheckout ?? plannedCheckout);
 
     final totalAmount = actualNights * roomRate;
     final payments =

@@ -480,22 +480,20 @@ class _SyncHealthDashboardScreenState
 
   Widget _buildIntegrityReportCard(SyncDashboardData dashboard) {
     final report = dashboard.integrityReport;
-    
+
     if (report == null) {
       return const SizedBox.shrink();
     }
 
     final hasIssues = report.hasIssues;
     final hasCritical = report.hasCriticalIssues;
-    final statusColor = hasCritical
-        ? Colors.red
-        : (hasIssues ? Colors.orange : Colors.green);
+    final statusColor =
+        hasCritical ? Colors.red : (hasIssues ? Colors.orange : Colors.green);
     final statusIcon = hasCritical
         ? Icons.error
         : (hasIssues ? Icons.warning : Icons.check_circle);
-    final statusText = hasCritical
-        ? 'مشاكل حرجة'
-        : (hasIssues ? 'تحذيرات' : 'سليم');
+    final statusText =
+        hasCritical ? 'مشاكل حرجة' : (hasIssues ? 'تحذيرات' : 'سليم');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -587,7 +585,8 @@ class _SyncHealthDashboardScreenState
                             Text(typeLabel),
                             Text(
                               entry.value.toString(),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),

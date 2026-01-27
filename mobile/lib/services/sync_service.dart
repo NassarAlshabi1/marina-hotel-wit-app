@@ -221,7 +221,7 @@ class SyncService {
         final serverTs = (it['server_ts'] as num).toInt();
         final rawData = it['data'];
         final item = rawData is Map
-            ? Map<String, dynamic>.from(rawData as Map)
+            ? Map<String, dynamic>.from(rawData)
             : <String, dynamic>{};
 
         if (serverTs > maxTs) maxTs = serverTs;
@@ -663,7 +663,7 @@ class SyncService {
       case 'payments':
         final pid = data['payment_id'] as int?;
         final serverBookingId = data['booking_id'] as int?;
-        final bookingUuid = _asString(data['booking_uuid_cache']) ?? 
+        final bookingUuid = _asString(data['booking_uuid_cache']) ??
             _asString(data['booking_uuid']);
 
         int? bookingLocalId;
@@ -696,12 +696,13 @@ class SyncService {
               lp.id,
               PaymentsCompanion(
                 serverPaymentId: d.Value(pid),
-                bookingLocalId: bookingLocalId != null 
-                    ? d.Value(bookingLocalId) 
+                bookingLocalId: bookingLocalId != null
+                    ? d.Value(bookingLocalId)
                     : const d.Value.absent(),
-                bookingUuidCache: bookingUuidCache != null && bookingUuidCache.isNotEmpty
-                    ? d.Value(bookingUuidCache)
-                    : const d.Value.absent(),
+                bookingUuidCache:
+                    bookingUuidCache != null && bookingUuidCache.isNotEmpty
+                        ? d.Value(bookingUuidCache)
+                        : const d.Value.absent(),
                 serverBookingId: d.Value(serverBookingId),
                 roomNumber: d.Value(data['room_number'] as String?),
                 amount:
@@ -768,8 +769,8 @@ class SyncService {
     final existing = await (db.select(db.bookingNights)
           ..where((t) => t.localUuid.equals(localUuid)))
         .getSingleOrNull();
-    final bool isDelete =
-        op == 'delete' || (data.containsKey('deleted_at') && data['deleted_at'] != null);
+    final bool isDelete = op == 'delete' ||
+        (data.containsKey('deleted_at') && data['deleted_at'] != null);
     final int normalizedServerTs =
         _normalizeTimestampField(serverTs, fallback: Time.nowEpoch());
     final int createdAt = _normalizeTimestampField(data['created_at'],
@@ -783,10 +784,11 @@ class SyncService {
     final int lastModifiedEpoch = _normalizeTimestampField(
         data['last_modified_epoch'],
         fallback: lastModified);
-    final int? deletedAt = data.containsKey('deleted_at') && data['deleted_at'] != null
-        ? _normalizeTimestampField(data['deleted_at'],
-            fallback: normalizedServerTs)
-        : null;
+    final int? deletedAt =
+        data.containsKey('deleted_at') && data['deleted_at'] != null
+            ? _normalizeTimestampField(data['deleted_at'],
+                fallback: normalizedServerTs)
+            : null;
     final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
     final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
     final String? deletedIso =
@@ -884,10 +886,11 @@ class SyncService {
     final int lastModifiedEpoch = _normalizeTimestampField(
         data['last_modified_epoch'],
         fallback: lastModified);
-    final int? deletedAt = data.containsKey('deleted_at') && data['deleted_at'] != null
-        ? _normalizeTimestampField(data['deleted_at'],
-            fallback: normalizedServerTs)
-        : null;
+    final int? deletedAt =
+        data.containsKey('deleted_at') && data['deleted_at'] != null
+            ? _normalizeTimestampField(data['deleted_at'],
+                fallback: normalizedServerTs)
+            : null;
     final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
     final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
     final String? deletedIso =

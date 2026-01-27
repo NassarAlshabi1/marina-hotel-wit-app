@@ -477,7 +477,8 @@ class AppwriteDeltaSync {
       }
     }
 
-    dynamic pendingRaw = data['isPendingBalance'] ?? data['is_pending_balance'];
+    final dynamic pendingRaw =
+        data['isPendingBalance'] ?? data['is_pending_balance'];
     bool? isPendingBalance;
     if (pendingRaw is bool) {
       isPendingBalance = pendingRaw;

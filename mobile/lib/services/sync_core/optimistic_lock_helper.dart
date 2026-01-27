@@ -43,7 +43,8 @@ mixin OptimisticLockDaoMixin<T extends Table, D extends DataClass>
       data[optimisticVersion.$name] = Variable<int>(expectedVersion + 1);
 
       final updated = await (update(optimisticTable)
-            ..where((_) => optimisticLocalUuid.equals(localUuid) &
+            ..where((_) =>
+                optimisticLocalUuid.equals(localUuid) &
                 optimisticVersion.equals(expectedVersion)))
           .write(RawValuesInsertable(data));
 

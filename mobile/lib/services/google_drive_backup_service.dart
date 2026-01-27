@@ -251,7 +251,8 @@ class GoogleDriveBackupService {
       }
 
       _log('🔄 محاولة استعادة جلسة Google Drive...');
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
+      final GoogleSignInAccount? account =
+          await _googleSignIn!.signInSilently();
 
       if (account != null) {
         _log('🔑 الحصول على رؤوس المصادقة...');
@@ -673,7 +674,8 @@ class GoogleDriveBackupService {
           orderBy: 'createdTime desc',
           spaces: 'drive',
           pageToken: pageToken,
-          $fields: 'nextPageToken,files(id,name,createdTime,size,appProperties)',
+          $fields:
+              'nextPageToken,files(id,name,createdTime,size,appProperties)',
         );
         if (response.files != null) {
           allFiles.addAll(response.files!);
@@ -716,17 +718,18 @@ class GoogleDriveBackupService {
     });
   }
 
-  Future<void> restoreFromBackup(Map<String, dynamic> backupData, {bool useSmartMerge = true}) async {
+  Future<void> restoreFromBackup(Map<String, dynamic> backupData,
+      {bool useSmartMerge = true}) async {
     if (!DatabaseManager.isRestoring) {
       // Self-guard to avoid accidental destructive calls while keeping safety
-      return DatabaseManager.runWithRestoreGuard(
-          () => _restoreFromBackupInternal(backupData, useSmartMerge: useSmartMerge));
+      return DatabaseManager.runWithRestoreGuard(() =>
+          _restoreFromBackupInternal(backupData, useSmartMerge: useSmartMerge));
     }
     return _restoreFromBackupInternal(backupData, useSmartMerge: useSmartMerge);
   }
 
-  Future<void> _restoreFromBackupInternal(
-      Map<String, dynamic> backupData, {bool useSmartMerge = true}) async {
+  Future<void> _restoreFromBackupInternal(Map<String, dynamic> backupData,
+      {bool useSmartMerge = true}) async {
     try {
       final db = DatabaseManager.instance;
 
@@ -760,27 +763,28 @@ class GoogleDriveBackupService {
         _log('🧠 استخدام الدمج الذكي (Smart Merge)...');
         final smartRestore = SmartRestoreService(db);
         final result = await smartRestore.smartMerge(backupData);
-        
+
         if (result.success) {
           _log('✅ الدمج الذكي نجح: ${result.totalUpdated} سجل');
-          
+
           // تنظيف السجلات اليتيمة
           final cleanupResult = await smartRestore.cleanupOrphanedRecords();
           if (cleanupResult.totalDeleted > 0) {
             _log('🧹 تم تنظيف ${cleanupResult.totalDeleted} سجل يتيم');
           }
-          
+
           // تطبيق إعدادات النظام
           await _applySystemSettings(backupData);
-          
+
           // تشغيل auto-fix
           final fixService = RestoreFixService(db);
           await fixService.runAutoFixAfterRestore(
               backupTimestamp: metadata.backupTimestamp);
-          
+
           return;
         } else {
-          _log('⚠️ فشل الدمج الذكي، fallback إلى الاستعادة الكاملة: ${result.error}');
+          _log(
+              '⚠️ فشل الدمج الذكي، fallback إلى الاستعادة الكاملة: ${result.error}');
           // سيتم استخدام الطريقة التقليدية أدناه
         }
       }
@@ -819,7 +823,8 @@ class GoogleDriveBackupService {
             final roomsData = backupData['rooms'] as List<dynamic>;
             for (final roomJson in roomsData) {
               final map = Map<String, dynamic>.from(roomJson as Map);
-              final data = Room.fromJson(map, serializer: lenientValueSerializer);
+              final data =
+                  Room.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.rooms).insertOnConflictUpdate(data);
             }
           }
@@ -838,8 +843,8 @@ class GoogleDriveBackupService {
             final notesData = backupData['booking_notes'] as List<dynamic>;
             for (final noteJson in notesData) {
               final map = Map<String, dynamic>.from(noteJson as Map);
-              final data = BookingNote.fromJson(map,
-                  serializer: lenientValueSerializer);
+              final data =
+                  BookingNote.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.bookingNotes).insertOnConflictUpdate(data);
             }
           }
@@ -919,7 +924,8 @@ class GoogleDriveBackupService {
             final debtsList = backupData['debts'] as List<dynamic>;
             for (final debtJson in debtsList) {
               final map = Map<String, dynamic>.from(debtJson as Map);
-              final data = Debt.fromJson(map, serializer: lenientValueSerializer);
+              final data =
+                  Debt.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.debts).insertOnConflictUpdate(data);
             }
           }
@@ -928,8 +934,8 @@ class GoogleDriveBackupService {
             final runsList = backupData['auto_fix_runs'] as List<dynamic>;
             for (final runJson in runsList) {
               final map = Map<String, dynamic>.from(runJson as Map);
-              final data = AutoFixRun.fromJson(map,
-                  serializer: lenientValueSerializer);
+              final data =
+                  AutoFixRun.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.autoFixRuns).insertOnConflictUpdate(data);
             }
           }
@@ -941,7 +947,9 @@ class GoogleDriveBackupService {
               final map = Map<String, dynamic>.from(violationJson as Map);
               final data = IntegrityViolation.fromJson(map,
                   serializer: lenientValueSerializer);
-              await db.into(db.integrityViolations).insertOnConflictUpdate(data);
+              await db
+                  .into(db.integrityViolations)
+                  .insertOnConflictUpdate(data);
             }
           }
 
@@ -959,8 +967,8 @@ class GoogleDriveBackupService {
             final cyclesList = backupData['salary_cycles'] as List<dynamic>;
             for (final cycleJson in cyclesList) {
               final map = Map<String, dynamic>.from(cycleJson as Map);
-              final data = SalaryCycle.fromJson(map,
-                  serializer: lenientValueSerializer);
+              final data =
+                  SalaryCycle.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.salaryCycles).insertOnConflictUpdate(data);
             }
           }
@@ -999,8 +1007,8 @@ class GoogleDriveBackupService {
             final logList = backupData['sync_log'] as List<dynamic>;
             for (final logJson in logList) {
               final map = Map<String, dynamic>.from(logJson as Map);
-              final data = SyncLogData.fromJson(map,
-                  serializer: lenientValueSerializer);
+              final data =
+                  SyncLogData.fromJson(map, serializer: lenientValueSerializer);
               await db.into(db.syncLog).insertOnConflictUpdate(data);
             }
           }
@@ -1026,7 +1034,7 @@ class GoogleDriveBackupService {
           }
 
           _log('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
-          
+
           // تطبيق إعدادات النظام
           await _applySystemSettings(backupData);
           final fixService = RestoreFixService(db);
@@ -1051,7 +1059,7 @@ class GoogleDriveBackupService {
     if (!backupData.containsKey('system_settings')) {
       return;
     }
-    
+
     _log('⚙️ تطبيق إعدادات النظام من النسخة الاحتياطية...');
     try {
       final rawSettings = backupData['system_settings'];

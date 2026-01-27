@@ -451,7 +451,8 @@ class UnifiedSyncOrchestrator {
           phase: 'completing',
           message: 'تم اكتشاف ${report.criticalIssueCount} مشاكل حرجة',
           timestamp: DateTime.now(),
-          lastError: 'Found ${report.criticalIssueCount} critical integrity issues',
+          lastError:
+              'Found ${report.criticalIssueCount} critical integrity issues',
         ));
       } else if (report.hasIssues) {
         _emit(_state.copyWith(

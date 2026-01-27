@@ -551,11 +551,10 @@ class AppwriteService {
               ? error.code
               : '';
       final message = error.toString();
-      final notFound =
-          code == 'NOT_FOUND' ||
-              message.contains('not_found') ||
-              message.contains('document_not_found') ||
-              message.contains('404');
+      final notFound = code == 'NOT_FOUND' ||
+          message.contains('not_found') ||
+          message.contains('document_not_found') ||
+          message.contains('404');
       if (!notFound) {
         // أي خطأ غير 404 يُعاد رميه ليرتفع.
         // حالات التعارض 409 تُحلّ بالمسار التالي (الإنشاء مع نفس المعرّف سيستبدل).
@@ -577,12 +576,11 @@ class AppwriteService {
               ? error.code
               : '';
       final message = error.toString();
-      final isConflict =
-          code == 'CONFLICT_ERROR' ||
-              code == 'document_already_exists' ||
-              message.contains('document_already_exists') ||
-              message.contains('document already exists') ||
-              message.contains('409');
+      final isConflict = code == 'CONFLICT_ERROR' ||
+          code == 'document_already_exists' ||
+          message.contains('document_already_exists') ||
+          message.contains('document already exists') ||
+          message.contains('409');
       if (isConflict) {
         // إذا تعارض الإنشاء، جرّب التحديث مجدداً.
         return await updateDocument(

@@ -166,7 +166,7 @@ class AutoBackupTask {
 
     // العثور على التاريخ المستهدف في الأسبوع الحالي أو التالي
     final daysUntilWeekday = (weekday - now.weekday + 7) % 7;
-    var targetDate = now.add(Duration(days: daysUntilWeekday));
+    final targetDate = now.add(Duration(days: daysUntilWeekday));
 
     var targetTime = DateTime(
       targetDate.year,

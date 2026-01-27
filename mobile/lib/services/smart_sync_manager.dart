@@ -71,7 +71,7 @@ class SmartSyncManager {
 
     // تهيئة مُحسِّن الأداء
     await SyncPerformanceOptimizer.instance.initialize();
-    
+
     // تهيئة Enhanced Delta Sync
     if (GoogleDriveDeltaSync.instance.isInitialized) {
       _enhancedDeltaSync = EnhancedDeltaSync(
@@ -466,7 +466,7 @@ class SmartSyncManager {
         for (final noteData in notes) {
           if (noteData is Map<String, dynamic>) {
             // التحقق من تاريخ الملاحظة
-            String? createdAtStr = noteData['created_at'];
+            final String? createdAtStr = noteData['created_at'];
             // في بعض الأحيان يكون التاريخ بتنسيق مختلف، نحاول التحليل
             if (createdAtStr != null) {
               try {
@@ -507,8 +507,8 @@ class SmartSyncManager {
   /// دمج بيانات النسخ الاحتياطي - استخدام الدمج الذكي بشكل افتراضي
   Future<void> _mergeBackupData(Map<String, dynamic> backupData) async {
     // استخدام Smart Merge (أسرع وأكثر أماناً من الحذف الكامل)
-    await DatabaseManager.runWithRestoreGuard(
-        () => _backupService!.restoreFromBackup(backupData, useSmartMerge: true));
+    await DatabaseManager.runWithRestoreGuard(() =>
+        _backupService!.restoreFromBackup(backupData, useSmartMerge: true));
   }
 
   /// إزالة سجل من بيانات النسخ الاحتياطي
@@ -778,19 +778,22 @@ class SmartSyncManager {
       // محاولة استخدام Enhanced Delta Sync أولاً (أسرع وأخف وأكثر موثوقية)
       if (_enhancedDeltaSync != null) {
         _log('🔄 استخدام Enhanced Delta Sync للتحديثات السريعة...');
-        final deltaResult = await _enhancedDeltaSync!.pushWithRetry(maxRetries: 3);
+        final deltaResult =
+            await _enhancedDeltaSync!.pushWithRetry(maxRetries: 3);
 
         if (deltaResult.success) {
           await _updateLastSyncTime();
           await _updateLastPushTime();
-          _log('✅ تم رفع ${deltaResult.changesCount} تغيير عبر Enhanced Delta Sync');
+          _log(
+              '✅ تم رفع ${deltaResult.changesCount} تغيير عبر Enhanced Delta Sync');
           return true;
         } else if (deltaResult.changesCount == 0) {
           _log('✓ لا توجد تغييرات للرفع');
           await _updateLastPushTime();
           return true;
         } else {
-          _log('⚠️ فشل Enhanced Delta Sync: ${deltaResult.message} - fallback إلى Full');
+          _log(
+              '⚠️ فشل Enhanced Delta Sync: ${deltaResult.message} - fallback إلى Full');
         }
       }
 
@@ -856,17 +859,20 @@ class SmartSyncManager {
 
       if (_enhancedDeltaSync != null) {
         _log('🔄 استخدام Enhanced Delta Sync للتحديثات السريعة...');
-        final deltaResult = await _enhancedDeltaSync!.pullWithRetry(maxRetries: 3);
+        final deltaResult =
+            await _enhancedDeltaSync!.pullWithRetry(maxRetries: 3);
 
         if (deltaResult.success && deltaResult.changesCount > 0) {
           await _updateLastSyncTime();
-          _log('✅ تم سحب ${deltaResult.changesCount} تغيير عبر Enhanced Delta Sync');
+          _log(
+              '✅ تم سحب ${deltaResult.changesCount} تغيير عبر Enhanced Delta Sync');
           return true;
         } else if (deltaResult.success && deltaResult.changesCount == 0) {
           _log('✓ لا توجد تغييرات للسحب');
           return false;
         } else {
-          _log('⚠️ فشل Enhanced Delta Sync: ${deltaResult.message} - fallback إلى Full');
+          _log(
+              '⚠️ فشل Enhanced Delta Sync: ${deltaResult.message} - fallback إلى Full');
         }
       }
 

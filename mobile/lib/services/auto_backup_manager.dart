@@ -258,7 +258,7 @@ class AutoBackupManager {
       final retentionDays = await _getRetentionDays();
       final cutoffDate = DateTime.now().subtract(Duration(days: retentionDays));
 
-      List<DriveBackupFile> filesToDelete = [];
+      final List<DriveBackupFile> filesToDelete = [];
 
       // حذف النسخ الزائدة عن العدد المحدد
       if (backupFiles.length > maxBackups) {

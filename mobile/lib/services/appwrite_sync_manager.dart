@@ -187,7 +187,8 @@ class AppwriteSyncManager {
             currentRemoteVersion =
                 _asInt(existingDoc.data['version'], fallback: 0);
           }
-          if (_deviceVersion == null || _deviceVersion! <= currentRemoteVersion) {
+          if (_deviceVersion == null ||
+              _deviceVersion! <= currentRemoteVersion) {
             _deviceVersion = currentRemoteVersion + 1;
           }
 
@@ -363,7 +364,7 @@ class AppwriteSyncManager {
     final phaseMs = <String, int>{};
     int recordsPushed = 0;
     int recordsPulled = 0;
-    int conflicts = 0;
+    final int conflicts = 0;
     String? errorMessage;
     SyncStatus finalStatus = SyncStatus.success;
     late String syncLogId;
@@ -621,27 +622,27 @@ class AppwriteSyncManager {
         return 0;
       }
 
-      int totalSyncs = syncLogs.length;
-      int successfulSyncs = syncLogs
+      final int totalSyncs = syncLogs.length;
+      final int successfulSyncs = syncLogs
           .where((log) => log.data['status'] == SyncLogStatus.completed.value)
           .length;
-      int failedSyncs = syncLogs
+      final int failedSyncs = syncLogs
           .where((log) => log.data['status'] == SyncLogStatus.failed.value)
           .length;
 
-      int totalRecordsPushed = syncLogs.fold<int>(
+      final int totalRecordsPushed = syncLogs.fold<int>(
           0,
           (sum, log) =>
               sum +
               extractCount(
                   Map<String, dynamic>.from(log.data), 'recordsPushed'));
-      int totalRecordsPulled = syncLogs.fold<int>(
+      final int totalRecordsPulled = syncLogs.fold<int>(
           0,
           (sum, log) =>
               sum +
               extractCount(
                   Map<String, dynamic>.from(log.data), 'recordsPulled'));
-      int totalConflicts = syncLogs.fold<int>(
+      final int totalConflicts = syncLogs.fold<int>(
           0,
           (sum, log) =>
               sum +
@@ -742,7 +743,8 @@ class AppwriteSyncManager {
           serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
           createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
           updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          deletedAt:
+              _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
           lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
           version: d.Value(_asInt(data['version'], fallback: 1)),
           origin: d.Value(_asString(data['origin']) ?? 'server'),
@@ -802,18 +804,18 @@ class AppwriteSyncManager {
         if (!existingRoomSet.contains(roomNumber)) {
           final now = Time.nowEpoch();
           await database.into(database.rooms).insertOnConflictUpdate(
-            RoomsCompanion(
-              roomNumber: d.Value(roomNumber),
-              type: const d.Value(''),
-              price: const d.Value(0),
-              status: const d.Value('available'),
-              localUuid: d.Value(IdGen.uuid()),
-              createdAt: d.Value(now),
-              updatedAt: d.Value(now),
-              lastModified: d.Value(now),
-              origin: const d.Value('appwrite_pull'),
-            ),
-          );
+                RoomsCompanion(
+                  roomNumber: d.Value(roomNumber),
+                  type: const d.Value(''),
+                  price: const d.Value(0),
+                  status: const d.Value('available'),
+                  localUuid: d.Value(IdGen.uuid()),
+                  createdAt: d.Value(now),
+                  updatedAt: d.Value(now),
+                  lastModified: d.Value(now),
+                  origin: const d.Value('appwrite_pull'),
+                ),
+              );
           existingRoomSet.add(roomNumber);
         }
 
@@ -849,7 +851,8 @@ class AppwriteSyncManager {
           serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
           createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
           updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          deletedAt:
+              _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
           lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
           version: d.Value(_asInt(data['version'], fallback: 1)),
           origin: d.Value(_asString(data['origin']) ?? 'server'),
@@ -1043,7 +1046,8 @@ class AppwriteSyncManager {
         }
 
         int? bookingLocalId = _asIntNullable(data['bookingLocalId']);
-        if (bookingLocalId != null && !existingBookingIds.contains(bookingLocalId)) {
+        if (bookingLocalId != null &&
+            !existingBookingIds.contains(bookingLocalId)) {
           bookingLocalId = null;
         }
 
@@ -1104,7 +1108,8 @@ class AppwriteSyncManager {
           cashTransactionLocalId = null;
         }
 
-        dynamic pendingRaw = data['isPendingBalance'] ?? data['is_pending_balance'];
+        final dynamic pendingRaw =
+            data['isPendingBalance'] ?? data['is_pending_balance'];
         bool? isPendingBalance;
         if (pendingRaw is bool) {
           isPendingBalance = pendingRaw;
@@ -1117,14 +1122,16 @@ class AppwriteSyncManager {
           serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
           createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
           updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-          deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
+          deletedAt:
+              _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
           lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
           version: d.Value(_asInt(data['version'], fallback: 1)),
           origin: d.Value(_asString(data['origin']) ?? 'server'),
           serverPaymentId:
               _nullableValue<int>(_asIntNullable(data['serverPaymentId'])),
           bookingLocalId: _nullableValue<int>(bookingLocalId),
-          bookingUuidCache: resolvedBookingUuidCache != null && resolvedBookingUuidCache.isNotEmpty
+          bookingUuidCache: resolvedBookingUuidCache != null &&
+                  resolvedBookingUuidCache.isNotEmpty
               ? d.Value(resolvedBookingUuidCache)
               : const d.Value.absent(),
           serverBookingId:
@@ -1139,7 +1146,8 @@ class AppwriteSyncManager {
           isPendingBalance: isPendingBalance != null
               ? d.Value(isPendingBalance)
               : const d.Value.absent(),
-          linkedDebtUuid: _nullableValue<String>(_asString(data['linkedDebtUuid'])),
+          linkedDebtUuid:
+              _nullableValue<String>(_asString(data['linkedDebtUuid'])),
           cashTransactionLocalId: _nullableValue<int>(cashTransactionLocalId),
           cashTransactionServerId: _nullableValue<int>(
               _asIntNullable(data['cashTransactionServerId'])),
@@ -1177,8 +1185,7 @@ class AppwriteSyncManager {
           tag: 'SYNC');
     }
     if (cashFkWarnings > 0) {
-      _logger.warning(
-          'Sync payments: $cashFkWarnings cash links unresolved',
+      _logger.warning('Sync payments: $cashFkWarnings cash links unresolved',
           tag: 'SYNC');
     }
 
@@ -1416,7 +1423,8 @@ class AppwriteSyncManager {
       Map<String, dynamic> payload, OutboxData entry) {
     return {
       ...payload,
-      'idempotencyKey': '${entry.entity}:${entry.op}:${entry.localUuid}:${entry.id}',
+      'idempotencyKey':
+          '${entry.entity}:${entry.op}:${entry.localUuid}:${entry.id}',
     };
   }
 

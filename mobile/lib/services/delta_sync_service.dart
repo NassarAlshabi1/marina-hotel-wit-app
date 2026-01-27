@@ -443,7 +443,8 @@ class DeltaSyncService {
         fetchAll: () => db.select(db.hotelDayLedger).get(),
         localUuid: (dynamic row) => (row as HotelDayLedgerEntry).localUuid,
         createdAt: (dynamic row) => (row as HotelDayLedgerEntry).createdAt,
-        lastModified: (dynamic row) => (row as HotelDayLedgerEntry).lastModified,
+        lastModified: (dynamic row) =>
+            (row as HotelDayLedgerEntry).lastModified,
         deletedAt: (dynamic row) => (row as HotelDayLedgerEntry).deletedAt,
         toJson: (dynamic row) => (row as HotelDayLedgerEntry).toJson(),
       ),

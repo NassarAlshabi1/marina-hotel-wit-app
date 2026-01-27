@@ -28,7 +28,8 @@ class IntegrityIssue {
   });
 
   @override
-  String toString() => 'IntegrityIssue($type): $table${uuid != null ? '/$uuid' : ''} - $description';
+  String toString() =>
+      'IntegrityIssue($type): $table${uuid != null ? '/$uuid' : ''} - $description';
 
   String toArabicMessage() {
     switch (type) {
@@ -122,7 +123,8 @@ class SyncIntegrityChecker {
         type: IssueType.orphanedRecord,
         table: 'payments',
         uuid: row.read<String>('local_uuid'),
-        description: 'Payment without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
+        description:
+            'Payment without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
         isCritical: true,
       ));
     }
@@ -147,7 +149,8 @@ class SyncIntegrityChecker {
         type: IssueType.orphanedRecord,
         table: 'debts',
         uuid: row.read<String>('local_uuid'),
-        description: 'Debt without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
+        description:
+            'Debt without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
         isCritical: true,
       ));
     }
@@ -343,8 +346,7 @@ class SyncIntegrityChecker {
     }
   }
 
-  Future<void> _fixOrphanedRecord(
-      AppDatabase db, IntegrityIssue issue) async {
+  Future<void> _fixOrphanedRecord(AppDatabase db, IntegrityIssue issue) async {
     await db.customStatement('''
       UPDATE ${issue.table}
       SET deleted_at = ?

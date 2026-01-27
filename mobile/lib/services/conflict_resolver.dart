@@ -327,13 +327,7 @@ class EnhancedConflictResolver {
         'is_active',
         'basic_salary'
       },
-      'guests': {
-        'name',
-        'phone',
-        'id_number',
-        'nationality',
-        'is_blacklisted'
-      },
+      'guests': {'name', 'phone', 'id_number', 'nationality', 'is_blacklisted'},
       'cash_transactions': {
         'amount',
         'type',
@@ -341,12 +335,7 @@ class EnhancedConflictResolver {
         'status',
         'transaction_type'
       },
-      'shift_notes': {
-        'content',
-        'is_read',
-        'priority',
-        'status'
-      },
+      'shift_notes': {'content', 'is_read', 'priority', 'status'},
       'booking_notes': {
         'note',
         'is_alert',
