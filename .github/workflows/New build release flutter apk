@@ -1,0 +1,113 @@
+# Name: Build Flutter Release APK
+name: Build Flutter Release APK
+
+on:
+  push:
+    branches:
+      - main
+      - 'capy/**'
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/flutter-apk-release.yml'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/flutter-apk-release.yml'
+
+  workflow_dispatch:
+
+jobs:
+  build-release-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      # 1️⃣ Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Java
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # 3️⃣ Flutter
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.3'
+          channel: stable
+          cache: true
+          cache-key: flutter-${{ runner.os }}-3.38.3
+
+      # 4️⃣ Pub cache
+      - name: Cache pub cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('mobile/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # 5️⃣ Android SDK
+      - name: Install Android SDK components (API 35)
+        run: |
+          echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      # 6️⃣ Verify signing files (local, committed)
+      - name: Verify Android Signing Files
+        run: |
+          ls -la android/app/release.keystore
+          ls -la android/key.properties
+
+      # 7️⃣ Clean
+      - name: Clean build artifacts
+        run: flutter clean
+
+      # 8️⃣ Dependencies
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 9️⃣ Generate code (build_runner)
+      - name: Run build_runner (code generation)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # 🔟 Dynamic versioning
+      - name: Determine dynamic build version
+        id: version
+        run: |
+          BASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          BUILD_NUMBER=${GITHUB_RUN_NUMBER}
+          echo "build_name=${BASE_VERSION}.${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+
+      # 1️⃣1️⃣ Build APK
+      - name: Build release APK
+        run: flutter build apk --release \
+          --build-name ${{ steps.version.outputs.build_name }} \
+          --build-number ${{ steps.version.outputs.build_number }}
+
+      # 1️⃣2️⃣ Upload artifact
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: marina-hotel-release-${{ steps.version.outputs.build_name }}
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
