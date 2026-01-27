@@ -175,7 +175,3 @@ void main() {
     });
   });
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> 060c58a (Fix mobile lint warnings)
