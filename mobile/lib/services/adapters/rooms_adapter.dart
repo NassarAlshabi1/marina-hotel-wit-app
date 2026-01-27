@@ -45,22 +45,20 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
           _asString(json, 'local_uuid', src) ??
           IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
-      roomNumber: _vStr(json, 'roomNumber', src) ??
-          _vStr(json, 'room_number', src) ??
-          const d.Value.absent(),
-      type: _vStr(json, 'type', src) ?? const d.Value.absent(),
-      price: _vDouble(json, 'price', src) ?? const d.Value(0.0),
-      status: _vStr(json, 'status', src) ?? const d.Value.absent(),
-      imageUrl: _vStr(json, 'imageUrl', src) ?? _vStr(json, 'image_url', src),
-      cleaningStatus: _vStr(json, 'cleaningStatus', src) ??
-          _vStr(json, 'cleaning_status', src) ??
+      roomNumber: _vStr(json, 'roomNumber', src, altKey: 'room_number', fallback: '') ?? const d.Value(''),
+      type: _vStr(json, 'type', src, fallback: '') ?? const d.Value(''),
+      price: _vDouble(json, 'price', src, fallback: 0.0) ?? const d.Value(0.0),
+      status: _vStr(json, 'status', src, fallback: '') ?? const d.Value(''),
+      imageUrl: _vStr(json, 'imageUrl', src, altKey: 'image_url'),
+      cleaningStatus: _vStr(json, 'cleaningStatus', src,
+              altKey: 'cleaning_status', fallback: 'clean') ??
           const d.Value('clean'),
-      lastCleanedHotelDay: _vStr(json, 'lastCleanedHotelDay', src) ??
-          _vStr(json, 'last_cleaned_hotel_day', src),
-      lastOccupiedHotelDay: _vStr(json, 'lastOccupiedHotelDay', src) ??
-          _vStr(json, 'last_occupied_hotel_day', src),
-      requiresMaintenance:
-          _vBool(json, 'requiresMaintenance', src) ?? const d.Value(false),
+      lastCleanedHotelDay: _vStr(json, 'lastCleanedHotelDay', src,
+          altKey: 'last_cleaned_hotel_day'),
+      lastOccupiedHotelDay: _vStr(json, 'lastOccupiedHotelDay', src,
+          altKey: 'last_occupied_hotel_day'),
+      requiresMaintenance: _vBool(json, 'requiresMaintenance', src,
+          altKey: 'requires_maintenance', fallback: false) ?? const d.Value(false),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -68,14 +66,13 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
-      createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
+      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
       lastModifiedEpoch:
-          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
-      version: _vInt(json, 'version', src) ?? const d.Value(1),
-      origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ??
-          _vStr(json, 'vector_clock', src) ??
-          const d.Value('{}'),
+          _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
+      version: _vInt(json, 'version', src, fallback: 1),
+      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(json, 'vectorClock', src,
+          altKey: 'vector_clock', fallback: '{}'),
     );
   }
 
@@ -108,23 +105,35 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
   }
 }
 
-d.Value<int?> _vInt(Map<String, dynamic> json, String key, Source src) {
-  final v = _asInt(json, key, src);
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, int? fallback}) {
+  final v = _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String?> _vStr(Map<String, dynamic> json, String key, Source src) {
-  final v = _asString(json, key, src);
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, String? fallback}) {
+  final v = _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double?> _vDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _asDouble(json, key, src);
+d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, double? fallback}) {
+  final v = _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool?> _vBool(Map<String, dynamic> json, String key, Source src) {
-  final v = _asBool(json, key, src);
+d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src,
+    {String? altKey, bool? fallback}) {
+  final v = _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
