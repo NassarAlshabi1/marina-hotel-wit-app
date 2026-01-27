@@ -62,27 +62,27 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
           ? d.Value(refs.bookingLocalId)
           : _vInt(json, 'bookingLocalId', src) ??
               _vInt(json, 'booking_local_id', src),
-      guestName: _vStr(json, 'guestName', src) ?? const d.Value.absent(),
-      checkinDate: _vStr(json, 'checkinDate', src) ??
-          _vStr(json, 'checkin_date', src) ??
-          const d.Value.absent(),
-      checkoutDate: _vStr(json, 'checkoutDate', src) ??
-          _vStr(json, 'checkout_date', src) ??
-          const d.Value.absent(),
+      guestName: _vStr(json, 'guestName', src, fallback: '') ?? const d.Value(''),
+      checkinDate: _vStr(json, 'checkinDate', src, fallback: '') ??
+          _vStr(json, 'checkin_date', src, fallback: '') ??
+          const d.Value(''),
+      checkoutDate: _vStr(json, 'checkoutDate', src, fallback: '') ??
+          _vStr(json, 'checkout_date', src, fallback: '') ??
+          const d.Value(''),
       dateRecorded: _vStr(json, 'dateRecorded', src) ??
           _vStr(json, 'date_recorded', src) ??
           const d.Value(''),
       debtReason: _vStr(json, 'debtReason', src) ??
           _vStr(json, 'debt_reason', src) ??
           const d.Value(''),
-      totalAmount: _vDouble(json, 'totalAmount', src) ??
-          _vDouble(json, 'total_amount', src) ??
+      totalAmount: _vDouble(json, 'totalAmount', src, fallback: 0.0) ??
+          _vDouble(json, 'total_amount', src, fallback: 0.0) ??
           const d.Value(0.0),
-      paidAmount: _vDouble(json, 'paidAmount', src) ??
-          _vDouble(json, 'paid_amount', src) ??
+      paidAmount: _vDouble(json, 'paidAmount', src, fallback: 0.0) ??
+          _vDouble(json, 'paid_amount', src, fallback: 0.0) ??
           const d.Value(0.0),
-      remainingAmount: _vDouble(json, 'remainingAmount', src) ??
-          _vDouble(json, 'remaining_amount', src) ??
+      remainingAmount: _vDouble(json, 'remainingAmount', src, fallback: 0.0) ??
+          _vDouble(json, 'remaining_amount', src, fallback: 0.0) ??
           const d.Value(0.0),
       paymentDate: _vStr(json, 'paymentDate', src) ??
           _vStr(json, 'payment_date', src) ??
@@ -155,23 +155,26 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
   }
 }
 
-d.Value<int?> _vInt(Map<String, dynamic> json, String key, Source src) {
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String?> _vStr(Map<String, dynamic> json, String key, Source src) {
-  final v = _asString(json, key, src);
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src,
+    {String? fallback}) {
+  final v = _asString(json, key, src) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double?> _vDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _asDouble(json, key, src);
+d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src,
+    {double? fallback}) {
+  final v = _asDouble(json, key, src) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool?> _vBool(Map<String, dynamic> json, String key, Source src) {
-  final v = _asBool(json, key, src);
+d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src,
+    {bool? fallback}) {
+  final v = _asBool(json, key, src) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 

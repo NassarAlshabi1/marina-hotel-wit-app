@@ -59,40 +59,40 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       serverId: _vInt(json, 'serverId', src),
       serverBookingId:
           _vInt(json, 'serverBookingId', src) ?? _vInt(json, 'booking_id', src),
-      roomNumber: _vStr(json, 'roomNumber', src) ??
-          _vStr(json, 'room_number', src) ??
-          const d.Value.absent(),
-      guestName: _vStr(json, 'guestName', src) ??
-          _vStr(json, 'guest_name', src) ??
-          const d.Value.absent(),
-      guestPhone: _vStr(json, 'guestPhone', src) ??
-          _vStr(json, 'guest_phone', src) ??
-          const d.Value.absent(),
-      guestIdType: _vStr(json, 'guestIdType', src) ??
-          _vStr(json, 'guest_id_type', src) ??
-          const d.Value.absent(),
-      guestIdNumber: _vStr(json, 'guestIdNumber', src) ??
-          _vStr(json, 'guest_id_number', src) ??
-          const d.Value.absent(),
+      roomNumber: _vStr(json, 'roomNumber', src, fallback: '') ??
+          _vStr(json, 'room_number', src, fallback: '') ??
+          const d.Value(''),
+      guestName: _vStr(json, 'guestName', src, fallback: '') ??
+          _vStr(json, 'guest_name', src, fallback: '') ??
+          const d.Value(''),
+      guestPhone: _vStr(json, 'guestPhone', src, fallback: '') ??
+          _vStr(json, 'guest_phone', src, fallback: '') ??
+          const d.Value(''),
+      guestIdType: _vStr(json, 'guestIdType', src, fallback: 'بطاقة شخصية') ??
+          _vStr(json, 'guest_id_type', src, fallback: 'بطاقة شخصية') ??
+          const d.Value('بطاقة شخصية'),
+      guestIdNumber: _vStr(json, 'guestIdNumber', src, fallback: '') ??
+          _vStr(json, 'guest_id_number', src, fallback: '') ??
+          const d.Value(''),
       guestIdIssueDate: _vStr(json, 'guestIdIssueDate', src) ??
           _vStr(json, 'guest_id_issue_date', src),
       guestIdIssuePlace: _vStr(json, 'guestIdIssuePlace', src) ??
           _vStr(json, 'guest_id_issue_place', src),
-      guestNationality: _vStr(json, 'guestNationality', src) ??
-          _vStr(json, 'guest_nationality', src) ??
-          const d.Value.absent(),
+      guestNationality: _vStr(json, 'guestNationality', src, fallback: '') ??
+          _vStr(json, 'guest_nationality', src, fallback: '') ??
+          const d.Value(''),
       guestEmail:
           _vStr(json, 'guestEmail', src) ?? _vStr(json, 'guest_email', src),
       guestAddress:
           _vStr(json, 'guestAddress', src) ?? _vStr(json, 'guest_address', src),
-      checkinDate: _vStr(json, 'checkinDate', src) ??
-          _vStr(json, 'checkin_date', src) ??
-          const d.Value.absent(),
+      checkinDate: _vStr(json, 'checkinDate', src, fallback: '') ??
+          _vStr(json, 'checkin_date', src, fallback: '') ??
+          const d.Value(''),
       checkoutDate:
           _vStr(json, 'checkoutDate', src) ?? _vStr(json, 'checkout_date', src),
       actualCheckout: _vStr(json, 'actualCheckout', src) ??
           _vStr(json, 'actual_checkout', src),
-      status: _vStr(json, 'status', src) ?? const d.Value.absent(),
+      status: _vStr(json, 'status', src, fallback: '') ?? const d.Value(''),
       notes: _vStr(json, 'notes', src),
       expectedNights: _vInt(json, 'expectedNights', src) ??
           _vInt(json, 'expected_nights', src) ??
@@ -182,23 +182,26 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
   }
 }
 
-d.Value<int?> _vInt(Map<String, dynamic> json, String key, Source src) {
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String?> _vStr(Map<String, dynamic> json, String key, Source src) {
-  final v = _asString(json, key, src);
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src,
+    {String? fallback}) {
+  final v = _asString(json, key, src) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double?> _vDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _asDouble(json, key, src);
+d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src,
+    {double? fallback}) {
+  final v = _asDouble(json, key, src) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool?> _vBool(Map<String, dynamic> json, String key, Source src) {
-  final v = _asBool(json, key, src);
+d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src,
+    {bool? fallback}) {
+  final v = _asBool(json, key, src) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 

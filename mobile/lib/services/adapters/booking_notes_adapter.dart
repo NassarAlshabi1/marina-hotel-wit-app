@@ -57,14 +57,15 @@ class BookingNotesAdapter
           _asString(json, 'local_uuid', src) ??
           IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
-      bookingId: refs.bookingLocalId != null
-          ? d.Value(refs.bookingLocalId!)
-          : _vInt(json, 'bookingId', src) ?? _vInt(json, 'booking_id', src),
-      noteText: _vStr(json, 'noteText', src) ??
-          _vStr(json, 'note_text', src) ??
+      bookingId: d.Value(refs.bookingLocalId ??
+          _asInt(json, 'bookingId', src) ??
+          _asInt(json, 'booking_id', src) ??
+          0),
+      noteText: _vStr(json, 'noteText', src, fallback: '') ??
+          _vStr(json, 'note_text', src, fallback: '') ??
           const d.Value(''),
-      alertType: _vStr(json, 'alertType', src) ??
-          _vStr(json, 'alert_type', src) ??
+      alertType: _vStr(json, 'alertType', src, fallback: '') ??
+          _vStr(json, 'alert_type', src, fallback: '') ??
           const d.Value(''),
       alertUntil:
           _vStr(json, 'alertUntil', src) ?? _vStr(json, 'alert_until', src),
@@ -109,13 +110,14 @@ class BookingNotesAdapter
   }
 }
 
-d.Value<int?> _vInt(Map<String, dynamic> json, String key, Source src) {
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String?> _vStr(Map<String, dynamic> json, String key, Source src) {
-  final v = _asString(json, key, src);
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src,
+    {String? fallback}) {
+  final v = _asString(json, key, src) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -135,14 +137,6 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-double? _asDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
-  return null;
-}
 
 String? _asString(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
