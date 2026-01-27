@@ -30,8 +30,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   StreamSubscription<SyncHealth>? _healthSubscription;
   StreamSubscription<ConnectionStatus>? _connectivitySubscription;
 
-  // ignore: unused_field
-  OrchestratorState _currentState = OrchestratorState.idle;
   SyncHealth? _health;
   bool _isOnline = true;
   bool _isSyncing = false;
@@ -51,7 +49,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     _stateSubscription = SyncOrchestrator.instance.stateStream.listen((state) {
       if (mounted) {
         setState(() {
-          _currentState = state;
           _isSyncing = state == OrchestratorState.syncing;
         });
 

@@ -14,10 +14,8 @@ typedef DocumentValidator = bool Function(Map<String, dynamic> data);
 
 class SyncFieldsHelper {
   final AppDatabase database;
-  // ignore: unused_field
-  final AppwriteLogger _logger;
 
-  SyncFieldsHelper(this.database) : _logger = AppwriteLogger();
+  SyncFieldsHelper(this.database);
 
   d.Value<T?> nullableValue<T>(T? value) {
     return value == null ? const d.Value.absent() : d.Value(value);

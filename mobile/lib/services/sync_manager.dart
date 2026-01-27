@@ -427,36 +427,6 @@ class SyncManager {
     return localChecksum == remote.metadata.checksum;
   }
 
-  /// حساب checksum باستخدام stream لتجنب memory issues
-  Future<String> _computeStreamChecksum() async {
-    final output = AccumulatorSink<Digest>();
-    final input = sha256.startChunkedConversion(output);
-
-    final tableOrder = [
-      'rooms',
-      'bookings',
-      'booking_notes',
-      'guests',
-      'payments',
-      'employees',
-      'services',
-      'settings',
-      'expenses',
-      'cash_transactions',
-      'debts',
-    ];
-
-    for (final table in tableOrder) {
-      await for (final batch in _streamTableRows(table, batchSize: 100)) {
-        final batchJson = jsonEncode(batch);
-        input.add(utf8.encode(batchJson));
-      }
-    }
-
-    input.close();
-    return output.events.single.toString();
-  }
-
   /// stream صفوف الجدول على دفعات لتجنب تحميل كل البيانات في الذاكرة
   Stream<List<Map<String, dynamic>>> _streamTableRows(
     String table, {

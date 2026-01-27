@@ -239,6 +239,10 @@ class SyncPerformanceOptimizer {
     }
   }
 
+  void updateConnectivityStatusForTest(List<ConnectivityResult> results) {
+    _updateConnectivityStatus(results);
+  }
+
   /// الحصول على حالة الاتصال الحالية
   bool get isOnWiFi => _isOnWiFi;
 

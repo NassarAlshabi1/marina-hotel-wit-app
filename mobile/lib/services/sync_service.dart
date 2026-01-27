@@ -1113,23 +1113,6 @@ String? _asString(dynamic value) {
   return value.toString();
 }
 
-// ignore: unused_element
-DateTime? _parseTimestamp(dynamic value) {
-  if (value == null) return null;
-  if (value is DateTime) return value;
-  if (value is int) {
-    const int millisecondsThreshold = 1000000000000;
-    if (value > millisecondsThreshold) {
-      return DateTime.fromMillisecondsSinceEpoch(value);
-    }
-    return DateTime.fromMillisecondsSinceEpoch(value * 1000);
-  }
-  if (value is String) {
-    return DateTime.tryParse(value);
-  }
-  return null;
-}
-
 int _normalizeTimestampField(dynamic value, {int? fallback}) {
   final parsed = _asInt(value);
   if (parsed == null) {
