@@ -662,6 +662,29 @@ class SyncService {
         break;
       case 'payments':
         final pid = data['payment_id'] as int?;
+        final serverBookingId = data['booking_id'] as int?;
+        final bookingUuid = _asString(data['booking_uuid_cache']) ?? 
+            _asString(data['booking_uuid']);
+
+        int? bookingLocalId;
+        String? bookingUuidCache;
+
+        if (bookingUuid != null && bookingUuid.isNotEmpty) {
+          bookingUuidCache = bookingUuid;
+          final booking = await (db.select(db.bookings)
+                ..where((b) => b.localUuid.equals(bookingUuid)))
+              .getSingleOrNull();
+          bookingLocalId = booking?.id;
+        }
+
+        if (bookingLocalId == null && serverBookingId != null) {
+          final booking = await (db.select(db.bookings)
+                ..where((b) => b.serverBookingId.equals(serverBookingId)))
+              .getSingleOrNull();
+          bookingLocalId = booking?.id;
+          bookingUuidCache = bookingUuidCache ?? booking?.localUuid;
+        }
+
         final lp = pid != null
             ? await (db.select(db.payments)
                   ..where((t) => t.serverPaymentId.equals(pid)))
@@ -673,7 +696,13 @@ class SyncService {
               lp.id,
               PaymentsCompanion(
                 serverPaymentId: d.Value(pid),
-                serverBookingId: d.Value(data['booking_id'] as int?),
+                bookingLocalId: bookingLocalId != null 
+                    ? d.Value(bookingLocalId) 
+                    : const d.Value.absent(),
+                bookingUuidCache: bookingUuidCache != null && bookingUuidCache.isNotEmpty
+                    ? d.Value(bookingUuidCache)
+                    : const d.Value.absent(),
+                serverBookingId: d.Value(serverBookingId),
                 roomNumber: d.Value(data['room_number'] as String?),
                 amount:
                     d.Value((data['amount'] as num?)?.toDouble() ?? lp.amount),
@@ -694,7 +723,9 @@ class SyncService {
           await paymentsDao.insertOne(
             PaymentsCompanion(
               serverPaymentId: d.Value(pid),
-              serverBookingId: d.Value(data['booking_id'] as int?),
+              bookingLocalId: d.Value(bookingLocalId),
+              bookingUuidCache: d.Value(bookingUuidCache),
+              serverBookingId: d.Value(serverBookingId),
               roomNumber: d.Value(data['room_number'] as String?),
               amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
               paymentDate: d.Value(data['payment_date'] ?? Time.nowIso()),

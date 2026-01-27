@@ -37,6 +37,8 @@ class AppwriteDeltaSync {
   final _logger = AppwriteLogger();
 
   static const _prefsLastDeltaSyncKey = 'appwrite_last_delta_sync';
+  static const _prefsLastDeltaPullKey = 'appwrite_last_delta_pull';
+  static const _prefsLastDeltaPushKey = 'appwrite_last_delta_push';
   static const _prefsDeviceIdKey = 'appwrite_delta_device_id';
   static const _prefsDeltaSyncEnabledKey = 'appwrite_delta_sync_enabled';
 
@@ -96,7 +98,7 @@ class AppwriteDeltaSync {
       _logger.info('📤 بدء المزامنة التفاضلية إلى Appwrite...',
           tag: 'DELTA_SYNC');
 
-      final lastSyncTs = await _getLastDeltaSyncTimestamp();
+      final lastSyncTs = await _getLastDeltaPushTimestamp();
       final computation = await _deltaSyncService!.compute(since: lastSyncTs);
 
       if (computation.changes.isEmpty) {
@@ -125,7 +127,7 @@ class AppwriteDeltaSync {
 
       if (successfulChanges.isNotEmpty) {
         await _persistSuccessfulChanges(computation, successfulChanges);
-        await _updateLastDeltaSyncTimestamp();
+        await _updateLastDeltaPushTimestamp(Time.nowEpoch());
       }
 
       final hasFailures = failedChanges.isNotEmpty;
@@ -233,8 +235,9 @@ class AppwriteDeltaSync {
     try {
       _logger.info('📥 فحص التغييرات من Appwrite...', tag: 'DELTA_SYNC');
 
-      final lastPullTs = await _getLastDeltaSyncTimestamp();
+      final lastPullTs = await _getLastDeltaPullTimestamp();
       int pulledCount = 0;
+      int maxSyncTimestamp = lastPullTs;
 
       final entitiesToPull = {
         'rooms': AppwriteConfig.roomsCollectionId,
@@ -246,12 +249,16 @@ class AppwriteDeltaSync {
       };
 
       for (final entry in entitiesToPull.entries) {
-        pulledCount +=
+        final result =
             await _pullEntityChanges(entry.key, entry.value, lastPullTs);
+        pulledCount += result.applied;
+        if (result.maxTimestamp > maxSyncTimestamp) {
+          maxSyncTimestamp = result.maxTimestamp;
+        }
       }
 
-      if (pulledCount > 0) {
-        await _updateLastDeltaSyncTimestamp();
+      if (pulledCount > 0 && maxSyncTimestamp > 0) {
+        await _updateLastDeltaPullTimestamp(maxSyncTimestamp);
       }
 
       _logger.info('✅ تم سحب $pulledCount تغيير من Appwrite',
@@ -272,7 +279,7 @@ class AppwriteDeltaSync {
     }
   }
 
-  Future<int> _pullEntityChanges(
+  Future<_PullResult> _pullEntityChanges(
       String entity, String collectionId, int lastPullTs) async {
     try {
       final documents = await _appwriteService!.listDocuments(
@@ -284,9 +291,17 @@ class AppwriteDeltaSync {
       );
 
       int applied = 0;
+      int maxTimestamp = lastPullTs;
       for (final doc in documents) {
         final data = Map<String, dynamic>.from(doc.data);
         final sourceDeviceId = data['deviceId'] as String?;
+        final syncTs = data['syncTimestamp'] is int
+            ? data['syncTimestamp'] as int
+            : _asInt(data['syncTimestamp']);
+
+        if (syncTs != null && syncTs > maxTimestamp) {
+          maxTimestamp = syncTs;
+        }
 
         if (sourceDeviceId == _deviceId) continue;
 
@@ -299,10 +314,10 @@ class AppwriteDeltaSync {
         }
       }
 
-      return applied;
+      return _PullResult(applied: applied, maxTimestamp: maxTimestamp);
     } catch (e) {
       _logger.warning('فشل سحب $entity: $e', tag: 'DELTA_SYNC');
-      return 0;
+      return _PullResult(applied: 0, maxTimestamp: lastPullTs);
     }
   }
 
@@ -425,6 +440,51 @@ class AppwriteDeltaSync {
 
   Future<void> _applyPaymentChange(
       AppDatabase db, String localUuid, Map<String, dynamic> data) async {
+    final serverBookingId = _asInt(data['serverBookingId']);
+    final incomingBookingUuid = _asString(data['bookingUuidCache']) ??
+        _asString(data['booking_uuid_cache']) ??
+        _asString(data['bookingUuid']);
+
+    String? bookingUuidCache;
+    int? resolvedBookingLocalId;
+
+    if (incomingBookingUuid != null && incomingBookingUuid.isNotEmpty) {
+      bookingUuidCache = incomingBookingUuid;
+      final booking = await (db.select(db.bookings)
+            ..where((b) => b.localUuid.equals(incomingBookingUuid)))
+          .getSingleOrNull();
+      resolvedBookingLocalId = booking?.id;
+    }
+
+    if (resolvedBookingLocalId == null && serverBookingId != null) {
+      final booking = await (db.select(db.bookings)
+            ..where((b) => b.serverBookingId.equals(serverBookingId)))
+          .getSingleOrNull();
+      resolvedBookingLocalId = booking?.id;
+      bookingUuidCache = bookingUuidCache ?? booking?.localUuid;
+    }
+
+    if (resolvedBookingLocalId == null) {
+      final incomingLocalId = _asInt(data['bookingLocalId']);
+      if (incomingLocalId != null) {
+        final booking = await (db.select(db.bookings)
+              ..where((b) => b.id.equals(incomingLocalId)))
+            .getSingleOrNull();
+        if (booking != null) {
+          resolvedBookingLocalId = booking.id;
+          bookingUuidCache = bookingUuidCache ?? booking.localUuid;
+        }
+      }
+    }
+
+    dynamic pendingRaw = data['isPendingBalance'] ?? data['is_pending_balance'];
+    bool? isPendingBalance;
+    if (pendingRaw is bool) {
+      isPendingBalance = pendingRaw;
+    } else if (pendingRaw is num) {
+      isPendingBalance = pendingRaw != 0;
+    }
+
     final companion = PaymentsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
@@ -435,14 +495,24 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
       serverPaymentId: _nullableValue<int>(_asInt(data['serverPaymentId'])),
-      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
-      serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
+      bookingLocalId: resolvedBookingLocalId != null
+          ? d.Value(resolvedBookingLocalId)
+          : const d.Value.absent(),
+      bookingUuidCache: bookingUuidCache != null && bookingUuidCache.isNotEmpty
+          ? d.Value(bookingUuidCache)
+          : const d.Value.absent(),
+      serverBookingId: _nullableValue<int>(serverBookingId),
       roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
       amount: d.Value(_asDouble(data['amount'])),
       paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
       paymentMethod: d.Value(_asString(data['paymentMethod']) ?? ''),
       revenueType: d.Value(_asString(data['revenueType']) ?? ''),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+      isPendingBalance: isPendingBalance != null
+          ? d.Value(isPendingBalance)
+          : const d.Value.absent(),
+      linkedDebtUuid: _nullableValue<String>(_asString(data['linkedDebtUuid'])),
       cashTransactionLocalId:
           _nullableValue<int>(_asInt(data['cashTransactionLocalId'])),
       cashTransactionServerId:
@@ -588,30 +658,56 @@ class AppwriteDeltaSync {
     return '$first${rest.join()}';
   }
 
-  Future<int> _getLastDeltaSyncTimestamp() async {
+  Future<int> _getLastDeltaPullTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
+    return prefs.getInt(_prefsLastDeltaPullKey) ??
+        prefs.getInt(_prefsLastDeltaSyncKey) ??
+        0;
   }
 
-  Future<void> _updateLastDeltaSyncTimestamp() async {
+  Future<int> _getLastDeltaPushTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsLastDeltaSyncKey, Time.nowEpoch());
+    return prefs.getInt(_prefsLastDeltaPushKey) ??
+        prefs.getInt(_prefsLastDeltaSyncKey) ??
+        0;
+  }
+
+  Future<void> _updateLastDeltaPullTimestamp(int timestamp) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsLastDeltaPullKey, timestamp);
+    await prefs.setInt(_prefsLastDeltaSyncKey, timestamp);
+  }
+
+  Future<void> _updateLastDeltaPushTimestamp(int timestamp) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsLastDeltaPushKey, timestamp);
+    await prefs.setInt(_prefsLastDeltaSyncKey, timestamp);
   }
 
   Future<Map<String, dynamic>> getStatus() async {
-    final lastSync = await _getLastDeltaSyncTimestamp();
+    final lastPull = await _getLastDeltaPullTimestamp();
+    final lastPush = await _getLastDeltaPushTimestamp();
     final enabled = await isEnabled();
     return {
       'initialized': isInitialized,
       'enabled': enabled,
       'is_syncing': _isSyncing,
       'device_id': _deviceId,
-      'last_sync_epoch': lastSync,
-      'last_sync_time': lastSync > 0
-          ? DateTime.fromMillisecondsSinceEpoch(lastSync * 1000)
+      'last_pull_epoch': lastPull,
+      'last_pull_time': lastPull > 0
+          ? DateTime.fromMillisecondsSinceEpoch(lastPull * 1000)
+              .toIso8601String()
+          : null,
+      'last_push_epoch': lastPush,
+      'last_push_time': lastPush > 0
+          ? DateTime.fromMillisecondsSinceEpoch(lastPush * 1000)
               .toIso8601String()
           : null,
     };
+  }
+
+  Future<Map<String, dynamic>> _getStatus() async {
+    return getStatus();
   }
 
   d.Value<T?> _nullableValue<T>(T? value) {
@@ -644,4 +740,11 @@ class AppwriteDeltaSync {
     final result = value.toString();
     return result.isEmpty ? null : result;
   }
+}
+
+class _PullResult {
+  final int applied;
+  final int maxTimestamp;
+
+  const _PullResult({required this.applied, required this.maxTimestamp});
 }

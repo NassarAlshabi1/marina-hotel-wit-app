@@ -102,7 +102,7 @@ class GoogleDriveDeltaSync {
 
       await _uploadDeltaFile(fileName, deltaPayload);
       await _deltaSyncService!.persistMirror(computation);
-      await _updateLastPushTimestamp();
+      await _updateLastPushTimestamp(Time.nowEpoch());
 
       debugPrint(
           '✅ تم رفع ${computation.changes.length} تغيير إلى Google Drive');
@@ -174,13 +174,23 @@ class GoogleDriveDeltaSync {
         if (deltaData != null) {
           final changes = await _applyDeltaChanges(deltaData);
           appliedChanges += changes;
-        }
 
-        if (fileTsSec > maxProcessedTsSec) maxProcessedTsSec = fileTsSec;
+          final payloadTs = _asInt(deltaData['epoch']) ??
+              _asInt(deltaData['syncTimestamp']) ??
+              fileTsSec;
+          if (payloadTs > maxProcessedTsSec) {
+            maxProcessedTsSec = payloadTs;
+          } else if (fileTsSec > maxProcessedTsSec) {
+            maxProcessedTsSec = fileTsSec;
+          }
+        } else {
+          if (fileTsSec > maxProcessedTsSec) {
+            maxProcessedTsSec = fileTsSec;
+          }
+        }
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_prefsLastPullTsKey, maxProcessedTsSec);
+      await _updateLastPullTimestamp(maxProcessedTsSec);
 
       return DeltaSyncResult(
         success: true,
@@ -923,14 +933,16 @@ class GoogleDriveDeltaSync {
     return 0;
   }
 
-  Future<void> _updateLastPushTimestamp() async {
+  Future<void> _updateLastPushTimestamp(int timestamp) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsLastPushTsKey, Time.nowEpoch());
+    await prefs.setInt(_prefsLastPushTsKey, timestamp);
+    await prefs.setInt(_prefsLegacyLastDeltaSyncKey, timestamp);
   }
 
-  Future<void> _updateLastPullTimestamp() async {
+  Future<void> _updateLastPullTimestamp(int timestamp) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsLastPullTsKey, Time.nowEpoch());
+    await prefs.setInt(_prefsLastPullTsKey, timestamp);
+    await prefs.setInt(_prefsLegacyLastDeltaSyncKey, timestamp);
   }
 
   Future<void> cleanupOldDeltaFiles({int keepCount = 10}) async {

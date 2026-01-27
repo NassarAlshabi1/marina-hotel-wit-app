@@ -1054,12 +1054,14 @@ class AppwriteSyncManager {
           }
         }
 
+        String? resolvedBookingUuidCache;
         if (bookingLocalId == null) {
           final bookingUuid = _asString(data['bookingUuidCache']) ??
               _asString(data['bookingUuid']) ??
               _asString(data['booking_uuid_cache']) ??
               _asString(data['booking_uuid']);
           if (bookingUuid != null && bookingUuid.isNotEmpty) {
+            resolvedBookingUuidCache = bookingUuid;
             if (bookingUuidCache.containsKey(bookingUuid)) {
               bookingLocalId = bookingUuidCache[bookingUuid];
             } else {
@@ -1074,6 +1076,14 @@ class AppwriteSyncManager {
               }
             }
           }
+        }
+
+        if (resolvedBookingUuidCache == null && bookingLocalId != null) {
+          final b = await (database.select(database.bookings)
+                ..where((t) => t.id.equals(bookingLocalId!))
+                ..limit(1))
+              .getSingleOrNull();
+          resolvedBookingUuidCache = b?.localUuid;
         }
 
         if (bookingLocalId == null && data['bookingLocalId'] != null) {
@@ -1093,6 +1103,15 @@ class AppwriteSyncManager {
               tag: 'SYNC');
           cashTransactionLocalId = null;
         }
+
+        dynamic pendingRaw = data['isPendingBalance'] ?? data['is_pending_balance'];
+        bool? isPendingBalance;
+        if (pendingRaw is bool) {
+          isPendingBalance = pendingRaw;
+        } else if (pendingRaw is num) {
+          isPendingBalance = pendingRaw != 0;
+        }
+
         final companion = PaymentsCompanion(
           localUuid: d.Value(localUuid),
           serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
@@ -1105,6 +1124,9 @@ class AppwriteSyncManager {
           serverPaymentId:
               _nullableValue<int>(_asIntNullable(data['serverPaymentId'])),
           bookingLocalId: _nullableValue<int>(bookingLocalId),
+          bookingUuidCache: resolvedBookingUuidCache != null && resolvedBookingUuidCache.isNotEmpty
+              ? d.Value(resolvedBookingUuidCache)
+              : const d.Value.absent(),
           serverBookingId:
               _nullableValue<int>(_asIntNullable(data['serverBookingId'])),
           roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
@@ -1113,6 +1135,11 @@ class AppwriteSyncManager {
           notes: _nullableValue<String>(_asString(data['notes'])),
           paymentMethod: d.Value(_asString(data['paymentMethod']) ?? ''),
           revenueType: d.Value(_asString(data['revenueType']) ?? ''),
+          hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+          isPendingBalance: isPendingBalance != null
+              ? d.Value(isPendingBalance)
+              : const d.Value.absent(),
+          linkedDebtUuid: _nullableValue<String>(_asString(data['linkedDebtUuid'])),
           cashTransactionLocalId: _nullableValue<int>(cashTransactionLocalId),
           cashTransactionServerId: _nullableValue<int>(
               _asIntNullable(data['cashTransactionServerId'])),

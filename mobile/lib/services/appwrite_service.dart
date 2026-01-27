@@ -333,11 +333,11 @@ class AppwriteService {
   }) async {
     _ensureInitialized();
 
+    final sanitizedData = _sanitizeData(collectionId, data);
+
     try {
       _logger.debug('Updating document $documentId in $collectionId',
           tag: 'CRUD');
-
-      final sanitizedData = _sanitizeData(collectionId, data);
 
       Future<models.Document> performOperation() {
         return _databases.updateDocument(
@@ -365,9 +365,33 @@ class AppwriteService {
       _logger.info('Document updated: ${document.$id}', tag: 'CRUD');
       return document;
     } catch (e, stackTrace) {
-      final error = _errorHandler.handleError(e,
-          context: 'updateDocument($collectionId, $documentId)',
-          stackTrace: stackTrace);
+      final error = _errorHandler.handleError(
+        e,
+        context: 'updateDocument($collectionId, $documentId)',
+        stackTrace: stackTrace,
+      );
+
+      if (error.code == 'NOT_FOUND') {
+        try {
+          final created = await createDocument(
+            collectionId: collectionId,
+            data: sanitizedData,
+            documentId: documentId,
+            useRetry: false,
+          );
+          _cache.set('${collectionId}_$documentId', created);
+          _cache.clearByPattern('^${collectionId}_all');
+          return created;
+        } catch (createErr, createStack) {
+          final createError = _errorHandler.handleError(
+            createErr,
+            context: 'createDocument($collectionId, $documentId)',
+            stackTrace: createStack,
+          );
+          throw createError;
+        }
+      }
+
       throw error;
     }
   }
