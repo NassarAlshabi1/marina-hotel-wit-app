@@ -11,6 +11,7 @@ import '../../models/enhanced_payment_models.dart';
 import '../../models/enhanced_reports.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/id.dart';
 
 /// مساعد لإنشاء PDF محسّنة من البيانات الموجودة
 class EnhancedPdfHelper {

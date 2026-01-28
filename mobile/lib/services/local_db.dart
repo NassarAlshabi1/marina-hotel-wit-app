@@ -593,64 +593,64 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(salaryPayments);
           }
           if (from < 17) {
-            await m.addColumn(outbox, outbox.idempotencyKey);
+            await m.addColumn(outbox, outbox.idempotencyKey as GeneratedColumn);
           }
           if (from < 18) {
             try {
-              await m.addColumn(outbox, outbox.processingStatus);
+              await m.addColumn(outbox, outbox.processingStatus as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(outbox, outbox.processingStartedAt);
+              await m.addColumn(outbox, outbox.processingStartedAt as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(outbox, outbox.processingWorker);
+              await m.addColumn(outbox, outbox.processingWorker as GeneratedColumn);
             } catch (_) {}
           }
           if (from < 19) {
             try {
-              await m.addColumn(bookings, bookings.vectorClock);
+              await m.addColumn(bookings, bookings.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(rooms, rooms.vectorClock);
+              await m.addColumn(rooms, rooms.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(employees, employees.vectorClock);
+              await m.addColumn(employees, employees.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(expenses, expenses.vectorClock);
+              await m.addColumn(expenses, expenses.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(cashTransactions, cashTransactions.vectorClock);
+              await m.addColumn(cashTransactions, cashTransactions.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(payments, payments.vectorClock);
+              await m.addColumn(payments, payments.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(debts, debts.vectorClock);
+              await m.addColumn(debts, debts.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(bookingNotes, bookingNotes.vectorClock);
+              await m.addColumn(bookingNotes, bookingNotes.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(bookingNights, bookingNights.vectorClock);
+              await m.addColumn(bookingNights, bookingNights.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock);
+              await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(salaryCycles, salaryCycles.vectorClock);
+              await m.addColumn(salaryCycles, salaryCycles.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(salaryPayments, salaryPayments.vectorClock);
+              await m.addColumn(salaryPayments, salaryPayments.vectorClock as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(outbox, outbox.processingStatus);
+              await m.addColumn(outbox, outbox.processingStatus as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(outbox, outbox.processingStartedAt);
+              await m.addColumn(outbox, outbox.processingStartedAt as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(outbox, outbox.processingWorker);
+              await m.addColumn(outbox, outbox.processingWorker as GeneratedColumn);
             } catch (_) {}
           }
         },
