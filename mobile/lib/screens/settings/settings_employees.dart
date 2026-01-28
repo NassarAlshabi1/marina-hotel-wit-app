@@ -604,7 +604,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 final amount = double.tryParse(raw);
                 if (amount == null || amount <= 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('أدخل مبلغاً صالحاً أكبر من صفر')),
+                    const SnackBar(
+                        content: Text('أدخل مبلغاً صالحاً أكبر من صفر')),
                   );
                   return;
                 }

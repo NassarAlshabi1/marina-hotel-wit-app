@@ -478,7 +478,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                 await _restartServices(ref);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('تمت إعادة تشغيل الخدمات')), 
+                    const SnackBar(content: Text('تمت إعادة تشغيل الخدمات')),
                   );
                 }
               } catch (e) {
@@ -553,7 +553,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                 await _softResetApp(ref);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('تمت إعادة التهيئة الخفيفة')), 
+                    const SnackBar(content: Text('تمت إعادة التهيئة الخفيفة')),
                   );
                 }
               } catch (e) {
