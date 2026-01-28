@@ -79,7 +79,7 @@ class AutoSyncTask {
       throw StateError('لم يتم تهيئة AutoSyncTask. استدع initialize أولاً.');
     }
     final token = ++_debounceToken;
-    await Future<void>.delayed(delay, () async {
+    Future<void>.delayed(delay, () async {
       if (token != _debounceToken) {
         return;
       }
