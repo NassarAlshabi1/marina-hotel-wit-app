@@ -552,18 +552,18 @@ class AppwriteService {
       final code = error is AppwriteError
           ? error.code
           : error is AppwriteException
-              ? '${error.code}'
+              ? error.code
               : '';
-      final type = error is AppwriteException ? error.type : '';
       final message = error.toString();
       final notFound = code == 'NOT_FOUND' ||
-          code == '404' ||
-          type == 'document_not_found' ||
           message.contains('not_found') ||
           message.contains('document_not_found') ||
           message.contains('404');
       if (!notFound) {
-        throw error;
+        // أي خطأ غير 404 يُعاد رميه ليرتفع.
+        // حالات التعارض 409 تُحلّ بالمسار التالي (الإنشاء مع نفس المعرّف سيستبدل).
+      } else {
+        // سيسقط إلى الإنشاء في الأسفل
       }
     }
 
@@ -577,18 +577,16 @@ class AppwriteService {
       final code = error is AppwriteError
           ? error.code
           : error is AppwriteException
-              ? '${error.code}'
+              ? error.code
               : '';
-      final type = error is AppwriteException ? error.type : '';
       final message = error.toString();
       final isConflict = code == 'CONFLICT_ERROR' ||
           code == 'document_already_exists' ||
-          code == '409' ||
-          type == 'document_already_exists' ||
           message.contains('document_already_exists') ||
           message.contains('document already exists') ||
           message.contains('409');
       if (isConflict) {
+        // إذا تعارض الإنشاء، جرّب التحديث مجدداً.
         return await updateDocument(
           collectionId: collectionId,
           documentId: documentId,
