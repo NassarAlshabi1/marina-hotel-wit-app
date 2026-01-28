@@ -364,7 +364,7 @@ class AppwriteSyncManager {
     final phaseMs = <String, int>{};
     int recordsPushed = 0;
     int recordsPulled = 0;
-    final int conflicts = 0;
+    int conflicts = 0;
     String? errorMessage;
     SyncStatus finalStatus = SyncStatus.success;
     late String syncLogId;
