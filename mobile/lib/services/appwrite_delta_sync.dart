@@ -246,10 +246,17 @@ class AppwriteDeltaSync {
       final entitiesToPull = {
         'rooms': AppwriteConfig.roomsCollectionId,
         'bookings': AppwriteConfig.bookingsCollectionId,
+        'booking_notes': AppwriteConfig.bookingNotesCollectionId,
+        'booking_nights': AppwriteConfig.bookingNightsCollectionId,
         'payments': AppwriteConfig.paymentsCollectionId,
         'expenses': AppwriteConfig.expensesCollectionId,
+        'cash_transactions': AppwriteConfig.cashTransactionsCollectionId,
         'debts': AppwriteConfig.debtsCollectionId,
         'employees': AppwriteConfig.employeesCollectionId,
+        'hotel_day_ledger': AppwriteConfig.hotelDayLedgerCollectionId,
+        'salary_cycles': AppwriteConfig.salaryCyclesCollectionId,
+        'salary_payments': AppwriteConfig.salaryPaymentsCollectionId,
+        'shift_notes': AppwriteConfig.shiftNotesCollectionId,
       };
 
       for (final entry in entitiesToPull.entries) {
@@ -592,22 +599,28 @@ class AppwriteDeltaSync {
         return AppwriteConfig.roomsCollectionId;
       case 'bookings':
         return AppwriteConfig.bookingsCollectionId;
+      case 'booking_notes':
+        return AppwriteConfig.bookingNotesCollectionId;
+      case 'booking_nights':
+        return AppwriteConfig.bookingNightsCollectionId;
       case 'payments':
         return AppwriteConfig.paymentsCollectionId;
       case 'expenses':
         return AppwriteConfig.expensesCollectionId;
+      case 'cash_transactions':
+        return AppwriteConfig.cashTransactionsCollectionId;
       case 'debts':
         return AppwriteConfig.debtsCollectionId;
       case 'employees':
         return AppwriteConfig.employeesCollectionId;
-      case 'booking_notes':
-        return null;
-      case 'cash_transactions':
-        return null;
-      case 'booking_nights':
-        return null;
       case 'hotel_day_ledger':
-        return null;
+        return AppwriteConfig.hotelDayLedgerCollectionId;
+      case 'salary_cycles':
+        return AppwriteConfig.salaryCyclesCollectionId;
+      case 'salary_payments':
+        return AppwriteConfig.salaryPaymentsCollectionId;
+      case 'shift_notes':
+        return AppwriteConfig.shiftNotesCollectionId;
       default:
         return null;
     }

@@ -21,6 +21,15 @@ class AppwriteConfig {
   static const String devicesCollectionId = 'devices';
   static const String syncLogsCollectionId = 'sync_logs';
 
+  // إضافات الجداول المتوفرة في local_db
+  static const String bookingNotesCollectionId = 'booking_notes';
+  static const String cashTransactionsCollectionId = 'cash_transactions';
+  static const String bookingNightsCollectionId = 'booking_nights';
+  static const String hotelDayLedgerCollectionId = 'hotel_day_ledger';
+  static const String salaryCyclesCollectionId = 'salary_cycles';
+  static const String salaryPaymentsCollectionId = 'salary_payments';
+  static const String shiftNotesCollectionId = 'shift_notes';
+
   // إعدادات المزامنة
   static const Duration syncInterval = Duration(minutes: 15);
   static const Duration cacheExpiry = Duration(hours: 6);

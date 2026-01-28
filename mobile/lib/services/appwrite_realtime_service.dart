@@ -202,10 +202,17 @@ class AppwriteRealtimeService {
     final collections = [
       AppwriteConfig.roomsCollectionId,
       AppwriteConfig.bookingsCollectionId,
+      AppwriteConfig.bookingNotesCollectionId,
+      AppwriteConfig.bookingNightsCollectionId,
       AppwriteConfig.paymentsCollectionId,
       AppwriteConfig.expensesCollectionId,
+      AppwriteConfig.cashTransactionsCollectionId,
       AppwriteConfig.employeesCollectionId,
       AppwriteConfig.debtsCollectionId,
+      AppwriteConfig.hotelDayLedgerCollectionId,
+      AppwriteConfig.salaryCyclesCollectionId,
+      AppwriteConfig.salaryPaymentsCollectionId,
+      AppwriteConfig.shiftNotesCollectionId,
     ];
 
     for (final collectionId in collections) {
