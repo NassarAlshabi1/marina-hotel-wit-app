@@ -99,7 +99,7 @@ class EnhancedPdfHelper {
           final nowMillis = now.millisecondsSinceEpoch;
           final nowIso = now.toIso8601String();
           return Booking(
-            localUuid: 'fallback-${payment.id}',
+            localUuid: 'fallback-${payment.id ?? IdGen.uuid()}',
             serverId: null,
             createdAt: nowMillis,
             updatedAt: nowMillis,
