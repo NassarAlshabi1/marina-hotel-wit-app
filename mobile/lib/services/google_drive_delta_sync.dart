@@ -127,6 +127,7 @@ class GoogleDriveDeltaSync {
       debugPrint('❌ $errorMessage');
       debugPrint('🔍 Stack trace: $stackTrace');
       _lastFailedEpoch = Time.nowEpoch();
+      debugPrint('آخر فشل (push): epoch=$_lastFailedEpoch');
       return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
       await SyncLocks.deltaSyncLock.synchronized(() async {
@@ -193,6 +194,7 @@ class GoogleDriveDeltaSync {
         } else {
           _lastFailedFileId = file.fileId;
           _lastFailedEpoch = Time.nowEpoch();
+          debugPrint('⚠️ فشل تحميل ملف delta: $_lastFailedFileId @$_lastFailedEpoch');
         }
 
         if (fileTsSec > maxProcessedTsSec) maxProcessedTsSec = fileTsSec;
@@ -211,6 +213,7 @@ class GoogleDriveDeltaSync {
       debugPrint('❌ $errorMessage');
       debugPrint('🔍 Stack trace: $stackTrace');
       _lastFailedEpoch = Time.nowEpoch();
+      debugPrint('آخر فشل (pull): file=$_lastFailedFileId epoch=$_lastFailedEpoch');
       return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
       await SyncLocks.deltaSyncLock.synchronized(() async {
