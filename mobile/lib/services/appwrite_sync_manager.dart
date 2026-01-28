@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:drift/drift.dart' as d;
 import 'package:appwrite/models.dart' as models;
 import 'package:device_info_plus/device_info_plus.dart';
 import '../utils/id.dart';
@@ -786,8 +785,10 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.bookings
-            .upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.bookings.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
@@ -803,8 +804,10 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.employees
-            .upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.employees.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync employee ${doc.$id}: $e', tag: 'SYNC');
@@ -820,8 +823,10 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.expenses
-            .upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.expenses.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync expense ${doc.$id}: $e', tag: 'SYNC');
@@ -837,8 +842,10 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.payments
-            .upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.payments.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
@@ -861,50 +868,6 @@ class AppwriteSyncManager {
       }
     }
     return processed;
-  }
-
-  d.Value<T?> _nullableValue<T>(T? value) {
-    return value == null ? const d.Value.absent() : d.Value(value);
-  }
-
-  int _normalizeEpoch(dynamic value, {int? fallback}) {
-    if (value == null) {
-      return fallback ?? Time.nowEpoch();
-    }
-    if (value is int) {
-      return value;
-    }
-    if (value is double) {
-      return value.toInt();
-    }
-    if (value is DateTime) {
-      return value.toUtc().millisecondsSinceEpoch ~/ 1000;
-    }
-    if (value is String && value.isNotEmpty) {
-      final parsedInt = int.tryParse(value);
-      if (parsedInt != null) {
-        return parsedInt;
-      }
-      final parsedDouble = double.tryParse(value);
-      if (parsedDouble != null) {
-        return parsedDouble.toInt();
-      }
-      final parsedDate = DateTime.tryParse(value);
-      if (parsedDate != null) {
-        return parsedDate.toUtc().millisecondsSinceEpoch ~/ 1000;
-      }
-    }
-    if (value is num) {
-      return value.toInt();
-    }
-    return fallback ?? Time.nowEpoch();
-  }
-
-  int? _normalizeEpochNullable(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-    return _normalizeEpoch(value);
   }
 
   int _asInt(dynamic value, {int fallback = 0}) {
@@ -933,39 +896,6 @@ class AppwriteSyncManager {
       }
     }
     return null;
-  }
-
-  double _asDouble(dynamic value, {double fallback = 0.0}) {
-    if (value == null) {
-      return fallback;
-    }
-    if (value is double) {
-      return value;
-    }
-    if (value is int) {
-      return value.toDouble();
-    }
-    if (value is num) {
-      return value.toDouble();
-    }
-    if (value is String && value.isNotEmpty) {
-      final parsed = double.tryParse(value);
-      if (parsed != null) {
-        return parsed;
-      }
-    }
-    return fallback;
-  }
-
-  String? _asString(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-    final result = value.toString();
-    if (result.isEmpty) {
-      return null;
-    }
-    return result;
   }
 
   Future<int> _pushAllEntities() async {

@@ -23,8 +23,11 @@ class NightsAdapter
   String get tableName => 'booking_nights';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json,
-      {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final bookingUuid = _asString(json, 'bookingUuidCache', src) ??
         _asString(json, 'booking_uuid_cache', src) ??
         _asString(json, 'booking_uuid', src);
@@ -33,7 +36,10 @@ class NightsAdapter
     final localId = _asInt(json, 'bookingLocalId', src) ??
         _asInt(json, 'booking_local_id', src);
     final resolvedId = await resolver.resolveBooking(
-        localId: localId, serverId: serverBookingId, uuid: bookingUuid);
+      localId: localId,
+      serverId: serverBookingId,
+      uuid: bookingUuid,
+    );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -45,8 +51,11 @@ class NightsAdapter
   }
 
   @override
-  BookingNightsCompanion fromJson(Map<String, dynamic> json,
-      {required Source src, required ResolveResult refs}) {
+  BookingNightsCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
@@ -55,29 +64,44 @@ class NightsAdapter
         createdAt;
     return BookingNightsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ??
-          _asString(json, 'local_uuid', src) ??
-          IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
       bookingLocalId: refs.bookingLocalId != null
-          ? d.Value(refs.bookingLocalId)
-          : _vInt(json, 'bookingLocalId', src) ??
-              _vInt(json, 'booking_local_id', src),
-      hotelDayKey: _vStr(json, 'hotelDayKey', src) ??
-          _vStr(json, 'hotel_day_key', src) ??
-          const d.Value.absent(),
-      nightStart: _vStr(json, 'nightStart', src) ??
-          _vStr(json, 'night_start', src) ??
-          const d.Value.absent(),
-      nightEnd: _vStr(json, 'nightEnd', src) ??
-          _vStr(json, 'night_end', src) ??
-          const d.Value.absent(),
-      nightlyRate: _vDouble(json, 'nightlyRate', src) ??
-          _vDouble(json, 'nightly_rate', src) ??
-          const d.Value(0.0),
-      sequence: _vInt(json, 'sequence', src) ?? const d.Value(0),
-      isProcessedByAutoFix:
-          _vBool(json, 'isProcessedByAutoFix', src) ?? const d.Value(false),
+          ? d.Value(refs.bookingLocalId!)
+          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+      hotelDayKey: _vStr(
+        json,
+        'hotelDayKey',
+        src,
+        altKey: 'hotel_day_key',
+        fallback: '',
+      ),
+      nightStart: _vStr(
+        json,
+        'nightStart',
+        src,
+        altKey: 'night_start',
+        fallback: '',
+      ),
+      nightEnd: _vStr(json, 'nightEnd', src, altKey: 'night_end', fallback: ''),
+      nightlyRate: _vDouble(
+        json,
+        'nightlyRate',
+        src,
+        altKey: 'nightly_rate',
+        fallback: 0.0,
+      ),
+      sequence: _vInt(json, 'sequence', src, fallback: 0),
+      isProcessedByAutoFix: _vBool(
+        json,
+        'isProcessedByAutoFix',
+        src,
+        fallback: false,
+      ),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -85,14 +109,22 @@ class NightsAdapter
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
-      createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
-      lastModifiedEpoch:
-          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
-      version: _vInt(json, 'version', src) ?? const d.Value(1),
-      origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ??
-          _vStr(json, 'vector_clock', src) ??
-          const d.Value('{}'),
+      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
+      version: _vInt(json, 'version', src, fallback: 1),
+      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
     );
   }
 
@@ -121,23 +153,55 @@ class NightsAdapter
   }
 }
 
-d.Value<int?> _vInt(Map<String, dynamic> json, String key, Source src) {
-  final v = _asInt(json, key, src);
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v = _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String?> _vStr(Map<String, dynamic> json, String key, Source src) {
-  final v = _asString(json, key, src);
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v = _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double?> _vDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _asDouble(json, key, src);
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v = _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool?> _vBool(Map<String, dynamic> json, String key, Source src) {
-  final v = _asBool(json, key, src);
+d.Value<bool> _vBool(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  bool? fallback,
+}) {
+  final v = _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 

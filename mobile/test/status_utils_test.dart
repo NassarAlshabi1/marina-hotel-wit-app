@@ -21,7 +21,9 @@ void main() {
     expect(StatusUtils.roomStatusForOccupancy(true), 'محجوزة');
     expect(StatusUtils.roomStatusForOccupancy(false), 'شاغرة');
     expect(
-        StatusUtils.roomStatusForOccupancy(true, fallbackOccupied: 'X'), 'X');
+      StatusUtils.roomStatusForOccupancy(true, fallbackOccupied: 'X'),
+      'X',
+    );
   });
 
   test('isBookingActive reads from booking model', () async {
@@ -50,25 +52,15 @@ void main() {
             roomNumber: '101',
             guestName: 'guest',
             guestPhone: '123',
-            guestIdType: 'id',
-            guestIdNumber: '123',
             guestNationality: 'nat',
             checkinDate: '2024-01-01',
             status: 'active',
-            expectedNights: 1,
-            calculatedNights: 1,
-            totalNightsCached: 1,
-            isOverdue: false,
-            needsCheckoutReview: false,
-            totalDueCached: 0,
-            totalPaidCached: 0,
-            remainingBalanceCached: 0,
-            isFullyPaid: true,
           ),
         );
 
-    final booking = await (database.select(database.bookings)
-          ..where((tbl) => tbl.id.equals(bookingId)))
+    final booking = await (database.select(
+      database.bookings,
+    )..where((tbl) => tbl.id.equals(bookingId)))
         .getSingle();
 
     expect(StatusUtils.isBookingActive(booking), isTrue);

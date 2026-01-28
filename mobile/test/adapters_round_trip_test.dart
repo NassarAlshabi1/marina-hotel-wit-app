@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
@@ -32,10 +33,16 @@ void main() {
       'created_at': 100,
     };
 
-    final refs = await adapters.payments.adapter
-        .resolveRefs(db, json, src: Source.drive);
-    final comp =
-        adapters.payments.adapter.fromJson(json, src: Source.drive, refs: refs);
+    final refs = await adapters.payments.adapter.resolveRefs(
+      db,
+      json,
+      src: Source.drive,
+    );
+    final comp = adapters.payments.adapter.fromJson(
+      json,
+      src: Source.drive,
+      refs: refs,
+    );
     await db.into(db.payments).insert(comp);
 
     final row = await db.select(db.payments).getSingle();
@@ -48,6 +55,25 @@ void main() {
   });
 
   test('bookings adapter round-trip (appwrite)', () async {
+    await db.into(db.rooms).insert(
+          RoomsCompanion(
+            localUuid: const d.Value('r-101'),
+            roomNumber: const d.Value('101'),
+            type: const d.Value('single'),
+            price: const d.Value(100.0),
+            status: const d.Value('available'),
+            cleaningStatus: const d.Value('clean'),
+            createdAt: const d.Value(0),
+            updatedAt: const d.Value(0),
+            lastModified: const d.Value(0),
+            createdAtEpoch: const d.Value(0),
+            lastModifiedEpoch: const d.Value(0),
+            version: const d.Value(1),
+            origin: const d.Value('local'),
+            vectorClock: const d.Value('{}'),
+          ),
+        );
+
     final json = {
       'localUuid': 'b-2',
       'roomNumber': '101',
@@ -60,10 +86,16 @@ void main() {
       'lastModified': 20,
     };
 
-    final refs = await adapters.bookings.adapter
-        .resolveRefs(db, json, src: Source.appwrite);
-    final comp = adapters.bookings.adapter
-        .fromJson(json, src: Source.appwrite, refs: refs);
+    final refs = await adapters.bookings.adapter.resolveRefs(
+      db,
+      json,
+      src: Source.appwrite,
+    );
+    final comp = adapters.bookings.adapter.fromJson(
+      json,
+      src: Source.appwrite,
+      refs: refs,
+    );
     await db.into(db.bookings).insert(comp);
 
     final row = await db.select(db.bookings).getSingle();

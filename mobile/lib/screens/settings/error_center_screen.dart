@@ -15,7 +15,7 @@ class ErrorCenterScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final appwriteLogs = ref.watch(logsProvider) as List<LogEntry>;
+    final appwriteLogs = ref.watch(logsProvider);
     final driveLogs = ref.watch(googleDriveLogsProvider);
 
     final appwriteErrors = _onlyErrors(appwriteLogs);
@@ -37,9 +37,9 @@ class ErrorCenterScreen extends ConsumerWidget {
             DebugLogs.clear();
             ref.read(appwriteLoggerProvider).clearLogs();
             ref.read(googleDriveLoggerProvider).clearLogs();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('تم مسح السجلات.')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('تم مسح السجلات.')));
           },
         ),
       ],
@@ -68,11 +68,13 @@ class ErrorCenterScreen extends ConsumerWidget {
             title: 'سجلات المزامنة والدمج',
             color: Colors.blueGrey,
             entries: debugEntries
-                .map((e) => _ViewEntry(
-                      title: e,
-                      subtitle: 'DebugLogs',
-                      timestamp: null,
-                    ))
+                .map(
+                  (e) => _ViewEntry(
+                    title: e,
+                    subtitle: 'DebugLogs',
+                    timestamp: null,
+                  ),
+                )
                 .toList(),
           ),
         ],

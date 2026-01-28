@@ -263,11 +263,13 @@ class UnifiedSyncOrchestrator {
         await _verifySyncIntegrity();
       }
 
-      _emit(_state.copyWith(
-        phase: success ? 'completing' : 'error',
-        message: success ? 'اكتملت الدورة' : 'فشل في مزامنة واحدة أو أكثر',
-        timestamp: DateTime.now(),
-      ));
+      _emit(
+        _state.copyWith(
+          phase: success ? 'completing' : 'error',
+          message: success ? 'اكتملت الدورة' : 'فشل في مزامنة واحدة أو أكثر',
+          timestamp: DateTime.now(),
+        ),
+      );
 
       return success;
     } catch (e) {

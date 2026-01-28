@@ -23,15 +23,21 @@ class BookingNotesAdapter
   String get tableName => 'booking_notes';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json,
-      {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final bookingUuid = _asString(json, 'bookingUuidCache', src) ??
         _asString(json, 'booking_uuid_cache', src) ??
         _asString(json, 'booking_uuid', src);
     final bookingLocalId =
         _asInt(json, 'bookingId', src) ?? _asInt(json, 'booking_id', src);
     final resolvedId = await resolver.resolveBooking(
-        localId: bookingLocalId, serverId: null, uuid: bookingUuid);
+      localId: bookingLocalId,
+      serverId: null,
+      uuid: bookingUuid,
+    );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -43,8 +49,11 @@ class BookingNotesAdapter
   }
 
   @override
-  BookingNotesCompanion fromJson(Map<String, dynamic> json,
-      {required Source src, required ResolveResult refs}) {
+  BookingNotesCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
@@ -53,22 +62,28 @@ class BookingNotesAdapter
         createdAt;
     return BookingNotesCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ??
-          _asString(json, 'local_uuid', src) ??
-          IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
-      bookingId: refs.bookingLocalId != null
-          ? d.Value(refs.bookingLocalId!)
-          : _vInt(json, 'bookingId', src) ?? _vInt(json, 'booking_id', src),
-      noteText: _vStr(json, 'noteText', src) ??
-          _vStr(json, 'note_text', src) ??
-          const d.Value(''),
-      alertType: _vStr(json, 'alertType', src) ??
-          _vStr(json, 'alert_type', src) ??
-          const d.Value(''),
-      alertUntil:
-          _vStr(json, 'alertUntil', src) ?? _vStr(json, 'alert_until', src),
-      isActive: _vInt(json, 'isActive', src) ?? const d.Value(1),
+      bookingId: d.Value(
+        refs.bookingLocalId ??
+            _asInt(json, 'bookingId', src) ??
+            _asInt(json, 'booking_id', src) ??
+            0,
+      ),
+      noteText: _vStr(json, 'noteText', src, altKey: 'note_text', fallback: ''),
+      alertType: _vStr(
+        json,
+        'alertType',
+        src,
+        altKey: 'alert_type',
+        fallback: '',
+      ),
+      alertUntil: _vStr(json, 'alertUntil', src, altKey: 'alert_until'),
+      isActive: _vInt(json, 'isActive', src, fallback: 1),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -76,14 +91,22 @@ class BookingNotesAdapter
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
-      createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
-      lastModifiedEpoch:
-          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
-      version: _vInt(json, 'version', src) ?? const d.Value(1),
-      origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ??
-          _vStr(json, 'vector_clock', src) ??
-          const d.Value('{}'),
+      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
+      version: _vInt(json, 'version', src, fallback: 1),
+      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
     );
   }
 
@@ -109,13 +132,29 @@ class BookingNotesAdapter
   }
 }
 
-d.Value<int?> _vInt(Map<String, dynamic> json, String key, Source src) {
-  final v = _asInt(json, key, src);
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v = _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String?> _vStr(Map<String, dynamic> json, String key, Source src) {
-  final v = _asString(json, key, src);
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v = _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -132,15 +171,6 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
   if (v is int) return v;
   if (v is num) return v.toInt();
   if (v is String) return int.tryParse(v);
-  return null;
-}
-
-double? _asDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
   return null;
 }
 

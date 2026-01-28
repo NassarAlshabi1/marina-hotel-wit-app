@@ -23,17 +23,25 @@ class SalaryCyclesAdapter
   String get tableName => 'salary_cycles';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json,
-      {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
-        createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
+      createdAtEpoch: createdAt,
+      lastModifiedEpoch: lastModified,
+    );
   }
 
   @override
-  SalaryCyclesCompanion fromJson(Map<String, dynamic> json,
-      {required Source src, required ResolveResult refs}) {
+  SalaryCyclesCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
@@ -42,30 +50,56 @@ class SalaryCyclesAdapter
         createdAt;
     return SalaryCyclesCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ??
-          _asString(json, 'local_uuid', src) ??
-          IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
-      employeeId: _vInt(json, 'employeeId', src) ??
-          _vInt(json, 'employee_id', src) ??
-          const d.Value.absent(),
-      cycleKey: _vStr(json, 'cycleKey', src) ??
-          _vStr(json, 'cycle_key', src) ??
-          const d.Value.absent(),
-      hotelDayStart: _vStr(json, 'hotelDayStart', src) ??
-          _vStr(json, 'hotel_day_start', src),
-      hotelDayEnd:
-          _vStr(json, 'hotelDayEnd', src) ?? _vStr(json, 'hotel_day_end', src),
-      expectedAmount: _vDouble(json, 'expectedAmount', src) ??
-          _vDouble(json, 'expected_amount', src) ??
-          const d.Value(0.0),
-      actualPaid: _vDouble(json, 'actualPaid', src) ??
-          _vDouble(json, 'actual_paid', src) ??
-          const d.Value(0.0),
-      remainingAmount: _vDouble(json, 'remainingAmount', src) ??
-          _vDouble(json, 'remaining_amount', src) ??
-          const d.Value(0.0),
-      status: _vStr(json, 'status', src) ?? const d.Value('draft'),
+      employeeId: _vInt(
+        json,
+        'employeeId',
+        src,
+        altKey: 'employee_id',
+        fallback: 0,
+      ),
+      cycleKey: _vStr(json, 'cycleKey', src, altKey: 'cycle_key', fallback: ''),
+      hotelDayStart: _vStr(
+        json,
+        'hotelDayStart',
+        src,
+        altKey: 'hotel_day_start',
+        fallback: '',
+      ),
+      hotelDayEnd: _vStr(
+        json,
+        'hotelDayEnd',
+        src,
+        altKey: 'hotel_day_end',
+        fallback: '',
+      ),
+      expectedAmount: _vDouble(
+        json,
+        'expectedAmount',
+        src,
+        altKey: 'expected_amount',
+        fallback: 0.0,
+      ),
+      actualPaid: _vDouble(
+        json,
+        'actualPaid',
+        src,
+        altKey: 'actual_paid',
+        fallback: 0.0,
+      ),
+      remainingAmount: _vDouble(
+        json,
+        'remainingAmount',
+        src,
+        altKey: 'remaining_amount',
+        fallback: 0.0,
+      ),
+      status: _vStr(json, 'status', src, fallback: 'draft'),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -73,14 +107,22 @@ class SalaryCyclesAdapter
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
-      createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
-      lastModifiedEpoch:
-          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
-      version: _vInt(json, 'version', src) ?? const d.Value(1),
-      origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ??
-          _vStr(json, 'vector_clock', src) ??
-          const d.Value('{}'),
+      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
+      version: _vInt(json, 'version', src, fallback: 1),
+      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
     );
   }
 
@@ -109,18 +151,42 @@ class SalaryCyclesAdapter
   }
 }
 
-d.Value<int?> _vInt(Map<String, dynamic> json, String key, Source src) {
-  final v = _asInt(json, key, src);
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v = _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String?> _vStr(Map<String, dynamic> json, String key, Source src) {
-  final v = _asString(json, key, src);
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v = _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double?> _vDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _asDouble(json, key, src);
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v = _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 

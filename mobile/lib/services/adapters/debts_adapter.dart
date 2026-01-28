@@ -22,8 +22,11 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
   String get tableName => 'debts';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json,
-      {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final bookingUuid = _asString(json, 'bookingUuidCache', src) ??
         _asString(json, 'booking_uuid_cache', src) ??
         _asString(json, 'booking_uuid', src);
@@ -32,7 +35,10 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
     final localId = _asInt(json, 'bookingLocalId', src) ??
         _asInt(json, 'booking_local_id', src);
     final resolvedId = await resolver.resolveBooking(
-        localId: localId, serverId: serverBookingId, uuid: bookingUuid);
+      localId: localId,
+      serverId: serverBookingId,
+      uuid: bookingUuid,
+    );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -44,8 +50,11 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
   }
 
   @override
-  DebtsCompanion fromJson(Map<String, dynamic> json,
-      {required Source src, required ResolveResult refs}) {
+  DebtsCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
@@ -54,52 +63,96 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
         createdAt;
     return DebtsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ??
-          _asString(json, 'local_uuid', src) ??
-          IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId)
-          : _vInt(json, 'bookingLocalId', src) ??
-              _vInt(json, 'booking_local_id', src),
-      guestName: _vStr(json, 'guestName', src) ?? const d.Value.absent(),
-      checkinDate: _vStr(json, 'checkinDate', src) ??
-          _vStr(json, 'checkin_date', src) ??
-          const d.Value.absent(),
-      checkoutDate: _vStr(json, 'checkoutDate', src) ??
-          _vStr(json, 'checkout_date', src) ??
-          const d.Value.absent(),
-      dateRecorded: _vStr(json, 'dateRecorded', src) ??
-          _vStr(json, 'date_recorded', src) ??
-          const d.Value(''),
-      debtReason: _vStr(json, 'debtReason', src) ??
-          _vStr(json, 'debt_reason', src) ??
-          const d.Value(''),
-      totalAmount: _vDouble(json, 'totalAmount', src) ??
-          _vDouble(json, 'total_amount', src) ??
-          const d.Value(0.0),
-      paidAmount: _vDouble(json, 'paidAmount', src) ??
-          _vDouble(json, 'paid_amount', src) ??
-          const d.Value(0.0),
-      remainingAmount: _vDouble(json, 'remainingAmount', src) ??
-          _vDouble(json, 'remaining_amount', src) ??
-          const d.Value(0.0),
-      paymentDate: _vStr(json, 'paymentDate', src) ??
-          _vStr(json, 'payment_date', src) ??
-          const d.Value(''),
-      isSettled: _vInt(json, 'isSettled', src) ?? const d.Value(0),
+          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+      guestName: _vStr(json, 'guestName', src, fallback: ''),
+      checkinDate: _vStr(
+        json,
+        'checkinDate',
+        src,
+        altKey: 'checkin_date',
+        fallback: '',
+      ),
+      checkoutDate: _vStr(
+        json,
+        'checkoutDate',
+        src,
+        altKey: 'checkout_date',
+        fallback: '',
+      ),
+      dateRecorded: _vStr(
+        json,
+        'dateRecorded',
+        src,
+        altKey: 'date_recorded',
+        fallback: '',
+      ),
+      debtReason: _vStr(
+        json,
+        'debtReason',
+        src,
+        altKey: 'debt_reason',
+        fallback: '',
+      ),
+      totalAmount: _vDouble(
+        json,
+        'totalAmount',
+        src,
+        altKey: 'total_amount',
+        fallback: 0.0,
+      ),
+      paidAmount: _vDouble(
+        json,
+        'paidAmount',
+        src,
+        altKey: 'paid_amount',
+        fallback: 0.0,
+      ),
+      remainingAmount: _vDouble(
+        json,
+        'remainingAmount',
+        src,
+        altKey: 'remaining_amount',
+        fallback: 0.0,
+      ),
+      paymentDate: _vStr(
+        json,
+        'paymentDate',
+        src,
+        altKey: 'payment_date',
+        fallback: '',
+      ),
+      isSettled: _vInt(json, 'isSettled', src, fallback: 0),
       pledge: _vStr(json, 'pledge', src),
-      pledgeType:
-          _vStr(json, 'pledgeType', src) ?? _vStr(json, 'pledge_type', src),
+      pledgeType: _vStr(json, 'pledgeType', src, altKey: 'pledge_type'),
       note: _vStr(json, 'note', src),
-      debtUuid: _vStr(json, 'debtUuid', src) ?? _vStr(json, 'debt_uuid', src),
-      hotelDayOpened: _vStr(json, 'hotelDayOpened', src) ??
-          _vStr(json, 'hotel_day_opened', src),
-      hotelDayClosed: _vStr(json, 'hotelDayClosed', src) ??
-          _vStr(json, 'hotel_day_closed', src),
-      isFromAutoFix: _vBool(json, 'isFromAutoFix', src) ?? const d.Value(false),
-      settlementConfirmed:
-          _vBool(json, 'settlementConfirmed', src) ?? const d.Value(false),
+      debtUuid: _vStr(json, 'debtUuid', src, altKey: 'debt_uuid'),
+      hotelDayOpened: _vStr(
+        json,
+        'hotelDayOpened',
+        src,
+        altKey: 'hotel_day_opened',
+      ),
+      hotelDayClosed: _vStr(
+        json,
+        'hotelDayClosed',
+        src,
+        altKey: 'hotel_day_closed',
+      ),
+      isFromAutoFix: _vBool(json, 'isFromAutoFix', src, fallback: false),
+      settlementConfirmed: _vBool(
+        json,
+        'settlementConfirmed',
+        src,
+        fallback: false,
+      ),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -107,14 +160,22 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
-      createdAtEpoch: _vInt(json, 'createdAtEpoch', src) ?? d.Value(createdAt),
-      lastModifiedEpoch:
-          _vInt(json, 'lastModifiedEpoch', src) ?? d.Value(lastModified),
-      version: _vInt(json, 'version', src) ?? const d.Value(1),
-      origin: _vStr(json, 'origin', src) ?? const d.Value('server'),
-      vectorClock: _vStr(json, 'vectorClock', src) ??
-          _vStr(json, 'vector_clock', src) ??
-          const d.Value('{}'),
+      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
+      version: _vInt(json, 'version', src, fallback: 1),
+      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
     );
   }
 
@@ -155,23 +216,55 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
   }
 }
 
-d.Value<int?> _vInt(Map<String, dynamic> json, String key, Source src) {
-  final v = _asInt(json, key, src);
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v = _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String?> _vStr(Map<String, dynamic> json, String key, Source src) {
-  final v = _asString(json, key, src);
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v = _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double?> _vDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _asDouble(json, key, src);
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v = _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool?> _vBool(Map<String, dynamic> json, String key, Source src) {
-  final v = _asBool(json, key, src);
+d.Value<bool> _vBool(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  bool? fallback,
+}) {
+  final v = _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 

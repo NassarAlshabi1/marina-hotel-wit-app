@@ -630,87 +630,156 @@ class AppDatabase extends _$AppDatabase {
           if (from < 18) {
             try {
               await m.addColumn(outbox, outbox.processingStatus);
-            } catch (_) {}
+            } catch (e, st) {
+              developer.log(
+                'Migration add processingStatus failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
+              );
+            }
             try {
               await m.addColumn(outbox, outbox.processingStartedAt);
-            } catch (_) {}
+            } catch (e, st) {
+              developer.log(
+                'Migration add processingStartedAt failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
+              );
+            }
             try {
               await m.addColumn(outbox, outbox.processingWorker);
-            } catch (_) {}
+            } catch (e, st) {
+              developer.log(
+                'Migration add processingWorker failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
+              );
+            }
           }
           if (from < 19) {
             try {
-              await m.addColumn(
-                bookings,
-                bookings.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(bookings, bookings.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add bookings.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
             try {
-              await m.addColumn(
-                rooms,
-                rooms.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(rooms, rooms.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add rooms.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
             try {
-              await m.addColumn(
-                employees,
-                employees.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(employees, employees.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add employees.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
             try {
-              await m.addColumn(
-                expenses,
-                expenses.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(expenses, expenses.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add expenses.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
             try {
-              await m.addColumn(
-                cashTransactions,
-                cashTransactions.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(cashTransactions, cashTransactions.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add cashTransactions.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
             try {
-              await m.addColumn(
-                payments,
-                payments.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(payments, payments.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add payments.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
             try {
-              await m.addColumn(
-                debts,
-                debts.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(debts, debts.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add debts.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
             try {
-              await m.addColumn(
-                bookingNotes,
-                bookingNotes.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(bookingNotes, bookingNotes.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add bookingNotes.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
             try {
-              await m.addColumn(
-                bookingNights,
-                bookingNights.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(bookingNights, bookingNights.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add bookingNights.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
             try {
-              await m.addColumn(
-                hotelDayLedger,
-                hotelDayLedger.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add hotelDayLedger.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
             try {
-              await m.addColumn(
-                salaryCycles,
-                salaryCycles.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(salaryCycles, salaryCycles.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add salaryCycles.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
             try {
-              await m.addColumn(
-                salaryPayments,
-                salaryPayments.vectorClock as GeneratedColumn<Object>,
+              await m.addColumn(salaryPayments, salaryPayments.vectorClock);
+            } catch (e, st) {
+              developer.log(
+                'Migration add salaryPayments.vectorClock failed',
+                error: e,
+                stackTrace: st,
+                name: 'db.migration',
               );
-            } catch (_) {}
+            }
           }
         },
       );
