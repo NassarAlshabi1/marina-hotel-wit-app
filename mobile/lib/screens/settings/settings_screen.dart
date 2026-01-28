@@ -122,13 +122,6 @@ class SettingsScreen extends ConsumerWidget {
           _buildSectionTitle('إعدادات النظام', Icons.settings),
           _buildSettingsGrid(context, [
             _SettingsItem(
-              title: 'النسخ الاحتياطي',
-              subtitle: 'Google Drive + التخزين المحلي',
-              icon: Icons.backup,
-              color: Colors.indigo,
-              onTap: () => _showBackupDialog(context),
-            ),
-            _SettingsItem(
               title: 'مركز النسخ والمزامنة',
               subtitle: 'توحيد النسخ الاحتياطي والمزامنة الذكية',
               icon: Icons.shield_moon,
@@ -137,18 +130,6 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const DataProtectionScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'تحسين أداء المزامنة',
-              subtitle: 'ضبط استهلاك البطارية والبيانات',
-              icon: Icons.tune,
-              color: Colors.deepPurple,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SyncPerformanceSettingsScreen(),
                 ),
               ),
             ),
@@ -173,18 +154,6 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const ErrorCenterScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'سجلات المزامنة',
-              subtitle: 'مراقبة مزامنة Google Drive',
-              icon: Icons.monitor_heart,
-              color: Colors.deepOrange,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SyncDebugLogsScreen(),
                 ),
               ),
             ),
@@ -398,15 +367,6 @@ class SettingsScreen extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-
-  void _showBackupDialog(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ComprehensiveBackupScreen(),
-      ),
     );
   }
 

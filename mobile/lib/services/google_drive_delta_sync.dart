@@ -26,6 +26,8 @@ class GoogleDriveDeltaSync {
   AdapterRegistry? _adapterRegistry;
   String? _deviceId;
   bool _isSyncing = false;
+  String? _lastFailedFileId;
+  int? _lastFailedEpoch;
 
   static const _prefsLegacyLastDeltaSyncKey = 'gd_last_delta_sync';
   static const _prefsLastPushTsKey = 'gd_last_push_ts';
@@ -89,6 +91,8 @@ class GoogleDriveDeltaSync {
 
     try {
       debugPrint('📤 بدء المزامنة التفاضلية إلى Google Drive...');
+      _lastFailedFileId = null;
+      _lastFailedEpoch = null;
 
       final lastSyncTs = await _getLastPushTimestamp();
       final computation = await _deltaSyncService!.compute(since: lastSyncTs);
@@ -122,6 +126,7 @@ class GoogleDriveDeltaSync {
       final errorMessage = 'خطأ في رفع التغييرات: $e';
       debugPrint('❌ $errorMessage');
       debugPrint('🔍 Stack trace: $stackTrace');
+      _lastFailedEpoch = Time.nowEpoch();
       return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
       await SyncLocks.deltaSyncLock.synchronized(() async {
@@ -153,6 +158,8 @@ class GoogleDriveDeltaSync {
 
     try {
       debugPrint('📥 فحص التغييرات من Google Drive...');
+      _lastFailedFileId = null;
+      _lastFailedEpoch = null;
 
       final deltaFiles = await _listDeltaSyncFiles();
       if (deltaFiles.isEmpty) {
@@ -183,6 +190,9 @@ class GoogleDriveDeltaSync {
         if (deltaData != null) {
           final changes = await _applyDeltaChanges(deltaData);
           appliedChanges += changes;
+        } else {
+          _lastFailedFileId = file.fileId;
+          _lastFailedEpoch = Time.nowEpoch();
         }
 
         if (fileTsSec > maxProcessedTsSec) maxProcessedTsSec = fileTsSec;
@@ -200,6 +210,7 @@ class GoogleDriveDeltaSync {
       final errorMessage = 'خطأ في سحب التغييرات: $e';
       debugPrint('❌ $errorMessage');
       debugPrint('🔍 Stack trace: $stackTrace');
+      _lastFailedEpoch = Time.nowEpoch();
       return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
       await SyncLocks.deltaSyncLock.synchronized(() async {

@@ -599,14 +599,49 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () {
-                // TODO: تنفيذ عملية سحب الراتب
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('تم تسجيل سحب الراتب (قيد التطوير)'),
-                  ),
-                );
+              onPressed: () async {
+                final raw = amountController.text.trim();
+                final amount = double.tryParse(raw);
+                if (amount == null || amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('أدخل مبلغاً صالحاً أكبر من صفر')),
+                  );
+                  return;
+                }
+                try {
+                  final expenses = ref.read(expensesRepoProvider);
+                  final withdrawals = ref.read(salaryWithdrawalsRepoProvider);
+                  final now = DateTime.now().toIso8601String();
+                  final expenseId = await expenses.create(
+                    expenseType: 'salary_withdrawal',
+                    relatedId: employee.id,
+                    description: 'سحب راتب - ${employee.name}',
+                    amount: amount,
+                    date: now,
+                  );
+                  await withdrawals.saveFromExpense(
+                    expenseId: expenseId,
+                    employeeId: employee.id,
+                    action: 'withdraw',
+                    amount: amount,
+                    note: noteController.text.trim().isEmpty
+                        ? null
+                        : noteController.text.trim(),
+                    date: now,
+                  );
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تم تسجيل سحب الراتب')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('فشل تسجيل السحب: $e')),
+                    );
+                  }
+                }
               },
               child: const Text('تسجيل السحب'),
             ),
