@@ -217,7 +217,7 @@ class EnhancedDeltaSync {
 
         // حذف الدفعات اليتيمة
         await _db.customStatement(
-          'DELETE FROM payments WHERE booking_id NOT IN (SELECT id FROM bookings)',
+          'DELETE FROM payments WHERE booking_local_id NOT IN (SELECT id FROM bookings)',
         );
 
         // حذف الملاحظات اليتيمة
