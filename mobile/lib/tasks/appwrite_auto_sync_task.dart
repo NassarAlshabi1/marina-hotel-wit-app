@@ -62,7 +62,7 @@ class AppwriteAutoSyncTask {
       throw StateError('AppwriteAutoSyncTask not initialized');
     }
     final token = ++_debounceToken;
-    await Future<void>.delayed(delay, () async {
+    Future<void>.delayed(delay, () async {
       if (token != _debounceToken) return;
       await Workmanager().registerOneOffTask(
         _kImmediateWorkName,
