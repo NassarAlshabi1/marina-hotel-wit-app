@@ -81,24 +81,21 @@ class Time {
       {DateTime? checkout, int cutoffHour = 14}) {
     final end = checkout ?? DateTime.now();
 
-    var effectiveEnd = end;
-    if (!effectiveEnd.isAfter(checkin)) {
-      effectiveEnd = checkin.add(const Duration(minutes: 1));
+    if (!end.isAfter(checkin)) {
+      return 1;
     }
 
-    int count = 0;
-    var cursor = checkin;
-    while (cursor.isBefore(effectiveEnd)) {
-      final dayStart = hotelDayStart(cursor, cutoffHour: cutoffHour);
-      final dayEnd = dayStart.add(const Duration(days: 1));
-      final segmentEnd = effectiveEnd.isBefore(dayEnd) ? effectiveEnd : dayEnd;
-      if (!segmentEnd.isAfter(cursor)) {
-        break;
-      }
-      count += 1;
-      cursor = segmentEnd;
+    final startDay = hotelDayStart(checkin, cutoffHour: cutoffHour);
+    final endDay = hotelDayStart(end, cutoffHour: cutoffHour);
+
+    var nights = endDay.difference(startDay).inDays + 1;
+
+    final cutoffBoundary =
+        DateTime(end.year, end.month, end.day, cutoffHour);
+    if (end.isAfter(cutoffBoundary)) {
+      nights += 1;
     }
 
-    return count == 0 ? 1 : count;
+    return nights < 1 ? 1 : nights;
   }
 }

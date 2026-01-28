@@ -593,65 +593,45 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(salaryPayments);
           }
           if (from < 17) {
-            await m.addColumn(outbox, outbox.idempotencyKey);
+            await m.addColumn(outbox, outbox.idempotencyKey as GeneratedColumn);
           }
           if (from < 18) {
             try {
-              await m.addColumn(outbox, outbox.processingStatus);
+              await m.addColumn(outbox, outbox.processingStatus as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(outbox, outbox.processingStartedAt);
+              await m.addColumn(outbox, outbox.processingStartedAt as GeneratedColumn);
             } catch (_) {}
             try {
-              await m.addColumn(outbox, outbox.processingWorker);
+              await m.addColumn(outbox, outbox.processingWorker as GeneratedColumn);
             } catch (_) {}
           }
           if (from < 19) {
-            try {
-              await m.addColumn(bookings, bookings.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(rooms, rooms.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(employees, employees.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(expenses, expenses.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(cashTransactions, cashTransactions.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(payments, payments.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(debts, debts.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(bookingNotes, bookingNotes.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(bookingNights, bookingNights.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(salaryCycles, salaryCycles.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(salaryPayments, salaryPayments.vectorClock);
-            } catch (_) {}
-            try {
-              await m.addColumn(outbox, outbox.processingStatus);
-            } catch (_) {}
-            try {
-              await m.addColumn(outbox, outbox.processingStartedAt);
-            } catch (_) {}
-            try {
-              await m.addColumn(outbox, outbox.processingWorker);
-            } catch (_) {}
+            Future<void> addColumnSafely(
+                TableInfo<Table, dynamic> table, GeneratedColumn<dynamic> column) async {
+              try {
+                await m.addColumn(table, column);
+              } catch (_) {}
+            }
+
+            await addColumnSafely(bookings, bookings.vectorClock as GeneratedColumn);
+            await addColumnSafely(rooms, rooms.vectorClock as GeneratedColumn);
+            await addColumnSafely(employees, employees.vectorClock as GeneratedColumn);
+            await addColumnSafely(expenses, expenses.vectorClock as GeneratedColumn);
+            await addColumnSafely(
+                cashTransactions, cashTransactions.vectorClock as GeneratedColumn);
+            await addColumnSafely(payments, payments.vectorClock as GeneratedColumn);
+            await addColumnSafely(debts, debts.vectorClock as GeneratedColumn);
+            await addColumnSafely(
+                bookingNotes, bookingNotes.vectorClock as GeneratedColumn);
+            await addColumnSafely(
+                bookingNights, bookingNights.vectorClock as GeneratedColumn);
+            await addColumnSafely(
+                hotelDayLedger, hotelDayLedger.vectorClock as GeneratedColumn);
+            await addColumnSafely(
+                salaryCycles, salaryCycles.vectorClock as GeneratedColumn);
+            await addColumnSafely(
+                salaryPayments, salaryPayments.vectorClock as GeneratedColumn);
           }
         },
       );

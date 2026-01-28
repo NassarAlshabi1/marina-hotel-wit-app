@@ -34,7 +34,7 @@ void main() {
       const List<ConnectivityResult> emptyResults = [];
 
       // يجب ألا ترمي خطأ عند تمرير قائمة فارغة
-      expect(() => optimizer._updateConnectivityStatus(emptyResults),
+      expect(() => optimizer.updateConnectivityStatusForTest(emptyResults),
           returnsNormally);
 
       // بعد معالجة قائمة فارغة، يجب أن يكون isOnWiFi = false
@@ -49,7 +49,7 @@ void main() {
         ConnectivityResult.bluetooth,
       ];
 
-      optimizer._updateConnectivityStatus(mixedResults);
+      optimizer.updateConnectivityStatusForTest(mixedResults);
 
       // يجب أن يفضل WiFi على Mobile
       expect(optimizer.isOnWiFi, true);
@@ -60,7 +60,7 @@ void main() {
         ConnectivityResult.mobile
       ];
 
-      optimizer._updateConnectivityStatus(mobileResults);
+      optimizer.updateConnectivityStatusForTest(mobileResults);
 
       expect(optimizer.isOnWiFi, false);
     });
@@ -96,7 +96,7 @@ void main() {
         final results = testCase.$1;
         final expectedIsOnWiFi = testCase.$2;
 
-        optimizer._updateConnectivityStatus(results);
+        optimizer.updateConnectivityStatusForTest(results);
         expect(
           optimizer.isOnWiFi,
           expectedIsOnWiFi,
@@ -108,7 +108,7 @@ void main() {
     test('should get correct performance settings based on connection', () {
       // اختبار إعدادات الأداء لـ WiFi
       const List<ConnectivityResult> wifiResults = [ConnectivityResult.wifi];
-      optimizer._updateConnectivityStatus(wifiResults);
+      optimizer.updateConnectivityStatusForTest(wifiResults);
 
       final wifiSettings = optimizer.getCurrentPerformanceSettings();
       expect(wifiSettings['batchSize'], 100);
@@ -120,7 +120,7 @@ void main() {
       const List<ConnectivityResult> mobileResults = [
         ConnectivityResult.mobile
       ];
-      optimizer._updateConnectivityStatus(mobileResults);
+      optimizer.updateConnectivityStatusForTest(mobileResults);
 
       final mobileSettings = optimizer.getCurrentPerformanceSettings();
       expect(mobileSettings['batchSize'], 50);
