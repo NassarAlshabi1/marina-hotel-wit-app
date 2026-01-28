@@ -396,7 +396,51 @@ class AppwriteService {
       _cache.clearByPattern('^${collectionId}_all');
       
       _logger.info('Document deleted: $documentId', tag: 'CRUD');
+    } on AppwriteException catch (e, stackTrace) {
+      // التعامل مع خطأ 404: العنصر محذوف بالفعل أو غير موجود
+      // هذا يعتبر نجاح لأن النتيجة النهائية واحدة (العنصر غير موجود)
+      if (e.code == 404) {
+        _logger.info(
+          'Document already deleted or not found (404): $documentId',
+          data: {'collectionId': collectionId, 'documentId': documentId},
+          tag: 'CRUD'
+        );
+        
+        // مسح من الذاكرة المؤقتة على أي حال
+        _cache.remove('${collectionId}_$documentId');
+        _cache.clearByPattern('^${collectionId}_all');
+        
+        // لا نرمي خطأ - نعتبر العملية ناجحة
+        return;
+      }
+      
+      // في حالة أي خطأ آخر، نتعامل معه بشكل طبيعي
+      final error = _errorHandler.handleError(e, 
+        context: 'deleteDocument($collectionId, $documentId)', 
+        stackTrace: stackTrace
+      );
+      throw error;
     } catch (e, stackTrace) {
+      // التحقق من رسائل خطأ 404 في استثناءات أخرى (fallback)
+      final message = e.toString().toLowerCase();
+      if (message.contains('404') || 
+          message.contains('not found') || 
+          message.contains('not_found') ||
+          message.contains('document_not_found')) {
+        _logger.info(
+          'Document already deleted or not found (fallback): $documentId',
+          data: {'collectionId': collectionId, 'error': message},
+          tag: 'CRUD'
+        );
+        
+        // مسح من الذاكرة المؤقتة
+        _cache.remove('${collectionId}_$documentId');
+        _cache.clearByPattern('^${collectionId}_all');
+        
+        return;
+      }
+      
+      // في حالة أي خطأ آخر، نرميه
       final error = _errorHandler.handleError(e, 
         context: 'deleteDocument($collectionId, $documentId)', 
         stackTrace: stackTrace
