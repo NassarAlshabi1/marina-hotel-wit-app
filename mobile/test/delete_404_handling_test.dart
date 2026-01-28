@@ -16,7 +16,7 @@ void main() {
     test('deleteDocument يجب أن ينجح عند حذف مستند غير موجود (404)', () async {
       // محاولة حذف مستند بـ ID وهمي غير موجود
       final fakeDocumentId = 'non_existent_document_123456';
-      
+
       // يجب ألا يرمي استثناء
       await expectLater(
         appwriteService.deleteDocument(
@@ -29,7 +29,7 @@ void main() {
 
     test('deleteRoom يجب أن ينجح عند حذف غرفة غير موجودة', () async {
       final fakeRoomId = 'fake_room_uuid_999';
-      
+
       // يجب ألا يرمي استثناء
       await expectLater(
         appwriteService.deleteRoom(fakeRoomId),
@@ -39,7 +39,7 @@ void main() {
 
     test('deleteBooking يجب أن ينجح عند حذف حجز غير موجود', () async {
       final fakeBookingId = 'fake_booking_uuid_999';
-      
+
       // يجب ألا يرمي استثناء
       await expectLater(
         appwriteService.deleteBooking(fakeBookingId),
@@ -49,7 +49,7 @@ void main() {
 
     test('deleteExpense يجب أن ينجح عند حذف مصروف غير موجود', () async {
       final fakeExpenseId = 'fake_expense_uuid_999';
-      
+
       // يجب ألا يرمي استثناء
       await expectLater(
         appwriteService.deleteExpense(fakeExpenseId),
@@ -57,7 +57,8 @@ void main() {
       );
     });
 
-    test('deleteDocument يجب أن يرمي استثناء للأخطاء الأخرى (غير 404)', () async {
+    test('deleteDocument يجب أن يرمي استثناء للأخطاء الأخرى (غير 404)',
+        () async {
       // محاولة حذف من collection غير موجود (خطأ مختلف عن 404)
       expect(
         () => appwriteService.deleteDocument(
@@ -73,7 +74,7 @@ void main() {
     test('يجب أن تستمر المزامنة عند محاولة حذف عناصر محذوفة', () async {
       // هذا اختبار تكاملي - يحتاج إلى قاعدة بيانات محلية
       // يمكن إضافته لاحقاً عند الحاجة
-      
+
       // السيناريو:
       // 1. إنشاء عنصر محلي
       // 2. إضافته إلى Outbox كـ DELETE
