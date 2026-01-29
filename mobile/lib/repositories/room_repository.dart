@@ -1,5 +1,5 @@
 import 'package:appwrite/models.dart' as models;
-import '../models/room.dart';
+import '../services/local_db.dart';
 import '../services/appwrite_service.dart';
 import '../services/appwrite_config.dart';
 import '../services/appwrite_error_handler.dart';
@@ -59,11 +59,11 @@ class AppwriteRoomRepository implements RoomRepository {
   @override
   Future<List<Room>> getAll() async {
     try {
-      final response = await _appwriteService.listDocuments(
+      final documents = await _appwriteService.listDocuments(
         collectionId: _collectionId,
       );
 
-      return response.documents
+      return documents
           .map((doc) => Room.fromAppwriteDocument(doc))
           .toList();
     } catch (e) {
@@ -130,12 +130,12 @@ class AppwriteRoomRepository implements RoomRepository {
           .orderAsc('room_number')
           .build();
 
-      final response = await _appwriteService.listDocuments(
+      final documents = await _appwriteService.listDocuments(
         collectionId: _collectionId,
         queries: queries,
       );
 
-      return response.documents
+      return documents
           .map((doc) => Room.fromAppwriteDocument(doc))
           .toList();
     } catch (e) {
@@ -152,12 +152,12 @@ class AppwriteRoomRepository implements RoomRepository {
           .orderAsc('room_number')
           .build();
 
-      final response = await _appwriteService.listDocuments(
+      final documents = await _appwriteService.listDocuments(
         collectionId: _collectionId,
         queries: queries,
       );
 
-      return response.documents
+      return documents
           .map((doc) => Room.fromAppwriteDocument(doc))
           .toList();
     } catch (e) {
@@ -174,12 +174,12 @@ class AppwriteRoomRepository implements RoomRepository {
           .orderAsc('price')
           .build();
 
-      final response = await _appwriteService.listDocuments(
+      final documents = await _appwriteService.listDocuments(
         collectionId: _collectionId,
         queries: queries,
       );
 
-      return response.documents
+      return documents
           .map((doc) => Room.fromAppwriteDocument(doc))
           .toList();
     } catch (e) {
@@ -200,12 +200,12 @@ class AppwriteRoomRepository implements RoomRepository {
           .orderAsc('room_number')
           .build();
 
-      final response = await _appwriteService.listDocuments(
+      final documents = await _appwriteService.listDocuments(
         collectionId: _collectionId,
         queries: queries,
       );
 
-      return response.documents
+      return documents
           .map((doc) => Room.fromAppwriteDocument(doc))
           .toList();
     } catch (e) {
@@ -280,18 +280,28 @@ RoomStatistics:
 /// امتداد للـ Room Model لدعم Appwrite Document
 extension RoomAppwriteExtension on Room {
   static Room fromAppwriteDocument(models.Document doc) {
+    final now = DateTime.now().millisecondsSinceEpoch;
     return Room(
-      id: doc.$id,
+      id: int.tryParse(doc.$id) ?? 0,
+      localUuid: doc.data['localUuid'] as String? ?? doc.$id,
+      serverId: doc.data['serverId'] as int?,
       roomNumber: doc.data['room_number'] as String,
       type: doc.data['type'] as String,
       price: (doc.data['price'] as num).toDouble(),
       status: doc.data['status'] as String,
       imageUrl: doc.data['image_url'] as String?,
-      cleaningStatus: doc.data['cleaning_status'] as String?,
-      lastCleaned: doc.data['last_cleaned'] != null
-          ? DateTime.parse(doc.data['last_cleaned'] as String)
-          : null,
+      cleaningStatus: doc.data['cleaning_status'] as String? ?? 'clean',
+      lastCleanedHotelDay: doc.data['last_cleaned'] as String?,
+      lastOccupiedHotelDay: doc.data['last_occupied'] as String?,
       requiresMaintenance: doc.data['requires_maintenance'] as bool? ?? false,
+      createdAt: now,
+      updatedAt: now,
+      lastModified: now,
+      createdAtEpoch: now,
+      lastModifiedEpoch: now,
+      version: 1,
+      origin: 'cloud',
+      vectorClock: '{}',
     );
   }
 
@@ -302,9 +312,12 @@ extension RoomAppwriteExtension on Room {
       'price': price,
       'status': status,
       if (imageUrl != null) 'image_url': imageUrl,
-      if (cleaningStatus != null) 'cleaning_status': cleaningStatus,
-      if (lastCleaned != null) 'last_cleaned': lastCleaned!.toIso8601String(),
+      if (cleaningStatus.isNotEmpty) 'cleaning_status': cleaningStatus,
+      if (lastCleanedHotelDay != null) 'last_cleaned': lastCleanedHotelDay,
+      if (lastOccupiedHotelDay != null) 'last_occupied': lastOccupiedHotelDay,
       'requires_maintenance': requiresMaintenance,
+      'localUuid': localUuid,
+      if (serverId != null) 'serverId': serverId,
     };
   }
 }
