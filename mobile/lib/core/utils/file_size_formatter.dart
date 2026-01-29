@@ -1,5 +1,5 @@
 /// File Size Formatting Utilities
-/// 
+///
 /// مركز موحد لجميع عمليات تنسيق أحجام الملفات
 class FileSizeFormatter {
   FileSizeFormatter._();
@@ -10,11 +10,11 @@ class FileSizeFormatter {
 
     const suffixes = ['بايت', 'كيلوبايت', 'ميجابايت', 'جيجابايت', 'تيرابايت'];
     final i = (bytes.bitLength - 1) ~/ 10;
-    
+
     if (i >= suffixes.length) {
       return '${(bytes / (1 << ((suffixes.length - 1) * 10))).toStringAsFixed(decimals)} ${suffixes.last}';
     }
-    
+
     return '${(bytes / (1 << (i * 10))).toStringAsFixed(decimals)} ${suffixes[i]}';
   }
 
@@ -24,11 +24,11 @@ class FileSizeFormatter {
 
     const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
     final i = (bytes.bitLength - 1) ~/ 10;
-    
+
     if (i >= suffixes.length) {
       return '${(bytes / (1 << ((suffixes.length - 1) * 10))).toStringAsFixed(decimals)} ${suffixes.last}';
     }
-    
+
     return '${(bytes / (1 << (i * 10))).toStringAsFixed(decimals)} ${suffixes[i]}';
   }
 
@@ -37,7 +37,8 @@ class FileSizeFormatter {
     if (bytes <= 0) return '0';
     if (bytes < 1024) return '${bytes}B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}K';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}M';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}M';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)}G';
   }
 

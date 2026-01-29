@@ -4,7 +4,7 @@ import '../../../core/core.dart';
 import '../../../components/app_scaffold.dart';
 
 /// Unified Backup Settings Screen
-/// 
+///
 /// شاشة موحدة لجميع إعدادات النسخ الاحتياطي
 /// تجمع الإعدادات من:
 /// - auto_backup_settings_screen.dart
@@ -356,17 +356,20 @@ class _UnifiedBackupSettingsScreenState
           children: [
             ListTile(
               title: const Text('يومياً'),
-              leading: Radio(value: 'daily', groupValue: 'daily', onChanged: (v) {}),
+              leading:
+                  Radio(value: 'daily', groupValue: 'daily', onChanged: (v) {}),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
               title: const Text('أسبوعياً'),
-              leading: Radio(value: 'weekly', groupValue: 'daily', onChanged: (v) {}),
+              leading: Radio(
+                  value: 'weekly', groupValue: 'daily', onChanged: (v) {}),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
               title: const Text('شهرياً'),
-              leading: Radio(value: 'monthly', groupValue: 'daily', onChanged: (v) {}),
+              leading: Radio(
+                  value: 'monthly', groupValue: 'daily', onChanged: (v) {}),
               onTap: () => Navigator.pop(context),
             ),
           ],

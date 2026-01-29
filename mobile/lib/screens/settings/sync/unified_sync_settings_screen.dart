@@ -4,7 +4,7 @@ import '../../../core/core.dart';
 import '../../../components/app_scaffold.dart';
 
 /// Unified Sync Settings Screen
-/// 
+///
 /// شاشة موحدة لجميع إعدادات المزامنة
 /// تجمع الإعدادات المبعثرة في:
 /// - smart_sync_settings_screen.dart

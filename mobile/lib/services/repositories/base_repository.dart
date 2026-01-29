@@ -87,9 +87,11 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     final targets = <List<Column>>[];
     final sanitizedName = tableName.replaceAll("'", "''");
 
-    final indexRows = await db.customSelect(
-      "PRAGMA index_list('$sanitizedName')",
-    ).get();
+    final indexRows = await db
+        .customSelect(
+          "PRAGMA index_list('$sanitizedName')",
+        )
+        .get();
     for (final row in indexRows) {
       final isUnique = row.data['unique'] == 1 || row.data['unique'] == true;
       if (!isUnique) {
@@ -100,9 +102,11 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         continue;
       }
       final sanitizedIndex = indexName.replaceAll("'", "''");
-      final infoRows = await db.customSelect(
-        "PRAGMA index_info('$sanitizedIndex')",
-      ).get();
+      final infoRows = await db
+          .customSelect(
+            "PRAGMA index_info('$sanitizedIndex')",
+          )
+          .get();
       final cols = <Column>[];
       for (final info in infoRows) {
         final name = info.data['name']?.toString();

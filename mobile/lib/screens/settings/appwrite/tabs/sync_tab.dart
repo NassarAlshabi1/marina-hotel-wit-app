@@ -466,8 +466,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child:
-                const Text('حذف', style: TextStyle(color: Colors.white)),
+            child: const Text('حذف', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

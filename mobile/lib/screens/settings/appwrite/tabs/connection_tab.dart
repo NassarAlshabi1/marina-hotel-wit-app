@@ -58,8 +58,8 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: (_isConnected ? Colors.green : Colors.red)
-                    .withOpacity(0.1),
+                color:
+                    (_isConnected ? Colors.green : Colors.red).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -271,9 +271,9 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
 
   Future<void> _checkConnection() async {
     setState(() => _isChecking = true);
-    
+
     await Future.delayed(const Duration(seconds: 2));
-    
+
     setState(() {
       _isChecking = false;
       _isConnected = true;

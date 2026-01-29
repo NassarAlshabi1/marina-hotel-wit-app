@@ -2,7 +2,7 @@ import 'package:appwrite/appwrite.dart';
 import 'appwrite_config.dart';
 
 /// سكريبت للتحقق من مطابقة جداول Appwrite Cloud
-/// 
+///
 /// الاستخدام:
 /// ```dart
 /// await verifyAppwriteSchema();
@@ -12,13 +12,30 @@ class AppwriteSchemaVerifier {
     'rooms': {
       'name': 'Rooms',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
-        {'key': 'roomNumber', 'type': 'string', 'size': 50, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
+        {
+          'key': 'roomNumber',
+          'type': 'string',
+          'size': 50,
+          'required': true,
+          'unique': true
+        },
         {'key': 'type', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'price', 'type': 'double', 'required': true},
         {'key': 'status', 'type': 'string', 'size': 20, 'required': true},
         {'key': 'imageUrl', 'type': 'string', 'size': 500},
-        {'key': 'cleaningStatus', 'type': 'string', 'size': 20, 'default': 'clean'},
+        {
+          'key': 'cleaningStatus',
+          'type': 'string',
+          'size': 20,
+          'default': 'clean'
+        },
         {'key': 'lastCleanedHotelDay', 'type': 'string', 'size': 50},
         {'key': 'lastOccupiedHotelDay', 'type': 'string', 'size': 50},
         {'key': 'requiresMaintenance', 'type': 'boolean', 'default': false},
@@ -27,11 +44,22 @@ class AppwriteSchemaVerifier {
     'bookings': {
       'name': 'Bookings',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
         {'key': 'roomNumber', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'guestName', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'guestPhone', 'type': 'string', 'size': 20, 'required': true},
-        {'key': 'guestNationality', 'type': 'string', 'size': 50, 'required': true},
+        {
+          'key': 'guestNationality',
+          'type': 'string',
+          'size': 50,
+          'required': true
+        },
         {'key': 'checkinDate', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'status', 'type': 'string', 'size': 20, 'required': true},
       ],
@@ -39,7 +67,13 @@ class AppwriteSchemaVerifier {
     'booking_notes': {
       'name': 'Booking Notes',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
         {'key': 'bookingId', 'type': 'integer', 'required': true},
         {'key': 'noteText', 'type': 'string', 'size': 1000, 'required': true},
         {'key': 'alertType', 'type': 'string', 'size': 20, 'required': true},
@@ -49,7 +83,13 @@ class AppwriteSchemaVerifier {
     'booking_nights': {
       'name': 'Booking Nights',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
         {'key': 'bookingLocalId', 'type': 'integer', 'required': true},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'nightStart', 'type': 'string', 'size': 50, 'required': true},
@@ -62,7 +102,13 @@ class AppwriteSchemaVerifier {
     'employees': {
       'name': 'Employees',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
         {'key': 'name', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'basicSalary', 'type': 'double', 'required': true},
         {'key': 'position', 'type': 'string', 'size': 50, 'default': 'موظف'},
@@ -72,7 +118,13 @@ class AppwriteSchemaVerifier {
     'expenses': {
       'name': 'Expenses',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
         {'key': 'expenseType', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'description', 'type': 'string', 'size': 500, 'required': true},
         {'key': 'amount', 'type': 'double', 'required': true},
@@ -83,19 +135,46 @@ class AppwriteSchemaVerifier {
     'cash_transactions': {
       'name': 'Cash Transactions',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
-        {'key': 'transactionType', 'type': 'string', 'size': 20, 'required': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
+        {
+          'key': 'transactionType',
+          'type': 'string',
+          'size': 20,
+          'required': true
+        },
         {'key': 'amount', 'type': 'double', 'required': true},
-        {'key': 'transactionTime', 'type': 'string', 'size': 50, 'required': true},
+        {
+          'key': 'transactionTime',
+          'type': 'string',
+          'size': 50,
+          'required': true
+        },
       ],
     },
     'payments': {
       'name': 'Payments',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
         {'key': 'amount', 'type': 'double', 'required': true},
         {'key': 'paymentDate', 'type': 'string', 'size': 50, 'required': true},
-        {'key': 'paymentMethod', 'type': 'string', 'size': 20, 'required': true},
+        {
+          'key': 'paymentMethod',
+          'type': 'string',
+          'size': 20,
+          'required': true
+        },
         {'key': 'revenueType', 'type': 'string', 'size': 20, 'required': true},
         {'key': 'isPendingBalance', 'type': 'boolean', 'default': false},
       ],
@@ -103,7 +182,13 @@ class AppwriteSchemaVerifier {
     'debts': {
       'name': 'Debts',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
         {'key': 'guestName', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'checkinDate', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'checkoutDate', 'type': 'string', 'size': 50, 'required': true},
@@ -119,7 +204,13 @@ class AppwriteSchemaVerifier {
     'salary_cycles': {
       'name': 'Salary Cycles',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
         {'key': 'employeeId', 'type': 'integer', 'required': true},
         {'key': 'cycleKey', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'expectedAmount', 'type': 'double', 'default': 0},
@@ -131,18 +222,41 @@ class AppwriteSchemaVerifier {
     'salary_payments': {
       'name': 'Salary Payments',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
         {'key': 'cycleId', 'type': 'integer', 'required': true},
         {'key': 'amount', 'type': 'double', 'default': 0},
-        {'key': 'paymentDateIso', 'type': 'string', 'size': 50, 'required': true},
+        {
+          'key': 'paymentDateIso',
+          'type': 'string',
+          'size': 50,
+          'required': true
+        },
         {'key': 'isAutoGenerated', 'type': 'boolean', 'default': false},
       ],
     },
     'hotel_day_ledger': {
       'name': 'Hotel Day Ledger',
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
-        {'key': 'hotelDayKey', 'type': 'string', 'size': 50, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
+        {
+          'key': 'hotelDayKey',
+          'type': 'string',
+          'size': 50,
+          'required': true,
+          'unique': true
+        },
         {'key': 'totalIncome', 'type': 'double', 'default': 0},
         {'key': 'totalExpenses', 'type': 'double', 'default': 0},
         {'key': 'pendingBalances', 'type': 'double', 'default': 0},
@@ -233,7 +347,8 @@ class AppwriteSchemaVerifier {
         };
 
         if (missingAttributes.isNotEmpty) {
-          print('   ⚠️  حقول ناقصة (${missingAttributes.length}): ${missingAttributes.join(', ')}');
+          print(
+              '   ⚠️  حقول ناقصة (${missingAttributes.length}): ${missingAttributes.join(', ')}');
         } else {
           print('   ✅ جميع الحقول موجودة');
         }
@@ -254,7 +369,8 @@ class AppwriteSchemaVerifier {
       'total': totalCollections,
       'found': foundCollections,
       'missing': missingCollections,
-      'percentage': ((foundCollections / totalCollections) * 100).toStringAsFixed(1),
+      'percentage':
+          ((foundCollections / totalCollections) * 100).toStringAsFixed(1),
     };
 
     // طباعة الملخص
@@ -337,11 +453,11 @@ class AppwriteSchemaVerifier {
 }
 
 /// مثال على الاستخدام:
-/// 
+///
 /// ```dart
 /// void main() async {
 ///   final results = await AppwriteSchemaVerifier.verifySchema();
-///   
+///
 ///   // طباعة سكريبت لإنشاء collection ناقص
 ///   if (results['missing'].isNotEmpty) {
 ///     for (final collectionId in results['missing']) {

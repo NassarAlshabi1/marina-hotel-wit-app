@@ -1,9 +1,9 @@
 import 'package:appwrite/appwrite.dart';
 
 /// بناء استعلامات Appwrite بشكل متقدم
-/// 
+///
 /// يوفر واجهة Fluent API لبناء استعلامات معقدة بسهولة
-/// 
+///
 /// مثال:
 /// ```dart
 /// final queries = AdvancedQueryBuilder()
@@ -19,7 +19,7 @@ class AdvancedQueryBuilder {
   final List<String> _queries = [];
 
   /// إضافة شرط مساواة
-  /// 
+  ///
   /// [attribute] - اسم الحقل
   /// [value] - القيمة المطلوبة
   AdvancedQueryBuilder where(String attribute, dynamic value) {
@@ -28,7 +28,7 @@ class AdvancedQueryBuilder {
   }
 
   /// إضافة شرط عدم مساواة
-  /// 
+  ///
   /// [attribute] - اسم الحقل
   /// [value] - القيمة المستبعدة
   AdvancedQueryBuilder whereNot(String attribute, dynamic value) {
@@ -37,7 +37,7 @@ class AdvancedQueryBuilder {
   }
 
   /// إضافة شرط أكبر من
-  /// 
+  ///
   /// [attribute] - اسم الحقل
   /// [value] - القيمة الدنيا (غير شاملة)
   AdvancedQueryBuilder whereGreaterThan(String attribute, dynamic value) {
@@ -46,16 +46,17 @@ class AdvancedQueryBuilder {
   }
 
   /// إضافة شرط أكبر من أو يساوي
-  /// 
+  ///
   /// [attribute] - اسم الحقل
   /// [value] - القيمة الدنيا (شاملة)
-  AdvancedQueryBuilder whereGreaterThanOrEqual(String attribute, dynamic value) {
+  AdvancedQueryBuilder whereGreaterThanOrEqual(
+      String attribute, dynamic value) {
     _queries.add(Query.greaterThanEqual(attribute, value));
     return this;
   }
 
   /// إضافة شرط أصغر من
-  /// 
+  ///
   /// [attribute] - اسم الحقل
   /// [value] - القيمة القصوى (غير شاملة)
   AdvancedQueryBuilder whereLessThan(String attribute, dynamic value) {
@@ -64,7 +65,7 @@ class AdvancedQueryBuilder {
   }
 
   /// إضافة شرط أصغر من أو يساوي
-  /// 
+  ///
   /// [attribute] - اسم الحقل
   /// [value] - القيمة القصوى (شاملة)
   AdvancedQueryBuilder whereLessThanOrEqual(String attribute, dynamic value) {
@@ -73,7 +74,7 @@ class AdvancedQueryBuilder {
   }
 
   /// إضافة شرط بين قيمتين
-  /// 
+  ///
   /// [attribute] - اسم الحقل
   /// [min] - القيمة الدنيا
   /// [max] - القيمة القصوى
@@ -88,7 +89,7 @@ class AdvancedQueryBuilder {
   }
 
   /// إضافة شرط IN (القيمة موجودة في قائمة)
-  /// 
+  ///
   /// [attribute] - اسم الحقل
   /// [values] - قائمة القيم المسموحة
   AdvancedQueryBuilder whereIn(String attribute, List<dynamic> values) {
@@ -99,7 +100,7 @@ class AdvancedQueryBuilder {
   }
 
   /// إضافة شرط بحث نصي
-  /// 
+  ///
   /// [attribute] - اسم الحقل
   /// [searchTerm] - النص المراد البحث عنه
   AdvancedQueryBuilder search(String attribute, String searchTerm) {
@@ -110,7 +111,7 @@ class AdvancedQueryBuilder {
   }
 
   /// إضافة شرط NULL
-  /// 
+  ///
   /// [attribute] - اسم الحقل
   AdvancedQueryBuilder whereNull(String attribute) {
     _queries.add(Query.isNull(attribute));
@@ -118,7 +119,7 @@ class AdvancedQueryBuilder {
   }
 
   /// إضافة شرط NOT NULL
-  /// 
+  ///
   /// [attribute] - اسم الحقل
   AdvancedQueryBuilder whereNotNull(String attribute) {
     _queries.add(Query.isNotNull(attribute));
@@ -126,7 +127,7 @@ class AdvancedQueryBuilder {
   }
 
   /// ترتيب النتائج تصاعدياً
-  /// 
+  ///
   /// [attribute] - اسم الحقل للترتيب
   AdvancedQueryBuilder orderAsc(String attribute) {
     _queries.add(Query.orderAsc(attribute));
@@ -134,7 +135,7 @@ class AdvancedQueryBuilder {
   }
 
   /// ترتيب النتائج تنازلياً
-  /// 
+  ///
   /// [attribute] - اسم الحقل للترتيب
   AdvancedQueryBuilder orderDesc(String attribute) {
     _queries.add(Query.orderDesc(attribute));
@@ -142,7 +143,7 @@ class AdvancedQueryBuilder {
   }
 
   /// ترتيب النتائج (تصاعدي أو تنازلي)
-  /// 
+  ///
   /// [attribute] - اسم الحقل للترتيب
   /// [desc] - هل الترتيب تنازلي؟ (افتراضي: false)
   AdvancedQueryBuilder orderBy(String attribute, {bool desc = false}) {
@@ -155,7 +156,7 @@ class AdvancedQueryBuilder {
   }
 
   /// تحديد عدد النتائج
-  /// 
+  ///
   /// [value] - عدد النتائج المطلوبة
   AdvancedQueryBuilder limit(int value) {
     _queries.add(Query.limit(value));
@@ -163,7 +164,7 @@ class AdvancedQueryBuilder {
   }
 
   /// تحديد نقطة البداية (للـ Pagination)
-  /// 
+  ///
   /// [value] - عدد العناصر المتخطاة
   AdvancedQueryBuilder offset(int value) {
     _queries.add(Query.offset(value));
@@ -171,7 +172,7 @@ class AdvancedQueryBuilder {
   }
 
   /// اختيار حقول محددة فقط
-  /// 
+  ///
   /// [attributes] - قائمة أسماء الحقول
   AdvancedQueryBuilder select(List<String> attributes) {
     _queries.add(Query.select(attributes));
@@ -179,7 +180,7 @@ class AdvancedQueryBuilder {
   }
 
   /// إضافة cursor للـ pagination (بديل لـ offset)
-  /// 
+  ///
   /// [cursorId] - معرف العنصر الأخير من الصفحة السابقة
   AdvancedQueryBuilder cursorAfter(String cursorId) {
     _queries.add(Query.cursorAfter(cursorId));
@@ -187,7 +188,7 @@ class AdvancedQueryBuilder {
   }
 
   /// إضافة cursor للـ pagination العكسي
-  /// 
+  ///
   /// [cursorId] - معرف العنصر الأول من الصفحة التالية
   AdvancedQueryBuilder cursorBefore(String cursorId) {
     _queries.add(Query.cursorBefore(cursorId));
@@ -195,7 +196,7 @@ class AdvancedQueryBuilder {
   }
 
   /// بناء الاستعلامات
-  /// 
+  ///
   /// إرجاع قائمة الاستعلامات الجاهزة للاستخدام مع Appwrite
   List<String> build() => List.unmodifiable(_queries);
 

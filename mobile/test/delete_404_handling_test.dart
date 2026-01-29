@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:appwrite/appwrite.dart';
 import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/appwrite_config.dart';
 

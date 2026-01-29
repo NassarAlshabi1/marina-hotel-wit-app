@@ -61,7 +61,7 @@ class UIConstants {
       case 'نجح':
       case 'success':
         return Colors.green;
-      
+
       case 'غير نشط':
       case 'inactive':
       case 'مشغول':
@@ -73,19 +73,19 @@ class UIConstants {
       case 'خطأ':
       case 'error':
         return Colors.red;
-      
+
       case 'معلق':
       case 'pending':
       case 'قيد الانتظار':
       case 'waiting':
         return Colors.orange;
-      
+
       case 'صيانة':
       case 'maintenance':
       case 'قيد التنفيذ':
       case 'in_progress':
         return Colors.blue;
-      
+
       default:
         return Colors.grey;
     }
@@ -99,45 +99,45 @@ class UIConstants {
       case 'متاح':
       case 'available':
         return Icons.check_circle;
-      
+
       case 'مكتمل':
       case 'completed':
       case 'نجح':
       case 'success':
         return Icons.check_circle_outline;
-      
+
       case 'غير نشط':
       case 'inactive':
         return Icons.cancel;
-      
+
       case 'مشغول':
       case 'occupied':
         return Icons.block;
-      
+
       case 'ملغي':
       case 'cancelled':
         return Icons.close;
-      
+
       case 'فشل':
       case 'failed':
       case 'خطأ':
       case 'error':
         return Icons.error;
-      
+
       case 'معلق':
       case 'pending':
       case 'قيد الانتظار':
       case 'waiting':
         return Icons.pending;
-      
+
       case 'صيانة':
       case 'maintenance':
         return Icons.build;
-      
+
       case 'قيد التنفيذ':
       case 'in_progress':
         return Icons.sync;
-      
+
       default:
         return Icons.help_outline;
     }
