@@ -4,6 +4,8 @@ import 'package:marina_hotel_mobile/services/appwrite_config.dart';
 
 /// اختبار معالجة خطأ 404 في عملية الحذف
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('Delete 404 Handling Tests', () {
     late AppwriteService appwriteService;
 
@@ -59,15 +61,15 @@ void main() {
     test('deleteDocument يجب أن يرمي استثناء للأخطاء الأخرى (غير 404)',
         () async {
       // محاولة حذف من collection غير موجود (خطأ مختلف عن 404)
-      expect(
-        () => appwriteService.deleteDocument(
+      await expectLater(
+        appwriteService.deleteDocument(
           collectionId: 'invalid_collection_xyz',
           documentId: 'some_id',
         ),
         throwsA(isA<Exception>()),
       );
     });
-  });
+  }, timeout: const Timeout(Duration(seconds: 60)));
 
   group('Sync Outbox with 404 Handling', () {
     test('يجب أن تستمر المزامنة عند محاولة حذف عناصر محذوفة', () async {
