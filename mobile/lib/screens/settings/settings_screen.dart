@@ -364,19 +364,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     ];
 
+    final width = MediaQuery.sizeOf(context).width;
+    final crossAxisCount = width > 600 ? 3 : 2;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionTitle('اختصارات سريعة', Icons.flash_on),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: actions
-              .map(
-                (action) => _buildQuickActionCard(action),
-              )
-              .toList(),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 2.8,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: actions.length,
+          itemBuilder: (context, index) => _buildQuickActionCard(actions[index]),
         ),
       ],
     );
@@ -389,41 +395,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         onTap: action.onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: action.color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(action.icon, size: 28, color: action.color),
+                child: Icon(action.icon, size: 24, color: action.color),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       action.title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 14,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       action.subtitle,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 11,
                         color: Colors.grey,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
             ],
           ),
         ),
