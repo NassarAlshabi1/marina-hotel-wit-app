@@ -1,51 +1,11 @@
-name: Zencoder AI Agent Review
+name: Run Zencoder Agent on PR review
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
-  
 on:
-  push:
-    branches:
-      - '**'
   pull_request:
-  workflow_dispatch:
-    inputs:
-      prompt:
-        type: string
-        description: "The input prompt for the Agent"
-        required: true
-      agent:
-        type: string
-        description: "Alias of the agent to run (will run default agent if not provided)"
-        required: false
-        default: ""
-      pr_number:
-        type: string
-        description: "PR number to review (optional)"
-        required: false
-        default: ""
-
+    branches:
+      - capy/test2
 jobs:
-  zen-agent-pr-review:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Running Zencoder Agent for PR Review
-        uses: zencoderai/zen-agents-action@main
-        with:
-          prompt: "Please review the pull request with number ${{ github.event.pull_request.number }} and add comment to it. Please address only the serious issues, not the minor ones. If you didn't find any serious issues, please write 'Looks good to me!'."
-          zencoder_client_id: "${{ secrets.ZENCODER_CLIENT_ID }}"
-          zencoder_client_secret: "${{ secrets.ZENCODER_CLIENT_SECRET }}"
-          github_token: "${{ secrets.GITHUB_TOKEN }}"
-          model: "sonnet-4"
-
-  zen-agent-manual:
-    if: github.event_name == 'workflow_dispatch'
+  agent-run:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -54,9 +14,7 @@ jobs:
       - name: Running Zencoder Agent
         uses: zencoderai/zen-agents-action@main
         with:
-          prompt: "${{ inputs.prompt }}"
-          agent: "${{ inputs.agent }}"
+          prompt: "Please review the pull request with number ${{ github.event.pull_request.number }} and add comment to it. Please address only the serious issues, not the minor ones. If you didn't find any serious issues, please write 'Looks good to me!'."
           zencoder_client_id: "${{ secrets.ZENCODER_CLIENT_ID }}"
           zencoder_client_secret: "${{ secrets.ZENCODER_CLIENT_SECRET }}"
           github_token: "${{ secrets.GITHUB_TOKEN }}"
-          model: "sonnet-4"
