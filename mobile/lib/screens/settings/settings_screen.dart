@@ -366,7 +366,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     final width = MediaQuery.sizeOf(context).width;
     final crossAxisCount = width > 600 ? 3 : 2;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -382,7 +382,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             mainAxisSpacing: 12,
           ),
           itemCount: actions.length,
-          itemBuilder: (context, index) => _buildQuickActionCard(actions[index]),
+          itemBuilder: (context, index) =>
+              _buildQuickActionCard(actions[index]),
         ),
       ],
     );
@@ -640,7 +641,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ],
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                  const Icon(Icons.arrow_forward_ios,
+                      size: 16, color: Colors.grey),
                 ],
               ),
             ),

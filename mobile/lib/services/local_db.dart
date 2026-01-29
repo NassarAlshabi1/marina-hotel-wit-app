@@ -809,7 +809,7 @@ class AppDatabase extends _$AppDatabase {
                 );
               }
             }
-            
+
             // التحقق من وجود عمود serverId في باقي الجداول
             final tablesToCheck = [
               'bookings',
@@ -819,7 +819,7 @@ class AppDatabase extends _$AppDatabase {
               'payments',
               'debts',
             ];
-            
+
             for (final tableName in tablesToCheck) {
               try {
                 await m.database.customStatement(
@@ -921,7 +921,7 @@ class AppDatabase extends _$AppDatabase {
     await transaction(() async {
       // تعطيل foreign key constraints مؤقتاً لتجنب مشاكل الحذف
       await customStatement('PRAGMA foreign_keys = OFF');
-      
+
       Future<void> replaceTableIfNonEmpty<T extends Insertable<dynamic>>(
         TableInfo<Table, dynamic> table,
         String key,
@@ -1021,7 +1021,7 @@ class AppDatabase extends _$AppDatabase {
         'salary_payments',
         (row) => SalaryPayment.fromJson(row),
       );
-      
+
       // إعادة تفعيل foreign key constraints
       await customStatement('PRAGMA foreign_keys = ON');
     });

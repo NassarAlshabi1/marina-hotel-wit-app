@@ -78,11 +78,11 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
       } catch (e) {
         _addLog('❌ عمود serverId غير موجود!');
         _addLog('💡 يرجى إعادة تثبيت التطبيق أو الانتظار للتحديث التلقائي');
-        
+
         setState(() {
           _status = 'فشل';
         });
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
