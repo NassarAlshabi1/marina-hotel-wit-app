@@ -10,6 +10,7 @@ import '../services/appwrite_logger.dart';
 /// يدير حالة الغرف ويستمع للتحديثات الفورية من Appwrite
 class RealTimeRoomsProvider extends ChangeNotifier {
   final RoomRepository _repository;
+  // ignore: unused_field
   final AppwriteRealtimeService _realtimeService;
   final AppwriteLogger _logger = AppwriteLogger();
 
