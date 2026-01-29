@@ -88,6 +88,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   }
 
   /// معالج التحديثات الفورية
+  // ignore: unused_element
   void _handleRealtimeUpdate(RealtimeMessage message) {
     _logger.debug(
       'Realtime update: ${message.events}',
