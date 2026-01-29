@@ -6,7 +6,7 @@ permissions:
 on:
   pull_request:
     branches:
-      - capy/test2
+      - '**'
 jobs:
   agent-run:
     runs-on: ubuntu-24.04
