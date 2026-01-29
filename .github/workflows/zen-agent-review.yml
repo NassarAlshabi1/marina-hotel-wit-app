@@ -8,6 +8,12 @@ on:
     types: [opened, synchronize, reopened]
     branches:
       - '**'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review (leave empty for current branch)'
+        required: false
+        default: ''
 jobs:
   agent-run:
     runs-on: ubuntu-24.04
