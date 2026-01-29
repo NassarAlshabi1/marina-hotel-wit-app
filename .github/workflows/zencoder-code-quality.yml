@@ -1,0 +1,40 @@
+name: Zencoder Code Quality Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - 'capy/**'
+    paths:
+      - '**.dart'
+      - '**.php'
+      - '**.js'
+      - '**.ts'
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Analyze Code Quality
+        uses: zencoderai/zen-agents-action@main
+        with:
+          prompt: |
+            Analyze code quality in this PR. Check for:
+            1. Code smells and anti-patterns
+            2. Performance issues
+            3. Security vulnerabilities
+            4. Best practices violations
+            5. Maintainability concerns
+            
+            Provide specific suggestions for improvement with code examples.
+          model: "sonnet-4"
+          zencoder_client_id: "${{ secrets.ZENCODER_CLIENT_ID }}"
+          zencoder_client_secret: "${{ secrets.ZENCODER_CLIENT_SECRET }}"
+          github_token: "${{ secrets.GITHUB_TOKEN }}"
