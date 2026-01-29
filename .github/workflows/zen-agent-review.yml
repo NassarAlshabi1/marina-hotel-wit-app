@@ -6,10 +6,10 @@ permissions:
   issues: write
   
 on:
-  pull_request:
+  push:
     branches:
-      - main
-      - 'capy/**'
+      - '**'
+  pull_request:
   workflow_dispatch:
     inputs:
       prompt:
