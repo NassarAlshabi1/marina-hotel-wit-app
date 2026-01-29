@@ -19,6 +19,8 @@ import 'google_drive_logger.dart';
 import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
+import 'appwrite_sync_manager.dart';
+import 'appwrite_service.dart';
 
 enum BackupFormat { json, sqlite }
 
@@ -1124,6 +1126,54 @@ class GoogleDriveBackupService {
           _log('🔓 تم إعادة تشغيل FOREIGN KEYS');
         }
       });
+
+      // مزامنة البيانات المستعادة مع Appwrite
+      try {
+        _log('🔄 بدء مزامنة البيانات مع Appwrite...');
+        final prefs = await SharedPreferences.getInstance();
+        final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+
+        if (syncEnabled) {
+          final appwriteService = AppwriteService();
+          await appwriteService.initialize();
+
+          if (appwriteService.isInitialized) {
+            final syncManager = AppwriteSyncManager(
+              appwriteService: appwriteService,
+              database: db,
+            );
+
+            final stats = await syncManager.pushAllLocalDataToAppwrite(
+              skipDeleted: true,
+            );
+
+            final totalSynced = stats.values
+                .where((v) => v > 0 && stats.keys.toList()[stats.values.toList().indexOf(v)] != 'errors')
+                .fold(0, (a, b) => a + b);
+
+            _log('✅ تم رفع $totalSynced سجل إلى Appwrite (${stats['errors']} خطأ)');
+            _logger.success(
+              'تمت مزامنة البيانات مع Appwrite: $totalSynced سجل',
+              tag: 'RESTORE',
+            );
+          } else {
+            _log('⚠️ Appwrite غير متاح، تم تخطي المزامنة');
+            _logger.warning(
+              'تم تخطي مزامنة Appwrite (غير متصل)',
+              tag: 'RESTORE',
+            );
+          }
+        } else {
+          _log('ℹ️ مزامنة Appwrite معطلة');
+        }
+      } catch (e, st) {
+        _log('⚠️ خطأ في مزامنة Appwrite: $e');
+        _logger.warning(
+          'فشلت مزامنة Appwrite بعد الاستعادة: $e',
+          tag: 'RESTORE',
+        );
+        debugPrint('Stack trace: $st');
+      }
     } catch (e) {
       _log('❌ خطأ في استعادة البيانات: $e');
       rethrow;

@@ -1398,6 +1398,156 @@ class AppwriteSyncManager {
     await pushLocalChanges();
   }
 
+  /// رفع جميع البيانات المحلية مباشرة إلى Appwrite (بعد الاستعادة من Google Drive)
+  Future<Map<String, int>> pushAllLocalDataToAppwrite({
+    bool skipDeleted = true,
+  }) async {
+    _logger.info('🚀 بدء رفع جميع البيانات المحلية إلى Appwrite...', tag: 'SYNC');
+    final stats = <String, int>{
+      'rooms': 0,
+      'bookings': 0,
+      'employees': 0,
+      'expenses': 0,
+      'payments': 0,
+      'debts': 0,
+      'errors': 0,
+    };
+
+    try {
+      // رفع الغرف
+      final rooms = await database.select(database.rooms).get();
+      for (final room in rooms) {
+        if (skipDeleted && room.deletedAt != null) continue;
+        try {
+          final payload = _roomToRemote(room);
+          await appwriteService.upsertRoom(room.localUuid, payload);
+          stats['rooms'] = (stats['rooms'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع غرفة ${room.roomNumber}: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['rooms']} غرفة', tag: 'SYNC');
+
+      // رفع الموظفين
+      final employees = await database.select(database.employees).get();
+      for (final employee in employees) {
+        if (skipDeleted && employee.deletedAt != null) continue;
+        try {
+          final payload = _employeeToRemote(employee);
+          await appwriteService.upsertEmployee(employee.localUuid, payload);
+          stats['employees'] = (stats['employees'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع موظف ${employee.name}: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['employees']} موظف', tag: 'SYNC');
+
+      // رفع الحجوزات
+      final bookings = await database.select(database.bookings).get();
+      for (final booking in bookings) {
+        if (skipDeleted && booking.deletedAt != null) continue;
+        try {
+          final payload = _bookingToRemote(booking);
+          await appwriteService.upsertBooking(booking.localUuid, payload);
+          stats['bookings'] = (stats['bookings'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع حجز ${booking.guestName}: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['bookings']} حجز', tag: 'SYNC');
+
+      // رفع المصروفات
+      final expenses = await database.select(database.expenses).get();
+      for (final expense in expenses) {
+        if (skipDeleted && expense.deletedAt != null) continue;
+        try {
+          final payload = _expenseToRemote(expense);
+          await appwriteService.upsertExpense(expense.localUuid, payload);
+          stats['expenses'] = (stats['expenses'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع مصروف: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['expenses']} مصروف', tag: 'SYNC');
+
+      // رفع المدفوعات
+      final payments = await database.select(database.payments).get();
+      for (final payment in payments) {
+        if (skipDeleted && payment.deletedAt != null) continue;
+        try {
+          final payload = _paymentToRemote(payment);
+          await appwriteService.upsertPayment(payment.localUuid, payload);
+          stats['payments'] = (stats['payments'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع دفعة: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['payments']} دفعة', tag: 'SYNC');
+
+      // رفع الديون
+      final debts = await database.select(database.debts).get();
+      for (final debt in debts) {
+        if (skipDeleted && debt.deletedAt != null) continue;
+        try {
+          final payload = _debtToRemote(debt);
+          await appwriteService.upsertDebt(debt.localUuid, payload);
+          stats['debts'] = (stats['debts'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع دين: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['debts']} دين', tag: 'SYNC');
+
+      final totalRecords = stats['rooms']! +
+          stats['bookings']! +
+          stats['employees']! +
+          stats['expenses']! +
+          stats['payments']! +
+          stats['debts']!;
+
+      _logger.info(
+        '✅ اكتمل رفع البيانات: $totalRecords سجل، ${stats['errors']} خطأ',
+        tag: 'SYNC',
+      );
+
+      return stats;
+    } catch (e, stackTrace) {
+      _logger.error(
+        '❌ خطأ في رفع البيانات إلى Appwrite',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
+      );
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> _employeeToRemote(Employee employee) {
+    final data = <String, dynamic>{
+      'name': employee.name,
+      'basicSalary': employee.basicSalary,
+      'position': employee.position,
+      'phone': employee.phone,
+      'hireDate': employee.hireDate,
+      'status': employee.status,
+      'localUuid': employee.localUuid,
+      'createdAt': employee.createdAt,
+      'updatedAt': employee.updatedAt,
+      'lastModified': employee.lastModified,
+      'version': employee.version,
+      'origin': employee.origin,
+    };
+    _putIfNotNull(data, 'serverId', employee.serverId);
+    _putIfNotNull(data, 'deletedAt', employee.deletedAt);
+    return data;
+  }
+
   /// تحميل جميع البيانات من الخادم
   Future<void> pullAllRemoteData() async {
     _logger.info('Pulling all remote data...', tag: 'SYNC');
