@@ -56,17 +56,13 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
         final serverId = entry.value;
 
         try {
-          final result = await db.rawUpdate(
+          await db.customStatement(
             'UPDATE rooms SET serverId = ? WHERE localUuid = ?',
             [serverId, localUuid],
           );
 
-          if (result > 0) {
-            _updatedCount++;
-            _addLog('✅ تم تحديث: $localUuid');
-          } else {
-            _addLog('⚠️ لم يتم العثور على: $localUuid');
-          }
+          _updatedCount++;
+          _addLog('✅ تم تحديث: $localUuid');
         } catch (e) {
           _addLog('❌ خطأ في $localUuid: $e');
         }

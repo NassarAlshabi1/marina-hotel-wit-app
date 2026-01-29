@@ -363,14 +363,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: StatefulBuilder(
-          builder: (ctx, setState) {
-            final dropdownTextStyle = Theme.of(
-              ctx,
-            ).textTheme.bodyMedium?.copyWith(fontSize: 14);
-            return AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          final dropdownTextStyle = Theme.of(
+            ctx,
+          ).textTheme.bodyMedium?.copyWith(fontSize: 14);
+          return AlertDialog(
               title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
               content: SingleChildScrollView(
                 child: Column(
