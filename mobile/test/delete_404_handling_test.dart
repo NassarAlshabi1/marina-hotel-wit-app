@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:appwrite/appwrite.dart';
-import 'package:marina_hotel/sync/services/appwrite_service.dart';
-import 'package:marina_hotel/sync/services/appwrite_config.dart';
+import 'package:marina_hotel_mobile/services/appwrite_service.dart';
+import 'package:marina_hotel_mobile/services/appwrite_config.dart';
 
 /// اختبار معالجة خطأ 404 في عملية الحذف
 void main() {

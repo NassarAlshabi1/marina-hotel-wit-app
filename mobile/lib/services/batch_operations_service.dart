@@ -1,4 +1,5 @@
 import 'package:appwrite/appwrite.dart';
+import 'package:appwrite/models.dart' as models;
 import 'appwrite_service.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_logger.dart';
@@ -122,7 +123,7 @@ class BatchOperationsService {
   /// [collectionId] - معرف المجموعة
   /// [documents] - قائمة البيانات للإنشاء
   /// [parallel] - هل التنفيذ متوازي؟ (افتراضي: true)
-  Future<BatchResult<Document>> createDocuments({
+  Future<BatchResult<models.Document>> createDocuments({
     required String databaseId,
     required String collectionId,
     required List<Map<String, dynamic>> documents,
@@ -162,7 +163,7 @@ class BatchOperationsService {
       // معالجة النتائج
       for (final result in results) {
         if (result['success'] == true) {
-          successfulItems.add(result['document'] as Document);
+          successfulItems.add(result['document'] as models.Document);
         } else {
           errors['document_${result['index']}'] = result['error'] as String;
         }
@@ -182,7 +183,7 @@ class BatchOperationsService {
       }
     }
 
-    final result = BatchResult<Document>(
+    final result = BatchResult<models.Document>(
       total: documents.length,
       successful: successfulItems.length,
       failed: errors.length,
@@ -200,7 +201,7 @@ class BatchOperationsService {
   /// [collectionId] - معرف المجموعة
   /// [updates] - قائمة التحديثات (كل عنصر: {id, data})
   /// [parallel] - هل التنفيذ متوازي؟ (افتراضي: true)
-  Future<BatchResult<Document>> updateDocuments({
+  Future<BatchResult<models.Document>> updateDocuments({
     required String databaseId,
     required String collectionId,
     required List<Map<String, dynamic>> updates,
@@ -241,7 +242,7 @@ class BatchOperationsService {
       // معالجة النتائج
       for (final result in results) {
         if (result['success'] == true) {
-          successfulItems.add(result['document'] as Document);
+          successfulItems.add(result['document'] as models.Document);
         } else {
           errors[result['id'] as String] = result['error'] as String;
         }
@@ -265,7 +266,7 @@ class BatchOperationsService {
       }
     }
 
-    final result = BatchResult<Document>(
+    final result = BatchResult<models.Document>(
       total: updates.length,
       successful: successfulItems.length,
       failed: errors.length,
