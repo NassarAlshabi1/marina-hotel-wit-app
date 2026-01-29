@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
@@ -20,7 +21,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     with SyncOnExitMixin {
   @override
   String get screenId => 'expenses_list';
-  int? _selectedEmployeeId;
+  final DateFormat _dateFormat = DateFormat('yyyy/MM/dd');
+  DateTime? _fromDate;
+  DateTime? _toDate;
   String? selectedType;
   static const String _salaryType = 'رواتب';
   static const String _salaryWithdrawAction = 'سحب من الراتب';
@@ -38,6 +41,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     'مساعدة محتاج',
     'اخرى',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _fromDate = DateTime(now.year, now.month, 1);
+    _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,59 +73,50 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             final employeeNames = {
               for (final emp in employees) emp.id: emp.name,
             };
-            return Column(
-              children: [
-                _buildEmployeeFilter(employees),
-                Expanded(
-                  child: StreamBuilder<List<Expense>>(
-                    stream: repo.watchAll(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return const Center(
-                          child: Text('حدث خطأ أثناء تحميل المصروفات.'),
-                        );
-                      }
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      var expenses = snapshot.data!;
-                      if (_selectedEmployeeId != null) {
-                        expenses = expenses
-                            .where(
-                              (expense) =>
-                                  expense.relatedId == _selectedEmployeeId,
-                            )
-                            .toList();
-                      }
-                      if (expenses.isEmpty) {
-                        return const Center(
-                          child: Text('لا توجد مصروفات مطابقة للعرض.'),
-                        );
-                      }
-                      return ListView.builder(
-                        itemCount: expenses.length,
-                        itemBuilder: (context, index) {
-                          final expense = expenses[index];
-                          final employeeName = expense.relatedId != null
-                              ? employeeNames[expense.relatedId]
-                              : null;
-                          return ListTile(
-                            title: Text(expense.description),
-                            subtitle: Text(
-                              '${expense.expenseType} • ${employeeName ?? 'بدون موظف'} • ${Time.safeIsoToDateString(expense.date)}',
-                            ),
-                            trailing: Text(
-                              CurrencyFormatter.formatAmount(expense.amount),
-                            ),
-                            onTap: () =>
-                                _edit(existing: expense, employees: employees),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
+            return StreamBuilder<List<Expense>>(
+              stream: repo.watchAll(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text('حدث خطأ أثناء تحميل المصروفات.'),
+                  );
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final allExpenses = snapshot.data!;
+                final filteredExpenses = _filterByDate(allExpenses);
+                final totalAmount = filteredExpenses.fold<double>(
+                  0,
+                  (sum, e) => sum + e.amount,
+                );
+
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _buildFiltersCard(),
+                    const SizedBox(height: 12),
+                    _buildSummaryCard(
+                      totalAmount: totalAmount,
+                      count: filteredExpenses.length,
+                    ),
+                    const SizedBox(height: 12),
+                    if (filteredExpenses.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 48),
+                        child: Center(child: Text('لا توجد مصروفات ضمن الفترة')),
+                      )
+                    else
+                      ...filteredExpenses.map(
+                        (expense) => _buildExpenseCard(
+                          expense,
+                          employeeNames[expense.relatedId],
+                          employees,
+                        ),
+                      ),
+                  ],
+                );
+              },
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -125,50 +127,212 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
   }
 
-  Widget _buildEmployeeFilter(List<Employee> employees) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
-            child: DropdownButtonFormField<int?>(
-              value: _selectedEmployeeId,
-              decoration: const InputDecoration(
-                labelText: 'تصفية حسب الموظف',
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                const DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text('جميع الموظفين'),
+  List<Expense> _filterByDate(List<Expense> expenses) {
+    final from = _fromDate;
+    final to = _toDate;
+    final filtered = expenses.where((expense) {
+      final date = _parseExpenseDate(expense.date);
+      if (from != null && date.isBefore(from)) return false;
+      if (to != null && date.isAfter(to)) return false;
+      return true;
+    }).toList();
+    filtered.sort(
+      (a, b) => _parseExpenseDate(b.date).compareTo(_parseExpenseDate(a.date)),
+    );
+    return filtered;
+  }
+
+  DateTime _parseExpenseDate(String value) {
+    final normalized = value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    return DateTime.tryParse(normalized) ?? DateTime.now();
+  }
+
+  Future<void> _pickDate({required bool isFrom}) async {
+    final initial = isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isFrom) {
+        _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+        if (_toDate != null && _fromDate!.isAfter(_toDate!)) {
+          _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+        }
+      } else {
+        _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+        if (_fromDate != null && _toDate!.isBefore(_fromDate!)) {
+          _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+        }
+      }
+    });
+  }
+
+  Widget _buildFiltersCard() {
+    final fromLabel = _fromDate != null ? _dateFormat.format(_fromDate!) : 'غير محدد';
+    final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.date_range, color: Colors.blue),
+                SizedBox(width: 8),
+                Text(
+                  'الفترة الزمنية',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                ...employees.map(
-                  (employee) => DropdownMenuItem<int?>(
-                    value: employee.id,
-                    child: Text(employee.name),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickDate(isFrom: true),
+                    icon: const Icon(Icons.calendar_month),
+                    label: Text('من: $fromLabel'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickDate(isFrom: false),
+                    icon: const Icon(Icons.calendar_month),
+                    label: Text('إلى: $toLabel'),
                   ),
                 ),
               ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedEmployeeId = value;
-                });
-              },
-            ),
-          ),
-          if (_selectedEmployeeId != null) ...[
-            const SizedBox(width: 12),
-            OutlinedButton(
-              onPressed: () {
-                setState(() {
-                  _selectedEmployeeId = null;
-                });
-              },
-              child: const Text('إزالة التصفية'),
             ),
           ],
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildSummaryCard({required double totalAmount, required int count}) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildSummaryItem(
+                label: 'عدد العمليات',
+                value: '$count',
+                icon: Icons.receipt_long,
+                color: Colors.indigo,
+              ),
+            ),
+            Expanded(
+              child: _buildSummaryItem(
+                label: 'إجمالي المصروفات',
+                value: CurrencyFormatter.formatAmount(totalAmount),
+                icon: Icons.payments,
+                color: Colors.red,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryItem({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        CircleAvatar(
+          backgroundColor: color.withOpacity(0.15),
+          child: Icon(icon, color: color),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                value,
+                style: TextStyle(fontWeight: FontWeight.bold, color: color),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExpenseCard(
+    Expense expense,
+    String? employeeName,
+    List<Employee> employees,
+  ) {
+    final date = _parseExpenseDate(expense.date);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => _edit(existing: expense, employees: employees),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      expense.description.isNotEmpty
+                          ? expense.description
+                          : 'مصروف بدون وصف',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Text(
+                    CurrencyFormatter.formatAmount(expense.amount),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  _buildMetaChip(Icons.category, expense.expenseType),
+                  _buildMetaChip(Icons.calendar_today, _dateFormat.format(date)),
+                  _buildMetaChip(
+                    Icons.person,
+                    employeeName ?? 'بدون موظف',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetaChip(IconData icon, String label) {
+    return Chip(
+      avatar: Icon(icon, size: 16),
+      label: Text(label),
+      visualDensity: VisualDensity.compact,
     );
   }
 

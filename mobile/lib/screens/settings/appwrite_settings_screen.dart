@@ -807,20 +807,34 @@ class _AppwriteSettingsScreenState
               ],
             ),
             const Divider(height: 24),
-            ListTile(
-              leading: const Icon(Icons.upload, color: Colors.blue),
-              title: const Text('رفع جميع البيانات المحلية'),
-              subtitle: const Text('تحميل البيانات من الجهاز إلى السحابة'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: _pushAllData,
+            _buildDataActionCard(
+              icon: Icons.cloud_upload,
+              color: Colors.blue,
+              title: 'رفع البيانات إلى Appwrite',
+              subtitle: 'يرفع جميع البيانات المحلية إلى السحابة',
+              details: const [
+                'الغرف والحجوزات والمدفوعات والديون',
+                'استخدام آخر نسخة محفوظة محلياً',
+                'قد يستغرق وقتاً حسب حجم البيانات',
+              ],
+              actionLabel: 'بدء الرفع',
+              onPressed: _pushAllData,
             ),
-            ListTile(
-              leading: const Icon(Icons.download, color: Colors.green),
-              title: const Text('تحميل جميع البيانات من الخادم'),
-              subtitle: const Text('استرجاع البيانات من السحابة'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: _pullAllData,
+            const SizedBox(height: 12),
+            _buildDataActionCard(
+              icon: Icons.cloud_download,
+              color: Colors.green,
+              title: 'سحب البيانات من Appwrite',
+              subtitle: 'يحمّل البيانات من السحابة إلى الجهاز',
+              details: const [
+                'قد يستبدل بعض البيانات المحلية',
+                'يتطلب اتصالاً مستقراً بالإنترنت',
+                'يُنصح بأخذ نسخة احتياطية قبل السحب',
+              ],
+              actionLabel: 'بدء السحب',
+              onPressed: _pullAllData,
             ),
+            const SizedBox(height: 12),
             ListTile(
               leading: const Icon(Icons.restart_alt, color: Colors.orange),
               title: const Text('إعادة تعيين المزامنة'),
@@ -877,6 +891,64 @@ class _AppwriteSettingsScreenState
   }
 
   // ==================== مكونات مساعدة ====================
+
+  Widget _buildDataActionCard({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required List<String> details,
+    required String actionLabel,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(subtitle, style: const TextStyle(color: Colors.black87)),
+          const SizedBox(height: 8),
+          ...details.map(
+            (detail) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                '• $detail',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading ? null : onPressed,
+              icon: Icon(icon),
+              label: Text(actionLabel),
+              style: ElevatedButton.styleFrom(backgroundColor: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
@@ -1100,9 +1172,17 @@ class _AppwriteSettingsScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('تحذير'),
-        content: const Text(
-          'سيتم رفع جميع البيانات المحلية إلى السحابة. قد يستغرق هذا بعض الوقت.\n\nهل تريد المتابعة؟',
+        title: const Text('تأكيد الرفع'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('سيتم رفع جميع البيانات المحلية إلى السحابة.'),
+            SizedBox(height: 8),
+            Text('• الغرف والحجوزات والمدفوعات والديون'),
+            Text('• قد يستغرق وقتاً حسب حجم البيانات'),
+            Text('• يُفضل توفر اتصال مستقر بالإنترنت'),
+          ],
         ),
         actions: [
           TextButton(
@@ -1111,17 +1191,39 @@ class _AppwriteSettingsScreenState
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('متابعة'),
+            child: const Text('بدء الرفع'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
-      // TODO: تنفيذ رفع البيانات
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('هذه الميزة قيد التطوير')));
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final manager = ref.read(ap.appwriteSyncManagerProvider);
+      await manager.pushAllLocalData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم رفع البيانات بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        ref.invalidate(ap.syncStatsProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل الرفع: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      } else {
+        _isLoading = false;
+      }
     }
   }
 
@@ -1129,9 +1231,17 @@ class _AppwriteSettingsScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('تحذير'),
-        content: const Text(
-          'سيتم تحميل جميع البيانات من السحابة وقد يتم استبدال البيانات المحلية.\n\nهل تريد المتابعة؟',
+        title: const Text('تأكيد السحب'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('سيتم تحميل البيانات من السحابة إلى الجهاز.'),
+            SizedBox(height: 8),
+            Text('• قد يتم استبدال بعض البيانات المحلية'),
+            Text('• يُنصح بأخذ نسخة احتياطية قبل السحب'),
+            Text('• قد يستغرق وقتاً حسب حجم البيانات'),
+          ],
         ),
         actions: [
           TextButton(
@@ -1140,17 +1250,39 @@ class _AppwriteSettingsScreenState
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('متابعة'),
+            child: const Text('بدء السحب'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
-      // TODO: تنفيذ تحميل البيانات
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('هذه الميزة قيد التطوير')));
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final manager = ref.read(ap.appwriteSyncManagerProvider);
+      await manager.pullAllRemoteData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم سحب البيانات بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        ref.invalidate(ap.syncStatsProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل السحب: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      } else {
+        _isLoading = false;
+      }
     }
   }
 

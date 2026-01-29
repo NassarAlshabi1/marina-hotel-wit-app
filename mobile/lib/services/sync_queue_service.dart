@@ -169,60 +169,69 @@ class SyncQueueService {
 
     if (!canStart) return;
 
-    final hasConnection = await hasInternetConnection();
-    if (!hasConnection) {
-      debugPrint('📴 [SyncQueue] لا يوجد اتصال - تأجيل المعالجة');
-      return;
-    }
-
-    final driveOnline = await _ensureDriveOnline();
-    if (!driveOnline) {
-      debugPrint('🔒 [SyncQueue] Google Drive غير جاهز - الانتظار');
-      return;
-    }
-
-    final items = await getQueueItems();
-    if (items.isEmpty) {
-      debugPrint('✓ [SyncQueue] الطابور فارغ');
-      return;
-    }
-
     try {
-      debugPrint('🔄 [SyncQueue] معالجة ${items.length} عنصر...');
+      final hasConnection = await hasInternetConnection();
+      if (!hasConnection) {
+        debugPrint('📴 [SyncQueue] لا يوجد اتصال - تأجيل المعالجة');
+        return;
+      }
 
-      final itemsToProcess = List<SyncQueueItem>.from(items);
+      final driveOnline = await _ensureDriveOnline();
+      if (!driveOnline) {
+        debugPrint('🔒 [SyncQueue] Google Drive غير جاهز - الانتظار');
+        return;
+      }
+
+      final items = await getQueueItems();
+      if (items.isEmpty) {
+        debugPrint('✓ [SyncQueue] الطابور فارغ');
+        return;
+      }
 
       try {
-        final success = await SmartSyncManager.instance.pushLocalChanges();
+        debugPrint('🔄 [SyncQueue] معالجة ${items.length} عنصر...');
 
-        if (success) {
-          for (final item in itemsToProcess) {
-            await removeFromQueue(item.id);
+        final itemsToProcess = List<SyncQueueItem>.from(items);
+
+        try {
+          final success = await SmartSyncManager.instance.pushLocalChanges();
+
+          if (success) {
+            for (final item in itemsToProcess) {
+              await removeFromQueue(item.id);
+            }
+            debugPrint(
+              '✅ [SyncQueue] تم رفع جميع العناصر بنجاح (${itemsToProcess.length} عنصر)',
+            );
+          } else {
+            for (final item in itemsToProcess) {
+              item.attempts++;
+              await updateQueueItem(item);
+            }
+            debugPrint(
+              '⚠️ [SyncQueue] فشل الرفع - تحديث محاولات ${itemsToProcess.length} عنصر',
+            );
           }
-          debugPrint(
-            '✅ [SyncQueue] تم رفع جميع العناصر بنجاح (${itemsToProcess.length} عنصر)',
-          );
-        } else {
+        } catch (e) {
           for (final item in itemsToProcess) {
             item.attempts++;
             await updateQueueItem(item);
           }
-          debugPrint(
-            '⚠️ [SyncQueue] فشل الرفع - تحديث محاولات ${itemsToProcess.length} عنصر',
-          );
+          debugPrint('❌ [SyncQueue] خطأ في المزامنة: $e');
         }
-      } catch (e) {
-        for (final item in itemsToProcess) {
-          item.attempts++;
-          await updateQueueItem(item);
-        }
-        debugPrint('❌ [SyncQueue] خطأ في المزامنة: $e');
+      } finally {
+        await SyncLocks.queueLock.synchronized(() async {
+          _isProcessing = false;
+        });
+        _emitQueueCount();
       }
     } finally {
-      await SyncLocks.queueLock.synchronized(() async {
-        _isProcessing = false;
-      });
-      _emitQueueCount();
+      if (_isProcessing) {
+        await SyncLocks.queueLock.synchronized(() async {
+          _isProcessing = false;
+        });
+        _emitQueueCount();
+      }
     }
   }
 

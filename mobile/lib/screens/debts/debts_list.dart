@@ -735,149 +735,165 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     paidCtrl.addListener(recalculate);
     recalculate();
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            title: Text(existing == null ? 'إضافة دين جديد' : 'تعديل الدين'),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: guestNameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'اسم النزيل*',
-                        border: OutlineInputBorder(),
+    bool? confirmed;
+    try {
+      confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              title: Text(existing == null ? 'إضافة دين جديد' : 'تعديل الدين'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: guestNameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'اسم النزيل*',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: checkinCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'تاريخ الدخول',
-                              border: OutlineInputBorder(),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: checkinCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'تاريخ الدخول',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.datetime,
                             ),
-                            keyboardType: TextInputType.datetime,
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: checkoutCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'تاريخ الخروج',
-                              border: OutlineInputBorder(),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: checkoutCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'تاريخ الخروج',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.datetime,
                             ),
-                            keyboardType: TextInputType.datetime,
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: debtReasonCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'سبب الدين',
-                        border: OutlineInputBorder(),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: totalCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'إجمالي المبلغ*',
-                              border: OutlineInputBorder(),
-                              // suffixText: 'ر.س',
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: debtReasonCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'سبب الدين',
+                          border: OutlineInputBorder(),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: paidCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'المدفوع',
-                              border: OutlineInputBorder(),
-                              // suffixText: 'ر.س',
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: remainingCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'المتبقي',
-                        border: OutlineInputBorder(),
-                        // suffixText: 'ر.س',
                       ),
-                      readOnly: true,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: pledgeCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'الرهن',
-                              border: OutlineInputBorder(),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: totalCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'إجمالي المبلغ*',
+                                border: OutlineInputBorder(),
+                                // suffixText: 'ر.س',
+                              ),
+                              keyboardType: TextInputType.number,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: pledgeTypeCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'نوع الرهن',
-                              border: OutlineInputBorder(),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: paidCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'المدفوع',
+                                border: OutlineInputBorder(),
+                                // suffixText: 'ر.س',
+                              ),
+                              keyboardType: TextInputType.number,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: noteCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'ملاحظة إضافية',
-                        border: OutlineInputBorder(),
+                        ],
                       ),
-                      maxLines: 2,
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: remainingCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'المتبقي',
+                          border: OutlineInputBorder(),
+                          // suffixText: 'ر.س',
+                        ),
+                        readOnly: true,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: pledgeCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'الرهن',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: pledgeTypeCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'نوع الرهن',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: noteCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'ملاحظة إضافية',
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 2,
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: Text(existing == null ? 'إضافة الدين' : 'تحديث الدين'),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: Text(existing == null ? 'إضافة الدين' : 'تحديث الدين'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
+    } finally {
+      totalCtrl.removeListener(recalculate);
+      paidCtrl.removeListener(recalculate);
+      guestNameCtrl.dispose();
+      checkinCtrl.dispose();
+      checkoutCtrl.dispose();
+      totalCtrl.dispose();
+      paidCtrl.dispose();
+      remainingCtrl.dispose();
+      debtReasonCtrl.dispose();
+      pledgeCtrl.dispose();
+      pledgeTypeCtrl.dispose();
+      noteCtrl.dispose();
+    }
 
     if (confirmed != true) return;
 

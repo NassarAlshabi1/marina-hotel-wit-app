@@ -990,6 +990,16 @@ class SyncManager {
     }
     return DateTime.tryParse(value)?.toUtc();
   }
+
+  Future<void> dispose() async {
+    await _outboxWatchSub?.cancel();
+    _outboxWatchSub = null;
+    _outboxDebounceTimer?.cancel();
+    _outboxDebounceTimer = null;
+    if (!_statusController.isClosed) {
+      await _statusController.close();
+    }
+  }
 }
 
 /// A [Sink] that accumulates all data added to it in a list.

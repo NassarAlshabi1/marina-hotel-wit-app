@@ -23,7 +23,6 @@ class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
 class _IncomeExpenseReportScreenState
     extends ConsumerState<IncomeExpenseReportScreen> {
   final DateFormat _dateFormat = DateFormat('yyyy/MM/dd');
-  int _rangeMonths = 1;
   bool _detailedMode = false;
   bool _loading = false;
 
@@ -44,8 +43,9 @@ class _IncomeExpenseReportScreenState
     _fromDate = DateTime(
       _toDate.year,
       _toDate.month,
-      _toDate.day,
-    ).subtract(Duration(days: 30));
+      1,
+    );
+    _toDate = DateTime(_toDate.year, _toDate.month, _toDate.day, 23, 59, 59);
     unawaited(_fetchReport());
   }
 
@@ -54,12 +54,6 @@ class _IncomeExpenseReportScreenState
     setState(() => _loading = true);
     try {
       final db = ref.read(coreProviders.dbProvider);
-      _toDate = DateTime.now();
-      _fromDate = DateTime(
-        _toDate.year,
-        _toDate.month,
-        _toDate.day,
-      ).subtract(Duration(days: _rangeMonths * 30));
 
       final payments = await (db.select(db.payments)).get();
       final expenses = await (db.select(db.expenses)).get();
@@ -139,6 +133,30 @@ class _IncomeExpenseReportScreenState
       59,
     );
     return !date.isBefore(_fromDate) && !date.isAfter(endOfDay);
+  }
+
+  Future<void> _pickDate({required bool isFrom}) async {
+    final initial = isFrom ? _fromDate : _toDate;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isFrom) {
+        _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+        if (_fromDate.isAfter(_toDate)) {
+          _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+        }
+      } else {
+        _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+        if (_toDate.isBefore(_fromDate)) {
+          _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+        }
+      }
+    });
   }
 
   bool _isSalaryExpense(String type) {
@@ -335,23 +353,15 @@ class _IncomeExpenseReportScreenState
               spacing: 12,
               runSpacing: 12,
               children: [
-                ChoiceChip(
-                  label: const Text('آخر شهر'),
-                  selected: _rangeMonths == 1,
-                  onSelected: (selected) {
-                    if (selected && _rangeMonths != 1) {
-                      setState(() => _rangeMonths = 1);
-                    }
-                  },
+                OutlinedButton.icon(
+                  onPressed: () => _pickDate(isFrom: true),
+                  icon: const Icon(Icons.calendar_month),
+                  label: Text('من: ${DateFormat('yyyy-MM-dd').format(_fromDate)}'),
                 ),
-                ChoiceChip(
-                  label: const Text('آخر 3 أشهر'),
-                  selected: _rangeMonths == 3,
-                  onSelected: (selected) {
-                    if (selected && _rangeMonths != 3) {
-                      setState(() => _rangeMonths = 3);
-                    }
-                  },
+                OutlinedButton.icon(
+                  onPressed: () => _pickDate(isFrom: false),
+                  icon: const Icon(Icons.calendar_month),
+                  label: Text('إلى: ${DateFormat('yyyy-MM-dd').format(_toDate)}'),
                 ),
                 FilterChip(
                   label: const Text('تفصيلي'),

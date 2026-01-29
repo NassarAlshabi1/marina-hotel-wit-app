@@ -20,6 +20,7 @@ class DashboardSyncButton extends ConsumerStatefulWidget {
 class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     with SingleTickerProviderStateMixin {
   bool _isUploading = false;
+  bool _appwriteEnabled = true;
   Timer? _pendingChangesTimer;
   late AnimationController _uploadAnimationController;
   int _pendingChangesCount = 0;
@@ -34,10 +35,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     );
 
     _loadPendingChangesCount();
+    _loadAppwriteEnabled();
 
     _pendingChangesTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted && !_isUploading) {
         _loadPendingChangesCount();
+        _loadAppwriteEnabled();
       }
     });
   }
@@ -67,6 +70,17 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   Future<bool> _isAppwriteSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('appwrite_sync_enabled') ?? true;
+  }
+
+  Future<void> _loadAppwriteEnabled() async {
+    try {
+      final enabled = await _isAppwriteSyncEnabled();
+      if (mounted) {
+        setState(() => _appwriteEnabled = enabled);
+      } else {
+        _appwriteEnabled = enabled;
+      }
+    } catch (_) {}
   }
 
   Future<void> _uploadChanges(BuildContext context) async {
@@ -128,42 +142,81 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       if (smartEnabled && !isGoogleDriveSignedIn) {
+        if (appwriteEnabled) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Google Drive غير متصل - سيتم استخدام Appwrite'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: const [
+                    Icon(Icons.cloud_off, color: Colors.white),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text('⚠️ يرجى تسجيل الدخول إلى Google Drive أولاً'),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+                action: SnackBarAction(
+                  label: 'تسجيل الدخول',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const GoogleDriveBackupScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      bool appwriteConnected = false;
+      if (appwriteEnabled) {
+        await ref.read(connectionStatusProvider.notifier).checkConnection();
+        appwriteConnected = ref.read(connectionStatusProvider).isConnected;
+      }
+
+      final targets = <String>[];
+      if (smartEnabled && isGoogleDriveSignedIn) targets.add('Google Drive');
+      if (appwriteEnabled && appwriteConnected) targets.add('Appwrite');
+
+      if (targets.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: const [
-                  Icon(Icons.cloud_off, color: Colors.white),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text('⚠️ يرجى تسجيل الدخول إلى Google Drive أولاً'),
-                  ),
-                ],
-              ),
+            const SnackBar(
+              content: Text('لا توجد وجهات مزامنة متاحة حالياً'),
               backgroundColor: Colors.orange,
-              duration: Duration(seconds: 3),
-              action: SnackBarAction(
-                label: 'تسجيل الدخول',
-                textColor: Colors.white,
-                onPressed: () {
-                  // التوجه إلى شاشة Google Drive مباشرة
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const GoogleDriveBackupScreen(),
-                    ),
-                  );
-                },
-              ),
             ),
           );
         }
         return;
       }
 
-      final targets = <String>[];
-      if (smartEnabled && isGoogleDriveSignedIn) targets.add('Google Drive');
-      if (appwriteEnabled) targets.add('Appwrite');
+      if (appwriteEnabled && !appwriteConnected && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Appwrite غير متصل - تم تخطيه'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
 
       final targetText = targets.join(' + ');
 
@@ -206,7 +259,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
       }
 
-      if (appwriteEnabled) {
+      if (appwriteEnabled && appwriteConnected) {
         try {
           final result = await appwriteSyncManager.pushLocalChanges();
           results['Appwrite'] = result;
@@ -366,7 +419,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       buttonIcon = Icons.cloud_upload;
       buttonText = 'جاري الرفع...';
       tooltipMessage = 'جاري رفع التغييرات إلى السحابة';
-    } else if (!isGoogleDriveSignedIn) {
+    } else if (!isGoogleDriveSignedIn && !_appwriteEnabled) {
       buttonColor = hasChanges ? Colors.orange : Colors.grey;
       buttonIcon = Icons.cloud_off;
       buttonText = hasChanges ? 'مطلوب دخول' : 'غير متصل';
@@ -374,8 +427,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     } else if (hasChanges) {
       buttonColor = Colors.purple;
       buttonIcon = Icons.cloud_upload;
-      buttonText = 'رفع التغييرات';
-      tooltipMessage = 'اضغط لرفع $_pendingChangesCount تغيير إلى السحابة';
+      buttonText = 'مزامنة التغييرات';
+      tooltipMessage = 'اضغط لمزامنة $_pendingChangesCount تغيير إلى السحابة';
+    } else if (!isGoogleDriveSignedIn && _appwriteEnabled) {
+      buttonColor = Colors.blueGrey;
+      buttonIcon = Icons.cloud_sync;
+      buttonText = 'مزامنة Appwrite';
+      tooltipMessage = 'المزامنة ستتم عبر Appwrite';
     } else {
       buttonColor = Colors.green;
       buttonIcon = Icons.cloud_done;
@@ -418,7 +476,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     onTap: _isUploading
                         ? null
                         : () {
-                            if (!isGoogleDriveSignedIn) {
+                            if (!isGoogleDriveSignedIn && !_appwriteEnabled) {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -426,9 +484,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                                       const GoogleDriveBackupScreen(),
                                 ),
                               );
-                            } else if (hasChanges) {
-                              _uploadChanges(context);
+                              return;
                             }
+                            _uploadChanges(context);
                           },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(

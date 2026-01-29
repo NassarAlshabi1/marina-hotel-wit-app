@@ -96,6 +96,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   StreamSubscription<SyncResult>? _syncResultSubscription;
+  StreamSubscription<SyncResult>? _dataStreamSubscription;
   Timer? _retryTimer;
   Timer? _healthCheckTimer;
 
@@ -238,6 +239,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
       _syncResultSubscription?.cancel();
       _syncResultSubscription = null;
 
+      _dataStreamSubscription?.cancel();
+      _dataStreamSubscription = null;
+
       _retryTimer?.cancel();
       _retryTimer = null;
 
@@ -351,7 +355,8 @@ class AutoSyncEngine with WidgetsBindingObserver {
   void _setupDataStreamListener() {
     _log('💾 Setting up data stream listener...');
 
-    _coordinator!.syncResults.listen((result) {
+    _dataStreamSubscription?.cancel();
+    _dataStreamSubscription = _coordinator!.syncResults.listen((result) {
       if (result.success &&
           result.pushedChanges != null &&
           result.pushedChanges! > 0) {
