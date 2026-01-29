@@ -486,7 +486,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -854,6 +854,9 @@ class AppDatabase extends _$AppDatabase {
     }
 
     await transaction(() async {
+      // تعطيل foreign key constraints مؤقتاً لتجنب مشاكل الحذف
+      await customStatement('PRAGMA foreign_keys = OFF');
+      
       Future<void> replaceTableIfNonEmpty<T extends Insertable<dynamic>>(
         TableInfo<Table, dynamic> table,
         String key,
@@ -953,6 +956,9 @@ class AppDatabase extends _$AppDatabase {
         'salary_payments',
         (row) => SalaryPayment.fromJson(row),
       );
+      
+      // إعادة تفعيل foreign key constraints
+      await customStatement('PRAGMA foreign_keys = ON');
     });
   }
 }

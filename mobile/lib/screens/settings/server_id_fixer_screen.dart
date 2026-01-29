@@ -69,6 +69,31 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
       final db = ref.read(databaseProvider);
 
       _addLog('📊 بدء تحديث ${_roomsMapping.length} غرفة...');
+      _addLog('🔍 التحقق من بنية قاعدة البيانات...');
+
+      // التحقق من وجود عمود serverId
+      try {
+        await db.customStatement('SELECT server_id FROM rooms LIMIT 1');
+        _addLog('✅ عمود serverId موجود في الجدول');
+      } catch (e) {
+        _addLog('❌ عمود serverId غير موجود!');
+        _addLog('💡 يرجى إعادة تثبيت التطبيق أو الانتظار للتحديث التلقائي');
+        
+        setState(() {
+          _status = 'فشل';
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ خطأ: عمود serverId غير موجود في قاعدة البيانات'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
 
       for (final entry in _roomsMapping.entries) {
         final localUuid = entry.key;
@@ -76,7 +101,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
 
         try {
           await db.customStatement(
-            'UPDATE rooms SET serverId = ? WHERE localUuid = ?',
+            'UPDATE rooms SET server_id = ? WHERE local_uuid = ?',
             [serverId, localUuid],
           );
 
