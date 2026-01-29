@@ -1147,13 +1147,21 @@ class GoogleDriveBackupService {
               skipDeleted: true,
             );
 
-            final totalSynced = stats.values
-                .where((v) => v > 0 && stats.keys.toList()[stats.values.toList().indexOf(v)] != 'errors')
-                .fold(0, (a, b) => a + b);
+            final totalSynced = stats.entries
+                .where((e) => e.key != 'errors' && e.value > 0)
+                .fold(0, (sum, e) => sum + e.value);
 
-            _log('✅ تم رفع $totalSynced سجل إلى Appwrite (${stats['errors']} خطأ)');
+            final tablesSummary = stats.entries
+                .where((e) => e.key != 'errors' && e.value > 0)
+                .map((e) => '${e.key}: ${e.value}')
+                .join(', ');
+
+            _log('✅ تم رفع $totalSynced سجل إلى Appwrite ($tablesSummary)');
+            if (stats['errors']! > 0) {
+              _log('⚠️ ${stats['errors']} خطأ أثناء المزامنة');
+            }
             _logger.success(
-              'تمت مزامنة البيانات مع Appwrite: $totalSynced سجل',
+              'تمت مزامنة البيانات مع Appwrite: $totalSynced سجل (${stats['errors']} خطأ)',
               tag: 'RESTORE',
             );
           } else {

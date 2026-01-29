@@ -878,6 +878,31 @@ class AppwriteService {
         data: data,
       );
 
+  Future<models.Document> upsertEmployee(
+    String documentId,
+    Map<String, dynamic> data,
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.employeesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+
+  Future<models.Document> updateEmployee(
+    String documentId,
+    Map<String, dynamic> data,
+  ) =>
+      updateDocument(
+        collectionId: AppwriteConfig.employeesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+
+  Future<void> deleteEmployee(String documentId) => deleteDocument(
+        collectionId: AppwriteConfig.employeesCollectionId,
+        documentId: documentId,
+      );
+
   Future<List<models.Document>> listEmployees({bool useCache = true}) =>
       listDocuments(
         collectionId: AppwriteConfig.employeesCollectionId,
@@ -920,6 +945,61 @@ class AppwriteService {
       listDocuments(
         collectionId: AppwriteConfig.debtsCollectionId,
         useCache: useCache,
+      );
+
+  // Booking Notes
+  Future<models.Document> upsertBookingNote(
+    String documentId,
+    Map<String, dynamic> data,
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.bookingNotesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+
+  // Cash Transactions
+  Future<models.Document> upsertCashTransaction(
+    String documentId,
+    Map<String, dynamic> data,
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.cashTransactionsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+
+  // Booking Nights
+  Future<models.Document> upsertBookingNight(
+    String documentId,
+    Map<String, dynamic> data,
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.bookingNightsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+
+  // Salary Cycles
+  Future<models.Document> upsertSalaryCycle(
+    String documentId,
+    Map<String, dynamic> data,
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.salaryCyclesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
+
+  // Salary Payments
+  Future<models.Document> upsertSalaryPayment(
+    String documentId,
+    Map<String, dynamic> data,
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.salaryPaymentsCollectionId,
+        documentId: documentId,
+        data: data,
       );
 
   // Devices

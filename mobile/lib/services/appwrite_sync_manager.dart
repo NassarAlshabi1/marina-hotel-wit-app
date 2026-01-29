@@ -1406,10 +1406,15 @@ class AppwriteSyncManager {
     final stats = <String, int>{
       'rooms': 0,
       'bookings': 0,
+      'booking_notes': 0,
+      'booking_nights': 0,
       'employees': 0,
       'expenses': 0,
+      'cash_transactions': 0,
       'payments': 0,
       'debts': 0,
+      'salary_cycles': 0,
+      'salary_payments': 0,
       'errors': 0,
     };
 
@@ -1504,12 +1509,92 @@ class AppwriteSyncManager {
       }
       _logger.info('✅ تم رفع ${stats['debts']} دين', tag: 'SYNC');
 
+      // رفع ملاحظات الحجوزات
+      final bookingNotes = await database.select(database.bookingNotes).get();
+      for (final note in bookingNotes) {
+        if (skipDeleted && note.deletedAt != null) continue;
+        try {
+          final payload = _bookingNoteToRemote(note);
+          await appwriteService.upsertBookingNote(note.localUuid, payload);
+          stats['booking_notes'] = (stats['booking_notes'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع ملاحظة حجز: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['booking_notes']} ملاحظة حجز', tag: 'SYNC');
+
+      // رفع ليالي الحجوزات
+      final bookingNights = await database.select(database.bookingNights).get();
+      for (final night in bookingNights) {
+        if (skipDeleted && night.deletedAt != null) continue;
+        try {
+          final payload = _bookingNightToRemote(night);
+          await appwriteService.upsertBookingNight(night.localUuid, payload);
+          stats['booking_nights'] = (stats['booking_nights'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع ليلة حجز: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['booking_nights']} ليلة حجز', tag: 'SYNC');
+
+      // رفع المعاملات النقدية
+      final cashTransactions = await database.select(database.cashTransactions).get();
+      for (final transaction in cashTransactions) {
+        if (skipDeleted && transaction.deletedAt != null) continue;
+        try {
+          final payload = _cashTransactionToRemote(transaction);
+          await appwriteService.upsertCashTransaction(transaction.localUuid, payload);
+          stats['cash_transactions'] = (stats['cash_transactions'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع معاملة نقدية: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['cash_transactions']} معاملة نقدية', tag: 'SYNC');
+
+      // رفع دورات الرواتب
+      final salaryCycles = await database.select(database.salaryCycles).get();
+      for (final cycle in salaryCycles) {
+        if (skipDeleted && cycle.deletedAt != null) continue;
+        try {
+          final payload = _salaryCycleToRemote(cycle);
+          await appwriteService.upsertSalaryCycle(cycle.localUuid, payload);
+          stats['salary_cycles'] = (stats['salary_cycles'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع دورة راتب: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['salary_cycles']} دورة راتب', tag: 'SYNC');
+
+      // رفع دفعات الرواتب
+      final salaryPayments = await database.select(database.salaryPayments).get();
+      for (final payment in salaryPayments) {
+        if (skipDeleted && payment.deletedAt != null) continue;
+        try {
+          final payload = _salaryPaymentToRemote(payment);
+          await appwriteService.upsertSalaryPayment(payment.localUuid, payload);
+          stats['salary_payments'] = (stats['salary_payments'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع دفعة راتب: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['salary_payments']} دفعة راتب', tag: 'SYNC');
+
       final totalRecords = stats['rooms']! +
           stats['bookings']! +
+          stats['booking_notes']! +
+          stats['booking_nights']! +
           stats['employees']! +
           stats['expenses']! +
+          stats['cash_transactions']! +
           stats['payments']! +
-          stats['debts']!;
+          stats['debts']! +
+          stats['salary_cycles']! +
+          stats['salary_payments']!;
 
       _logger.info(
         '✅ اكتمل رفع البيانات: $totalRecords سجل، ${stats['errors']} خطأ',
@@ -1545,6 +1630,110 @@ class AppwriteSyncManager {
     };
     _putIfNotNull(data, 'serverId', employee.serverId);
     _putIfNotNull(data, 'deletedAt', employee.deletedAt);
+    return data;
+  }
+
+  Map<String, dynamic> _bookingNoteToRemote(BookingNote note) {
+    final data = <String, dynamic>{
+      'bookingId': note.bookingId,
+      'noteText': note.noteText,
+      'alertType': note.alertType,
+      'isActive': note.isActive,
+      'localUuid': note.localUuid,
+      'createdAt': note.createdAt,
+      'updatedAt': note.updatedAt,
+      'lastModified': note.lastModified,
+      'version': note.version,
+      'origin': note.origin,
+    };
+    _putIfNotNull(data, 'serverId', note.serverId);
+    _putIfNotNull(data, 'deletedAt', note.deletedAt);
+    _putIfStringNotEmpty(data, 'alertUntil', note.alertUntil);
+    return data;
+  }
+
+  Map<String, dynamic> _bookingNightToRemote(BookingNight night) {
+    final data = <String, dynamic>{
+      'bookingLocalId': night.bookingLocalId,
+      'hotelDayKey': night.hotelDayKey,
+      'nightStart': night.nightStart,
+      'nightEnd': night.nightEnd,
+      'nightlyRate': night.nightlyRate,
+      'sequence': night.sequence,
+      'isProcessedByAutoFix': night.isProcessedByAutoFix,
+      'localUuid': night.localUuid,
+      'createdAt': night.createdAt,
+      'updatedAt': night.updatedAt,
+      'lastModified': night.lastModified,
+      'version': night.version,
+      'origin': night.origin,
+    };
+    _putIfNotNull(data, 'serverId', night.serverId);
+    _putIfNotNull(data, 'deletedAt', night.deletedAt);
+    return data;
+  }
+
+  Map<String, dynamic> _cashTransactionToRemote(CashTransaction transaction) {
+    final data = <String, dynamic>{
+      'transactionType': transaction.transactionType,
+      'amount': transaction.amount,
+      'transactionTime': transaction.transactionTime,
+      'localUuid': transaction.localUuid,
+      'createdAt': transaction.createdAt,
+      'updatedAt': transaction.updatedAt,
+      'lastModified': transaction.lastModified,
+      'version': transaction.version,
+      'origin': transaction.origin,
+    };
+    _putIfNotNull(data, 'registerId', transaction.registerId);
+    _putIfNotNull(data, 'referenceId', transaction.referenceId);
+    _putIfNotNull(data, 'createdBy', transaction.createdBy);
+    _putIfNotNull(data, 'serverId', transaction.serverId);
+    _putIfNotNull(data, 'deletedAt', transaction.deletedAt);
+    _putIfStringNotEmpty(data, 'referenceType', transaction.referenceType);
+    _putIfStringNotEmpty(data, 'description', transaction.description);
+    return data;
+  }
+
+  Map<String, dynamic> _salaryCycleToRemote(SalaryCycle cycle) {
+    final data = <String, dynamic>{
+      'employeeId': cycle.employeeId,
+      'cycleKey': cycle.cycleKey,
+      'expectedAmount': cycle.expectedAmount,
+      'actualPaid': cycle.actualPaid,
+      'remainingAmount': cycle.remainingAmount,
+      'status': cycle.status,
+      'localUuid': cycle.localUuid,
+      'createdAt': cycle.createdAt,
+      'updatedAt': cycle.updatedAt,
+      'lastModified': cycle.lastModified,
+      'version': cycle.version,
+      'origin': cycle.origin,
+    };
+    _putIfNotNull(data, 'serverId', cycle.serverId);
+    _putIfNotNull(data, 'deletedAt', cycle.deletedAt);
+    _putIfStringNotEmpty(data, 'hotelDayStart', cycle.hotelDayStart);
+    _putIfStringNotEmpty(data, 'hotelDayEnd', cycle.hotelDayEnd);
+    return data;
+  }
+
+  Map<String, dynamic> _salaryPaymentToRemote(SalaryPayment payment) {
+    final data = <String, dynamic>{
+      'cycleId': payment.cycleId,
+      'amount': payment.amount,
+      'paymentDateIso': payment.paymentDateIso,
+      'isAutoGenerated': payment.isAutoGenerated,
+      'localUuid': payment.localUuid,
+      'createdAt': payment.createdAt,
+      'updatedAt': payment.updatedAt,
+      'lastModified': payment.lastModified,
+      'version': payment.version,
+      'origin': payment.origin,
+    };
+    _putIfNotNull(data, 'serverId', payment.serverId);
+    _putIfNotNull(data, 'deletedAt', payment.deletedAt);
+    _putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
+    _putIfStringNotEmpty(data, 'method', payment.method);
     return data;
   }
 
