@@ -107,7 +107,7 @@ class SyncPerformanceOptimizer {
     if (wasOnWiFi != _isOnWiFi) {
       final connectionType = _getConnectionTypeString(results);
       debugPrint('📡 تغيير نوع الاتصال: $connectionType');
-      debugPrint('🔄 حالة WiFi: ${_isOnWiFi ? "متصل" : "غير متصل"}');
+      debugPrint('🔄 حالة WiFi: ${_isOnWiFi ? 'متصل' : 'غير متصل'}');
 
       // إعادة تعيين عداد المحاولات عند تغيير نوع الاتصال
       _syncAttempts = 0;
@@ -257,7 +257,7 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('wifi_only_sync', enabled);
-      debugPrint('⚙️ تم تحديث إعدادات WiFi Only: ${enabled ? "مفعل" : "معطل"}');
+      debugPrint('⚙️ تم تحديث إعدادات WiFi Only: ${enabled ? 'مفعل' : 'معطل'}');
     } catch (e) {
       debugPrint('❌ خطأ في حفظ إعدادات WiFi Only: $e');
     }
@@ -294,7 +294,7 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('adaptive_interval_enabled', value);
-      debugPrint('⚙️ تم تحديث الفترة التكيفية: ${value ? "مفعل" : "معطل"}');
+      debugPrint('⚙️ تم تحديث الفترة التكيفية: ${value ? 'مفعل' : 'معطل'}');
     } catch (e) {
       debugPrint('❌ خطأ في حفظ إعدادات الفترة التكيفية: $e');
     }
@@ -305,7 +305,7 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('battery_optimization_enabled', value);
-      debugPrint('⚙️ تم تحديث تحسين البطارية: ${value ? "مفعل" : "معطل"}');
+      debugPrint('⚙️ تم تحديث تحسين البطارية: ${value ? 'مفعل' : 'معطل'}');
     } catch (e) {
       debugPrint('❌ خطأ في حفظ إعدادات تحسين البطارية: $e');
     }

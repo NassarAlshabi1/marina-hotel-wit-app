@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print
 
+import 'package:flutter/foundation.dart';
 import '../local_db.dart';
 import '../booking_derived_fields_service.dart';
 
@@ -11,7 +12,7 @@ class RecalculateBookingNightsMigration {
   final AppDatabase db;
 
   Future<void> execute() async {
-    print('🔧 Starting booking nights recalculation migration...');
+    debugPrint('🔧 Starting booking nights recalculation migration...');
 
     final derivedFieldsService = BookingDerivedFieldsService(db);
 
@@ -22,33 +23,33 @@ class RecalculateBookingNightsMigration {
         .get();
 
     if (bookings.isEmpty) {
-      print('✅ No bookings found');
+      debugPrint('✅ No bookings found');
       return;
     }
 
-    print('📋 Found ${bookings.length} bookings to recalculate');
+    debugPrint('📋 Found ${bookings.length} bookings to recalculate');
 
     int successCount = 0;
     int errorCount = 0;
 
     for (final booking in bookings) {
       try {
-        print('   Processing ${booking.guestName} (${booking.roomNumber})...');
+        debugPrint('   Processing ${booking.guestName} (${booking.roomNumber})...');
 
         // إعادة حساب جميع الحقول المشتقة بناءً على التواريخ
         await derivedFieldsService.refreshForBooking(booking);
 
         successCount++;
       } catch (e) {
-        print('   ❌ Error processing booking ${booking.id}: $e');
+        debugPrint('   ❌ Error processing booking ${booking.id}: $e');
         errorCount++;
       }
     }
 
-    print('');
-    print('✅ Migration completed:');
-    print('   - Success: $successCount');
-    print('   - Errors: $errorCount');
+    debugPrint('');
+    debugPrint('✅ Migration completed:');
+    debugPrint('   - Success: $successCount');
+    debugPrint('   - Errors: $errorCount');
   }
 
   Future<RecalculationReport> executeWithReport() async {
@@ -170,7 +171,7 @@ class RecalculationReport {
     buffer.writeln('=' * 80);
     buffer.writeln('📊 Booking Nights Recalculation Report');
     buffer.writeln('=' * 80);
-    buffer.writeln('Status: ${success ? "✅ SUCCESS" : "❌ FAILED"}');
+    buffer.writeln('Status: ${success ? '✅ SUCCESS' : '❌ FAILED'}');
     buffer.writeln('Message: $message');
     buffer.writeln('Bookings Found: $totalBookingsFound');
     buffer.writeln('Bookings Recalculated: $bookingsRecalculated');

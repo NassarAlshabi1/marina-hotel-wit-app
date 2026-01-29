@@ -1,4 +1,4 @@
-import 'package:appwrite/models.dart';
+import 'package:appwrite/models.dart' as models;
 import '../models/room.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
@@ -279,7 +279,7 @@ RoomStatistics:
 
 /// امتداد للـ Room Model لدعم Appwrite Document
 extension RoomAppwriteExtension on Room {
-  static Room fromAppwriteDocument(Document doc) {
+  static Room fromAppwriteDocument(models.Document doc) {
     return Room(
       id: doc.$id,
       roomNumber: doc.data['room_number'] as String,

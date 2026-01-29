@@ -574,7 +574,7 @@ class SmartSyncManager {
       _stopSyncMonitoring();
     }
 
-    _log('🔧 المزامنة التلقائية: ${enabled ? "مُفعلة" : "معطلة"}');
+    _log('🔧 المزامنة التلقائية: ${enabled ? 'مُفعلة' : 'معطلة'}');
   }
 
   Future<bool> isEnabled() async {

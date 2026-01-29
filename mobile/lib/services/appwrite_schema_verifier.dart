@@ -1,4 +1,5 @@
 import 'package:appwrite/appwrite.dart';
+import 'package:flutter/foundation.dart';
 import 'appwrite_config.dart';
 
 /// سكريبت للتحقق من مطابقة جداول Appwrite Cloud
@@ -288,7 +289,7 @@ class AppwriteSchemaVerifier {
 
   /// التحقق من جميع Collections والـ Attributes
   static Future<Map<String, dynamic>> verifySchema() async {
-    print('🔍 بدء التحقق من مطابقة جداول Appwrite Cloud...\n');
+    debugPrint('🔍 بدء التحقق من مطابقة جداول Appwrite Cloud...\n');
 
     final client = Client()
         .setEndpoint(AppwriteConfig.endpoint)
@@ -311,7 +312,7 @@ class AppwriteSchemaVerifier {
       final schema = entry.value;
       totalCollections++;
 
-      print('📋 التحقق من: $collectionId (${schema['name']})');
+      debugPrint('📋 التحقق من: $collectionId (${schema['name']})');
 
       try {
         // محاولة جلب Collection
@@ -321,7 +322,7 @@ class AppwriteSchemaVerifier {
         );
 
         foundCollections++;
-        print('   ✅ موجود: ${collection.name}');
+        debugPrint('   ✅ موجود: ${collection.name}');
 
         // التحقق من الـ Attributes
         final missingAttributes = <String>[];
@@ -347,14 +348,14 @@ class AppwriteSchemaVerifier {
         };
 
         if (missingAttributes.isNotEmpty) {
-          print(
+          debugPrint(
               '   ⚠️  حقول ناقصة (${missingAttributes.length}): ${missingAttributes.join(', ')}');
         } else {
-          print('   ✅ جميع الحقول موجودة');
+          debugPrint('   ✅ جميع الحقول موجودة');
         }
       } catch (e) {
         missingCollections++;
-        print('   ❌ غير موجود: $collectionId');
+        debugPrint('   ❌ غير موجود: $collectionId');
         results['missing'].add(collectionId);
         results['collections'][collectionId] = {
           'found': false,
@@ -362,7 +363,7 @@ class AppwriteSchemaVerifier {
         };
       }
 
-      print('');
+      debugPrint('');
     }
 
     results['summary'] = {
@@ -374,24 +375,24 @@ class AppwriteSchemaVerifier {
     };
 
     // طباعة الملخص
-    print('═══════════════════════════════════════');
-    print('📊 ملخص التحقق');
-    print('═══════════════════════════════════════');
-    print('إجمالي الجداول المطلوبة: $totalCollections');
-    print('✅ موجود: $foundCollections');
-    print('❌ ناقص: $missingCollections');
-    print('📈 نسبة الاكتمال: ${results['summary']['percentage']}%');
-    print('═══════════════════════════════════════\n');
+    debugPrint('═══════════════════════════════════════');
+    debugPrint('📊 ملخص التحقق');
+    debugPrint('═══════════════════════════════════════');
+    debugPrint('إجمالي الجداول المطلوبة: $totalCollections');
+    debugPrint('✅ موجود: $foundCollections');
+    debugPrint('❌ ناقص: $missingCollections');
+    debugPrint('📈 نسبة الاكتمال: ${results['summary']['percentage']}%');
+    debugPrint('═══════════════════════════════════════\n');
 
     if (missingCollections > 0) {
-      print('⚠️  الجداول الناقصة:');
+      debugPrint('⚠️  الجداول الناقصة:');
       for (final missing in results['missing']) {
-        print('   - $missing');
+        debugPrint('   - $missing');
       }
-      print('\n💡 يرجى إنشاء الجداول الناقصة في Appwrite Console');
-      print('   راجع: mobile/APPWRITE_SCHEMA_VERIFICATION.md\n');
+      debugPrint('\n💡 يرجى إنشاء الجداول الناقصة في Appwrite Console');
+      debugPrint('   راجع: mobile/APPWRITE_SCHEMA_VERIFICATION.md\n');
     } else {
-      print('🎉 جميع الجداول موجودة! التطابق كامل.\n');
+      debugPrint('🎉 جميع الجداول موجودة! التطابق كامل.\n');
     }
 
     return results;
@@ -402,14 +403,14 @@ class AppwriteSchemaVerifier {
     final schema = _requiredCollections[collectionId];
     if (schema == null) return;
 
-    print('# إنشاء Collection: $collectionId');
-    print('appwrite databases createCollection \\');
-    print('  --databaseId ${AppwriteConfig.databaseId} \\');
-    print('  --collectionId $collectionId \\');
-    print('  --name "${schema['name']}"');
-    print('');
+    debugPrint('# إنشاء Collection: $collectionId');
+    debugPrint('appwrite databases createCollection \\');
+    debugPrint('  --databaseId ${AppwriteConfig.databaseId} \\');
+    debugPrint('  --collectionId $collectionId \\');
+    debugPrint('  --name "${schema['name']}"');
+    debugPrint('');
 
-    print('# إنشاء Attributes:');
+    debugPrint('# إنشاء Attributes:');
     final allAttributes = [
       ...(schema['attributes'] as List),
       ..._syncFields,
@@ -422,32 +423,32 @@ class AppwriteSchemaVerifier {
 
       if (type == 'string') {
         final size = attr['size'] ?? 255;
-        print('appwrite databases createStringAttribute \\');
-        print('  --databaseId ${AppwriteConfig.databaseId} \\');
-        print('  --collectionId $collectionId \\');
-        print('  --key $key \\');
-        print('  --size $size \\');
-        print('  --required $required');
+        debugPrint('appwrite databases createStringAttribute \\');
+        debugPrint('  --databaseId ${AppwriteConfig.databaseId} \\');
+        debugPrint('  --collectionId $collectionId \\');
+        debugPrint('  --key $key \\');
+        debugPrint('  --size $size \\');
+        debugPrint('  --required $required');
       } else if (type == 'integer') {
-        print('appwrite databases createIntegerAttribute \\');
-        print('  --databaseId ${AppwriteConfig.databaseId} \\');
-        print('  --collectionId $collectionId \\');
-        print('  --key $key \\');
-        print('  --required $required');
+        debugPrint('appwrite databases createIntegerAttribute \\');
+        debugPrint('  --databaseId ${AppwriteConfig.databaseId} \\');
+        debugPrint('  --collectionId $collectionId \\');
+        debugPrint('  --key $key \\');
+        debugPrint('  --required $required');
       } else if (type == 'double') {
-        print('appwrite databases createFloatAttribute \\');
-        print('  --databaseId ${AppwriteConfig.databaseId} \\');
-        print('  --collectionId $collectionId \\');
-        print('  --key $key \\');
-        print('  --required $required');
+        debugPrint('appwrite databases createFloatAttribute \\');
+        debugPrint('  --databaseId ${AppwriteConfig.databaseId} \\');
+        debugPrint('  --collectionId $collectionId \\');
+        debugPrint('  --key $key \\');
+        debugPrint('  --required $required');
       } else if (type == 'boolean') {
-        print('appwrite databases createBooleanAttribute \\');
-        print('  --databaseId ${AppwriteConfig.databaseId} \\');
-        print('  --collectionId $collectionId \\');
-        print('  --key $key \\');
-        print('  --required $required');
+        debugPrint('appwrite databases createBooleanAttribute \\');
+        debugPrint('  --databaseId ${AppwriteConfig.databaseId} \\');
+        debugPrint('  --collectionId $collectionId \\');
+        debugPrint('  --key $key \\');
+        debugPrint('  --required $required');
       }
-      print('');
+      debugPrint('');
     }
   }
 }

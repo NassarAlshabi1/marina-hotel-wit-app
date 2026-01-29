@@ -19,7 +19,7 @@ class AppwriteError {
 
   @override
   String toString() =>
-      '[$code] $message${details != null ? "\nDetails: $details" : ""}';
+      '[$code] $message${details != null ? '\nDetails: $details' : ''}';
 }
 
 /// معالج الأخطاء المركزي

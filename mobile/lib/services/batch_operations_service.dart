@@ -134,7 +134,7 @@ class BatchOperationsService {
       tag: 'BATCH',
     );
 
-    final successfulItems = <Document>[];
+    final successfulItems = <models.Document>[];
     final errors = <String, String>{};
 
     if (parallel) {
@@ -212,7 +212,7 @@ class BatchOperationsService {
       tag: 'BATCH',
     );
 
-    final successfulItems = <Document>[];
+    final successfulItems = <models.Document>[];
     final errors = <String, String>{};
 
     if (parallel) {

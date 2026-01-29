@@ -273,7 +273,7 @@ class GoogleDriveSyncService {
       final api = await _ensureDriveApi();
       final indexList = await api.files.list(
         spaces: 'appDataFolder',
-        q: "name='$_kIndexFileName' and trashed=false",
+        q: 'name="$_kIndexFileName" and trashed=false',
         $fields: 'files(id,modifiedTime)',
       );
       final indexFile =
@@ -284,7 +284,7 @@ class GoogleDriveSyncService {
 
       final snapList = await api.files.list(
         spaces: 'appDataFolder',
-        q: "name='$_kPrimarySnapshotName' and trashed=false",
+        q: 'name="$_kPrimarySnapshotName" and trashed=false',
         $fields: 'files(id,modifiedTime)',
         orderBy: 'modifiedTime desc',
       );
@@ -400,7 +400,7 @@ class GoogleDriveSyncService {
     final api = await _ensureDriveApi();
     final list = await api.files.list(
       spaces: 'appDataFolder',
-      q: "name contains '$_kDeltaPrefix' and trashed=false",
+      q: 'name contains "$_kDeltaPrefix" and trashed=false',
       orderBy: 'createdTime desc',
       $fields: 'files(id,name,createdTime)',
     );
@@ -435,7 +435,7 @@ class GoogleDriveSyncService {
     try {
       final result = await api.files.list(
         spaces: 'appDataFolder',
-        q: "name='$_kIndexFileName' and trashed=false",
+        q: 'name="$_kIndexFileName" and trashed=false',
         $fields: 'files(id,name,modifiedTime,version)',
       );
       if (result.files == null || result.files!.isEmpty) {
@@ -459,7 +459,7 @@ class GoogleDriveSyncService {
 
     final existing = await api.files.list(
       spaces: 'appDataFolder',
-      q: "name='$_kIndexFileName' and trashed=false",
+      q: 'name="$_kIndexFileName" and trashed=false',
       $fields: 'files(id)',
     );
 
@@ -488,7 +488,7 @@ class GoogleDriveSyncService {
   Future<DriveSyncShard?> _locateSingleSnapshot(drive.DriveApi api) async {
     final result = await api.files.list(
       spaces: 'appDataFolder',
-      q: "name='$_kPrimarySnapshotName' and trashed=false",
+      q: 'name="$_kPrimarySnapshotName" and trashed=false',
       $fields: 'files(id,name,modifiedTime,size,appProperties,version)',
       orderBy: 'modifiedTime desc',
     );
@@ -519,7 +519,7 @@ class GoogleDriveSyncService {
   ) async {
     final cleanup = await api.files.list(
       spaces: 'appDataFolder',
-      q: "name contains 'sync_data' and trashed=false",
+      q: 'name contains "sync_data" and trashed=false',
       $fields: 'files(id,name)',
     );
     for (final file in cleanup.files ?? []) {
@@ -578,7 +578,7 @@ class GoogleDriveSyncService {
   }) async {
     final result = await api.files.list(
       spaces: 'appDataFolder',
-      q: "name contains 'sync_data' and trashed=false",
+      q: 'name contains "sync_data" and trashed=false',
       $fields: 'files(id)',
     );
     for (final file in result.files ?? []) {
