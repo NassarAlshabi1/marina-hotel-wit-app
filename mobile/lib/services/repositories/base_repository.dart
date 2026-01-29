@@ -141,7 +141,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
   }
 
   String _targetLabel(List<Column> target) {
-    return target.map((column) => column.$name).join(',');
+    return target.map((column) => column.name).join(',');
   }
 
   bool _isUniqueConstraintError(Object error) {

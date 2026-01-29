@@ -1160,7 +1160,7 @@ class GoogleDriveBackupService {
             if (stats['errors']! > 0) {
               _log('⚠️ ${stats['errors']} خطأ أثناء المزامنة');
             }
-            _logger.success(
+            _logger.info(
               'تمت مزامنة البيانات مع Appwrite: $totalSynced سجل (${stats['errors']} خطأ)',
               tag: 'RESTORE',
             );
