@@ -17,6 +17,7 @@ import 'sync_debug_logs_screen.dart';
 import 'error_center_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import '../security/blacklist_screen.dart';
+import 'server_id_fixer_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -113,6 +114,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: 'المزامنة والنسخ الاحتياطي',
         icon: Icons.cloud_sync,
         items: [
+          _SettingsItem(
+            title: 'إصلاح Server IDs',
+            subtitle: 'ربط الغرف مع Appwrite (إصلاح 404)',
+            icon: Icons.build_circle,
+            color: Colors.red,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ServerIdFixerScreen(),
+              ),
+            ),
+          ),
           _SettingsItem(
             title: 'النسخ الاحتياطي',
             subtitle: 'Google Drive + التخزين المحلي',
@@ -299,6 +312,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
+      _QuickAction(
+        title: 'إصلاح Server IDs',
+        subtitle: 'ربط الغرف مع Appwrite',
+        icon: Icons.build_circle,
+        color: Colors.red,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ServerIdFixerScreen(),
+          ),
+        ),
+      ),
       _QuickAction(
         title: 'مزامنة الآن',
         subtitle: 'تشغيل المزامنة فوراً',
