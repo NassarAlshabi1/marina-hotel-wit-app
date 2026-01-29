@@ -155,33 +155,40 @@ class SmartSyncFloatingButton extends ConsumerWidget {
           return const SizedBox.shrink();
         }
 
-        return FloatingActionButton.small(
-          onPressed: isSyncing
-              ? null
-              : () async {
-                  try {
-                    final manager = ref.read(smartSyncManagerProvider);
-                    await manager.forceSyncNow();
+        Future<void> runManualSync() async {
+          try {
+            final manager = ref.read(smartSyncManagerProvider);
+            await manager.forceSyncNow();
 
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('🔄 بدأت المزامنة اليدوية...'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('❌ خطأ في المزامنة: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🔄 بدأت المزامنة اليدوية...'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text(
+                    'تعذر بدء المزامنة. تحقق من الاتصال ثم أعد المحاولة',
+                  ),
+                  backgroundColor: Colors.red,
+                  action: SnackBarAction(
+                    label: 'إعادة',
+                    textColor: Colors.white,
+                    onPressed: runManualSync,
+                  ),
+                ),
+              );
+            }
+          }
+        }
+
+        return FloatingActionButton.small(
+          onPressed: isSyncing ? null : runManualSync,
           backgroundColor: isSyncing ? Colors.grey : Colors.blue,
           tooltip: isSyncing ? 'مزامنة جارية...' : 'مزامنة يدوية',
           child: isSyncing

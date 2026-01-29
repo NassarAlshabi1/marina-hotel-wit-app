@@ -142,7 +142,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
               children: [
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 8),
-                Expanded(child: Text('❌ فشلت المزامنة: $e')),
+                const Expanded(
+                  child: Text('تعذر إكمال المزامنة. راجع التفاصيل.'),
+                ),
               ],
             ),
             backgroundColor: Colors.red,
@@ -408,9 +410,20 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         );
       }
     } catch (e) {
+      debugPrint('❌ خطأ في رفع التغييرات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: const Text(
+              'تعذر رفع التغييرات. تحقق من الاتصال ثم أعد المحاولة',
+            ),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'إعادة',
+              textColor: Colors.white,
+              onPressed: _pushOnly,
+            ),
+          ),
         );
       }
     } finally {
@@ -440,9 +453,20 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         );
       }
     } catch (e) {
+      debugPrint('❌ خطأ في سحب التحديثات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: const Text(
+              'تعذر سحب التحديثات. تحقق من الاتصال ثم أعد المحاولة',
+            ),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'إعادة',
+              textColor: Colors.white,
+              onPressed: _pullOnly,
+            ),
+          ),
         );
       }
     } finally {
@@ -508,10 +532,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ خطأ في الفحص: $e'),
+          content: const Text('تعذر فحص سلامة البيانات. أعد المحاولة لاحقاً'),
           backgroundColor: Colors.red,
         ),
       );

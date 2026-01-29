@@ -734,9 +734,17 @@ class _AutoSyncEngineMonitorScreenState
         ).showSnackBar(const SnackBar(content: Text('جارٍ التحميل...')));
       },
       error: (error, _) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('خطأ: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('تعذر تحميل الحالة الكاملة. حاول مرة أخرى'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'إعادة',
+              textColor: Colors.white,
+              onPressed: () => _showFullStatus(context),
+            ),
+          ),
+        );
       },
     );
   }
@@ -836,9 +844,17 @@ class _AutoSyncEngineMonitorScreenState
         );
       },
       error: (error, _) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('خطأ: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('تعذر تحميل سجل التضاربات. حاول مرة أخرى'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'إعادة',
+              textColor: Colors.white,
+              onPressed: () => _showConflictHistory(context),
+            ),
+          ),
+        );
       },
     );
   }

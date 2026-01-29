@@ -80,7 +80,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       } else {
         _appwriteEnabled = enabled;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('❌ خطأ في تحميل حالة Appwrite: $e');
+      if (mounted) {
+        setState(() => _appwriteEnabled = true);
+      } else {
+        _appwriteEnabled = true;
+      }
+    }
   }
 
   Future<void> _uploadChanges(BuildContext context) async {
@@ -106,7 +113,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     _uploadAnimationController.repeat();
-    setState(() => _isUploading = true);
+    if (mounted) {
+      setState(() => _isUploading = true);
+    } else {
+      _isUploading = true;
+    }
 
     try {
       final smartSyncManager = ref.read(smartSyncManagerProvider);
@@ -269,9 +280,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
       }
 
-      setState(() {
+      if (mounted) {
+        setState(() {
+          _lastUploadTime = DateTime.now();
+        });
+      } else {
         _lastUploadTime = DateTime.now();
-      });
+      }
 
       await _loadPendingChangesCount();
 
@@ -356,6 +371,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       ref.invalidate(smartSyncStatusProvider);
     } catch (e) {
+      debugPrint('❌ فشل رفع التغييرات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -363,7 +379,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               children: [
                 Icon(Icons.error_outline, color: Colors.white),
                 SizedBox(width: 8),
-                Expanded(child: Text('❌ فشل رفع التغييرات: $e')),
+                Expanded(
+                  child: Text(
+                    'تعذر رفع التغييرات. تحقق من الاتصال وبيانات الدخول',
+                  ),
+                ),
               ],
             ),
             backgroundColor: Colors.red,
