@@ -4,7 +4,7 @@ import '../../../components/app_scaffold.dart';
 import '../../../core/core.dart';
 
 /// Unified Logs Screen - شاشة موحدة لجميع السجلات
-/// 
+///
 /// تدمج السجلات من:
 /// - appwrite_logs_screen.dart
 /// - google_drive_logs_screen.dart
@@ -145,55 +145,77 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
 
   Widget _buildAllLogsTab() {
     return _buildLogsList([
-      _createLogEntry('info', 'Appwrite', 'Connection established successfully', '2024-01-29T18:00:00'),
-      _createLogEntry('success', 'Sync', 'Sync completed: 42 items', '2024-01-29T17:55:00'),
-      _createLogEntry('warning', 'Google Drive', 'Low storage space', '2024-01-29T17:50:00'),
-      _createLogEntry('error', 'Appwrite', 'Failed to sync table: guests', '2024-01-29T17:45:00'),
-      _createLogEntry('info', 'Sync', 'Starting automatic sync', '2024-01-29T17:40:00'),
-      _createLogEntry('success', 'Google Drive', 'Backup uploaded successfully', '2024-01-29T17:35:00'),
+      _createLogEntry('info', 'Appwrite', 'Connection established successfully',
+          '2024-01-29T18:00:00'),
+      _createLogEntry(
+          'success', 'Sync', 'Sync completed: 42 items', '2024-01-29T17:55:00'),
+      _createLogEntry('warning', 'Google Drive', 'Low storage space',
+          '2024-01-29T17:50:00'),
+      _createLogEntry('error', 'Appwrite', 'Failed to sync table: guests',
+          '2024-01-29T17:45:00'),
+      _createLogEntry(
+          'info', 'Sync', 'Starting automatic sync', '2024-01-29T17:40:00'),
+      _createLogEntry('success', 'Google Drive', 'Backup uploaded successfully',
+          '2024-01-29T17:35:00'),
     ]);
   }
 
   Widget _buildAppwriteLogsTab() {
     return _buildLogsList([
-      _createLogEntry('info', 'Appwrite', 'Connection established successfully', '2024-01-29T18:00:00'),
-      _createLogEntry('error', 'Appwrite', 'Failed to sync table: guests', '2024-01-29T17:45:00'),
-      _createLogEntry('info', 'Appwrite', 'API call: GET /databases', '2024-01-29T17:30:00'),
-      _createLogEntry('warning', 'Appwrite', 'Slow response: 2.5s', '2024-01-29T17:25:00'),
+      _createLogEntry('info', 'Appwrite', 'Connection established successfully',
+          '2024-01-29T18:00:00'),
+      _createLogEntry('error', 'Appwrite', 'Failed to sync table: guests',
+          '2024-01-29T17:45:00'),
+      _createLogEntry('info', 'Appwrite', 'API call: GET /databases',
+          '2024-01-29T17:30:00'),
+      _createLogEntry(
+          'warning', 'Appwrite', 'Slow response: 2.5s', '2024-01-29T17:25:00'),
     ]);
   }
 
   Widget _buildGoogleDriveLogsTab() {
     return _buildLogsList([
-      _createLogEntry('warning', 'Google Drive', 'Low storage space', '2024-01-29T17:50:00'),
-      _createLogEntry('success', 'Google Drive', 'Backup uploaded successfully', '2024-01-29T17:35:00'),
-      _createLogEntry('info', 'Google Drive', 'Connected to account', '2024-01-29T17:20:00'),
-      _createLogEntry('error', 'Google Drive', 'Upload failed: network error', '2024-01-29T17:15:00'),
+      _createLogEntry('warning', 'Google Drive', 'Low storage space',
+          '2024-01-29T17:50:00'),
+      _createLogEntry('success', 'Google Drive', 'Backup uploaded successfully',
+          '2024-01-29T17:35:00'),
+      _createLogEntry('info', 'Google Drive', 'Connected to account',
+          '2024-01-29T17:20:00'),
+      _createLogEntry('error', 'Google Drive', 'Upload failed: network error',
+          '2024-01-29T17:15:00'),
     ]);
   }
 
   Widget _buildSyncLogsTab() {
     return _buildLogsList([
-      _createLogEntry('success', 'Sync', 'Sync completed: 42 items', '2024-01-29T17:55:00'),
-      _createLogEntry('info', 'Sync', 'Starting automatic sync', '2024-01-29T17:40:00'),
-      _createLogEntry('warning', 'Sync', 'Conflict detected: guest_123', '2024-01-29T17:30:00'),
-      _createLogEntry('success', 'Sync', 'Conflict resolved automatically', '2024-01-29T17:29:00'),
+      _createLogEntry(
+          'success', 'Sync', 'Sync completed: 42 items', '2024-01-29T17:55:00'),
+      _createLogEntry(
+          'info', 'Sync', 'Starting automatic sync', '2024-01-29T17:40:00'),
+      _createLogEntry('warning', 'Sync', 'Conflict detected: guest_123',
+          '2024-01-29T17:30:00'),
+      _createLogEntry('success', 'Sync', 'Conflict resolved automatically',
+          '2024-01-29T17:29:00'),
     ]);
   }
 
   Widget _buildLogsList(List<Map<String, String>> logs) {
     // Apply filters
     var filteredLogs = logs;
-    
+
     if (_selectedLevel != 'all') {
-      filteredLogs = logs.where((log) => log['level'] == _selectedLevel).toList();
+      filteredLogs =
+          logs.where((log) => log['level'] == _selectedLevel).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
-      filteredLogs = filteredLogs.where((log) =>
-        log['message']!.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-        log['source']!.toLowerCase().contains(_searchQuery.toLowerCase())
-      ).toList();
+      filteredLogs = filteredLogs
+          .where((log) =>
+              log['message']!
+                  .toLowerCase()
+                  .contains(_searchQuery.toLowerCase()) ||
+              log['source']!.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
     }
 
     if (filteredLogs.isEmpty) {
@@ -388,7 +410,8 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               _buildDetailRow('المستوى', log['level']!),
               _buildDetailRow('المصدر', log['source']!),
               _buildDetailRow('الرسالة', log['message']!),
-              _buildDetailRow('الوقت', DateTimeFormatter.formatDateTime(log['timestamp']!)),
+              _buildDetailRow(
+                  'الوقت', DateTimeFormatter.formatDateTime(log['timestamp']!)),
             ],
           ),
         ),
@@ -434,7 +457,8 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تحذير'),
-        content: const Text('هل تريد حذف جميع السجلات؟ لا يمكن التراجع عن هذا الإجراء.'),
+        content: const Text(
+            'هل تريد حذف جميع السجلات؟ لا يمكن التراجع عن هذا الإجراء.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

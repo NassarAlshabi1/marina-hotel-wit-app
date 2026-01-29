@@ -104,7 +104,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     if (filteredExpenses.isEmpty)
                       const Padding(
                         padding: EdgeInsets.only(top: 48),
-                        child: Center(child: Text('لا توجد مصروفات ضمن الفترة')),
+                        child:
+                            Center(child: Text('لا توجد مصروفات ضمن الفترة')),
                       )
                     else
                       ...filteredExpenses.map(
@@ -143,12 +144,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   DateTime _parseExpenseDate(String value) {
-    final normalized = value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized =
+        value.contains('T') ? value : value.replaceFirst(' ', 'T');
     return DateTime.tryParse(normalized) ?? DateTime.now();
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initial = isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initial =
+        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -172,7 +175,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Widget _buildFiltersCard() {
-    final fromLabel = _fromDate != null ? _dateFormat.format(_fromDate!) : 'غير محدد';
+    final fromLabel =
+        _fromDate != null ? _dateFormat.format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
     return Card(
       child: Padding(
@@ -261,7 +265,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(label,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
               Text(
                 value,
                 style: TextStyle(fontWeight: FontWeight.bold, color: color),
@@ -314,7 +319,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 runSpacing: 4,
                 children: [
                   _buildMetaChip(Icons.category, expense.expenseType),
-                  _buildMetaChip(Icons.calendar_today, _dateFormat.format(date)),
+                  _buildMetaChip(
+                      Icons.calendar_today, _dateFormat.format(date)),
                   _buildMetaChip(
                     Icons.person,
                     employeeName ?? 'بدون موظف',
@@ -369,132 +375,131 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             ctx,
           ).textTheme.bodyMedium?.copyWith(fontSize: 14);
           return AlertDialog(
-              title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: description,
-                      decoration: const InputDecoration(labelText: 'الوصف'),
+            title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: description,
+                    decoration: const InputDecoration(labelText: 'الوصف'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amount,
+                    decoration: const InputDecoration(labelText: 'المبلغ'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedType,
+                    decoration: const InputDecoration(
+                      labelText: 'نوع المصروف',
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: amount,
-                      decoration: const InputDecoration(labelText: 'المبلغ'),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: selectedType,
-                      decoration: const InputDecoration(
-                        labelText: 'نوع المصروف',
-                      ),
-                      style: dropdownTextStyle,
-                      items: availableTypes
-                          .map(
-                            (type) => DropdownMenuItem<String>(
-                              value: type,
-                              child: Text(type, style: dropdownTextStyle),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() {
-                          selectedType = value;
-                          if (selectedType == _salaryType) {
-                            if (availableEmployees.isNotEmpty) {
-                              selectedEmployeeId ??=
-                                  availableEmployees.first.id;
-                            }
-                          } else {
-                            selectedEmployeeId = null;
-                            dialogSalaryAction = _salaryWithdrawAction;
+                    style: dropdownTextStyle,
+                    items: availableTypes
+                        .map(
+                          (type) => DropdownMenuItem<String>(
+                            value: type,
+                            child: Text(type, style: dropdownTextStyle),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() {
+                        selectedType = value;
+                        if (selectedType == _salaryType) {
+                          if (availableEmployees.isNotEmpty) {
+                            selectedEmployeeId ??= availableEmployees.first.id;
                           }
-                        });
-                      },
-                    ),
-                    if (selectedType == _salaryType) ...[
-                      const SizedBox(height: 12),
-                      if (availableEmployees.isEmpty)
-                        const Text('لا يوجد موظفين مسجلين حالياً.'),
-                      if (availableEmployees.isNotEmpty) ...[
-                        DropdownButtonFormField<int>(
-                          value: selectedEmployeeId,
-                          decoration: const InputDecoration(
-                            labelText: 'اسم الموظف',
-                          ),
-                          items: availableEmployees
-                              .map(
-                                (employee) => DropdownMenuItem<int>(
-                                  value: employee.id,
-                                  child: Text(employee.name),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) =>
-                              setState(() => selectedEmployeeId = value),
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          value: dialogSalaryAction,
-                          decoration: const InputDecoration(
-                            labelText: 'نوع المعاملة',
-                          ),
-                          items: _salaryActions
-                              .map(
-                                (action) => DropdownMenuItem<String>(
-                                  value: action,
-                                  child: Text(action, style: dropdownTextStyle),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() => dialogSalaryAction = value);
-                          },
-                        ),
-                      ],
-                    ],
+                        } else {
+                          selectedEmployeeId = null;
+                          dialogSalaryAction = _salaryWithdrawAction;
+                        }
+                      });
+                    },
+                  ),
+                  if (selectedType == _salaryType) ...[
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: date,
-                      decoration: const InputDecoration(
-                        labelText: 'التاريخ YYYY-MM-DD',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('إلغاء'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    // Validate salary expenses must have employee selected
-                    if (selectedType == _salaryType &&
-                        selectedEmployeeId == null) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(
-                          content: const Text(
-                            'يجب اختيار موظف عند اختيار نوع المصروف "رواتب"',
-                          ),
-                          backgroundColor: Theme.of(ctx).colorScheme.error,
+                    if (availableEmployees.isEmpty)
+                      const Text('لا يوجد موظفين مسجلين حالياً.'),
+                    if (availableEmployees.isNotEmpty) ...[
+                      DropdownButtonFormField<int>(
+                        value: selectedEmployeeId,
+                        decoration: const InputDecoration(
+                          labelText: 'اسم الموظف',
                         ),
-                      );
-                      return;
-                    }
-                    Navigator.pop(ctx, true);
-                  },
-                  child: const Text('حفظ'),
-                ),
-              ],
-            );
-          },
-        ),
+                        items: availableEmployees
+                            .map(
+                              (employee) => DropdownMenuItem<int>(
+                                value: employee.id,
+                                child: Text(employee.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) =>
+                            setState(() => selectedEmployeeId = value),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: dialogSalaryAction,
+                        decoration: const InputDecoration(
+                          labelText: 'نوع المعاملة',
+                        ),
+                        items: _salaryActions
+                            .map(
+                              (action) => DropdownMenuItem<String>(
+                                value: action,
+                                child: Text(action, style: dropdownTextStyle),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() => dialogSalaryAction = value);
+                        },
+                      ),
+                    ],
+                  ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: date,
+                    decoration: const InputDecoration(
+                      labelText: 'التاريخ YYYY-MM-DD',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('إلغاء'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  // Validate salary expenses must have employee selected
+                  if (selectedType == _salaryType &&
+                      selectedEmployeeId == null) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          'يجب اختيار موظف عند اختيار نوع المصروف "رواتب"',
+                        ),
+                        backgroundColor: Theme.of(ctx).colorScheme.error,
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.pop(ctx, true);
+                },
+                child: const Text('حفظ'),
+              ),
+            ],
+          );
+        },
+      ),
     );
 
     if (ok != true) {

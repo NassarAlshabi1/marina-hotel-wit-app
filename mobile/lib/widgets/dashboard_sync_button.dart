@@ -172,7 +172,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     Icon(Icons.cloud_off, color: Colors.white),
                     SizedBox(width: 8),
                     Expanded(
-                      child: Text('⚠️ يرجى تسجيل الدخول إلى Google Drive أولاً'),
+                      child:
+                          Text('⚠️ يرجى تسجيل الدخول إلى Google Drive أولاً'),
                     ),
                   ],
                 ),

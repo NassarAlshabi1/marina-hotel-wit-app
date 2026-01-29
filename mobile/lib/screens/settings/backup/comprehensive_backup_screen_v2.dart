@@ -8,12 +8,12 @@ import 'tabs/local_backups_tab.dart';
 import 'tabs/file_management_tab.dart';
 
 /// Comprehensive Backup Screen - الشاشة الرئيسية للنسخ الاحتياطي
-/// 
+///
 /// تم تقسيم الشاشة الضخمة (1890 سطر) إلى:
 /// - ملف رئيسي (هذا الملف) - ~100 سطر
 /// - 4 tabs منفصلة - كل واحد ~200 سطر
 /// - widgets مشتركة من core/
-/// 
+///
 /// Total: من 1890 سطر → ~900 سطر موزعة على 5 ملفات
 class ComprehensiveBackupScreen extends ConsumerStatefulWidget {
   const ComprehensiveBackupScreen({super.key});

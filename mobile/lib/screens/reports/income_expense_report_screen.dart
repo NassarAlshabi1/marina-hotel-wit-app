@@ -356,12 +356,14 @@ class _IncomeExpenseReportScreenState
                 OutlinedButton.icon(
                   onPressed: () => _pickDate(isFrom: true),
                   icon: const Icon(Icons.calendar_month),
-                  label: Text('من: ${DateFormat('yyyy-MM-dd').format(_fromDate)}'),
+                  label:
+                      Text('من: ${DateFormat('yyyy-MM-dd').format(_fromDate)}'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _pickDate(isFrom: false),
                   icon: const Icon(Icons.calendar_month),
-                  label: Text('إلى: ${DateFormat('yyyy-MM-dd').format(_toDate)}'),
+                  label:
+                      Text('إلى: ${DateFormat('yyyy-MM-dd').format(_toDate)}'),
                 ),
                 FilterChip(
                   label: const Text('تفصيلي'),

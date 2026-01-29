@@ -46,12 +46,12 @@ class AppwriteRoomRepository implements RoomRepository {
       return Room.fromAppwriteDocument(doc);
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getById($id)');
-      
+
       // إذا كان الخطأ 404، نرجع null بدلاً من رمي خطأ
       if (error.code == 'NOT_FOUND') {
         return null;
       }
-      
+
       throw Exception(error.message);
     }
   }
@@ -112,12 +112,12 @@ class AppwriteRoomRepository implements RoomRepository {
       );
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'delete($id)');
-      
+
       // إذا كان الخطأ 404، نعتبرها نجاح
       if (error.code == 'NOT_FOUND') {
         return;
       }
-      
+
       throw Exception(error.message);
     }
   }
@@ -221,13 +221,13 @@ class AppwriteRoomRepository implements RoomRepository {
   Future<RoomStatistics> getStatistics() async {
     try {
       final allRooms = await getAll();
-      
+
       final available = allRooms.where((r) => r.status == 'شاغرة').length;
       final occupied = allRooms.where((r) => r.status == 'محجوزة').length;
-      
+
       final prices = allRooms.map((r) => r.price).toList();
       prices.sort();
-      
+
       return RoomStatistics(
         total: allRooms.length,
         available: available,
@@ -264,7 +264,7 @@ class RoomStatistics {
   });
 
   double get occupancyRate => total > 0 ? occupied / total : 0.0;
-  
+
   @override
   String toString() => '''
 RoomStatistics:

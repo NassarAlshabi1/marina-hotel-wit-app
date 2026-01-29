@@ -1402,7 +1402,8 @@ class AppwriteSyncManager {
   Future<Map<String, int>> pushAllLocalDataToAppwrite({
     bool skipDeleted = true,
   }) async {
-    _logger.info('🚀 بدء رفع جميع البيانات المحلية إلى Appwrite...', tag: 'SYNC');
+    _logger.info('🚀 بدء رفع جميع البيانات المحلية إلى Appwrite...',
+        tag: 'SYNC');
     final stats = <String, int>{
       'rooms': 0,
       'bookings': 0,
@@ -1428,7 +1429,8 @@ class AppwriteSyncManager {
           await appwriteService.upsertRoom(room.localUuid, payload);
           stats['rooms'] = (stats['rooms'] ?? 0) + 1;
         } catch (e) {
-          _logger.warning('خطأ في رفع غرفة ${room.roomNumber}: $e', tag: 'SYNC');
+          _logger.warning('خطأ في رفع غرفة ${room.roomNumber}: $e',
+              tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
@@ -1458,7 +1460,8 @@ class AppwriteSyncManager {
           await appwriteService.upsertBooking(booking.localUuid, payload);
           stats['bookings'] = (stats['bookings'] ?? 0) + 1;
         } catch (e) {
-          _logger.warning('خطأ في رفع حجز ${booking.guestName}: $e', tag: 'SYNC');
+          _logger.warning('خطأ في رفع حجز ${booking.guestName}: $e',
+              tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
@@ -1522,7 +1525,8 @@ class AppwriteSyncManager {
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['booking_notes']} ملاحظة حجز', tag: 'SYNC');
+      _logger.info('✅ تم رفع ${stats['booking_notes']} ملاحظة حجز',
+          tag: 'SYNC');
 
       // رفع ليالي الحجوزات
       final bookingNights = await database.select(database.bookingNights).get();
@@ -1540,19 +1544,22 @@ class AppwriteSyncManager {
       _logger.info('✅ تم رفع ${stats['booking_nights']} ليلة حجز', tag: 'SYNC');
 
       // رفع المعاملات النقدية
-      final cashTransactions = await database.select(database.cashTransactions).get();
+      final cashTransactions =
+          await database.select(database.cashTransactions).get();
       for (final transaction in cashTransactions) {
         if (skipDeleted && transaction.deletedAt != null) continue;
         try {
           final payload = _cashTransactionToRemote(transaction);
-          await appwriteService.upsertCashTransaction(transaction.localUuid, payload);
+          await appwriteService.upsertCashTransaction(
+              transaction.localUuid, payload);
           stats['cash_transactions'] = (stats['cash_transactions'] ?? 0) + 1;
         } catch (e) {
           _logger.warning('خطأ في رفع معاملة نقدية: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['cash_transactions']} معاملة نقدية', tag: 'SYNC');
+      _logger.info('✅ تم رفع ${stats['cash_transactions']} معاملة نقدية',
+          tag: 'SYNC');
 
       // رفع دورات الرواتب
       final salaryCycles = await database.select(database.salaryCycles).get();
@@ -1570,7 +1577,8 @@ class AppwriteSyncManager {
       _logger.info('✅ تم رفع ${stats['salary_cycles']} دورة راتب', tag: 'SYNC');
 
       // رفع دفعات الرواتب
-      final salaryPayments = await database.select(database.salaryPayments).get();
+      final salaryPayments =
+          await database.select(database.salaryPayments).get();
       for (final payment in salaryPayments) {
         if (skipDeleted && payment.deletedAt != null) continue;
         try {
@@ -1582,7 +1590,8 @@ class AppwriteSyncManager {
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['salary_payments']} دفعة راتب', tag: 'SYNC');
+      _logger.info('✅ تم رفع ${stats['salary_payments']} دفعة راتب',
+          tag: 'SYNC');
 
       final totalRecords = stats['rooms']! +
           stats['bookings']! +

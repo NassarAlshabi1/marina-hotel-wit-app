@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../components/app_scaffold.dart';
-import '../../../core/core.dart';
 import 'tabs/connection_tab.dart';
 import 'tabs/sync_tab.dart';
 import 'tabs/devices_tab.dart';
 import 'tabs/tools_tab.dart';
 
 /// Appwrite Settings Screen v2 - إعدادات Appwrite المحسّنة
-/// 
+///
 /// تم تقسيم الشاشة الضخمة (1361 سطر) إلى:
 /// - ملف رئيسي (هذا) - ~120 سطر
 /// - 4 tabs منفصلة - كل واحد ~200-250 سطر
-/// 
+///
 /// Total: من 1361 سطر → ~1000 سطر موزعة على 5 ملفات
 class AppwriteSettingsScreenV2 extends ConsumerStatefulWidget {
   const AppwriteSettingsScreenV2({super.key});

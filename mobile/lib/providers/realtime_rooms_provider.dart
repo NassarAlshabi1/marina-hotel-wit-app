@@ -31,11 +31,11 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   bool get isSubscribed => _isSubscribed;
   String? get error => _error;
   int get roomCount => _rooms.length;
-  
-  List<Room> get availableRooms => 
+
+  List<Room> get availableRooms =>
       _rooms.where((r) => r.status == 'شاغرة').toList();
-  
-  List<Room> get occupiedRooms => 
+
+  List<Room> get occupiedRooms =>
       _rooms.where((r) => r.status == 'محجوزة').toList();
 
   /// تحميل الغرف
@@ -133,7 +133,8 @@ class RealTimeRoomsProvider extends ChangeNotifier {
     if (index != -1) {
       _rooms[index] = updatedRoom;
       notifyListeners();
-      _logger.info('Room updated: ${updatedRoom.roomNumber}', tag: 'ROOMS_PROVIDER');
+      _logger.info('Room updated: ${updatedRoom.roomNumber}',
+          tag: 'ROOMS_PROVIDER');
     }
   }
 

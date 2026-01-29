@@ -1,7 +1,7 @@
 import 'package:intl/intl.dart';
 
 /// Date and Time Formatting Utilities
-/// 
+///
 /// مركز موحد لجميع عمليات تنسيق التاريخ والوقت في التطبيق
 class DateTimeFormatter {
   DateTimeFormatter._();
@@ -10,14 +10,16 @@ class DateTimeFormatter {
   static final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
   static final DateFormat _timeFormat = DateFormat('HH:mm');
   static final DateFormat _dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm');
-  static final DateFormat _dateTimeFullFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+  static final DateFormat _dateTimeFullFormat =
+      DateFormat('yyyy-MM-dd HH:mm:ss');
   static final DateFormat _arabicDateFormat = DateFormat('d MMMM yyyy', 'ar');
-  static final DateFormat _arabicDateTimeFormat = DateFormat('d MMMM yyyy - h:mm a', 'ar');
+  static final DateFormat _arabicDateTimeFormat =
+      DateFormat('d MMMM yyyy - h:mm a', 'ar');
 
   /// Format ISO string to date and time (2024-01-29 18:30)
   static String formatDateTime(String? isoString) {
     if (isoString == null || isoString.isEmpty) return 'لا يوجد';
-    
+
     try {
       final date = DateTime.parse(isoString);
       return _dateTimeFormat.format(date);
@@ -29,7 +31,7 @@ class DateTimeFormatter {
   /// Format ISO string to date only (2024-01-29)
   static String formatDate(String? isoString) {
     if (isoString == null || isoString.isEmpty) return 'لا يوجد';
-    
+
     try {
       final date = DateTime.parse(isoString);
       return _dateFormat.format(date);
@@ -41,7 +43,7 @@ class DateTimeFormatter {
   /// Format ISO string to time only (18:30)
   static String formatTime(String? isoString) {
     if (isoString == null || isoString.isEmpty) return 'لا يوجد';
-    
+
     try {
       final date = DateTime.parse(isoString);
       return _timeFormat.format(date);
@@ -53,7 +55,7 @@ class DateTimeFormatter {
   /// Format ISO string to full date and time with seconds
   static String formatDateTimeFull(String? isoString) {
     if (isoString == null || isoString.isEmpty) return 'لا يوجد';
-    
+
     try {
       final date = DateTime.parse(isoString);
       return _dateTimeFullFormat.format(date);
@@ -65,7 +67,7 @@ class DateTimeFormatter {
   /// Format ISO string to Arabic date (29 يناير 2024)
   static String formatArabicDate(String? isoString) {
     if (isoString == null || isoString.isEmpty) return 'لا يوجد';
-    
+
     try {
       final date = DateTime.parse(isoString);
       return _arabicDateFormat.format(date);
@@ -77,7 +79,7 @@ class DateTimeFormatter {
   /// Format ISO string to Arabic date and time (29 يناير 2024 - 6:30 م)
   static String formatArabicDateTime(String? isoString) {
     if (isoString == null || isoString.isEmpty) return 'لا يوجد';
-    
+
     try {
       final date = DateTime.parse(isoString);
       return _arabicDateTimeFormat.format(date);
@@ -94,7 +96,7 @@ class DateTimeFormatter {
   /// Get relative time (منذ 5 دقائق، منذ ساعة، إلخ)
   static String getRelativeTime(String? isoString) {
     if (isoString == null || isoString.isEmpty) return 'لا يوجد';
-    
+
     try {
       final date = DateTime.parse(isoString);
       final now = DateTime.now();
@@ -129,7 +131,7 @@ class DateTimeFormatter {
   /// Get time ago in short format (5د، 2س، 3ي)
   static String getTimeAgoShort(String? isoString) {
     if (isoString == null || isoString.isEmpty) return '-';
-    
+
     try {
       final date = DateTime.parse(isoString);
       final now = DateTime.now();
@@ -154,13 +156,13 @@ class DateTimeFormatter {
   /// Check if date is today
   static bool isToday(String? isoString) {
     if (isoString == null || isoString.isEmpty) return false;
-    
+
     try {
       final date = DateTime.parse(isoString);
       final now = DateTime.now();
-      return date.year == now.year && 
-             date.month == now.month && 
-             date.day == now.day;
+      return date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day;
     } catch (e) {
       return false;
     }
@@ -169,13 +171,13 @@ class DateTimeFormatter {
   /// Check if date is yesterday
   static bool isYesterday(String? isoString) {
     if (isoString == null || isoString.isEmpty) return false;
-    
+
     try {
       final date = DateTime.parse(isoString);
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
-      return date.year == yesterday.year && 
-             date.month == yesterday.month && 
-             date.day == yesterday.day;
+      return date.year == yesterday.year &&
+          date.month == yesterday.month &&
+          date.day == yesterday.day;
     } catch (e) {
       return false;
     }

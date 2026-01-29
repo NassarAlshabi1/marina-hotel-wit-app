@@ -134,7 +134,8 @@ class StatCard extends StatelessWidget {
                       color: color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(UIConstants.radiusMD),
                     ),
-                    child: Icon(icon, color: color, size: UIConstants.iconSizeMD),
+                    child:
+                        Icon(icon, color: color, size: UIConstants.iconSizeMD),
                   ),
                 ],
               ),
