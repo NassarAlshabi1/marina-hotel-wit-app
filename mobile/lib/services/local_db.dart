@@ -781,6 +781,71 @@ class AppDatabase extends _$AppDatabase {
               );
             }
           }
+          if (from < 20) {
+            // إصلاح مشكلة serverId في الجداول القديمة
+            // التحقق من وجود عمود serverId في جدول rooms وإضافته إذا لم يكن موجوداً
+            try {
+              await m.database.customStatement(
+                'SELECT server_id FROM rooms LIMIT 1',
+              );
+              developer.log(
+                'serverId column already exists in rooms table',
+                name: 'db.migration',
+              );
+            } catch (e) {
+              // العمود غير موجود، نحتاج لإضافته
+              try {
+                await m.addColumn(rooms, rooms.serverId);
+                developer.log(
+                  'Added serverId column to rooms table',
+                  name: 'db.migration',
+                );
+              } catch (e2, st2) {
+                developer.log(
+                  'Failed to add serverId column to rooms',
+                  error: e2,
+                  stackTrace: st2,
+                  name: 'db.migration',
+                );
+              }
+            }
+            
+            // التحقق من وجود عمود serverId في باقي الجداول
+            final tablesToCheck = [
+              'bookings',
+              'employees',
+              'expenses',
+              'cash_transactions',
+              'payments',
+              'debts',
+            ];
+            
+            for (final tableName in tablesToCheck) {
+              try {
+                await m.database.customStatement(
+                  'SELECT server_id FROM $tableName LIMIT 1',
+                );
+              } catch (e) {
+                // العمود غير موجود
+                try {
+                  await m.database.customStatement(
+                    'ALTER TABLE $tableName ADD COLUMN server_id INTEGER',
+                  );
+                  developer.log(
+                    'Added serverId column to $tableName table',
+                    name: 'db.migration',
+                  );
+                } catch (e2, st2) {
+                  developer.log(
+                    'Failed to add serverId to $tableName',
+                    error: e2,
+                    stackTrace: st2,
+                    name: 'db.migration',
+                  );
+                }
+              }
+            }
+          }
         },
       );
 

@@ -55,9 +55,9 @@ Future<void> main() async {
     exit(report.success ? 0 : 1);
   } catch (e, stackTrace) {
     debugPrint('\n❌ Migration failed with error:');
-    debugPrint(e);
+    debugPrint(e.toString());
     debugPrint('\nStack trace:');
-    debugPrint(stackTrace);
+    debugPrint(stackTrace.toString());
     exit(1);
   } finally {
     // NOTE: We let the process exit clean up the database connection
