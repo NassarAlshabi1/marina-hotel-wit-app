@@ -56,8 +56,8 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               child: Row(
                 children: [
                   Icon(Icons.delete_forever, size: 20, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('مسح السجلات', style: TextStyle(color: Colors.red)),
+                  const SizedBox(width: 8),
+                  const Text('مسح السجلات', style: TextStyle(color: Colors.red)),
                 ],
               ),
             ),
@@ -66,7 +66,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               child: Row(
                 children: [
                   Icon(Icons.settings, size: 20),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text('إعدادات السجلات'),
                 ],
               ),

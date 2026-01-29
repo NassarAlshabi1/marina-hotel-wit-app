@@ -103,7 +103,7 @@ class _ComprehensiveBackupScreenState
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -173,9 +173,9 @@ class _ComprehensiveBackupScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('نظام النسخ الاحتياطي الشامل'),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text('الإصدار: 2.0'),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text('يوفر نسخ احتياطي آمن ومتعدد الخيارات لبياناتك'),
           ],
         ),
