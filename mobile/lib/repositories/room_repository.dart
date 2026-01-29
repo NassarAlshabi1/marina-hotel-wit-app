@@ -43,7 +43,7 @@ class AppwriteRoomRepository implements RoomRepository {
       );
 
       if (doc == null) return null;
-      return Room.fromAppwriteDocument(doc);
+      return RoomAppwriteExtension.fromAppwriteDocument(doc);
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getById($id)');
 
@@ -64,7 +64,7 @@ class AppwriteRoomRepository implements RoomRepository {
       );
 
       return documents
-          .map((doc) => Room.fromAppwriteDocument(doc))
+          .map((doc) => RoomAppwriteExtension.fromAppwriteDocument(doc))
           .toList();
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getAll');
@@ -80,7 +80,7 @@ class AppwriteRoomRepository implements RoomRepository {
         data: room.toJson(),
       );
 
-      return Room.fromAppwriteDocument(doc);
+      return RoomAppwriteExtension.fromAppwriteDocument(doc);
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'create');
       throw Exception(error.message);
@@ -96,7 +96,7 @@ class AppwriteRoomRepository implements RoomRepository {
         data: room.toJson(),
       );
 
-      return Room.fromAppwriteDocument(doc);
+      return RoomAppwriteExtension.fromAppwriteDocument(doc);
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'update($id)');
       throw Exception(error.message);
@@ -136,7 +136,7 @@ class AppwriteRoomRepository implements RoomRepository {
       );
 
       return documents
-          .map((doc) => Room.fromAppwriteDocument(doc))
+          .map((doc) => RoomAppwriteExtension.fromAppwriteDocument(doc))
           .toList();
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'search($query)');
@@ -158,7 +158,7 @@ class AppwriteRoomRepository implements RoomRepository {
       );
 
       return documents
-          .map((doc) => Room.fromAppwriteDocument(doc))
+          .map((doc) => RoomAppwriteExtension.fromAppwriteDocument(doc))
           .toList();
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getAvailable');
@@ -180,7 +180,7 @@ class AppwriteRoomRepository implements RoomRepository {
       );
 
       return documents
-          .map((doc) => Room.fromAppwriteDocument(doc))
+          .map((doc) => RoomAppwriteExtension.fromAppwriteDocument(doc))
           .toList();
     } catch (e) {
       final error = _errorHandler.handleError(
@@ -206,7 +206,7 @@ class AppwriteRoomRepository implements RoomRepository {
       );
 
       return documents
-          .map((doc) => Room.fromAppwriteDocument(doc))
+          .map((doc) => RoomAppwriteExtension.fromAppwriteDocument(doc))
           .toList();
     } catch (e) {
       final error = _errorHandler.handleError(

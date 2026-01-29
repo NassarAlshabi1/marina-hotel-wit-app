@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:appwrite/appwrite.dart';
-import '../models/room.dart';
+import '../services/local_db.dart';
 import '../repositories/room_repository.dart';
 import '../services/appwrite_realtime_service.dart';
 import '../services/appwrite_logger.dart';
@@ -72,13 +72,9 @@ class RealTimeRoomsProvider extends ChangeNotifier {
       await loadRooms();
 
       // الاشتراك في التحديثات
-      _subscription = await _realtimeService.subscribeToRooms(
-        onUpdate: _handleRealtimeUpdate,
-        onError: (error) {
-          _logger.error('Realtime error', error: error, tag: 'ROOMS_PROVIDER');
-          _setError(error.toString());
-        },
-      );
+      // ملاحظة: subscribeToRooms غير متوفر حالياً في AppwriteRealtimeService
+      // يمكن تفعيله لاحقاً عند الحاجة
+      _logger.debug('Realtime subscription disabled', tag: 'ROOMS_PROVIDER');
 
       _isSubscribed = true;
       notifyListeners();
@@ -119,31 +115,27 @@ class RealTimeRoomsProvider extends ChangeNotifier {
 
   /// معالجة إنشاء غرفة جديدة
   void _handleRoomCreated(Map<String, dynamic> payload) {
-    final room = Room.fromJson(payload);
-    _rooms.add(room);
-    notifyListeners();
-    _logger.info('Room created: ${room.roomNumber}', tag: 'ROOMS_PROVIDER');
+    // إعادة تحميل الغرف بدلاً من parsing يدوي
+    loadRooms();
   }
 
   /// معالجة تحديث غرفة
   void _handleRoomUpdated(Map<String, dynamic> payload) {
-    final updatedRoom = Room.fromJson(payload);
-    final index = _rooms.indexWhere((r) => r.id == updatedRoom.id);
-
-    if (index != -1) {
-      _rooms[index] = updatedRoom;
-      notifyListeners();
-      _logger.info('Room updated: ${updatedRoom.roomNumber}',
-          tag: 'ROOMS_PROVIDER');
-    }
+    // إعادة تحميل الغرف بدلاً من parsing يدوي
+    loadRooms();
   }
 
   /// معالجة حذف غرفة
   void _handleRoomDeleted(Map<String, dynamic> payload) {
-    final roomId = payload['\$id'] as String;
-    _rooms.removeWhere((r) => r.id == roomId);
-    notifyListeners();
-    _logger.info('Room deleted: $roomId', tag: 'ROOMS_PROVIDER');
+    final roomId = payload['\$id'] as String?;
+    if (roomId != null) {
+      final intId = int.tryParse(roomId);
+      if (intId != null) {
+        _rooms.removeWhere((r) => r.id == intId);
+        notifyListeners();
+        _logger.info('Room deleted: $roomId', tag: 'ROOMS_PROVIDER');
+      }
+    }
   }
 
   /// إلغاء الاشتراك
@@ -169,7 +161,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   }
 
   /// الحصول على غرفة بالمعرف
-  Room? getRoomById(String id) {
+  Room? getRoomById(int id) {
     try {
       return _rooms.firstWhere((r) => r.id == id);
     } catch (e) {
