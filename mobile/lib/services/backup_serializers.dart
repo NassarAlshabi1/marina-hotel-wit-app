@@ -48,9 +48,18 @@ class LenientValueSerializer extends ValueSerializer {
       if (json is num) return json.toInt() as T;
       if (json is String) {
         final trimmed = json.trim();
-        if (trimmed.isEmpty) return 0 as T;
+        if (trimmed.isEmpty) {
+          return (_isNullable<T>() ? null : 0) as T;
+        }
+        // إذا كان النص يحتوي على UUID أو قيم غير رقمية، نعيد null أو 0
+        if (trimmed.contains('-') || trimmed.length > 20) {
+          return (_isNullable<T>() ? null : 0) as T;
+        }
         final parsed = int.tryParse(trimmed);
-        return (parsed ?? 0) as T;
+        if (parsed == null) {
+          return (_isNullable<T>() ? null : 0) as T;
+        }
+        return parsed as T;
       }
       if (json is bool) return (json ? 1 : 0) as T;
     }

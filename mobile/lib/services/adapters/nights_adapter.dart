@@ -217,7 +217,10 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
   if (v is int) return v;
   if (v is num) return v.toInt();
-  if (v is String) return int.tryParse(v);
+  if (v is String) {
+    if (v.contains('-') || v.length > 20) return null;
+    return int.tryParse(v);
+  }
   return null;
 }
 
