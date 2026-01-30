@@ -665,17 +665,19 @@ class AppwriteService {
               : '';
       final message = error.toString();
       final notFound = code == 'NOT_FOUND' ||
+          code == 'document_not_found' ||
           message.contains('not_found') ||
           message.contains('document_not_found') ||
           message.contains('404');
+      
       if (!notFound) {
-        // أي خطأ غير 404 يُعاد رميه ليرتفع.
-        // حالات التعارض 409 تُحلّ بالمسار التالي (الإنشاء مع نفس المعرّف سيستبدل).
-      } else {
-        // سيسقط إلى الإنشاء في الأسفل
+        // أي خطأ غير 404 يُعاد رميه
+        rethrow;
       }
+      // إذا كان 404، سيستمر إلى الإنشاء في الأسفل
     }
 
+    // الوثيقة غير موجودة، نحاول إنشاءها
     try {
       return await createDocument(
         collectionId: collectionId,
