@@ -71,7 +71,9 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       serverId: _vInt(json, 'serverId', src),
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId)
-          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+          : (src == Source.local
+              ? _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id')
+              : const d.Value(null)),
       guestName: _vStr(json, 'guestName', src, fallback: ''),
       checkinDate: _vStr(
         json,

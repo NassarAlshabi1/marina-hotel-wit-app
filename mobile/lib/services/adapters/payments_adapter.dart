@@ -77,7 +77,9 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       ),
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId)
-          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+          : (src == Source.local
+              ? _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id')
+              : const d.Value(null)),
       serverBookingId: _vInt(
         json,
         'serverBookingId',
