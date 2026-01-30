@@ -411,7 +411,7 @@ class SchemaComparisonScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: color[900],
+                    color: color,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -529,7 +529,7 @@ class SchemaComparisonScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: fix.color[900],
+                    color: fix.color,
                   ),
                 ),
                 const SizedBox(height: 4),
