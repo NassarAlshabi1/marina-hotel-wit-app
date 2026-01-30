@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart' as sqflite;
+import 'package:path/path.dart' as p;
 import '../../components/app_scaffold.dart';
-import '../../services/sync_service.dart';
+import '../../providers/backup_provider.dart';
+import '../../providers/appwrite_providers.dart';
+import '../../services/sync_orchestrator.dart';
+import '../../services/unified_sync_orchestrator.dart';
+import '../../services/sync_guardian.dart';
+import '../../services/google_drive_auto_sync_engine.dart';
+import '../../services/daos/outbox_dao.dart';
+import '../../services/local_db.dart';
+import '../../services/sqlite_backup_restore.dart';
 
 class SettingsMaintenanceScreen extends ConsumerWidget {
   const SettingsMaintenanceScreen({super.key});
@@ -54,7 +65,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             'حذف الملفات المؤقتة وتحسين الأداء',
             Icons.cleaning_services,
             Colors.blue,
-            () => _showCleanupDialog(context),
+            () => _showCleanupDialog(context, ref),
           ),
 
           _buildMaintenanceCard(
@@ -78,7 +89,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             'إنشاء نسخة احتياطية من جميع البيانات',
             Icons.download,
             Colors.purple,
-            () => _showExportDialog(context),
+            () => _showExportDialog(context, ref),
           ),
 
           _buildMaintenanceCard(
@@ -86,7 +97,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             'استعادة البيانات من نسخة احتياطية',
             Icons.upload,
             Colors.indigo,
-            () => _showImportDialog(context),
+            () => _showImportDialog(context, ref),
           ),
 
           const SizedBox(height: 16),
@@ -213,7 +224,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
     );
   }
 
-  void _showCleanupDialog(BuildContext context) {
+  void _showCleanupDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -237,13 +248,23 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('تم تنظيف البيانات المؤقتة (قيد التطوير)'),
-                ),
-              );
+              _showProgressDialog(context, 'جاري تنظيف البيانات المؤقتة...');
+              try {
+                await ref.read(backupStatusProvider.notifier).cleanupTempFiles();
+                final message =
+                    ref.read(backupStatusProvider).message ?? 'تم تنظيف البيانات المؤقتة';
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(message)),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('خطأ في تنظيف البيانات: $e')),
+                );
+              }
             },
             child: const Text('تنظيف'),
           ),
@@ -276,9 +297,52 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
               _showProgressDialog(context, 'جاري فحص قاعدة البيانات...');
+              try {
+                final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('نتائج الفحص'),
+                    content: SizedBox(
+                      width: double.maxFinite,
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: checks
+                            .map(
+                              (check) => ListTile(
+                                leading: const Icon(Icons.table_chart),
+                                title: Text(check.tableName),
+                                subtitle: Text('${check.recordCount} سجل'),
+                                trailing: Text(
+                                  check.checksum.substring(0, 8),
+                                  style: const TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('إغلاق'),
+                      ),
+                    ],
+                  ),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('خطأ في فحص قاعدة البيانات: $e')),
+                );
+              }
             },
             child: const Text('بدء الفحص'),
           ),
@@ -313,14 +377,23 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
+              _showProgressDialog(context, 'جاري إعادة تعيين المزامنة...');
               try {
-                await ref.read(syncServiceProvider).runSync();
+                await ref.read(appwriteSyncManagerProvider).resetSyncState();
+                await OutboxDao(DatabaseManager.instance).resetErrors();
+                await UnifiedSyncOrchestrator.instance.syncNow(
+                  push: true,
+                  pull: true,
+                  reason: 'maintenance_reset',
+                );
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('تم إعادة تعيين المزامنة بنجاح'),
                   ),
                 );
               } catch (e) {
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('خطأ في إعادة التعيين: $e')),
                 );
@@ -333,7 +406,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
     );
   }
 
-  void _showExportDialog(BuildContext context) {
+  void _showExportDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -357,9 +430,23 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
               _showProgressDialog(context, 'جاري تصدير البيانات...');
+              try {
+                await ref.read(backupStatusProvider.notifier).createComprehensiveBackup();
+                final message = ref.read(backupStatusProvider).message ??
+                    'تم تصدير البيانات بنجاح';
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(message)),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('خطأ في تصدير البيانات: $e')),
+                );
+              }
             },
             child: const Text('تصدير'),
           ),
@@ -368,7 +455,7 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
     );
   }
 
-  void _showImportDialog(BuildContext context) {
+  void _showImportDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -392,13 +479,25 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('اختيار ملف الاستيراد (قيد التطوير)'),
-                ),
-              );
+              _showProgressDialog(context, 'جاري استيراد البيانات...');
+              try {
+                await ref
+                    .read(backupStatusProvider.notifier)
+                    .importAndRestoreBackup(syncToCloud: true);
+                final message = ref.read(backupStatusProvider).message ??
+                    'تم استيراد البيانات بنجاح';
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(message)),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('خطأ في استيراد البيانات: $e')),
+                );
+              }
             },
             child: const Text('اختيار ملف'),
           ),
@@ -431,9 +530,22 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
               _showProgressDialog(context, 'جاري إعادة تشغيل الخدمات...');
+              try {
+                await SyncGuardian.instance.restart();
+                await AutoSyncEngine.instance.restart();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('تم إعادة تشغيل الخدمات بنجاح')),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('خطأ في إعادة تشغيل الخدمات: $e')),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('إعادة التشغيل'),
@@ -493,13 +605,9 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('إعادة تعيين التطبيق (قيد التطوير)'),
-                ),
-              );
+              await _performAppReset(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('تأكيد الإعادة'),
@@ -507,6 +615,32 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _performAppReset(BuildContext context) async {
+    _showProgressDialog(context, 'جاري إعادة تعيين التطبيق...');
+    try {
+      await DatabaseManager.close();
+      final dbPath = p.join(
+        await sqflite.getDatabasesPath(),
+        SqliteBackupRestore.kDefaultDbFileName,
+      );
+      await sqflite.deleteDatabase(dbPath);
+      await DatabaseManager.reopen();
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إعادة تعيين التطبيق بنجاح')),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ في إعادة التعيين: $e')),
+      );
+    }
   }
 
   void _showProgressDialog(BuildContext context, String message) {
@@ -524,13 +658,5 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
         ),
       ),
     );
-
-    // محاكاة عملية
-    Future.delayed(const Duration(seconds: 3), () {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تمت العملية بنجاح')));
-    });
   }
 }

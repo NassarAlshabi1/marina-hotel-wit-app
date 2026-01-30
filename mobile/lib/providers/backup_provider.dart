@@ -176,6 +176,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     this._backupService,
     this._localBackupService,
     this._fileService,
+    this._appwriteSyncManager,
+    this._smartSyncManager,
   ) : super(BackupState()) {
     _initialize();
   }
@@ -183,6 +185,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   final GoogleDriveBackupService _backupService;
   final LocalBackupService _localBackupService;
   final FileManagementService _fileService;
+  final AppwriteSyncManager _appwriteSyncManager;
+  final SmartSyncManager _smartSyncManager;
 
   Future<void> _initialize() async {
     try {
@@ -829,11 +833,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
               progress: 0.8,
             );
             try {
-              final appwriteSyncManager = AppwriteSyncManager(
-                database: DatabaseManager.instance,
-                appwriteService: ref.read(appwriteServiceProvider),
-              );
-              await appwriteSyncManager.pushAllLocalData();
+              await _appwriteSyncManager.pushAllLocalData();
               debugPrint('✅ تم رفع البيانات إلى Appwrite');
             } catch (e) {
               debugPrint('⚠️ فشل رفع البيانات إلى Appwrite: $e');
@@ -847,8 +847,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
               progress: 0.9,
             );
             try {
-              final smartSyncManager = ref.read(smartSyncManagerProvider);
-              await smartSyncManager.pushLocalChanges();
+              await _smartSyncManager.pushLocalChanges();
               debugPrint('✅ تم رفع البيانات إلى Google Drive');
             } catch (e) {
               debugPrint('⚠️ فشل رفع البيانات إلى Google Drive: $e');
@@ -1063,6 +1062,34 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في استيراد النسخة الاحتياطية: ${e.toString()}',
+        progress: null,
+      );
+    }
+  }
+
+  /// استيراد نسخة احتياطية ثم استعادتها مباشرة
+  Future<void> importAndRestoreBackup({bool syncToCloud = true}) async {
+    try {
+      state = state.copyWith(
+        status: BackupStatus.importingFile,
+        message: 'اختيار ملف النسخة الاحتياطية...',
+        progress: 0.0,
+      );
+
+      final importedPath = await _localBackupService.importBackupFromFile();
+
+      state = state.copyWith(
+        status: BackupStatus.restoring,
+        message: 'استعادة البيانات من النسخة المستوردة...',
+        progress: 0.3,
+      );
+
+      await restoreFromLocalBackup(importedPath, syncToCloud: syncToCloud);
+    } catch (e) {
+      debugPrint('❌ خطأ في استيراد واستعادة النسخة: $e');
+      state = state.copyWith(
+        status: BackupStatus.error,
+        message: 'خطأ في الاستيراد والاستعادة: ${e.toString()}',
         progress: null,
       );
     }
@@ -1425,7 +1452,15 @@ final backupStatusProvider =
   final driveService = ref.watch(googleDriveBackupServiceProvider);
   final localService = ref.watch(localBackupServiceProvider);
   final fileService = ref.watch(fileManagementServiceProvider);
-  return BackupStatusNotifier(driveService, localService, fileService);
+  final appwriteSync = ref.watch(appwriteSyncManagerProvider);
+  final smartSync = ref.watch(smartSyncManagerProvider);
+  return BackupStatusNotifier(
+    driveService,
+    localService,
+    fileService,
+    appwriteSync,
+    smartSync,
+  );
 });
 
 // Provider للنسخ المتاحة (Google Drive)
