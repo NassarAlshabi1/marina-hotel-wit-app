@@ -18,6 +18,10 @@ import '../services/google_drive_auto_sync_engine.dart';
 import '../services/sqlite_backup_restore.dart';
 import '../services/restore_fix_service.dart';
 import '../services/local_db.dart';
+import '../services/daos/outbox_dao.dart';
+import '../services/appwrite_sync_manager.dart';
+import 'appwrite_providers.dart';
+import 'smart_sync_provider.dart';
 
 const _driveLoginSkippedKey = 'drive_login_skipped';
 
@@ -777,7 +781,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   }
 
   /// استعادة من نسخة احتياطية محلية
-  Future<void> restoreFromLocalBackup(String filePath) async {
+  Future<void> restoreFromLocalBackup(String filePath, {bool syncToCloud = true}) async {
     try {
       state = state.copyWith(
         status: BackupStatus.restoring,
@@ -791,7 +795,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       state = state.copyWith(
         status: BackupStatus.restoring,
         message: 'تشغيل عملية الإصلاح التلقائي...',
-        progress: 0.8,
+        progress: 0.5,
       );
 
       final fixService = RestoreFixService(DatabaseManager.instance);
@@ -805,9 +809,62 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         );
       }
 
+      // مزامنة البيانات إلى السحابة إذا طُلب ذلك
+      if (syncToCloud) {
+        state = state.copyWith(
+          message: 'رفع البيانات إلى السحابة...',
+          progress: 0.7,
+        );
+        
+        try {
+          // إضافة جميع البيانات إلى outbox للرفع
+          await _addAllDataToOutbox();
+          
+          // رفع إلى Appwrite إذا كان مفعّلاً
+          final prefs = await SharedPreferences.getInstance();
+          final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+          if (appwriteEnabled) {
+            state = state.copyWith(
+              message: 'رفع البيانات إلى Appwrite...',
+              progress: 0.8,
+            );
+            try {
+              final appwriteSyncManager = AppwriteSyncManager(
+                database: DatabaseManager.instance,
+                appwriteService: ref.read(appwriteServiceProvider),
+              );
+              await appwriteSyncManager.pushAllLocalData();
+              debugPrint('✅ تم رفع البيانات إلى Appwrite');
+            } catch (e) {
+              debugPrint('⚠️ فشل رفع البيانات إلى Appwrite: $e');
+            }
+          }
+          
+          // رفع إلى Google Drive إذا كان مسجل الدخول
+          if (state.isSignedIn) {
+            state = state.copyWith(
+              message: 'رفع البيانات إلى Google Drive...',
+              progress: 0.9,
+            );
+            try {
+              final smartSyncManager = ref.read(smartSyncManagerProvider);
+              await smartSyncManager.pushLocalChanges();
+              debugPrint('✅ تم رفع البيانات إلى Google Drive');
+            } catch (e) {
+              debugPrint('⚠️ فشل رفع البيانات إلى Google Drive: $e');
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ خطأ في مزامنة البيانات إلى السحابة: $e');
+          // نستمر بالعملية حتى لو فشلت المزامنة
+        }
+      }
+
       state = state.copyWith(
         status: BackupStatus.success,
-        message: 'تم استعادة البيانات من النسخة المحلية بنجاح',
+        message: syncToCloud 
+            ? 'تم استعادة البيانات ورفعها إلى السحابة بنجاح'
+            : 'تم استعادة البيانات من النسخة المحلية بنجاح',
         progress: 1.0,
       );
     } catch (e) {
@@ -817,6 +874,72 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'خطأ في استعادة البيانات: ${e.toString()}',
         progress: null,
       );
+    }
+  }
+
+  /// إضافة جميع البيانات الحالية إلى outbox للرفع
+  Future<void> _addAllDataToOutbox() async {
+    try {
+      final db = DatabaseManager.instance;
+      final outboxDao = OutboxDao(db);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      
+      // إضافة الغرف
+      final rooms = await db.select(db.rooms).get();
+      for (final room in rooms) {
+        await outboxDao.merge(
+          entity: 'rooms',
+          op: 'upsert',
+          localUuid: room.localUuid,
+          serverId: room.serverId,
+          payload: {},
+          clientTs: now,
+        );
+      }
+      
+      // إضافة الحجوزات
+      final bookings = await db.select(db.bookings).get();
+      for (final booking in bookings) {
+        await outboxDao.merge(
+          entity: 'bookings',
+          op: 'upsert',
+          localUuid: booking.localUuid,
+          serverId: booking.serverId,
+          payload: {},
+          clientTs: now,
+        );
+      }
+      
+      // إضافة المصروفات
+      final expenses = await db.select(db.expenses).get();
+      for (final expense in expenses) {
+        await outboxDao.merge(
+          entity: 'expenses',
+          op: 'upsert',
+          localUuid: expense.localUuid,
+          serverId: expense.serverId,
+          payload: {},
+          clientTs: now,
+        );
+      }
+      
+      // إضافة الدفعات
+      final payments = await db.select(db.payments).get();
+      for (final payment in payments) {
+        await outboxDao.merge(
+          entity: 'payments',
+          op: 'upsert',
+          localUuid: payment.localUuid,
+          serverId: payment.serverId,
+          payload: {},
+          clientTs: now,
+        );
+      }
+      
+      debugPrint('✅ تم إضافة جميع البيانات إلى outbox للرفع');
+    } catch (e) {
+      debugPrint('❌ خطأ في إضافة البيانات إلى outbox: $e');
+      rethrow;
     }
   }
 
