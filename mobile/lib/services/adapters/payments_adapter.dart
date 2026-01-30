@@ -39,6 +39,13 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       serverId: serverBookingId,
       uuid: bookingUuid,
     );
+    
+    // تحذير إذا كان لدينا booking_local_id لكن لم نتمكن من حل المرجع
+    if (resolvedId == null && localId != null) {
+      // تسجيل تحذير فقط، سيتم معالجة الخطأ في _syncPayments
+      print('[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId');
+    }
+    
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(

@@ -838,25 +838,68 @@ class AppwriteSyncManager {
   Future<int> _syncPayments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    final deferred = <models.Document>[];
+    
+    // المرحلة الأولى: معالجة الدفعات
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+        
         await _adapterRegistry.payments.upsertFromJson(
           data,
           src: Source.appwrite,
         );
         processed++;
       } catch (e) {
-        _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
+        // تأجيل الدفعة إذا كان الخطأ FOREIGN KEY constraint
+        if (e.toString().contains('FOREIGN KEY constraint failed') ||
+            e.toString().contains('constraint failed')) {
+          _logger.debug(
+            'Deferring payment ${doc.$id}: FOREIGN KEY constraint (missing booking)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+        } else {
+          _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
+        }
       }
     }
+    
+    // المرحلة الثانية: إعادة محاولة الدفعات المؤجلة
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        'Retrying ${deferred.length} deferred payments after all bookings synced',
+        tag: 'SYNC',
+      );
+      
+      for (final doc in deferred) {
+        try {
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          await _adapterRegistry.payments.upsertFromJson(
+            data,
+            src: Source.appwrite,
+          );
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            'Failed to sync deferred payment ${doc.$id} after retry: $e',
+            tag: 'SYNC',
+          );
+        }
+      }
+    }
+    
     return processed;
   }
 
   Future<int> _syncDebts(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    final deferred = <models.Document>[];
+    
+    // المرحلة الأولى: معالجة الديون
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -864,9 +907,42 @@ class AppwriteSyncManager {
         await _adapterRegistry.debts.upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
-        _logger.warning('Failed to sync debt ${doc.$id}: $e', tag: 'SYNC');
+        // تأجيل الدين إذا كان الخطأ FOREIGN KEY constraint
+        if (e.toString().contains('FOREIGN KEY constraint failed') ||
+            e.toString().contains('constraint failed')) {
+          _logger.debug(
+            'Deferring debt ${doc.$id}: FOREIGN KEY constraint (missing booking)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+        } else {
+          _logger.warning('Failed to sync debt ${doc.$id}: $e', tag: 'SYNC');
+        }
       }
     }
+    
+    // المرحلة الثانية: إعادة محاولة الديون المؤجلة
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        'Retrying ${deferred.length} deferred debts after all bookings synced',
+        tag: 'SYNC',
+      );
+      
+      for (final doc in deferred) {
+        try {
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          await _adapterRegistry.debts.upsertFromJson(data, src: Source.appwrite);
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            'Failed to sync deferred debt ${doc.$id} after retry: $e',
+            tag: 'SYNC',
+          );
+        }
+      }
+    }
+    
     return processed;
   }
 
