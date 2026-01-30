@@ -1149,20 +1149,24 @@ class AppwriteSyncManager {
     const batchSize = 200;
     int processed = 0;
 
-    while (true) {
-      final entries = await outboxDao.takeBatch(batchSize);
-      if (entries.isEmpty) {
-        return processed;
-      }
+    for (final entity in SyncConstants.allTablesInOrder) {
+      while (true) {
+        final entries = await outboxDao.takeBatchByEntity(entity, batchSize);
+        if (entries.isEmpty) {
+          break;
+        }
 
-      for (final entry in entries) {
-        final success = await _processOutboxEntry(entry);
-        if (success) {
-          await outboxDao.removeById(entry.id);
-          processed++;
+        for (final entry in entries) {
+          final success = await _processOutboxEntry(entry);
+          if (success) {
+            await outboxDao.removeById(entry.id);
+            processed++;
+          }
         }
       }
     }
+
+    return processed;
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {

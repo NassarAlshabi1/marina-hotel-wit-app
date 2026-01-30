@@ -3,6 +3,7 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
+import '../validation/validation.dart';
 
 part 'debts_dao.g.dart';
 
@@ -71,6 +72,11 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
         version: const Value(1),
         origin: Value(originIsServer ? 'server' : 'local'),
       );
+
+      if (!originIsServer) {
+        _validateDebtData(companion);
+      }
+
       final id = await into(debts).insert(companion);
       if (!originIsServer) {
         await outboxDao.merge(
@@ -102,6 +108,11 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
         updatedAt: Value(now),
         lastModified: Value(now),
       );
+
+      if (!originIsServer) {
+        _validateDebtData(companion, isUpdate: true);
+      }
+
       final rows = await (update(
         debts,
       )..where((t) => t.id.equals(id)))
@@ -219,6 +230,16 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     final query = selectOnly(debts)..addColumns([debts.id.count()]);
     final result = await query.getSingle();
     return result.read(debts.id.count()) ?? 0;
+  }
+
+  void _validateDebtData(DebtsCompanion data, {bool isUpdate = false}) {
+    final map = <String, dynamic>{};
+    if (data.guestName.present) map['guestName'] = data.guestName.value;
+    if (data.totalAmount.present) map['totalAmount'] = data.totalAmount.value;
+    if (data.paidAmount.present) map['paidAmount'] = data.paidAmount.value;
+    if (data.paymentDate.present) map['paymentDate'] = data.paymentDate.value;
+
+    EntityValidators.validateDebt(map, isUpdate: isUpdate);
   }
 
   Future<void> clearAllData() async {

@@ -6,6 +6,7 @@ import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
+import '../validation/validation.dart';
 
 part 'payments_dao.g.dart';
 
@@ -114,6 +115,11 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
             ? Value(data.serverPaymentId.value)
             : const Value.absent(),
       );
+
+      if (!originIsServer) {
+        _validatePaymentData(comp);
+      }
+
       final id = await into(payments).insert(comp);
       if (!originIsServer) {
         await _mergeOutbox(
@@ -140,6 +146,11 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
       );
+
+      if (!originIsServer) {
+        _validatePaymentData(comp, isUpdate: true);
+      }
+
       final rows = await (update(
         payments,
       )..where((t) => t.id.equals(id)))
@@ -266,6 +277,16 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await delete(payments).go();
+  }
+
+  void _validatePaymentData(PaymentsCompanion data, {bool isUpdate = false}) {
+    final map = <String, dynamic>{};
+    if (data.amount.present) map['amount'] = data.amount.value;
+    if (data.paymentDate.present) map['paymentDate'] = data.paymentDate.value;
+    if (data.paymentMethod.present) map['paymentMethod'] = data.paymentMethod.value;
+    if (data.revenueType.present) map['revenueType'] = data.revenueType.value;
+
+    EntityValidators.validatePayment(map, isUpdate: isUpdate);
   }
 
   @override

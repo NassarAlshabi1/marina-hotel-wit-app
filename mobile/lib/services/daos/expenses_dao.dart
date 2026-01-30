@@ -6,6 +6,7 @@ import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
+import '../validation/validation.dart';
 
 part 'expenses_dao.g.dart';
 
@@ -101,6 +102,11 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
       );
+
+      if (!originIsServer) {
+        _validateExpenseData(comp);
+      }
+
       final id = await into(expenses).insert(comp);
       if (!originIsServer) {
         await _mergeOutbox(
@@ -128,6 +134,11 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
         lastModified: Value(now),
         version: Value(existing.version + 1),
       );
+
+      if (!originIsServer) {
+        _validateExpenseData(comp, isUpdate: true);
+      }
+
       final rows = await (update(
         expenses,
       )..where((t) => t.id.equals(id)))
@@ -322,6 +333,16 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await delete(expenses).go();
+  }
+
+  void _validateExpenseData(ExpensesCompanion data, {bool isUpdate = false}) {
+    final map = <String, dynamic>{};
+    if (data.amount.present) map['amount'] = data.amount.value;
+    if (data.date.present) map['date'] = data.date.value;
+    if (data.expenseType.present) map['expenseType'] = data.expenseType.value;
+    if (data.description.present) map['description'] = data.description.value;
+
+    EntityValidators.validateExpense(map, isUpdate: isUpdate);
   }
 
   @override

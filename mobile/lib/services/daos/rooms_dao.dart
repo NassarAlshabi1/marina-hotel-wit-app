@@ -4,6 +4,7 @@ import '../../utils/time.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
+import '../validation/validation.dart';
 
 part 'rooms_dao.g.dart';
 
@@ -66,6 +67,11 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
       );
+
+      if (!originIsServer) {
+        _validateRoomData(comp);
+      }
+
       await into(rooms).insert(comp);
       if (!originIsServer) {
         await outboxDao.merge(
@@ -94,6 +100,11 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
       );
+
+      if (!originIsServer) {
+        _validateRoomData(comp, isUpdate: true);
+      }
+
       final rows = await (update(
         rooms,
       )..where((t) => t.id.equals(id)))
@@ -234,6 +245,15 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await delete(rooms).go();
+  }
+
+  void _validateRoomData(RoomsCompanion data, {bool isUpdate = false}) {
+    final map = <String, dynamic>{};
+    if (data.roomNumber.present) map['roomNumber'] = data.roomNumber.value;
+    if (data.type.present) map['type'] = data.type.value;
+    if (data.price.present) map['price'] = data.price.value;
+
+    EntityValidators.validateRoom(map, isUpdate: isUpdate);
   }
 
   @override

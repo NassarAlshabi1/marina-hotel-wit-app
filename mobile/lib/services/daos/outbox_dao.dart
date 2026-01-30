@@ -153,6 +153,42 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     });
   }
 
+  Future<List<OutboxData>> takeBatchByEntity(
+    String entity,
+    int limit, {
+    String? workerId,
+  }) async {
+    final worker = workerId ?? const Uuid().v4();
+
+    return transaction(() async {
+      final entries = await (select(outbox)
+            ..where(
+              (t) =>
+                  t.processingStatus.equals('pending') &
+                  t.entity.equals(entity),
+            )
+            ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
+            ..limit(limit))
+          .get();
+
+      if (entries.isEmpty) {
+        return [];
+      }
+
+      final ids = entries.map((e) => e.id).toList();
+
+      await (update(outbox)..where((t) => t.id.isIn(ids))).write(
+        OutboxCompanion(
+          processingStatus: const Value('processing'),
+          processingStartedAt: Value(DateTime.now().millisecondsSinceEpoch),
+          processingWorker: Value(worker),
+        ),
+      );
+
+      return entries;
+    });
+  }
+
   Future<void> removeById(int id) =>
       (delete(outbox)..where((t) => t.id.equals(id))).go();
 
@@ -196,6 +232,39 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         processingStartedAt: Value(null),
         processingWorker: Value(null),
         attempts: Value(0),
+      ),
+    );
+  }
+
+  Future<List<OutboxData>> getFailedEntries({int? maxAttempts}) async {
+    final query = select(outbox)
+      ..where((t) => t.processingStatus.equals('failed'));
+    
+    if (maxAttempts != null) {
+      query.where((t) => t.attempts.isSmallerThanValue(maxAttempts));
+    }
+    
+    query.orderBy([
+      (t) => OrderingTerm(expression: t.entity),
+      (t) => OrderingTerm(expression: t.clientTs),
+    ]);
+    
+    return query.get();
+  }
+
+  Future<void> retryFailedByEntity(String entity) async {
+    await (update(outbox)
+          ..where(
+            (t) =>
+                t.processingStatus.equals('failed') & t.entity.equals(entity),
+          ))
+        .write(
+      const OutboxCompanion(
+        processingStatus: Value('pending'),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+        attempts: Value(0),
+        lastError: Value.absent(),
       ),
     );
   }

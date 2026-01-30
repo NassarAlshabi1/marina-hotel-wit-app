@@ -6,6 +6,7 @@ import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
+import '../validation/validation.dart';
 
 part 'bookings_dao.g.dart';
 
@@ -90,6 +91,11 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
       );
+
+      if (!originIsServer) {
+        _validateBookingData(comp);
+      }
+
       final id = await into(bookings).insert(comp);
       if (!originIsServer) {
         await _mergeOutbox(
@@ -116,6 +122,11 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
       );
+
+      if (!originIsServer) {
+        _validateBookingData(comp, isUpdate: true);
+      }
+
       final rows = await (update(
         bookings,
       )..where((t) => t.id.equals(id)))
@@ -281,6 +292,18 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await delete(bookings).go();
+  }
+
+  void _validateBookingData(BookingsCompanion data, {bool isUpdate = false}) {
+    final map = <String, dynamic>{};
+    if (data.guestName.present) map['guestName'] = data.guestName.value;
+    if (data.guestPhone.present) map['guestPhone'] = data.guestPhone.value;
+    if (data.roomNumber.present) map['roomNumber'] = data.roomNumber.value;
+    if (data.checkinDate.present) map['checkinDate'] = data.checkinDate.value;
+    if (data.checkoutDate.present) map['checkoutDate'] = data.checkoutDate.value;
+    if (data.status.present) map['status'] = data.status.value;
+
+    EntityValidators.validateBooking(map, isUpdate: isUpdate);
   }
 
   @override

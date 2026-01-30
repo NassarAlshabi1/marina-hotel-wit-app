@@ -5,6 +5,7 @@ import '../local_db.dart';
 import 'outbox_dao.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
+import '../validation/validation.dart';
 
 part 'employees_dao.g.dart';
 
@@ -68,6 +69,11 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
       );
+
+      if (!originIsServer) {
+        _validateEmployeeData(comp);
+      }
+
       final id = await into(employees).insert(comp);
       if (!originIsServer) {
         await _mergeOutbox(
@@ -95,6 +101,11 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
         lastModified: Value(now),
         version: Value(existing.version + 1),
       );
+
+      if (!originIsServer) {
+        _validateEmployeeData(comp, isUpdate: true);
+      }
+
       final rows = await (update(
         employees,
       )..where((t) => t.id.equals(id)))
@@ -293,6 +304,15 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     final query = selectOnly(employees)..addColumns([employees.id.count()]);
     final result = await query.getSingle();
     return result.read(employees.id.count()) ?? 0;
+  }
+
+  void _validateEmployeeData(EmployeesCompanion data, {bool isUpdate = false}) {
+    final map = <String, dynamic>{};
+    if (data.name.present) map['name'] = data.name.value;
+    if (data.basicSalary.present) map['basicSalary'] = data.basicSalary.value;
+    if (data.hireDate.present) map['hireDate'] = data.hireDate.value;
+
+    EntityValidators.validateEmployee(map, isUpdate: isUpdate);
   }
 
   /// مسح جميع البيانات
