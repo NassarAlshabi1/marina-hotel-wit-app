@@ -130,7 +130,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: 'Google Drive + التخزين المحلي',
             icon: Icons.backup,
             color: Colors.indigo,
-            onTap: () => _showBackupDialog(context),
+            onTap: () {
+              // TODO: Implement backup dialog
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('النسخ الاحتياطي قيد التطوير')),
+              );
+            },
           ),
           _SettingsItem(
             title: 'مركز النسخ والمزامنة',
@@ -152,7 +157,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const SyncPerformanceSettingsScreen(),
+                builder: (context) => SyncPerformanceSettingsScreen(),
               ),
             ),
           ),
@@ -188,7 +193,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const SyncDebugLogsScreen(),
+                builder: (context) => SyncDebugLogsScreen(),
               ),
             ),
           ),
@@ -359,7 +364,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         subtitle: 'إنشاء نسخة شاملة',
         icon: Icons.backup,
         color: Colors.indigo,
-        onTap: () => _showBackupDialog(context),
+        onTap: () {
+          // TODO: Implement backup dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('النسخ الاحتياطي قيد التطوير')),
+          );
+        },
       ),
       _QuickAction(
         title: 'إعدادات Appwrite',
@@ -381,7 +391,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => const SyncDebugLogsScreen(),
+            builder: (context) => SyncDebugLogsScreen(),
           ),
         ),
       ),
