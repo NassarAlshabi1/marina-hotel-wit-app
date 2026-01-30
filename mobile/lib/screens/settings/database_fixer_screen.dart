@@ -401,3 +401,4 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
     );
   }
 }
+

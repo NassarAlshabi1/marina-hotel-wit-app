@@ -251,8 +251,7 @@ class DatabaseFixer {
 
       report.orphanExpenses = orphanExpensesResult.data['count'] as int;
 
-      report.hasIssues =
-          report.invalidServerIds > 0 ||
+      report.hasIssues = report.invalidServerIds > 0 ||
           report.orphanPayments > 0 ||
           report.orphanExpenses > 0;
     } catch (e) {
@@ -314,3 +313,4 @@ class ValidationReport {
     ''';
   }
 }
+
