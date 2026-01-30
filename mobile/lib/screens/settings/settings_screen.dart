@@ -17,6 +17,8 @@ import '../security/blacklist_screen.dart';
 import 'server_id_fixer_screen.dart';
 import 'database_fixer_screen.dart';
 import 'schema_comparison_screen.dart';
+import 'sync_debug_logs_screen.dart';
+import 'sync_performance_settings_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
