@@ -38,16 +38,16 @@ class DatabaseFixer {
     try {
       // إصلاح serverId في جدول Rooms
       final roomsQuery = await db.customSelect(
-        'SELECT id, serverId FROM rooms WHERE serverId IS NOT NULL',
+        'SELECT id, server_id FROM rooms WHERE server_id IS NOT NULL',
       ).get();
 
       for (final row in roomsQuery) {
-        final serverId = row.data['serverId'];
+        final serverId = row.data['server_id'];
         if (serverId != null && serverId is String) {
           // إذا كان serverId يحتوي على UUID (يحتوي على -)
           if (serverId.contains('-')) {
             await db.customUpdate(
-              'UPDATE rooms SET serverId = NULL WHERE id = ?',
+              'UPDATE rooms SET server_id = NULL WHERE id = ?',
               variables: [Variable.withInt(row.data['id'] as int)],
               updates: {db.rooms},
             );
@@ -58,15 +58,15 @@ class DatabaseFixer {
 
       // إصلاح serverId في جدول Payments
       final paymentsQuery = await db.customSelect(
-        'SELECT id, serverId FROM payments WHERE serverId IS NOT NULL',
+        'SELECT id, server_id FROM payments WHERE server_id IS NOT NULL',
       ).get();
 
       for (final row in paymentsQuery) {
-        final serverId = row.data['serverId'];
+        final serverId = row.data['server_id'];
         if (serverId != null && serverId is String) {
           if (serverId.contains('-')) {
             await db.customUpdate(
-              'UPDATE payments SET serverId = NULL WHERE id = ?',
+              'UPDATE payments SET server_id = NULL WHERE id = ?',
               variables: [Variable.withInt(row.data['id'] as int)],
               updates: {db.payments},
             );
@@ -77,15 +77,15 @@ class DatabaseFixer {
 
       // إصلاح serverId في جدول Expenses
       final expensesQuery = await db.customSelect(
-        'SELECT id, serverId FROM expenses WHERE serverId IS NOT NULL',
+        'SELECT id, server_id FROM expenses WHERE server_id IS NOT NULL',
       ).get();
 
       for (final row in expensesQuery) {
-        final serverId = row.data['serverId'];
+        final serverId = row.data['server_id'];
         if (serverId != null && serverId is String) {
           if (serverId.contains('-')) {
             await db.customUpdate(
-              'UPDATE expenses SET serverId = NULL WHERE id = ?',
+              'UPDATE expenses SET server_id = NULL WHERE id = ?',
               variables: [Variable.withInt(row.data['id'] as int)],
               updates: {db.expenses},
             );
@@ -206,15 +206,15 @@ class DatabaseFixer {
         '''
         SELECT 'rooms' as table_name, COUNT(*) as count 
         FROM rooms 
-        WHERE serverId IS NOT NULL AND typeof(serverId) = 'text' AND serverId LIKE '%-%'
+        WHERE server_id IS NOT NULL AND typeof(server_id) = 'text' AND server_id LIKE '%-%'
         UNION ALL
         SELECT 'payments', COUNT(*) 
         FROM payments 
-        WHERE serverId IS NOT NULL AND typeof(serverId) = 'text' AND serverId LIKE '%-%'
+        WHERE server_id IS NOT NULL AND typeof(server_id) = 'text' AND server_id LIKE '%-%'
         UNION ALL
         SELECT 'expenses', COUNT(*) 
         FROM expenses 
-        WHERE serverId IS NOT NULL AND typeof(serverId) = 'text' AND serverId LIKE '%-%'
+        WHERE server_id IS NOT NULL AND typeof(server_id) = 'text' AND server_id LIKE '%-%'
         ''',
       ).get();
 
