@@ -18,6 +18,7 @@ import 'error_center_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import '../security/blacklist_screen.dart';
 import 'server_id_fixer_screen.dart';
+import 'database_fixer_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});

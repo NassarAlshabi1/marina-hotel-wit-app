@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/expenses_dao.dart';
@@ -141,7 +142,7 @@ class ExpensesRepository {
       }
       return total;
     } catch (e) {
-      print('Error calculating total expenses: $e');
+      debugPrint('Error calculating total expenses: $e');
       return 0.0;
     }
   }

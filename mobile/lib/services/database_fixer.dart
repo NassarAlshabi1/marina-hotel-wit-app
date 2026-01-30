@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'local_db.dart';
 
 /// خدمة لإصلاح البيانات الفاسدة في قاعدة البيانات
@@ -38,7 +39,6 @@ class DatabaseFixer {
       // إصلاح serverId في جدول Rooms
       final roomsQuery = await db.customSelect(
         'SELECT id, serverId FROM rooms WHERE serverId IS NOT NULL',
-        reusable: false,
       ).get();
 
       for (final row in roomsQuery) {
@@ -59,7 +59,6 @@ class DatabaseFixer {
       // إصلاح serverId في جدول Payments
       final paymentsQuery = await db.customSelect(
         'SELECT id, serverId FROM payments WHERE serverId IS NOT NULL',
-        reusable: false,
       ).get();
 
       for (final row in paymentsQuery) {
@@ -79,7 +78,6 @@ class DatabaseFixer {
       // إصلاح serverId في جدول Expenses
       final expensesQuery = await db.customSelect(
         'SELECT id, serverId FROM expenses WHERE serverId IS NOT NULL',
-        reusable: false,
       ).get();
 
       for (final row in expensesQuery) {
@@ -96,9 +94,9 @@ class DatabaseFixer {
         }
       }
 
-      print('Fixed $fixed invalid serverId records');
+      debugPrint('Fixed $fixed invalid serverId records');
     } catch (e) {
-      print('Error fixing serverId: $e');
+      debugPrint('Error fixing serverId: $e');
     }
 
     return fixed;
@@ -119,7 +117,6 @@ class DatabaseFixer {
           AND b.id IS NULL
           AND p.deleted_at IS NULL
         ''',
-        reusable: false,
       ).get();
 
       for (final payment in orphanPayments) {
@@ -131,12 +128,12 @@ class DatabaseFixer {
           updates: {db.payments},
         );
         fixed++;
-        print('Fixed orphan payment: $paymentId');
+        debugPrint('Fixed orphan payment: $paymentId');
       }
 
-      print('Fixed $fixed orphan payments');
+      debugPrint('Fixed $fixed orphan payments');
     } catch (e) {
-      print('Error fixing orphan payments: $e');
+      debugPrint('Error fixing orphan payments: $e');
     }
 
     return fixed;
@@ -155,7 +152,6 @@ class DatabaseFixer {
         WHERE e.related_id IS NOT NULL 
           AND e.deleted_at IS NULL
         ''',
-        reusable: false,
       ).get();
 
       for (final expense in orphanExpenses) {
@@ -188,13 +184,13 @@ class DatabaseFixer {
             updates: {db.expenses},
           );
           fixed++;
-          print('Fixed orphan expense: $expenseId');
+          debugPrint('Fixed orphan expense: $expenseId');
         }
       }
 
-      print('Fixed $fixed orphan expenses');
+      debugPrint('Fixed $fixed orphan expenses');
     } catch (e) {
-      print('Error fixing orphan expenses: $e');
+      debugPrint('Error fixing orphan expenses: $e');
     }
 
     return fixed;
@@ -220,7 +216,6 @@ class DatabaseFixer {
         FROM expenses 
         WHERE serverId IS NOT NULL AND typeof(serverId) = 'text' AND serverId LIKE '%-%'
         ''',
-        reusable: false,
       ).get();
 
       int totalInvalidServerIds = 0;
@@ -240,7 +235,6 @@ class DatabaseFixer {
           AND b.id IS NULL
           AND p.deleted_at IS NULL
         ''',
-        reusable: false,
       ).getSingle();
 
       report.orphanPayments = orphanPaymentsResult.data['count'] as int;
@@ -253,7 +247,6 @@ class DatabaseFixer {
         WHERE e.related_id IS NOT NULL 
           AND e.deleted_at IS NULL
         ''',
-        reusable: false,
       ).getSingle();
 
       report.orphanExpenses = orphanExpensesResult.data['count'] as int;

@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
@@ -229,7 +230,7 @@ class PaymentsRepository {
       }
       return total;
     } catch (e) {
-      print('Error calculating total payments: $e');
+      debugPrint('Error calculating total payments: $e');
       return 0.0;
     }
   }
