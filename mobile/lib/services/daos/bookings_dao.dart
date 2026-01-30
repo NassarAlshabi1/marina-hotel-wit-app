@@ -124,7 +124,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       );
 
       if (!originIsServer) {
-        _validateBookingData(comp, isUpdate: true);
+        _validateBookingData(comp);
       }
 
       final rows = await (update(
@@ -294,16 +294,11 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     await delete(bookings).go();
   }
 
-  void _validateBookingData(BookingsCompanion data, {bool isUpdate = false}) {
-    final map = <String, dynamic>{};
-    if (data.guestName.present) map['guestName'] = data.guestName.value;
-    if (data.guestPhone.present) map['guestPhone'] = data.guestPhone.value;
-    if (data.roomNumber.present) map['roomNumber'] = data.roomNumber.value;
-    if (data.checkinDate.present) map['checkinDate'] = data.checkinDate.value;
-    if (data.checkoutDate.present) map['checkoutDate'] = data.checkoutDate.value;
-    if (data.status.present) map['status'] = data.status.value;
-
-    EntityValidators.validateBooking(map, isUpdate: isUpdate);
+  void _validateBookingData(BookingsCompanion data) {
+    final errors = EntityValidators.validateBooking(data);
+    if (errors.isNotEmpty) {
+      throw ValidationException(errors);
+    }
   }
 
   @override

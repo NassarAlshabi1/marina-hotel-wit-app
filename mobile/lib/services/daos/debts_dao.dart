@@ -110,7 +110,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
       );
 
       if (!originIsServer) {
-        _validateDebtData(companion, isUpdate: true);
+        _validateDebtData(companion);
       }
 
       final rows = await (update(
@@ -232,14 +232,11 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return result.read(debts.id.count()) ?? 0;
   }
 
-  void _validateDebtData(DebtsCompanion data, {bool isUpdate = false}) {
-    final map = <String, dynamic>{};
-    if (data.guestName.present) map['guestName'] = data.guestName.value;
-    if (data.totalAmount.present) map['totalAmount'] = data.totalAmount.value;
-    if (data.paidAmount.present) map['paidAmount'] = data.paidAmount.value;
-    if (data.paymentDate.present) map['paymentDate'] = data.paymentDate.value;
-
-    EntityValidators.validateDebt(map, isUpdate: isUpdate);
+  void _validateDebtData(DebtsCompanion data) {
+    final errors = EntityValidators.validateDebt(data);
+    if (errors.isNotEmpty) {
+      throw ValidationException(errors);
+    }
   }
 
   Future<void> clearAllData() async {

@@ -148,7 +148,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       );
 
       if (!originIsServer) {
-        _validatePaymentData(comp, isUpdate: true);
+        _validatePaymentData(comp);
       }
 
       final rows = await (update(
@@ -279,14 +279,11 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     await delete(payments).go();
   }
 
-  void _validatePaymentData(PaymentsCompanion data, {bool isUpdate = false}) {
-    final map = <String, dynamic>{};
-    if (data.amount.present) map['amount'] = data.amount.value;
-    if (data.paymentDate.present) map['paymentDate'] = data.paymentDate.value;
-    if (data.paymentMethod.present) map['paymentMethod'] = data.paymentMethod.value;
-    if (data.revenueType.present) map['revenueType'] = data.revenueType.value;
-
-    EntityValidators.validatePayment(map, isUpdate: isUpdate);
+  void _validatePaymentData(PaymentsCompanion data) {
+    final errors = EntityValidators.validatePayment(data);
+    if (errors.isNotEmpty) {
+      throw ValidationException(errors);
+    }
   }
 
   @override

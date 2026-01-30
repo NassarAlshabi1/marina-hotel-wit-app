@@ -136,7 +136,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       );
 
       if (!originIsServer) {
-        _validateExpenseData(comp, isUpdate: true);
+        _validateExpenseData(comp);
       }
 
       final rows = await (update(
@@ -335,14 +335,11 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     await delete(expenses).go();
   }
 
-  void _validateExpenseData(ExpensesCompanion data, {bool isUpdate = false}) {
-    final map = <String, dynamic>{};
-    if (data.amount.present) map['amount'] = data.amount.value;
-    if (data.date.present) map['date'] = data.date.value;
-    if (data.expenseType.present) map['expenseType'] = data.expenseType.value;
-    if (data.description.present) map['description'] = data.description.value;
-
-    EntityValidators.validateExpense(map, isUpdate: isUpdate);
+  void _validateExpenseData(ExpensesCompanion data) {
+    final errors = EntityValidators.validateExpense(data);
+    if (errors.isNotEmpty) {
+      throw ValidationException(errors);
+    }
   }
 
   @override

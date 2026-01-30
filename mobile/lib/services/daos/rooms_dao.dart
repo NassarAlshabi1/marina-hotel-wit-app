@@ -102,7 +102,7 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
       );
 
       if (!originIsServer) {
-        _validateRoomData(comp, isUpdate: true);
+        _validateRoomData(comp);
       }
 
       final rows = await (update(
@@ -247,13 +247,11 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
     await delete(rooms).go();
   }
 
-  void _validateRoomData(RoomsCompanion data, {bool isUpdate = false}) {
-    final map = <String, dynamic>{};
-    if (data.roomNumber.present) map['roomNumber'] = data.roomNumber.value;
-    if (data.type.present) map['type'] = data.type.value;
-    if (data.price.present) map['price'] = data.price.value;
-
-    EntityValidators.validateRoom(map, isUpdate: isUpdate);
+  void _validateRoomData(RoomsCompanion data) {
+    final errors = EntityValidators.validateRoom(data);
+    if (errors.isNotEmpty) {
+      throw ValidationException(errors);
+    }
   }
 
   @override

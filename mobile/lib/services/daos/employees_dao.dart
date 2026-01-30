@@ -103,7 +103,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       );
 
       if (!originIsServer) {
-        _validateEmployeeData(comp, isUpdate: true);
+        _validateEmployeeData(comp);
       }
 
       final rows = await (update(
@@ -306,13 +306,11 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     return result.read(employees.id.count()) ?? 0;
   }
 
-  void _validateEmployeeData(EmployeesCompanion data, {bool isUpdate = false}) {
-    final map = <String, dynamic>{};
-    if (data.name.present) map['name'] = data.name.value;
-    if (data.basicSalary.present) map['basicSalary'] = data.basicSalary.value;
-    if (data.hireDate.present) map['hireDate'] = data.hireDate.value;
-
-    EntityValidators.validateEmployee(map, isUpdate: isUpdate);
+  void _validateEmployeeData(EmployeesCompanion data) {
+    final errors = EntityValidators.validateEmployee(data);
+    if (errors.isNotEmpty) {
+      throw ValidationException(errors);
+    }
   }
 
   /// مسح جميع البيانات
