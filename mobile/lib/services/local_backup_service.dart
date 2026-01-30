@@ -474,14 +474,16 @@ class LocalBackupService {
     // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
     await db.customStatement('PRAGMA foreign_keys = OFF');
     try {
-      // حذف جميع الجداول
-      await db.delete(db.rooms).go();
-      await db.delete(db.bookings).go();
-      await db.delete(db.bookingNotes).go();
+      // حذف جميع الجداول بالترتيب الصحيح (من الأطفال إلى الآباء)
+      // لتجنب FOREIGN KEY constraint errors
+      await db.delete(db.payments).go();  // يعتمد على bookings
+      await db.delete(db.debts).go();  // يعتمد على bookings
+      await db.delete(db.bookingNotes).go();  // يعتمد على bookings
+      await db.delete(db.cashTransactions).go();  // يعتمد على bookings
+      await db.delete(db.bookings).go();  // يعتمد على rooms
+      await db.delete(db.expenses).go();  // يعتمد على employees
       await db.delete(db.employees).go();
-      await db.delete(db.expenses).go();
-      await db.delete(db.cashTransactions).go();
-      await db.delete(db.payments).go();
+      await db.delete(db.rooms).go();
       await db.delete(db.syncState).go();
 
       Future<void> insertList<T>(
@@ -502,6 +504,11 @@ class LocalBackupService {
         final data = Room.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.rooms).insertOnConflictUpdate(data);
       });
+      await insertList('employees', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = Employee.fromJson(map, serializer: lenientValueSerializer);
+        await db.into(db.employees).insertOnConflictUpdate(data);
+      });
       await insertList('bookings', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = Booking.fromJson(map, serializer: lenientValueSerializer);
@@ -515,16 +522,6 @@ class LocalBackupService {
         );
         await db.into(db.bookingNotes).insertOnConflictUpdate(data);
       });
-      await insertList('employees', (json) async {
-        final map = Map<String, dynamic>.from(json as Map);
-        final data = Employee.fromJson(map, serializer: lenientValueSerializer);
-        await db.into(db.employees).insertOnConflictUpdate(data);
-      });
-      await insertList('expenses', (json) async {
-        final map = Map<String, dynamic>.from(json as Map);
-        final data = Expense.fromJson(map, serializer: lenientValueSerializer);
-        await db.into(db.expenses).insertOnConflictUpdate(data);
-      });
       await insertList('cash_transactions', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = CashTransaction.fromJson(
@@ -533,10 +530,20 @@ class LocalBackupService {
         );
         await db.into(db.cashTransactions).insertOnConflictUpdate(data);
       });
+      await insertList('expenses', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = Expense.fromJson(map, serializer: lenientValueSerializer);
+        await db.into(db.expenses).insertOnConflictUpdate(data);
+      });
       await insertList('payments', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = Payment.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.payments).insertOnConflictUpdate(data);
+      });
+      await insertList('debts', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = Debt.fromJson(map, serializer: lenientValueSerializer);
+        await db.into(db.debts).insertOnConflictUpdate(data);
       });
 
       if (backupData.containsKey('sync_state') &&
