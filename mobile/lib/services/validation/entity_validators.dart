@@ -221,7 +221,19 @@ class EntityValidators {
   static List<ValidationError> validateDebt(DebtsCompanion data) {
     final errors = <ValidationError>[];
 
-    // التحقق من المبلغ
+    // التحقق من اسم النزيل
+    if (data.guestName.present) {
+      final guestName = data.guestName.value;
+      var err = ValidationRules.required('guestName', guestName);
+      if (err != null) {
+        errors.add(err);
+      } else {
+        err = ValidationRules.minLength('guestName', guestName, 3);
+        if (err != null) errors.add(err);
+      }
+    }
+
+    // التحقق من المبلغ الإجمالي
     if (data.totalAmount.present) {
       final totalAmount = data.totalAmount.value;
       final err = ValidationRules.positive('totalAmount', totalAmount);
@@ -229,16 +241,16 @@ class EntityValidators {
     }
 
     // التحقق من المبلغ المدفوع
-    if (data.amountPaid.present) {
-      final amountPaid = data.amountPaid.value;
-      final err = ValidationRules.nonNegative('amountPaid', amountPaid);
+    if (data.paidAmount.present) {
+      final paidAmount = data.paidAmount.value;
+      final err = ValidationRules.nonNegative('paidAmount', paidAmount);
       if (err != null) errors.add(err);
     }
 
-    // التحقق من التاريخ
-    if (data.createdDate.present) {
-      final createdDate = data.createdDate.value;
-      final err = ValidationRules.dateFormat('createdDate', createdDate);
+    // التحقق من تاريخ الدفع
+    if (data.paymentDate.present) {
+      final paymentDate = data.paymentDate.value;
+      final err = ValidationRules.dateFormat('paymentDate', paymentDate);
       if (err != null) errors.add(err);
     }
 
