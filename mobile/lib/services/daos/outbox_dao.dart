@@ -125,12 +125,20 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return id;
   }
 
-  Future<List<OutboxData>> takeBatch(int limit, {String? workerId}) async {
+  Future<List<OutboxData>> takeBatch(
+    int limit, {
+    String? workerId,
+    int maxAttempts = 5,
+  }) async {
     final worker = workerId ?? const Uuid().v4();
 
     return transaction(() async {
       final entries = await (select(outbox)
-            ..where((t) => t.processingStatus.equals('pending'))
+            ..where(
+              (t) =>
+                  t.processingStatus.equals('pending') &
+                  t.attempts.isSmallerThanValue(maxAttempts),
+            )
             ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
             ..limit(limit))
           .get();
@@ -199,10 +207,23 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return (delete(outbox)..where((t) => t.id.isIn(ids))).go();
   }
 
-  Future<void> setError(int id, String message, int attempts) =>
-      (update(outbox)..where((t) => t.id.equals(id))).write(
-        OutboxCompanion(lastError: Value(message), attempts: Value(attempts)),
-      );
+  Future<void> setError(
+    int id,
+    String message,
+    int attempts, {
+    int maxAttempts = 5,
+  }) async {
+    final nextStatus = attempts >= maxAttempts ? 'failed' : 'pending';
+    await (update(outbox)..where((t) => t.id.equals(id))).write(
+      OutboxCompanion(
+        lastError: Value(message),
+        attempts: Value(attempts),
+        processingStatus: Value(nextStatus),
+        processingStartedAt: const Value(null),
+        processingWorker: const Value(null),
+      ),
+    );
+  }
 
   Future<void> markCompleted(List<int> ids) async {
     if (ids.isEmpty) return;
@@ -218,7 +239,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<void> markFailed(List<int> ids) async {
     if (ids.isEmpty) return;
     await (update(outbox)..where((t) => t.id.isIn(ids))).write(
-      const OutboxCompanion(processingStatus: Value('failed')),
+      const OutboxCompanion(
+        processingStatus: Value('failed'),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+      ),
     );
   }
 

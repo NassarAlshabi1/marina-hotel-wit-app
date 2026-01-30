@@ -898,12 +898,17 @@ class AppwriteSyncManager {
     return null;
   }
 
+  static const int _maxOutboxAttempts = 5;
+
   Future<int> _pushAllEntities() async {
     const batchSize = 200;
     int totalProcessed = 0;
 
     while (true) {
-      final entries = await outboxDao.takeBatch(batchSize);
+      final entries = await outboxDao.takeBatch(
+        batchSize,
+        maxAttempts: _maxOutboxAttempts,
+      );
       if (entries.isEmpty) {
         break;
       }
@@ -955,7 +960,12 @@ class AppwriteSyncManager {
         context: 'push:${entry.entity}:${entry.op}',
         stackTrace: stackTrace,
       );
-      await outboxDao.setError(entry.id, parsed.message, entry.attempts + 1);
+      await outboxDao.setError(
+        entry.id,
+        parsed.message,
+        entry.attempts + 1,
+        maxAttempts: _maxOutboxAttempts,
+      );
       return false;
     }
   }
@@ -964,10 +974,12 @@ class AppwriteSyncManager {
     Map<String, dynamic> payload,
     OutboxData entry,
   ) {
+    final key = entry.idempotencyKey?.isNotEmpty == true
+        ? entry.idempotencyKey!
+        : '${entry.entity}:${entry.op}:${entry.localUuid}';
     return {
       ...payload,
-      'idempotencyKey':
-          '${entry.entity}:${entry.op}:${entry.localUuid}:${entry.id}',
+      'idempotencyKey': key,
     };
   }
 
@@ -1144,6 +1156,7 @@ class AppwriteSyncManager {
       'lastModified': room.lastModified,
       'version': room.version,
       'origin': room.origin,
+      'vectorClock': _sanitizeVectorClock(room.vectorClock),
     };
     _putIfNotNull(data, 'serverId', room.serverId);
     _putIfNotNull(data, 'deletedAt', room.deletedAt);
@@ -1169,6 +1182,7 @@ class AppwriteSyncManager {
       'lastModified': booking.lastModified,
       'version': booking.version,
       'origin': booking.origin,
+      'vectorClock': _sanitizeVectorClock(booking.vectorClock),
     };
     _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
     _putIfNotNull(data, 'serverId', booking.serverId);
@@ -1195,6 +1209,7 @@ class AppwriteSyncManager {
       'lastModified': expense.lastModified,
       'version': expense.version,
       'origin': expense.origin,
+      'vectorClock': _sanitizeVectorClock(expense.vectorClock),
     };
     _putIfNotNull(data, 'relatedId', expense.relatedId);
     _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
@@ -1215,6 +1230,7 @@ class AppwriteSyncManager {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
+      'vectorClock': _sanitizeVectorClock(payment.vectorClock),
     };
     _putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
     _putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
@@ -1250,6 +1266,7 @@ class AppwriteSyncManager {
       'lastModified': debt.lastModified,
       'version': debt.version,
       'origin': debt.origin,
+      'vectorClock': _sanitizeVectorClock(debt.vectorClock),
     };
     _putIfNotNull(data, 'serverId', debt.serverId);
     _putIfNotNull(data, 'deletedAt', debt.deletedAt);
@@ -1280,6 +1297,11 @@ class AppwriteSyncManager {
     if (value != null && value.isNotEmpty) {
       map[key] = value;
     }
+  }
+
+  String _sanitizeVectorClock(String? clock) {
+    if (clock == null || clock.isEmpty) return '{}';
+    return clock;
   }
 
   /// الحصول على قائمة الأجهزة المسجلة

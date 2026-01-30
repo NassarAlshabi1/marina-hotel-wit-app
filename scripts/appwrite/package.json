@@ -8,6 +8,7 @@
     "create:collections": "node create_appwrite_collections.js",
     "create:indexes": "node create_mobile_indexes.js",
     "list:collections": "node list_appwrite_collections.js",
+    "rooms:set-vacant": "node set_rooms_vacant.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
