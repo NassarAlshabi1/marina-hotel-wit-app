@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../../services/local_db.dart';
 
 class SchemaComparisonScreen extends StatelessWidget {
   const SchemaComparisonScreen({super.key});

@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'database_health_monitor.dart';
 import 'database_fixer.dart';
-import 'local_db.dart';
 
 /// نظام التشغيل التلقائي لفحص صحة قاعدة البيانات
 class DatabaseHealthTriggers {
