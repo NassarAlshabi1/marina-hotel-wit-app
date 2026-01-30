@@ -133,11 +133,16 @@ class ExpensesRepository {
   }
 
   Future<double> getTotalByHotelDayKey(String hotelDayKey) async {
-    final expenses = await dao.listByHotelDayKey(hotelDayKey);
-    double total = 0;
-    for (final expense in expenses) {
-      total += expense.amount;
+    try {
+      final expenses = await dao.listByHotelDayKey(hotelDayKey);
+      double total = 0;
+      for (final expense in expenses) {
+        total += expense.amount;
+      }
+      return total;
+    } catch (e) {
+      print('Error calculating total expenses: $e');
+      return 0.0;
     }
-    return total;
   }
 }

@@ -313,6 +313,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
       _QuickAction(
+        title: 'إصلاح قاعدة البيانات',
+        subtitle: 'تصحيح البيانات الفاسدة',
+        icon: Icons.healing,
+        color: Colors.orange,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const DatabaseFixerScreen(),
+          ),
+        ),
+      ),
+      _QuickAction(
         title: 'إصلاح Server IDs',
         subtitle: 'ربط الغرف مع Appwrite',
         icon: Icons.build_circle,

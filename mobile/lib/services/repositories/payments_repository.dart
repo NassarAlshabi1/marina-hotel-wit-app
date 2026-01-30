@@ -218,14 +218,19 @@ class PaymentsRepository {
     String hotelDayKey, {
     String? revenueType,
   }) async {
-    final payments = await dao.listByHotelDayKey(
-      hotelDayKey,
-      revenueType: revenueType,
-    );
-    double total = 0;
-    for (final payment in payments) {
-      total += payment.amount;
+    try {
+      final payments = await dao.listByHotelDayKey(
+        hotelDayKey,
+        revenueType: revenueType,
+      );
+      double total = 0;
+      for (final payment in payments) {
+        total += payment.amount;
+      }
+      return total;
+    } catch (e) {
+      print('Error calculating total payments: $e');
+      return 0.0;
     }
-    return total;
   }
 }
