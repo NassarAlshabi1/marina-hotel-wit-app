@@ -239,7 +239,7 @@ class UnifiedSyncOrchestrator {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
       final googleDriveEnabled =
           prefs.getBool('google_drive_sync_enabled') ?? false;
 

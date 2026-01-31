@@ -39,8 +39,9 @@ class _AppwriteSettingsScreenState
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('appwrite_sync_enabled', false);
     setState(() {
-      _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      _syncEnabled = false;
       _syncInterval = prefs.getInt('appwrite_sync_interval') ?? 15;
       _autoSyncOnConnect =
           prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
@@ -254,19 +255,9 @@ class _AppwriteSettingsScreenState
             // تفعيل المزامنة
             _buildSettingSwitch(
               title: 'تفعيل المزامنة التلقائية',
-              subtitle: 'مزامنة البيانات تلقائياً في الخلفية',
-              value: _syncEnabled,
-              onChanged: (value) {
-                setState(() => _syncEnabled = value);
-                _saveSettings();
-                if (value) {
-                  ref.read(ap.appwriteSyncManagerProvider).startAutoSync(
-                        interval: Duration(minutes: _syncInterval),
-                      );
-                } else {
-                  ref.read(ap.appwriteSyncManagerProvider).stopAutoSync();
-                }
-              },
+              subtitle: 'المزامنة التلقائية معطّلة (يدوي فقط)',
+              value: false,
+              onChanged: null,
             ),
 
             // فترة المزامنة
@@ -281,29 +272,16 @@ class _AppwriteSettingsScreenState
                     child: Text('$value دقيقة'),
                   );
                 }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _syncInterval = value);
-                    _saveSettings();
-                    if (_syncEnabled) {
-                      ref
-                          .read(ap.appwriteSyncManagerProvider)
-                          .startAutoSync(interval: Duration(minutes: value));
-                    }
-                  }
-                },
+                onChanged: null,
               ),
             ),
 
             // مزامنة عند الاتصال
             _buildSettingSwitch(
               title: 'مزامنة عند الاتصال التلقائي',
-              subtitle: 'مزامنة فورية عند الاتصال بالإنترنت',
-              value: _autoSyncOnConnect,
-              onChanged: (value) {
-                setState(() => _autoSyncOnConnect = value);
-                _saveSettings();
-              },
+              subtitle: 'المزامنة التلقائية معطّلة',
+              value: false,
+              onChanged: null,
             ),
 
             const Divider(height: 24),

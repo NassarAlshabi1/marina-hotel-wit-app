@@ -114,6 +114,7 @@ class AppwriteSyncManager {
   /// تحميل الإعدادات
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('appwrite_sync_enabled', false);
     _currentDeviceId = prefs.getString('appwrite_device_id');
 
     final lastSyncEpoch = prefs.getInt('appwrite_last_sync_time');
@@ -270,7 +271,7 @@ class AppwriteSyncManager {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
       final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      final enabled = prefs.getBool('appwrite_sync_enabled') ?? false;
 
       if (enabled) {
         await sync();
@@ -302,7 +303,7 @@ class AppwriteSyncManager {
           _logger.debug('Debounced push triggered', tag: 'SYNC');
           try {
             final prefs = await SharedPreferences.getInstance();
-            final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+            final enabled = prefs.getBool('appwrite_sync_enabled') ?? false;
             if (!enabled) {
               _logger.debug('Debounced push skipped (disabled)', tag: 'SYNC');
               return;

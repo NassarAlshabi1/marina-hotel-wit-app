@@ -69,7 +69,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   Future<bool> _isAppwriteSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('appwrite_sync_enabled') ?? true;
+    return prefs.getBool('appwrite_sync_enabled') ?? false;
   }
 
   Future<void> _loadAppwriteEnabled() async {

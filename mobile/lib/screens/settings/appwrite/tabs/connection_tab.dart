@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/core.dart';
+import '../../../../providers/appwrite_providers.dart' as ap;
+import '../../../../services/appwrite_config.dart';
 
 /// Appwrite Connection Tab - إدارة الاتصال بـ Appwrite
 class AppwriteConnectionTab extends ConsumerStatefulWidget {
@@ -12,39 +14,30 @@ class AppwriteConnectionTab extends ConsumerStatefulWidget {
 }
 
 class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
-  bool _isConnected = true;
-  bool _isChecking = false;
-
   @override
   Widget build(BuildContext context) {
+    final connectionState = ref.watch(ap.connectionStatusProvider);
+    final projectInfo = ref.watch(ap.projectInfoProvider);
+
     return RefreshIndicator(
       onRefresh: _checkConnection,
       child: ListView(
         padding: const EdgeInsets.all(UIConstants.spacingMD),
         children: [
-          // Connection Status Card
-          _buildConnectionStatusCard(),
-
+          _buildConnectionStatusCard(connectionState),
           const SizedBox(height: UIConstants.spacingLG),
-
-          // Project Info
-          _buildProjectInfoCard(),
-
+          _buildProjectInfoCard(projectInfo),
           const SizedBox(height: UIConstants.spacingLG),
-
-          // Connection Settings
           _buildConnectionSettingsCard(),
-
           const SizedBox(height: UIConstants.spacingLG),
-
-          // Quick Actions
           _buildQuickActionsCard(),
         ],
       ),
     );
   }
 
-  Widget _buildConnectionStatusCard() {
+  Widget _buildConnectionStatusCard(ap.ConnectionState state) {
+    final isConnected = state.isConnected;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -58,30 +51,29 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color:
-                    (_isConnected ? Colors.green : Colors.red).withOpacity(0.1),
+                color: (isConnected ? Colors.green : Colors.red).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                _isConnected ? Icons.cloud_done : Icons.cloud_off,
+                isConnected ? Icons.cloud_done : Icons.cloud_off,
                 size: 48,
-                color: _isConnected ? Colors.green : Colors.red,
+                color: isConnected ? Colors.green : Colors.red,
               ),
             ),
             const SizedBox(height: UIConstants.spacingMD),
             Text(
-              _isConnected ? 'متصل' : 'غير متصل',
+              isConnected ? 'متصل' : 'غير متصل',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: _isConnected ? Colors.green : Colors.red,
+                color: isConnected ? Colors.green : Colors.red,
               ),
             ),
             const SizedBox(height: UIConstants.spacingSM),
             Text(
-              _isConnected
+              isConnected
                   ? 'الاتصال بـ Appwrite يعمل بشكل طبيعي'
-                  : 'تعذر الاتصال بالخادم',
+                  : (state.errorMessage ?? 'تعذر الاتصال بالخادم'),
               style: TextStyle(
                 color: Colors.grey.shade600,
                 fontSize: 14,
@@ -92,15 +84,15 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _isChecking ? null : _checkConnection,
-                icon: _isChecking
+                onPressed: state.isChecking ? null : _checkConnection,
+                icon: state.isChecking
                     ? const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh),
-                label: Text(_isChecking ? 'جاري الفحص...' : 'فحص الاتصال'),
+                label: Text(state.isChecking ? 'جاري الفحص...' : 'فحص الاتصال'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.all(UIConstants.spacingMD),
                   backgroundColor: Colors.blue,
@@ -114,7 +106,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
     );
   }
 
-  Widget _buildProjectInfoCard() {
+  Widget _buildProjectInfoCard(Map<String, String> info) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -144,24 +136,26 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
             ),
             const SizedBox(height: UIConstants.spacingMD),
             InfoRow(
-              label: 'اسم المشروع',
-              value: 'Marina Hotel',
-              icon: Icons.badge,
-            ),
-            InfoRow(
               label: 'معرف المشروع',
-              value: '67890abcdef',
+              value: info['projectId'] ?? '---',
               icon: Icons.fingerprint,
             ),
             InfoRow(
+              label: 'قاعدة البيانات',
+              value: info['databaseId'] ?? '---',
+              icon: Icons.storage,
+            ),
+            InfoRow(
               label: 'نقطة النهاية',
-              value: 'https://cloud.appwrite.io/v1',
+              value: info['endpoint'] ?? '---',
               icon: Icons.link,
               isExpandable: true,
             ),
             InfoRow(
-              label: 'الإصدار',
-              value: '1.5.4',
+              label: 'حالة التهيئة',
+              value: (info['initialized'] ?? 'false') == 'true'
+                  ? 'مهيأ'
+                  : 'غير مهيأ',
               icon: Icons.settings_system_daydream,
             ),
           ],
@@ -201,26 +195,32 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
           const Divider(height: 1),
           ListTile(
             title: const Text('مهلة الاتصال'),
-            subtitle: const Text('30 ثانية'),
+            subtitle: Text('${AppwriteConfig.defaultTimeout.inSeconds} ثانية'),
             leading: const Icon(Icons.timer),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () => _showInfoDialog(
+              'مهلة الاتصال',
+              '${AppwriteConfig.defaultTimeout.inSeconds} ثانية',
+            ),
           ),
           const Divider(height: 1),
           ListTile(
             title: const Text('عدد المحاولات'),
-            subtitle: const Text('3 محاولات'),
+            subtitle: Text('${AppwriteConfig.maxRetries} محاولات'),
             leading: const Icon(Icons.replay),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () => _showInfoDialog(
+              'عدد المحاولات',
+              '${AppwriteConfig.maxRetries} محاولات',
+            ),
           ),
           const Divider(height: 1),
-          SwitchListTile(
-            title: const Text('SSL/TLS'),
-            subtitle: const Text('اتصال آمن مشفر'),
+          const SwitchListTile(
+            title: Text('SSL/TLS'),
+            subtitle: Text('اتصال آمن مشفر'),
             value: true,
-            onChanged: null, // Disabled for security
-            secondary: const Icon(Icons.security),
+            onChanged: null,
+            secondary: Icon(Icons.security),
           ),
         ],
       ),
@@ -247,7 +247,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
             title: const Text('اختبار الاتصال'),
             subtitle: const Text('إرسال طلب تجريبي للخادم'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _testConnection(),
+            onTap: _checkConnection,
           ),
           const Divider(height: 1),
           ListTile(
@@ -262,7 +262,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
             title: const Text('إعادة تعيين الاتصال'),
             subtitle: const Text('إعادة تهيئة الاتصال بالخادم'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showResetDialog(),
+            onTap: _showResetDialog,
           ),
         ],
       ),
@@ -270,35 +270,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
   }
 
   Future<void> _checkConnection() async {
-    setState(() => _isChecking = true);
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() {
-      _isChecking = false;
-      _isConnected = true;
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('الاتصال يعمل بشكل طبيعي'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
-    }
-  }
-
-  void _testConnection() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('جاري اختبار الاتصال...')),
-    );
+    await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
   }
 
   void _showResetDialog() {
@@ -307,7 +279,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
       builder: (context) => AlertDialog(
         title: const Text('تحذير'),
         content: const Text(
-          'هل تريد إعادة تعيين الاتصال؟ سيتم قطع الاتصال الحالي.',
+          'هل تريد إعادة تهيئة الاتصال؟',
         ),
         actions: [
           TextButton(
@@ -315,15 +287,30 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم إعادة تعيين الاتصال')),
-              );
+              await ref.read(ap.appwriteServiceProvider).initialize();
+              await _checkConnection();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('إعادة تعيين',
                 style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInfoDialog(String title, String value) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(value),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
           ),
         ],
       ),

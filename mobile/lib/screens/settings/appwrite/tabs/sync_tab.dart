@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/core.dart';
+import '../../../../providers/appwrite_providers.dart' as ap;
+import '../../../../services/appwrite_config.dart';
 
 /// Appwrite Sync Tab - إدارة المزامنة مع Appwrite
 class AppwriteSyncTab extends ConsumerStatefulWidget {
@@ -25,8 +27,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('appwrite_sync_enabled', false);
     setState(() {
-      _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      _syncEnabled = false;
       _syncInterval = prefs.getInt('appwrite_sync_interval') ?? 15;
       _autoSyncOnConnect =
           prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
@@ -44,36 +47,34 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
 
   @override
   Widget build(BuildContext context) {
+    final statsAsync = ref.watch(ap.syncStatsProvider);
+    final cacheStats = ref.watch(ap.cacheStatsProvider);
+
+    final stats = statsAsync.maybeWhen(
+      data: (data) => data,
+      orElse: () => const <String, dynamic>{},
+    );
+
     return ListView(
       padding: const EdgeInsets.all(UIConstants.spacingMD),
       children: [
-        // Sync Status
-        _buildSyncStatusCard(),
-
+        _buildSyncStatusCard(stats),
         const SizedBox(height: UIConstants.spacingLG),
-
-        // Sync Settings
         _buildSyncSettingsCard(),
-
         const SizedBox(height: UIConstants.spacingLG),
-
-        // Sync Statistics
-        _buildSyncStatisticsCard(),
-
+        _buildSyncStatisticsCard(stats),
         const SizedBox(height: UIConstants.spacingLG),
-
-        // Cache Settings
-        _buildCacheSettingsCard(),
-
+        _buildCacheSettingsCard(cacheStats),
         const SizedBox(height: UIConstants.spacingLG),
-
-        // Sync Actions
-        _buildSyncActionsCard(),
+        _buildSyncActionsCard(statsAsync.isLoading),
       ],
     );
   }
 
-  Widget _buildSyncStatusCard() {
+  Widget _buildSyncStatusCard(Map<String, dynamic> stats) {
+    final lastSyncTime = stats['lastSyncTime'] as String?;
+    final outboxCount = stats['outboxCount'] as int? ?? 0;
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -110,17 +111,17 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             ),
             InfoRow(
               label: 'آخر مزامنة',
-              value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
+              value: DateTimeFormatter.getRelativeTime(lastSyncTime),
               icon: Icons.schedule,
             ),
             InfoRow(
               label: 'المزامنة التالية',
-              value: 'بعد 12 دقيقة',
+              value: _nextSyncLabel(lastSyncTime),
               icon: Icons.timer,
             ),
             InfoRow(
               label: 'عناصر معلقة',
-              value: '0',
+              value: '$outboxCount',
               icon: Icons.pending,
             ),
           ],
@@ -160,12 +161,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('تفعيل المزامنة'),
-            subtitle: const Text('مزامنة البيانات مع Appwrite'),
-            value: _syncEnabled,
-            onChanged: (value) {
-              setState(() => _syncEnabled = value);
-              _saveSettings();
-            },
+            subtitle: const Text('المزامنة مع Appwrite معطّلة (يدوي فقط)'),
+            value: false,
+            onChanged: null,
             secondary: const Icon(Icons.sync),
           ),
           const Divider(height: 1),
@@ -174,17 +172,14 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             subtitle: Text('$_syncInterval دقيقة'),
             leading: const Icon(Icons.timer),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showIntervalDialog(),
+            onTap: null,
           ),
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('مزامنة تلقائية عند الاتصال'),
-            subtitle: const Text('مزامنة عند استعادة الاتصال'),
-            value: _autoSyncOnConnect,
-            onChanged: (value) {
-              setState(() => _autoSyncOnConnect = value);
-              _saveSettings();
-            },
+            subtitle: const Text('المزامنة التلقائية معطّلة'),
+            value: false,
+            onChanged: null,
             secondary: const Icon(Icons.wifi),
           ),
         ],
@@ -192,7 +187,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     );
   }
 
-  Widget _buildSyncStatisticsCard() {
+  Widget _buildSyncStatisticsCard(Map<String, dynamic> stats) {
+    final totalSyncs = stats['totalSyncs'] as int? ?? 0;
+    final successRate = stats['successRate'] as double? ?? 0.0;
+    final successfulSyncs = stats['successfulSyncs'] as int? ?? 0;
+    final failedSyncs = stats['failedSyncs'] as int? ?? 0;
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -230,28 +230,28 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               childAspectRatio: 1.5,
               children: [
                 StatCard(
+                  title: 'إجمالي المزامنات',
+                  value: '$totalSyncs',
+                  icon: Icons.sync_alt,
+                  color: Colors.blue,
+                ),
+                StatCard(
+                  title: 'معدل النجاح',
+                  value: '${successRate.toStringAsFixed(1)}%',
+                  icon: Icons.trending_up,
+                  color: Colors.green,
+                ),
+                StatCard(
                   title: 'عمليات ناجحة',
-                  value: '142',
+                  value: '$successfulSyncs',
                   icon: Icons.check_circle,
                   color: Colors.green,
                 ),
                 StatCard(
                   title: 'عمليات فاشلة',
-                  value: '3',
+                  value: '$failedSyncs',
                   icon: Icons.error,
                   color: Colors.red,
-                ),
-                StatCard(
-                  title: 'معدل النجاح',
-                  value: '98%',
-                  icon: Icons.trending_up,
-                  color: Colors.blue,
-                ),
-                StatCard(
-                  title: 'متوسط الوقت',
-                  value: '2.3 ث',
-                  icon: Icons.speed,
-                  color: Colors.orange,
                 ),
               ],
             ),
@@ -261,7 +261,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     );
   }
 
-  Widget _buildCacheSettingsCard() {
+  Widget _buildCacheSettingsCard(CacheStatistics cacheStats) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -296,6 +296,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             value: _cacheEnabled,
             onChanged: (value) {
               setState(() => _cacheEnabled = value);
+              ref.read(ap.appwriteCacheManagerProvider).setEnabled(value);
               _saveSettings();
             },
             secondary: const Icon(Icons.flash_on),
@@ -303,7 +304,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           const Divider(height: 1),
           ListTile(
             title: const Text('حجم التخزين المستخدم'),
-            subtitle: Text(FileSizeFormatter.formatBytes(5 * 1024 * 1024)),
+            subtitle: Text(
+              '${FileSizeFormatter.formatBytes(cacheStats.totalSizeBytes)} / ${FileSizeFormatter.formatBytes(cacheStats.maxSizeBytes)}',
+            ),
             leading: const Icon(Icons.data_usage),
             trailing: TextButton(
               onPressed: () => _clearCache(),
@@ -323,7 +326,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     );
   }
 
-  Widget _buildSyncActionsCard() {
+  Widget _buildSyncActionsCard(bool loadingStats) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -371,9 +374,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               child: const Icon(Icons.delete_forever, color: Colors.red),
             ),
             title: const Text('مسح سجل المزامنة'),
-            subtitle: const Text('حذف جميع سجلات المزامنة'),
+            subtitle: const Text('مسح سجل المزامنة على السحابة'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showClearHistoryDialog(),
+            onTap: loadingStats ? null : () => _showClearHistoryDialog(),
           ),
         ],
       ),
@@ -410,16 +413,27 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     );
   }
 
-  void _clearCache() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم مسح التخزين المؤقت')),
-    );
+  Future<void> _clearCache() async {
+    ref.read(ap.appwriteCacheManagerProvider).clear();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم مسح التخزين المؤقت')),
+      );
+    }
   }
 
-  void _syncNow() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('جاري المزامنة...')),
-    );
+  Future<void> _syncNow() async {
+    final manager = ref.read(ap.appwriteSyncManagerProvider);
+    final result = await manager.sync();
+    ref.invalidate(ap.syncStatsProvider);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.isSuccess ? 'تمت المزامنة' : 'فشلت المزامنة'),
+          backgroundColor: result.isSuccess ? Colors.green : Colors.red,
+        ),
+      );
+    }
   }
 
   void _showFullSyncDialog() {
@@ -436,9 +450,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              _syncNow();
+              await _runFullSync();
             },
             child: const Text('بدء المزامنة'),
           ),
@@ -447,29 +461,70 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     );
   }
 
+  Future<void> _runFullSync() async {
+    final manager = ref.read(ap.appwriteSyncManagerProvider);
+    await manager.resetSyncState();
+    final result = await manager.sync(push: true, pull: true);
+    ref.invalidate(ap.syncStatsProvider);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.isSuccess ? 'اكتملت المزامنة' : 'فشلت المزامنة'),
+          backgroundColor: result.isSuccess ? Colors.green : Colors.red,
+        ),
+      );
+    }
+  }
+
   void _showClearHistoryDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('تحذير'),
-        content: const Text('هل تريد حذف جميع سجلات المزامنة؟'),
+        title: const Text('مسح سجل المزامنة (سحابي)'),
+        content: const Text('سيتم مسح السجل من Appwrite ومن السجل المحلي.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم مسح السجلات')),
-              );
+              await _clearCloudSyncLogs();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('حذف', style: TextStyle(color: Colors.white)),
+            child: const Text('مسح', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _clearCloudSyncLogs() async {
+    final service = ref.read(ap.appwriteServiceProvider);
+    await service.deleteAllDocuments(
+      collectionId: AppwriteConfig.syncLogsCollectionId,
+    );
+    ref.read(ap.appwriteLoggerProvider).clearLogs();
+    ref.invalidate(ap.syncStatsProvider);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم مسح سجل المزامنة على السحابة')),
+      );
+    }
+  }
+
+  String _nextSyncLabel(String? lastSyncTime) {
+    if (!_syncEnabled) return 'معطلة';
+    if (lastSyncTime == null || lastSyncTime.isEmpty) return 'غير معروف';
+
+    try {
+      final last = DateTime.parse(lastSyncTime);
+      final next = last.add(Duration(minutes: _syncInterval));
+      return DateTimeFormatter.getRelativeTime(next.toIso8601String());
+    } catch (_) {
+      return 'غير معروف';
+    }
   }
 }

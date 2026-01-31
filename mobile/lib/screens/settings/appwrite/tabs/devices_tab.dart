@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/core.dart';
+import '../../../../providers/appwrite_providers.dart' as ap;
+import '../../../../services/appwrite_models.dart';
 
 /// Appwrite Devices Tab - إدارة الأجهزة المسجلة
 class AppwriteDevicesTab extends ConsumerWidget {
@@ -8,29 +10,32 @@ class AppwriteDevicesTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final manager = ref.watch(ap.appwriteSyncManagerProvider);
+    final currentId = manager.currentDeviceId;
+    final devicesAsync = ref.watch(ap.devicesListProvider);
+
     return ListView(
       padding: const EdgeInsets.all(UIConstants.spacingMD),
       children: [
-        // Current Device
-        _buildCurrentDeviceCard(),
-
+        _buildCurrentDeviceCard(currentId, devicesAsync),
         const SizedBox(height: UIConstants.spacingLG),
-
-        // Registered Devices
         SectionHeader(
           title: 'الأجهزة المسجلة',
           icon: Icons.devices,
           action: IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {},
+            icon: const Icon(Icons.refresh),
+            onPressed: () => ref.invalidate(ap.devicesListProvider),
           ),
         ),
-        _buildDevicesList(),
+        _buildDevicesList(devicesAsync, currentId),
       ],
     );
   }
 
-  Widget _buildCurrentDeviceCard() {
+  Widget _buildCurrentDeviceCard(
+    String? currentId,
+    AsyncValue<List<AppwriteDevice>> devicesAsync,
+  ) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -38,82 +43,115 @@ class AppwriteDevicesTab extends ConsumerWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(UIConstants.spacingMD),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(UIConstants.spacingLG),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.phone_android,
-                size: 48,
-                color: Colors.blue,
-              ),
-            ),
-            const SizedBox(height: UIConstants.spacingMD),
-            const Text(
-              'هذا الجهاز',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: UIConstants.spacingSM),
-            const StatusBadge(status: 'نشط'),
-            const SizedBox(height: UIConstants.spacingMD),
-            InfoRow(
-              label: 'اسم الجهاز',
-              value: 'Samsung Galaxy S21',
-              icon: Icons.phone_android,
-            ),
-            InfoRow(
-              label: 'معرف الجهاز',
-              value: 'device_abc123',
-              icon: Icons.fingerprint,
-            ),
-            InfoRow(
-              label: 'آخر نشاط',
-              value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
-              icon: Icons.schedule,
-            ),
-          ],
+        child: devicesAsync.when(
+          data: (devices) {
+            final device = _findDevice(devices, currentId);
+            final statusLabel = _statusLabel(device?.status ?? 'active');
+            final lastActive =
+                device?.lastActive ?? device?.lastSeen ?? DateTime.now();
+
+            return Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(UIConstants.spacingLG),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.phone_android,
+                    size: 48,
+                    color: Colors.blue,
+                  ),
+                ),
+                const SizedBox(height: UIConstants.spacingMD),
+                const Text(
+                  'هذا الجهاز',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: UIConstants.spacingSM),
+                StatusBadge(status: statusLabel),
+                const SizedBox(height: UIConstants.spacingMD),
+                InfoRow(
+                  label: 'اسم الجهاز',
+                  value: device?.deviceName.isNotEmpty == true
+                      ? device!.deviceName
+                      : 'غير معروف',
+                  icon: Icons.phone_android,
+                ),
+                InfoRow(
+                  label: 'معرف الجهاز',
+                  value: currentId ?? 'غير مسجل',
+                  icon: Icons.fingerprint,
+                ),
+                InfoRow(
+                  label: 'آخر نشاط',
+                  value: DateTimeFormatter.getRelativeTime(
+                    DateTimeFormatter.toIsoString(lastActive),
+                  ),
+                  icon: Icons.schedule,
+                ),
+              ],
+            );
+          },
+          loading: () => Column(
+            children: const [
+              SizedBox(height: 16),
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('جاري تحميل بيانات الجهاز...'),
+              SizedBox(height: 16),
+            ],
+          ),
+          error: (error, _) => Column(
+            children: [
+              const Icon(Icons.error, color: Colors.red, size: 32),
+              const SizedBox(height: 8),
+              Text('تعذر تحميل معلومات الجهاز'),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDevicesList() {
-    final devices = [
-      {
-        'name': 'iPad Pro',
-        'id': 'device_xyz789',
-        'lastActive': '2024-01-28T15:00:00',
-        'status': 'نشط',
-      },
-      {
-        'name': 'Huawei Tablet',
-        'id': 'device_def456',
-        'lastActive': '2024-01-25T10:00:00',
-        'status': 'غير نشط',
-      },
-    ];
+  Widget _buildDevicesList(
+    AsyncValue<List<AppwriteDevice>> devicesAsync,
+    String? currentId,
+  ) {
+    return devicesAsync.when(
+      data: (devices) {
+        final filtered =
+            devices.where((device) => device.id != currentId).toList();
 
-    if (devices.isEmpty) {
-      return const EmptyStateWidget(
-        message: 'لا توجد أجهزة أخرى مسجلة',
+        if (filtered.isEmpty) {
+          return const EmptyStateWidget(
+            message: 'لا توجد أجهزة أخرى مسجلة',
+            icon: Icons.devices_other,
+          );
+        }
+
+        return Column(
+          children: filtered.map(_buildDeviceItem).toList(),
+        );
+      },
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, _) => const EmptyStateWidget(
+        message: 'تعذر تحميل الأجهزة',
         icon: Icons.devices_other,
-      );
-    }
-
-    return Column(
-      children: devices.map((device) => _buildDeviceItem(device)).toList(),
+      ),
     );
   }
 
-  Widget _buildDeviceItem(Map<String, dynamic> device) {
-    final isActive = device['status'] == 'نشط';
+  Widget _buildDeviceItem(AppwriteDevice device) {
+    final isActive = device.status == 'active';
+    final lastActive = device.lastActive ?? device.lastSeen;
 
     return Card(
       margin: EdgeInsets.only(bottom: UIConstants.spacingSM),
@@ -129,18 +167,18 @@ class AppwriteDevicesTab extends ConsumerWidget {
             color: isActive ? Colors.green : Colors.grey,
           ),
         ),
-        title: Text(device['name']),
+        title: Text(device.deviceName),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
             Text(
-              'آخر نشاط: ${DateTimeFormatter.getRelativeTime(device['lastActive'])}',
+              'آخر نشاط: ${DateTimeFormatter.getRelativeTime(DateTimeFormatter.toIsoString(lastActive))}',
               style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 2),
             Text(
-              device['id'],
+              device.id,
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
           ],
@@ -183,5 +221,26 @@ class AppwriteDevicesTab extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  AppwriteDevice? _findDevice(List<AppwriteDevice> devices, String? deviceId) {
+    if (deviceId == null) return null;
+    for (final device in devices) {
+      if (device.id == deviceId) {
+        return device;
+      }
+    }
+    return null;
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'inactive':
+        return 'غير نشط';
+      case 'suspended':
+        return 'موقوف';
+      default:
+        return 'نشط';
+    }
   }
 }

@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/core.dart';
+import '../../../../providers/appwrite_providers.dart' as ap;
+import '../../../../services/appwrite_backup_service.dart';
+import '../../../../services/sync_integrity_checker.dart';
+import '../../../../services/providers.dart';
+import '../../appwrite_logs_screen.dart';
+import '../../appwrite_sync_stats_screen.dart';
 
 /// Appwrite Tools Tab - أدوات الصيانة والاختبار
 class AppwriteToolsTab extends ConsumerWidget {
@@ -11,44 +18,34 @@ class AppwriteToolsTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(UIConstants.spacingMD),
       children: [
-        // Testing Tools
         SectionHeader(
           title: 'أدوات الاختبار',
           icon: Icons.bug_report,
         ),
-        _buildTestingToolsCard(context),
-
+        _buildTestingToolsCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-
-        // Maintenance Tools
         SectionHeader(
           title: 'أدوات الصيانة',
           icon: Icons.build,
         ),
-        _buildMaintenanceToolsCard(context),
-
+        _buildMaintenanceToolsCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-
-        // Data Management
         SectionHeader(
           title: 'إدارة البيانات',
           icon: Icons.storage,
         ),
-        _buildDataManagementCard(context),
-
+        _buildDataManagementCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-
-        // Logs & Stats
         SectionHeader(
           title: 'السجلات والإحصائيات',
           icon: Icons.analytics,
         ),
-        _buildLogsStatsCard(context),
+        _buildLogsStatsCard(context, ref),
       ],
     );
   }
 
-  Widget _buildTestingToolsCard(BuildContext context) {
+  Widget _buildTestingToolsCard(BuildContext context, WidgetRef ref) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -68,7 +65,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             title: const Text('اختبار الاتصال'),
             subtitle: const Text('التحقق من الاتصال بالخادم'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _testConnection(context),
+            onTap: () => _testConnection(context, ref),
           ),
           const Divider(height: 1),
           ListTile(
@@ -83,7 +80,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             title: const Text('اختبار API'),
             subtitle: const Text('إرسال طلبات تجريبية'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () => _testConnection(context, ref, fullTest: true),
           ),
           const Divider(height: 1),
           ListTile(
@@ -96,16 +93,16 @@ class AppwriteToolsTab extends ConsumerWidget {
               child: const Icon(Icons.verified, color: Colors.green),
             ),
             title: const Text('التحقق من البيانات'),
-            subtitle: const Text('فحص سلامة البيانات'),
+            subtitle: const Text('فحص سلامة البيانات المحلية'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () => _runIntegrityCheck(context, ref),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMaintenanceToolsCard(BuildContext context) {
+  Widget _buildMaintenanceToolsCard(BuildContext context, WidgetRef ref) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -125,7 +122,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             title: const Text('مسح التخزين المؤقت'),
             subtitle: const Text('حذف البيانات المؤقتة'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _clearCache(context),
+            onTap: () => _clearCache(context, ref),
           ),
           const Divider(height: 1),
           ListTile(
@@ -140,7 +137,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             title: const Text('إعادة تعيين الاتصال'),
             subtitle: const Text('إعادة تهيئة الاتصال'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _resetConnection(context),
+            onTap: () => _resetConnection(context, ref),
           ),
           const Divider(height: 1),
           ListTile(
@@ -155,14 +152,14 @@ class AppwriteToolsTab extends ConsumerWidget {
             title: const Text('إعادة بناء الفهارس'),
             subtitle: const Text('تحسين أداء البحث'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () => _rebuildIndexes(context, ref),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDataManagementCard(BuildContext context) {
+  Widget _buildDataManagementCard(BuildContext context, WidgetRef ref) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -180,9 +177,9 @@ class AppwriteToolsTab extends ConsumerWidget {
               child: const Icon(Icons.backup, color: Colors.green),
             ),
             title: const Text('نسخ احتياطي للبيانات'),
-            subtitle: const Text('نسخ جميع البيانات من Appwrite'),
+            subtitle: const Text('نسخ جميع بيانات Appwrite'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () => _backupAppwrite(context, ref),
           ),
           const Divider(height: 1),
           ListTile(
@@ -197,7 +194,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             title: const Text('استعادة البيانات'),
             subtitle: const Text('استعادة من نسخة احتياطية'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () => _showNotAvailable(context),
           ),
           const Divider(height: 1),
           ListTile(
@@ -212,14 +209,14 @@ class AppwriteToolsTab extends ConsumerWidget {
             title: const Text('مقارنة البيانات'),
             subtitle: const Text('مقارنة البيانات المحلية مع السحابة'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () => _showNotAvailable(context),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLogsStatsCard(BuildContext context) {
+  Widget _buildLogsStatsCard(BuildContext context, WidgetRef ref) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -239,7 +236,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             title: const Text('عرض السجلات'),
             subtitle: const Text('سجلات Appwrite المفصلة'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () => _openLogs(context),
           ),
           const Divider(height: 1),
           ListTile(
@@ -254,7 +251,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             title: const Text('إحصائيات المزامنة'),
             subtitle: const Text('تقارير وإحصائيات مفصلة'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () => _openStats(context),
           ),
           const Divider(height: 1),
           ListTile(
@@ -269,97 +266,169 @@ class AppwriteToolsTab extends ConsumerWidget {
             title: const Text('تصدير السجلات'),
             subtitle: const Text('حفظ السجلات كملف'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () => _exportLogs(context, ref),
           ),
         ],
       ),
     );
   }
 
-  void _testConnection(BuildContext context) {
+  Future<void> _testConnection(
+    BuildContext context,
+    WidgetRef ref, {
+    bool fullTest = false,
+  }) async {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-            SizedBox(width: 16),
-            Text('جاري اختبار الاتصال...'),
-          ],
-        ),
-        duration: Duration(seconds: 2),
-      ),
+      const SnackBar(content: Text('جاري اختبار الاتصال...')),
     );
 
-    Future.delayed(const Duration(seconds: 2), () {
+    final service = ref.read(ap.appwriteServiceProvider);
+    await service.initialize();
+    final result = await service.testConnection(fullCrudTest: fullTest);
+
+    if (context.mounted) {
+      final ok = result['overall_success'] == true;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('الاتصال يعمل بشكل طبيعي'),
-            ],
-          ),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text(ok ? 'الاتصال يعمل بشكل طبيعي' : 'فشل الاتصال'),
+          backgroundColor: ok ? Colors.green : Colors.red,
         ),
       );
-    });
+    }
   }
 
-  void _clearCache(BuildContext context) {
+  Future<void> _runIntegrityCheck(BuildContext context, WidgetRef ref) async {
+    final db = ref.read(databaseProvider);
+    final report = await SyncIntegrityChecker.instance.verify(db);
+
+    if (!context.mounted) return;
+
+    final issues = report.issues.take(10).toList();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('مسح التخزين المؤقت'),
-        content: const Text('هل تريد مسح جميع البيانات المؤقتة؟'),
+        title: const Text('نتائج فحص السلامة'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('عدد المشاكل: ${report.issueCount}'),
+              Text('مشاكل حرجة: ${report.criticalIssueCount}'),
+              if (issues.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                ...issues.map((issue) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text('• ${issue.toArabicMessage()}'),
+                    )),
+                if (report.issueCount > issues.length)
+                  Text('... والمزيد'),
+              ],
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم مسح التخزين المؤقت')),
-              );
-            },
-            child: const Text('مسح'),
+            child: const Text('إغلاق'),
           ),
         ],
       ),
     );
   }
 
-  void _resetConnection(BuildContext context) {
+  Future<void> _clearCache(BuildContext context, WidgetRef ref) async {
+    ref.read(ap.appwriteCacheManagerProvider).clear();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم مسح التخزين المؤقت')),
+      );
+    }
+  }
+
+  Future<void> _resetConnection(BuildContext context, WidgetRef ref) async {
+    final service = ref.read(ap.appwriteServiceProvider);
+    await service.initialize();
+    await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إعادة تهيئة الاتصال')),
+      );
+    }
+  }
+
+  Future<void> _rebuildIndexes(BuildContext context, WidgetRef ref) async {
+    final db = ref.read(databaseProvider);
+    await db.customStatement('REINDEX');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إعادة بناء الفهارس')),
+      );
+    }
+  }
+
+  Future<void> _backupAppwrite(BuildContext context, WidgetRef ref) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('جاري إنشاء النسخة الاحتياطية...')),
+    );
+
+    final deviceId = ref.read(ap.appwriteSyncManagerProvider).currentDeviceId;
+    final service = AppwriteBackupService(
+      appwriteService: ref.read(ap.appwriteServiceProvider),
+    );
+    final file = await service.exportBackup(deviceId: deviceId);
+
+    if (!context.mounted) return;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('تحذير'),
-        content: const Text(
-          'هل تريد إعادة تعيين الاتصال؟ سيتم قطع الاتصال الحالي.',
-        ),
+        title: const Text('تم إنشاء النسخة الاحتياطية'),
+        content: Text(file.path),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
+            child: const Text('إغلاق'),
           ),
-          ElevatedButton(
-            onPressed: () {
+          TextButton(
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم إعادة تعيين الاتصال')),
-              );
+              await Share.shareXFiles([XFile(file.path)]);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('إعادة تعيين',
-                style: TextStyle(color: Colors.white)),
+            child: const Text('مشاركة'),
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportLogs(BuildContext context, WidgetRef ref) async {
+    final logger = ref.read(ap.appwriteLoggerProvider);
+    final file = await logger.exportLogs();
+    if (!context.mounted) return;
+    if (file == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا توجد سجلات للتصدير')),
+      );
+      return;
+    }
+    await Share.shareXFiles([XFile(file.path)]);
+  }
+
+  void _openLogs(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AppwriteLogsScreen()),
+    );
+  }
+
+  void _openStats(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AppwriteSyncStatsScreen()),
+    );
+  }
+
+  void _showNotAvailable(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('غير متاح حالياً')),
     );
   }
 }

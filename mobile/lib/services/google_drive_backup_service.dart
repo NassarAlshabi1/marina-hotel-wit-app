@@ -367,42 +367,8 @@ class GoogleDriveBackupService {
       final cashTransactionsData = await db.select(db.cashTransactions).get();
       final paymentsData = await db.select(db.payments).get();
       final debtsData = await db.select(db.debts).get();
-      final autoFixRunsData = await db.select(db.autoFixRuns).get();
-      final violationsData = await db.select(db.integrityViolations).get();
-      final sessionsData = await db.select(db.appSessions).get();
       final salaryCyclesData = await db.select(db.salaryCycles).get();
       final salaryPaymentsData = await db.select(db.salaryPayments).get();
-      final restoreFixLogsData = await db.select(db.restoreFixLog).get();
-      final syncQueueData = await db.select(db.syncQueue).get();
-      final syncLogData = await db.select(db.syncLog).get();
-      final syncConflictsData = await db.select(db.syncConflicts).get();
-      final syncStateData = await db.select(db.syncState).get();
-
-      // جلب الإعدادات العامة لدمجها في النسخة الاحتياطية
-      final prefs = await SharedPreferences.getInstance();
-      final systemSettings = {
-        SystemSettingKeys.autoBackupEnabled: prefs.getBool(
-          SystemSettingKeys.autoBackupEnabled,
-        ),
-        SystemSettingKeys.autoBackupTime: prefs.getString(
-          SystemSettingKeys.autoBackupTime,
-        ),
-        SystemSettingKeys.autoBackupFrequency: prefs.getString(
-          SystemSettingKeys.autoBackupFrequency,
-        ),
-        SystemSettingKeys.scheduledBackupEnabled: prefs.getBool(
-          SystemSettingKeys.scheduledBackupEnabled,
-        ),
-        SystemSettingKeys.autoLocalBackupEnabled: prefs.getBool(
-          SystemSettingKeys.autoLocalBackupEnabled,
-        ),
-        SystemSettingKeys.smartSyncInterval: prefs.getInt(
-          SystemSettingKeys.smartSyncInterval,
-        ),
-        SystemSettingKeys.wifiOnlySync: prefs.getBool(
-          SystemSettingKeys.wifiOnlySync,
-        ),
-      };
 
       final totalRecords = roomsData.length +
           bookingsData.length +
@@ -415,16 +381,8 @@ class GoogleDriveBackupService {
           cashTransactionsData.length +
           paymentsData.length +
           debtsData.length +
-          autoFixRunsData.length +
-          violationsData.length +
-          sessionsData.length +
           salaryCyclesData.length +
-          salaryPaymentsData.length +
-          restoreFixLogsData.length +
-          syncQueueData.length +
-          syncLogData.length +
-          syncConflictsData.length +
-          syncStateData.length;
+          salaryPaymentsData.length;
 
       final metadata = BackupMetadata(
         appVersion: '1.2.0+3',
@@ -452,23 +410,10 @@ class GoogleDriveBackupService {
             .toList(),
         'payments': paymentsData.map((payment) => payment.toJson()).toList(),
         'debts': debtsData.map((debt) => debt.toJson()).toList(),
-        'auto_fix_runs': autoFixRunsData.map((run) => run.toJson()).toList(),
-        'integrity_violations':
-            violationsData.map((violation) => violation.toJson()).toList(),
-        'app_sessions':
-            sessionsData.map((session) => session.toJson()).toList(),
         'salary_cycles':
             salaryCyclesData.map((cycle) => cycle.toJson()).toList(),
         'salary_payments':
             salaryPaymentsData.map((payment) => payment.toJson()).toList(),
-        'restore_fix_log':
-            restoreFixLogsData.map((log) => log.toJson()).toList(),
-        'sync_queue': syncQueueData.map((row) => row.toJson()).toList(),
-        'sync_log': syncLogData.map((row) => row.toJson()).toList(),
-        'sync_conflicts': syncConflictsData.map((row) => row.toJson()).toList(),
-        'sync_state':
-            syncStateData.isNotEmpty ? syncStateData.first.toJson() : {},
-        'system_settings': systemSettings, // تصدير الإعدادات
       };
 
       _log('✅ تم تصدير البيانات: $totalRecords سجل');
@@ -1018,8 +963,11 @@ class GoogleDriveBackupService {
             }
           }
 
-          if (backupData.containsKey('sync_log')) {
-            final logList = backupData['sync_log'] as List<dynamic>;
+          if (backupData.containsKey('sync_logs') ||
+              backupData.containsKey('sync_log')) {
+            final logList = backupData.containsKey('sync_logs')
+                ? backupData['sync_logs'] as List<dynamic>
+                : backupData['sync_log'] as List<dynamic>;
             for (final logJson in logList) {
               final map = Map<String, dynamic>.from(logJson as Map);
               final data = SyncLogData.fromJson(
