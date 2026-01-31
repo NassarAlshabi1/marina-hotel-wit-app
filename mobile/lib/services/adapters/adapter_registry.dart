@@ -67,7 +67,8 @@ class AdapterRegistry {
           table: db.bookingNotes,
           adapter: BookingNotesAdapter(IdResolver(db)),
         ),
-        cashTransactions = BaseRepository<CashTransaction, CashTransactionsCompanion>(
+        cashTransactions =
+            BaseRepository<CashTransaction, CashTransactionsCompanion>(
           db: db,
           table: db.cashTransactions,
           adapter: CashTransactionsAdapter(IdResolver(db)),

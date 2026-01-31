@@ -64,12 +64,7 @@ class AppwriteSchemaVerifier {
           'size': 50,
           'default': 'بطاقة شخصية'
         },
-        {
-          'key': 'guestIdNumber',
-          'type': 'string',
-          'size': 100,
-          'default': ''
-        },
+        {'key': 'guestIdNumber', 'type': 'string', 'size': 100, 'default': ''},
         {'key': 'guestIdIssueDate', 'type': 'string', 'size': 50},
         {'key': 'guestIdIssuePlace', 'type': 'string', 'size': 100},
         {
@@ -357,12 +352,7 @@ class AppwriteSchemaVerifier {
       'attributes': [
         {'key': 'title', 'type': 'string', 'size': 200, 'required': true},
         {'key': 'content', 'type': 'string', 'size': 1000, 'required': true},
-        {
-          'key': 'priority',
-          'type': 'string',
-          'size': 20,
-          'default': 'medium'
-        },
+        {'key': 'priority', 'type': 'string', 'size': 20, 'default': 'medium'},
         {'key': 'shiftType', 'type': 'string', 'size': 20, 'default': 'all'},
         {'key': 'isRead', 'type': 'integer', 'default': 0},
         {'key': 'createdAt', 'type': 'string', 'size': 50, 'required': true},

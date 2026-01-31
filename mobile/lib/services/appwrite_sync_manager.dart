@@ -837,13 +837,13 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <models.Document>[];
-    
+
     // المرحلة الأولى: معالجة الدفعات
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        
+
         await _adapterRegistry.payments.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -863,14 +863,14 @@ class AppwriteSyncManager {
         }
       }
     }
-    
+
     // المرحلة الثانية: إعادة محاولة الدفعات المؤجلة
     if (deferred.isNotEmpty) {
       _logger.info(
         'Retrying ${deferred.length} deferred payments after all bookings synced',
         tag: 'SYNC',
       );
-      
+
       for (final doc in deferred) {
         try {
           final data = Map<String, dynamic>.from(doc.data);
@@ -888,7 +888,7 @@ class AppwriteSyncManager {
         }
       }
     }
-    
+
     return processed;
   }
 
@@ -896,7 +896,7 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <models.Document>[];
-    
+
     // المرحلة الأولى: معالجة الديون
     for (final doc in documents) {
       try {
@@ -918,19 +918,20 @@ class AppwriteSyncManager {
         }
       }
     }
-    
+
     // المرحلة الثانية: إعادة محاولة الديون المؤجلة
     if (deferred.isNotEmpty) {
       _logger.info(
         'Retrying ${deferred.length} deferred debts after all bookings synced',
         tag: 'SYNC',
       );
-      
+
       for (final doc in deferred) {
         try {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
-          await _adapterRegistry.debts.upsertFromJson(data, src: Source.appwrite);
+          await _adapterRegistry.debts
+              .upsertFromJson(data, src: Source.appwrite);
           processed++;
         } catch (e) {
           _logger.warning(
@@ -940,7 +941,7 @@ class AppwriteSyncManager {
         }
       }
     }
-    
+
     return processed;
   }
 
@@ -1023,13 +1024,13 @@ class AppwriteSyncManager {
         case 'debts':
           return await _processDebtEntry(entry);
         case 'employees':
-            return await _processEmployeeEntry(entry);
+          return await _processEmployeeEntry(entry);
         case 'booking_notes':
-            return await _processBookingNoteEntry(entry);
+          return await _processBookingNoteEntry(entry);
         case 'booking_nights':
-            return await _processBookingNightEntry(entry);
+          return await _processBookingNightEntry(entry);
         case 'salary_cycles':
-            return await _processSalaryCycleEntry(entry);
+          return await _processSalaryCycleEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -1462,25 +1463,30 @@ class AppwriteSyncManager {
       // مزامنة ملاحظات الشيفت
       final shiftNotes = await appwriteService.listShiftNotes(useCache: false);
       recordsPulled += await _syncShiftNotes(shiftNotes);
-      
+
       // مزامنة ملاحظات الحجز
-      final bookingNotes = await appwriteService.listBookingNotes(useCache: false);
+      final bookingNotes =
+          await appwriteService.listBookingNotes(useCache: false);
       recordsPulled += await _syncBookingNotes(bookingNotes);
 
       // مزامنة ليالي الحجز
-      final bookingNights = await appwriteService.listBookingNights(useCache: false);
+      final bookingNights =
+          await appwriteService.listBookingNights(useCache: false);
       recordsPulled += await _syncBookingNights(bookingNights);
 
       // مزامنة المعاملات النقدية
-      final cashTransactions = await appwriteService.listCashTransactions(useCache: false);
+      final cashTransactions =
+          await appwriteService.listCashTransactions(useCache: false);
       recordsPulled += await _syncCashTransactions(cashTransactions);
 
       // مزامنة دورات الرواتب
-      final salaryCycles = await appwriteService.listSalaryCycles(useCache: false);
+      final salaryCycles =
+          await appwriteService.listSalaryCycles(useCache: false);
       recordsPulled += await _syncSalaryCycles(salaryCycles);
 
       // مزامنة مدفوعات الرواتب
-      final salaryPayments = await appwriteService.listSalaryPayments(useCache: false);
+      final salaryPayments =
+          await appwriteService.listSalaryPayments(useCache: false);
       recordsPulled += await _syncSalaryPayments(salaryPayments);
 
       _lastSyncTime = DateTime.now();
@@ -1516,7 +1522,7 @@ class AppwriteSyncManager {
   }) async {
     // التأكد من تهيئة الخدمة أولاً
     await appwriteService.initialize();
-    
+
     _logger.info('🚀 بدء رفع جميع البيانات المحلية إلى Appwrite...',
         tag: 'SYNC');
     final stats = <String, int>{
@@ -1902,12 +1908,14 @@ class AppwriteSyncManager {
 
   Future<bool> _processSalaryPaymentEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(() => appwriteService.deleteSalaryPayment(entry.localUuid));
+      await _deleteSilently(
+          () => appwriteService.deleteSalaryPayment(entry.localUuid));
       return true;
     }
     final item = await _getSalaryPaymentByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(() => appwriteService.deleteSalaryPayment(entry.localUuid));
+      await _deleteSilently(
+          () => appwriteService.deleteSalaryPayment(entry.localUuid));
       return true;
     }
     final payload = outboxDao.adapters.salaryPayments.adapter.toJson(
@@ -1922,7 +1930,10 @@ class AppwriteSyncManager {
   }
 
   Future<SalaryPayment?> _getSalaryPaymentByLocalUuid(String uuid) {
-     return (database.select(database.salaryPayments)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
+    return (database.select(database.salaryPayments)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
   }
 
   Future<bool> _processCashTransactionEntry(OutboxData entry) async {
@@ -1991,12 +2002,14 @@ class AppwriteSyncManager {
 
   Future<bool> _processEmployeeEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(() => appwriteService.deleteEmployee(entry.localUuid));
+      await _deleteSilently(
+          () => appwriteService.deleteEmployee(entry.localUuid));
       return true;
     }
     final item = await _getEmployeeByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(() => appwriteService.deleteEmployee(entry.localUuid));
+      await _deleteSilently(
+          () => appwriteService.deleteEmployee(entry.localUuid));
       return true;
     }
     final payload = outboxDao.adapters.employees.adapter.toJson(
@@ -2011,42 +2024,53 @@ class AppwriteSyncManager {
   }
 
   Future<Employee?> _getEmployeeByLocalUuid(String uuid) {
-     return (database.select(database.employees)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
+    return (database.select(database.employees)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
   }
 
   Future<bool> _processBookingNoteEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(() => appwriteService.deleteBookingNote(entry.localUuid));
+      await _deleteSilently(
+          () => appwriteService.deleteBookingNote(entry.localUuid));
       return true;
     }
     final item = await _getBookingNoteByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(() => appwriteService.deleteBookingNote(entry.localUuid));
+      await _deleteSilently(
+          () => appwriteService.deleteBookingNote(entry.localUuid));
       return true;
     }
     final payload = outboxDao.adapters.bookingNotes.adapter.toJson(
       item,
       src: Source.appwrite,
     );
-     // Note: booking notes often part of booking but if synced separately:
-     await appwriteService.upsertBookingNote(
+    // Note: booking notes often part of booking but if synced separately:
+    await appwriteService.upsertBookingNote(
       item.localUuid,
       _addIdempotencyKey(payload, entry),
     );
     return true;
   }
-   Future<BookingNote?> _getBookingNoteByLocalUuid(String uuid) {
-     return (database.select(database.bookingNotes)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
+
+  Future<BookingNote?> _getBookingNoteByLocalUuid(String uuid) {
+    return (database.select(database.bookingNotes)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
   }
 
   Future<bool> _processBookingNightEntry(OutboxData entry) async {
-      if (entry.op == 'delete') {
-      await _deleteSilently(() => appwriteService.deleteBookingNight(entry.localUuid));
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+          () => appwriteService.deleteBookingNight(entry.localUuid));
       return true;
     }
     final item = await _getBookingNightByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(() => appwriteService.deleteBookingNight(entry.localUuid));
+      await _deleteSilently(
+          () => appwriteService.deleteBookingNight(entry.localUuid));
       return true;
     }
     final payload = outboxDao.adapters.nights.adapter.toJson(
@@ -2060,19 +2084,23 @@ class AppwriteSyncManager {
     return true;
   }
 
-   Future<BookingNight?> _getBookingNightByLocalUuid(String uuid) {
-     return (database.select(database.bookingNights)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
+  Future<BookingNight?> _getBookingNightByLocalUuid(String uuid) {
+    return (database.select(database.bookingNights)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
   }
 
-
-   Future<bool> _processSalaryCycleEntry(OutboxData entry) async {
-      if (entry.op == 'delete') {
-      await _deleteSilently(() => appwriteService.deleteSalaryCycle(entry.localUuid));
+  Future<bool> _processSalaryCycleEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+          () => appwriteService.deleteSalaryCycle(entry.localUuid));
       return true;
     }
     final item = await _getSalaryCycleByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(() => appwriteService.deleteSalaryCycle(entry.localUuid));
+      await _deleteSilently(
+          () => appwriteService.deleteSalaryCycle(entry.localUuid));
       return true;
     }
     final payload = outboxDao.adapters.salaryCycles.adapter.toJson(
@@ -2086,10 +2114,12 @@ class AppwriteSyncManager {
     return true;
   }
 
-   Future<SalaryCycle?> _getSalaryCycleByLocalUuid(String uuid) {
-     return (database.select(database.salaryCycles)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
+  Future<SalaryCycle?> _getSalaryCycleByLocalUuid(String uuid) {
+    return (database.select(database.salaryCycles)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
   }
-
 
   /// تحميل جميع البيانات من الخادم
   Future<void> pullAllRemoteData() async {
@@ -2122,10 +2152,12 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.shiftNotes.upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.shiftNotes
+            .upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
-        _logger.warning('Failed to sync shift note ${doc.$id}: $e', tag: 'SYNC');
+        _logger.warning('Failed to sync shift note ${doc.$id}: $e',
+            tag: 'SYNC');
       }
     }
     return processed;
@@ -2138,10 +2170,12 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.bookingNotes.upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.bookingNotes
+            .upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
-        _logger.warning('Failed to sync booking note ${doc.$id}: $e', tag: 'SYNC');
+        _logger.warning('Failed to sync booking note ${doc.$id}: $e',
+            tag: 'SYNC');
       }
     }
     return processed;
@@ -2154,10 +2188,12 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.nights.upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.nights
+            .upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
-        _logger.warning('Failed to sync booking night ${doc.$id}: $e', tag: 'SYNC');
+        _logger.warning('Failed to sync booking night ${doc.$id}: $e',
+            tag: 'SYNC');
       }
     }
     return processed;
@@ -2170,10 +2206,12 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.cashTransactions.upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.cashTransactions
+            .upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
-        _logger.warning('Failed to sync cash transaction ${doc.$id}: $e', tag: 'SYNC');
+        _logger.warning('Failed to sync cash transaction ${doc.$id}: $e',
+            tag: 'SYNC');
       }
     }
     return processed;
@@ -2186,10 +2224,12 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.salaryCycles.upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.salaryCycles
+            .upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
-        _logger.warning('Failed to sync salary cycle ${doc.$id}: $e', tag: 'SYNC');
+        _logger.warning('Failed to sync salary cycle ${doc.$id}: $e',
+            tag: 'SYNC');
       }
     }
     return processed;
@@ -2202,10 +2242,12 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.salaryPayments.upsertFromJson(data, src: Source.appwrite);
+        await _adapterRegistry.salaryPayments
+            .upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
-        _logger.warning('Failed to sync salary payment ${doc.$id}: $e', tag: 'SYNC');
+        _logger.warning('Failed to sync salary payment ${doc.$id}: $e',
+            tag: 'SYNC');
       }
     }
     return processed;

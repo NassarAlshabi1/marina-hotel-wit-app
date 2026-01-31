@@ -785,7 +785,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   }
 
   /// استعادة من نسخة احتياطية محلية
-  Future<void> restoreFromLocalBackup(String filePath, {bool syncToCloud = true}) async {
+  Future<void> restoreFromLocalBackup(String filePath,
+      {bool syncToCloud = true}) async {
     try {
       state = state.copyWith(
         status: BackupStatus.restoring,
@@ -819,14 +820,15 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           message: 'رفع البيانات إلى السحابة...',
           progress: 0.7,
         );
-        
+
         try {
           // إضافة جميع البيانات إلى outbox للرفع
           await _addAllDataToOutbox();
-          
+
           // رفع إلى Appwrite إذا كان مفعّلاً
           final prefs = await SharedPreferences.getInstance();
-          final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+          final appwriteEnabled =
+              prefs.getBool('appwrite_sync_enabled') ?? false;
           if (appwriteEnabled) {
             state = state.copyWith(
               message: 'رفع البيانات إلى Appwrite...',
@@ -839,7 +841,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
               debugPrint('⚠️ فشل رفع البيانات إلى Appwrite: $e');
             }
           }
-          
+
           // رفع إلى Google Drive إذا كان مسجل الدخول
           if (state.isSignedIn) {
             state = state.copyWith(
@@ -861,7 +863,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       state = state.copyWith(
         status: BackupStatus.success,
-        message: syncToCloud 
+        message: syncToCloud
             ? 'تم استعادة البيانات ورفعها إلى السحابة بنجاح'
             : 'تم استعادة البيانات من النسخة المحلية بنجاح',
         progress: 1.0,
@@ -882,7 +884,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final db = DatabaseManager.instance;
       final outboxDao = OutboxDao(db);
       final now = DateTime.now().millisecondsSinceEpoch;
-      
+
       // إضافة الغرف
       final rooms = await db.select(db.rooms).get();
       for (final room in rooms) {
@@ -895,7 +897,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           clientTs: now,
         );
       }
-      
+
       // إضافة الحجوزات
       final bookings = await db.select(db.bookings).get();
       for (final booking in bookings) {
@@ -908,7 +910,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           clientTs: now,
         );
       }
-      
+
       // إضافة المصروفات
       final expenses = await db.select(db.expenses).get();
       for (final expense in expenses) {
@@ -921,7 +923,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           clientTs: now,
         );
       }
-      
+
       // إضافة الدفعات
       final payments = await db.select(db.payments).get();
       for (final payment in payments) {
@@ -934,7 +936,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           clientTs: now,
         );
       }
-      
+
       debugPrint('✅ تم إضافة جميع البيانات إلى outbox للرفع');
     } catch (e) {
       debugPrint('❌ خطأ في إضافة البيانات إلى outbox: $e');

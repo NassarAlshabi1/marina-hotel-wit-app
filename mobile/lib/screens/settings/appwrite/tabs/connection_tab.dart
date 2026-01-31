@@ -51,7 +51,8 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: (isConnected ? Colors.green : Colors.red).withOpacity(0.1),
+                color:
+                    (isConnected ? Colors.green : Colors.red).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(

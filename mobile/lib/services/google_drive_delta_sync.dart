@@ -379,7 +379,8 @@ class GoogleDriveDeltaSync {
         );
         break;
       case 'cash_transactions':
-        await registry.cashTransactions.upsertFromJson(payload, src: Source.drive);
+        await registry.cashTransactions
+            .upsertFromJson(payload, src: Source.drive);
         break;
       case 'shift_notes':
         await registry.shiftNotes.upsertFromJson(payload, src: Source.drive);

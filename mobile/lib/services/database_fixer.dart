@@ -37,9 +37,11 @@ class DatabaseFixer {
 
     try {
       // إصلاح serverId في جدول Rooms
-      final roomsQuery = await db.customSelect(
-        'SELECT id, server_id FROM rooms WHERE server_id IS NOT NULL',
-      ).get();
+      final roomsQuery = await db
+          .customSelect(
+            'SELECT id, server_id FROM rooms WHERE server_id IS NOT NULL',
+          )
+          .get();
 
       for (final row in roomsQuery) {
         final serverId = row.data['server_id'];
@@ -57,9 +59,11 @@ class DatabaseFixer {
       }
 
       // إصلاح serverId في جدول Payments
-      final paymentsQuery = await db.customSelect(
-        'SELECT id, server_id FROM payments WHERE server_id IS NOT NULL',
-      ).get();
+      final paymentsQuery = await db
+          .customSelect(
+            'SELECT id, server_id FROM payments WHERE server_id IS NOT NULL',
+          )
+          .get();
 
       for (final row in paymentsQuery) {
         final serverId = row.data['server_id'];
@@ -76,9 +80,11 @@ class DatabaseFixer {
       }
 
       // إصلاح serverId في جدول Expenses
-      final expensesQuery = await db.customSelect(
-        'SELECT id, server_id FROM expenses WHERE server_id IS NOT NULL',
-      ).get();
+      final expensesQuery = await db
+          .customSelect(
+            'SELECT id, server_id FROM expenses WHERE server_id IS NOT NULL',
+          )
+          .get();
 
       for (final row in expensesQuery) {
         final serverId = row.data['server_id'];
@@ -313,4 +319,3 @@ class ValidationReport {
     ''';
   }
 }
-

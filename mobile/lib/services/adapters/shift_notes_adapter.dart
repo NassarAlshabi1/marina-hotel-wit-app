@@ -7,8 +7,7 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class ShiftNotesAdapter
-    extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
+class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
   ShiftNotesAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -67,11 +66,11 @@ class ShiftNotesAdapter
       title: _vStr(json, 'title', src),
       content: _vStr(json, 'content', src),
       priority: _vStr(json, 'priority', src, fallback: 'medium'),
-      shiftType: _vStr(json, 'shiftType', src,
-          altKey: 'shift_type', fallback: 'all'),
+      shiftType:
+          _vStr(json, 'shiftType', src, altKey: 'shift_type', fallback: 'all'),
       isRead: _vInt(json, 'isRead', src, altKey: 'is_read', fallback: 0),
-      createdBy: _vStr(json, 'createdBy', src,
-          altKey: 'created_by', fallback: 'user'),
+      createdBy:
+          _vStr(json, 'createdBy', src, altKey: 'created_by', fallback: 'user'),
       expiresAt: _vStr(json, 'expiresAt', src, altKey: 'expires_at'),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),

@@ -4044,6 +4044,101 @@ class $ShiftNotesTable extends ShiftNotes
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $ShiftNotesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta =
+      const VerificationMeta('localUuid');
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+      'local_uuid', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+  static const VerificationMeta _serverIdMeta =
+      const VerificationMeta('serverId');
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+      'server_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _deletedAtMeta =
+      const VerificationMeta('deletedAt');
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+      'deleted_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _lastModifiedMeta =
+      const VerificationMeta('lastModified');
+  @override
+  late final GeneratedColumn<int> lastModified = GeneratedColumn<int>(
+      'last_modified', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtIsoMeta =
+      const VerificationMeta('createdAtIso');
+  @override
+  late final GeneratedColumn<String> createdAtIso = GeneratedColumn<String>(
+      'created_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtIsoMeta =
+      const VerificationMeta('updatedAtIso');
+  @override
+  late final GeneratedColumn<String> updatedAtIso = GeneratedColumn<String>(
+      'updated_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _deletedAtIsoMeta =
+      const VerificationMeta('deletedAtIso');
+  @override
+  late final GeneratedColumn<String> deletedAtIso = GeneratedColumn<String>(
+      'deleted_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtEpochMeta =
+      const VerificationMeta('createdAtEpoch');
+  @override
+  late final GeneratedColumn<int> createdAtEpoch = GeneratedColumn<int>(
+      'created_at_epoch', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastModifiedEpochMeta =
+      const VerificationMeta('lastModifiedEpoch');
+  @override
+  late final GeneratedColumn<int> lastModifiedEpoch = GeneratedColumn<int>(
+      'last_modified_epoch', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _versionMeta =
+      const VerificationMeta('version');
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+      'version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+      'origin', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('local'));
+  static const VerificationMeta _vectorClockMeta =
+      const VerificationMeta('vectorClock');
+  @override
+  late final GeneratedColumn<String> vectorClock = GeneratedColumn<String>(
+      'vector_clock', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -4087,12 +4182,6 @@ class $ShiftNotesTable extends ShiftNotes
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
-  @override
-  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _expiresAtMeta =
       const VerificationMeta('expiresAt');
   @override
@@ -4109,13 +4198,26 @@ class $ShiftNotesTable extends ShiftNotes
       defaultValue: const Constant('user'));
   @override
   List<GeneratedColumn> get $columns => [
+        localUuid,
+        serverId,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        lastModified,
+        createdAtIso,
+        updatedAtIso,
+        deletedAtIso,
+        createdAtEpoch,
+        lastModifiedEpoch,
+        version,
+        origin,
+        vectorClock,
         id,
         title,
         content,
         priority,
         shiftType,
         isRead,
-        createdAt,
         expiresAt,
         createdBy
       ];
@@ -4129,6 +4231,84 @@ class $ShiftNotesTable extends ShiftNotes
       {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('local_uuid')) {
+      context.handle(_localUuidMeta,
+          localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta));
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(_serverIdMeta,
+          serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(_deletedAtMeta,
+          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+          _lastModifiedMeta,
+          lastModified.isAcceptableOrUnknown(
+              data['last_modified']!, _lastModifiedMeta));
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    if (data.containsKey('created_at_iso')) {
+      context.handle(
+          _createdAtIsoMeta,
+          createdAtIso.isAcceptableOrUnknown(
+              data['created_at_iso']!, _createdAtIsoMeta));
+    }
+    if (data.containsKey('updated_at_iso')) {
+      context.handle(
+          _updatedAtIsoMeta,
+          updatedAtIso.isAcceptableOrUnknown(
+              data['updated_at_iso']!, _updatedAtIsoMeta));
+    }
+    if (data.containsKey('deleted_at_iso')) {
+      context.handle(
+          _deletedAtIsoMeta,
+          deletedAtIso.isAcceptableOrUnknown(
+              data['deleted_at_iso']!, _deletedAtIsoMeta));
+    }
+    if (data.containsKey('created_at_epoch')) {
+      context.handle(
+          _createdAtEpochMeta,
+          createdAtEpoch.isAcceptableOrUnknown(
+              data['created_at_epoch']!, _createdAtEpochMeta));
+    }
+    if (data.containsKey('last_modified_epoch')) {
+      context.handle(
+          _lastModifiedEpochMeta,
+          lastModifiedEpoch.isAcceptableOrUnknown(
+              data['last_modified_epoch']!, _lastModifiedEpochMeta));
+    }
+    if (data.containsKey('version')) {
+      context.handle(_versionMeta,
+          version.isAcceptableOrUnknown(data['version']!, _versionMeta));
+    }
+    if (data.containsKey('origin')) {
+      context.handle(_originMeta,
+          origin.isAcceptableOrUnknown(data['origin']!, _originMeta));
+    }
+    if (data.containsKey('vector_clock')) {
+      context.handle(
+          _vectorClockMeta,
+          vectorClock.isAcceptableOrUnknown(
+              data['vector_clock']!, _vectorClockMeta));
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
@@ -4156,12 +4336,6 @@ class $ShiftNotesTable extends ShiftNotes
       context.handle(_isReadMeta,
           isRead.isAcceptableOrUnknown(data['is_read']!, _isReadMeta));
     }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
     if (data.containsKey('expires_at')) {
       context.handle(_expiresAtMeta,
           expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta));
@@ -4179,6 +4353,34 @@ class $ShiftNotesTable extends ShiftNotes
   ShiftNote map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return ShiftNote(
+      localUuid: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}local_uuid'])!,
+      serverId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}server_id']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      deletedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}deleted_at']),
+      lastModified: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}last_modified'])!,
+      createdAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at_iso']),
+      updatedAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at_iso']),
+      deletedAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}deleted_at_iso']),
+      createdAtEpoch: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at_epoch'])!,
+      lastModifiedEpoch: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}last_modified_epoch'])!,
+      version: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}version'])!,
+      origin: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}origin'])!,
+      vectorClock: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}vector_clock'])!,
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       title: attachedDatabase.typeMapping
@@ -4191,8 +4393,6 @@ class $ShiftNotesTable extends ShiftNotes
           .read(DriftSqlType.string, data['${effectivePrefix}shift_type'])!,
       isRead: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}is_read'])!,
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
       expiresAt: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}expires_at']),
       createdBy: attachedDatabase.typeMapping
@@ -4207,35 +4407,84 @@ class $ShiftNotesTable extends ShiftNotes
 }
 
 class ShiftNote extends DataClass implements Insertable<ShiftNote> {
+  final String localUuid;
+  final int? serverId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int lastModified;
+  final String? createdAtIso;
+  final String? updatedAtIso;
+  final String? deletedAtIso;
+  final int createdAtEpoch;
+  final int lastModifiedEpoch;
+  final int version;
+  final String origin;
+  final String vectorClock;
   final int id;
   final String title;
   final String content;
   final String priority;
   final String shiftType;
   final int isRead;
-  final String createdAt;
   final String? expiresAt;
   final String createdBy;
   const ShiftNote(
-      {required this.id,
+      {required this.localUuid,
+      this.serverId,
+      required this.createdAt,
+      required this.updatedAt,
+      this.deletedAt,
+      required this.lastModified,
+      this.createdAtIso,
+      this.updatedAtIso,
+      this.deletedAtIso,
+      required this.createdAtEpoch,
+      required this.lastModifiedEpoch,
+      required this.version,
+      required this.origin,
+      required this.vectorClock,
+      required this.id,
       required this.title,
       required this.content,
       required this.priority,
       required this.shiftType,
       required this.isRead,
-      required this.createdAt,
       this.expiresAt,
       required this.createdBy});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['last_modified'] = Variable<int>(lastModified);
+    if (!nullToAbsent || createdAtIso != null) {
+      map['created_at_iso'] = Variable<String>(createdAtIso);
+    }
+    if (!nullToAbsent || updatedAtIso != null) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso);
+    }
+    if (!nullToAbsent || deletedAtIso != null) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso);
+    }
+    map['created_at_epoch'] = Variable<int>(createdAtEpoch);
+    map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch);
+    map['version'] = Variable<int>(version);
+    map['origin'] = Variable<String>(origin);
+    map['vector_clock'] = Variable<String>(vectorClock);
     map['id'] = Variable<int>(id);
     map['title'] = Variable<String>(title);
     map['content'] = Variable<String>(content);
     map['priority'] = Variable<String>(priority);
     map['shift_type'] = Variable<String>(shiftType);
     map['is_read'] = Variable<int>(isRead);
-    map['created_at'] = Variable<String>(createdAt);
     if (!nullToAbsent || expiresAt != null) {
       map['expires_at'] = Variable<String>(expiresAt);
     }
@@ -4245,13 +4494,36 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
 
   ShiftNotesCompanion toCompanion(bool nullToAbsent) {
     return ShiftNotesCompanion(
+      localUuid: Value(localUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModified: Value(lastModified),
+      createdAtIso: createdAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAtIso),
+      updatedAtIso: updatedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtIso),
+      deletedAtIso: deletedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAtIso),
+      createdAtEpoch: Value(createdAtEpoch),
+      lastModifiedEpoch: Value(lastModifiedEpoch),
+      version: Value(version),
+      origin: Value(origin),
+      vectorClock: Value(vectorClock),
       id: Value(id),
       title: Value(title),
       content: Value(content),
       priority: Value(priority),
       shiftType: Value(shiftType),
       isRead: Value(isRead),
-      createdAt: Value(createdAt),
       expiresAt: expiresAt == null && nullToAbsent
           ? const Value.absent()
           : Value(expiresAt),
@@ -4263,13 +4535,26 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return ShiftNote(
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastModified: serializer.fromJson<int>(json['lastModified']),
+      createdAtIso: serializer.fromJson<String?>(json['createdAtIso']),
+      updatedAtIso: serializer.fromJson<String?>(json['updatedAtIso']),
+      deletedAtIso: serializer.fromJson<String?>(json['deletedAtIso']),
+      createdAtEpoch: serializer.fromJson<int>(json['createdAtEpoch']),
+      lastModifiedEpoch: serializer.fromJson<int>(json['lastModifiedEpoch']),
+      version: serializer.fromJson<int>(json['version']),
+      origin: serializer.fromJson<String>(json['origin']),
+      vectorClock: serializer.fromJson<String>(json['vectorClock']),
       id: serializer.fromJson<int>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       content: serializer.fromJson<String>(json['content']),
       priority: serializer.fromJson<String>(json['priority']),
       shiftType: serializer.fromJson<String>(json['shiftType']),
       isRead: serializer.fromJson<int>(json['isRead']),
-      createdAt: serializer.fromJson<String>(json['createdAt']),
       expiresAt: serializer.fromJson<String?>(json['expiresAt']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
     );
@@ -4278,48 +4563,116 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'localUuid': serializer.toJson<String>(localUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastModified': serializer.toJson<int>(lastModified),
+      'createdAtIso': serializer.toJson<String?>(createdAtIso),
+      'updatedAtIso': serializer.toJson<String?>(updatedAtIso),
+      'deletedAtIso': serializer.toJson<String?>(deletedAtIso),
+      'createdAtEpoch': serializer.toJson<int>(createdAtEpoch),
+      'lastModifiedEpoch': serializer.toJson<int>(lastModifiedEpoch),
+      'version': serializer.toJson<int>(version),
+      'origin': serializer.toJson<String>(origin),
+      'vectorClock': serializer.toJson<String>(vectorClock),
       'id': serializer.toJson<int>(id),
       'title': serializer.toJson<String>(title),
       'content': serializer.toJson<String>(content),
       'priority': serializer.toJson<String>(priority),
       'shiftType': serializer.toJson<String>(shiftType),
       'isRead': serializer.toJson<int>(isRead),
-      'createdAt': serializer.toJson<String>(createdAt),
       'expiresAt': serializer.toJson<String?>(expiresAt),
       'createdBy': serializer.toJson<String>(createdBy),
     };
   }
 
   ShiftNote copyWith(
-          {int? id,
+          {String? localUuid,
+          Value<int?> serverId = const Value.absent(),
+          int? createdAt,
+          int? updatedAt,
+          Value<int?> deletedAt = const Value.absent(),
+          int? lastModified,
+          Value<String?> createdAtIso = const Value.absent(),
+          Value<String?> updatedAtIso = const Value.absent(),
+          Value<String?> deletedAtIso = const Value.absent(),
+          int? createdAtEpoch,
+          int? lastModifiedEpoch,
+          int? version,
+          String? origin,
+          String? vectorClock,
+          int? id,
           String? title,
           String? content,
           String? priority,
           String? shiftType,
           int? isRead,
-          String? createdAt,
           Value<String?> expiresAt = const Value.absent(),
           String? createdBy}) =>
       ShiftNote(
+        localUuid: localUuid ?? this.localUuid,
+        serverId: serverId.present ? serverId.value : this.serverId,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+        lastModified: lastModified ?? this.lastModified,
+        createdAtIso:
+            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+        updatedAtIso:
+            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+        deletedAtIso:
+            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+        version: version ?? this.version,
+        origin: origin ?? this.origin,
+        vectorClock: vectorClock ?? this.vectorClock,
         id: id ?? this.id,
         title: title ?? this.title,
         content: content ?? this.content,
         priority: priority ?? this.priority,
         shiftType: shiftType ?? this.shiftType,
         isRead: isRead ?? this.isRead,
-        createdAt: createdAt ?? this.createdAt,
         expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
         createdBy: createdBy ?? this.createdBy,
       );
   ShiftNote copyWithCompanion(ShiftNotesCompanion data) {
     return ShiftNote(
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      createdAtIso: data.createdAtIso.present
+          ? data.createdAtIso.value
+          : this.createdAtIso,
+      updatedAtIso: data.updatedAtIso.present
+          ? data.updatedAtIso.value
+          : this.updatedAtIso,
+      deletedAtIso: data.deletedAtIso.present
+          ? data.deletedAtIso.value
+          : this.deletedAtIso,
+      createdAtEpoch: data.createdAtEpoch.present
+          ? data.createdAtEpoch.value
+          : this.createdAtEpoch,
+      lastModifiedEpoch: data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch.value
+          : this.lastModifiedEpoch,
+      version: data.version.present ? data.version.value : this.version,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      vectorClock:
+          data.vectorClock.present ? data.vectorClock.value : this.vectorClock,
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
       content: data.content.present ? data.content.value : this.content,
       priority: data.priority.present ? data.priority.value : this.priority,
       shiftType: data.shiftType.present ? data.shiftType.value : this.shiftType,
       isRead: data.isRead.present ? data.isRead.value : this.isRead,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
     );
@@ -4328,13 +4681,26 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
   @override
   String toString() {
     return (StringBuffer('ShiftNote(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('content: $content, ')
           ..write('priority: $priority, ')
           ..write('shiftType: $shiftType, ')
           ..write('isRead: $isRead, ')
-          ..write('createdAt: $createdAt, ')
           ..write('expiresAt: $expiresAt, ')
           ..write('createdBy: $createdBy')
           ..write(')'))
@@ -4342,99 +4708,228 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
   }
 
   @override
-  int get hashCode => Object.hash(id, title, content, priority, shiftType,
-      isRead, createdAt, expiresAt, createdBy);
+  int get hashCode => Object.hashAll([
+        localUuid,
+        serverId,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        lastModified,
+        createdAtIso,
+        updatedAtIso,
+        deletedAtIso,
+        createdAtEpoch,
+        lastModifiedEpoch,
+        version,
+        origin,
+        vectorClock,
+        id,
+        title,
+        content,
+        priority,
+        shiftType,
+        isRead,
+        expiresAt,
+        createdBy
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is ShiftNote &&
+          other.localUuid == this.localUuid &&
+          other.serverId == this.serverId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModified == this.lastModified &&
+          other.createdAtIso == this.createdAtIso &&
+          other.updatedAtIso == this.updatedAtIso &&
+          other.deletedAtIso == this.deletedAtIso &&
+          other.createdAtEpoch == this.createdAtEpoch &&
+          other.lastModifiedEpoch == this.lastModifiedEpoch &&
+          other.version == this.version &&
+          other.origin == this.origin &&
+          other.vectorClock == this.vectorClock &&
           other.id == this.id &&
           other.title == this.title &&
           other.content == this.content &&
           other.priority == this.priority &&
           other.shiftType == this.shiftType &&
           other.isRead == this.isRead &&
-          other.createdAt == this.createdAt &&
           other.expiresAt == this.expiresAt &&
           other.createdBy == this.createdBy);
 }
 
 class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
+  final Value<String> localUuid;
+  final Value<int?> serverId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> lastModified;
+  final Value<String?> createdAtIso;
+  final Value<String?> updatedAtIso;
+  final Value<String?> deletedAtIso;
+  final Value<int> createdAtEpoch;
+  final Value<int> lastModifiedEpoch;
+  final Value<int> version;
+  final Value<String> origin;
+  final Value<String> vectorClock;
   final Value<int> id;
   final Value<String> title;
   final Value<String> content;
   final Value<String> priority;
   final Value<String> shiftType;
   final Value<int> isRead;
-  final Value<String> createdAt;
   final Value<String?> expiresAt;
   final Value<String> createdBy;
   const ShiftNotesCompanion({
+    this.localUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.content = const Value.absent(),
     this.priority = const Value.absent(),
     this.shiftType = const Value.absent(),
     this.isRead = const Value.absent(),
-    this.createdAt = const Value.absent(),
     this.expiresAt = const Value.absent(),
     this.createdBy = const Value.absent(),
   });
   ShiftNotesCompanion.insert({
+    required String localUuid,
+    this.serverId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    required int lastModified,
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
     this.id = const Value.absent(),
     required String title,
     required String content,
     this.priority = const Value.absent(),
     this.shiftType = const Value.absent(),
     this.isRead = const Value.absent(),
-    required String createdAt,
     this.expiresAt = const Value.absent(),
     this.createdBy = const Value.absent(),
-  })  : title = Value(title),
-        content = Value(content),
-        createdAt = Value(createdAt);
+  })  : localUuid = Value(localUuid),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt),
+        lastModified = Value(lastModified),
+        title = Value(title),
+        content = Value(content);
   static Insertable<ShiftNote> custom({
+    Expression<String>? localUuid,
+    Expression<int>? serverId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastModified,
+    Expression<String>? createdAtIso,
+    Expression<String>? updatedAtIso,
+    Expression<String>? deletedAtIso,
+    Expression<int>? createdAtEpoch,
+    Expression<int>? lastModifiedEpoch,
+    Expression<int>? version,
+    Expression<String>? origin,
+    Expression<String>? vectorClock,
     Expression<int>? id,
     Expression<String>? title,
     Expression<String>? content,
     Expression<String>? priority,
     Expression<String>? shiftType,
     Expression<int>? isRead,
-    Expression<String>? createdAt,
     Expression<String>? expiresAt,
     Expression<String>? createdBy,
   }) {
     return RawValuesInsertable({
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (createdAtIso != null) 'created_at_iso': createdAtIso,
+      if (updatedAtIso != null) 'updated_at_iso': updatedAtIso,
+      if (deletedAtIso != null) 'deleted_at_iso': deletedAtIso,
+      if (createdAtEpoch != null) 'created_at_epoch': createdAtEpoch,
+      if (lastModifiedEpoch != null) 'last_modified_epoch': lastModifiedEpoch,
+      if (version != null) 'version': version,
+      if (origin != null) 'origin': origin,
+      if (vectorClock != null) 'vector_clock': vectorClock,
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (content != null) 'content': content,
       if (priority != null) 'priority': priority,
       if (shiftType != null) 'shift_type': shiftType,
       if (isRead != null) 'is_read': isRead,
-      if (createdAt != null) 'created_at': createdAt,
       if (expiresAt != null) 'expires_at': expiresAt,
       if (createdBy != null) 'created_by': createdBy,
     });
   }
 
   ShiftNotesCompanion copyWith(
-      {Value<int>? id,
+      {Value<String>? localUuid,
+      Value<int?>? serverId,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int?>? deletedAt,
+      Value<int>? lastModified,
+      Value<String?>? createdAtIso,
+      Value<String?>? updatedAtIso,
+      Value<String?>? deletedAtIso,
+      Value<int>? createdAtEpoch,
+      Value<int>? lastModifiedEpoch,
+      Value<int>? version,
+      Value<String>? origin,
+      Value<String>? vectorClock,
+      Value<int>? id,
       Value<String>? title,
       Value<String>? content,
       Value<String>? priority,
       Value<String>? shiftType,
       Value<int>? isRead,
-      Value<String>? createdAt,
       Value<String?>? expiresAt,
       Value<String>? createdBy}) {
     return ShiftNotesCompanion(
+      localUuid: localUuid ?? this.localUuid,
+      serverId: serverId ?? this.serverId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModified: lastModified ?? this.lastModified,
+      createdAtIso: createdAtIso ?? this.createdAtIso,
+      updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      deletedAtIso: deletedAtIso ?? this.deletedAtIso,
+      createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+      lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      version: version ?? this.version,
+      origin: origin ?? this.origin,
+      vectorClock: vectorClock ?? this.vectorClock,
       id: id ?? this.id,
       title: title ?? this.title,
       content: content ?? this.content,
       priority: priority ?? this.priority,
       shiftType: shiftType ?? this.shiftType,
       isRead: isRead ?? this.isRead,
-      createdAt: createdAt ?? this.createdAt,
       expiresAt: expiresAt ?? this.expiresAt,
       createdBy: createdBy ?? this.createdBy,
     );
@@ -4443,6 +4938,48 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<int>(lastModified.value);
+    }
+    if (createdAtIso.present) {
+      map['created_at_iso'] = Variable<String>(createdAtIso.value);
+    }
+    if (updatedAtIso.present) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso.value);
+    }
+    if (deletedAtIso.present) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso.value);
+    }
+    if (createdAtEpoch.present) {
+      map['created_at_epoch'] = Variable<int>(createdAtEpoch.value);
+    }
+    if (lastModifiedEpoch.present) {
+      map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (vectorClock.present) {
+      map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -4461,9 +4998,6 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     if (isRead.present) {
       map['is_read'] = Variable<int>(isRead.value);
     }
-    if (createdAt.present) {
-      map['created_at'] = Variable<String>(createdAt.value);
-    }
     if (expiresAt.present) {
       map['expires_at'] = Variable<String>(expiresAt.value);
     }
@@ -4476,13 +5010,26 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
   @override
   String toString() {
     return (StringBuffer('ShiftNotesCompanion(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('content: $content, ')
           ..write('priority: $priority, ')
           ..write('shiftType: $shiftType, ')
           ..write('isRead: $isRead, ')
-          ..write('createdAt: $createdAt, ')
           ..write('expiresAt: $expiresAt, ')
           ..write('createdBy: $createdBy')
           ..write(')'))
@@ -21561,24 +22108,50 @@ typedef $$BookingNotesTableProcessedTableManager = ProcessedTableManager<
     BookingNote,
     PrefetchHooks Function({bool bookingId})>;
 typedef $$ShiftNotesTableCreateCompanionBuilder = ShiftNotesCompanion Function({
+  required String localUuid,
+  Value<int?> serverId,
+  required int createdAt,
+  required int updatedAt,
+  Value<int?> deletedAt,
+  required int lastModified,
+  Value<String?> createdAtIso,
+  Value<String?> updatedAtIso,
+  Value<String?> deletedAtIso,
+  Value<int> createdAtEpoch,
+  Value<int> lastModifiedEpoch,
+  Value<int> version,
+  Value<String> origin,
+  Value<String> vectorClock,
   Value<int> id,
   required String title,
   required String content,
   Value<String> priority,
   Value<String> shiftType,
   Value<int> isRead,
-  required String createdAt,
   Value<String?> expiresAt,
   Value<String> createdBy,
 });
 typedef $$ShiftNotesTableUpdateCompanionBuilder = ShiftNotesCompanion Function({
+  Value<String> localUuid,
+  Value<int?> serverId,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int?> deletedAt,
+  Value<int> lastModified,
+  Value<String?> createdAtIso,
+  Value<String?> updatedAtIso,
+  Value<String?> deletedAtIso,
+  Value<int> createdAtEpoch,
+  Value<int> lastModifiedEpoch,
+  Value<int> version,
+  Value<String> origin,
+  Value<String> vectorClock,
   Value<int> id,
   Value<String> title,
   Value<String> content,
   Value<String> priority,
   Value<String> shiftType,
   Value<int> isRead,
-  Value<String> createdAt,
   Value<String?> expiresAt,
   Value<String> createdBy,
 });
@@ -21592,6 +22165,50 @@ class $$ShiftNotesTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get localUuid => $composableBuilder(
+      column: $table.localUuid, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastModified => $composableBuilder(
+      column: $table.lastModified, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
 
@@ -21610,9 +22227,6 @@ class $$ShiftNotesTableFilterComposer
   ColumnFilters<int> get isRead => $composableBuilder(
       column: $table.isRead, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
-
   ColumnFilters<String> get expiresAt => $composableBuilder(
       column: $table.expiresAt, builder: (column) => ColumnFilters(column));
 
@@ -21629,6 +22243,54 @@ class $$ShiftNotesTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+      column: $table.localUuid, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastModified => $composableBuilder(
+      column: $table.lastModified,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
@@ -21647,9 +22309,6 @@ class $$ShiftNotesTableOrderingComposer
   ColumnOrderings<int> get isRead => $composableBuilder(
       column: $table.isRead, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
-
   ColumnOrderings<String> get expiresAt => $composableBuilder(
       column: $table.expiresAt, builder: (column) => ColumnOrderings(column));
 
@@ -21666,6 +22325,48 @@ class $$ShiftNotesTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get localUuid =>
+      $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModified => $composableBuilder(
+      column: $table.lastModified, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => column);
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -21683,9 +22384,6 @@ class $$ShiftNotesTableAnnotationComposer
 
   GeneratedColumn<int> get isRead =>
       $composableBuilder(column: $table.isRead, builder: (column) => column);
-
-  GeneratedColumn<String> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   GeneratedColumn<String> get expiresAt =>
       $composableBuilder(column: $table.expiresAt, builder: (column) => column);
@@ -21717,46 +22415,98 @@ class $$ShiftNotesTableTableManager extends RootTableManager<
           createComputedFieldComposer: () =>
               $$ShiftNotesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
+            Value<String> localUuid = const Value.absent(),
+            Value<int?> serverId = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int?> deletedAt = const Value.absent(),
+            Value<int> lastModified = const Value.absent(),
+            Value<String?> createdAtIso = const Value.absent(),
+            Value<String?> updatedAtIso = const Value.absent(),
+            Value<String?> deletedAtIso = const Value.absent(),
+            Value<int> createdAtEpoch = const Value.absent(),
+            Value<int> lastModifiedEpoch = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<String> vectorClock = const Value.absent(),
             Value<int> id = const Value.absent(),
             Value<String> title = const Value.absent(),
             Value<String> content = const Value.absent(),
             Value<String> priority = const Value.absent(),
             Value<String> shiftType = const Value.absent(),
             Value<int> isRead = const Value.absent(),
-            Value<String> createdAt = const Value.absent(),
             Value<String?> expiresAt = const Value.absent(),
             Value<String> createdBy = const Value.absent(),
           }) =>
               ShiftNotesCompanion(
+            localUuid: localUuid,
+            serverId: serverId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            lastModified: lastModified,
+            createdAtIso: createdAtIso,
+            updatedAtIso: updatedAtIso,
+            deletedAtIso: deletedAtIso,
+            createdAtEpoch: createdAtEpoch,
+            lastModifiedEpoch: lastModifiedEpoch,
+            version: version,
+            origin: origin,
+            vectorClock: vectorClock,
             id: id,
             title: title,
             content: content,
             priority: priority,
             shiftType: shiftType,
             isRead: isRead,
-            createdAt: createdAt,
             expiresAt: expiresAt,
             createdBy: createdBy,
           ),
           createCompanionCallback: ({
+            required String localUuid,
+            Value<int?> serverId = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int?> deletedAt = const Value.absent(),
+            required int lastModified,
+            Value<String?> createdAtIso = const Value.absent(),
+            Value<String?> updatedAtIso = const Value.absent(),
+            Value<String?> deletedAtIso = const Value.absent(),
+            Value<int> createdAtEpoch = const Value.absent(),
+            Value<int> lastModifiedEpoch = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<String> vectorClock = const Value.absent(),
             Value<int> id = const Value.absent(),
             required String title,
             required String content,
             Value<String> priority = const Value.absent(),
             Value<String> shiftType = const Value.absent(),
             Value<int> isRead = const Value.absent(),
-            required String createdAt,
             Value<String?> expiresAt = const Value.absent(),
             Value<String> createdBy = const Value.absent(),
           }) =>
               ShiftNotesCompanion.insert(
+            localUuid: localUuid,
+            serverId: serverId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            lastModified: lastModified,
+            createdAtIso: createdAtIso,
+            updatedAtIso: updatedAtIso,
+            deletedAtIso: deletedAtIso,
+            createdAtEpoch: createdAtEpoch,
+            lastModifiedEpoch: lastModifiedEpoch,
+            version: version,
+            origin: origin,
+            vectorClock: vectorClock,
             id: id,
             title: title,
             content: content,
             priority: priority,
             shiftType: shiftType,
             isRead: isRead,
-            createdAt: createdAt,
             expiresAt: expiresAt,
             createdBy: createdBy,
           ),

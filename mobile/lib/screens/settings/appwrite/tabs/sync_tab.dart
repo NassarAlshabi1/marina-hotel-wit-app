@@ -161,8 +161,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('تفعيل المزامنة التلقائية'),
-            subtitle: Text(_syncEnabled 
-                ? 'المزامنة التلقائية مفعّلة' 
+            subtitle: Text(_syncEnabled
+                ? 'المزامنة التلقائية مفعّلة'
                 : 'المزامنة مع Appwrite معطّلة (يدوي فقط)'),
             value: _syncEnabled,
             onChanged: (value) {
@@ -191,13 +191,17 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 ? 'ستتم المزامنة تلقائياً عند الاتصال بالإنترنت'
                 : 'المزامنة عند الاتصال معطّلة'),
             value: _autoSyncOnConnect,
-            onChanged: _syncEnabled ? (value) {
-              setState(() => _autoSyncOnConnect = value);
-              _saveSettings();
-            } : null,
+            onChanged: _syncEnabled
+                ? (value) {
+                    setState(() => _autoSyncOnConnect = value);
+                    _saveSettings();
+                  }
+                : null,
             secondary: Icon(
               Icons.wifi,
-              color: _autoSyncOnConnect && _syncEnabled ? Colors.blue : Colors.grey,
+              color: _autoSyncOnConnect && _syncEnabled
+                  ? Colors.blue
+                  : Colors.grey,
             ),
           ),
         ],
@@ -596,11 +600,11 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
       final stats = await manager.pushAllLocalDataToAppwrite();
-      
+
       ref.invalidate(ap.syncStatsProvider);
 
       if (!mounted) return;
-      
+
       // إغلاق مؤشر التحميل
       Navigator.pop(context);
 
@@ -635,7 +639,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (errors > 0) 
+                if (errors > 0)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
@@ -649,24 +653,24 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                ...stats.entries.where((e) => e.key != 'errors').map((e) => 
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('• ${_translateEntity(e.key)}'),
-                        Text(
-                          '${e.value}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple,
+                ...stats.entries
+                    .where((e) => e.key != 'errors')
+                    .map((e) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('• ${_translateEntity(e.key)}'),
+                              Text(
+                                '${e.value}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.purple,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                  )
-                ),
+                        )),
               ],
             ),
           ),
@@ -680,10 +684,10 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       );
     } catch (e) {
       if (!mounted) return;
-      
+
       // إغلاق مؤشر التحميل في حالة الخطأ
       Navigator.pop(context);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل الرفع الشامل: $e'),

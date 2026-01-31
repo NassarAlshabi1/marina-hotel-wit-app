@@ -252,9 +252,11 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
               Navigator.pop(context);
               _showProgressDialog(context, 'جاري تنظيف البيانات المؤقتة...');
               try {
-                await ref.read(backupStatusProvider.notifier).cleanupTempFiles();
-                final message =
-                    ref.read(backupStatusProvider).message ?? 'تم تنظيف البيانات المؤقتة';
+                await ref
+                    .read(backupStatusProvider.notifier)
+                    .cleanupTempFiles();
+                final message = ref.read(backupStatusProvider).message ??
+                    'تم تنظيف البيانات المؤقتة';
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(message)),
@@ -301,7 +303,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
               Navigator.pop(context);
               _showProgressDialog(context, 'جاري فحص قاعدة البيانات...');
               try {
-                final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
+                final checks =
+                    await SyncOrchestrator.instance.verifyDataIntegrity();
                 Navigator.pop(context);
                 showDialog(
                   context: context,
@@ -434,7 +437,9 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
               Navigator.pop(context);
               _showProgressDialog(context, 'جاري تصدير البيانات...');
               try {
-                await ref.read(backupStatusProvider.notifier).createComprehensiveBackup();
+                await ref
+                    .read(backupStatusProvider.notifier)
+                    .createComprehensiveBackup();
                 final message = ref.read(backupStatusProvider).message ??
                     'تم تصدير البيانات بنجاح';
                 Navigator.pop(context);

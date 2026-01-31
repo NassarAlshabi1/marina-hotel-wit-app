@@ -70,7 +70,8 @@ class DatabaseHealthMonitor {
   }
 
   /// مراقبة مستمرة (Stream)
-  Stream<HealthReport> watchHealth({Duration interval = const Duration(minutes: 5)}) async* {
+  Stream<HealthReport> watchHealth(
+      {Duration interval = const Duration(minutes: 5)}) async* {
     while (true) {
       yield await quickScan();
       await Future.delayed(interval);
@@ -321,8 +322,7 @@ class HealthReport {
     );
   }
 
-  int get totalIssues =>
-      invalidServerIds + orphanPayments + orphanExpenses;
+  int get totalIssues => invalidServerIds + orphanPayments + orphanExpenses;
 
   bool get isHealthy => status == HealthStatus.healthy;
   bool get hasIssues => totalIssues > 0;
@@ -366,8 +366,7 @@ class HealthMetrics {
     required this.orphanExpenses,
   });
 
-  int get totalIssues =>
-      invalidServerIds + orphanPayments + orphanExpenses;
+  int get totalIssues => invalidServerIds + orphanPayments + orphanExpenses;
 }
 
 /// لقطة سجل الصحة

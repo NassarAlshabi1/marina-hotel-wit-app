@@ -476,12 +476,12 @@ class LocalBackupService {
     try {
       // حذف جميع الجداول بالترتيب الصحيح (من الأطفال إلى الآباء)
       // لتجنب FOREIGN KEY constraint errors
-      await db.delete(db.payments).go();  // يعتمد على bookings
-      await db.delete(db.debts).go();  // يعتمد على bookings
-      await db.delete(db.bookingNotes).go();  // يعتمد على bookings
-      await db.delete(db.cashTransactions).go();  // يعتمد على bookings
-      await db.delete(db.bookings).go();  // يعتمد على rooms
-      await db.delete(db.expenses).go();  // يعتمد على employees
+      await db.delete(db.payments).go(); // يعتمد على bookings
+      await db.delete(db.debts).go(); // يعتمد على bookings
+      await db.delete(db.bookingNotes).go(); // يعتمد على bookings
+      await db.delete(db.cashTransactions).go(); // يعتمد على bookings
+      await db.delete(db.bookings).go(); // يعتمد على rooms
+      await db.delete(db.expenses).go(); // يعتمد على employees
       await db.delete(db.employees).go();
       await db.delete(db.rooms).go();
       await db.delete(db.syncState).go();

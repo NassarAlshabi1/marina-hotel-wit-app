@@ -853,57 +853,62 @@ class AppDatabase extends _$AppDatabase {
             await m.database.customStatement(
               'ALTER TABLE shift_notes RENAME TO shift_notes_old',
             );
-            
-            await m.createTable(shiftNotes);
-            
-            final oldNotes = await m.database.customSelect('SELECT * FROM shift_notes_old').get();
-            final now = DateTime.now();
-            
-            for (final row in oldNotes) {
-               final uuid = const Uuid().v4();
-               
-               int createdTimestamp;
-               final oldCreatedRaw = row.data['created_at'];
-               if (oldCreatedRaw is int) {
-                 createdTimestamp = oldCreatedRaw;
-               } else if (oldCreatedRaw is String) {
-                 createdTimestamp = DateTime.tryParse(oldCreatedRaw)?.millisecondsSinceEpoch ?? now.millisecondsSinceEpoch;
-               } else {
-                 createdTimestamp = now.millisecondsSinceEpoch;
-               }
-               
-               final isoDate = DateTime.fromMillisecondsSinceEpoch(createdTimestamp).toIso8601String();
 
-               await m.database.customInsert(
-                 'INSERT INTO shift_notes ('
-                 'title, content, priority, shift_type, is_read, created_by, '
-                 'expires_at, '
-                 'local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, '
-                 'created_at_iso, updated_at_iso, deleted_at_iso, version, origin'
-                 ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                 variables: [
-                   Variable<String>(row.data['title'] as String),
-                   Variable<String>(row.data['content'] as String),
-                   Variable<String>(row.data['priority'] as String),
-                   Variable<String>(row.data['shift_type'] as String),
-                   Variable<int>(row.data['is_read'] as int),
-                   Variable<String>(row.data['created_by'] as String),
-                   Variable<String>(row.data['expires_at'] as String?),
-                   Variable<String>(uuid),
-                   Variable<int>(null),
-                   Variable<int>(createdTimestamp),
-                   Variable<int>(createdTimestamp),
-                   Variable<int>(null),
-                   Variable<int>(createdTimestamp),
-                   Variable<String>(isoDate),
-                   Variable<String>(isoDate),
-                   Variable<String>(null),
-                   Variable<int>(1),
-                   Variable<String>('local'),
-                 ]
-               );
+            await m.createTable(shiftNotes);
+
+            final oldNotes = await m.database
+                .customSelect('SELECT * FROM shift_notes_old')
+                .get();
+            final now = DateTime.now();
+
+            for (final row in oldNotes) {
+              final uuid = const Uuid().v4();
+
+              int createdTimestamp;
+              final oldCreatedRaw = row.data['created_at'];
+              if (oldCreatedRaw is int) {
+                createdTimestamp = oldCreatedRaw;
+              } else if (oldCreatedRaw is String) {
+                createdTimestamp =
+                    DateTime.tryParse(oldCreatedRaw)?.millisecondsSinceEpoch ??
+                        now.millisecondsSinceEpoch;
+              } else {
+                createdTimestamp = now.millisecondsSinceEpoch;
+              }
+
+              final isoDate =
+                  DateTime.fromMillisecondsSinceEpoch(createdTimestamp)
+                      .toIso8601String();
+
+              await m.database.customInsert(
+                  'INSERT INTO shift_notes ('
+                  'title, content, priority, shift_type, is_read, created_by, '
+                  'expires_at, '
+                  'local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, '
+                  'created_at_iso, updated_at_iso, deleted_at_iso, version, origin'
+                  ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                  variables: [
+                    Variable<String>(row.data['title'] as String),
+                    Variable<String>(row.data['content'] as String),
+                    Variable<String>(row.data['priority'] as String),
+                    Variable<String>(row.data['shift_type'] as String),
+                    Variable<int>(row.data['is_read'] as int),
+                    Variable<String>(row.data['created_by'] as String),
+                    Variable<String>(row.data['expires_at'] as String?),
+                    Variable<String>(uuid),
+                    Variable<int>(null),
+                    Variable<int>(createdTimestamp),
+                    Variable<int>(createdTimestamp),
+                    Variable<int>(null),
+                    Variable<int>(createdTimestamp),
+                    Variable<String>(isoDate),
+                    Variable<String>(isoDate),
+                    Variable<String>(null),
+                    Variable<int>(1),
+                    Variable<String>('local'),
+                  ]);
             }
-            
+
             await m.database.customStatement('DROP TABLE shift_notes_old');
           }
         },

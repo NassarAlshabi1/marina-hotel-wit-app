@@ -320,8 +320,7 @@ class AppwriteToolsTab extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Text('• ${issue.toArabicMessage()}'),
                     )),
-                if (report.issueCount > issues.length)
-                  Text('... والمزيد'),
+                if (report.issueCount > issues.length) Text('... والمزيد'),
               ],
             ],
           ),

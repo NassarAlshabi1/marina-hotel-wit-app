@@ -142,7 +142,8 @@ class ScreenSyncController {
         debugPrint('✅ [$screenId] تمت المزامنة بنجاح');
         return true;
       } else {
-        debugPrint('⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox');
+        debugPrint(
+            '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox');
         return false;
       }
     } on CircuitBreakerOpenException catch (e) {
@@ -164,8 +165,6 @@ class ScreenSyncController {
       });
     }
   }
-
-
 
   void _emitStatus(SyncStatus status) {
     _syncStatusController.add(status);

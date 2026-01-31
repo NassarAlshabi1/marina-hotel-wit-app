@@ -147,8 +147,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
                     _buildFixResultCard(),
                     const SizedBox(height: 16),
                   ],
-                  if (_validationReport?.hasIssues == true)
-                    _buildFixButton(),
+                  if (_validationReport?.hasIssues == true) _buildFixButton(),
                 ],
               ),
             ),
@@ -222,7 +221,9 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: report.hasIssues ? Colors.orange[900] : Colors.green[900],
+                    color: report.hasIssues
+                        ? Colors.orange[900]
+                        : Colors.green[900],
                   ),
                 ),
               ],
