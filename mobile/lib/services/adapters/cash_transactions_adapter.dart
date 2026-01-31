@@ -34,23 +34,12 @@ class CashTransactionsAdapter
         _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
     final localId = _asInt(json, 'id', src);
 
-    // Cash transactions rarely reference other entities directly by ID in sync logic
-    // but they reference referenceType/referenceId polymorphically.
-    // We treat them as standalone for basic sync resolution.
-    
-    // We use a simple lookup since there's no complex dependency like Bookings->Rooms
-    final resolvedId = await resolver.resolveBasic(
-        table: db.cashTransactions,
-        localId: localId,
-        serverId: serverId,
-        uuid: uuid);
-
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
     return ResolveResult(
-      localId: resolvedId,
-      uuidCache: uuid,
+      bookingLocalId: null,
+      bookingUuidCache: uuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
     );
@@ -71,7 +60,7 @@ class CashTransactionsAdapter
 
     return CashTransactionsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(refs.uuidCache ?? IdGen.uuid()),
+      localUuid: d.Value(refs.bookingUuidCache ?? IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
       registerId: _vInt(json, 'registerId', src, altKey: 'register_id'),
       transactionType: _vStr(

@@ -34,18 +34,12 @@ class ShiftNotesAdapter
         _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
     final localId = _asInt(json, 'id', src);
 
-    final resolvedId = await resolver.resolveBasic(
-        table: db.shiftNotes,
-        localId: localId,
-        serverId: serverId,
-        uuid: uuid);
-
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
     return ResolveResult(
-      localId: resolvedId,
-      uuidCache: uuid,
+      bookingLocalId: null,
+      bookingUuidCache: uuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
     );
@@ -66,7 +60,7 @@ class ShiftNotesAdapter
 
     return ShiftNotesCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(refs.uuidCache ?? IdGen.uuid()),
+      localUuid: d.Value(refs.bookingUuidCache ?? IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
       title: _vStr(json, 'title', src),
       content: _vStr(json, 'content', src),

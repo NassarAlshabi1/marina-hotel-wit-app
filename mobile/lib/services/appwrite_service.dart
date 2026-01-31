@@ -565,6 +565,44 @@ class AppwriteService {
     return _deleteDocumentInternal(collectionId: AppwriteConfig.salaryPaymentsCollectionId, documentId: documentId);
   }
 
+  // Generic methods for delta sync
+  Future<List<models.Document>> listDocuments({
+    required String collectionId,
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: collectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<void> deleteDocument({
+    required String collectionId,
+    required String documentId,
+  }) async {
+    _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: collectionId,
+      documentId: documentId,
+    );
+  }
+
+  Future<models.Document> upsertDocument({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) async {
+    _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: collectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
   /// اختبار اتصال سريع (قراءة فقط)
   Future<bool> quickConnectionTest() async {
     try {
