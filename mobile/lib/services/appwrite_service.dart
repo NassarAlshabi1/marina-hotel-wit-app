@@ -64,8 +64,8 @@ class AppwriteService {
     final effectiveQueries = List<String>.from(baseQueries);
     
     // التحقق من وجود Limit/Offset مسبقاً لتجنب التكرار
-    bool hasLimit = effectiveQueries.any((q) => q.startsWith('limit('));
-    bool hasOffset = effectiveQueries.any((q) => q.startsWith('offset('));
+    final hasLimit = effectiveQueries.any((q) => q.startsWith('limit('));
+    final hasOffset = effectiveQueries.any((q) => q.startsWith('offset('));
 
     if (!hasLimit) {
       effectiveQueries.add(Query.limit(limit));

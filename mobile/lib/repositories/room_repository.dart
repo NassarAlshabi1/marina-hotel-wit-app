@@ -42,7 +42,6 @@ class AppwriteRoomRepository implements RoomRepository {
         documentId: id,
       );
 
-      if (doc == null) return null;
       return RoomAppwriteExtension.fromAppwriteDocument(doc);
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getById($id)');

@@ -191,13 +191,10 @@ class AppwriteSyncManager {
             collectionId: AppwriteConfig.devicesCollectionId,
             documentId: _currentDeviceId!,
           );
-          int currentRemoteVersion = 0;
-          if (existingDoc != null) {
-            currentRemoteVersion = _asInt(
-              existingDoc.data['version'],
-              fallback: 0,
-            );
-          }
+          final currentRemoteVersion = _asInt(
+            existingDoc.data['version'],
+            fallback: 0,
+          );
           if (_deviceVersion == null ||
               _deviceVersion! <= currentRemoteVersion) {
             _deviceVersion = currentRemoteVersion + 1;
