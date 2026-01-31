@@ -114,7 +114,9 @@ class SimpleNotesRepository {
       content: dbNote.content,
       priority: priority,
       shiftType: shiftType,
-      createdAt: DateTime.parse(dbNote.createdAt),
+      createdAt: dbNote.createdAtIso != null
+          ? DateTime.parse(dbNote.createdAtIso!)
+          : DateTime.fromMillisecondsSinceEpoch(dbNote.createdAt * 1000),
       expiresAt: dbNote.expiresAt != null
           ? DateTime.tryParse(dbNote.expiresAt!)
           : null,
