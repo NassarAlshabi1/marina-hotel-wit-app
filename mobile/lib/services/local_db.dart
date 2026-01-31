@@ -236,7 +236,7 @@ class Debts extends Table with SyncFields {
 }
 
 // جدول الملاحظات البسيط
-class ShiftNotes extends Table with SyncFields {
+class ShiftNotes extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get title => text()();
   TextColumn get content => text()();
@@ -247,7 +247,7 @@ class ShiftNotes extends Table with SyncFields {
       )(); // morning, evening, night, all
   IntColumn get isRead =>
       integer().withDefault(const Constant(0))(); // 0 = غير مقروء، 1 = مقروء
-  TextColumn get noteCreatedAt => text()();
+  TextColumn get createdAt => text()();
   TextColumn get expiresAt => text().nullable()();
   TextColumn get createdBy => text().withDefault(const Constant('user'))();
 }
@@ -452,31 +452,6 @@ class SyncConflicts extends Table {
   TextColumn get createdAt => text()();
 }
 
-@DataClassName('SyncEventQueueData')
-class SyncEventQueue extends Table {
-  TextColumn get id => text()();
-  TextColumn get tableName => text()();
-  TextColumn get operation => text()();
-  TextColumn get entityId => text()();
-  TextColumn get payload => text().nullable()();
-  TextColumn get previousPayload => text().nullable()();
-  TextColumn get priority => text().withDefault(const Constant('normal'))();
-  IntColumn get timestamp => integer()();
-  IntColumn get scheduledAt => integer().nullable()();
-  IntColumn get retryCount => integer().withDefault(const Constant(0))();
-  IntColumn get maxRetries => integer().withDefault(const Constant(3))();
-  TextColumn get correlationId => text().nullable()();
-  TextColumn get causationId => text().nullable()();
-  TextColumn get metadata => text().nullable()();
-  TextColumn get source => text().withDefault(const Constant('local'))();
-  BoolColumn get acknowledged => boolean().withDefault(const Constant(false))();
-  TextColumn get error => text().nullable()();
-  IntColumn get createdAt => integer()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
 @DriftDatabase(
   tables: [
     Rooms,
@@ -501,7 +476,6 @@ class SyncEventQueue extends Table {
     SyncQueue,
     SyncLog,
     SyncConflicts,
-    SyncEventQueue,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -518,6 +492,38 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
+        },
+        onCreate: (m) async {
+          await m.database.customStatement('''
+            CREATE TABLE IF NOT EXISTS sync_event_queue (
+              id TEXT PRIMARY KEY,
+              table_name TEXT NOT NULL,
+              operation TEXT NOT NULL,
+              entity_id TEXT NOT NULL,
+              payload TEXT,
+              previous_payload TEXT,
+              priority TEXT NOT NULL DEFAULT 'normal',
+              timestamp INTEGER NOT NULL,
+              scheduled_at INTEGER,
+              retry_count INTEGER NOT NULL DEFAULT 0,
+              max_retries INTEGER NOT NULL DEFAULT 3,
+              correlation_id TEXT,
+              causation_id TEXT,
+              metadata TEXT,
+              source TEXT NOT NULL DEFAULT 'local',
+              acknowledged INTEGER NOT NULL DEFAULT 0,
+              error TEXT,
+              created_at INTEGER NOT NULL
+            )
+          ''');
+          await m.database.customStatement('''
+            CREATE INDEX IF NOT EXISTS idx_sync_event_queue_ack 
+            ON sync_event_queue (acknowledged, priority, timestamp)
+          ''');
+          await m.database.customStatement('''
+            CREATE INDEX IF NOT EXISTS idx_sync_event_queue_table 
+            ON sync_event_queue (table_name, acknowledged)
+          ''');
         },
         onUpgrade: (m, from, to) async {
           if (from < 2) {
@@ -873,7 +879,28 @@ class AppDatabase extends _$AppDatabase {
             }
           }
           if (from < 21) {
-            await m.createTable(syncEventQueue);
+            await m.database.customStatement('''
+              CREATE TABLE IF NOT EXISTS sync_event_queue (
+                id TEXT PRIMARY KEY,
+                table_name TEXT NOT NULL,
+                operation TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                payload TEXT,
+                previous_payload TEXT,
+                priority TEXT NOT NULL DEFAULT 'normal',
+                timestamp INTEGER NOT NULL,
+                scheduled_at INTEGER,
+                retry_count INTEGER NOT NULL DEFAULT 0,
+                max_retries INTEGER NOT NULL DEFAULT 3,
+                correlation_id TEXT,
+                causation_id TEXT,
+                metadata TEXT,
+                source TEXT NOT NULL DEFAULT 'local',
+                acknowledged INTEGER NOT NULL DEFAULT 0,
+                error TEXT,
+                created_at INTEGER NOT NULL
+              )
+            ''');
             await m.database.customStatement('''
               CREATE INDEX IF NOT EXISTS idx_sync_event_queue_ack 
               ON sync_event_queue (acknowledged, priority, timestamp)

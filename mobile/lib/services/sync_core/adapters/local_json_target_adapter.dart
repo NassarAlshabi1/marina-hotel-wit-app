@@ -284,7 +284,7 @@ class LocalJsonTargetAdapter extends BackupCapableAdapter {
       (_database.select(_database.payments)..where((t) => t.deletedAt.isNull())).get(),
       (_database.select(_database.debts)..where((t) => t.deletedAt.isNull())).get(),
       (_database.select(_database.hotelDayLedger)..where((t) => t.deletedAt.isNull())).get(),
-      (_database.select(_database.shiftNotes)..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(_database.shiftNotes)).get(),
       (_database.select(_database.salaryCycles)..where((t) => t.deletedAt.isNull())).get(),
       (_database.select(_database.salaryPayments)..where((t) => t.deletedAt.isNull())).get(),
     ]);

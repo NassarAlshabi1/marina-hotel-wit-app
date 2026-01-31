@@ -171,7 +171,7 @@ class DatabaseSyncHooks {
     _setupTableHook<ShiftNote>(
       tableName: 'shift_notes',
       watchQuery: () => _database.select(_database.shiftNotes).watch(),
-      getId: (e) => e.localUuid,
+      getId: (e) => e.id.toString(),
       toJson: (e) => e.toJson(),
     );
   }
