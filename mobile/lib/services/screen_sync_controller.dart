@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'smart_sync_manager.dart';
-import 'sync_queue_service.dart';
 import 'sync_core/sync_error_handler.dart';
 import 'sync_core/retry_strategy.dart';
 import 'sync_core/circuit_breaker.dart';
@@ -166,10 +165,7 @@ class ScreenSyncController {
     }
   }
 
-  // تم إيقاف استخدام SyncQueue
-  Future<void> _addToQueue() async {
-    // No-op
-  }
+
 
   void _emitStatus(SyncStatus status) {
     _syncStatusController.add(status);

@@ -27,6 +27,10 @@ jobs:
         working-directory: mobile          # <-- المجلد الفرعي
         run: flutter pub get
 
+      - name: 🏗️ Generate code
+        working-directory: mobile
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
       - name: 🔧 dart fix & format
         working-directory: mobile
         run: |
