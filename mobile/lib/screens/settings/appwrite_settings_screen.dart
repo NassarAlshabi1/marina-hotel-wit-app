@@ -257,7 +257,7 @@ class _AppwriteSettingsScreenState
               title: 'تفعيل المزامنة التلقائية',
               subtitle: 'المزامنة التلقائية معطّلة (يدوي فقط)',
               value: false,
-              onChanged: null,
+              onChanged: (_) {},
             ),
 
             // فترة المزامنة
@@ -272,7 +272,7 @@ class _AppwriteSettingsScreenState
                     child: Text('$value دقيقة'),
                   );
                 }).toList(),
-                onChanged: null,
+                onChanged: (_) {},
               ),
             ),
 
@@ -281,7 +281,7 @@ class _AppwriteSettingsScreenState
               title: 'مزامنة عند الاتصال التلقائي',
               subtitle: 'المزامنة التلقائية معطّلة',
               value: false,
-              onChanged: null,
+              onChanged: (_) {},
             ),
 
             const Divider(height: 24),
