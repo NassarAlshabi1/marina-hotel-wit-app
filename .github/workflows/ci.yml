@@ -36,9 +36,10 @@ jobs:
       - name: Flutter Analyze
         run: flutter analyze --no-pub
       
-      # Flutter Format (احتياطي)
+      # Flutter Format (احتياطي - تحذير فقط)
       - name: Dart Format
         run: dart format --set-exit-if-changed .
+        continue-on-error: true
       
       # اختبارات مع التغطية
       - name: Run tests

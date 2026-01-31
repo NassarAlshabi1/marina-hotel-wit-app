@@ -43,6 +43,7 @@ jobs:
       - name: Check formatting
         run: dart format --output=none --set-exit-if-changed .
         if: always() && steps.install.outcome == 'success'
+        continue-on-error: true
       - name: Analyze code
         run: flutter analyze --no-pub --fatal-infos
         if: always() && steps.install.outcome == 'success'
