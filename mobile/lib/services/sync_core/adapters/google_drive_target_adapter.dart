@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../google_drive_backup_service.dart';
 import '../../google_drive_logger.dart';
+import '../../logging/log_models.dart';
 import '../../google_drive_unified_sync_coordinator.dart';
 import '../../local_db.dart';
 import '../events/sync_event.dart';
@@ -93,7 +94,7 @@ class GoogleDriveTargetAdapter extends BackupCapableAdapter {
   Future<bool> checkConnection() async {
     if (_backupService == null) return false;
     try {
-      _isSignedIn = await _backupService!.isSignedIn();
+      _isSignedIn = _backupService!.isSignedIn;
       return _isSignedIn;
     } catch (e) {
       _lastError = e.toString();
@@ -257,11 +258,10 @@ class GoogleDriveTargetAdapter extends BackupCapableAdapter {
       throw StateError('Cannot create backup: not signed in');
     }
 
-    final result = await _backupService!.uploadToGoogleDrive(
-      tag: tag,
-    );
+    final backupData = await _backupService!.exportDatabaseToJson();
+    final fileId = await _backupService!.uploadBackup(backupData);
 
-    return result['fileId'] ?? 'backup_${DateTime.now().millisecondsSinceEpoch}';
+    return fileId;
   }
 
   @override
@@ -270,9 +270,8 @@ class GoogleDriveTargetAdapter extends BackupCapableAdapter {
       throw StateError('Cannot restore: not signed in');
     }
 
-    await _backupService!.restoreFromGoogleDrive(
-      fileId: backupId,
-    );
+    final data = await _backupService!.downloadBackup(backupId);
+    await _backupService!.restoreFromBackup(data);
   }
 
   @override
@@ -281,14 +280,15 @@ class GoogleDriveTargetAdapter extends BackupCapableAdapter {
       return [];
     }
 
-    final files = await _backupService!.listBackups(limit: limit ?? 20);
+    final files = await _backupService!.listBackupFiles(limit: limit ?? 20);
 
     return files.map((file) {
+      final tag = file.metadata?['backup_type']?.toString();
       return BackupInfo(
-        id: file['id'] ?? '',
-        createdAt: DateTime.tryParse(file['createdTime'] ?? '') ?? DateTime.now(),
-        sizeBytes: int.tryParse(file['size'] ?? '0') ?? 0,
-        tag: file['description'],
+        id: file.fileId,
+        createdAt: file.createdTime,
+        sizeBytes: file.size ?? 0,
+        tag: tag,
       );
     }).toList();
   }
@@ -304,7 +304,7 @@ class GoogleDriveTargetAdapter extends BackupCapableAdapter {
 
   Future<void> signIn() async {
     if (_backupService == null) return;
-    final account = await _backupService!.signInWithGoogle();
+    final account = await _backupService!.signInForDrive();
     _isSignedIn = account != null;
 
     if (_isSignedIn && _coordinator != null) {

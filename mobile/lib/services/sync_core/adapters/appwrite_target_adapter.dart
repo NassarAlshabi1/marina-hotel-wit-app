@@ -79,8 +79,7 @@ class AppwriteTargetAdapter extends SyncTargetAdapter {
   Future<bool> checkConnection() async {
     if (_service == null) return false;
     try {
-      await _service!.checkHealth();
-      return true;
+      return await _service!.quickConnectionTest();
     } catch (e) {
       _lastError = e.toString();
       return false;
