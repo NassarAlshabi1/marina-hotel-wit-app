@@ -452,6 +452,31 @@ class SyncConflicts extends Table {
   TextColumn get createdAt => text()();
 }
 
+@DataClassName('SyncEventQueueData')
+class SyncEventQueue extends Table {
+  TextColumn get id => text()();
+  TextColumn get tableName => text()();
+  TextColumn get operation => text()();
+  TextColumn get entityId => text()();
+  TextColumn get payload => text().nullable()();
+  TextColumn get previousPayload => text().nullable()();
+  TextColumn get priority => text().withDefault(const Constant('normal'))();
+  IntColumn get timestamp => integer()();
+  IntColumn get scheduledAt => integer().nullable()();
+  IntColumn get retryCount => integer().withDefault(const Constant(0))();
+  IntColumn get maxRetries => integer().withDefault(const Constant(3))();
+  TextColumn get correlationId => text().nullable()();
+  TextColumn get causationId => text().nullable()();
+  TextColumn get metadata => text().nullable()();
+  TextColumn get source => text().withDefault(const Constant('local'))();
+  BoolColumn get acknowledged => boolean().withDefault(const Constant(false))();
+  TextColumn get error => text().nullable()();
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     Rooms,
@@ -476,6 +501,7 @@ class SyncConflicts extends Table {
     SyncQueue,
     SyncLog,
     SyncConflicts,
+    SyncEventQueue,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -486,7 +512,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -845,6 +871,21 @@ class AppDatabase extends _$AppDatabase {
                 }
               }
             }
+          }
+          if (from < 21) {
+            await m.createTable(syncEventQueue);
+            await m.database.customStatement('''
+              CREATE INDEX IF NOT EXISTS idx_sync_event_queue_ack 
+              ON sync_event_queue (acknowledged, priority, timestamp)
+            ''');
+            await m.database.customStatement('''
+              CREATE INDEX IF NOT EXISTS idx_sync_event_queue_table 
+              ON sync_event_queue (table_name, acknowledged)
+            ''');
+            developer.log(
+              'Created sync_event_queue table with indexes',
+              name: 'db.migration',
+            );
           }
         },
       );
