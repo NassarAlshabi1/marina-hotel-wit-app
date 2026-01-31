@@ -39,6 +39,7 @@ const syncFields = [
   { key: 'version', type: 'integer', default: 1 },
   { key: 'origin', type: 'string', size: 20, default: 'local' },
   { key: 'vectorClock', type: 'string', size: 500, default: '{}' },
+  { key: 'idempotencyKey', type: 'string', size: 200 },
 ];
 
 const collections = [
