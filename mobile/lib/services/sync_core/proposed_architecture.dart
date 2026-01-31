@@ -54,17 +54,17 @@ class EnhancedSyncEvent {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'table': table,
-    'operation': operation.name,
-    'entityId': entityId,
-    'payload': payload,
-    'priority': priority.name,
-    'timestamp': timestamp.toIso8601String(),
-    'retryCount': retryCount,
-    'correlationId': correlationId,
-    'metadata': metadata,
-  };
+        'id': id,
+        'table': table,
+        'operation': operation.name,
+        'entityId': entityId,
+        'payload': payload,
+        'priority': priority.name,
+        'timestamp': timestamp.toIso8601String(),
+        'retryCount': retryCount,
+        'correlationId': correlationId,
+        'metadata': metadata,
+      };
 
   factory EnhancedSyncEvent.fromJson(Map<String, dynamic> json) {
     return EnhancedSyncEvent(
@@ -270,8 +270,8 @@ class EnhancedSyncRouter {
   EnhancedSyncRouter({
     required EnhancedEventBus eventBus,
     SyncRouterConfig config = const SyncRouterConfig(),
-  }) : _eventBus = eventBus,
-       _config = config;
+  })  : _eventBus = eventBus,
+        _config = config;
 
   void registerAdapter(SyncTargetAdapter adapter) {
     _adapters[adapter.type] = adapter;
@@ -392,12 +392,10 @@ class EnhancedSyncRouter {
     List<EnhancedSyncEvent> events,
     List<SyncTargetAdapter> adapters,
   ) async {
-    final criticalEvents = events
-        .where((e) => e.priority == SyncPriority.critical)
-        .toList();
-    final normalEvents = events
-        .where((e) => e.priority != SyncPriority.critical)
-        .toList();
+    final criticalEvents =
+        events.where((e) => e.priority == SyncPriority.critical).toList();
+    final normalEvents =
+        events.where((e) => e.priority != SyncPriority.critical).toList();
 
     if (criticalEvents.isNotEmpty) {
       await _routeToAll(criticalEvents, adapters);

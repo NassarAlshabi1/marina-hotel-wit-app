@@ -176,8 +176,8 @@ class _UnifiedBackupSettingsScreenState
     final connectionLabel = status == null
         ? 'جاري التحقق...'
         : isSignedIn
-        ? 'متصل'
-        : 'غير متصل';
+            ? 'متصل'
+            : 'غير متصل';
 
     return Card(
       elevation: 2,

@@ -82,9 +82,8 @@ class SqliteEventPersistence implements EventPersistence {
       buffer.write(' LIMIT $limit');
     }
 
-    final rows = await _db
-        .customSelect(buffer.toString(), variables: variables)
-        .get();
+    final rows =
+        await _db.customSelect(buffer.toString(), variables: variables).get();
 
     var events = rows.map(_rowToEvent).toList();
     if (minPriority != null) {
@@ -113,9 +112,8 @@ class SqliteEventPersistence implements EventPersistence {
       buffer.write(' LIMIT $limit');
     }
 
-    final rows = await _db
-        .customSelect(buffer.toString(), variables: variables)
-        .get();
+    final rows =
+        await _db.customSelect(buffer.toString(), variables: variables).get();
 
     return rows.map(_rowToEvent).toList();
   }
@@ -124,24 +122,20 @@ class SqliteEventPersistence implements EventPersistence {
   Future<List<EnhancedSyncEvent>> getByCorrelationId(
     String correlationId,
   ) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM $_table WHERE correlation_id = ? ORDER BY timestamp ASC',
-          variables: [Variable(correlationId)],
-        )
-        .get();
+    final rows = await _db.customSelect(
+      'SELECT * FROM $_table WHERE correlation_id = ? ORDER BY timestamp ASC',
+      variables: [Variable(correlationId)],
+    ).get();
 
     return rows.map(_rowToEvent).toList();
   }
 
   @override
   Future<EnhancedSyncEvent?> getById(String eventId) async {
-    final row = await _db
-        .customSelect(
-          'SELECT * FROM $_table WHERE id = ? LIMIT 1',
-          variables: [Variable(eventId)],
-        )
-        .getSingleOrNull();
+    final row = await _db.customSelect(
+      'SELECT * FROM $_table WHERE id = ? LIMIT 1',
+      variables: [Variable(eventId)],
+    ).getSingleOrNull();
 
     return row != null ? _rowToEvent(row) : null;
   }
@@ -201,12 +195,10 @@ class SqliteEventPersistence implements EventPersistence {
 
   @override
   Future<int> countByTable(String table) async {
-    final row = await _db
-        .customSelect(
-          'SELECT COUNT(*) AS count FROM $_table WHERE table_name = ? AND acknowledged = 0',
-          variables: [Variable(table)],
-        )
-        .getSingle();
+    final row = await _db.customSelect(
+      'SELECT COUNT(*) AS count FROM $_table WHERE table_name = ? AND acknowledged = 0',
+      variables: [Variable(table)],
+    ).getSingle();
     return row.read<int>('count');
   }
 
@@ -280,9 +272,8 @@ class SqliteEventPersistence implements EventPersistence {
       table: row.read<String>('table_name'),
       operation: SyncOperation.values.byName(row.read<String>('operation')),
       entityId: row.read<String>('entity_id'),
-      payload: payload != null
-          ? jsonDecode(payload) as Map<String, dynamic>
-          : null,
+      payload:
+          payload != null ? jsonDecode(payload) as Map<String, dynamic> : null,
       previousPayload: previousPayload != null
           ? jsonDecode(previousPayload) as Map<String, dynamic>
           : null,

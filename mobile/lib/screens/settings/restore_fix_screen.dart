@@ -271,10 +271,8 @@ class RestoreFixScreen extends ConsumerWidget {
                 }
 
                 return Column(
-                  children: logs
-                      .take(10)
-                      .map((log) => _buildLogEntry(log))
-                      .toList(),
+                  children:
+                      logs.take(10).map((log) => _buildLogEntry(log)).toList(),
                 );
               },
               loading: () => const Center(

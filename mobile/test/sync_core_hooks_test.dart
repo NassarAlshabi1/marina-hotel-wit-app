@@ -32,9 +32,7 @@ void main() {
 
   test('detects create, update, delete for rooms', () async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    await db
-        .into(db.rooms)
-        .insert(
+    await db.into(db.rooms).insert(
           RoomsCompanion.insert(
             localUuid: 'r1',
             createdAt: now,

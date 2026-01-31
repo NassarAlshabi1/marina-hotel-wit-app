@@ -60,7 +60,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
 
     final rows = await (update(
       shiftNotes,
-    )..where((t) => t.id.equals(id))).write(companion);
+    )..where((t) => t.id.equals(id)))
+        .write(companion);
     return rows > 0;
   }
 
@@ -102,7 +103,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       ..addColumns([shiftNotes.id.count()])
       ..where(shiftNotes.isRead.equals(0));
     return query.watchSingle().map(
-      (row) => row.read(shiftNotes.id.count()) ?? 0,
-    );
+          (row) => row.read(shiftNotes.id.count()) ?? 0,
+        );
   }
 }

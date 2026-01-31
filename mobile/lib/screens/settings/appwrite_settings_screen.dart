@@ -176,9 +176,8 @@ class _AppwriteSettingsScreenState
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: state.isConnected
-                                ? Colors.green
-                                : Colors.red,
+                            color:
+                                state.isConnected ? Colors.green : Colors.red,
                           ),
                         ),
                         if (state.errorMessage != null) ...[
@@ -261,9 +260,7 @@ class _AppwriteSettingsScreenState
                 setState(() => _syncEnabled = value);
                 _saveSettings();
                 if (value) {
-                  ref
-                      .read(ap.appwriteSyncManagerProvider)
-                      .startAutoSync(
+                  ref.read(ap.appwriteSyncManagerProvider).startAutoSync(
                         interval: Duration(minutes: _syncInterval),
                       );
                 } else {

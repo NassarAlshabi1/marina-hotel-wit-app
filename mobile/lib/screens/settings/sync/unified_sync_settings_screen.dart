@@ -341,8 +341,8 @@ class _UnifiedSyncSettingsScreenState
     final connectionLabel = appwriteStatus == null
         ? 'جاري التحقق...'
         : appwriteStatus.isConnected
-        ? 'متصل'
-        : 'غير متصل';
+            ? 'متصل'
+            : 'غير متصل';
 
     return Card(
       elevation: 2,

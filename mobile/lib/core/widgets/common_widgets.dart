@@ -44,8 +44,7 @@ class InfoRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style:
-                      labelStyle ??
+                  style: labelStyle ??
                       TextStyle(fontSize: 14, color: Colors.grey.shade600),
                 ),
                 const SizedBox(width: UIConstants.spacingSM),
@@ -53,8 +52,7 @@ class InfoRow extends StatelessWidget {
                     ? Expanded(
                         child: Text(
                           value,
-                          style:
-                              valueStyle ??
+                          style: valueStyle ??
                               const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -64,8 +62,7 @@ class InfoRow extends StatelessWidget {
                       )
                     : Text(
                         value,
-                        style:
-                            valueStyle ??
+                        style: valueStyle ??
                             const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,

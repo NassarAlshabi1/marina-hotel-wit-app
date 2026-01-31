@@ -159,9 +159,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _onSubmit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
-    await ref
-        .read(authProvider.notifier)
-        .login(
+    await ref.read(authProvider.notifier).login(
           _usernameCtrl.text.trim(),
           _passwordCtrl.text,
           rememberMe: _rememberMe,

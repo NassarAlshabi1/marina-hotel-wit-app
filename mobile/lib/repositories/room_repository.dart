@@ -29,8 +29,8 @@ class AppwriteRoomRepository implements RoomRepository {
   AppwriteRoomRepository({
     AppwriteService? appwriteService,
     AppwriteErrorHandler? errorHandler,
-  }) : _appwriteService = appwriteService ?? AppwriteService(),
-       _errorHandler = errorHandler ?? AppwriteErrorHandler();
+  })  : _appwriteService = appwriteService ?? AppwriteService(),
+        _errorHandler = errorHandler ?? AppwriteErrorHandler();
 
   String get _collectionId => AppwriteConfig.roomsCollectionId;
 
@@ -266,8 +266,7 @@ class RoomStatistics {
   double get occupancyRate => total > 0 ? occupied / total : 0.0;
 
   @override
-  String toString() =>
-      '''
+  String toString() => '''
 RoomStatistics:
   Total: $total
   Available: $available

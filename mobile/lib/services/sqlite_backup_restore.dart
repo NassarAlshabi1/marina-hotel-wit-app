@@ -129,9 +129,8 @@ class SqliteBackupRestore {
       if (result.isEmpty) {
         throw Exception('SQLite integrity check failed: empty result');
       }
-      final value = result.first.values.isNotEmpty
-          ? result.first.values.first
-          : null;
+      final value =
+          result.first.values.isNotEmpty ? result.first.values.first : null;
       if (value is! String || value.toLowerCase() != 'ok') {
         throw Exception('SQLite integrity check failed: $value');
       }

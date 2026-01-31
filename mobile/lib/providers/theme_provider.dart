@@ -24,5 +24,5 @@ class ThemeSettingsNotifier extends StateNotifier<bool> {
 
 final themeSettingsProvider =
     StateNotifierProvider<ThemeSettingsNotifier, bool>((ref) {
-      return ThemeSettingsNotifier();
-    });
+  return ThemeSettingsNotifier();
+});

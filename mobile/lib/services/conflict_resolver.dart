@@ -130,9 +130,8 @@ class EnhancedConflictResolver {
   }
 
   ConflictResolution _handleConcurrentConflict(ConflictContext context) {
-    final timeDiff = context.localTimestamp
-        .difference(context.remoteTimestamp)
-        .abs();
+    final timeDiff =
+        context.localTimestamp.difference(context.remoteTimestamp).abs();
 
     if (timeDiff.inSeconds < 30) {
       debugPrint(

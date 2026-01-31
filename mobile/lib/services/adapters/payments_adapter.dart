@@ -27,14 +27,12 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    final bookingUuid =
-        _asString(json, 'bookingUuidCache', src) ??
+    final bookingUuid = _asString(json, 'bookingUuidCache', src) ??
         _asString(json, 'booking_uuid_cache', src) ??
         _asString(json, 'booking_uuid', src);
     final serverBookingId =
         _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
-    final localId =
-        _asInt(json, 'bookingLocalId', src) ??
+    final localId = _asInt(json, 'bookingLocalId', src) ??
         _asInt(json, 'booking_local_id', src);
     final resolvedId = await resolver.resolveBooking(
       localId: localId,
@@ -60,8 +58,7 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified =
-        refs.lastModifiedEpoch ??
+    final lastModified = refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
     return PaymentsCompanion(
@@ -81,8 +78,8 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId)
           : (src == Source.local
-                ? _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id')
-                : const d.Value(null)),
+              ? _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id')
+              : const d.Value(null)),
       serverBookingId: _vInt(
         json,
         'serverBookingId',
@@ -195,8 +192,7 @@ d.Value<int> _vInt(
   String? altKey,
   int? fallback,
 }) {
-  final v =
-      _asInt(json, key, src) ??
+  final v = _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -209,8 +205,7 @@ d.Value<String> _vStr(
   String? altKey,
   String? fallback,
 }) {
-  final v =
-      _asString(json, key, src) ??
+  final v = _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -223,8 +218,7 @@ d.Value<double> _vDouble(
   String? altKey,
   double? fallback,
 }) {
-  final v =
-      _asDouble(json, key, src) ??
+  final v = _asDouble(json, key, src) ??
       (altKey != null ? _asDouble(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -237,8 +231,7 @@ d.Value<bool> _vBool(
   String? altKey,
   bool? fallback,
 }) {
-  final v =
-      _asBool(json, key, src) ??
+  final v = _asBool(json, key, src) ??
       (altKey != null ? _asBool(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);

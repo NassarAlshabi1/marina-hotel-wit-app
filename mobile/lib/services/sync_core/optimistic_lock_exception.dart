@@ -16,7 +16,6 @@ class OptimisticLockException implements Exception {
       'OptimisticLockException: Version mismatch for $table/$uuid. '
       'Expected: $expectedVersion, Actual: $actualVersion';
 
-  String toArabicMessage() =>
-      'تعارض في البيانات: السجل تم تعديله من جهاز آخر. '
+  String toArabicMessage() => 'تعارض في البيانات: السجل تم تعديله من جهاز آخر. '
       'الجدول: $table، المعرّف: $uuid';
 }

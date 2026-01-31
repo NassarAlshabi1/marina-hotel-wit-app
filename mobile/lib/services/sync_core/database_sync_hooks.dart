@@ -50,8 +50,8 @@ class DatabaseSyncHooks {
   DatabaseSyncHooks({
     required AppDatabase database,
     required EnhancedEventBus eventBus,
-  }) : _database = database,
-       _eventBus = eventBus;
+  })  : _database = database,
+        _eventBus = eventBus;
 
   bool get isInitialized => _initialized;
 

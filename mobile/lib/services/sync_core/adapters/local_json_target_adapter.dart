@@ -22,7 +22,7 @@ class LocalJsonTargetAdapter extends BackupCapableAdapter {
   static const int _maxBackups = 10;
 
   LocalJsonTargetAdapter({required AppDatabase database})
-    : _database = database;
+      : _database = database;
 
   @override
   SyncTargetType get type => SyncTargetType.localJson;
@@ -232,8 +232,7 @@ class LocalJsonTargetAdapter extends BackupCapableAdapter {
 
         backups.add(
           BackupInfo(
-            id:
-                meta?['id'] ??
+            id: meta?['id'] ??
                 file.path.split('/').last.replaceAll('.json', ''),
             createdAt: meta?['createdAt'] != null
                 ? DateTime.parse(meta!['createdAt'] as String)
@@ -274,41 +273,53 @@ class LocalJsonTargetAdapter extends BackupCapableAdapter {
     final results = await Future.wait([
       (_database.select(
         _database.rooms,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
       (_database.select(
         _database.bookings,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
       (_database.select(
         _database.bookingNotes,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
       (_database.select(
         _database.bookingNights,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
       (_database.select(
         _database.employees,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
       (_database.select(
         _database.expenses,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
       (_database.select(
         _database.cashTransactions,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
       (_database.select(
         _database.payments,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
       (_database.select(
         _database.debts,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
       (_database.select(
         _database.hotelDayLedger,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
       (_database.select(_database.shiftNotes)).get(),
       (_database.select(
         _database.salaryCycles,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
       (_database.select(
         _database.salaryPayments,
-      )..where((t) => t.deletedAt.isNull())).get(),
+      )..where((t) => t.deletedAt.isNull()))
+          .get(),
     ]);
 
     return {

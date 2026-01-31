@@ -394,7 +394,8 @@ class SyncIntegrityChecker {
 
     final booking = await (db.select(
       db.bookings,
-    )..where((t) => t.localUuid.equals(issue.uuid!))).getSingleOrNull();
+    )..where((t) => t.localUuid.equals(issue.uuid!)))
+        .getSingleOrNull();
 
     if (booking == null) return;
 
@@ -403,7 +404,8 @@ class SyncIntegrityChecker {
 
     await (db.update(
       db.bookings,
-    )..where((t) => t.localUuid.equals(issue.uuid!))).write(
+    )..where((t) => t.localUuid.equals(issue.uuid!)))
+        .write(
       BookingsCompanion(
         totalPaidCached: Value(actualPaid),
         remainingBalanceCached: Value(remaining),

@@ -84,9 +84,8 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
               icon: Icon(_isConnected ? Icons.link_off : Icons.link),
               label: Text(_isConnected ? 'قطع الاتصال' : 'الاتصال'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _isConnected
-                    ? Colors.red
-                    : UIConstants.backupColor,
+                backgroundColor:
+                    _isConnected ? Colors.red : UIConstants.backupColor,
                 foregroundColor: Colors.white,
               ),
             ),

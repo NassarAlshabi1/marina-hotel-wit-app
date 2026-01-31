@@ -109,8 +109,8 @@ class EnhancedSyncRouter {
   EnhancedSyncRouter({
     required EnhancedEventBus eventBus,
     SyncRouterConfig config = const SyncRouterConfig(),
-  }) : _eventBus = eventBus,
-       _config = config;
+  })  : _eventBus = eventBus,
+        _config = config;
 
   Stream<SyncRouterState> get stateStream => _stateController.stream;
   SyncRouterState get state => _state;
@@ -347,12 +347,10 @@ class EnhancedSyncRouter {
   ) async {
     final results = <SyncTargetType, SyncPushResult>{};
 
-    final criticalEvents = events
-        .where((e) => e.priority == SyncPriority.critical)
-        .toList();
-    final highEvents = events
-        .where((e) => e.priority == SyncPriority.high)
-        .toList();
+    final criticalEvents =
+        events.where((e) => e.priority == SyncPriority.critical).toList();
+    final highEvents =
+        events.where((e) => e.priority == SyncPriority.high).toList();
     final normalEvents = events
         .where(
           (e) =>
@@ -378,8 +376,7 @@ class EnhancedSyncRouter {
       final highResult = await _pushWithRetry(primary, highEvents);
       results[primary.type] = SyncPushResult(
         success: (results[primary.type]?.success ?? true) && highResult.success,
-        affectedCount:
-            (results[primary.type]?.affectedCount ?? 0) +
+        affectedCount: (results[primary.type]?.affectedCount ?? 0) +
             highResult.affectedCount,
         syncedIds: [
           ...(results[primary.type]?.syncedIds ?? []),
@@ -400,11 +397,9 @@ class EnhancedSyncRouter {
 
       final normalResult = await _pushWithRetry(localAdapter, normalEvents);
       results[localAdapter.type] = SyncPushResult(
-        success:
-            (results[localAdapter.type]?.success ?? true) &&
+        success: (results[localAdapter.type]?.success ?? true) &&
             normalResult.success,
-        affectedCount:
-            (results[localAdapter.type]?.affectedCount ?? 0) +
+        affectedCount: (results[localAdapter.type]?.affectedCount ?? 0) +
             normalResult.affectedCount,
         syncedIds: [
           ...(results[localAdapter.type]?.syncedIds ?? []),

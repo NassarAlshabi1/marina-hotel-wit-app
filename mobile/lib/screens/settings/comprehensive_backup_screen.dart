@@ -339,8 +339,8 @@ class _ComprehensiveBackupScreenState
                     onPressed: state.isWorking
                         ? null
                         : () => ref
-                              .read(backupStatusProvider.notifier)
-                              .createComprehensiveBackup(),
+                            .read(backupStatusProvider.notifier)
+                            .createComprehensiveBackup(),
                     icon: const Icon(Icons.backup),
                     label: const Text('نسخة شاملة'),
                     style: ElevatedButton.styleFrom(
@@ -355,8 +355,8 @@ class _ComprehensiveBackupScreenState
                     onPressed: state.isWorking
                         ? null
                         : () => ref
-                              .read(backupStatusProvider.notifier)
-                              .exportToDownloads(),
+                            .read(backupStatusProvider.notifier)
+                            .exportToDownloads(),
                     icon: const Icon(Icons.download),
                     label: const Text('تصدير'),
                     style: ElevatedButton.styleFrom(
@@ -375,8 +375,8 @@ class _ComprehensiveBackupScreenState
                     onPressed: state.isWorking
                         ? null
                         : () => ref
-                              .read(backupStatusProvider.notifier)
-                              .importBackupFromFile(),
+                            .read(backupStatusProvider.notifier)
+                            .importBackupFromFile(),
                     icon: const Icon(Icons.upload_file),
                     label: const Text('استيراد ملف'),
                     style: ElevatedButton.styleFrom(
@@ -391,8 +391,8 @@ class _ComprehensiveBackupScreenState
                     onPressed: state.isWorking
                         ? null
                         : () => ref
-                              .read(backupStatusProvider.notifier)
-                              .cleanOldLocalBackups(),
+                            .read(backupStatusProvider.notifier)
+                            .cleanOldLocalBackups(),
                     icon: const Icon(Icons.cleaning_services),
                     label: const Text('تنظيف'),
                     style: ElevatedButton.styleFrom(
@@ -447,9 +447,9 @@ class _ComprehensiveBackupScreenState
                 value: state.autoSettings.enableGoogleDriveBackup,
                 onChanged: state.isSignedIn
                     ? (value) => _updateAutoBackupType(
-                        enableDrive: value ?? false,
-                        enableLocal: state.autoSettings.enableLocalBackup,
-                      )
+                          enableDrive: value ?? false,
+                          enableLocal: state.autoSettings.enableLocalBackup,
+                        )
                     : null,
               ),
               CheckboxListTile(
@@ -460,9 +460,10 @@ class _ComprehensiveBackupScreenState
                 value: state.autoSettings.enableLocalBackup,
                 onChanged: state.hasStoragePermission
                     ? (value) => _updateAutoBackupType(
-                        enableDrive: state.autoSettings.enableGoogleDriveBackup,
-                        enableLocal: value ?? false,
-                      )
+                          enableDrive:
+                              state.autoSettings.enableGoogleDriveBackup,
+                          enableLocal: value ?? false,
+                        )
                     : null,
               ),
               const SizedBox(height: 8),
@@ -618,8 +619,8 @@ class _ComprehensiveBackupScreenState
                   onPressed: state.isWorking
                       ? null
                       : () => ref
-                            .read(backupStatusProvider.notifier)
-                            .signInToDrive(),
+                          .read(backupStatusProvider.notifier)
+                          .signInToDrive(),
                   icon: state.status == BackupStatus.signIn
                       ? const SizedBox(
                           width: 16,
@@ -655,10 +656,10 @@ class _ComprehensiveBackupScreenState
     final displayPath = visiblePathSegments.isEmpty
         ? 'غير معروف'
         : (visiblePathSegments.length > 3
-              ? visiblePathSegments
-                    .sublist(visiblePathSegments.length - 3)
-                    .join('/')
-              : visiblePathSegments.join('/'));
+            ? visiblePathSegments
+                .sublist(visiblePathSegments.length - 3)
+                .join('/')
+            : visiblePathSegments.join('/'));
 
     return Card(
       child: Padding(
@@ -670,9 +671,8 @@ class _ComprehensiveBackupScreenState
               children: [
                 Icon(
                   Icons.phone_android,
-                  color: state.hasStoragePermission
-                      ? Colors.orange
-                      : Colors.grey,
+                  color:
+                      state.hasStoragePermission ? Colors.orange : Colors.grey,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
@@ -716,8 +716,8 @@ class _ComprehensiveBackupScreenState
                   onPressed: state.isWorking
                       ? null
                       : () => ref
-                            .read(backupStatusProvider.notifier)
-                            .checkStoragePermissions(),
+                          .read(backupStatusProvider.notifier)
+                          .checkStoragePermissions(),
                   icon: const Icon(Icons.refresh),
                   label: const Text('تحديث المعلومات'),
                   style: ElevatedButton.styleFrom(
@@ -738,8 +738,8 @@ class _ComprehensiveBackupScreenState
                   onPressed: state.isWorking
                       ? null
                       : () => ref
-                            .read(backupStatusProvider.notifier)
-                            .checkStoragePermissions(),
+                          .read(backupStatusProvider.notifier)
+                          .checkStoragePermissions(),
                   icon: state.status == BackupStatus.checkingPermissions
                       ? const SizedBox(
                           width: 16,
@@ -795,9 +795,8 @@ class _ComprehensiveBackupScreenState
               child: ElevatedButton.icon(
                 onPressed: state.isWorking
                     ? null
-                    : () => ref
-                          .read(backupStatusProvider.notifier)
-                          .createBackup(),
+                    : () =>
+                        ref.read(backupStatusProvider.notifier).createBackup(),
                 icon: const Icon(Icons.cloud_upload),
                 label: const Text('رفع إلى Google Drive'),
                 style: ElevatedButton.styleFrom(
@@ -848,8 +847,8 @@ class _ComprehensiveBackupScreenState
                 onPressed: state.isWorking
                     ? null
                     : () => ref
-                          .read(backupStatusProvider.notifier)
-                          .createLocalBackup(),
+                        .read(backupStatusProvider.notifier)
+                        .createLocalBackup(),
                 icon: const Icon(Icons.save),
                 label: const Text('حفظ محلياً'),
                 style: ElevatedButton.styleFrom(
@@ -989,8 +988,8 @@ class _ComprehensiveBackupScreenState
                     onPressed: state.isWorking
                         ? null
                         : () => ref
-                              .read(backupStatusProvider.notifier)
-                              .importBackupFromFile(),
+                            .read(backupStatusProvider.notifier)
+                            .importBackupFromFile(),
                     icon: const Icon(Icons.file_upload),
                     label: const Text('استيراد ملف'),
                   ),
@@ -1001,8 +1000,8 @@ class _ComprehensiveBackupScreenState
                     onPressed: state.isWorking
                         ? null
                         : () => ref
-                              .read(backupStatusProvider.notifier)
-                              .exportToDownloads(),
+                            .read(backupStatusProvider.notifier)
+                            .exportToDownloads(),
                     icon: const Icon(Icons.file_download),
                     label: const Text('تصدير'),
                   ),
@@ -1016,8 +1015,8 @@ class _ComprehensiveBackupScreenState
                 onPressed: state.localBackups.isEmpty
                     ? null
                     : () => ref
-                          .read(backupStatusProvider.notifier)
-                          .cleanOldLocalBackups(keepCount: 5),
+                        .read(backupStatusProvider.notifier)
+                        .cleanOldLocalBackups(keepCount: 5),
                 icon: const Icon(Icons.cleaning_services),
                 label: Text('تنظيف النسخ القديمة (الاحتفاظ بـ 5)'),
                 style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
@@ -1037,9 +1036,8 @@ class _ComprehensiveBackupScreenState
     final recordsCount =
         int.tryParse(backup.metadata?['records_count']?.toString() ?? '') ?? 0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
-    final formatLabel = backup.format == BackupFormat.sqlite
-        ? 'SQLite'
-        : 'JSON';
+    final formatLabel =
+        backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     return ListTile(
       leading: const Icon(Icons.cloud, color: Colors.blue),
@@ -1054,9 +1052,9 @@ class _ComprehensiveBackupScreenState
         onPressed: isWorking
             ? null
             : () => _showRestoreConfirmation(
-                backup.fileId,
-                BackupType.googleDrive,
-              ),
+                  backup.fileId,
+                  BackupType.googleDrive,
+                ),
         icon: const Icon(Icons.cloud_download, color: Colors.indigo),
         tooltip: 'استعادة',
       ),
@@ -1072,9 +1070,8 @@ class _ComprehensiveBackupScreenState
     final recordsLabel = localRecords != null && localRecords > 0
         ? localRecords.toString()
         : '---';
-    final formatLabel = backup.format == BackupFormat.sqlite
-        ? 'SQLite'
-        : 'JSON';
+    final formatLabel =
+        backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     return ListTile(
       leading: const Icon(Icons.phone_android, color: Colors.orange),
@@ -1318,9 +1315,7 @@ class _ComprehensiveBackupScreenState
 
   void _updateBackupFormat(BackupFormat format) {
     final currentSettings = ref.read(backupStatusProvider).autoSettings;
-    ref
-        .read(backupStatusProvider.notifier)
-        .updateAutoBackupSettings(
+    ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
           currentSettings.copyWith(backupFormat: format),
         );
   }
@@ -1338,9 +1333,7 @@ class _ComprehensiveBackupScreenState
       type = BackupType.local;
     }
 
-    ref
-        .read(backupStatusProvider.notifier)
-        .updateAutoBackupSettings(
+    ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
           currentSettings.copyWith(
             enableGoogleDriveBackup: enableDrive,
             enableLocalBackup: enableLocal,
@@ -1384,9 +1377,7 @@ class _ComprehensiveBackupScreenState
       onChanged: (selectedValue) {
         if (selectedValue != null) {
           Navigator.of(context).pop();
-          ref
-              .read(backupStatusProvider.notifier)
-              .updateAutoBackupSettings(
+          ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
                 currentSettings.copyWith(frequency: selectedValue),
               );
         }
@@ -1423,9 +1414,7 @@ class _ComprehensiveBackupScreenState
       if (selectedTime != null) {
         final timeString =
             '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
-        ref
-            .read(backupStatusProvider.notifier)
-            .updateAutoBackupSettings(
+        ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
               currentSettings.copyWith(time: timeString),
             );
       }
@@ -1494,8 +1483,8 @@ class _ComprehensiveBackupScreenState
                     onPressed: state.isWorking
                         ? null
                         : () => ref
-                              .read(backupStatusProvider.notifier)
-                              .exportToCSV(),
+                            .read(backupStatusProvider.notifier)
+                            .exportToCSV(),
                     icon: const Icon(Icons.table_chart),
                     label: const Text('تصدير CSV'),
                   ),
@@ -1506,8 +1495,8 @@ class _ComprehensiveBackupScreenState
                     onPressed: state.isWorking
                         ? null
                         : () => ref
-                              .read(backupStatusProvider.notifier)
-                              .createReadableReport(),
+                            .read(backupStatusProvider.notifier)
+                            .createReadableReport(),
                     icon: const Icon(Icons.description),
                     label: const Text('تقرير شامل'),
                   ),
@@ -1521,8 +1510,8 @@ class _ComprehensiveBackupScreenState
                 onPressed: state.isWorking
                     ? null
                     : () => ref
-                          .read(backupStatusProvider.notifier)
-                          .exportToDownloads(),
+                        .read(backupStatusProvider.notifier)
+                        .exportToDownloads(),
                 icon: const Icon(Icons.download),
                 label: const Text('تصدير إلى مجلد Downloads'),
                 style: OutlinedButton.styleFrom(foregroundColor: Colors.green),
@@ -1535,9 +1524,8 @@ class _ComprehensiveBackupScreenState
   }
 
   Widget _buildImportAndMergeCard(BackupState state) {
-    final jsonBackups = state.localBackups
-        .where((b) => b.format == BackupFormat.json)
-        .toList();
+    final jsonBackups =
+        state.localBackups.where((b) => b.format == BackupFormat.json).toList();
     final canMerge = jsonBackups.length >= 2;
 
     return Card(
@@ -1571,8 +1559,8 @@ class _ComprehensiveBackupScreenState
                     onPressed: state.isWorking
                         ? null
                         : () => ref
-                              .read(backupStatusProvider.notifier)
-                              .importBackupFromFile(),
+                            .read(backupStatusProvider.notifier)
+                            .importBackupFromFile(),
                     icon: const Icon(Icons.file_upload),
                     label: const Text('استيراد ملف'),
                     style: ElevatedButton.styleFrom(
@@ -1584,9 +1572,8 @@ class _ComprehensiveBackupScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: !canMerge
-                        ? null
-                        : () => _showMergeDialog(jsonBackups),
+                    onPressed:
+                        !canMerge ? null : () => _showMergeDialog(jsonBackups),
                     icon: const Icon(Icons.merge),
                     label: const Text('دمج نسخ'),
                   ),
@@ -1643,8 +1630,8 @@ class _ComprehensiveBackupScreenState
                     onPressed: state.isWorking
                         ? null
                         : () => ref
-                              .read(backupStatusProvider.notifier)
-                              .cleanupTempFiles(),
+                            .read(backupStatusProvider.notifier)
+                            .cleanupTempFiles(),
                     icon: const Icon(Icons.cleaning_services),
                     label: const Text('تنظيف مؤقت'),
                   ),
@@ -1658,8 +1645,8 @@ class _ComprehensiveBackupScreenState
                 onPressed: state.isWorking || state.localBackups.length < 6
                     ? null
                     : () => ref
-                          .read(backupStatusProvider.notifier)
-                          .cleanOldLocalBackups(keepCount: 5),
+                        .read(backupStatusProvider.notifier)
+                        .cleanOldLocalBackups(keepCount: 5),
                 icon: const Icon(Icons.auto_delete),
                 label: const Text('حذف النسخ القديمة (الاحتفاظ بـ 5)'),
                 style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
@@ -1739,8 +1726,8 @@ class _ComprehensiveBackupScreenState
                 onPressed: state.isWorking
                     ? null
                     : () => ref
-                          .read(backupStatusProvider.notifier)
-                          .analyzeBackupFiles(),
+                        .read(backupStatusProvider.notifier)
+                        .analyzeBackupFiles(),
                 icon: const Icon(Icons.analytics),
                 label: const Text('تحليل مفصل للملفات'),
               ),

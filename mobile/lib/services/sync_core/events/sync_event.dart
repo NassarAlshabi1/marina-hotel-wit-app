@@ -62,8 +62,8 @@ class EnhancedSyncEvent {
     this.metadata,
     this.source = 'local',
     this.acknowledged = false,
-  }) : id = id ?? _uuid.v4(),
-       timestamp = timestamp ?? DateTime.now();
+  })  : id = id ?? _uuid.v4(),
+        timestamp = timestamp ?? DateTime.now();
 
   EnhancedSyncEvent copyWith({
     String? id,
@@ -123,23 +123,23 @@ class EnhancedSyncEvent {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'table': table,
-    'operation': operation.name,
-    'entityId': entityId,
-    'payload': payload,
-    'previousPayload': previousPayload,
-    'priority': priority.name,
-    'timestamp': timestamp.toIso8601String(),
-    'scheduledAt': scheduledAt?.toIso8601String(),
-    'retryCount': retryCount,
-    'maxRetries': maxRetries,
-    'correlationId': correlationId,
-    'causationId': causationId,
-    'metadata': metadata,
-    'source': source,
-    'acknowledged': acknowledged,
-  };
+        'id': id,
+        'table': table,
+        'operation': operation.name,
+        'entityId': entityId,
+        'payload': payload,
+        'previousPayload': previousPayload,
+        'priority': priority.name,
+        'timestamp': timestamp.toIso8601String(),
+        'scheduledAt': scheduledAt?.toIso8601String(),
+        'retryCount': retryCount,
+        'maxRetries': maxRetries,
+        'correlationId': correlationId,
+        'causationId': causationId,
+        'metadata': metadata,
+        'source': source,
+        'acknowledged': acknowledged,
+      };
 
   factory EnhancedSyncEvent.fromJson(Map<String, dynamic> json) {
     return EnhancedSyncEvent(
@@ -251,8 +251,8 @@ class SyncEventBatch {
     required this.events,
     DateTime? createdAt,
     this.correlationId,
-  }) : id = id ?? _uuid.v4(),
-       createdAt = createdAt ?? DateTime.now();
+  })  : id = id ?? _uuid.v4(),
+        createdAt = createdAt ?? DateTime.now();
 
   int get size => events.length;
   bool get isEmpty => events.isEmpty;

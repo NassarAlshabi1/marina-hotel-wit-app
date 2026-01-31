@@ -83,9 +83,8 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
           entity: 'debts',
           op: 'create',
           localUuid: uuid,
-          serverId: companion.serverId.present
-              ? companion.serverId.value
-              : null,
+          serverId:
+              companion.serverId.present ? companion.serverId.value : null,
           payload: _payloadFrom(companion),
           clientTs: now,
         );
@@ -116,7 +115,8 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
 
       final rows = await (update(
         debts,
-      )..where((t) => t.id.equals(id))).write(companion);
+      )..where((t) => t.id.equals(id)))
+          .write(companion);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'debts',

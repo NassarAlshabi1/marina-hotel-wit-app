@@ -23,8 +23,8 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   RealTimeRoomsProvider({
     required RoomRepository repository,
     required AppwriteRealtimeService realtimeService,
-  }) : _repository = repository,
-       _realtimeService = realtimeService;
+  })  : _repository = repository,
+        _realtimeService = realtimeService;
 
   // Getters
   List<Room> get rooms => List.unmodifiable(_rooms);

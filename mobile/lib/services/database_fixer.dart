@@ -168,12 +168,14 @@ class DatabaseFixer {
           if (expenseType == 'employee') {
             final employee = await (db.select(
               db.employees,
-            )..where((e) => e.id.equals(relatedId))).getSingleOrNull();
+            )..where((e) => e.id.equals(relatedId)))
+                .getSingleOrNull();
             if (employee == null) shouldFix = true;
           } else if (expenseType == 'booking') {
             final booking = await (db.select(
               db.bookings,
-            )..where((b) => b.id.equals(relatedId))).getSingleOrNull();
+            )..where((b) => b.id.equals(relatedId)))
+                .getSingleOrNull();
             if (booking == null) shouldFix = true;
           }
         }
@@ -247,8 +249,7 @@ class DatabaseFixer {
 
       report.orphanExpenses = orphanExpensesResult.data['count'] as int;
 
-      report.hasIssues =
-          report.invalidServerIds > 0 ||
+      report.hasIssues = report.invalidServerIds > 0 ||
           report.orphanPayments > 0 ||
           report.orphanExpenses > 0;
     } catch (e) {

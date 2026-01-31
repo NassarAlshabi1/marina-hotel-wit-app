@@ -24,9 +24,9 @@ class GoogleDriveTargetAdapter extends BackupCapableAdapter {
     required AppDatabase database,
     GoogleDriveBackupService? backupService,
     GoogleDriveUnifiedSyncCoordinator? coordinator,
-  }) : _database = database,
-       _backupService = backupService,
-       _coordinator = coordinator;
+  })  : _database = database,
+        _backupService = backupService,
+        _coordinator = coordinator;
 
   @override
   SyncTargetType get type => SyncTargetType.googleDrive;

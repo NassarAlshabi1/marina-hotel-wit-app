@@ -661,11 +661,10 @@ class AppwriteService {
       final code = error is AppwriteError
           ? error.code
           : error is AppwriteException
-          ? error.code
-          : '';
+              ? error.code
+              : '';
       final message = error.toString();
-      final notFound =
-          code == 'NOT_FOUND' ||
+      final notFound = code == 'NOT_FOUND' ||
           message.contains('not_found') ||
           message.contains('document_not_found') ||
           message.contains('404');
@@ -687,11 +686,10 @@ class AppwriteService {
       final code = error is AppwriteError
           ? error.code
           : error is AppwriteException
-          ? error.code
-          : '';
+              ? error.code
+              : '';
       final message = error.toString();
-      final isConflict =
-          code == 'CONFLICT_ERROR' ||
+      final isConflict = code == 'CONFLICT_ERROR' ||
           code == 'document_already_exists' ||
           message.contains('document_already_exists') ||
           message.contains('document already exists') ||
@@ -720,25 +718,27 @@ class AppwriteService {
   Future<models.Document> upsertRoom(
     String documentId,
     Map<String, dynamic> data,
-  ) => upsertDocument(
-    collectionId: AppwriteConfig.roomsCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.roomsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<models.Document> updateRoom(
     String documentId,
     Map<String, dynamic> data,
-  ) => updateDocument(
-    collectionId: AppwriteConfig.roomsCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      updateDocument(
+        collectionId: AppwriteConfig.roomsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<void> deleteRoom(String documentId) => deleteDocument(
-    collectionId: AppwriteConfig.roomsCollectionId,
-    documentId: documentId,
-  );
+        collectionId: AppwriteConfig.roomsCollectionId,
+        documentId: documentId,
+      );
 
   Future<List<models.Document>> listRooms({bool useCache = true}) =>
       listDocuments(
@@ -763,25 +763,27 @@ class AppwriteService {
   Future<models.Document> upsertBooking(
     String documentId,
     Map<String, dynamic> data,
-  ) => upsertDocument(
-    collectionId: AppwriteConfig.bookingsCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.bookingsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<models.Document> updateBooking(
     String documentId,
     Map<String, dynamic> data,
-  ) => updateDocument(
-    collectionId: AppwriteConfig.bookingsCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      updateDocument(
+        collectionId: AppwriteConfig.bookingsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<void> deleteBooking(String documentId) => deleteDocument(
-    collectionId: AppwriteConfig.bookingsCollectionId,
-    documentId: documentId,
-  );
+        collectionId: AppwriteConfig.bookingsCollectionId,
+        documentId: documentId,
+      );
 
   Future<List<models.Document>> listBookings({bool useCache = true}) =>
       listDocuments(
@@ -806,25 +808,27 @@ class AppwriteService {
   Future<models.Document> upsertPayment(
     String documentId,
     Map<String, dynamic> data,
-  ) => upsertDocument(
-    collectionId: AppwriteConfig.paymentsCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.paymentsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<models.Document> updatePayment(
     String documentId,
     Map<String, dynamic> data,
-  ) => updateDocument(
-    collectionId: AppwriteConfig.paymentsCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      updateDocument(
+        collectionId: AppwriteConfig.paymentsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<void> deletePayment(String documentId) => deleteDocument(
-    collectionId: AppwriteConfig.paymentsCollectionId,
-    documentId: documentId,
-  );
+        collectionId: AppwriteConfig.paymentsCollectionId,
+        documentId: documentId,
+      );
 
   Future<List<models.Document>> listPayments({bool useCache = true}) =>
       listDocuments(
@@ -842,25 +846,27 @@ class AppwriteService {
   Future<models.Document> upsertExpense(
     String documentId,
     Map<String, dynamic> data,
-  ) => upsertDocument(
-    collectionId: AppwriteConfig.expensesCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.expensesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<models.Document> updateExpense(
     String documentId,
     Map<String, dynamic> data,
-  ) => updateDocument(
-    collectionId: AppwriteConfig.expensesCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      updateDocument(
+        collectionId: AppwriteConfig.expensesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<void> deleteExpense(String documentId) => deleteDocument(
-    collectionId: AppwriteConfig.expensesCollectionId,
-    documentId: documentId,
-  );
+        collectionId: AppwriteConfig.expensesCollectionId,
+        documentId: documentId,
+      );
 
   Future<List<models.Document>> listExpenses({bool useCache = true}) =>
       listDocuments(
@@ -878,25 +884,27 @@ class AppwriteService {
   Future<models.Document> upsertEmployee(
     String documentId,
     Map<String, dynamic> data,
-  ) => upsertDocument(
-    collectionId: AppwriteConfig.employeesCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.employeesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<models.Document> updateEmployee(
     String documentId,
     Map<String, dynamic> data,
-  ) => updateDocument(
-    collectionId: AppwriteConfig.employeesCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      updateDocument(
+        collectionId: AppwriteConfig.employeesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<void> deleteEmployee(String documentId) => deleteDocument(
-    collectionId: AppwriteConfig.employeesCollectionId,
-    documentId: documentId,
-  );
+        collectionId: AppwriteConfig.employeesCollectionId,
+        documentId: documentId,
+      );
 
   Future<List<models.Document>> listEmployees({bool useCache = true}) =>
       listDocuments(
@@ -914,25 +922,27 @@ class AppwriteService {
   Future<models.Document> upsertDebt(
     String documentId,
     Map<String, dynamic> data,
-  ) => upsertDocument(
-    collectionId: AppwriteConfig.debtsCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.debtsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<models.Document> updateDebt(
     String documentId,
     Map<String, dynamic> data,
-  ) => updateDocument(
-    collectionId: AppwriteConfig.debtsCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      updateDocument(
+        collectionId: AppwriteConfig.debtsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   Future<void> deleteDebt(String documentId) => deleteDocument(
-    collectionId: AppwriteConfig.debtsCollectionId,
-    documentId: documentId,
-  );
+        collectionId: AppwriteConfig.debtsCollectionId,
+        documentId: documentId,
+      );
 
   Future<List<models.Document>> listDebts({bool useCache = true}) =>
       listDocuments(
@@ -944,51 +954,56 @@ class AppwriteService {
   Future<models.Document> upsertBookingNote(
     String documentId,
     Map<String, dynamic> data,
-  ) => upsertDocument(
-    collectionId: AppwriteConfig.bookingNotesCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.bookingNotesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   // Cash Transactions
   Future<models.Document> upsertCashTransaction(
     String documentId,
     Map<String, dynamic> data,
-  ) => upsertDocument(
-    collectionId: AppwriteConfig.cashTransactionsCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.cashTransactionsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   // Booking Nights
   Future<models.Document> upsertBookingNight(
     String documentId,
     Map<String, dynamic> data,
-  ) => upsertDocument(
-    collectionId: AppwriteConfig.bookingNightsCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.bookingNightsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   // Salary Cycles
   Future<models.Document> upsertSalaryCycle(
     String documentId,
     Map<String, dynamic> data,
-  ) => upsertDocument(
-    collectionId: AppwriteConfig.salaryCyclesCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.salaryCyclesCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   // Salary Payments
   Future<models.Document> upsertSalaryPayment(
     String documentId,
     Map<String, dynamic> data,
-  ) => upsertDocument(
-    collectionId: AppwriteConfig.salaryPaymentsCollectionId,
-    documentId: documentId,
-    data: data,
-  );
+  ) =>
+      upsertDocument(
+        collectionId: AppwriteConfig.salaryPaymentsCollectionId,
+        documentId: documentId,
+        data: data,
+      );
 
   // Devices
   Future<models.Document> createDevice(Map<String, dynamic> data) =>
@@ -1179,9 +1194,8 @@ class AppwriteService {
         (test) => test['success'] == true,
       );
       results['tests_count'] = allTests.length;
-      results['successful_tests'] = allTests.values
-          .where((test) => test['success'] == true)
-          .length;
+      results['successful_tests'] =
+          allTests.values.where((test) => test['success'] == true).length;
 
       _logger.info(
         'Connection test completed: ${results['successful_tests']}/${results['tests_count']} tests passed',

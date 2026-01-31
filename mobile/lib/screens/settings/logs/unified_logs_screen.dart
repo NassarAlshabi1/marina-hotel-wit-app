@@ -279,9 +279,8 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
     var filteredLogs = logs;
 
     if (_selectedLevel != 'all') {
-      filteredLogs = logs
-          .where((log) => log['level'] == _selectedLevel)
-          .toList();
+      filteredLogs =
+          logs.where((log) => log['level'] == _selectedLevel).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
@@ -289,11 +288,11 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
           .where(
             (log) =>
                 log['message']!.toLowerCase().contains(
-                  _searchQuery.toLowerCase(),
-                ) ||
+                      _searchQuery.toLowerCase(),
+                    ) ||
                 log['source']!.toLowerCase().contains(
-                  _searchQuery.toLowerCase(),
-                ),
+                      _searchQuery.toLowerCase(),
+                    ),
           )
           .toList();
     }

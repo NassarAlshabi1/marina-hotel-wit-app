@@ -91,9 +91,9 @@ final syncStatsProvider = FutureProvider<Map<String, int>>((ref) async {
 
 final adapterStatusesProvider =
     FutureProvider<Map<SyncTargetType, SyncTargetStatus>>((ref) async {
-      final router = ref.watch(syncRouterProvider);
-      return router.getAdapterStatuses();
-    });
+  final router = ref.watch(syncRouterProvider);
+  return router.getAdapterStatuses();
+});
 
 final isAppwriteEnabledProvider = Provider<bool>((ref) {
   final adapter = ref.watch(appwriteAdapterProvider);

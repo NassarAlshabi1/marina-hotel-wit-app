@@ -23,9 +23,9 @@ class AppwriteTargetAdapter extends SyncTargetAdapter {
     required AppDatabase database,
     AppwriteService? service,
     AppwriteSyncManager? syncManager,
-  }) : _database = database,
-       _service = service,
-       _syncManager = syncManager;
+  })  : _database = database,
+        _service = service,
+        _syncManager = syncManager;
 
   @override
   SyncTargetType get type => SyncTargetType.appwrite;

@@ -55,9 +55,7 @@ void main() {
   });
 
   test('bookings adapter round-trip (appwrite)', () async {
-    await db
-        .into(db.rooms)
-        .insert(
+    await db.into(db.rooms).insert(
           RoomsCompanion(
             localUuid: const d.Value('r-101'),
             roomNumber: const d.Value('101'),
