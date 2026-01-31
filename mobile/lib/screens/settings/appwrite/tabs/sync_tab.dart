@@ -368,6 +368,21 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
+                color: Colors.purple.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(UIConstants.radiusMD),
+              ),
+              child: const Icon(Icons.cloud_upload, color: Colors.purple),
+            ),
+            title: const Text('رفع شامل إلى Appwrite'),
+            subtitle: const Text('رفع جميع البيانات المحلية مباشرة'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _showFullPushDialog(),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(UIConstants.spacingSM),
+              decoration: BoxDecoration(
                 color: Colors.red.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
@@ -475,6 +490,129 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         ),
       );
     }
+  }
+
+  void _showFullPushDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('رفع شامل إلى Appwrite'),
+        content: const Text(
+          'سيتم رفع جميع البيانات المحلية مباشرة إلى Appwrite.\n\n'
+          '⚠️ هذا سيستبدل البيانات الموجودة على السحابة.\n\n'
+          'استخدم هذا الخيار عند:\n'
+          '• التثبيت الأول للتطبيق\n'
+          '• بعد استعادة نسخة احتياطية محلية\n'
+          '• عندما لا تعمل المزامنة العادية',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              await _runFullPush();
+            },
+            child: const Text('رفع جميع البيانات'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _runFullPush() async {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('جاري رفع جميع البيانات إلى Appwrite...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      final manager = ref.read(ap.appwriteSyncManagerProvider);
+      final stats = await manager.pushAllLocalDataToAppwrite();
+      
+      ref.invalidate(ap.syncStatsProvider);
+
+      if (!mounted) return;
+
+      final totalRecords = stats.entries
+          .where((e) => e.key != 'errors')
+          .fold<int>(0, (sum, e) => sum + (e.value));
+      final errors = stats['errors'] ?? 0;
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                errors == 0 ? Icons.check_circle : Icons.warning,
+                color: errors == 0 ? Colors.green : Colors.orange,
+              ),
+              const SizedBox(width: 8),
+              const Text('نتيجة الرفع'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('تم رفع $totalRecords سجل بنجاح'),
+                if (errors > 0) Text('أخطاء: $errors', style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 12),
+                const Text('التفاصيل:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ...stats.entries.where((e) => e.key != 'errors').map((e) => 
+                  Text('• ${_translateEntity(e.key)}: ${e.value}')
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('حسناً'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل الرفع: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  String _translateEntity(String entity) {
+    const translations = {
+      'rooms': 'الغرف',
+      'bookings': 'الحجوزات',
+      'booking_notes': 'ملاحظات الحجز',
+      'booking_nights': 'ليالي الحجز',
+      'employees': 'الموظفين',
+      'expenses': 'المصروفات',
+      'cash_transactions': 'المعاملات النقدية',
+      'payments': 'المدفوعات',
+      'debts': 'الديون',
+      'salary_cycles': 'دورات الرواتب',
+      'salary_payments': 'دفعات الرواتب',
+      'shift_notes': 'ملاحظات الشيفت',
+    };
+    return translations[entity] ?? entity;
   }
 
   void _showClearHistoryDialog() {
