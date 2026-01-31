@@ -17,8 +17,6 @@ import 'sync_debug_logs_screen.dart';
 import 'error_center_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import '../security/blacklist_screen.dart';
-import 'server_id_fixer_screen.dart';
-import 'database_fixer_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -262,8 +260,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 16),
           _buildSearchField(),
-          const SizedBox(height: 16),
-          _buildQuickActions(context),
           const SizedBox(height: 20),
           ...sections
               .map((section) => _buildSection(context, section))
@@ -313,18 +309,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
-      _QuickAction(
-        title: 'إصلاح قاعدة البيانات',
-        subtitle: 'تصحيح البيانات الفاسدة',
-        icon: Icons.healing,
-        color: Colors.orange,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const DatabaseFixerScreen(),
-          ),
-        ),
-      ),
       _QuickAction(
         title: 'إصلاح Server IDs',
         subtitle: 'ربط الغرف مع Appwrite',
