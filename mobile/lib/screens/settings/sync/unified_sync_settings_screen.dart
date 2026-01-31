@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/core.dart';
@@ -397,7 +399,7 @@ class _UnifiedSyncSettingsScreenState
                               SyncTargetType.appwrite,
                             );
                     await adapter?.setEnabled(value);
-                    ref.refresh(adapterStatusesProvider);
+                    unawaited(ref.refresh(adapterStatusesProvider));
                   },
             secondary: const Icon(Icons.cloud),
           ),
