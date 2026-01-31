@@ -241,10 +241,7 @@ void main() {
         debounceWindow: Duration.zero,
         maxBatchSize: 1,
         enableParallel: false,
-        targetPriority: [
-          SyncTargetType.appwrite,
-          SyncTargetType.localJson,
-        ],
+        targetPriority: [SyncTargetType.appwrite, SyncTargetType.localJson],
       ),
     );
 

@@ -96,10 +96,7 @@ class _UnifiedSyncSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'حالة المزامنة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 const SyncStatusIndicator(),
@@ -151,10 +148,7 @@ class _UnifiedSyncSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'مصادر المزامنة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -252,10 +246,7 @@ class _UnifiedSyncSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'الأداء والبطارية',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -309,10 +300,7 @@ class _UnifiedSyncSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'المزامنة الذكية',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -348,14 +336,13 @@ class _UnifiedSyncSettingsScreenState
 
   Widget _buildAppwriteSyncSection() {
     final statusesAsync = ref.watch(adapterStatusesProvider);
-    final appwriteStatus =
-        statusesAsync.valueOrNull?[SyncTargetType.appwrite];
+    final appwriteStatus = statusesAsync.valueOrNull?[SyncTargetType.appwrite];
     final isEnabled = appwriteStatus?.isEnabled ?? true;
     final connectionLabel = appwriteStatus == null
         ? 'جاري التحقق...'
         : appwriteStatus.isConnected
-            ? 'متصل'
-            : 'غير متصل';
+        ? 'متصل'
+        : 'غير متصل';
 
     return Card(
       elevation: 2,
@@ -376,10 +363,7 @@ class _UnifiedSyncSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'Appwrite Sync',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -392,10 +376,9 @@ class _UnifiedSyncSettingsScreenState
             onChanged: appwriteStatus == null
                 ? null
                 : (value) async {
-                    final adapter =
-                        ref.read(syncRouterProvider).getAdapter(
-                              SyncTargetType.appwrite,
-                            );
+                    final adapter = ref
+                        .read(syncRouterProvider)
+                        .getAdapter(SyncTargetType.appwrite);
                     await adapter?.setEnabled(value);
                     ref.invalidate(adapterStatusesProvider);
                   },
@@ -442,10 +425,7 @@ class _UnifiedSyncSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'إعدادات متقدمة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),

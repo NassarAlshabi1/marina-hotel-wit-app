@@ -152,8 +152,13 @@ class SchemaComparisonScreen extends StatelessWidget {
   Widget _buildSyncFieldsComparison() {
     final fields = [
       _FieldComparison('localUuid', 'TEXT UNIQUE', 'string(36)', true),
-      _FieldComparison('serverId', 'INTEGER NULL', 'integer', false,
-          note: '⚠️ كان يحتوي UUID'),
+      _FieldComparison(
+        'serverId',
+        'INTEGER NULL',
+        'integer',
+        false,
+        note: '⚠️ كان يحتوي UUID',
+      ),
       _FieldComparison('createdAt', 'INTEGER', 'integer', true),
       _FieldComparison('updatedAt', 'INTEGER', 'integer', true),
       _FieldComparison('version', 'INTEGER', 'integer', true),

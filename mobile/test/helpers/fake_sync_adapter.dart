@@ -27,10 +27,10 @@ class FakeSyncAdapter extends SyncTargetAdapter {
     bool available = true,
     this.onPush,
     this.onPull,
-  })  : name = name ?? type.name,
-        displayName = displayName ?? type.name,
-        _enabled = enabled,
-        _available = available;
+  }) : name = name ?? type.name,
+       displayName = displayName ?? type.name,
+       _enabled = enabled,
+       _available = available;
 
   @override
   bool get isAvailable => _available;

@@ -38,10 +38,7 @@ void main() {
         final fakeRoomId = 'fake_room_uuid_999';
 
         // يجب ألا يرمي استثناء
-        await expectLater(
-          appwriteService.deleteRoom(fakeRoomId),
-          completes,
-        );
+        await expectLater(appwriteService.deleteRoom(fakeRoomId), completes);
       },
       timeout: const Timeout(Duration(seconds: 60)),
     );

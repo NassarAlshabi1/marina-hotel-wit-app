@@ -102,14 +102,16 @@ class EnhancedEventBus {
     String? correlationId,
     Map<String, dynamic>? metadata,
   }) async {
-    await publish(EnhancedSyncEvent.create(
-      table: table,
-      entityId: entityId,
-      payload: payload,
-      priority: priority,
-      correlationId: correlationId,
-      metadata: metadata,
-    ));
+    await publish(
+      EnhancedSyncEvent.create(
+        table: table,
+        entityId: entityId,
+        payload: payload,
+        priority: priority,
+        correlationId: correlationId,
+        metadata: metadata,
+      ),
+    );
   }
 
   Future<void> publishUpdate({
@@ -121,15 +123,17 @@ class EnhancedEventBus {
     String? correlationId,
     Map<String, dynamic>? metadata,
   }) async {
-    await publish(EnhancedSyncEvent.update(
-      table: table,
-      entityId: entityId,
-      payload: payload,
-      previousPayload: previousPayload,
-      priority: priority,
-      correlationId: correlationId,
-      metadata: metadata,
-    ));
+    await publish(
+      EnhancedSyncEvent.update(
+        table: table,
+        entityId: entityId,
+        payload: payload,
+        previousPayload: previousPayload,
+        priority: priority,
+        correlationId: correlationId,
+        metadata: metadata,
+      ),
+    );
   }
 
   Future<void> publishDelete({
@@ -140,14 +144,16 @@ class EnhancedEventBus {
     String? correlationId,
     Map<String, dynamic>? metadata,
   }) async {
-    await publish(EnhancedSyncEvent.delete(
-      table: table,
-      entityId: entityId,
-      previousPayload: previousPayload,
-      priority: priority,
-      correlationId: correlationId,
-      metadata: metadata,
-    ));
+    await publish(
+      EnhancedSyncEvent.delete(
+        table: table,
+        entityId: entityId,
+        previousPayload: previousPayload,
+        priority: priority,
+        correlationId: correlationId,
+        metadata: metadata,
+      ),
+    );
   }
 
   Future<void> acknowledge(String eventId) async {
@@ -164,7 +170,10 @@ class EnhancedEventBus {
     }
   }
 
-  Future<void> waitForAcknowledgment(String eventId, {Duration? timeout}) async {
+  Future<void> waitForAcknowledgment(
+    String eventId, {
+    Duration? timeout,
+  }) async {
     final completer = Completer<void>();
     _acknowledgments[eventId] = completer;
 

@@ -21,9 +21,8 @@ class LocalJsonTargetAdapter extends BackupCapableAdapter {
   static const String _currentBackupFile = 'current_backup.json';
   static const int _maxBackups = 10;
 
-  LocalJsonTargetAdapter({
-    required AppDatabase database,
-  }) : _database = database;
+  LocalJsonTargetAdapter({required AppDatabase database})
+    : _database = database;
 
   @override
   SyncTargetType get type => SyncTargetType.localJson;
@@ -87,10 +86,7 @@ class LocalJsonTargetAdapter extends BackupCapableAdapter {
       lastSyncAt: _lastSyncAt,
       lastError: _lastError,
       pendingCount: 0,
-      metadata: {
-        'backupCount': backups.length,
-        'directory': _backupDirectory,
-      },
+      metadata: {'backupCount': backups.length, 'directory': _backupDirectory},
     );
   }
 
@@ -135,9 +131,7 @@ class LocalJsonTargetAdapter extends BackupCapableAdapter {
     List<String>? tables,
     int? limit,
   }) async {
-    return SyncPullResult.success(
-      lastSyncTimestamp: DateTime.now(),
-    );
+    return SyncPullResult.success(lastSyncTimestamp: DateTime.now());
   }
 
   @override
@@ -236,15 +230,19 @@ class LocalJsonTargetAdapter extends BackupCapableAdapter {
         final data = jsonDecode(content) as Map<String, dynamic>;
         final meta = data['_meta'] as Map<String, dynamic>?;
 
-        backups.add(BackupInfo(
-          id: meta?['id'] ?? file.path.split('/').last.replaceAll('.json', ''),
-          createdAt: meta?['createdAt'] != null
-              ? DateTime.parse(meta!['createdAt'] as String)
-              : stat.modified,
-          sizeBytes: stat.size,
-          tag: meta?['tag'] as String?,
-          tableCounts: _extractTableCounts(data),
-        ));
+        backups.add(
+          BackupInfo(
+            id:
+                meta?['id'] ??
+                file.path.split('/').last.replaceAll('.json', ''),
+            createdAt: meta?['createdAt'] != null
+                ? DateTime.parse(meta!['createdAt'] as String)
+                : stat.modified,
+            sizeBytes: stat.size,
+            tag: meta?['tag'] as String?,
+            tableCounts: _extractTableCounts(data),
+          ),
+        );
       } catch (e) {
         debugPrint('LocalJsonTargetAdapter: Error reading backup: $e');
       }
@@ -274,19 +272,43 @@ class LocalJsonTargetAdapter extends BackupCapableAdapter {
 
   Future<Map<String, dynamic>> _createSnapshot() async {
     final results = await Future.wait([
-      (_database.select(_database.rooms)..where((t) => t.deletedAt.isNull())).get(),
-      (_database.select(_database.bookings)..where((t) => t.deletedAt.isNull())).get(),
-      (_database.select(_database.bookingNotes)..where((t) => t.deletedAt.isNull())).get(),
-      (_database.select(_database.bookingNights)..where((t) => t.deletedAt.isNull())).get(),
-      (_database.select(_database.employees)..where((t) => t.deletedAt.isNull())).get(),
-      (_database.select(_database.expenses)..where((t) => t.deletedAt.isNull())).get(),
-      (_database.select(_database.cashTransactions)..where((t) => t.deletedAt.isNull())).get(),
-      (_database.select(_database.payments)..where((t) => t.deletedAt.isNull())).get(),
-      (_database.select(_database.debts)..where((t) => t.deletedAt.isNull())).get(),
-      (_database.select(_database.hotelDayLedger)..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.rooms,
+      )..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.bookings,
+      )..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.bookingNotes,
+      )..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.bookingNights,
+      )..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.employees,
+      )..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.expenses,
+      )..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.cashTransactions,
+      )..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.payments,
+      )..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.debts,
+      )..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.hotelDayLedger,
+      )..where((t) => t.deletedAt.isNull())).get(),
       (_database.select(_database.shiftNotes)).get(),
-      (_database.select(_database.salaryCycles)..where((t) => t.deletedAt.isNull())).get(),
-      (_database.select(_database.salaryPayments)..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.salaryCycles,
+      )..where((t) => t.deletedAt.isNull())).get(),
+      (_database.select(
+        _database.salaryPayments,
+      )..where((t) => t.deletedAt.isNull())).get(),
     ]);
 
     return {

@@ -445,10 +445,12 @@ class PaymentStatsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
-    final completedPayments =
-        payments.where((p) => p.status == PaymentStatus.completed).length;
-    final pendingPayments =
-        payments.where((p) => p.status == PaymentStatus.pending).length;
+    final completedPayments = payments
+        .where((p) => p.status == PaymentStatus.completed)
+        .length;
+    final pendingPayments = payments
+        .where((p) => p.status == PaymentStatus.pending)
+        .length;
 
     final methodStats = <PaymentMethod, int>{};
     for (final payment in payments) {
@@ -653,8 +655,9 @@ class PaymentMethodSelector extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color:
-                      isSelected ? method.color : method.color.withOpacity(0.1),
+                  color: isSelected
+                      ? method.color
+                      : method.color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: method.color,

@@ -183,10 +183,10 @@ class LocalBackupService {
         final paymentsData = await db.select(db.payments).get();
         final debtsData = await db.select(db.debts).get();
 
-
         final salaryCyclesData = await db.select(db.salaryCycles).get();
         final salaryPaymentsData = await db.select(db.salaryPayments).get();
-        final totalRecords = roomsData.length +
+        final totalRecords =
+            roomsData.length +
             bookingsData.length +
             bookingNotesData.length +
             bookingNightsData.length +
@@ -213,25 +213,31 @@ class LocalBackupService {
           'metadata': metadata.toJson(),
           'rooms': roomsData.map((room) => room.toJson()).toList(),
           'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
-          'booking_notes':
-              bookingNotesData.map((note) => note.toJson()).toList(),
-          'booking_nights':
-              bookingNightsData.map((night) => night.toJson()).toList(),
-          'hotel_day_ledger':
-              hotelDayLedgerData.map((entry) => entry.toJson()).toList(),
+          'booking_notes': bookingNotesData
+              .map((note) => note.toJson())
+              .toList(),
+          'booking_nights': bookingNightsData
+              .map((night) => night.toJson())
+              .toList(),
+          'hotel_day_ledger': hotelDayLedgerData
+              .map((entry) => entry.toJson())
+              .toList(),
           'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
-          'employees':
-              employeesData.map((employee) => employee.toJson()).toList(),
+          'employees': employeesData
+              .map((employee) => employee.toJson())
+              .toList(),
           'expenses': expensesData.map((expense) => expense.toJson()).toList(),
           'cash_transactions': cashTransactionsData
               .map((transaction) => transaction.toJson())
               .toList(),
           'payments': paymentsData.map((payment) => payment.toJson()).toList(),
           'debts': debtsData.map((debt) => debt.toJson()).toList(),
-          'salary_cycles':
-              salaryCyclesData.map((cycle) => cycle.toJson()).toList(),
-          'salary_payments':
-              salaryPaymentsData.map((payment) => payment.toJson()).toList(),
+          'salary_cycles': salaryCyclesData
+              .map((cycle) => cycle.toJson())
+              .toList(),
+          'salary_payments': salaryPaymentsData
+              .map((payment) => payment.toJson())
+              .toList(),
         };
 
         final filePath = '${backupDir.path}/$baseName.json';
@@ -387,8 +393,9 @@ class LocalBackupService {
 
       for (final file in files) {
         final extension = p.extension(file.path).toLowerCase();
-        final format =
-            extension == '.sqlite' ? BackupFormat.sqlite : BackupFormat.json;
+        final format = extension == '.sqlite'
+            ? BackupFormat.sqlite
+            : BackupFormat.json;
 
         try {
           BackupMetadata? metadata;
@@ -715,8 +722,8 @@ class LocalBackupService {
           final dbVersion = rawVersion is int
               ? rawVersion
               : rawVersion is num
-                  ? rawVersion.toInt()
-                  : 0;
+              ? rawVersion.toInt()
+              : 0;
 
           if (dbVersion > AppDatabase().schemaVersion) {
             throw Exception(

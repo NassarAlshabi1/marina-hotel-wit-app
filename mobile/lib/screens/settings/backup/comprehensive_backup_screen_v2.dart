@@ -94,9 +94,9 @@ class _ComprehensiveBackupScreenState
 
   void _refreshAll() {
     // Trigger refresh for all tabs
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('جاري تحديث البيانات...')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('جاري تحديث البيانات...')));
   }
 
   void _showSettingsMenu() {

@@ -22,19 +22,13 @@ class BackupOverviewTab extends ConsumerWidget {
         const SizedBox(height: UIConstants.spacingLG),
 
         // Recent Backups
-        SectionHeader(
-          title: 'آخر النسخ الاحتياطية',
-          icon: Icons.history,
-        ),
+        SectionHeader(title: 'آخر النسخ الاحتياطية', icon: Icons.history),
         _buildRecentBackupsList(),
 
         const SizedBox(height: UIConstants.spacingLG),
 
         // Quick Actions
-        SectionHeader(
-          title: 'إجراءات سريعة',
-          icon: Icons.flash_on,
-        ),
+        SectionHeader(title: 'إجراءات سريعة', icon: Icons.flash_on),
         _buildQuickActionsGrid(),
       ],
     );
@@ -61,10 +55,7 @@ class BackupOverviewTab extends ConsumerWidget {
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'معلومات النظام',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -79,11 +70,7 @@ class BackupOverviewTab extends ConsumerWidget {
               value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
               icon: Icons.schedule,
             ),
-            InfoRow(
-              label: 'عدد النسخ',
-              value: '5 نسخ',
-              icon: Icons.layers,
-            ),
+            InfoRow(label: 'عدد النسخ', value: '5 نسخ', icon: Icons.layers),
             InfoRow(
               label: 'المساحة الإجمالية',
               value: FileSizeFormatter.formatBytes(75 * 1024 * 1024),
@@ -223,24 +210,14 @@ class BackupOverviewTab extends ConsumerWidget {
           UIConstants.backupColor,
           () {},
         ),
-        _buildQuickActionCard(
-          'استعادة',
-          Icons.restore,
-          Colors.orange,
-          () {},
-        ),
+        _buildQuickActionCard('استعادة', Icons.restore, Colors.orange, () {}),
         _buildQuickActionCard(
           'رفع إلى Drive',
           Icons.cloud_upload,
           Colors.blue,
           () {},
         ),
-        _buildQuickActionCard(
-          'الإعدادات',
-          Icons.settings,
-          Colors.grey,
-          () {},
-        ),
+        _buildQuickActionCard('الإعدادات', Icons.settings, Colors.grey, () {}),
       ],
     );
   }

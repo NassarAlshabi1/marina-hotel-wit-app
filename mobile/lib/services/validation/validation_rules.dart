@@ -15,11 +15,7 @@ class ValidationRules {
   }
 
   /// التحقق من الحد الأدنى لطول النص
-  static ValidationError? minLength(
-    String field,
-    String? value,
-    int min,
-  ) {
+  static ValidationError? minLength(String field, String? value, int min) {
     if (value != null && value.trim().length < min) {
       return ValidationError(
         field: field,
@@ -31,11 +27,7 @@ class ValidationRules {
   }
 
   /// التحقق من الحد الأقصى لطول النص
-  static ValidationError? maxLength(
-    String field,
-    String? value,
-    int max,
-  ) {
+  static ValidationError? maxLength(String field, String? value, int max) {
     if (value != null && value.length > max) {
       return ValidationError(
         field: field,
@@ -54,7 +46,7 @@ class ValidationRules {
     bool inclusive = false,
   }) {
     if (value == null) return null;
-    
+
     final condition = inclusive ? value < min : value <= min;
     if (condition) {
       return ValidationError(
@@ -76,7 +68,7 @@ class ValidationRules {
     bool inclusive = false,
   }) {
     if (value == null) return null;
-    
+
     final condition = inclusive ? value > max : value >= max;
     if (condition) {
       return ValidationError(
@@ -117,7 +109,7 @@ class ValidationRules {
   /// التحقق من صيغة رقم الهاتف
   static ValidationError? phoneFormat(String field, String? value) {
     if (value == null || value.isEmpty) return null;
-    
+
     final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
     if (digitsOnly.length < 9 || digitsOnly.length > 15) {
       return ValidationError(
@@ -132,7 +124,7 @@ class ValidationRules {
   /// التحقق من صيغة التاريخ (ISO8601)
   static ValidationError? dateFormat(String field, String? value) {
     if (value == null || value.isEmpty) return null;
-    
+
     try {
       DateTime.parse(value);
       return null;
@@ -148,7 +140,7 @@ class ValidationRules {
   /// التحقق من أن التاريخ في المستقبل
   static ValidationError? futureDate(String field, String? value) {
     if (value == null || value.isEmpty) return null;
-    
+
     try {
       final date = DateTime.parse(value);
       if (date.isBefore(DateTime.now())) {
@@ -171,7 +163,7 @@ class ValidationRules {
   /// التحقق من أن التاريخ في الماضي
   static ValidationError? pastDate(String field, String? value) {
     if (value == null || value.isEmpty) return null;
-    
+
     try {
       final date = DateTime.parse(value);
       if (date.isAfter(DateTime.now())) {
@@ -199,7 +191,7 @@ class ValidationRules {
     String date2Label,
   ) {
     if (date1 == null || date2 == null) return null;
-    
+
     try {
       final d1 = DateTime.parse(date1);
       final d2 = DateTime.parse(date2);
@@ -235,12 +227,12 @@ class ValidationRules {
   /// التحقق من UUID format
   static ValidationError? uuidFormat(String field, String? value) {
     if (value == null || value.isEmpty) return null;
-    
+
     final uuidRegex = RegExp(
       r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
       caseSensitive: false,
     );
-    
+
     if (!uuidRegex.hasMatch(value)) {
       return ValidationError(
         field: field,

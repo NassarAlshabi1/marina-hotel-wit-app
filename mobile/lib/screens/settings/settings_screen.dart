@@ -107,9 +107,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: Colors.red,
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const BlacklistScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const BlacklistScreen()),
             ),
           ),
         ],
@@ -209,9 +207,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: Colors.deepOrange,
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => SyncDebugLogsScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => SyncDebugLogsScreen()),
             ),
           ),
         ],
@@ -352,9 +348,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         color: Colors.orange,
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const DatabaseFixerScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const DatabaseFixerScreen()),
         ),
       ),
       _QuickAction(
@@ -364,9 +358,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         color: Colors.red,
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const ServerIdFixerScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const ServerIdFixerScreen()),
         ),
       ),
       _QuickAction(
@@ -407,9 +399,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         color: Colors.deepOrange,
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => SyncDebugLogsScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => SyncDebugLogsScreen()),
         ),
       ),
     ];
@@ -473,10 +463,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(height: 2),
                     Text(
                       action.subtitle,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -691,8 +678,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ],
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios,
-                      size: 16, color: Colors.grey),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
                 ],
               ),
             ),

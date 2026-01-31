@@ -50,8 +50,8 @@ class DatabaseSyncHooks {
   DatabaseSyncHooks({
     required AppDatabase database,
     required EnhancedEventBus eventBus,
-  })  : _database = database,
-        _eventBus = eventBus;
+  }) : _database = database,
+       _eventBus = eventBus;
 
   bool get isInitialized => _initialized;
 
@@ -73,7 +73,9 @@ class DatabaseSyncHooks {
     await _setupSalaryPaymentsHook();
 
     _initialized = true;
-    debugPrint('DatabaseSyncHooks: Initialized for ${_syncTables.length} tables');
+    debugPrint(
+      'DatabaseSyncHooks: Initialized for ${_syncTables.length} tables',
+    );
   }
 
   Future<void> _setupRoomsHook() async {

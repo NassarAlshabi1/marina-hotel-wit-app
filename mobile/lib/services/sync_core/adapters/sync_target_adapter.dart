@@ -1,10 +1,6 @@
 import '../events/sync_event.dart';
 
-enum SyncTargetType {
-  appwrite,
-  googleDrive,
-  localJson,
-}
+enum SyncTargetType { appwrite, googleDrive, localJson }
 
 sealed class SyncTargetResult {
   bool get success;
@@ -132,11 +128,7 @@ class SyncPullResult implements SyncTargetResult {
     required String error,
     Duration duration = Duration.zero,
   }) {
-    return SyncPullResult(
-      success: false,
-      error: error,
-      duration: duration,
-    );
+    return SyncPullResult(success: false, error: error, duration: duration);
   }
 
   bool get hasConflicts => conflicts.isNotEmpty;
@@ -177,12 +169,7 @@ class SyncConflict {
   bool get isNewerRemotely => remoteTimestamp.isAfter(localTimestamp);
 }
 
-enum ConflictResolution {
-  useLocal,
-  useRemote,
-  merge,
-  skip,
-}
+enum ConflictResolution { useLocal, useRemote, merge, skip }
 
 class SyncTargetStatus {
   final SyncTargetType type;

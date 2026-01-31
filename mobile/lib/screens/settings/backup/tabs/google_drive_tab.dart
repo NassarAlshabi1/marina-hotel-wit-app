@@ -34,10 +34,7 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
         SectionHeader(
           title: 'النسخ على Google Drive',
           icon: Icons.cloud,
-          action: IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {},
-          ),
+          action: IconButton(icon: const Icon(Icons.refresh), onPressed: () {}),
         ),
         _buildBackupsList(),
       ],
@@ -87,8 +84,9 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
               icon: Icon(_isConnected ? Icons.link_off : Icons.link),
               label: Text(_isConnected ? 'قطع الاتصال' : 'الاتصال'),
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    _isConnected ? Colors.red : UIConstants.backupColor,
+                backgroundColor: _isConnected
+                    ? Colors.red
+                    : UIConstants.backupColor,
                 foregroundColor: Colors.white,
               ),
             ),
@@ -162,10 +160,7 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
             color: Colors.blue.withOpacity(0.1),
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
           ),
-          child: const Icon(
-            Icons.backup,
-            color: Colors.blue,
-          ),
+          child: const Icon(Icons.backup, color: Colors.blue),
         ),
         title: Text(backup['name']),
         subtitle: Column(

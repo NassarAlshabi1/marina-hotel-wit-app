@@ -288,9 +288,11 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(ok
-                        ? 'قاعدة البيانات سليمة'
-                        : 'تعذر التحقق من سلامة قاعدة البيانات'),
+                    content: Text(
+                      ok
+                          ? 'قاعدة البيانات سليمة'
+                          : 'تعذر التحقق من سلامة قاعدة البيانات',
+                    ),
                   ),
                 );
               }
@@ -387,9 +389,9 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('فشل التصدير: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('فشل التصدير: $e')));
                 }
               }
             },
@@ -435,9 +437,9 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('فشل الاستيراد: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('فشل الاستيراد: $e')));
                 }
               }
             },

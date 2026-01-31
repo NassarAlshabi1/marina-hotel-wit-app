@@ -92,7 +92,8 @@ class SmartSyncManager {
           deviceIdentifier = androidInfo.id;
         } else if (Platform.isIOS) {
           final iosInfo = await deviceInfo.iosInfo;
-          deviceIdentifier = iosInfo.identifierForVendor ??
+          deviceIdentifier =
+              iosInfo.identifierForVendor ??
               'ios-${DateTime.now().millisecondsSinceEpoch}';
         }
       } catch (e) {
@@ -790,8 +791,8 @@ class SmartSyncManager {
       // محاولة استخدام Delta Sync أولاً (أسرع وأخف)
       if (GoogleDriveDeltaSync.instance.isInitialized) {
         _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
-        final deltaResult =
-            await GoogleDriveDeltaSync.instance.pushDeltaChanges();
+        final deltaResult = await GoogleDriveDeltaSync.instance
+            .pushDeltaChanges();
 
         if (deltaResult.success) {
           await _updateLastSyncTime();
@@ -869,8 +870,8 @@ class SmartSyncManager {
 
       if (GoogleDriveDeltaSync.instance.isInitialized) {
         _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
-        final deltaResult =
-            await GoogleDriveDeltaSync.instance.pullDeltaChanges();
+        final deltaResult = await GoogleDriveDeltaSync.instance
+            .pullDeltaChanges();
 
         if (deltaResult.success && deltaResult.changesCount > 0) {
           await _updateLastSyncTime();

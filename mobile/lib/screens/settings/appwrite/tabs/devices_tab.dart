@@ -20,10 +20,7 @@ class AppwriteDevicesTab extends ConsumerWidget {
         SectionHeader(
           title: 'الأجهزة المسجلة',
           icon: Icons.devices,
-          action: IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {},
-          ),
+          action: IconButton(icon: const Icon(Icons.add), onPressed: () {}),
         ),
         _buildDevicesList(),
       ],
@@ -55,10 +52,7 @@ class AppwriteDevicesTab extends ConsumerWidget {
             const SizedBox(height: UIConstants.spacingMD),
             const Text(
               'هذا الجهاز',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: UIConstants.spacingSM),
             const StatusBadge(status: 'نشط'),

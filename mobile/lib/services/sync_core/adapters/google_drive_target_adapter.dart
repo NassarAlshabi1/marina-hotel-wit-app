@@ -24,9 +24,9 @@ class GoogleDriveTargetAdapter extends BackupCapableAdapter {
     required AppDatabase database,
     GoogleDriveBackupService? backupService,
     GoogleDriveUnifiedSyncCoordinator? coordinator,
-  })  : _database = database,
-        _backupService = backupService,
-        _coordinator = coordinator;
+  }) : _database = database,
+       _backupService = backupService,
+       _coordinator = coordinator;
 
   @override
   SyncTargetType get type => SyncTargetType.googleDrive;
@@ -80,7 +80,9 @@ class GoogleDriveTargetAdapter extends BackupCapableAdapter {
       _enabled = prefs.getBool('google_drive_sync_enabled') ?? false;
 
       _initialized = true;
-      debugPrint('GoogleDriveTargetAdapter: Initialized (signedIn: $_isSignedIn)');
+      debugPrint(
+        'GoogleDriveTargetAdapter: Initialized (signedIn: $_isSignedIn)',
+      );
     } catch (e) {
       _lastError = e.toString();
       debugPrint('GoogleDriveTargetAdapter: Initialization failed: $e');
@@ -112,9 +114,7 @@ class GoogleDriveTargetAdapter extends BackupCapableAdapter {
       lastSyncAt: _lastSyncAt,
       lastError: _lastError,
       pendingCount: 0,
-      metadata: {
-        'isSignedIn': _isSignedIn,
-      },
+      metadata: {'isSignedIn': _isSignedIn},
     );
   }
 
@@ -122,7 +122,8 @@ class GoogleDriveTargetAdapter extends BackupCapableAdapter {
   Future<SyncPushResult> push(List<EnhancedSyncEvent> events) async {
     if (!_initialized || !_enabled || !_isSignedIn) {
       return SyncPushResult.failure(
-        error: 'Adapter not ready (initialized: $_initialized, enabled: $_enabled, signedIn: $_isSignedIn)',
+        error:
+            'Adapter not ready (initialized: $_initialized, enabled: $_enabled, signedIn: $_isSignedIn)',
         failedIds: events.map((e) => e.id).toList(),
       );
     }
@@ -185,9 +186,7 @@ class GoogleDriveTargetAdapter extends BackupCapableAdapter {
     int? limit,
   }) async {
     if (!_initialized || !_enabled || !_isSignedIn) {
-      return SyncPullResult.failure(
-        error: 'Adapter not ready',
-      );
+      return SyncPullResult.failure(error: 'Adapter not ready');
     }
 
     final stopwatch = Stopwatch()..start();

@@ -6,13 +6,7 @@ import '../events/sync_event.dart';
 import '../adapters/sync_target_adapter.dart';
 import '../enhanced_event_bus.dart';
 
-enum RoutingStrategy {
-  all,
-  primaryFirst,
-  roundRobin,
-  priority,
-  failover,
-}
+enum RoutingStrategy { all, primaryFirst, roundRobin, priority, failover }
 
 class SyncRouterConfig {
   final RoutingStrategy strategy;
@@ -115,8 +109,8 @@ class EnhancedSyncRouter {
   EnhancedSyncRouter({
     required EnhancedEventBus eventBus,
     SyncRouterConfig config = const SyncRouterConfig(),
-  })  : _eventBus = eventBus,
-        _config = config;
+  }) : _eventBus = eventBus,
+       _config = config;
 
   Stream<SyncRouterState> get stateStream => _stateController.stream;
   SyncRouterState get state => _state;
@@ -251,7 +245,9 @@ class EnhancedSyncRouter {
     } finally {
       stopwatch.stop();
       _processing = false;
-      _emitState(failureCount > 0 ? SyncRouterState.error : SyncRouterState.idle);
+      _emitState(
+        failureCount > 0 ? SyncRouterState.error : SyncRouterState.idle,
+      );
     }
 
     return RouteResult(
@@ -351,14 +347,18 @@ class EnhancedSyncRouter {
   ) async {
     final results = <SyncTargetType, SyncPushResult>{};
 
-    final criticalEvents =
-        events.where((e) => e.priority == SyncPriority.critical).toList();
-    final highEvents =
-        events.where((e) => e.priority == SyncPriority.high).toList();
+    final criticalEvents = events
+        .where((e) => e.priority == SyncPriority.critical)
+        .toList();
+    final highEvents = events
+        .where((e) => e.priority == SyncPriority.high)
+        .toList();
     final normalEvents = events
-        .where((e) =>
-            e.priority != SyncPriority.critical &&
-            e.priority != SyncPriority.high)
+        .where(
+          (e) =>
+              e.priority != SyncPriority.critical &&
+              e.priority != SyncPriority.high,
+        )
         .toList();
 
     if (criticalEvents.isNotEmpty) {
@@ -378,15 +378,16 @@ class EnhancedSyncRouter {
       final highResult = await _pushWithRetry(primary, highEvents);
       results[primary.type] = SyncPushResult(
         success: (results[primary.type]?.success ?? true) && highResult.success,
-        affectedCount: (results[primary.type]?.affectedCount ?? 0) +
+        affectedCount:
+            (results[primary.type]?.affectedCount ?? 0) +
             highResult.affectedCount,
         syncedIds: [
           ...(results[primary.type]?.syncedIds ?? []),
-          ...highResult.syncedIds
+          ...highResult.syncedIds,
         ],
         failedIds: [
           ...(results[primary.type]?.failedIds ?? []),
-          ...highResult.failedIds
+          ...highResult.failedIds,
         ],
       );
     }
@@ -400,16 +401,18 @@ class EnhancedSyncRouter {
       final normalResult = await _pushWithRetry(localAdapter, normalEvents);
       results[localAdapter.type] = SyncPushResult(
         success:
-            (results[localAdapter.type]?.success ?? true) && normalResult.success,
-        affectedCount: (results[localAdapter.type]?.affectedCount ?? 0) +
+            (results[localAdapter.type]?.success ?? true) &&
+            normalResult.success,
+        affectedCount:
+            (results[localAdapter.type]?.affectedCount ?? 0) +
             normalResult.affectedCount,
         syncedIds: [
           ...(results[localAdapter.type]?.syncedIds ?? []),
-          ...normalResult.syncedIds
+          ...normalResult.syncedIds,
         ],
         failedIds: [
           ...(results[localAdapter.type]?.failedIds ?? []),
-          ...normalResult.failedIds
+          ...normalResult.failedIds,
         ],
       );
     }
@@ -439,7 +442,8 @@ class EnhancedSyncRouter {
         break;
       } else {
         debugPrint(
-            'SyncRouter: Failover failed with ${adapter.name}, trying next...');
+          'SyncRouter: Failover failed with ${adapter.name}, trying next...',
+        );
       }
     }
 
@@ -468,8 +472,7 @@ class EnhancedSyncRouter {
       }
     }
 
-    return lastResult ??
-        SyncPushResult.failure(error: 'Max retries exceeded');
+    return lastResult ?? SyncPushResult.failure(error: 'Max retries exceeded');
   }
 
   Future<RouteResult> syncNow({
@@ -515,7 +518,9 @@ class EnhancedSyncRouter {
       }
     } finally {
       stopwatch.stop();
-      _emitState(failureCount > 0 ? SyncRouterState.error : SyncRouterState.idle);
+      _emitState(
+        failureCount > 0 ? SyncRouterState.error : SyncRouterState.idle,
+      );
     }
 
     return RouteResult(
@@ -564,9 +569,4 @@ class EnhancedSyncRouter {
   }
 }
 
-enum SyncRouterState {
-  idle,
-  syncing,
-  error,
-  stopped,
-}
+enum SyncRouterState { idle, syncing, error, stopped }

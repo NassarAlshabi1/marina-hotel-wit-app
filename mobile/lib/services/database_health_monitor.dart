@@ -70,7 +70,9 @@ class DatabaseHealthMonitor {
   }
 
   /// مراقبة مستمرة (Stream)
-  Stream<HealthReport> watchHealth({Duration interval = const Duration(minutes: 5)}) async* {
+  Stream<HealthReport> watchHealth({
+    Duration interval = const Duration(minutes: 5),
+  }) async* {
     while (true) {
       yield await quickScan();
       await Future.delayed(interval);
@@ -222,16 +224,20 @@ class DatabaseHealthMonitor {
   Future<List<HealthSnapshot>> getHistory({int days = 30}) async {
     try {
       final cutoff = DateTime.now().subtract(Duration(days: days));
-      final rows = await db.customSelect(
-        '''
+      final rows = await db
+          .customSelect(
+            '''
         SELECT scanned_at, health_score, total_issues, status
         FROM database_health_log
         WHERE scanned_at > ?
         ORDER BY scanned_at DESC
         LIMIT 100
         ''',
-        variables: [Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000)],
-      ).get();
+            variables: [
+              Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000),
+            ],
+          )
+          .get();
 
       return rows.map((row) {
         return HealthSnapshot(
@@ -254,11 +260,7 @@ class DatabaseHealthMonitor {
     final history = await getHistory(days: days);
 
     if (history.length < 2) {
-      return HealthTrend(
-        improving: true,
-        changeRate: 0.0,
-        concerns: [],
-      );
+      return HealthTrend(improving: true, changeRate: 0.0, concerns: []);
     }
 
     final latest = history.first.healthScore;
@@ -321,8 +323,7 @@ class HealthReport {
     );
   }
 
-  int get totalIssues =>
-      invalidServerIds + orphanPayments + orphanExpenses;
+  int get totalIssues => invalidServerIds + orphanPayments + orphanExpenses;
 
   bool get isHealthy => status == HealthStatus.healthy;
   bool get hasIssues => totalIssues > 0;
@@ -366,8 +367,7 @@ class HealthMetrics {
     required this.orphanExpenses,
   });
 
-  int get totalIssues =>
-      invalidServerIds + orphanPayments + orphanExpenses;
+  int get totalIssues => invalidServerIds + orphanPayments + orphanExpenses;
 }
 
 /// لقطة سجل الصحة
@@ -416,14 +416,6 @@ ${concerns.map((c) => '  • $c').join('\n')}
   }
 }
 
-enum HealthStatus {
-  healthy,
-  warning,
-  critical,
-}
+enum HealthStatus { healthy, warning, critical }
 
-enum ScanType {
-  quick,
-  deep,
-  scheduled,
-}
+enum ScanType { quick, deep, scheduled }

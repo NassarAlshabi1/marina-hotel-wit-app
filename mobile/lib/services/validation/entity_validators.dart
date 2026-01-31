@@ -50,7 +50,7 @@ class EntityValidators {
     if (data.checkoutDate.present && data.checkinDate.present) {
       final checkoutDate = data.checkoutDate.value;
       final checkinDate = data.checkinDate.value;
-      
+
       if (checkoutDate != null && checkinDate.isNotEmpty) {
         final err = ValidationRules.dateBefore(
           'checkinDate',

@@ -84,7 +84,8 @@ class SyncRouter {
       return;
     }
 
-    final shouldRoute = event.table == null || _syncTables.contains(event.table);
+    final shouldRoute =
+        event.table == null || _syncTables.contains(event.table);
     if (!shouldRoute) {
       return;
     }
@@ -159,8 +160,7 @@ class SyncRouter {
     _database ??= db;
     final service = AppwriteService();
     await service.initialize();
-    final manager =
-        AppwriteSyncManager(appwriteService: service, database: db);
+    final manager = AppwriteSyncManager(appwriteService: service, database: db);
     await manager.initialize();
     _appwriteManager = manager;
     return manager;

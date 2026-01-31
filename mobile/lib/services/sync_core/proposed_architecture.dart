@@ -10,6 +10,7 @@ import 'dart:async';
 // ════════════════════════════════════════════════════════════════════════════
 
 enum SyncPriority { critical, high, normal, low }
+
 enum SyncOperation { create, update, delete, restore }
 
 class EnhancedSyncEvent {
@@ -53,17 +54,17 @@ class EnhancedSyncEvent {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'table': table,
-        'operation': operation.name,
-        'entityId': entityId,
-        'payload': payload,
-        'priority': priority.name,
-        'timestamp': timestamp.toIso8601String(),
-        'retryCount': retryCount,
-        'correlationId': correlationId,
-        'metadata': metadata,
-      };
+    'id': id,
+    'table': table,
+    'operation': operation.name,
+    'entityId': entityId,
+    'payload': payload,
+    'priority': priority.name,
+    'timestamp': timestamp.toIso8601String(),
+    'retryCount': retryCount,
+    'correlationId': correlationId,
+    'metadata': metadata,
+  };
 
   factory EnhancedSyncEvent.fromJson(Map<String, dynamic> json) {
     return EnhancedSyncEvent(
@@ -269,8 +270,8 @@ class EnhancedSyncRouter {
   EnhancedSyncRouter({
     required EnhancedEventBus eventBus,
     SyncRouterConfig config = const SyncRouterConfig(),
-  })  : _eventBus = eventBus,
-        _config = config;
+  }) : _eventBus = eventBus,
+       _config = config;
 
   void registerAdapter(SyncTargetAdapter adapter) {
     _adapters[adapter.type] = adapter;
@@ -391,10 +392,12 @@ class EnhancedSyncRouter {
     List<EnhancedSyncEvent> events,
     List<SyncTargetAdapter> adapters,
   ) async {
-    final criticalEvents =
-        events.where((e) => e.priority == SyncPriority.critical).toList();
-    final normalEvents =
-        events.where((e) => e.priority != SyncPriority.critical).toList();
+    final criticalEvents = events
+        .where((e) => e.priority == SyncPriority.critical)
+        .toList();
+    final normalEvents = events
+        .where((e) => e.priority != SyncPriority.critical)
+        .toList();
 
     if (criticalEvents.isNotEmpty) {
       await _routeToAll(criticalEvents, adapters);
@@ -459,10 +462,10 @@ class EnhancedSyncRouter {
 // class AppwriteTargetAdapter implements SyncTargetAdapter {
 //   final AppwriteService _service;
 //   final AppDatabase _database;
-//   
+//
 //   @override
 //   SyncTargetType get type => SyncTargetType.appwrite;
-//   
+//
 //   @override
 //   Future<SyncPushResult> push(List<EnhancedSyncEvent> events) async {
 //     // تحويل Events إلى Appwrite documents
@@ -474,10 +477,10 @@ class EnhancedSyncRouter {
 // مثال: Google Drive Adapter
 // class GoogleDriveTargetAdapter implements SyncTargetAdapter {
 //   final GoogleDriveBackupService _backupService;
-//   
+//
 //   @override
 //   SyncTargetType get type => SyncTargetType.googleDrive;
-//   
+//
 //   @override
 //   Future<SyncPushResult> push(List<EnhancedSyncEvent> events) async {
 //     // تجميع Events في snapshot
@@ -489,7 +492,7 @@ class EnhancedSyncRouter {
 // class LocalJsonTargetAdapter implements SyncTargetAdapter {
 //   @override
 //   SyncTargetType get type => SyncTargetType.localJson;
-//   
+//
 //   @override
 //   Future<SyncPushResult> push(List<EnhancedSyncEvent> events) async {
 //     // كتابة backup.json محلياً
@@ -513,19 +516,19 @@ class EnhancedSyncRouter {
 // final syncRouterProvider = Provider<EnhancedSyncRouter>((ref) {
 //   final eventBus = ref.watch(eventBusProvider);
 //   final router = EnhancedSyncRouter(eventBus: eventBus);
-//   
+//
 //   // تسجيل Adapters المتاحة
 //   final appwrite = ref.watch(appwriteAdapterProvider);
 //   final drive = ref.watch(driveAdapterProvider);
 //   final local = ref.watch(localJsonAdapterProvider);
-//   
+//
 //   if (appwrite != null) router.registerAdapter(appwrite);
 //   if (drive != null) router.registerAdapter(drive);
 //   if (local != null) router.registerAdapter(local);
-//   
+//
 //   router.start();
 //   ref.onDispose(() => router.dispose());
-//   
+//
 //   return router;
 // });
 

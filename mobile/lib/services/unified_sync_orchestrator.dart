@@ -182,12 +182,12 @@ class UnifiedSyncOrchestrator {
               timestamp: DateTime.now(),
               lastPushAt:
                   result.pushedChanges != null && result.pushedChanges! > 0
-                      ? DateTime.now()
-                      : _state.lastPushAt,
+                  ? DateTime.now()
+                  : _state.lastPushAt,
               lastPullAt:
                   result.pulledChanges != null && result.pulledChanges! > 0
-                      ? DateTime.now()
-                      : _state.lastPullAt,
+                  ? DateTime.now()
+                  : _state.lastPullAt,
             ),
           );
         } else {
@@ -214,10 +214,7 @@ class UnifiedSyncOrchestrator {
 
   Future<void> notifyLocalChange({String? table, String? operation}) async {
     SyncEventBus.instance.publish(
-      SyncEvent(
-        table: table,
-        operation: operation,
-      ),
+      SyncEvent(table: table, operation: operation),
     );
   }
 
@@ -256,7 +253,7 @@ class UnifiedSyncOrchestrator {
       if (googleDriveEnabled) {
         success =
             await _syncGoogleDrive(push: push, pull: pull, reason: reason) &&
-                success;
+            success;
       }
 
       if (forceSnapshot) {

@@ -117,8 +117,7 @@ class ConflictManager {
       if (existing != null) {
         await (db.update(
           db.syncConflicts,
-        )..where((t) => t.id.equals(existing.id)))
-            .write(
+        )..where((t) => t.id.equals(existing.id))).write(
           SyncConflictsCompanion(
             localPayload: Value(jsonEncode(conflict.localData)),
             remotePayload: Value(jsonEncode(conflict.remoteData)),
@@ -131,12 +130,15 @@ class ConflictManager {
         );
       } else {
         // Get latest sync log ID or use 0
-        final latestLog = await (db.select(db.syncLog)
-              ..orderBy([(t) => OrderingTerm.desc(t.id)])
-              ..limit(1))
-            .getSingleOrNull();
+        final latestLog =
+            await (db.select(db.syncLog)
+                  ..orderBy([(t) => OrderingTerm.desc(t.id)])
+                  ..limit(1))
+                .getSingleOrNull();
 
-        await db.into(db.syncConflicts).insert(
+        await db
+            .into(db.syncConflicts)
+            .insert(
               SyncConflictsCompanion.insert(
                 logId: latestLog?.id ?? 0,
                 targetTable: conflict.table,
@@ -173,8 +175,7 @@ class ConflictManager {
       if (existing != null) {
         await (db.update(
           db.syncConflicts,
-        )..where((t) => t.id.equals(existing.id)))
-            .write(
+        )..where((t) => t.id.equals(existing.id))).write(
           SyncConflictsCompanion(resolution: Value(jsonEncode(resolution))),
         );
       }
@@ -185,10 +186,11 @@ class ConflictManager {
 
   Future<void> loadPendingConflicts() async {
     try {
-      final conflicts = await (db.select(db.syncConflicts)
-            ..where((t) => t.resolution.equals(''))
-            ..orderBy([(t) => OrderingTerm.desc(t.id)]))
-          .get();
+      final conflicts =
+          await (db.select(db.syncConflicts)
+                ..where((t) => t.resolution.equals(''))
+                ..orderBy([(t) => OrderingTerm.desc(t.id)]))
+              .get();
 
       _pendingConflicts.clear();
 

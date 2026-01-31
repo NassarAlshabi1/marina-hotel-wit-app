@@ -22,11 +22,13 @@ class DatabaseHealthTriggers {
       final hoursSinceLastScan = (now - lastScan) / 3600;
 
       if (hoursSinceLastScan < 6) {
-        debugPrint('🏥 [HealthTrigger] Skipped (scanned ${hoursSinceLastScan.toStringAsFixed(1)}h ago)');
+        debugPrint(
+          '🏥 [HealthTrigger] Skipped (scanned ${hoursSinceLastScan.toStringAsFixed(1)}h ago)',
+        );
         return null;
       }
 
-      final report = quickScan 
+      final report = quickScan
           ? await monitor.quickScan()
           : await monitor.deepScan();
 
@@ -88,7 +90,9 @@ class DatabaseHealthTriggers {
       final report = await monitor.deepScan();
 
       if (report.hasIssues) {
-        debugPrint('⚠️ [HealthTrigger] ${report.totalIssues} issues after restore');
+        debugPrint(
+          '⚠️ [HealthTrigger] ${report.totalIssues} issues after restore',
+        );
 
         final prefs = await SharedPreferences.getInstance();
         final autoFix = prefs.getBool('health_auto_fix_after_restore') ?? true;
@@ -110,16 +114,19 @@ class DatabaseHealthTriggers {
   }
 
   /// فحص مجدول (يومي)
-  Future<void> scheduledDailyScan({
-    required TimeOfDay time,
-  }) async {
-    debugPrint('⏰ [HealthTrigger] Scheduled scan at ${time.hour}:${time.minute}');
+  Future<void> scheduledDailyScan({required TimeOfDay time}) async {
+    debugPrint(
+      '⏰ [HealthTrigger] Scheduled scan at ${time.hour}:${time.minute}',
+    );
 
     try {
       final report = await monitor.deepScan();
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('health_last_scheduled_scan', DateTime.now().toIso8601String());
+      await prefs.setString(
+        'health_last_scheduled_scan',
+        DateTime.now().toIso8601String(),
+      );
 
       if (report.hasIssues) {
         final autoFix = prefs.getBool('health_auto_fix_scheduled') ?? false;
@@ -143,7 +150,9 @@ class DatabaseHealthTriggers {
 
   /// تنبيه مشاكل مكتشفة
   Future<void> _notifyIssuesFound(HealthReport report) async {
-    debugPrint('🔔 [HealthTrigger] Sending issues notification: ${report.totalIssues} issues');
+    debugPrint(
+      '🔔 [HealthTrigger] Sending issues notification: ${report.totalIssues} issues',
+    );
   }
 }
 

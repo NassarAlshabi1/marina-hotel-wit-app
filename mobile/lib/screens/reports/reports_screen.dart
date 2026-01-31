@@ -97,9 +97,7 @@ class ReportsScreen extends ConsumerWidget {
                 color: Colors.purple,
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const DebtsReportScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const DebtsReportScreen()),
                 ),
               ),
               const SizedBox(height: 24),
@@ -147,8 +145,9 @@ class ReportsScreen extends ConsumerWidget {
 
     // dummy last 7 days occupancy by current status
     final daily = List.generate(7, (i) {
-      final busy =
-          rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
+      final busy = rooms
+          .where((r) => StatusUtils.isRoomOccupied(r.status))
+          .length;
       final occ = (busy * 100 / total).round();
       return BarChartGroupData(
         x: i,

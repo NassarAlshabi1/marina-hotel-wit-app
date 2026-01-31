@@ -80,7 +80,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     final endIso = Time.hotelDayEndIso(hotelDayKey);
 
     final byKey = payments.hotelDayKey.equals(hotelDayKey);
-    final byRangeFallback = payments.hotelDayKey.isNull() &
+    final byRangeFallback =
+        payments.hotelDayKey.isNull() &
         payments.paymentDate.isBiggerOrEqualValue(startIso) &
         payments.paymentDate.isSmallerThanValue(endIso);
 
@@ -153,8 +154,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
 
       final rows = await (update(
         payments,
-      )..where((t) => t.id.equals(id)))
-          .write(comp);
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'update',
@@ -172,14 +172,14 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows =
-          await (update(payments)..where((t) => t.id.equals(id))).write(
-        PaymentsCompanion(
-          deletedAt: Value(now),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-        ),
-      );
+      final rows = await (update(payments)..where((t) => t.id.equals(id)))
+          .write(
+            PaymentsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'delete',
@@ -193,10 +193,11 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
-    final row = await (select(payments)
-          ..where((t) => t.localUuid.equals(localUuid))
-          ..limit(1))
-        .getSingleOrNull();
+    final row =
+        await (select(payments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
     if (row == null) return null;
     return adapters.payments.toJsonForSource(row, src: Source.appwrite);
   }

@@ -17,10 +17,7 @@ abstract class EventPersistence {
     String? table,
   });
 
-  Future<List<EnhancedSyncEvent>> getPending({
-    int? limit,
-    Duration? olderThan,
-  });
+  Future<List<EnhancedSyncEvent>> getPending({int? limit, Duration? olderThan});
 
   Future<List<EnhancedSyncEvent>> getByCorrelationId(String correlationId);
 

@@ -44,18 +44,17 @@ class InfoRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: labelStyle ??
-                      TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
+                  style:
+                      labelStyle ??
+                      TextStyle(fontSize: 14, color: Colors.grey.shade600),
                 ),
                 const SizedBox(width: UIConstants.spacingSM),
                 isExpandable
                     ? Expanded(
                         child: Text(
                           value,
-                          style: valueStyle ??
+                          style:
+                              valueStyle ??
                               const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -65,7 +64,8 @@ class InfoRow extends StatelessWidget {
                       )
                     : Text(
                         value,
-                        style: valueStyle ??
+                        style:
+                            valueStyle ??
                             const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -134,8 +134,11 @@ class StatCard extends StatelessWidget {
                       color: color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(UIConstants.radiusMD),
                     ),
-                    child:
-                        Icon(icon, color: color, size: UIConstants.iconSizeMD),
+                    child: Icon(
+                      icon,
+                      color: color,
+                      size: UIConstants.iconSizeMD,
+                    ),
                   ),
                 ],
               ),
@@ -152,10 +155,7 @@ class StatCard extends StatelessWidget {
                 const SizedBox(height: UIConstants.spacingXS),
                 Text(
                   subtitle!,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade500,
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                 ),
               ],
             ],
@@ -299,10 +299,7 @@ class EmptyStateWidget extends StatelessWidget {
             const SizedBox(height: UIConstants.spacingLG),
             Text(
               message,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
             if (actionLabel != null && onAction != null) ...[
@@ -337,10 +334,7 @@ class LoadingStateWidget extends StatelessWidget {
             const SizedBox(height: UIConstants.spacingMD),
             Text(
               message!,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
           ],
         ],
@@ -354,11 +348,7 @@ class ErrorStateWidget extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
-  const ErrorStateWidget({
-    super.key,
-    required this.message,
-    this.onRetry,
-  });
+  const ErrorStateWidget({super.key, required this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -376,10 +366,7 @@ class ErrorStateWidget extends StatelessWidget {
             const SizedBox(height: UIConstants.spacingLG),
             Text(
               message,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
             if (onRetry != null) ...[
@@ -413,18 +400,12 @@ class InfoBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 6,
-        vertical: 2,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: backgroundColor ?? Theme.of(context).primaryColor,
         borderRadius: BorderRadius.circular(10),
       ),
-      constraints: const BoxConstraints(
-        minWidth: 18,
-        minHeight: 18,
-      ),
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
       child: Text(
         text,
         style: TextStyle(

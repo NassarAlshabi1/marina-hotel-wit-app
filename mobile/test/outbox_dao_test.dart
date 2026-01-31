@@ -29,9 +29,9 @@ void main() {
       payload: {'x': 1},
       clientTs: 1,
     );
-    final first = await (db.select(db.outbox)
-          ..where((t) => t.localUuid.equals(localUuid)))
-        .getSingle();
+    final first = await (db.select(
+      db.outbox,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingle();
     final key1 = first.idempotencyKey;
 
     await dao.merge(
@@ -42,9 +42,9 @@ void main() {
       payload: {'x': 2},
       clientTs: 2,
     );
-    final second = await (db.select(db.outbox)
-          ..where((t) => t.localUuid.equals(localUuid)))
-        .getSingle();
+    final second = await (db.select(
+      db.outbox,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingle();
     final key2 = second.idempotencyKey;
 
     expect(key1, isNotNull);
@@ -52,7 +52,9 @@ void main() {
   });
 
   test('setError resets processing and caps attempts', () async {
-    final id = await db.into(db.outbox).insert(
+    final id = await db
+        .into(db.outbox)
+        .insert(
           OutboxCompanion.insert(
             entity: 'rooms',
             op: 'create',
@@ -66,22 +68,26 @@ void main() {
         );
 
     await dao.setError(id, 'err', 2, maxAttempts: 3);
-    final row =
-        await (db.select(db.outbox)..where((t) => t.id.equals(id))).getSingle();
+    final row = await (db.select(
+      db.outbox,
+    )..where((t) => t.id.equals(id))).getSingle();
     expect(row.processingStatus, 'pending');
     expect(row.processingStartedAt, isNull);
     expect(row.processingWorker, isNull);
     expect(row.attempts, 2);
 
     await dao.setError(id, 'err2', 3, maxAttempts: 3);
-    final row2 =
-        await (db.select(db.outbox)..where((t) => t.id.equals(id))).getSingle();
+    final row2 = await (db.select(
+      db.outbox,
+    )..where((t) => t.id.equals(id))).getSingle();
     expect(row2.processingStatus, 'failed');
     expect(row2.attempts, 3);
   });
 
   test('takeBatch skips items exceeding maxAttempts', () async {
-    await db.into(db.outbox).insert(
+    await db
+        .into(db.outbox)
+        .insert(
           OutboxCompanion.insert(
             entity: 'rooms',
             op: 'create',

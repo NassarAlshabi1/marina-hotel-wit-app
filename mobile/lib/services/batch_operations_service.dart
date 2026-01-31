@@ -285,8 +285,10 @@ class BatchOperationsService {
     required List<BatchOperation> operations,
     bool parallel = true,
   }) async {
-    _logger.info('Executing ${operations.length} mixed operations',
-        tag: 'BATCH');
+    _logger.info(
+      'Executing ${operations.length} mixed operations',
+      tag: 'BATCH',
+    );
 
     final results = <String, BatchResult>{};
 

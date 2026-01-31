@@ -59,10 +59,7 @@ final syncRouterProvider = Provider<EnhancedSyncRouter>((ref) {
   final eventBus = ref.watch(eventBusProvider);
   final config = ref.watch(syncRouterConfigProvider);
 
-  final router = EnhancedSyncRouter(
-    eventBus: eventBus,
-    config: config,
-  );
+  final router = EnhancedSyncRouter(eventBus: eventBus, config: config);
 
   final appwrite = ref.watch(appwriteAdapterProvider);
   final drive = ref.watch(googleDriveAdapterProvider);
@@ -94,9 +91,9 @@ final syncStatsProvider = FutureProvider<Map<String, int>>((ref) async {
 
 final adapterStatusesProvider =
     FutureProvider<Map<SyncTargetType, SyncTargetStatus>>((ref) async {
-  final router = ref.watch(syncRouterProvider);
-  return router.getAdapterStatuses();
-});
+      final router = ref.watch(syncRouterProvider);
+      return router.getAdapterStatuses();
+    });
 
 final isAppwriteEnabledProvider = Provider<bool>((ref) {
   final adapter = ref.watch(appwriteAdapterProvider);
@@ -210,10 +207,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
         lastResult: result,
       );
     } catch (e) {
-      state = state.copyWith(
-        isSyncing: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isSyncing: false, error: e.toString());
     }
   }
 
@@ -228,10 +222,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
         lastResult: result,
       );
     } catch (e) {
-      state = state.copyWith(
-        isSyncing: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isSyncing: false, error: e.toString());
     }
   }
 
@@ -246,10 +237,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
         lastResult: result,
       );
     } catch (e) {
-      state = state.copyWith(
-        isSyncing: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isSyncing: false, error: e.toString());
     }
   }
 }
@@ -282,8 +270,9 @@ class SyncState {
   }
 }
 
-final syncNotifierProvider =
-    StateNotifierProvider<SyncNotifier, SyncState>((ref) {
+final syncNotifierProvider = StateNotifierProvider<SyncNotifier, SyncState>((
+  ref,
+) {
   final service = ref.watch(syncServiceProvider);
   return SyncNotifier(service);
 });

@@ -64,10 +64,9 @@ class _UnifiedBackupSettingsScreenState
     final lastBackupLabel = lastBackupAt != null
         ? DateTimeFormatter.getRelativeTime(lastBackupAt.toIso8601String())
         : 'غير متوفر';
-    final backupCount =
-        (localStatus?.metadata?['backupCount'] as int?) ?? 0;
-    final directory = localStatus?.metadata?['directory'] as String? ??
-        'غير متوفر';
+    final backupCount = (localStatus?.metadata?['backupCount'] as int?) ?? 0;
+    final directory =
+        localStatus?.metadata?['directory'] as String? ?? 'غير متوفر';
 
     return Card(
       elevation: 2,
@@ -89,10 +88,7 @@ class _UnifiedBackupSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'حالة النسخ الاحتياطي',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -138,10 +134,7 @@ class _UnifiedBackupSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'النسخ الاحتياطي التلقائي',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -183,8 +176,8 @@ class _UnifiedBackupSettingsScreenState
     final connectionLabel = status == null
         ? 'جاري التحقق...'
         : isSignedIn
-            ? 'متصل'
-            : 'غير متصل';
+        ? 'متصل'
+        : 'غير متصل';
 
     return Card(
       elevation: 2,
@@ -205,10 +198,7 @@ class _UnifiedBackupSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'Google Drive',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -221,8 +211,7 @@ class _UnifiedBackupSettingsScreenState
             onChanged: status == null
                 ? null
                 : (value) async {
-                    final adapter =
-                        ref.read(googleDriveAdapterProvider);
+                    final adapter = ref.read(googleDriveAdapterProvider);
                     await adapter.initialize();
                     await adapter.setEnabled(value);
                     ref.invalidate(adapterStatusesProvider);
@@ -267,8 +256,7 @@ class _UnifiedBackupSettingsScreenState
     final statusesAsync = ref.watch(adapterStatusesProvider);
     final status = statusesAsync.valueOrNull?[SyncTargetType.localJson];
     final isEnabled = status?.isEnabled ?? true;
-    final directory = status?.metadata?['directory'] as String? ??
-        'غير متوفر';
+    final directory = status?.metadata?['directory'] as String? ?? 'غير متوفر';
     final backupCount = status?.metadata?['backupCount'] as int? ?? 0;
 
     return Card(
@@ -290,10 +278,7 @@ class _UnifiedBackupSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'النسخ المحلي',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -356,10 +341,7 @@ class _UnifiedBackupSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'إعدادات متقدمة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -411,20 +393,29 @@ class _UnifiedBackupSettingsScreenState
           children: [
             ListTile(
               title: const Text('يومياً'),
-              leading:
-                  Radio(value: 'daily', groupValue: 'daily', onChanged: (v) {}),
+              leading: Radio(
+                value: 'daily',
+                groupValue: 'daily',
+                onChanged: (v) {},
+              ),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
               title: const Text('أسبوعياً'),
               leading: Radio(
-                  value: 'weekly', groupValue: 'daily', onChanged: (v) {}),
+                value: 'weekly',
+                groupValue: 'daily',
+                onChanged: (v) {},
+              ),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
               title: const Text('شهرياً'),
               leading: Radio(
-                  value: 'monthly', groupValue: 'daily', onChanged: (v) {}),
+                value: 'monthly',
+                groupValue: 'daily',
+                onChanged: (v) {},
+              ),
               onTap: () => Navigator.pop(context),
             ),
           ],
@@ -466,9 +457,9 @@ class _UnifiedBackupSettingsScreenState
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل النسخ الاحتياطي: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل النسخ الاحتياطي: $e')));
     }
   }
 

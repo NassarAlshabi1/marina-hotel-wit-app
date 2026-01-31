@@ -23,9 +23,9 @@ class AppwriteTargetAdapter extends SyncTargetAdapter {
     required AppDatabase database,
     AppwriteService? service,
     AppwriteSyncManager? syncManager,
-  })  : _database = database,
-        _service = service,
-        _syncManager = syncManager;
+  }) : _database = database,
+       _service = service,
+       _syncManager = syncManager;
 
   @override
   SyncTargetType get type => SyncTargetType.appwrite;
@@ -99,9 +99,7 @@ class AppwriteTargetAdapter extends SyncTargetAdapter {
       lastSyncAt: _lastSyncAt,
       lastError: _lastError,
       pendingCount: pendingCount,
-      metadata: {
-        'useDelta': _useDelta,
-      },
+      metadata: {'useDelta': _useDelta},
     );
   }
 

@@ -50,7 +50,9 @@ class AdvancedQueryBuilder {
   /// [attribute] - اسم الحقل
   /// [value] - القيمة الدنيا (شاملة)
   AdvancedQueryBuilder whereGreaterThanOrEqual(
-      String attribute, dynamic value) {
+    String attribute,
+    dynamic value,
+  ) {
     _queries.add(Query.greaterThanEqual(attribute, value));
     return this;
   }

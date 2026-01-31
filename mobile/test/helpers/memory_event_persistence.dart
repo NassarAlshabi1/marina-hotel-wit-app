@@ -138,9 +138,7 @@ class MemoryEventPersistence implements EventPersistence {
 
   @override
   Future<int> countByTable(String table) async {
-    return events
-        .where((e) => !e.acknowledged && e.table == table)
-        .length;
+    return events.where((e) => !e.acknowledged && e.table == table).length;
   }
 
   @override

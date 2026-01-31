@@ -40,11 +40,7 @@ class _IncomeExpenseReportScreenState
   @override
   void initState() {
     super.initState();
-    _fromDate = DateTime(
-      _toDate.year,
-      _toDate.month,
-      1,
-    );
+    _fromDate = DateTime(_toDate.year, _toDate.month, 1);
     _toDate = DateTime(_toDate.year, _toDate.month, _toDate.day, 23, 59, 59);
     unawaited(_fetchReport());
   }
@@ -114,8 +110,9 @@ class _IncomeExpenseReportScreenState
   }
 
   DateTime _parseDate(String value) {
-    final normalized =
-        value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized = value.contains('T')
+        ? value
+        : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {
@@ -217,25 +214,25 @@ class _IncomeExpenseReportScreenState
 
     final incomeRows = _detailedMode
         ? _incomeEntries
-            .map(
-              (e) => [
-                _dateFormat.format(e.date),
-                e.description,
-                EnhancedPdfUtils.formatNumber(e.amount),
-              ],
-            )
-            .toList()
+              .map(
+                (e) => [
+                  _dateFormat.format(e.date),
+                  e.description,
+                  EnhancedPdfUtils.formatNumber(e.amount),
+                ],
+              )
+              .toList()
         : const <List<String>>[];
     final expenseRows = _detailedMode
         ? _expenseEntries
-            .map(
-              (e) => [
-                _dateFormat.format(e.date),
-                e.description.isNotEmpty ? e.description : e.type,
-                EnhancedPdfUtils.formatNumber(e.amount),
-              ],
-            )
-            .toList()
+              .map(
+                (e) => [
+                  _dateFormat.format(e.date),
+                  e.description.isNotEmpty ? e.description : e.type,
+                  EnhancedPdfUtils.formatNumber(e.amount),
+                ],
+              )
+              .toList()
         : const <List<String>>[];
 
     final fromLabel = DateFormat('yyyy-MM-dd').format(_fromDate);
@@ -356,14 +353,16 @@ class _IncomeExpenseReportScreenState
                 OutlinedButton.icon(
                   onPressed: () => _pickDate(isFrom: true),
                   icon: const Icon(Icons.calendar_month),
-                  label:
-                      Text('من: ${DateFormat('yyyy-MM-dd').format(_fromDate)}'),
+                  label: Text(
+                    'من: ${DateFormat('yyyy-MM-dd').format(_fromDate)}',
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _pickDate(isFrom: false),
                   icon: const Icon(Icons.calendar_month),
-                  label:
-                      Text('إلى: ${DateFormat('yyyy-MM-dd').format(_toDate)}'),
+                  label: Text(
+                    'إلى: ${DateFormat('yyyy-MM-dd').format(_toDate)}',
+                  ),
                 ),
                 FilterChip(
                   label: const Text('تفصيلي'),
@@ -386,12 +385,12 @@ class _IncomeExpenseReportScreenState
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : (_incomeEntries.isEmpty && _expenseEntries.isEmpty)
-                      ? const EmptyState(
-                          title: 'لا توجد بيانات',
-                          message: 'لا يوجد دخل أو مصروفات ضمن الفترة المحددة.',
-                          icon: Icons.receipt_long,
-                        )
-                      : _buildDetails(),
+                  ? const EmptyState(
+                      title: 'لا توجد بيانات',
+                      message: 'لا يوجد دخل أو مصروفات ضمن الفترة المحددة.',
+                      icon: Icons.receipt_long,
+                    )
+                  : _buildDetails(),
             ),
           ],
         ),

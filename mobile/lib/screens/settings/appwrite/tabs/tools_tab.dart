@@ -12,37 +12,25 @@ class AppwriteToolsTab extends ConsumerWidget {
       padding: const EdgeInsets.all(UIConstants.spacingMD),
       children: [
         // Testing Tools
-        SectionHeader(
-          title: 'أدوات الاختبار',
-          icon: Icons.bug_report,
-        ),
+        SectionHeader(title: 'أدوات الاختبار', icon: Icons.bug_report),
         _buildTestingToolsCard(context),
 
         const SizedBox(height: UIConstants.spacingLG),
 
         // Maintenance Tools
-        SectionHeader(
-          title: 'أدوات الصيانة',
-          icon: Icons.build,
-        ),
+        SectionHeader(title: 'أدوات الصيانة', icon: Icons.build),
         _buildMaintenanceToolsCard(context),
 
         const SizedBox(height: UIConstants.spacingLG),
 
         // Data Management
-        SectionHeader(
-          title: 'إدارة البيانات',
-          icon: Icons.storage,
-        ),
+        SectionHeader(title: 'إدارة البيانات', icon: Icons.storage),
         _buildDataManagementCard(context),
 
         const SizedBox(height: UIConstants.spacingLG),
 
         // Logs & Stats
-        SectionHeader(
-          title: 'السجلات والإحصائيات',
-          icon: Icons.analytics,
-        ),
+        SectionHeader(title: 'السجلات والإحصائيات', icon: Icons.analytics),
         _buildLogsStatsCard(context),
       ],
     );
@@ -355,8 +343,10 @@ class AppwriteToolsTab extends ConsumerWidget {
               );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('إعادة تعيين',
-                style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'إعادة تعيين',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

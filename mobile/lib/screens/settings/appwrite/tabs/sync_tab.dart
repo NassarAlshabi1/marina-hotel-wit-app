@@ -94,10 +94,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'حالة المزامنة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -118,11 +115,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               value: 'بعد 12 دقيقة',
               icon: Icons.timer,
             ),
-            InfoRow(
-              label: 'عناصر معلقة',
-              value: '0',
-              icon: Icons.pending,
-            ),
+            InfoRow(label: 'عناصر معلقة', value: '0', icon: Icons.pending),
           ],
         ),
       ),
@@ -149,10 +142,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'إعدادات المزامنة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -213,10 +203,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'إحصائيات المزامنة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -281,10 +268,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'التخزين المؤقت',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -411,15 +395,15 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   void _clearCache() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم مسح التخزين المؤقت')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم مسح التخزين المؤقت')));
   }
 
   void _syncNow() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('جاري المزامنة...')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('جاري المزامنة...')));
   }
 
   void _showFullSyncDialog() {
@@ -461,9 +445,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم مسح السجلات')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('حذف', style: TextStyle(color: Colors.white)),

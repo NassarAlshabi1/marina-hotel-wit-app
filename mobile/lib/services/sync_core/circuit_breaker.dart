@@ -31,7 +31,7 @@ class CircuitBreaker {
   Stream<CircuitState> get stateStream => _stateController.stream;
 
   CircuitBreaker({required this.name, CircuitBreakerConfig? config})
-      : config = config ?? const CircuitBreakerConfig();
+    : config = config ?? const CircuitBreakerConfig();
 
   CircuitState get state => _state;
   int get failureCount => _failureCount;

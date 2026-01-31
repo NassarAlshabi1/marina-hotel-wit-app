@@ -177,13 +177,15 @@ class AdapterStatusList extends ConsumerWidget {
                 status.isReady
                     ? 'متصل'
                     : status.isEnabled
-                        ? 'غير متصل'
-                        : 'معطل',
+                    ? 'غير متصل'
+                    : 'معطل',
               ),
               trailing: Switch(
                 value: status.isEnabled,
                 onChanged: (value) async {
-                  final adapter = ref.read(syncRouterProvider).getAdapter(entry.key);
+                  final adapter = ref
+                      .read(syncRouterProvider)
+                      .getAdapter(entry.key);
                   await adapter?.setEnabled(value);
                   ref.invalidate(adapterStatusesProvider);
                 },

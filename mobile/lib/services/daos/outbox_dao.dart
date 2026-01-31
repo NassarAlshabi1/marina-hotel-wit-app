@@ -42,8 +42,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<int> clearStale({int attemptsThreshold = 3}) async {
     return (delete(
       outbox,
-    )..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold)))
-        .go();
+    )..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold))).go();
   }
 
   Future<int> merge({
@@ -62,9 +61,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final data = jsonEncode(normalizedPayload);
 
     final id = await transaction(() async {
-      final existing = await (select(outbox)
-            ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
-          .getSingleOrNull();
+      final existing =
+          await (select(outbox)
+                ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
+              .getSingleOrNull();
 
       String idempotencyKey;
       if (existing != null) {
@@ -133,15 +133,16 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final worker = workerId ?? const Uuid().v4();
 
     return transaction(() async {
-      final entries = await (select(outbox)
-            ..where(
-              (t) =>
-                  t.processingStatus.equals('pending') &
-                  t.attempts.isSmallerThanValue(maxAttempts),
-            )
-            ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
-            ..limit(limit))
-          .get();
+      final entries =
+          await (select(outbox)
+                ..where(
+                  (t) =>
+                      t.processingStatus.equals('pending') &
+                      t.attempts.isSmallerThanValue(maxAttempts),
+                )
+                ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
+                ..limit(limit))
+              .get();
 
       if (entries.isEmpty) {
         return [];
@@ -169,15 +170,16 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final worker = workerId ?? const Uuid().v4();
 
     return transaction(() async {
-      final entries = await (select(outbox)
-            ..where(
-              (t) =>
-                  t.processingStatus.equals('pending') &
-                  t.entity.equals(entity),
-            )
-            ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
-            ..limit(limit))
-          .get();
+      final entries =
+          await (select(outbox)
+                ..where(
+                  (t) =>
+                      t.processingStatus.equals('pending') &
+                      t.entity.equals(entity),
+                )
+                ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
+                ..limit(limit))
+              .get();
 
       if (entries.isEmpty) {
         return [];
@@ -250,8 +252,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<void> retryFailed() async {
     await (update(
       outbox,
-    )..where((t) => t.processingStatus.equals('failed')))
-        .write(
+    )..where((t) => t.processingStatus.equals('failed'))).write(
       const OutboxCompanion(
         processingStatus: Value('pending'),
         processingStartedAt: Value(null),
@@ -264,69 +265,67 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<List<OutboxData>> getFailedEntries({int? maxAttempts}) async {
     final query = select(outbox)
       ..where((t) => t.processingStatus.equals('failed'));
-    
+
     if (maxAttempts != null) {
       query.where((t) => t.attempts.isSmallerThanValue(maxAttempts));
     }
-    
+
     query.orderBy([
       (t) => OrderingTerm(expression: t.entity),
       (t) => OrderingTerm(expression: t.clientTs),
     ]);
-    
+
     return query.get();
   }
 
   Future<void> retryFailedByEntity(String entity) async {
-    await (update(outbox)
-          ..where(
-            (t) =>
-                t.processingStatus.equals('failed') & t.entity.equals(entity),
-          ))
+    await (update(outbox)..where(
+          (t) => t.processingStatus.equals('failed') & t.entity.equals(entity),
+        ))
         .write(
-      const OutboxCompanion(
-        processingStatus: Value('pending'),
-        processingStartedAt: Value(null),
-        processingWorker: Value(null),
-        attempts: Value(0),
-        lastError: Value.absent(),
-      ),
-    );
+          const OutboxCompanion(
+            processingStatus: Value('pending'),
+            processingStartedAt: Value(null),
+            processingWorker: Value(null),
+            attempts: Value(0),
+            lastError: Value.absent(),
+          ),
+        );
   }
 
   Future<int> cleanupStuckEntries({
     Duration timeout = const Duration(minutes: 5),
   }) async {
-    final thresholdTime =
-        DateTime.now().subtract(timeout).millisecondsSinceEpoch;
+    final thresholdTime = DateTime.now()
+        .subtract(timeout)
+        .millisecondsSinceEpoch;
 
-    return await (update(outbox)
-          ..where(
-            (t) =>
-                t.processingStatus.equals('processing') &
-                t.processingStartedAt.isSmallerThanValue(thresholdTime),
-          ))
+    return await (update(outbox)..where(
+          (t) =>
+              t.processingStatus.equals('processing') &
+              t.processingStartedAt.isSmallerThanValue(thresholdTime),
+        ))
         .write(
-      const OutboxCompanion(
-        processingStatus: Value('pending'),
-        processingStartedAt: Value(null),
-        processingWorker: Value(null),
-      ),
-    );
+          const OutboxCompanion(
+            processingStatus: Value('pending'),
+            processingStartedAt: Value(null),
+            processingWorker: Value(null),
+          ),
+        );
   }
 
   Future<int> cleanupCompleted({
     Duration olderThan = const Duration(days: 7),
   }) async {
-    final thresholdTime =
-        DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
+    final thresholdTime = DateTime.now()
+        .subtract(olderThan)
+        .millisecondsSinceEpoch;
 
-    return await (delete(outbox)
-          ..where(
-            (t) =>
-                t.processingStatus.equals('completed') &
-                t.processingStartedAt.isSmallerThanValue(thresholdTime),
-          ))
+    return await (delete(outbox)..where(
+          (t) =>
+              t.processingStatus.equals('completed') &
+              t.processingStartedAt.isSmallerThanValue(thresholdTime),
+        ))
         .go();
   }
 
@@ -337,64 +336,71 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   ) async {
     switch (entity) {
       case 'bookings':
-        final row = await (select(db.bookings)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final row =
+            await (select(db.bookings)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
         if (row != null) {
           return adapters.bookings.toJsonForSource(row, src: Source.appwrite);
         }
         break;
       case 'payments':
-        final row = await (select(db.payments)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final row =
+            await (select(db.payments)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
         if (row != null) {
           return adapters.payments.toJsonForSource(row, src: Source.appwrite);
         }
         break;
       case 'expenses':
-        final row = await (select(db.expenses)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final row =
+            await (select(db.expenses)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
         if (row != null) {
           return adapters.expenses.toJsonForSource(row, src: Source.appwrite);
         }
         break;
       case 'debts':
-        final row = await (select(db.debts)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final row =
+            await (select(db.debts)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
         if (row != null) {
           return adapters.debts.toJsonForSource(row, src: Source.appwrite);
         }
         break;
       case 'rooms':
-        final row = await (select(db.rooms)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final row =
+            await (select(db.rooms)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
         if (row != null) {
           return adapters.rooms.toJsonForSource(row, src: Source.appwrite);
         }
         break;
       case 'employees':
-        final row = await (select(db.employees)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final row =
+            await (select(db.employees)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
         if (row != null) {
           return adapters.employees.toJsonForSource(row, src: Source.appwrite);
         }
         break;
       case 'booking_notes':
-        final row = await (select(db.bookingNotes)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final row =
+            await (select(db.bookingNotes)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
         if (row != null) {
           return adapters.bookingNotes.toJsonForSource(
             row,
@@ -403,19 +409,21 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         }
         break;
       case 'booking_nights':
-        final row = await (select(db.bookingNights)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final row =
+            await (select(db.bookingNights)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
         if (row != null) {
           return adapters.nights.toJsonForSource(row, src: Source.appwrite);
         }
         break;
       case 'salary_cycles':
-        final row = await (select(db.salaryCycles)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final row =
+            await (select(db.salaryCycles)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
         if (row != null) {
           return adapters.salaryCycles.toJsonForSource(
             row,
@@ -424,10 +432,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         }
         break;
       case 'salary_payments':
-        final row = await (select(db.salaryPayments)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final row =
+            await (select(db.salaryPayments)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
         if (row != null) {
           return adapters.salaryPayments.toJsonForSource(
             row,

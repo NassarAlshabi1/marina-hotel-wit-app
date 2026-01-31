@@ -68,9 +68,7 @@ class SqliteEventPersistence implements EventPersistence {
     SyncPriority? minPriority,
     String? table,
   }) async {
-    final buffer = StringBuffer(
-      'SELECT * FROM $_table WHERE acknowledged = 0',
-    );
+    final buffer = StringBuffer('SELECT * FROM $_table WHERE acknowledged = 0');
     final variables = <Variable>[];
 
     if (table != null) {
@@ -84,10 +82,9 @@ class SqliteEventPersistence implements EventPersistence {
       buffer.write(' LIMIT $limit');
     }
 
-    final rows = await _db.customSelect(
-      buffer.toString(),
-      variables: variables,
-    ).get();
+    final rows = await _db
+        .customSelect(buffer.toString(), variables: variables)
+        .get();
 
     var events = rows.map(_rowToEvent).toList();
     if (minPriority != null) {
@@ -101,14 +98,11 @@ class SqliteEventPersistence implements EventPersistence {
     int? limit,
     Duration? olderThan,
   }) async {
-    final buffer = StringBuffer(
-      'SELECT * FROM $_table WHERE acknowledged = 0',
-    );
+    final buffer = StringBuffer('SELECT * FROM $_table WHERE acknowledged = 0');
     final variables = <Variable>[];
 
     if (olderThan != null) {
-      final cutoff =
-          DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
+      final cutoff = DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
       buffer.write(' AND timestamp < ?');
       variables.add(Variable(cutoff));
     }
@@ -119,10 +113,9 @@ class SqliteEventPersistence implements EventPersistence {
       buffer.write(' LIMIT $limit');
     }
 
-    final rows = await _db.customSelect(
-      buffer.toString(),
-      variables: variables,
-    ).get();
+    final rows = await _db
+        .customSelect(buffer.toString(), variables: variables)
+        .get();
 
     return rows.map(_rowToEvent).toList();
   }
@@ -131,20 +124,24 @@ class SqliteEventPersistence implements EventPersistence {
   Future<List<EnhancedSyncEvent>> getByCorrelationId(
     String correlationId,
   ) async {
-    final rows = await _db.customSelect(
-      'SELECT * FROM $_table WHERE correlation_id = ? ORDER BY timestamp ASC',
-      variables: [Variable(correlationId)],
-    ).get();
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM $_table WHERE correlation_id = ? ORDER BY timestamp ASC',
+          variables: [Variable(correlationId)],
+        )
+        .get();
 
     return rows.map(_rowToEvent).toList();
   }
 
   @override
   Future<EnhancedSyncEvent?> getById(String eventId) async {
-    final row = await _db.customSelect(
-      'SELECT * FROM $_table WHERE id = ? LIMIT 1',
-      variables: [Variable(eventId)],
-    ).getSingleOrNull();
+    final row = await _db
+        .customSelect(
+          'SELECT * FROM $_table WHERE id = ? LIMIT 1',
+          variables: [Variable(eventId)],
+        )
+        .getSingleOrNull();
 
     return row != null ? _rowToEvent(row) : null;
   }
@@ -179,8 +176,7 @@ class SqliteEventPersistence implements EventPersistence {
     final variables = <Variable>[];
 
     if (olderThan != null) {
-      final cutoff =
-          DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
+      final cutoff = DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
       buffer.write(' AND timestamp < ?');
       variables.add(Variable(cutoff));
     }
@@ -254,7 +250,10 @@ class SqliteEventPersistence implements EventPersistence {
       Variable(event.entityId),
       Variable(event.payload != null ? jsonEncode(event.payload) : null),
       Variable(
-          event.previousPayload != null ? jsonEncode(event.previousPayload) : null),
+        event.previousPayload != null
+            ? jsonEncode(event.previousPayload)
+            : null,
+      ),
       Variable(event.priority.name),
       Variable(event.timestamp.millisecondsSinceEpoch),
       Variable(event.scheduledAt?.millisecondsSinceEpoch),
@@ -288,8 +287,9 @@ class SqliteEventPersistence implements EventPersistence {
           ? jsonDecode(previousPayload) as Map<String, dynamic>
           : null,
       priority: SyncPriority.values.byName(row.read<String>('priority')),
-      timestamp:
-          DateTime.fromMillisecondsSinceEpoch(row.read<int>('timestamp')),
+      timestamp: DateTime.fromMillisecondsSinceEpoch(
+        row.read<int>('timestamp'),
+      ),
       scheduledAt: row.read<int?>('scheduled_at') != null
           ? DateTime.fromMillisecondsSinceEpoch(row.read<int?>('scheduled_at')!)
           : null,
@@ -297,8 +297,9 @@ class SqliteEventPersistence implements EventPersistence {
       maxRetries: row.read<int>('max_retries'),
       correlationId: row.read<String?>('correlation_id'),
       causationId: row.read<String?>('causation_id'),
-      metadata:
-          metadata != null ? jsonDecode(metadata) as Map<String, dynamic> : null,
+      metadata: metadata != null
+          ? jsonDecode(metadata) as Map<String, dynamic>
+          : null,
       source: row.read<String>('source'),
       acknowledged: acknowledged,
     );

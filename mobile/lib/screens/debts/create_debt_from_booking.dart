@@ -144,8 +144,9 @@ class _CreateDebtFromBookingScreenState
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('خطأ: $e')),
       data: (bookings) {
-        final eligibleBookings =
-            bookings.where(_isDebtEligibleBooking).toList();
+        final eligibleBookings = bookings
+            .where(_isDebtEligibleBooking)
+            .toList();
 
         if (eligibleBookings.isEmpty) {
           return const Center(
@@ -267,8 +268,9 @@ class _CreateDebtFromBookingScreenState
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed:
-                        _isAutoProcessing ? null : _createAutoDebtFromBooking,
+                    onPressed: _isAutoProcessing
+                        ? null
+                        : _createAutoDebtFromBooking,
                     icon: _isAutoProcessing
                         ? const SizedBox(
                             width: 16,
