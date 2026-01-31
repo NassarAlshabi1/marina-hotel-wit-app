@@ -355,6 +355,8 @@ class UnifiedSyncOrchestrator {
       (db.select(db.bookingNights)).get(),
       (db.select(db.hotelDayLedger)).get(),
       (db.select(db.shiftNotes)).get(),
+      (db.select(db.salaryCycles)).get(),
+      (db.select(db.salaryPayments)).get(),
     ]);
 
     final snapshot = {
@@ -369,6 +371,8 @@ class UnifiedSyncOrchestrator {
       'booking_nights': (results[8] as List).map((e) => e.toJson()).toList(),
       'hotel_day_ledger': (results[9] as List).map((e) => e.toJson()).toList(),
       'shift_notes': (results[10] as List).map((e) => e.toJson()).toList(),
+      'salary_cycles': (results[11] as List).map((e) => e.toJson()).toList(),
+      'salary_payments': (results[12] as List).map((e) => e.toJson()).toList(),
     };
     return models.SyncChecksum.compute({'tables': snapshot});
   }

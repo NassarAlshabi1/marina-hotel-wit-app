@@ -174,19 +174,31 @@ class LocalBackupService {
         final roomsData = await db.select(db.rooms).get();
         final bookingsData = await db.select(db.bookings).get();
         final bookingNotesData = await db.select(db.bookingNotes).get();
+        final bookingNightsData = await db.select(db.bookingNights).get();
+        final hotelDayLedgerData = await db.select(db.hotelDayLedger).get();
+        final shiftNotesData = await db.select(db.shiftNotes).get();
         final employeesData = await db.select(db.employees).get();
         final expensesData = await db.select(db.expenses).get();
         final cashTransactionsData = await db.select(db.cashTransactions).get();
         final paymentsData = await db.select(db.payments).get();
-        final syncStateData = await db.select(db.syncState).get();
+        final debtsData = await db.select(db.debts).get();
 
+
+        final salaryCyclesData = await db.select(db.salaryCycles).get();
+        final salaryPaymentsData = await db.select(db.salaryPayments).get();
         final totalRecords = roomsData.length +
             bookingsData.length +
             bookingNotesData.length +
+            bookingNightsData.length +
+            hotelDayLedgerData.length +
+            shiftNotesData.length +
             employeesData.length +
             expensesData.length +
             cashTransactionsData.length +
-            paymentsData.length;
+            paymentsData.length +
+            debtsData.length +
+            salaryCyclesData.length +
+            salaryPaymentsData.length;
 
         final metadata = BackupMetadata(
           appVersion: '1.2.0+3',
@@ -203,6 +215,11 @@ class LocalBackupService {
           'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
           'booking_notes':
               bookingNotesData.map((note) => note.toJson()).toList(),
+          'booking_nights':
+              bookingNightsData.map((night) => night.toJson()).toList(),
+          'hotel_day_ledger':
+              hotelDayLedgerData.map((entry) => entry.toJson()).toList(),
+          'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
           'employees':
               employeesData.map((employee) => employee.toJson()).toList(),
           'expenses': expensesData.map((expense) => expense.toJson()).toList(),
@@ -210,8 +227,11 @@ class LocalBackupService {
               .map((transaction) => transaction.toJson())
               .toList(),
           'payments': paymentsData.map((payment) => payment.toJson()).toList(),
-          'sync_state':
-              syncStateData.isNotEmpty ? syncStateData.first.toJson() : {},
+          'debts': debtsData.map((debt) => debt.toJson()).toList(),
+          'salary_cycles':
+              salaryCyclesData.map((cycle) => cycle.toJson()).toList(),
+          'salary_payments':
+              salaryPaymentsData.map((payment) => payment.toJson()).toList(),
         };
 
         final filePath = '${backupDir.path}/$baseName.json';
@@ -482,6 +502,14 @@ class LocalBackupService {
       await db.delete(db.expenses).go();
       await db.delete(db.cashTransactions).go();
       await db.delete(db.payments).go();
+      await db.delete(db.restoreFixLog).go();
+      await db.delete(db.autoFixRuns).go();
+      await db.delete(db.integrityViolations).go();
+      await db.delete(db.appSessions).go();
+      await db.delete(db.outbox).go();
+      await db.delete(db.syncQueue).go();
+      await db.delete(db.syncLog).go();
+      await db.delete(db.syncConflicts).go();
       await db.delete(db.syncState).go();
 
       Future<void> insertList<T>(
@@ -538,19 +566,6 @@ class LocalBackupService {
         final data = Payment.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.payments).insertOnConflictUpdate(data);
       });
-
-      if (backupData.containsKey('sync_state') &&
-          backupData['sync_state'] is Map &&
-          (backupData['sync_state'] as Map).isNotEmpty) {
-        final syncStateJson = Map<String, dynamic>.from(
-          backupData['sync_state'] as Map,
-        );
-        final data = SyncStateData.fromJson(
-          syncStateJson,
-          serializer: lenientValueSerializer,
-        );
-        await db.into(db.syncState).insertOnConflictUpdate(data);
-      }
 
       debugPrint(
         '✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON',

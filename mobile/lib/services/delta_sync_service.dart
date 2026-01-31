@@ -462,6 +462,24 @@ class DeltaSyncService {
         deletedAt: (dynamic row) => (row as HotelDayLedgerEntry).deletedAt,
         toJson: (dynamic row) => (row as HotelDayLedgerEntry).toJson(),
       ),
+      _EntityConfig(
+        entity: 'salary_cycles',
+        fetchAll: () => db.select(db.salaryCycles).get(),
+        localUuid: (dynamic row) => (row as SalaryCycle).localUuid,
+        createdAt: (dynamic row) => (row as SalaryCycle).createdAt,
+        lastModified: (dynamic row) => (row as SalaryCycle).lastModified,
+        deletedAt: (dynamic row) => (row as SalaryCycle).deletedAt,
+        toJson: (dynamic row) => (row as SalaryCycle).toJson(),
+      ),
+      _EntityConfig(
+        entity: 'salary_payments',
+        fetchAll: () => db.select(db.salaryPayments).get(),
+        localUuid: (dynamic row) => (row as SalaryPayment).localUuid,
+        createdAt: (dynamic row) => (row as SalaryPayment).createdAt,
+        lastModified: (dynamic row) => (row as SalaryPayment).lastModified,
+        deletedAt: (dynamic row) => (row as SalaryPayment).deletedAt,
+        toJson: (dynamic row) => (row as SalaryPayment).toJson(),
+      ),
     ];
   }
 }

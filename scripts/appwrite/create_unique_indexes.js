@@ -20,10 +20,16 @@ const databases = new Databases(client);
 const collectionIndexes = {
   rooms: ["roomNumber", "localUuid"],
   bookings: ["localUuid"],
+  booking_notes: ["localUuid"],
+  booking_nights: ["localUuid"],
   payments: ["localUuid"],
   expenses: ["localUuid"],
+  cash_transactions: ["localUuid"],
   employees: ["localUuid"],
   debts: ["localUuid"],
+  salary_cycles: ["localUuid"],
+  salary_payments: ["localUuid"],
+  hotel_day_ledger: ["localUuid", "hotelDayKey"],
   devices: ["localUuid"],
   sync_logs: ["localUuid"],
 };

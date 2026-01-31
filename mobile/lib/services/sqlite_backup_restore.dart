@@ -115,6 +115,33 @@ class SqliteBackupRestore {
     }
   }
 
+  static Future<void> _validateSqliteFile(String sourcePath) async {
+    final file = File(sourcePath);
+    final length = await file.length();
+    if (length == 0) {
+      throw Exception('Backup file is empty: $sourcePath');
+    }
+
+    sqflite.Database? db;
+    try {
+      db = await sqflite.openDatabase(sourcePath, readOnly: true);
+      final result = await db.rawQuery('PRAGMA integrity_check');
+      if (result.isEmpty) {
+        throw Exception('SQLite integrity check failed: empty result');
+      }
+      final value = result.first.values.isNotEmpty
+          ? result.first.values.first
+          : null;
+      if (value is! String || value.toLowerCase() != 'ok') {
+        throw Exception('SQLite integrity check failed: $value');
+      }
+    } finally {
+      if (db != null) {
+        await db.close();
+      }
+    }
+  }
+
   /// Restore the on-device database from a provided .db file path.
   ///
   /// - Ensures the file exists and has a .db extension.
@@ -137,6 +164,8 @@ class SqliteBackupRestore {
       if (!await srcFile.exists()) {
         throw Exception('Backup file not found: $sourcePath');
       }
+
+      await _validateSqliteFile(sourcePath);
 
       final dstPath = await _resolveDefaultDbPath();
       final dstFile = File(dstPath);

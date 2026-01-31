@@ -28,6 +28,7 @@ const requiredCollections = [
   'salary_cycles',
   'salary_payments',
   'hotel_day_ledger',
+  'shift_notes',
   'devices',
   'sync_logs',
 ];
@@ -70,7 +71,7 @@ async function verifyCollections() {
       const attributes = collection.attributes || [];
       const attributeKeys = attributes.map(a => a.key);
 
-      const hasSyncFields = collectionId === 'sync_logs' || collectionId === 'devices'
+      const hasSyncFields = collectionId === 'sync_logs' || collectionId === 'devices' || collectionId === 'shift_notes'
         ? true
         : requiredSyncFields.every(field => attributeKeys.includes(field));
 

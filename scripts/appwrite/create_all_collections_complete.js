@@ -110,6 +110,21 @@ const collections = [
     ],
   },
   {
+    id: 'shift_notes',
+    name: 'ملاحظات المناوبات',
+    description: 'جدول ملاحظات المناوبات',
+    attributes: [
+      { key: 'title', type: 'string', size: 200, required: true },
+      { key: 'content', type: 'string', size: 2000, required: true },
+      { key: 'priority', type: 'string', size: 20, default: 'medium' },
+      { key: 'shiftType', type: 'string', size: 20, default: 'all' },
+      { key: 'isRead', type: 'integer', default: 0 },
+      { key: 'createdAt', type: 'string', size: 50, required: true },
+      { key: 'expiresAt', type: 'string', size: 50 },
+      { key: 'createdBy', type: 'string', size: 100, default: 'user' },
+    ],
+  },
+  {
     id: 'booking_nights',
     name: 'ليالي الحجوزات',
     description: 'جدول ليالي الحجوزات',

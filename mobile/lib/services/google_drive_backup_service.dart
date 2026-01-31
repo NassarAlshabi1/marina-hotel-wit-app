@@ -367,16 +367,9 @@ class GoogleDriveBackupService {
       final cashTransactionsData = await db.select(db.cashTransactions).get();
       final paymentsData = await db.select(db.payments).get();
       final debtsData = await db.select(db.debts).get();
-      final autoFixRunsData = await db.select(db.autoFixRuns).get();
-      final violationsData = await db.select(db.integrityViolations).get();
-      final sessionsData = await db.select(db.appSessions).get();
       final salaryCyclesData = await db.select(db.salaryCycles).get();
       final salaryPaymentsData = await db.select(db.salaryPayments).get();
-      final restoreFixLogsData = await db.select(db.restoreFixLog).get();
-      final syncQueueData = await db.select(db.syncQueue).get();
       final syncLogData = await db.select(db.syncLog).get();
-      final syncConflictsData = await db.select(db.syncConflicts).get();
-      final syncStateData = await db.select(db.syncState).get();
 
       // جلب الإعدادات العامة لدمجها في النسخة الاحتياطية
       final prefs = await SharedPreferences.getInstance();
@@ -415,16 +408,9 @@ class GoogleDriveBackupService {
           cashTransactionsData.length +
           paymentsData.length +
           debtsData.length +
-          autoFixRunsData.length +
-          violationsData.length +
-          sessionsData.length +
           salaryCyclesData.length +
           salaryPaymentsData.length +
-          restoreFixLogsData.length +
-          syncQueueData.length +
-          syncLogData.length +
-          syncConflictsData.length +
-          syncStateData.length;
+          syncLogData.length;
 
       final metadata = BackupMetadata(
         appVersion: '1.2.0+3',
@@ -452,22 +438,11 @@ class GoogleDriveBackupService {
             .toList(),
         'payments': paymentsData.map((payment) => payment.toJson()).toList(),
         'debts': debtsData.map((debt) => debt.toJson()).toList(),
-        'auto_fix_runs': autoFixRunsData.map((run) => run.toJson()).toList(),
-        'integrity_violations':
-            violationsData.map((violation) => violation.toJson()).toList(),
-        'app_sessions':
-            sessionsData.map((session) => session.toJson()).toList(),
         'salary_cycles':
             salaryCyclesData.map((cycle) => cycle.toJson()).toList(),
         'salary_payments':
             salaryPaymentsData.map((payment) => payment.toJson()).toList(),
-        'restore_fix_log':
-            restoreFixLogsData.map((log) => log.toJson()).toList(),
-        'sync_queue': syncQueueData.map((row) => row.toJson()).toList(),
         'sync_log': syncLogData.map((row) => row.toJson()).toList(),
-        'sync_conflicts': syncConflictsData.map((row) => row.toJson()).toList(),
-        'sync_state':
-            syncStateData.isNotEmpty ? syncStateData.first.toJson() : {},
         'system_settings': systemSettings, // تصدير الإعدادات
       };
 
@@ -935,45 +910,6 @@ class GoogleDriveBackupService {
             }
           }
 
-          if (backupData.containsKey('auto_fix_runs')) {
-            final runsList = backupData['auto_fix_runs'] as List<dynamic>;
-            for (final runJson in runsList) {
-              final map = Map<String, dynamic>.from(runJson as Map);
-              final data = AutoFixRun.fromJson(
-                map,
-                serializer: lenientValueSerializer,
-              );
-              await db.into(db.autoFixRuns).insertOnConflictUpdate(data);
-            }
-          }
-
-          if (backupData.containsKey('integrity_violations')) {
-            final violationsList =
-                backupData['integrity_violations'] as List<dynamic>;
-            for (final violationJson in violationsList) {
-              final map = Map<String, dynamic>.from(violationJson as Map);
-              final data = IntegrityViolation.fromJson(
-                map,
-                serializer: lenientValueSerializer,
-              );
-              await db
-                  .into(db.integrityViolations)
-                  .insertOnConflictUpdate(data);
-            }
-          }
-
-          if (backupData.containsKey('app_sessions')) {
-            final sessionsList = backupData['app_sessions'] as List<dynamic>;
-            for (final sessionJson in sessionsList) {
-              final map = Map<String, dynamic>.from(sessionJson as Map);
-              final data = AppSession.fromJson(
-                map,
-                serializer: lenientValueSerializer,
-              );
-              await db.into(db.appSessions).insertOnConflictUpdate(data);
-            }
-          }
-
           if (backupData.containsKey('salary_cycles')) {
             final cyclesList = backupData['salary_cycles'] as List<dynamic>;
             for (final cycleJson in cyclesList) {
@@ -994,32 +930,8 @@ class GoogleDriveBackupService {
             }
           }
 
-          if (backupData.containsKey('restore_fix_log')) {
-            final restoreList = backupData['restore_fix_log'] as List<dynamic>;
-            for (final logJson in restoreList) {
-              final map = Map<String, dynamic>.from(logJson as Map);
-              final data = RestoreFixLogData.fromJson(
-                map,
-                serializer: lenientValueSerializer,
-              );
-              await db.into(db.restoreFixLog).insertOnConflictUpdate(data);
-            }
-          }
-
-          if (backupData.containsKey('sync_queue')) {
-            final queueList = backupData['sync_queue'] as List<dynamic>;
-            for (final rowJson in queueList) {
-              final map = Map<String, dynamic>.from(rowJson as Map);
-              final data = SyncQueueData.fromJson(
-                map,
-                serializer: lenientValueSerializer,
-              );
-              await db.into(db.syncQueue).insertOnConflictUpdate(data);
-            }
-          }
-
-          if (backupData.containsKey('sync_log')) {
-            final logList = backupData['sync_log'] as List<dynamic>;
+          if (backupData.containsKey('sync_logs')) {
+            final logList = backupData['sync_logs'] as List<dynamic>;
             for (final logJson in logList) {
               final map = Map<String, dynamic>.from(logJson as Map);
               final data = SyncLogData.fromJson(
@@ -1028,31 +940,6 @@ class GoogleDriveBackupService {
               );
               await db.into(db.syncLog).insertOnConflictUpdate(data);
             }
-          }
-
-          if (backupData.containsKey('sync_conflicts')) {
-            final conflictsList = backupData['sync_conflicts'] as List<dynamic>;
-            for (final conflictJson in conflictsList) {
-              final map = Map<String, dynamic>.from(conflictJson as Map);
-              final data = SyncConflictRow.fromJson(
-                map,
-                serializer: lenientValueSerializer,
-              );
-              await db.into(db.syncConflicts).insertOnConflictUpdate(data);
-            }
-          }
-
-          if (backupData.containsKey('sync_state') &&
-              backupData['sync_state'] is Map &&
-              (backupData['sync_state'] as Map).isNotEmpty) {
-            final syncStateJson = Map<String, dynamic>.from(
-              backupData['sync_state'] as Map,
-            );
-            final data = SyncStateData.fromJson(
-              syncStateJson,
-              serializer: lenientValueSerializer,
-            );
-            await db.into(db.syncState).insertOnConflictUpdate(data);
           }
 
           // استعادة وتطبيق الإعدادات العامة إذا وجدت

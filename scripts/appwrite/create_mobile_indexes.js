@@ -33,6 +33,14 @@ const indexDefinitions = {
     { key: "idx_bookings_checkinDate", attributes: ["checkinDate"] },
     { key: "idx_bookings_serverBookingId", attributes: ["serverBookingId"] },
   ],
+  booking_notes: [
+    { key: "idx_booking_notes_bookingId", attributes: ["bookingId"] },
+    { key: "idx_booking_notes_alertType", attributes: ["alertType"] },
+  ],
+  booking_nights: [
+    { key: "idx_booking_nights_bookingLocalId", attributes: ["bookingLocalId"] },
+    { key: "idx_booking_nights_hotelDayKey", attributes: ["hotelDayKey"] },
+  ],
   payments: [
     { key: "idx_payments_bookingLocalId", attributes: ["bookingLocalId"] },
     { key: "idx_payments_serverBookingId", attributes: ["serverBookingId"] },
@@ -50,6 +58,29 @@ const indexDefinitions = {
   debts: [
     { key: "idx_debts_status", attributes: ["status"] },
     { key: "idx_debts_debtorName", attributes: ["debtorName"] },
+  ],
+  cash_transactions: [
+    { key: "idx_cash_transactions_type", attributes: ["transactionType"] },
+    { key: "idx_cash_transactions_time", attributes: ["transactionTime"] },
+  ],
+  hotel_day_ledger: [
+    { key: "idx_hotel_day_ledger_day", attributes: ["hotelDayKey"] },
+    { key: "idx_hotel_day_ledger_status", attributes: ["status"] },
+  ],
+  salary_cycles: [
+    { key: "idx_salary_cycles_employee", attributes: ["employeeId"] },
+    { key: "idx_salary_cycles_cycleKey", attributes: ["cycleKey"] },
+    { key: "idx_salary_cycles_status", attributes: ["status"] },
+  ],
+  salary_payments: [
+    { key: "idx_salary_payments_cycle", attributes: ["cycleId"] },
+    { key: "idx_salary_payments_day", attributes: ["hotelDayKey"] },
+    { key: "idx_salary_payments_date", attributes: ["paymentDateIso"] },
+  ],
+  shift_notes: [
+    { key: "idx_shift_notes_isRead", attributes: ["isRead"] },
+    { key: "idx_shift_notes_priority", attributes: ["priority"] },
+    { key: "idx_shift_notes_createdAt", attributes: ["createdAt"] },
   ],
   devices: [
     { key: "idx_devices_deviceName", attributes: ["deviceName"] },

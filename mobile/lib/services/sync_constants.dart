@@ -4,23 +4,23 @@ class SyncConstants {
   static const tableOrder = [
     'rooms',
     'employees',
+    'salary_cycles',
+    'salary_payments',
     'bookings',
+    'booking_nights',
     'payments',
     'expenses',
     'debts',
     'booking_notes',
     'shift_notes',
     'cash_transactions',
+    'hotel_day_ledger',
   ];
 
   static const extraTables = [
-    'booking_nights',
-    'hotel_day_ledger',
     'auto_fix_runs',
     'integrity_violations',
     'app_sessions',
-    'salary_cycles',
-    'salary_payments',
   ];
 
   static List<String> get allTablesInOrder => [...tableOrder, ...extraTables];

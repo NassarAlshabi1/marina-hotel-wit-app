@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
 import 'delta_sync_service.dart';
 import 'google_drive_backup_service.dart';
+import 'backup_serializers.dart';
 import 'local_db.dart';
 import 'sync_constants.dart';
 import '../utils/time.dart';
@@ -399,6 +400,14 @@ class GoogleDriveDeltaSync {
       case 'cash_transactions':
         await _applyCashTransactionChange(db, localUuid, operation, payload);
         break;
+      case 'hotel_day_ledger':
+        final map = Map<String, dynamic>.from(payload);
+        final data = HotelDayLedgerEntry.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.hotelDayLedger).insertOnConflictUpdate(data);
+        break;
     }
   }
 
@@ -471,6 +480,12 @@ class GoogleDriveDeltaSync {
       case 'cash_transactions':
         await (db.delete(
           db.cashTransactions,
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'hotel_day_ledger':
+        await (db.delete(
+          db.hotelDayLedger,
         )..where((t) => t.localUuid.equals(localUuid)))
             .go();
         return;

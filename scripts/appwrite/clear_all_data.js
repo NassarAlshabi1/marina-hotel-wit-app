@@ -26,6 +26,7 @@ const collections = [
   'salary_cycles',
   'salary_payments',
   'hotel_day_ledger',
+  'shift_notes',
   'devices',
   'sync_logs',
 ];

@@ -61,6 +61,8 @@ function nowEpoch() {
 const COLLECTIONS = {
   rooms: 'rooms',
   bookings: 'bookings',
+  booking_notes: 'booking_notes',
+  employees: 'employees',
   expenses: 'expenses',
   payments: 'payments',
   debts: 'debts',
@@ -177,12 +179,41 @@ function mapPayload(entity, payload, localUuid, clientTs) {
         ...base,
       };
     }
+    case 'booking_notes': {
+      return {
+        bookingId: camel.bookingId,
+        noteText: camel.noteText,
+        alertType: camel.alertType,
+        alertUntil: camel.alertUntil,
+        isActive: camel.isActive ?? 1,
+        serverId: camel.serverId,
+        deletedAt: camel.deletedAt,
+        ...base,
+      };
+    }
+    case 'employees': {
+      return {
+        name: camel.name,
+        basicSalary: camel.basicSalary,
+        position: camel.position,
+        phone: camel.phone,
+        hireDate: camel.hireDate,
+        status: camel.status,
+        serverId: camel.serverId,
+        deletedAt: camel.deletedAt,
+        ...base,
+      };
+    }
     case 'shift_notes': {
       return {
-        note: camel.note,
-        shiftDate: camel.shiftDate,
-        employeeId: camel.employeeId,
-        isRead: camel.isRead ?? false,
+        title: camel.title,
+        content: camel.content,
+        priority: camel.priority ?? 'medium',
+        shiftType: camel.shiftType ?? 'all',
+        isRead: camel.isRead ?? 0,
+        createdAt: camel.createdAt,
+        expiresAt: camel.expiresAt,
+        createdBy: camel.createdBy ?? 'user',
         serverId: camel.serverId,
         deletedAt: camel.deletedAt,
         ...base,
