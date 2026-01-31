@@ -1514,6 +1514,9 @@ class AppwriteSyncManager {
   Future<Map<String, int>> pushAllLocalDataToAppwrite({
     bool skipDeleted = true,
   }) async {
+    // التأكد من تهيئة الخدمة أولاً
+    await appwriteService.initialize();
+    
     _logger.info('🚀 بدء رفع جميع البيانات المحلية إلى Appwrite...',
         tag: 'SYNC');
     final stats = <String, int>{
