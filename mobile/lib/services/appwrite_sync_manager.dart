@@ -1878,6 +1878,28 @@ class AppwriteSyncManager {
     return data;
   }
 
+  Map<String, dynamic> _shiftNoteToRemote(ShiftNote note) {
+    final data = <String, dynamic>{
+      'title': note.title,
+      'content': note.content,
+      'priority': note.priority,
+      'shiftType': note.shiftType,
+      'isRead': note.isRead,
+      'createdBy': note.createdBy,
+      'localUuid': note.localUuid,
+      'createdAt': note.createdAt,
+      'updatedAt': note.updatedAt,
+      'lastModified': note.lastModified,
+      'version': note.version,
+      'origin': note.origin,
+    };
+    _putIfNotNull(data, 'serverId', note.serverId);
+    _putIfNotNull(data, 'deletedAt', note.deletedAt);
+    _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
+    _putIfStringNotEmpty(data, 'createdAtIso', note.createdAtIso);
+    return data;
+  }
+
   Future<bool> _processSalaryPaymentEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
       await _deleteSilently(() => appwriteService.deleteSalaryPayment(entry.localUuid));
@@ -2187,32 +2209,6 @@ class AppwriteSyncManager {
       }
     }
     return processed;
-  }
-
-  // Helpers for Remote Mapping (Push)
-
-  Map<String, dynamic> _shiftNoteToRemote(ShiftNote item) {
-    return outboxDao.adapters.shiftNotes.adapter.toJson(item, src: Source.appwrite);
-  }
-
-  Map<String, dynamic> _bookingNoteToRemote(BookingNote item) {
-    return outboxDao.adapters.bookingNotes.adapter.toJson(item, src: Source.appwrite);
-  }
-
-  Map<String, dynamic> _bookingNightToRemote(BookingNight item) {
-    return outboxDao.adapters.nights.adapter.toJson(item, src: Source.appwrite);
-  }
-
-  Map<String, dynamic> _cashTransactionToRemote(CashTransaction item) {
-    return outboxDao.adapters.cashTransactions.adapter.toJson(item, src: Source.appwrite);
-  }
-  
-  Map<String, dynamic> _salaryCycleToRemote(SalaryCycle item) {
-    return outboxDao.adapters.salaryCycles.adapter.toJson(item, src: Source.appwrite);
-  }
-
-  Map<String, dynamic> _salaryPaymentToRemote(SalaryPayment item) {
-    return outboxDao.adapters.salaryPayments.adapter.toJson(item, src: Source.appwrite);
   }
 
   String _resolveDeviceType() {
