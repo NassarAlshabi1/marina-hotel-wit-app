@@ -19,7 +19,6 @@ import 'whatsapp_settings_screen.dart';
 import '../security/blacklist_screen.dart';
 import 'server_id_fixer_screen.dart';
 import 'database_fixer_screen.dart';
-import 'schema_comparison_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -314,18 +313,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
-      _QuickAction(
-        title: 'مقارنة البنية',
-        subtitle: 'Local DB vs Appwrite',
-        icon: Icons.compare_arrows,
-        color: Colors.teal,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const SchemaComparisonScreen(),
-          ),
-        ),
-      ),
       _QuickAction(
         title: 'إصلاح قاعدة البيانات',
         subtitle: 'تصحيح البيانات الفاسدة',
