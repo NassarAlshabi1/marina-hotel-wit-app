@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/core.dart';
@@ -227,7 +225,7 @@ class _UnifiedBackupSettingsScreenState
                         ref.read(googleDriveAdapterProvider);
                     await adapter.initialize();
                     await adapter.setEnabled(value);
-                    unawaited(ref.refresh(adapterStatusesProvider));
+                    ref.invalidate(adapterStatusesProvider);
                   },
             secondary: const Icon(Icons.cloud_upload),
           ),
@@ -245,7 +243,7 @@ class _UnifiedBackupSettingsScreenState
               } else {
                 await adapter.signIn();
               }
-              unawaited(ref.refresh(adapterStatusesProvider));
+              ref.invalidate(adapterStatusesProvider);
             },
           ),
           const Divider(height: 1),
@@ -311,7 +309,7 @@ class _UnifiedBackupSettingsScreenState
                     final adapter = ref.read(localJsonAdapterProvider);
                     await adapter.initialize();
                     await adapter.setEnabled(value);
-                    unawaited(ref.refresh(adapterStatusesProvider));
+                    ref.invalidate(adapterStatusesProvider);
                   },
             secondary: const Icon(Icons.save),
           ),
@@ -461,7 +459,7 @@ class _UnifiedBackupSettingsScreenState
         await drive.createBackup(tag: 'manual');
       }
 
-      unawaited(ref.refresh(adapterStatusesProvider));
+      ref.invalidate(adapterStatusesProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم إنشاء النسخة الاحتياطية')),
@@ -481,7 +479,7 @@ class _UnifiedBackupSettingsScreenState
     for (final backup in backups) {
       await local.deleteBackup(backup.id);
     }
-    unawaited(ref.refresh(adapterStatusesProvider));
+    ref.invalidate(adapterStatusesProvider);
   }
 
   void _showDeleteAllBackupsDialog() {

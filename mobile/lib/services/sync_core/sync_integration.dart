@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -187,7 +185,7 @@ class AdapterStatusList extends ConsumerWidget {
                 onChanged: (value) async {
                   final adapter = ref.read(syncRouterProvider).getAdapter(entry.key);
                   await adapter?.setEnabled(value);
-                  unawaited(ref.refresh(adapterStatusesProvider));
+                  ref.invalidate(adapterStatusesProvider);
                 },
               ),
             );
