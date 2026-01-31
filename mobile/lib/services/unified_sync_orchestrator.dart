@@ -11,7 +11,9 @@ import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
 import 'smart_sync_manager.dart';
+import 'sync_event_bus.dart';
 import 'sync_integrity_checker.dart';
+import 'sync_router.dart';
 
 class UnifiedSyncState {
   final String phase;
@@ -73,7 +75,6 @@ class UnifiedSyncOrchestrator {
 
   StreamSubscription? _appwriteSub;
   StreamSubscription<SyncResult>? _driveSub;
-  Timer? _debounceTimer;
 
   bool _initialized = false;
   bool _syncing = false;
@@ -108,6 +109,11 @@ class UnifiedSyncOrchestrator {
     _driveCoordinator ??= GoogleDriveUnifiedSyncCoordinator.instance;
 
     await _attachListeners();
+    await SyncRouter.instance.initialize(
+      database: _database,
+      appwriteManager: _appwrite,
+      driveCoordinator: _driveCoordinator,
+    );
 
     if (!_initialized) {
       _initialized = true;
@@ -199,7 +205,7 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> dispose() async {
-    _debounceTimer?.cancel();
+    await SyncRouter.instance.dispose();
     await _appwriteSub?.cancel();
     await _driveSub?.cancel();
     await _stateController.close();
@@ -207,14 +213,12 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> notifyLocalChange({String? table, String? operation}) async {
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(seconds: 2), () async {
-      await syncNow(
-        push: true,
-        pull: true,
-        reason: 'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}',
-      );
-    });
+    SyncEventBus.instance.publish(
+      SyncEvent(
+        table: table,
+        operation: operation,
+      ),
+    );
   }
 
   Future<bool> syncNow({

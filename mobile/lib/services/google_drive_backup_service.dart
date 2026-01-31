@@ -442,7 +442,7 @@ class GoogleDriveBackupService {
             salaryCyclesData.map((cycle) => cycle.toJson()).toList(),
         'salary_payments':
             salaryPaymentsData.map((payment) => payment.toJson()).toList(),
-        'sync_log': syncLogData.map((row) => row.toJson()).toList(),
+        'sync_logs': syncLogData.map((row) => row.toJson()).toList(),
         'system_settings': systemSettings, // تصدير الإعدادات
       };
 
