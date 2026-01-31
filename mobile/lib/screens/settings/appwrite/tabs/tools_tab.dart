@@ -284,7 +284,7 @@ class AppwriteToolsTab extends ConsumerWidget {
 
     final service = ref.read(ap.appwriteServiceProvider);
     await service.initialize();
-    final result = await service.testConnection(fullCrudTest: fullTest);
+    final result = await service.testConnection();
 
     if (context.mounted) {
       final ok = result['overall_success'] == true;

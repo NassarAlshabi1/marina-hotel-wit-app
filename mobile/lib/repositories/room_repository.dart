@@ -77,6 +77,7 @@ class AppwriteRoomRepository implements RoomRepository {
     try {
       final doc = await _appwriteService.createDocument(
         collectionId: _collectionId,
+        documentId: room.localUuid,
         data: room.toJson(),
       );
 
