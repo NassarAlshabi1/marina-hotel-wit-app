@@ -160,11 +160,20 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           ),
           const Divider(height: 1),
           SwitchListTile(
-            title: const Text('تفعيل المزامنة'),
-            subtitle: const Text('المزامنة مع Appwrite معطّلة (يدوي فقط)'),
-            value: false,
-            onChanged: null,
-            secondary: const Icon(Icons.sync),
+            title: const Text('تفعيل المزامنة التلقائية'),
+            subtitle: Text(_syncEnabled 
+                ? 'المزامنة التلقائية مفعّلة' 
+                : 'المزامنة مع Appwrite معطّلة (يدوي فقط)'),
+            value: _syncEnabled,
+            onChanged: (value) {
+              setState(() => _syncEnabled = value);
+              _saveSettings();
+              _onSyncEnabledChanged(value);
+            },
+            secondary: Icon(
+              _syncEnabled ? Icons.sync : Icons.sync_disabled,
+              color: _syncEnabled ? Colors.green : Colors.grey,
+            ),
           ),
           const Divider(height: 1),
           ListTile(
@@ -172,15 +181,24 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             subtitle: Text('$_syncInterval دقيقة'),
             leading: const Icon(Icons.timer),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: null,
+            enabled: _syncEnabled,
+            onTap: _syncEnabled ? () => _showIntervalDialog() : null,
           ),
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('مزامنة تلقائية عند الاتصال'),
-            subtitle: const Text('المزامنة التلقائية معطّلة'),
-            value: false,
-            onChanged: null,
-            secondary: const Icon(Icons.wifi),
+            subtitle: Text(_autoSyncOnConnect
+                ? 'ستتم المزامنة تلقائياً عند الاتصال بالإنترنت'
+                : 'المزامنة عند الاتصال معطّلة'),
+            value: _autoSyncOnConnect,
+            onChanged: _syncEnabled ? (value) {
+              setState(() => _autoSyncOnConnect = value);
+              _saveSettings();
+            } : null,
+            secondary: Icon(
+              Icons.wifi,
+              color: _autoSyncOnConnect && _syncEnabled ? Colors.blue : Colors.grey,
+            ),
           ),
         ],
       ),
@@ -398,7 +416,29 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     );
   }
 
-  // ignore: unused_element
+  void _onSyncEnabledChanged(bool enabled) {
+    final manager = ref.read(ap.appwriteSyncManagerProvider);
+    if (enabled) {
+      manager.startAutoSync(
+        interval: Duration(minutes: _syncInterval),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم تفعيل المزامنة التلقائية كل $_syncInterval دقيقة'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      manager.stopAutoSync();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إيقاف المزامنة التلقائية'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
   void _showIntervalDialog() {
     showDialog(
       context: context,
@@ -415,6 +455,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 setState(() => _syncInterval = value!);
                 _saveSettings();
                 Navigator.pop(context);
+                if (_syncEnabled) {
+                  _onSyncEnabledChanged(true);
+                }
               },
             );
           }).toList(),
