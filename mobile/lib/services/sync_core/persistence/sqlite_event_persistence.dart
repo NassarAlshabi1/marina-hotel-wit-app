@@ -31,9 +31,9 @@ class SqliteEventPersistence implements EventPersistence {
   Future<void> persistBatch(List<EnhancedSyncEvent> events) async {
     if (events.isEmpty) return;
 
-    await _db.batch((batch) {
+    await _db.transaction(() async {
       for (final event in events) {
-        batch.customInsert(
+        await _db.customInsert(
           'INSERT OR REPLACE INTO $_table '
           '(id, table_name, operation, entity_id, payload, previous_payload, priority, timestamp, scheduled_at, '
           'retry_count, max_retries, correlation_id, causation_id, metadata, source, acknowledged, error, created_at) '
