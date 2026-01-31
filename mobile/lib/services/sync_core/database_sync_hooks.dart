@@ -159,7 +159,7 @@ class DatabaseSyncHooks {
   }
 
   Future<void> _setupHotelDayLedgerHook() async {
-    _setupTableHook<HotelDayLedgerData>(
+    _setupTableHook<HotelDayLedgerEntry>(
       tableName: 'hotel_day_ledger',
       watchQuery: () => _database.select(_database.hotelDayLedger).watch(),
       getId: (e) => e.localUuid,
