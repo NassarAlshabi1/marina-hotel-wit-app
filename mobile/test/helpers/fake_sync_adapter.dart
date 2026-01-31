@@ -82,7 +82,7 @@ class FakeSyncAdapter extends SyncTargetAdapter {
     if (onPull != null) {
       return onPull!();
     }
-    return const SyncPullResult.success();
+    return SyncPullResult.success();
   }
 
   @override

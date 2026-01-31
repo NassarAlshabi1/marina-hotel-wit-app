@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
 import '../local_db.dart';

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'sync_core.dart';
-import '../local_db.dart';
 
 final databaseSyncHooksProvider = Provider<DatabaseSyncHooks>((ref) {
   final db = ref.watch(databaseProvider);

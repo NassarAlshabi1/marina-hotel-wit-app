@@ -33,7 +33,7 @@ class SqliteEventPersistence implements EventPersistence {
 
     await _db.batch((batch) {
       for (final event in events) {
-        batch.customStatement(
+        batch.customInsert(
           'INSERT OR REPLACE INTO $_table '
           '(id, table_name, operation, entity_id, payload, previous_payload, priority, timestamp, scheduled_at, '
           'retry_count, max_retries, correlation_id, causation_id, metadata, source, acknowledged, error, created_at) '
@@ -46,9 +46,9 @@ class SqliteEventPersistence implements EventPersistence {
 
   @override
   Future<void> acknowledge(String eventId) async {
-    await _db.customStatement(
+    await _db.customUpdate(
       'UPDATE $_table SET acknowledged = 1 WHERE id = ?',
-      variables: [Variable<String>(eventId)],
+      variables: [Variable(eventId)],
     );
   }
 
@@ -56,9 +56,9 @@ class SqliteEventPersistence implements EventPersistence {
   Future<void> acknowledgeBatch(List<String> eventIds) async {
     if (eventIds.isEmpty) return;
     final placeholders = List.filled(eventIds.length, '?').join(',');
-    await _db.customStatement(
+    await _db.customUpdate(
       'UPDATE $_table SET acknowledged = 1 WHERE id IN ($placeholders)',
-      variables: eventIds.map((id) => Variable<String>(id)).toList(),
+      variables: eventIds.map((id) => Variable(id)).toList(),
     );
   }
 
@@ -75,7 +75,7 @@ class SqliteEventPersistence implements EventPersistence {
 
     if (table != null) {
       buffer.write(' AND table_name = ?');
-      variables.add(Variable<String>(table));
+      variables.add(Variable(table));
     }
 
     buffer.write(' ORDER BY priority ASC, timestamp ASC');
@@ -110,7 +110,7 @@ class SqliteEventPersistence implements EventPersistence {
       final cutoff =
           DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
       buffer.write(' AND timestamp < ?');
-      variables.add(Variable<int>(cutoff));
+      variables.add(Variable(cutoff));
     }
 
     buffer.write(' ORDER BY timestamp ASC');
@@ -133,7 +133,7 @@ class SqliteEventPersistence implements EventPersistence {
   ) async {
     final rows = await _db.customSelect(
       'SELECT * FROM $_table WHERE correlation_id = ? ORDER BY timestamp ASC',
-      variables: [Variable<String>(correlationId)],
+      variables: [Variable(correlationId)],
     ).get();
 
     return rows.map(_rowToEvent).toList();
@@ -143,7 +143,7 @@ class SqliteEventPersistence implements EventPersistence {
   Future<EnhancedSyncEvent?> getById(String eventId) async {
     final row = await _db.customSelect(
       'SELECT * FROM $_table WHERE id = ? LIMIT 1',
-      variables: [Variable<String>(eventId)],
+      variables: [Variable(eventId)],
     ).getSingleOrNull();
 
     return row != null ? _rowToEvent(row) : null;
@@ -151,25 +151,25 @@ class SqliteEventPersistence implements EventPersistence {
 
   @override
   Future<void> updateRetryCount(String eventId, int retryCount) async {
-    await _db.customStatement(
+    await _db.customUpdate(
       'UPDATE $_table SET retry_count = ? WHERE id = ?',
-      variables: [Variable<int>(retryCount), Variable<String>(eventId)],
+      variables: [Variable(retryCount), Variable(eventId)],
     );
   }
 
   @override
   Future<void> markFailed(String eventId, String error) async {
-    await _db.customStatement(
+    await _db.customUpdate(
       'UPDATE $_table SET acknowledged = 1, error = ? WHERE id = ?',
-      variables: [Variable<String>(error), Variable<String>(eventId)],
+      variables: [Variable(error), Variable(eventId)],
     );
   }
 
   @override
   Future<void> delete(String eventId) async {
-    await _db.customStatement(
+    await _db.customUpdate(
       'DELETE FROM $_table WHERE id = ?',
-      variables: [Variable<String>(eventId)],
+      variables: [Variable(eventId)],
     );
   }
 
@@ -182,15 +182,15 @@ class SqliteEventPersistence implements EventPersistence {
       final cutoff =
           DateTime.now().subtract(olderThan).millisecondsSinceEpoch;
       buffer.write(' AND timestamp < ?');
-      variables.add(Variable<int>(cutoff));
+      variables.add(Variable(cutoff));
     }
 
-    await _db.customStatement(buffer.toString(), variables: variables);
+    await _db.customUpdate(buffer.toString(), variables: variables);
   }
 
   @override
   Future<void> clear() async {
-    await _db.customStatement('DELETE FROM $_table');
+    await _db.customUpdate('DELETE FROM $_table');
   }
 
   @override
@@ -200,7 +200,7 @@ class SqliteEventPersistence implements EventPersistence {
           'SELECT COUNT(*) AS count FROM $_table WHERE acknowledged = 0',
         )
         .getSingle();
-    return row.read<int>('count') ?? 0;
+    return row.read<int>('count');
   }
 
   @override
@@ -208,10 +208,10 @@ class SqliteEventPersistence implements EventPersistence {
     final row = await _db
         .customSelect(
           'SELECT COUNT(*) AS count FROM $_table WHERE table_name = ? AND acknowledged = 0',
-          variables: [Variable<String>(table)],
+          variables: [Variable(table)],
         )
         .getSingle();
-    return row.read<int>('count') ?? 0;
+    return row.read<int>('count');
   }
 
   @override
@@ -219,21 +219,21 @@ class SqliteEventPersistence implements EventPersistence {
     final totalRow = await _db
         .customSelect('SELECT COUNT(*) AS count FROM $_table')
         .getSingle();
-    final total = totalRow.read<int>('count') ?? 0;
+    final total = totalRow.read<int>('count');
 
     final pendingRow = await _db
         .customSelect(
           'SELECT COUNT(*) AS count FROM $_table WHERE acknowledged = 0',
         )
         .getSingle();
-    final pending = pendingRow.read<int>('count') ?? 0;
+    final pending = pendingRow.read<int>('count');
 
     final failedRow = await _db
         .customSelect(
           'SELECT COUNT(*) AS count FROM $_table WHERE error IS NOT NULL',
         )
         .getSingle();
-    final failed = failedRow.read<int>('count') ?? 0;
+    final failed = failedRow.read<int>('count');
 
     return {
       'total': total,
@@ -248,30 +248,25 @@ class SqliteEventPersistence implements EventPersistence {
 
   List<Variable> _eventVariables(EnhancedSyncEvent event) {
     return [
-      Variable<String>(event.id),
-      Variable<String>(event.table),
-      Variable<String>(event.operation.name),
-      Variable<String>(event.entityId),
-      Variable<String?>(
-        event.payload != null ? jsonEncode(event.payload) : null,
-      ),
-      Variable<String?>(
-        event.previousPayload != null ? jsonEncode(event.previousPayload) : null,
-      ),
-      Variable<String>(event.priority.name),
-      Variable<int>(event.timestamp.millisecondsSinceEpoch),
-      Variable<int?>(event.scheduledAt?.millisecondsSinceEpoch),
-      Variable<int>(event.retryCount),
-      Variable<int>(event.maxRetries),
-      Variable<String?>(event.correlationId),
-      Variable<String?>(event.causationId),
-      Variable<String?>(
-        event.metadata != null ? jsonEncode(event.metadata) : null,
-      ),
-      Variable<String>(event.source),
-      Variable<int>(event.acknowledged ? 1 : 0),
-      const Variable<String?>(null),
-      Variable<int>(DateTime.now().millisecondsSinceEpoch),
+      Variable(event.id),
+      Variable(event.table),
+      Variable(event.operation.name),
+      Variable(event.entityId),
+      Variable(event.payload != null ? jsonEncode(event.payload) : null),
+      Variable(
+          event.previousPayload != null ? jsonEncode(event.previousPayload) : null),
+      Variable(event.priority.name),
+      Variable(event.timestamp.millisecondsSinceEpoch),
+      Variable(event.scheduledAt?.millisecondsSinceEpoch),
+      Variable(event.retryCount),
+      Variable(event.maxRetries),
+      Variable(event.correlationId),
+      Variable(event.causationId),
+      Variable(event.metadata != null ? jsonEncode(event.metadata) : null),
+      Variable(event.source),
+      Variable(event.acknowledged ? 1 : 0),
+      const Variable(null),
+      Variable(DateTime.now().millisecondsSinceEpoch),
     ];
   }
 
@@ -279,38 +274,32 @@ class SqliteEventPersistence implements EventPersistence {
     final payload = row.read<String?>('payload');
     final previousPayload = row.read<String?>('previous_payload');
     final metadata = row.read<String?>('metadata');
-    final acknowledged = (row.read<int>('acknowledged') ?? 0) == 1;
+    final acknowledged = row.read<int>('acknowledged') == 1;
 
     return EnhancedSyncEvent(
-      id: row.read<String>('id') ?? '',
-      table: row.read<String>('table_name') ?? '',
-      operation: SyncOperation.values
-          .byName(row.read<String>('operation') ?? 'create'),
-      entityId: row.read<String>('entity_id') ?? '',
+      id: row.read<String>('id'),
+      table: row.read<String>('table_name'),
+      operation: SyncOperation.values.byName(row.read<String>('operation')),
+      entityId: row.read<String>('entity_id'),
       payload: payload != null
           ? jsonDecode(payload) as Map<String, dynamic>
           : null,
       previousPayload: previousPayload != null
           ? jsonDecode(previousPayload) as Map<String, dynamic>
           : null,
-      priority: SyncPriority.values
-          .byName(row.read<String>('priority') ?? 'normal'),
-      timestamp: DateTime.fromMillisecondsSinceEpoch(
-        row.read<int>('timestamp') ?? 0,
-      ),
+      priority: SyncPriority.values.byName(row.read<String>('priority')),
+      timestamp:
+          DateTime.fromMillisecondsSinceEpoch(row.read<int>('timestamp')),
       scheduledAt: row.read<int?>('scheduled_at') != null
-          ? DateTime.fromMillisecondsSinceEpoch(
-              row.read<int?>('scheduled_at')!,
-            )
+          ? DateTime.fromMillisecondsSinceEpoch(row.read<int?>('scheduled_at')!)
           : null,
-      retryCount: row.read<int>('retry_count') ?? 0,
-      maxRetries: row.read<int>('max_retries') ?? 3,
+      retryCount: row.read<int>('retry_count'),
+      maxRetries: row.read<int>('max_retries'),
       correlationId: row.read<String?>('correlation_id'),
       causationId: row.read<String?>('causation_id'),
-      metadata: metadata != null
-          ? jsonDecode(metadata) as Map<String, dynamic>
-          : null,
-      source: row.read<String>('source') ?? 'local',
+      metadata:
+          metadata != null ? jsonDecode(metadata) as Map<String, dynamic> : null,
+      source: row.read<String>('source'),
       acknowledged: acknowledged,
     );
   }
