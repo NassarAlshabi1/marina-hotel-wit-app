@@ -1783,6 +1783,7 @@ class AppwriteSyncManager {
   }
 
   // Getters
+  AppDatabase get db => database;
   SyncStatus get currentStatus => _currentStatus;
   DateTime? get lastSyncTime => _lastSyncTime;
   String? get currentDeviceId => _currentDeviceId;
