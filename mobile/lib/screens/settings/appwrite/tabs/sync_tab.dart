@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/core.dart';
 import '../../../../providers/appwrite_providers.dart' as ap;
 import '../../../../services/appwrite_config.dart';
+import '../../../../services/appwrite_cache_manager.dart';
 
 /// Appwrite Sync Tab - إدارة المزامنة مع Appwrite
 class AppwriteSyncTab extends ConsumerStatefulWidget {
@@ -383,6 +384,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     );
   }
 
+  // ignore: unused_element
   void _showIntervalDialog() {
     showDialog(
       context: context,

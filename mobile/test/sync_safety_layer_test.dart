@@ -4,6 +4,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync_safety_layer.dart';
+import 'package:marina_hotel_mobile/utils/id.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -30,7 +32,10 @@ void main() {
           ShiftNotesCompanion.insert(
             title: 'ملاحظة اختبار',
             content: 'قبل المزامنة',
-            createdAt: DateTime.now().toIso8601String(),
+            localUuid: IdGen.uuid(),
+            createdAt: Time.nowEpoch(),
+            updatedAt: Time.nowEpoch(),
+            lastModified: Time.nowEpoch(),
           ),
         );
 

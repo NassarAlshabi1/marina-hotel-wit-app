@@ -1922,7 +1922,7 @@ class AppwriteSyncManager {
   }
 
   Future<SalaryPayment?> _getSalaryPaymentByLocalUuid(String uuid) {
-     return (db.select(db.salaryPayments)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
+     return (database.select(database.salaryPayments)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
   }
 
   Future<bool> _processCashTransactionEntry(OutboxData entry) async {
@@ -1951,7 +1951,7 @@ class AppwriteSyncManager {
   }
 
   Future<CashTransaction?> _getCashTransactionByLocalUuid(String uuid) {
-    return (db.select(db.cashTransactions)
+    return (database.select(database.cashTransactions)
           ..where((t) => t.localUuid.equals(uuid))
           ..limit(1))
         .getSingleOrNull();
@@ -1983,7 +1983,7 @@ class AppwriteSyncManager {
   }
 
   Future<ShiftNote?> _getShiftNoteByLocalUuid(String uuid) {
-    return (db.select(db.shiftNotes)
+    return (database.select(database.shiftNotes)
           ..where((t) => t.localUuid.equals(uuid))
           ..limit(1))
         .getSingleOrNull();
@@ -2011,7 +2011,7 @@ class AppwriteSyncManager {
   }
 
   Future<Employee?> _getEmployeeByLocalUuid(String uuid) {
-     return (db.select(db.employees)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
+     return (database.select(database.employees)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
   }
 
   Future<bool> _processBookingNoteEntry(OutboxData entry) async {
@@ -2036,7 +2036,7 @@ class AppwriteSyncManager {
     return true;
   }
    Future<BookingNote?> _getBookingNoteByLocalUuid(String uuid) {
-     return (db.select(db.bookingNotes)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
+     return (database.select(database.bookingNotes)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
   }
 
   Future<bool> _processBookingNightEntry(OutboxData entry) async {
@@ -2061,7 +2061,7 @@ class AppwriteSyncManager {
   }
 
    Future<BookingNight?> _getBookingNightByLocalUuid(String uuid) {
-     return (db.select(db.bookingNights)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
+     return (database.select(database.bookingNights)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
   }
 
 
@@ -2087,7 +2087,7 @@ class AppwriteSyncManager {
   }
 
    Future<SalaryCycle?> _getSalaryCycleByLocalUuid(String uuid) {
-     return (db.select(db.salaryCycles)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
+     return (database.select(database.salaryCycles)..where((t) => t.localUuid.equals(uuid))..limit(1)).getSingleOrNull();
   }
 
 

@@ -97,7 +97,9 @@ class BlacklistRepository {
       notes: payload['notes'] as String?,
       reportedBy: (payload['reportedBy'] as String?) ?? 'police',
       active: (payload['active'] as bool?) ?? true,
-      createdAt: DateTime.tryParse(row.createdAt) ?? DateTime.now(),
+      createdAt: row.createdAtIso != null
+          ? DateTime.tryParse(row.createdAtIso!) ?? DateTime.now()
+          : DateTime.fromMillisecondsSinceEpoch(row.createdAt * 1000),
     );
   }
 
@@ -144,7 +146,8 @@ class BlacklistRepository {
             ),
             priority: const d.Value('high'),
             shiftType: const d.Value('all'),
-            createdAt: d.Value(DateTime.now().toIso8601String()),
+            createdAt: d.Value(DateTime.now().millisecondsSinceEpoch ~/ 1000),
+            createdAtIso: d.Value(DateTime.now().toIso8601String()),
             expiresAt: const d.Value(null),
             isRead: const d.Value(0),
             createdBy: const d.Value(_createdByTag),

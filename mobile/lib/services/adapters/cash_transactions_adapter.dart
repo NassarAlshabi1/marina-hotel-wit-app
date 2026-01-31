@@ -30,8 +30,10 @@ class CashTransactionsAdapter
     final uuid = _asString(json, 'localUuid', src) ??
         _asString(json, 'local_uuid', src) ??
         IdGen.uuid();
+    // ignore: unused_local_variable
     final serverId =
         _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
+    // ignore: unused_local_variable
     final localId = _asInt(json, 'id', src);
 
     final createdAt = _epoch(json, 'createdAt', src);

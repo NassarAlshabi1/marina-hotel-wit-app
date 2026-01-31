@@ -5,7 +5,6 @@ import 'appwrite_logger.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_cache_manager.dart';
 import 'appwrite_network_helper.dart';
-import 'sync_constants.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
 class AppwriteService {
@@ -17,6 +16,7 @@ class AppwriteService {
   late final Databases _databases;
 
   final _logger = AppwriteLogger();
+  // ignore: unused_field
   final _errorHandler = AppwriteErrorHandler();
   final _cache = AppwriteCacheManager();
   final _networkHelper = AppwriteNetworkHelper();
@@ -744,6 +744,106 @@ class AppwriteService {
         }
       }
     }
+  }
+
+  /// اختبار الاتصال (alias لـ fullConnectionTest)
+  Future<Map<String, dynamic>> testConnection() => fullConnectionTest();
+
+  /// Getter للتحقق من حالة التهيئة
+  bool get isInitialized => _initialized;
+
+  /// قراءة مستند واحد
+  Future<models.Document> getDocument({
+    required String collectionId,
+    required String documentId,
+  }) async {
+    _ensureInitialized();
+    return await _networkHelper.withTimeout(
+      operation: () => _databases.getDocument(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: collectionId,
+        documentId: documentId,
+      ),
+      operationName: 'getDocument($collectionId/$documentId)',
+    );
+  }
+
+  /// إنشاء مستند جديد
+  Future<models.Document> createDocument({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) async {
+    _ensureInitialized();
+    return await _networkHelper.withTimeout(
+      operation: () => _databases.createDocument(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: collectionId,
+        documentId: documentId,
+        data: data,
+      ),
+      operationName: 'createDocument($collectionId/$documentId)',
+    );
+  }
+
+  /// تحديث مستند موجود
+  Future<models.Document> updateDocument({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) async {
+    _ensureInitialized();
+    return await _networkHelper.withTimeout(
+      operation: () => _databases.updateDocument(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: collectionId,
+        documentId: documentId,
+        data: data,
+      ),
+      operationName: 'updateDocument($collectionId/$documentId)',
+    );
+  }
+
+  /// إنشاء سجل مزامنة
+  Future<models.Document> createSyncLog(Map<String, dynamic> data) async {
+    return await createDocument(
+      collectionId: AppwriteConfig.syncLogsCollectionId,
+      documentId: data['localUuid'] ?? 'ID.unique()',
+      data: data,
+    );
+  }
+
+  /// جلب سجلات المزامنة
+  Future<List<models.Document>> listSyncLogs({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    return await listDocuments(
+      collectionId: AppwriteConfig.syncLogsCollectionId,
+      queries: queries,
+      useCache: useCache,
+    );
+  }
+
+  /// إنشاء جهاز
+  Future<models.Document> createDevice(Map<String, dynamic> data) async {
+    return await createDocument(
+      collectionId: AppwriteConfig.devicesCollectionId,
+      documentId: data['localUuid'] ?? 'ID.unique()',
+      data: data,
+    );
+  }
+
+  /// جلب الأجهزة
+  Future<List<models.Document>> listDevices({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    return await listDocuments(
+      collectionId: AppwriteConfig.devicesCollectionId,
+      queries: queries,
+      useCache: useCache,
+    );
   }
 
   /// الحصول على معلومات المشروع

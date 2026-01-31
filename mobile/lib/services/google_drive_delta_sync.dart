@@ -468,6 +468,7 @@ class GoogleDriveDeltaSync {
     }
   }
 
+  // ignore: unused_element
   Future<void> _applyCashTransactionChange(
     AppDatabase db,
     String localUuid,

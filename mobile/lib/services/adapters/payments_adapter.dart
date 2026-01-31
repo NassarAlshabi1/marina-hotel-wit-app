@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart' as d;
-
+import 'package:flutter/foundation.dart';
 import '../local_db.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
@@ -43,7 +43,7 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
     // تحذير إذا كان لدينا booking_local_id لكن لم نتمكن من حل المرجع
     if (resolvedId == null && localId != null) {
       // تسجيل تحذير فقط، سيتم معالجة الخطأ في _syncPayments
-      print('[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId');
+      debugPrint('[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId');
     }
     
     final createdAt = _epoch(json, 'createdAt', src);
