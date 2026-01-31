@@ -236,7 +236,7 @@ class Debts extends Table with SyncFields {
 }
 
 // جدول الملاحظات البسيط
-class ShiftNotes extends Table {
+class ShiftNotes extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get title => text()();
   TextColumn get content => text()();
@@ -247,7 +247,7 @@ class ShiftNotes extends Table {
       )(); // morning, evening, night, all
   IntColumn get isRead =>
       integer().withDefault(const Constant(0))(); // 0 = غير مقروء، 1 = مقروء
-  TextColumn get createdAt => text()();
+  TextColumn get noteCreatedAt => text()();
   TextColumn get expiresAt => text().nullable()();
   TextColumn get createdBy => text().withDefault(const Constant('user'))();
 }
