@@ -41,8 +41,8 @@ jobs:
       - name: 🤖 Commit auto-fixes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: auto-fix lint/format issues"
-          file_pattern: "mobile/**/*.dart"
+          commit_message: "chore: auto-fix lint/format issues and regenerate code"
+          file_pattern: "mobile/**/*.dart mobile/**/*.g.dart"
 
       - name: 🔍 flutter analyse
         working-directory: mobile

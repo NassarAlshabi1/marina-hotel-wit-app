@@ -562,7 +562,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               Navigator.pop(context);
               await _runFullPush();
             },
-            child: const Text('رفع جميع البيانات'),
+            child: const Text('رفع شامل'),
           ),
         ],
       ),
@@ -572,10 +572,24 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   Future<void> _runFullPush() async {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('جاري رفع جميع البيانات إلى Appwrite...'),
-        duration: Duration(seconds: 2),
+    // إظهار مؤشر التحميل
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('جاري الرفع الشامل إلى Appwrite...'),
+            SizedBox(height: 8),
+            Text(
+              'قد تستغرق هذه العملية عدة دقائق',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
       ),
     );
 
@@ -586,12 +600,16 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       ref.invalidate(ap.syncStatsProvider);
 
       if (!mounted) return;
+      
+      // إغلاق مؤشر التحميل
+      Navigator.pop(context);
 
       final totalRecords = stats.entries
           .where((e) => e.key != 'errors')
           .fold<int>(0, (sum, e) => sum + (e.value));
       final errors = stats['errors'] ?? 0;
 
+      // إظهار النتائج
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -602,7 +620,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 color: errors == 0 ? Colors.green : Colors.orange,
               ),
               const SizedBox(width: 8),
-              const Text('نتيجة الرفع'),
+              const Text('نتيجة الرفع الشامل'),
             ],
           ),
           content: SingleChildScrollView(
@@ -610,13 +628,44 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('تم رفع $totalRecords سجل بنجاح'),
-                if (errors > 0) Text('أخطاء: $errors', style: const TextStyle(color: Colors.red)),
-                const SizedBox(height: 12),
-                const Text('التفاصيل:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  'تم رفع $totalRecords سجل بنجاح',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (errors > 0) 
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'أخطاء: $errors',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                const Text(
+                  'التفاصيل:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 ...stats.entries.where((e) => e.key != 'errors').map((e) => 
-                  Text('• ${_translateEntity(e.key)}: ${e.value}')
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('• ${_translateEntity(e.key)}'),
+                        Text(
+                          '${e.value}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
                 ),
               ],
             ),
@@ -631,10 +680,15 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       );
     } catch (e) {
       if (!mounted) return;
+      
+      // إغلاق مؤشر التحميل في حالة الخطأ
+      Navigator.pop(context);
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('فشل الرفع: $e'),
+          content: Text('فشل الرفع الشامل: $e'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
         ),
       );
     }
