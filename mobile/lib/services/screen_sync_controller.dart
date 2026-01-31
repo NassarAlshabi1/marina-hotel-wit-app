@@ -95,15 +95,14 @@ class ScreenSyncController {
 
       if (!networkValidation.isValid) {
         debugPrint('📴 [$screenId] ${networkValidation.error}');
-        await _addToQueue();
+        // تم إلغاء SyncQueue لصالح Outbox - سيتم المزامنة تلقائياً عند عودة الاتصال
         return false;
       }
 
       if (!SmartSyncManager.instance.isDriveSignedIn) {
         debugPrint(
-          '🔒 [$screenId] المستخدم غير مسجل في Google Drive - إضافة التغيير للطابور',
+          '🔒 [$screenId] المستخدم غير مسجل في Google Drive',
         );
-        await _addToQueue();
         return false;
       }
 
@@ -144,14 +143,12 @@ class ScreenSyncController {
         debugPrint('✅ [$screenId] تمت المزامنة بنجاح');
         return true;
       } else {
-        debugPrint('⚠️ [$screenId] فشل الرفع - إضافة للطابور');
-        await _addToQueue();
+        debugPrint('⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox');
         return false;
       }
     } on CircuitBreakerOpenException catch (e) {
       debugPrint('🔌 [$screenId] Circuit breaker مفتوح: $e');
       _emitStatus(SyncStatus.error);
-      await _addToQueue();
       return false;
     } catch (e, stackTrace) {
       SyncErrorHandler.instance.handleError(
@@ -161,7 +158,6 @@ class ScreenSyncController {
       );
       debugPrint('❌ [$screenId] خطأ في المزامنة: $e');
       _emitStatus(SyncStatus.error);
-      await _addToQueue();
       return false;
     } finally {
       await SyncLocks.screenSyncLock.synchronized(() async {
@@ -170,36 +166,9 @@ class ScreenSyncController {
     }
   }
 
+  // تم إيقاف استخدام SyncQueue
   Future<void> _addToQueue() async {
-    try {
-      final data = {
-        'timestamp': DateTime.now().toIso8601String(),
-        'screenId': screenId,
-      };
-
-      final validation = SyncValidator.instance.validateSyncData(data);
-      SyncValidator.instance.logValidationResult('Queue data', validation);
-
-      if (!validation.isValid) {
-        debugPrint('❌ [$screenId] بيانات غير صالحة: ${validation.error}');
-        _emitStatus(SyncStatus.error);
-        return;
-      }
-
-      await SyncQueueService.instance.addToQueue(
-        screenId: screenId,
-        data: data,
-      );
-      _hasChanges = false;
-      _emitStatus(SyncStatus.queued);
-    } catch (e, stackTrace) {
-      SyncErrorHandler.instance.handleError(
-        e,
-        stackTrace: stackTrace,
-        context: {'screenId': screenId, 'operation': 'addToQueue'},
-      );
-      _emitStatus(SyncStatus.error);
-    }
+    // No-op
   }
 
   void _emitStatus(SyncStatus status) {

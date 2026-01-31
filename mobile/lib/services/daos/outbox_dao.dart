@@ -341,6 +341,30 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           );
         }
         break;
+      case 'cash_transactions':
+        final row = await (select(db.cashTransactions)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.cashTransactions.toJsonForSource(
+            row,
+            src: Source.appwrite,
+          );
+        }
+        break;
+      case 'shift_notes':
+        final row = await (select(db.shiftNotes)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          return adapters.shiftNotes.toJsonForSource(
+            row,
+            src: Source.appwrite,
+          );
+        }
+        break;
     }
     return fallback;
   }

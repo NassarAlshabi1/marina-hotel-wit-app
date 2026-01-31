@@ -379,7 +379,10 @@ class GoogleDriveDeltaSync {
         );
         break;
       case 'cash_transactions':
-        await _applyCashTransactionChange(db, localUuid, operation, payload);
+        await registry.cashTransactions.upsertFromJson(payload, src: Source.drive);
+        break;
+      case 'shift_notes':
+        await registry.shiftNotes.upsertFromJson(payload, src: Source.drive);
         break;
     }
   }
@@ -453,6 +456,12 @@ class GoogleDriveDeltaSync {
       case 'cash_transactions':
         await (db.delete(
           db.cashTransactions,
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
+        return;
+      case 'shift_notes':
+        await (db.delete(
+          db.shiftNotes,
         )..where((t) => t.localUuid.equals(localUuid)))
             .go();
         return;

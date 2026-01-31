@@ -11,6 +11,8 @@ import 'employees_adapter.dart';
 import 'salary_cycles_adapter.dart';
 import 'salary_payments_adapter.dart';
 import 'booking_notes_adapter.dart';
+import 'cash_transactions_adapter.dart';
+import 'shift_notes_adapter.dart';
 
 class AdapterRegistry {
   AdapterRegistry(this.db)
@@ -64,6 +66,16 @@ class AdapterRegistry {
           db: db,
           table: db.bookingNotes,
           adapter: BookingNotesAdapter(IdResolver(db)),
+        ),
+        cashTransactions = BaseRepository<CashTransaction, CashTransactionsCompanion>(
+          db: db,
+          table: db.cashTransactions,
+          adapter: CashTransactionsAdapter(IdResolver(db)),
+        ),
+        shiftNotes = BaseRepository<ShiftNote, ShiftNotesCompanion>(
+          db: db,
+          table: db.shiftNotes,
+          adapter: ShiftNotesAdapter(IdResolver(db)),
         );
 
   final AppDatabase db;
@@ -78,4 +90,7 @@ class AdapterRegistry {
   final BaseRepository<SalaryCycle, SalaryCyclesCompanion> salaryCycles;
   final BaseRepository<SalaryPayment, SalaryPaymentsCompanion> salaryPayments;
   final BaseRepository<BookingNote, BookingNotesCompanion> bookingNotes;
+  final BaseRepository<CashTransaction, CashTransactionsCompanion>
+      cashTransactions;
+  final BaseRepository<ShiftNote, ShiftNotesCompanion> shiftNotes;
 }

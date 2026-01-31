@@ -1,12 +1,17 @@
 import 'package:drift/drift.dart';
+import '../../utils/id.dart';
+import '../../utils/time.dart';
 import '../local_db.dart';
+import 'outbox_dao.dart';
 
 part 'shift_notes_dao.g.dart';
 
 @DriftAccessor(tables: [ShiftNotes])
 class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     with _$ShiftNotesDaoMixin {
-  ShiftNotesDao(super.db);
+  ShiftNotesDao(super.db, this.outboxDao);
+
+  final OutboxDao outboxDao;
 
   // جلب جميع الملاحظات
   Future<List<ShiftNote>> getAllNotes() => select(shiftNotes).get();
@@ -26,19 +31,48 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     String priority = 'medium',
     String shiftType = 'all',
     String? expiresAt,
-  }) {
-    return into(shiftNotes).insert(
-      ShiftNotesCompanion(
+    bool originIsServer = false,
+  }) async {
+    return transaction(() async {
+      final now = Time.nowEpoch();
+      final uuid = IdGen.uuid();
+      final companion = ShiftNotesCompanion(
         title: Value(title),
         content: Value(content),
         priority: Value(priority),
         shiftType: Value(shiftType),
-        createdAt: Value(DateTime.now().toIso8601String()),
-        expiresAt: Value(expiresAt),
+        createdAt: Value(now), // Using epoch int as per SyncFields
+        createdAtIso: Value(DateTime.now().toIso8601String()),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        expiresAt: expiresAt != null ? Value(expiresAt) : const Value.absent(),
         isRead: const Value(0),
         createdBy: const Value('user'),
-      ),
-    );
+        localUuid: Value(uuid),
+      );
+
+      final id = await into(shiftNotes).insert(companion);
+
+      if (!originIsServer) {
+        await outboxDao.merge(
+          entity: 'shift_notes',
+          op: 'create',
+          localUuid: uuid,
+          serverId: null,
+          payload: {
+            'title': title,
+            'content': content,
+            'priority': priority,
+            'shift_type': shiftType,
+            'expires_at': expiresAt,
+            'is_read': 0,
+            'created_by': 'user',
+          },
+          clientTs: now,
+        );
+      }
+      return id;
+    });
   }
 
   // تحديث ملاحظة
@@ -49,40 +83,142 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     String? priority,
     String? shiftType,
     String? expiresAt,
+    bool originIsServer = false,
   }) async {
-    final companion = ShiftNotesCompanion(
-      title: title != null ? Value(title) : const Value.absent(),
-      content: content != null ? Value(content) : const Value.absent(),
-      priority: priority != null ? Value(priority) : const Value.absent(),
-      shiftType: shiftType != null ? Value(shiftType) : const Value.absent(),
-      expiresAt: expiresAt != null ? Value(expiresAt) : const Value.absent(),
-    );
+    return transaction(() async {
+      final existing = await (select(shiftNotes)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing == null) return false;
 
-    final rows = await (update(
-      shiftNotes,
-    )..where((t) => t.id.equals(id)))
-        .write(companion);
-    return rows > 0;
+      final now = Time.nowEpoch();
+      final companion = ShiftNotesCompanion(
+        title: title != null ? Value(title) : const Value.absent(),
+        content: content != null ? Value(content) : const Value.absent(),
+        priority: priority != null ? Value(priority) : const Value.absent(),
+        shiftType: shiftType != null ? Value(shiftType) : const Value.absent(),
+        expiresAt: expiresAt != null ? Value(expiresAt) : const Value.absent(),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      );
+
+      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
+          .write(companion);
+
+      if (rows > 0 && !originIsServer) {
+        final payload = <String, dynamic>{};
+        if (title != null) payload['title'] = title;
+        if (content != null) payload['content'] = content;
+        if (priority != null) payload['priority'] = priority;
+        if (shiftType != null) payload['shift_type'] = shiftType;
+        if (expiresAt != null) payload['expires_at'] = expiresAt;
+
+        if (payload.isNotEmpty) {
+          await outboxDao.merge(
+            entity: 'shift_notes',
+            op: 'update',
+            localUuid: existing.localUuid,
+            serverId: existing.serverId,
+            payload: payload,
+            clientTs: now,
+          );
+        }
+      }
+      return rows > 0;
+    });
   }
 
   // وضع علامة مقروء
-  Future<bool> markAsRead(int id) async {
-    final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
-        .write(const ShiftNotesCompanion(isRead: Value(1)));
-    return rows > 0;
+  Future<bool> markAsRead(int id, {bool originIsServer = false}) async {
+    return transaction(() async {
+      final existing = await (select(shiftNotes)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing == null) return false;
+
+      final now = Time.nowEpoch();
+      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
+          .write(ShiftNotesCompanion(
+        isRead: const Value(1),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'shift_notes',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: {'is_read': 1},
+          clientTs: now,
+        );
+      }
+      return rows > 0;
+    });
   }
 
   // وضع علامة غير مقروء
-  Future<bool> markAsUnread(int id) async {
-    final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
-        .write(const ShiftNotesCompanion(isRead: Value(0)));
-    return rows > 0;
+  Future<bool> markAsUnread(int id, {bool originIsServer = false}) async {
+    return transaction(() async {
+      final existing = await (select(shiftNotes)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing == null) return false;
+
+      final now = Time.nowEpoch();
+      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
+          .write(ShiftNotesCompanion(
+        isRead: const Value(0),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'shift_notes',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: {'is_read': 0},
+          clientTs: now,
+        );
+      }
+      return rows > 0;
+    });
   }
 
   // حذف ملاحظة
-  Future<bool> deleteNote(int id) async {
-    final rows = await (delete(shiftNotes)..where((t) => t.id.equals(id))).go();
-    return rows > 0;
+  Future<bool> deleteNote(int id, {bool originIsServer = false}) async {
+    return transaction(() async {
+      final existing = await (select(shiftNotes)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing == null) return false; // Already deleted or doesn't exist
+
+      // Soft delete if using SyncFields, but original code used hard delete.
+      // SyncFields mixin usually implies soft delete (deletedAt).
+      // Let's check if we should soft delete.
+      // The original code: final rows = await (delete(shiftNotes)..where((t) => t.id.equals(id))).go();
+      // If we hard delete, we lose history for sync unless we track deletions separately.
+      // SyncFields adds `deletedAt`. We should use Soft Delete.
+
+      final now = Time.nowEpoch();
+      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
+          .write(ShiftNotesCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      ));
+
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'shift_notes',
+          op: 'delete',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: {}, // Payload often empty for delete, or ID only
+          clientTs: now,
+        );
+      }
+      return rows > 0;
+    });
   }
 
   // عدد الملاحظات غير المقروءة
