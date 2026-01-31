@@ -669,11 +669,9 @@ class AppwriteService {
           message.contains('document_not_found') ||
           message.contains('404');
       if (!notFound) {
-        // أي خطأ غير 404 يُعاد رميه ليرتفع.
-        // حالات التعارض 409 تُحلّ بالمسار التالي (الإنشاء مع نفس المعرّف سيستبدل).
-      } else {
-        // سيسقط إلى الإنشاء في الأسفل
+        rethrow;
       }
+      // Document not found - fall through to create
     }
 
     try {
