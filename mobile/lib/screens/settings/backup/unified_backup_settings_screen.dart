@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/core.dart';
 import '../../../components/app_scaffold.dart';
+import '../../../services/sync_core/sync_core.dart';
 
 /// Unified Backup Settings Screen
 ///
@@ -55,6 +56,19 @@ class _UnifiedBackupSettingsScreenState
   }
 
   Widget _buildOverviewSection() {
+    final statusesAsync = ref.watch(adapterStatusesProvider);
+    final localStatus = statusesAsync.valueOrNull?[SyncTargetType.localJson];
+    final driveStatus = statusesAsync.valueOrNull?[SyncTargetType.googleDrive];
+
+    final lastBackupAt = localStatus?.lastSyncAt ?? driveStatus?.lastSyncAt;
+    final lastBackupLabel = lastBackupAt != null
+        ? DateTimeFormatter.getRelativeTime(lastBackupAt.toIso8601String())
+        : 'غير متوفر';
+    final backupCount =
+        (localStatus?.metadata?['backupCount'] as int?) ?? 0;
+    final directory = localStatus?.metadata?['directory'] as String? ??
+        'غير متوفر';
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -85,17 +99,17 @@ class _UnifiedBackupSettingsScreenState
             const SizedBox(height: UIConstants.spacingMD),
             InfoRow(
               label: 'آخر نسخة احتياطية',
-              value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
+              value: lastBackupLabel,
               icon: Icons.schedule,
             ),
             InfoRow(
-              label: 'حجم قاعدة البيانات',
-              value: FileSizeFormatter.formatBytes(1024 * 1024 * 15),
-              icon: Icons.storage,
+              label: 'موقع النسخ المحلي',
+              value: directory,
+              icon: Icons.folder,
             ),
             InfoRow(
               label: 'عدد النسخ',
-              value: '5 نسخ',
+              value: '$backupCount',
               icon: Icons.layers,
             ),
           ],
@@ -162,6 +176,16 @@ class _UnifiedBackupSettingsScreenState
   }
 
   Widget _buildGoogleDriveSection() {
+    final statusesAsync = ref.watch(adapterStatusesProvider);
+    final status = statusesAsync.valueOrNull?[SyncTargetType.googleDrive];
+    final isEnabled = status?.isEnabled ?? false;
+    final isSignedIn = status?.metadata?['isSignedIn'] as bool? ?? false;
+    final connectionLabel = status == null
+        ? 'جاري التحقق...'
+        : isSignedIn
+            ? 'متصل'
+            : 'غير متصل';
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -192,34 +216,47 @@ class _UnifiedBackupSettingsScreenState
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('النسخ إلى Google Drive'),
-            subtitle: const Text('نسخ احتياطي على السحابة'),
-            value: true,
-            onChanged: (value) {},
+            subtitle: Text('حالة الاتصال: $connectionLabel'),
+            value: isEnabled,
+            onChanged: status == null
+                ? null
+                : (value) async {
+                    final adapter =
+                        ref.read(googleDriveAdapterProvider);
+                    await adapter.initialize();
+                    await adapter.setEnabled(value);
+                    ref.refresh(adapterStatusesProvider);
+                  },
             secondary: const Icon(Icons.cloud_upload),
           ),
           const Divider(height: 1),
           ListTile(
-            title: const Text('الحساب المتصل'),
-            subtitle: const Text('user@gmail.com'),
+            title: Text(isSignedIn ? 'تسجيل الخروج' : 'تسجيل الدخول'),
+            subtitle: Text(isSignedIn ? 'الحساب متصل' : 'لم يتم تسجيل الدخول'),
             leading: const Icon(Icons.account_circle),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: () async {
+              final adapter = ref.read(googleDriveAdapterProvider);
+              await adapter.initialize();
+              if (isSignedIn) {
+                await adapter.signOut();
+              } else {
+                await adapter.signIn();
+              }
+              ref.refresh(adapterStatusesProvider);
+            },
           ),
           const Divider(height: 1),
           ListTile(
-            title: const Text('المساحة المستخدمة'),
-            subtitle: const Text('25 ميجابايت من 15 جيجابايت'),
-            leading: const Icon(Icons.cloud_queue),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
-          ),
-          const Divider(height: 1),
-          SwitchListTile(
-            title: const Text('ضغط الملفات'),
-            subtitle: const Text('ضغط النسخ قبل الرفع لتوفير المساحة'),
-            value: true,
-            onChanged: (value) {},
-            secondary: const Icon(Icons.compress),
+            title: const Text('آخر مزامنة'),
+            subtitle: Text(
+              status?.lastSyncAt != null
+                  ? DateTimeFormatter.getRelativeTime(
+                      status!.lastSyncAt!.toIso8601String(),
+                    )
+                  : 'غير متوفر',
+            ),
+            leading: const Icon(Icons.schedule),
           ),
         ],
       ),
@@ -227,6 +264,13 @@ class _UnifiedBackupSettingsScreenState
   }
 
   Widget _buildLocalBackupSection() {
+    final statusesAsync = ref.watch(adapterStatusesProvider);
+    final status = statusesAsync.valueOrNull?[SyncTargetType.localJson];
+    final isEnabled = status?.isEnabled ?? true;
+    final directory = status?.metadata?['directory'] as String? ??
+        'غير متوفر';
+    final backupCount = status?.metadata?['backupCount'] as int? ?? 0;
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -255,26 +299,37 @@ class _UnifiedBackupSettingsScreenState
             ),
           ),
           const Divider(height: 1),
+          SwitchListTile(
+            title: const Text('تفعيل النسخ المحلي'),
+            subtitle: Text('عدد النسخ: $backupCount'),
+            value: isEnabled,
+            onChanged: status == null
+                ? null
+                : (value) async {
+                    final adapter = ref.read(localJsonAdapterProvider);
+                    await adapter.initialize();
+                    await adapter.setEnabled(value);
+                    ref.refresh(adapterStatusesProvider);
+                  },
+            secondary: const Icon(Icons.save),
+          ),
+          const Divider(height: 1),
           ListTile(
             title: const Text('موقع التخزين'),
-            subtitle: const Text('/storage/emulated/0/Marina Hotel/backups'),
+            subtitle: Text(directory),
             leading: const Icon(Icons.folder),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
           ),
           const Divider(height: 1),
           ListTile(
-            title: const Text('المساحة المتاحة'),
-            subtitle: const Text('12.5 جيجابايت من 64 جيجابايت'),
-            leading: const Icon(Icons.sd_storage),
-          ),
-          const Divider(height: 1),
-          SwitchListTile(
-            title: const Text('النسخ على بطاقة SD'),
-            subtitle: const Text('استخدام بطاقة SD إن وُجدت'),
-            value: false,
-            onChanged: (value) {},
-            secondary: const Icon(Icons.sd_card),
+            title: const Text('آخر نسخة'),
+            subtitle: Text(
+              status?.lastSyncAt != null
+                  ? DateTimeFormatter.getRelativeTime(
+                      status!.lastSyncAt!.toIso8601String(),
+                    )
+                  : 'غير متوفر',
+            ),
+            leading: const Icon(Icons.schedule),
           ),
         ],
       ),
@@ -384,10 +439,47 @@ class _UnifiedBackupSettingsScreenState
     );
   }
 
-  void _performBackupNow() {
+  Future<void> _performBackupNow() async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('جاري إنشاء نسخة احتياطية...')),
     );
+
+    try {
+      final local = ref.read(localJsonAdapterProvider);
+      await local.initialize();
+      final localStatus = await local.getStatus();
+      if (localStatus.isEnabled) {
+        await local.createBackup(tag: 'manual');
+      }
+
+      final drive = ref.read(googleDriveAdapterProvider);
+      await drive.initialize();
+      final driveStatus = await drive.getStatus();
+      if (driveStatus.isEnabled && driveStatus.isConnected) {
+        await drive.createBackup(tag: 'manual');
+      }
+
+      ref.refresh(adapterStatusesProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إنشاء النسخة الاحتياطية')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل النسخ الاحتياطي: $e')),
+      );
+    }
+  }
+
+  Future<void> _deleteAllBackups() async {
+    final local = ref.read(localJsonAdapterProvider);
+    await local.initialize();
+    final backups = await local.listBackups();
+    for (final backup in backups) {
+      await local.deleteBackup(backup.id);
+    }
+    ref.refresh(adapterStatusesProvider);
   }
 
   void _showDeleteAllBackupsDialog() {
@@ -404,8 +496,10 @@ class _UnifiedBackupSettingsScreenState
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+              await _deleteAllBackups();
+              if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('تم حذف جميع النسخ الاحتياطية')),
               );

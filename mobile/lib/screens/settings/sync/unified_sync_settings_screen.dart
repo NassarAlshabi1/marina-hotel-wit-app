@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/core.dart';
 import '../../../components/app_scaffold.dart';
+import '../../../services/sync_core/sync_core.dart';
+import '../../../services/sync_core/sync_integration.dart';
 
 /// Unified Sync Settings Screen
 ///
@@ -28,12 +30,14 @@ class _UnifiedSyncSettingsScreenState
       body: ListView(
         padding: const EdgeInsets.all(UIConstants.spacingMD),
         children: [
-          // نظرة عامة
           _buildOverviewSection(),
 
           const SizedBox(height: UIConstants.spacingLG),
 
-          // الإعدادات العامة
+          _buildTargetsSection(),
+
+          const SizedBox(height: UIConstants.spacingLG),
+
           _buildGeneralSettingsSection(),
 
           const SizedBox(height: UIConstants.spacingLG),
@@ -61,6 +65,17 @@ class _UnifiedSyncSettingsScreenState
   }
 
   Widget _buildOverviewSection() {
+    final stateAsync = ref.watch(syncRouterStateProvider);
+    final pendingAsync = ref.watch(pendingEventsCountProvider);
+    final syncState = ref.watch(syncNotifierProvider);
+
+    final state = stateAsync.valueOrNull ?? SyncRouterState.idle;
+    final pendingCount = pendingAsync.valueOrNull ?? 0;
+    final lastSyncAt = syncState.lastSyncAt;
+    final lastSyncLabel = lastSyncAt != null
+        ? DateTimeFormatter.getRelativeTime(lastSyncAt.toIso8601String())
+        : 'غير متوفر';
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -86,30 +101,99 @@ class _UnifiedSyncSettingsScreenState
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const Spacer(),
+                const SyncStatusIndicator(),
+                const SizedBox(width: 8),
+                const SyncButton(),
               ],
             ),
             const SizedBox(height: UIConstants.spacingMD),
             InfoRow(
               label: 'آخر مزامنة',
-              value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
+              value: lastSyncLabel,
               icon: Icons.schedule,
             ),
             InfoRow(
-              label: 'حالة الاتصال',
-              value: 'متصل',
-              icon: Icons.wifi,
-              iconColor: Colors.green,
+              label: 'حالة النظام',
+              value: _stateLabel(state),
+              icon: Icons.sync,
+              iconColor: _stateColor(state),
             ),
             InfoRow(
               label: 'عناصر معلقة',
-              value: '0',
+              value: '$pendingCount',
               icon: Icons.pending,
-              iconColor: Colors.orange,
+              iconColor: pendingCount > 0 ? Colors.orange : Colors.green,
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildTargetsSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(UIConstants.spacingMD),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.hub,
+                  color: UIConstants.syncColor,
+                  size: UIConstants.iconSizeMD,
+                ),
+                const SizedBox(width: UIConstants.spacingSM),
+                const Text(
+                  'مصادر المزامنة',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: UIConstants.spacingSM),
+            child: AdapterStatusList(),
+          ),
+          const SizedBox(height: UIConstants.spacingSM),
+        ],
+      ),
+    );
+  }
+
+  String _stateLabel(SyncRouterState state) {
+    switch (state) {
+      case SyncRouterState.idle:
+        return 'جاهز';
+      case SyncRouterState.syncing:
+        return 'جاري المزامنة';
+      case SyncRouterState.error:
+        return 'خطأ';
+      case SyncRouterState.stopped:
+        return 'متوقف';
+    }
+  }
+
+  Color _stateColor(SyncRouterState state) {
+    switch (state) {
+      case SyncRouterState.idle:
+        return Colors.green;
+      case SyncRouterState.syncing:
+        return Colors.blue;
+      case SyncRouterState.error:
+        return Colors.red;
+      case SyncRouterState.stopped:
+        return Colors.grey;
+    }
   }
 
   Widget _buildGeneralSettingsSection() {
@@ -263,6 +347,16 @@ class _UnifiedSyncSettingsScreenState
   }
 
   Widget _buildAppwriteSyncSection() {
+    final statusesAsync = ref.watch(adapterStatusesProvider);
+    final appwriteStatus =
+        statusesAsync.valueOrNull?[SyncTargetType.appwrite];
+    final isEnabled = appwriteStatus?.isEnabled ?? true;
+    final connectionLabel = appwriteStatus == null
+        ? 'جاري التحقق...'
+        : appwriteStatus.isConnected
+            ? 'متصل'
+            : 'غير متصل';
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -293,23 +387,32 @@ class _UnifiedSyncSettingsScreenState
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('تفعيل مزامنة Appwrite'),
-            subtitle: const Text('مزامنة البيانات مع سحابة Appwrite'),
-            value: true,
-            onChanged: (value) {},
+            subtitle: Text('حالة الاتصال: $connectionLabel'),
+            value: isEnabled,
+            onChanged: appwriteStatus == null
+                ? null
+                : (value) async {
+                    final adapter =
+                        ref.read(syncRouterProvider).getAdapter(
+                              SyncTargetType.appwrite,
+                            );
+                    await adapter?.setEnabled(value);
+                    ref.refresh(adapterStatusesProvider);
+                  },
             secondary: const Icon(Icons.cloud),
           ),
           const Divider(height: 1),
-          SwitchListTile(
-            title: const Text('المزامنة الفورية'),
-            subtitle: const Text('مزامنة فورية عند حدوث تغييرات'),
-            value: true,
-            onChanged: (value) {},
-            secondary: const Icon(Icons.flash_on),
+          ListTile(
+            title: const Text('مزامنة الآن'),
+            subtitle: const Text('تشغيل المزامنة فوراً'),
+            leading: const Icon(Icons.sync),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => ref.read(syncNotifierProvider.notifier).syncNow(),
           ),
           const Divider(height: 1),
           ListTile(
             title: const Text('جداول المزامنة'),
-            subtitle: const Text('اختر الجداول للمزامنة'),
+            subtitle: const Text('إدارة الجداول المستهدفة'),
             leading: const Icon(Icons.table_chart),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {},

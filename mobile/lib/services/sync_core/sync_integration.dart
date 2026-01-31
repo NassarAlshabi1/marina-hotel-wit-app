@@ -36,36 +36,32 @@ class SyncSystemWidget extends ConsumerWidget {
 
     return syncInit.when(
       data: (_) => child,
-      loading: () => const MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('جاري تهيئة نظام المزامنة...'),
-              ],
-            ),
+      loading: () => const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('جاري تهيئة نظام المزامنة...'),
+            ],
           ),
         ),
       ),
-      error: (error, stack) => MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                const SizedBox(height: 16),
-                Text('خطأ في تهيئة النظام: $error'),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => ref.refresh(syncSystemInitProvider),
-                  child: const Text('إعادة المحاولة'),
-                ),
-              ],
-            ),
+      error: (error, stack) => Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('خطأ في تهيئة النظام: $error'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => ref.refresh(syncSystemInitProvider),
+                child: const Text('إعادة المحاولة'),
+              ),
+            ],
           ),
         ),
       ),

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/sync_service.dart';
+import '../../services/sync_core/sync_core.dart';
+import '../../services/sync_core/sync_integration.dart';
 import '../../providers/theme_provider.dart';
 import '../../utils/status_utils.dart';
 import 'settings_employees.dart';
@@ -19,6 +20,8 @@ import 'database_fixer_screen.dart';
 import 'schema_comparison_screen.dart';
 import 'sync_debug_logs_screen.dart';
 import 'sync_performance_settings_screen.dart';
+import 'backup/unified_backup_settings_screen.dart';
+import 'sync/unified_sync_settings_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -132,12 +135,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: 'Google Drive + التخزين المحلي',
             icon: Icons.backup,
             color: Colors.indigo,
-            onTap: () {
-              // TODO: Implement backup dialog
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('النسخ الاحتياطي قيد التطوير')),
-              );
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const UnifiedBackupSettingsScreen(),
+              ),
+            ),
           ),
           _SettingsItem(
             title: 'مركز النسخ والمزامنة',
@@ -148,6 +151,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => const DataProtectionScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'إعدادات المزامنة',
+            subtitle: 'لوحة تحكم المزامنة الموحدة',
+            icon: Icons.sync_alt,
+            color: Colors.blueGrey,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const UnifiedSyncSettingsScreen(),
               ),
             ),
           ),
@@ -248,12 +263,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return AppScaffold(
       title: 'الإعدادات الرئيسية',
-      actions: [
-        IconButton(
-          onPressed: () => ref.read(syncServiceProvider).runSync(),
-          icon: const Icon(Icons.sync),
-          tooltip: 'مزامنة',
+      actions: const [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: SyncStatusIndicator(),
         ),
+        SyncButton(),
       ],
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -359,19 +374,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         subtitle: 'تشغيل المزامنة فوراً',
         icon: Icons.sync,
         color: Colors.blue,
-        onTap: () => ref.read(syncServiceProvider).runSync(),
+        onTap: () => ref.read(syncNotifierProvider.notifier).syncNow(),
       ),
       _QuickAction(
         title: 'نسخ احتياطي',
         subtitle: 'إنشاء نسخة شاملة',
         icon: Icons.backup,
         color: Colors.indigo,
-        onTap: () {
-          // TODO: Implement backup dialog
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('النسخ الاحتياطي قيد التطوير')),
-          );
-        },
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const UnifiedBackupSettingsScreen(),
+          ),
+        ),
       ),
       _QuickAction(
         title: 'إعدادات Appwrite',
