@@ -61,11 +61,17 @@ function nowEpoch() {
 const COLLECTIONS = {
   rooms: 'rooms',
   bookings: 'bookings',
+  booking_notes: 'booking_notes',
+  booking_nights: 'booking_nights',
+  employees: 'employees',
   expenses: 'expenses',
   payments: 'payments',
   debts: 'debts',
   cash_transactions: 'cash_transactions',
+  salary_cycles: 'salary_cycles',
+  salary_payments: 'salary_payments',
   shift_notes: 'shift_notes',
+  hotel_day_ledger: 'hotel_day_ledger',
 };
 
 function mapPayload(entity, payload, localUuid, clientTs) {
@@ -179,10 +185,90 @@ function mapPayload(entity, payload, localUuid, clientTs) {
     }
     case 'shift_notes': {
       return {
-        note: camel.note,
-        shiftDate: camel.shiftDate,
+        title: camel.title,
+        content: camel.content,
+        priority: camel.priority ?? 'medium',
+        shiftType: camel.shiftType ?? 'all',
+        isRead: camel.isRead ?? 0,
+        expiresAt: camel.expiresAt,
+        createdBy: camel.createdBy ?? 'user',
+        serverId: camel.serverId,
+        deletedAt: camel.deletedAt,
+        ...base,
+      };
+    }
+    case 'booking_notes': {
+      return {
+        bookingId: camel.bookingId,
+        noteText: camel.noteText,
+        noteType: camel.noteType ?? 'general',
+        createdBy: camel.createdBy,
+        serverId: camel.serverId,
+        deletedAt: camel.deletedAt,
+        ...base,
+      };
+    }
+    case 'booking_nights': {
+      return {
+        bookingLocalId: camel.bookingLocalId,
+        hotelDayKey: camel.hotelDayKey,
+        nightDate: camel.nightDate,
+        nightPrice: camel.nightPrice,
+        roomNumber: camel.roomNumber,
+        serverId: camel.serverId,
+        deletedAt: camel.deletedAt,
+        ...base,
+      };
+    }
+    case 'employees': {
+      return {
+        name: camel.name,
+        role: camel.role,
+        phone: camel.phone,
+        nationalId: camel.nationalId,
+        hireDate: camel.hireDate,
+        salary: camel.salary,
+        status: camel.status ?? 'active',
+        serverId: camel.serverId,
+        deletedAt: camel.deletedAt,
+        ...base,
+      };
+    }
+    case 'salary_cycles': {
+      return {
         employeeId: camel.employeeId,
-        isRead: camel.isRead ?? false,
+        cycleStartDate: camel.cycleStartDate,
+        cycleEndDate: camel.cycleEndDate,
+        baseSalary: camel.baseSalary,
+        deductions: camel.deductions ?? 0,
+        bonuses: camel.bonuses ?? 0,
+        netSalary: camel.netSalary,
+        status: camel.status ?? 'pending',
+        serverId: camel.serverId,
+        deletedAt: camel.deletedAt,
+        ...base,
+      };
+    }
+    case 'salary_payments': {
+      return {
+        cycleId: camel.cycleId,
+        employeeId: camel.employeeId,
+        amount: camel.amount,
+        paymentDate: camel.paymentDate,
+        paymentMethod: camel.paymentMethod ?? 'cash',
+        notes: camel.notes,
+        serverId: camel.serverId,
+        deletedAt: camel.deletedAt,
+        ...base,
+      };
+    }
+    case 'hotel_day_ledger': {
+      return {
+        dayKey: camel.dayKey,
+        totalRevenue: camel.totalRevenue ?? 0,
+        totalExpenses: camel.totalExpenses ?? 0,
+        netIncome: camel.netIncome ?? 0,
+        occupancyRate: camel.occupancyRate ?? 0,
         serverId: camel.serverId,
         deletedAt: camel.deletedAt,
         ...base,
