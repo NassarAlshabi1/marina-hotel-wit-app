@@ -39,9 +39,8 @@ class _AppwriteSettingsScreenState
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('appwrite_sync_enabled', false);
     setState(() {
-      _syncEnabled = false;
+      _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
       _syncInterval = prefs.getInt('appwrite_sync_interval') ?? 15;
       _autoSyncOnConnect =
           prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
