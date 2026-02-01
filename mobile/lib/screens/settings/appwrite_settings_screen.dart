@@ -65,6 +65,14 @@ class _AppwriteSettingsScreenState
     await prefs.setString('appwrite_log_level', _logLevel);
     await prefs.setBool('appwrite_log_console', _logConsole);
     await prefs.setBool('appwrite_log_file', _logFile);
+
+    // تحديث مدير المزامنة بالإعدادات الجديدة
+    final syncManager = ref.read(ap.appwriteSyncManagerProvider);
+    if (_syncEnabled) {
+      syncManager.startAutoSync(interval: Duration(minutes: _syncInterval));
+    } else {
+      syncManager.stopAutoSync();
+    }
   }
 
   Future<void> _checkConnection() async {
@@ -255,33 +263,62 @@ class _AppwriteSettingsScreenState
             // تفعيل المزامنة
             _buildSettingSwitch(
               title: 'تفعيل المزامنة التلقائية',
-              subtitle: 'المزامنة التلقائية معطّلة (يدوي فقط)',
-              value: false,
-              onChanged: (_) {},
+              subtitle: _syncEnabled 
+                  ? 'يتم المزامنة تلقائياً في الخلفية' 
+                  : 'المزامنة التلقائية معطّلة (يدوي فقط)',
+              value: _syncEnabled,
+              onChanged: (value) async {
+                setState(() => _syncEnabled = value);
+                await _saveSettings();
+                
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        value 
+                          ? 'تم تفعيل المزامنة التلقائية' 
+                          : 'تم إيقاف المزامنة التلقائية'
+                      ),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
             ),
 
             // فترة المزامنة
-            ListTile(
-              title: const Text('فترة المزامنة الدورية'),
-              subtitle: Text('كل $_syncInterval دقيقة'),
-              trailing: DropdownButton<int>(
-                value: _syncInterval,
-                items: [5, 10, 15, 30, 60].map((int value) {
-                  return DropdownMenuItem<int>(
-                    value: value,
-                    child: Text('$value دقيقة'),
-                  );
-                }).toList(),
-                onChanged: (_) {},
+            if (_syncEnabled)
+              ListTile(
+                title: const Text('فترة المزامنة الدورية'),
+                subtitle: Text('كل $_syncInterval دقيقة'),
+                trailing: DropdownButton<int>(
+                  value: _syncInterval,
+                  items: [5, 10, 15, 30, 60].map((int value) {
+                    return DropdownMenuItem<int>(
+                      value: value,
+                      child: Text('$value دقيقة'),
+                    );
+                  }).toList(),
+                  onChanged: (value) async {
+                    if (value != null) {
+                      setState(() => _syncInterval = value);
+                      await _saveSettings();
+                    }
+                  },
+                ),
               ),
-            ),
 
             // مزامنة عند الاتصال
             _buildSettingSwitch(
               title: 'مزامنة عند الاتصال التلقائي',
-              subtitle: 'المزامنة التلقائية معطّلة',
-              value: false,
-              onChanged: (_) {},
+              subtitle: _autoSyncOnConnect
+                  ? 'مزامنة البيانات فور اتصال التطبيق'
+                  : 'انتظار المزامنة الدورية أو اليدوية',
+              value: _autoSyncOnConnect,
+              onChanged: (value) async {
+                setState(() => _autoSyncOnConnect = value);
+                await _saveSettings();
+              },
             ),
 
             const Divider(height: 24),
