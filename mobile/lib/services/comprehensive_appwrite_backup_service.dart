@@ -88,8 +88,33 @@ class ComprehensiveAppwriteBackupService {
       final employees = await db.select(db.employees).get();
       collectionsData[AppwriteConfig.employeesCollectionId] = employees.map((e) => e.toJson()).toList();
       
-      // 6. Others... (يمكن إضافة باقي الجداول بنفس الطريقة)
-      // للتبسيط سنقوم بإضافة البيانات الأساسية في هذا المثال، ويمكن توسيعه
+      // 6. Others
+      final debts = await db.select(db.debts).get();
+      collectionsData[AppwriteConfig.debtsCollectionId] = debts.map((e) => e.toJson()).toList();
+      
+      final devices = await db.select(db.devices).get();
+      collectionsData[AppwriteConfig.devicesCollectionId] = devices.map((e) => e.toJson()).toList();
+      
+      final bookingNotes = await db.select(db.bookingNotes).get();
+      collectionsData[AppwriteConfig.bookingNotesCollectionId] = bookingNotes.map((e) => e.toJson()).toList();
+      
+      final cashTransactions = await db.select(db.cashTransactions).get();
+      collectionsData[AppwriteConfig.cashTransactionsCollectionId] = cashTransactions.map((e) => e.toJson()).toList();
+      
+      final shiftNotes = await db.select(db.shiftNotes).get();
+      collectionsData[AppwriteConfig.shiftNotesCollectionId] = shiftNotes.map((e) => e.toJson()).toList();
+
+      final bookingNights = await db.select(db.bookingNights).get();
+      collectionsData[AppwriteConfig.bookingNightsCollectionId] = bookingNights.map((e) => e.toJson()).toList();
+
+      final salaryCycles = await db.select(db.salaryCycles).get();
+      collectionsData[AppwriteConfig.salaryCyclesCollectionId] = salaryCycles.map((e) => e.toJson()).toList();
+
+      final salaryPayments = await db.select(db.salaryPayments).get();
+      collectionsData[AppwriteConfig.salaryPaymentsCollectionId] = salaryPayments.map((e) => e.toJson()).toList();
+
+      final ledger = await db.select(db.hotelDayLedger).get();
+      collectionsData[AppwriteConfig.hotelDayLedgerCollectionId] = ledger.map((e) => e.toJson()).toList();
       
       final payload = {
         'metadata': {
