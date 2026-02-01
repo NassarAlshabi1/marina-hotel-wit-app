@@ -328,7 +328,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
-          duration: const Duration(days: 1),
+          duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'إغلاق',
             onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
@@ -366,7 +366,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             SnackBar(
               content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
               backgroundColor: Colors.orange,
-              duration: const Duration(days: 1),
+              duration: const Duration(seconds: 5),
               action: SnackBarAction(
                 label: 'إغلاق',
                 textColor: Colors.white,
@@ -392,7 +392,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           SnackBar(
             content: Text('خطأ في تحميل الحجز: $e'),
             backgroundColor: Colors.red,
-            duration: const Duration(days: 1),
+            duration: const Duration(seconds: 5),
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,

@@ -146,7 +146,7 @@ class RoomsDashboard extends ConsumerWidget {
             SnackBar(
               content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
               backgroundColor: Colors.orange,
-              duration: const Duration(days: 1),
+              duration: const Duration(seconds: 5),
               action: SnackBarAction(
                 label: 'إغلاق',
                 textColor: Colors.white,
@@ -175,7 +175,7 @@ class RoomsDashboard extends ConsumerWidget {
         SnackBar(
           content: Text('خطأ في تحميل الحجز: $e'),
           backgroundColor: Colors.red,
-          duration: const Duration(days: 1),
+          duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'إغلاق',
             textColor: Colors.white,

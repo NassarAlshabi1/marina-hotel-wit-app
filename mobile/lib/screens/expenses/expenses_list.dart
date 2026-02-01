@@ -488,7 +488,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           'يجب اختيار موظف عند اختيار نوع المصروف "رواتب"',
                         ),
                         backgroundColor: Theme.of(ctx).colorScheme.error,
-                        duration: const Duration(days: 1),
+                        duration: const Duration(seconds: 5),
                         action: SnackBarAction(
                           label: 'إغلاق',
                           textColor: Colors.white,

@@ -686,7 +686,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تم تسجيل سداد دين ${debt.guestName}'),
-            duration: const Duration(days: 1),
+            duration: const Duration(seconds: 5),
             action: SnackBarAction(
               label: 'إغلاق',
               onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
@@ -911,7 +911,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           context,
         ).showSnackBar(SnackBar(
           content: const Text('يرجى إدخال اسم النزيل'),
-          duration: const Duration(days: 1),
+          duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'إغلاق',
             onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
@@ -974,7 +974,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           content: Text(
             existing == null ? 'تم إضافة الدين بنجاح' : 'تم تحديث الدين بنجاح',
           ),
-          duration: const Duration(days: 1),
+          duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'إغلاق',
             onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
@@ -1019,7 +1019,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         context,
       ).showSnackBar(SnackBar(
         content: Text('تم حذف دين ${debt.guestName}'),
-        duration: const Duration(days: 1),
+        duration: const Duration(seconds: 5),
         action: SnackBarAction(
           label: 'إغلاق',
           onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),

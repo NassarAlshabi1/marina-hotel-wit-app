@@ -195,7 +195,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(url != null ? 'تم رفع الصورة' : 'فشل رفع الصورة'),
-            duration: const Duration(days: 1),
+            duration: const Duration(seconds: 5),
             action: SnackBarAction(
               label: 'إغلاق',
               onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
@@ -209,7 +209,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           context,
         ).showSnackBar(SnackBar(
           content: Text('خطأ: $e'),
-          duration: const Duration(days: 1),
+          duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'إغلاق',
             onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
