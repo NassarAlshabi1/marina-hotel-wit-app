@@ -196,21 +196,21 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   ) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 6),
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 1),
             Text(
               title,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
           ],
@@ -370,33 +370,38 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           itemCount: activeBookings.length,
           itemBuilder: (context, index) {
             final booking = activeBookings[index];
             return Card(
-              margin: const EdgeInsets.only(bottom: 8),
+              margin: const EdgeInsets.only(bottom: 6),
               child: ListTile(
+                dense: true,
+                visualDensity: VisualDensity.compact,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 leading: CircleAvatar(
+                  radius: 16,
                   backgroundColor: Colors.orange.shade100,
                   child: Text(
                     booking.roomNumber,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.orange,
+                      fontSize: 11,
                     ),
                   ),
                 ),
                 title: Text(
                   booking.guestName,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('الهاتف: ${booking.guestPhone}'),
-                    Text('دخول: ${booking.checkinDate}'),
-                    Text('الجنسية: ${booking.guestNationality}'),
+                    Text('الهاتف: ${booking.guestPhone}', style: const TextStyle(fontSize: 11)),
+                    Text('دخول: ${booking.checkinDate}', style: const TextStyle(fontSize: 11)),
+                    Text('الجنسية: ${booking.guestNationality}', style: const TextStyle(fontSize: 11)),
                   ],
                 ),
                 trailing: ElevatedButton.icon(
@@ -409,14 +414,14 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                       ),
                     );
                   },
-                  icon: const Icon(Icons.payment, size: 16),
-                  label: const Text('دفع'),
+                  icon: const Icon(Icons.payment, size: 14),
+                  label: const Text('دفع', style: TextStyle(fontSize: 12)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                   ),
                 ),
