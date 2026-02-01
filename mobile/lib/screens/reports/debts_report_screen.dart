@@ -815,12 +815,14 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     required VoidCallback onPressed,
   }) {
     final text = value != null ? _dateFormat.format(value) : 'غير محدد';
-    return SizedBox(
-      width: 180,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: const Icon(Icons.date_range),
-        label: Text('$label\\n$text', textAlign: TextAlign.center),
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      child: Text(
+        '$label: $text',
+        style: const TextStyle(fontSize: 12),
       ),
     );
   }

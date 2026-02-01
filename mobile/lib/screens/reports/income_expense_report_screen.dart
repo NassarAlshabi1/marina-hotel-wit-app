@@ -350,20 +350,28 @@ class _IncomeExpenseReportScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Wrap(
-              spacing: 12,
-              runSpacing: 12,
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                OutlinedButton.icon(
+                OutlinedButton(
                   onPressed: () => _pickDate(isFrom: true),
-                  icon: const Icon(Icons.calendar_month),
-                  label:
-                      Text('من: ${DateFormat('yyyy-MM-dd').format(_fromDate)}'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  child: Text(
+                    'من: ${DateFormat('yyyy-MM-dd').format(_fromDate)}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
-                OutlinedButton.icon(
+                OutlinedButton(
                   onPressed: () => _pickDate(isFrom: false),
-                  icon: const Icon(Icons.calendar_month),
-                  label:
-                      Text('إلى: ${DateFormat('yyyy-MM-dd').format(_toDate)}'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  child: Text(
+                    'إلى: ${DateFormat('yyyy-MM-dd').format(_toDate)}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
                 FilterChip(
                   label: const Text('تفصيلي'),
