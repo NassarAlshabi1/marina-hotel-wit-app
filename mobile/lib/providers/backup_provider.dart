@@ -849,7 +849,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
               progress: 0.9,
             );
             try {
-              await _smartSyncManager.pushLocalChanges(null);
+              await _smartSyncManager.pushLocalChanges();
               debugPrint('✅ تم رفع البيانات إلى Google Drive');
             } catch (e) {
               debugPrint('⚠️ فشل رفع البيانات إلى Google Drive: $e');

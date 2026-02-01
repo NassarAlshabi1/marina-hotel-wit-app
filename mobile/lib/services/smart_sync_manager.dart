@@ -747,13 +747,13 @@ class SmartSyncManager {
 
     _log('🚀 بدء المزامنة اليدوية الفورية...');
 
-    await pushLocalChanges(null);
+    await pushLocalChanges();
 
     await pullRemoteChanges();
   }
 
   /// رفع التغييرات المحلية إلى Google Drive فوراً
-  Future<bool> pushLocalChanges([dynamic context]) async {
+  Future<bool> pushLocalChanges() async {
     int retries = 0;
     while (retries < 10) {
       final isSyncing = await SyncLocks.smartSyncLock.synchronized(
@@ -779,7 +779,7 @@ class SmartSyncManager {
     if (!canStart) {
       return await _attemptSilentSignInAndRetry(
             'رفع التغييرات',
-            () => pushLocalChanges(null),
+            pushLocalChanges,
           ) ??
           false;
     }

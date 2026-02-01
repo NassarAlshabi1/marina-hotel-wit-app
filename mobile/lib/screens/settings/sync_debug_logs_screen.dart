@@ -52,7 +52,7 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
 
   Future<void> _pushLocal() async {
     await _withBusy(() async {
-      await SmartSyncManager.instance.pushLocalChanges(null);
+      await SmartSyncManager.instance.pushLocalChanges();
       await _loadStatus();
     });
   }

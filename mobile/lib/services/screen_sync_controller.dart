@@ -115,7 +115,7 @@ class ScreenSyncController {
         operation: () async {
           return await _circuitBreaker.execute(() async {
             debugPrint('🌐 [$screenId] بدء المزامنة مع الحماية...');
-            return await SmartSyncManager.instance.pushLocalChanges(null);
+            return await SmartSyncManager.instance.pushLocalChanges();
           });
         },
         shouldRetry: (error) {
