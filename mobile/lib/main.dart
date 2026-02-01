@@ -43,6 +43,7 @@ import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/logging/log_models.dart';
 import 'services/sync_queue_service.dart';
+import 'services/appwrite_config_manager.dart';
 
 import 'components/admin_layout.dart';
 
@@ -66,6 +67,10 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
   debugPrint('═══════════════════════════════════════════════════════');
 
   try {
+    debugPrint('📦 Initializing Appwrite Config Manager...');
+    await AppwriteConfigManager.init();
+    debugPrint('✅ Appwrite Config loaded');
+
     debugPrint('📝 Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
     await driveLogger.initialize(

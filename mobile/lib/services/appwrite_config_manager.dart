@@ -1,0 +1,88 @@
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'appwrite_config.dart';
+
+class AppwriteConfigManager {
+  static const String _endpointKey = 'appwrite_endpoint';
+  static const String _projectIdKey = 'appwrite_project_id';
+  static const String _databaseIdKey = 'appwrite_database_id';
+
+  static String _endpoint = AppwriteConfig.endpoint;
+  static String _projectId = AppwriteConfig.projectId;
+  static String _databaseId = AppwriteConfig.databaseId;
+
+  static String get endpoint => _endpoint;
+  static String get projectId => _projectId;
+  static String get databaseId => _databaseId;
+
+  static Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _endpoint = prefs.getString(_endpointKey) ?? AppwriteConfig.endpoint;
+    _projectId = prefs.getString(_projectIdKey) ?? AppwriteConfig.projectId;
+    _databaseId = prefs.getString(_databaseIdKey) ?? AppwriteConfig.databaseId;
+    
+    if (kDebugMode) {
+      debugPrint('📱 Appwrite Config Loaded:');
+      debugPrint('   Endpoint: $_endpoint');
+      debugPrint('   Project ID: $_projectId');
+      debugPrint('   Database ID: $_databaseId');
+    }
+  }
+
+  static Future<void> saveConfig({
+    required String endpoint,
+    required String projectId,
+    required String databaseId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    await prefs.setString(_endpointKey, endpoint);
+    await prefs.setString(_projectIdKey, projectId);
+    await prefs.setString(_databaseIdKey, databaseId);
+    
+    _endpoint = endpoint;
+    _projectId = projectId;
+    _databaseId = databaseId;
+    
+    if (kDebugMode) {
+      debugPrint('💾 Appwrite Config Saved:');
+      debugPrint('   Endpoint: $_endpoint');
+      debugPrint('   Project ID: $_projectId');
+      debugPrint('   Database ID: $_databaseId');
+    }
+  }
+
+  static Future<void> resetToDefaults() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    await prefs.remove(_endpointKey);
+    await prefs.remove(_projectIdKey);
+    await prefs.remove(_databaseIdKey);
+    
+    _endpoint = AppwriteConfig.endpoint;
+    _projectId = AppwriteConfig.projectId;
+    _databaseId = AppwriteConfig.databaseId;
+    
+    if (kDebugMode) {
+      debugPrint('🔄 Appwrite Config Reset to Defaults');
+    }
+  }
+
+  static bool get isUsingCustomConfig {
+    return _endpoint != AppwriteConfig.endpoint ||
+           _projectId != AppwriteConfig.projectId ||
+           _databaseId != AppwriteConfig.databaseId;
+  }
+
+  static Map<String, String> get currentConfig => {
+    'endpoint': _endpoint,
+    'projectId': _projectId,
+    'databaseId': _databaseId,
+  };
+
+  static Map<String, String> get defaultConfig => {
+    'endpoint': AppwriteConfig.endpoint,
+    'projectId': AppwriteConfig.projectId,
+    'databaseId': AppwriteConfig.databaseId,
+  };
+}

@@ -13,6 +13,7 @@ import 'comprehensive_backup_screen.dart';
 import 'data_protection_screen.dart';
 import 'sync_performance_settings_screen.dart';
 import 'appwrite_settings_screen.dart';
+import 'appwrite_connection_settings_screen.dart';
 import 'sync_debug_logs_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import '../security/blacklist_screen.dart';
@@ -149,6 +150,17 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                     builder: (context) => const AppwriteSettingsScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'اتصال Appwrite Cloud',
+              subtitle: 'تغيير بيانات الربط بالسحابة',
+              icon: Icons.cloud_outlined,
+              color: Colors.teal,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const AppwriteConnectionSettingsScreen()),
               ),
             ),
             _SettingsItem(
