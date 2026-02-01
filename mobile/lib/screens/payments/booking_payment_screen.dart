@@ -592,9 +592,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
-          itemCount: PaymentMethod.values.length,
+          itemCount: 2,
           itemBuilder: (context, index) {
-            final method = PaymentMethod.values[index];
+            final methods = [PaymentMethod.cash, PaymentMethod.transfer];
+            final method = methods[index];
             return _buildPaymentMethodCard(method);
           },
         ),
