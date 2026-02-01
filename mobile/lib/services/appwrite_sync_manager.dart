@@ -1518,7 +1518,7 @@ class AppwriteSyncManager {
 
   /// رفع جميع البيانات المحلية مباشرة إلى Appwrite (بعد الاستعادة من Google Drive)
   Future<Map<String, int>> pushAllLocalDataToAppwrite({
-    bool skipDeleted = true,
+    bool skipDeleted = false, // تغيير إلى false لرفع كل شيء
   }) async {
     // التأكد من تهيئة الخدمة أولاً
     await appwriteService.initialize();
@@ -1544,6 +1544,7 @@ class AppwriteSyncManager {
     try {
       // رفع الغرف
       final rooms = await database.select(database.rooms).get();
+      _logger.info('📦 وُجد ${rooms.length} غرفة في قاعدة البيانات المحلية', tag: 'SYNC');
       for (final room in rooms) {
         if (skipDeleted && room.deletedAt != null) continue;
         try {
@@ -1556,10 +1557,11 @@ class AppwriteSyncManager {
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['rooms']} غرفة', tag: 'SYNC');
+      _logger.info('✅ تم رفع ${stats['rooms']} غرفة من ${rooms.length}', tag: 'SYNC');
 
       // رفع الموظفين
       final employees = await database.select(database.employees).get();
+      _logger.info('📦 وُجد ${employees.length} موظف في قاعدة البيانات المحلية', tag: 'SYNC');
       for (final employee in employees) {
         if (skipDeleted && employee.deletedAt != null) continue;
         try {
@@ -1571,10 +1573,11 @@ class AppwriteSyncManager {
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['employees']} موظف', tag: 'SYNC');
+      _logger.info('✅ تم رفع ${stats['employees']} موظف من ${employees.length}', tag: 'SYNC');
 
       // رفع الحجوزات
       final bookings = await database.select(database.bookings).get();
+      _logger.info('📦 وُجد ${bookings.length} حجز في قاعدة البيانات المحلية', tag: 'SYNC');
       for (final booking in bookings) {
         if (skipDeleted && booking.deletedAt != null) continue;
         try {
@@ -1587,7 +1590,7 @@ class AppwriteSyncManager {
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['bookings']} حجز', tag: 'SYNC');
+      _logger.info('✅ تم رفع ${stats['bookings']} حجز من ${bookings.length}', tag: 'SYNC');
 
       // رفع المصروفات
       final expenses = await database.select(database.expenses).get();
@@ -1606,6 +1609,7 @@ class AppwriteSyncManager {
 
       // رفع المدفوعات
       final payments = await database.select(database.payments).get();
+      _logger.info('📦 وُجد ${payments.length} دفعة في قاعدة البيانات المحلية', tag: 'SYNC');
       for (final payment in payments) {
         if (skipDeleted && payment.deletedAt != null) continue;
         try {
@@ -1617,7 +1621,7 @@ class AppwriteSyncManager {
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['payments']} دفعة', tag: 'SYNC');
+      _logger.info('✅ تم رفع ${stats['payments']} دفعة من ${payments.length}', tag: 'SYNC');
 
       // رفع الديون
       final debts = await database.select(database.debts).get();
