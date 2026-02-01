@@ -47,7 +47,7 @@ class ComprehensiveAppwriteBackupService {
   
   // تصدير النسخة الاحتياطية من قاعدة البيانات المحلية
   Future<File?> exportFullBackup(
-      LocalDatabase db, {
+      AppDatabase db, {
       String? deviceId,
       Function(String, double)? onProgress,
       }) async {
