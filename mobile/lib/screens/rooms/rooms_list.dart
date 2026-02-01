@@ -195,6 +195,11 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(url != null ? 'تم رفع الصورة' : 'فشل رفع الصورة'),
+            duration: const Duration(days: 1),
+            action: SnackBarAction(
+              label: 'إغلاق',
+              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
           ),
         );
       }
@@ -202,7 +207,14 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
+        ).showSnackBar(SnackBar(
+          content: Text('خطأ: $e'),
+          duration: const Duration(days: 1),
+          action: SnackBarAction(
+            label: 'إغلاق',
+            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+          ),
+        ));
       }
     }
   }

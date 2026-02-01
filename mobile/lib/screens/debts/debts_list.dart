@@ -684,7 +684,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم تسجيل سداد دين ${debt.guestName}')),
+          SnackBar(
+            content: Text('تم تسجيل سداد دين ${debt.guestName}'),
+            duration: const Duration(days: 1),
+            action: SnackBarAction(
+              label: 'إغلاق',
+              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
+          ),
         );
       }
     }
@@ -902,7 +909,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('يرجى إدخال اسم النزيل')));
+        ).showSnackBar(SnackBar(
+          content: const Text('يرجى إدخال اسم النزيل'),
+          duration: const Duration(days: 1),
+          action: SnackBarAction(
+            label: 'إغلاق',
+            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+          ),
+        ));
       }
       return;
     }
@@ -960,6 +974,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           content: Text(
             existing == null ? 'تم إضافة الدين بنجاح' : 'تم تحديث الدين بنجاح',
           ),
+          duration: const Duration(days: 1),
+          action: SnackBarAction(
+            label: 'إغلاق',
+            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+          ),
         ),
       );
     }
@@ -998,7 +1017,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('تم حذف دين ${debt.guestName}')));
+      ).showSnackBar(SnackBar(
+        content: Text('تم حذف دين ${debt.guestName}'),
+        duration: const Duration(days: 1),
+        action: SnackBarAction(
+          label: 'إغلاق',
+          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        ),
+      ));
     }
   }
 }
