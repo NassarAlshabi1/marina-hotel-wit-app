@@ -23,6 +23,8 @@ class _CreateDebtFromBookingScreenState
   bool _isManualProcessing = false;
   _AutoDebtData? _autoDebtData;
 
+  late TextEditingController _autoDebtDateController;
+
   final _manualFormKey = GlobalKey<FormState>();
   late TextEditingController _manualGuestNameController;
   late TextEditingController _manualCheckinController;
@@ -36,6 +38,7 @@ class _CreateDebtFromBookingScreenState
   void initState() {
     super.initState();
     final today = Time.nowDateString();
+    _autoDebtDateController = TextEditingController(text: today);
     _manualGuestNameController = TextEditingController();
     _manualCheckinController = TextEditingController(text: today);
     _manualCheckoutController = TextEditingController(text: today);
@@ -47,6 +50,7 @@ class _CreateDebtFromBookingScreenState
 
   @override
   void dispose() {
+    _autoDebtDateController.dispose();
     _manualGuestNameController.dispose();
     _manualCheckinController.dispose();
     _manualCheckoutController.dispose();
@@ -258,6 +262,21 @@ class _CreateDebtFromBookingScreenState
               ],
             ),
             const SizedBox(height: 12),
+            TextFormField(
+              controller: _autoDebtDateController,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'تاريخ الدين',
+                labelStyle: const TextStyle(fontSize: 12),
+                hintText: 'مثال: 2026-02-01',
+                hintStyle: const TextStyle(fontSize: 11),
+                prefixIcon: const Icon(Icons.calendar_today, size: 18),
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
             Text(
               'سيتم إنشاء الدين وتحديث حالة الحجز إلى "مكتمل" وتحرير الغرفة ${booking.roomNumber}.',
               style: const TextStyle(fontSize: 13, color: Colors.black54),
@@ -433,6 +452,7 @@ class _CreateDebtFromBookingScreenState
       _selectedBooking = booking;
       _autoDebtData = null;
       _isAutoComputing = true;
+      _autoDebtDateController.text = Time.nowDateString();
     });
     _prepareAutoDebtData(booking);
   }
@@ -502,7 +522,9 @@ class _CreateDebtFromBookingScreenState
     final booking = _selectedBooking!;
     final data = _autoDebtData!;
     final nowIso = Time.nowIso();
-    final dateOnly = Time.nowDateString();
+    final dateOnly = _autoDebtDateController.text.trim().isNotEmpty
+        ? _autoDebtDateController.text.trim()
+        : Time.nowDateString();
 
     try {
       final debtsRepo = ref.read(debtsRepoProvider);
