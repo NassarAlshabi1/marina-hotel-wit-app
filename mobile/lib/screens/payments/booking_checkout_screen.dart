@@ -416,9 +416,15 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         markDataChanged();
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إضافة الدفعة بنجاح'),
+          SnackBar(
+            content: const Text('تم إضافة الدفعة بنجاح'),
             backgroundColor: Colors.green,
+            duration: const Duration(days: 1),
+            action: SnackBarAction(
+              label: 'إغلاق',
+              textColor: Colors.white,
+              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
           ),
         );
       } catch (e) {

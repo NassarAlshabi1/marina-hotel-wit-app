@@ -1440,9 +1440,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}'),
+          duration: const Duration(days: 1),
           action: SnackBarAction(
-            label: 'طباعة إيصال',
-            onPressed: () => _generateReceipt(receipt),
+            label: 'إغلاق',
+            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
           ),
         ),
       );
