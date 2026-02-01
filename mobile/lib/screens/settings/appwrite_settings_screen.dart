@@ -8,6 +8,7 @@ import '../../services/restore_fix_service.dart';
 import '../../services/local_db.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
+import 'comprehensive_backup_screen.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
@@ -598,6 +599,30 @@ class _AppwriteSettingsScreenState
                 setState(() => _logFile = value);
                 _saveSettings();
               },
+            ),
+
+            const SizedBox(height: 12),
+            
+             // زر النسخ الاحتياطي الشامل
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ComprehensiveBackupScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.backup),
+                label: const Text('النسخ الاحتياطي الشامل والاستعادة'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
 
             const Divider(height: 24),
