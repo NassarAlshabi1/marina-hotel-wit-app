@@ -264,15 +264,30 @@ class _CreateDebtFromBookingScreenState
             const SizedBox(height: 12),
             TextFormField(
               controller: _autoDebtDateController,
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: 12),
               decoration: InputDecoration(
                 labelText: 'تاريخ الدين',
-                labelStyle: const TextStyle(fontSize: 12),
+                labelStyle: const TextStyle(fontSize: 11),
                 hintText: 'مثال: 2026-02-01',
-                hintStyle: const TextStyle(fontSize: 11),
-                prefixIcon: const Icon(Icons.calendar_today, size: 18),
+                hintStyle: const TextStyle(fontSize: 10),
+                prefixIcon: const Icon(Icons.calendar_today, size: 16),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.edit_calendar, size: 18),
+                  tooltip: 'اختيار تاريخ',
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.tryParse(_autoDebtDateController.text) ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (picked != null) {
+                      _autoDebtDateController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+                    }
+                  },
+                ),
                 border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 isDense: true,
               ),
             ),
