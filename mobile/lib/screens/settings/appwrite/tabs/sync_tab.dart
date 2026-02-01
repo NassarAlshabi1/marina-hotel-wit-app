@@ -638,10 +638,10 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       final errors = stats['errors'] ?? 0;
       
       // طباعة النتائج في console
-      print('📊 نتيجة الرفع الشامل:');
-      print('   إجمالي السجلات: $totalRecords');
-      print('   الأخطاء: $errors');
-      stats.entries.forEach((e) => print('   ${e.key}: ${e.value}'));
+      debugPrint('📊 نتيجة الرفع الشامل:');
+      debugPrint('   إجمالي السجلات: $totalRecords');
+      debugPrint('   الأخطاء: $errors');
+      stats.entries.forEach((e) => debugPrint('   ${e.key}: ${e.value}'));
 
       // إظهار النتائج
       showDialog(
@@ -730,8 +730,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       Navigator.pop(context);
       
       // طباعة الخطأ في console
-      print('❌ خطأ في الرفع الشامل: $e');
-      print('Stack trace: $stackTrace');
+      debugPrint('❌ خطأ في الرفع الشامل: $e');
+      debugPrint('Stack trace: $stackTrace');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -788,20 +788,20 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       final bookingsCount = await database.select(database.bookings).get().then((l) => l.length);
       final paymentsCount = await database.select(database.payments).get().then((l) => l.length);
 
-      print('📊 البيانات المحلية:');
-      print('   الغرف: $roomsCount');
-      print('   الحجوزات: $bookingsCount');
-      print('   المدفوعات: $paymentsCount');
+      debugPrint('📊 البيانات المحلية:');
+      debugPrint('   الغرف: $roomsCount');
+      debugPrint('   الحجوزات: $bookingsCount');
+      debugPrint('   المدفوعات: $paymentsCount');
 
       // فحص Appwrite
       await appwriteService.initialize();
       final isInitialized = appwriteService.isInitialized;
       final projectInfo = appwriteService.getProjectInfo();
 
-      print('🔌 حالة Appwrite:');
-      print('   مُهيأ: $isInitialized');
-      print('   Project ID: ${projectInfo['projectId']}');
-      print('   Database ID: ${projectInfo['databaseId']}');
+      debugPrint('🔌 حالة Appwrite:');
+      debugPrint('   مُهيأ: $isInitialized');
+      debugPrint('   Project ID: ${projectInfo['projectId']}');
+      debugPrint('   Database ID: ${projectInfo['databaseId']}');
 
       // اختبار رفع غرفة واحدة
       String? testResult;
@@ -825,15 +825,15 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           if (room.serverId != null) payload['serverId'] = room.serverId;
           if (room.deletedAt != null) payload['deletedAt'] = room.deletedAt;
 
-          print('📤 اختبار رفع غرفة ${room.roomNumber}...');
+          debugPrint('📤 اختبار رفع غرفة ${room.roomNumber}...');
           
           final doc = await appwriteService.upsertRoom(room.localUuid, payload);
           testResult = '✅ نجح رفع غرفة ${room.roomNumber}\nDocument ID: ${doc.$id}';
           
-          print('✅ نجح الاختبار!');
+          debugPrint('✅ نجح الاختبار!');
         } catch (e) {
           testResult = '❌ فشل رفع الغرفة:\n$e';
-          print('❌ خطأ في رفع الغرفة: $e');
+          debugPrint('❌ خطأ في رفع الغرفة: $e');
         }
       }
 
@@ -884,8 +884,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       if (!mounted) return;
       Navigator.pop(context);
 
-      print('❌ خطأ في الاختبار التشخيصي: $e');
-      print('Stack trace: $stackTrace');
+      debugPrint('❌ خطأ في الاختبار التشخيصي: $e');
+      debugPrint('Stack trace: $stackTrace');
 
       showDialog(
         context: context,
