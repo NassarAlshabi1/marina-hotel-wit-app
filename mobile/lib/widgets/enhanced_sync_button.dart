@@ -398,7 +398,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       final smartSyncManager = ref.read(smartSyncManagerProvider);
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
-      await smartSyncManager.pushLocalChanges();
+      await smartSyncManager.pushLocalChanges(null);
       await appwriteSyncManager.pushLocalChanges();
 
       if (mounted) {
