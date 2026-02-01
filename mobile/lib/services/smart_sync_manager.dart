@@ -753,7 +753,7 @@ class SmartSyncManager {
   }
 
   /// رفع التغييرات المحلية إلى Google Drive فوراً
-  Future<bool> pushLocalChanges() async {
+  Future<bool> pushLocalChanges(BuildContext context) async {
     int retries = 0;
     while (retries < 10) {
       final isSyncing = await SyncLocks.smartSyncLock.synchronized(

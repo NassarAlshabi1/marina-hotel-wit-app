@@ -263,7 +263,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       if (smartEnabled && isGoogleDriveSignedIn) {
         try {
-          final result = await smartSyncManager.pushLocalChanges();
+          final result = await smartSyncManager.pushLocalChanges(context);
           results['Google Drive'] = result;
         } catch (e) {
           results['Google Drive'] = false;

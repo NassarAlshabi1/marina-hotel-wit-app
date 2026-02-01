@@ -99,6 +99,15 @@ class AppwriteSyncManager {
     try {
       await appwriteService.initialize();
       await _loadSettings();
+
+      // Fix potential stuck states
+      try {
+        await outboxDao.cleanupStuckEntries();
+        await outboxDao.retryFailed();
+      } catch (e) {
+        _logger.warning('Failed to cleanup outbox on init', error: e, tag: 'SYNC');
+      }
+
       _enableDebouncedPush();
       _logger.info('Sync manager initialized', tag: 'SYNC');
     } catch (e, stackTrace) {
@@ -1045,6 +1054,7 @@ class AppwriteSyncManager {
         stackTrace: stackTrace,
       );
       await outboxDao.setError(entry.id, parsed.message, entry.attempts + 1);
+      await outboxDao.markFailed([entry.id]);
       return false;
     }
   }
@@ -1384,31 +1394,12 @@ class AppwriteSyncManager {
 
   /// رفع التغييرات المحلية إلى Appwrite فوراً
   Future<bool> pushLocalChanges() async {
-    // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
-    int retries = 0;
-    while (_currentStatus == SyncStatus.syncing && retries < 10) {
-      await Future.delayed(SyncConstants.shortPollingDelay);
-      retries++;
-    }
-
-    if (_currentStatus == SyncStatus.syncing) {
-      _logger.warning('تخطي الرفع - المزامنة جارية لفترة طويلة', tag: 'SYNC');
-      return false;
-    }
-
     try {
-      _logger.info('📤 رفع التغييرات المحلية إلى Appwrite...', tag: 'SYNC');
-
-      final pushedCount = await _pushAllEntities();
-
-      _lastSyncTime = DateTime.now();
-      await _saveSettings();
-
-      _logger.info('✅ تم رفع $pushedCount تغيير إلى Appwrite', tag: 'SYNC');
-      return true;
+      final result = await sync(push: true, pull: false);
+      return result.status == SyncStatus.success;
     } catch (e, stackTrace) {
       _logger.error(
-        '❌ خطأ في رفع التغييرات إلى Appwrite',
+        'pushLocalChanges failed via sync()',
         error: e,
         stackTrace: stackTrace,
         tag: 'SYNC',

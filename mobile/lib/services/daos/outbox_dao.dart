@@ -165,7 +165,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   Future<void> setError(int id, String message, int attempts) =>
       (update(outbox)..where((t) => t.id.equals(id))).write(
-        OutboxCompanion(lastError: Value(message), attempts: Value(attempts)),
+        OutboxCompanion(
+          lastError: Value(message),
+          attempts: Value(attempts),
+          processingStatus: const Value('failed'),
+        ),
       );
 
   Future<void> markCompleted(List<int> ids) async {
