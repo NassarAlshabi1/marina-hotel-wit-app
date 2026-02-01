@@ -42,7 +42,6 @@ class ComprehensiveAppwriteBackupService {
     AppwriteConfig.salaryPaymentsCollectionId,
     AppwriteConfig.hotelDayLedgerCollectionId,
     AppwriteConfig.shiftNotesCollectionId,
-    AppwriteConfig.devicesCollectionId,
   ];
   
   // تصدير النسخة الاحتياطية من قاعدة البيانات المحلية
@@ -71,50 +70,47 @@ class ComprehensiveAppwriteBackupService {
       // 2. Bookings
       if (onProgress != null) onProgress('تصدير الحجوزات...', 0.2);
       final bookings = await db.select(db.bookings).get();
-      collectionsData[AppwriteConfig.bookingsCollectionId] = bookings.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.bookingsCollectionId] = bookings.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
       // 3. Payments
       if (onProgress != null) onProgress('تصدير المدفوعات...', 0.3);
       final payments = await db.select(db.payments).get();
-      collectionsData[AppwriteConfig.paymentsCollectionId] = payments.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.paymentsCollectionId] = payments.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
       // 4. Expenses
       if (onProgress != null) onProgress('تصدير المصروفات...', 0.4);
       final expenses = await db.select(db.expenses).get();
-      collectionsData[AppwriteConfig.expensesCollectionId] = expenses.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.expensesCollectionId] = expenses.map((e) => e.toJson() as Map<String, dynamic>).toList();
 
       // 5. Employees
       if (onProgress != null) onProgress('تصدير الموظفين...', 0.5);
       final employees = await db.select(db.employees).get();
-      collectionsData[AppwriteConfig.employeesCollectionId] = employees.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.employeesCollectionId] = employees.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
       // 6. Others
       final debts = await db.select(db.debts).get();
-      collectionsData[AppwriteConfig.debtsCollectionId] = debts.map((e) => e.toJson()).toList();
-      
-      final devices = await db.select(db.devices).get();
-      collectionsData[AppwriteConfig.devicesCollectionId] = devices.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.debtsCollectionId] = debts.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
       final bookingNotes = await db.select(db.bookingNotes).get();
-      collectionsData[AppwriteConfig.bookingNotesCollectionId] = bookingNotes.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.bookingNotesCollectionId] = bookingNotes.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
       final cashTransactions = await db.select(db.cashTransactions).get();
-      collectionsData[AppwriteConfig.cashTransactionsCollectionId] = cashTransactions.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.cashTransactionsCollectionId] = cashTransactions.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
       final shiftNotes = await db.select(db.shiftNotes).get();
-      collectionsData[AppwriteConfig.shiftNotesCollectionId] = shiftNotes.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.shiftNotesCollectionId] = shiftNotes.map((e) => e.toJson() as Map<String, dynamic>).toList();
 
       final bookingNights = await db.select(db.bookingNights).get();
-      collectionsData[AppwriteConfig.bookingNightsCollectionId] = bookingNights.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.bookingNightsCollectionId] = bookingNights.map((e) => e.toJson() as Map<String, dynamic>).toList();
 
       final salaryCycles = await db.select(db.salaryCycles).get();
-      collectionsData[AppwriteConfig.salaryCyclesCollectionId] = salaryCycles.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.salaryCyclesCollectionId] = salaryCycles.map((e) => e.toJson() as Map<String, dynamic>).toList();
 
       final salaryPayments = await db.select(db.salaryPayments).get();
-      collectionsData[AppwriteConfig.salaryPaymentsCollectionId] = salaryPayments.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.salaryPaymentsCollectionId] = salaryPayments.map((e) => e.toJson() as Map<String, dynamic>).toList();
 
       final ledger = await db.select(db.hotelDayLedger).get();
-      collectionsData[AppwriteConfig.hotelDayLedgerCollectionId] = ledger.map((e) => e.toJson()).toList();
+      collectionsData[AppwriteConfig.hotelDayLedgerCollectionId] = ledger.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
       final payload = {
         'metadata': {
