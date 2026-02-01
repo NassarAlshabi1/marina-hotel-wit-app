@@ -1,482 +1,505 @@
 const { Client, Databases, Permission, Role } = require('node-appwrite');
 
+// Load environment variables (fallback to hardcoded for testing if needed)
 const endpoint = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-const projectId = process.env.APPWRITE_PROJECT || '690ff0da0025518570c1';
-const apiKey = process.env.APPWRITE_API_KEY;
+const projectId = process.env.APPWRITE_PROJECT || '690ff0da0025518570c1'; // Your Project ID
+const apiKey = process.env.APPWRITE_API_KEY; // Must be provided as env var
 const databaseId = process.env.APPWRITE_DATABASE_ID || 'hotel_db';
 
 if (!apiKey) {
-  console.error('❌ Missing APPWRITE_API_KEY environment variable');
-  console.log('\n💡 Set it with:');
-  console.log('   export APPWRITE_API_KEY="your-api-key-here"');
-  console.log('\n📖 Get your API key from:');
-  console.log(`   ${endpoint.replace('/v1', '')}/console/project-${projectId}/settings`);
-  process.exit(1);
+    console.error('❌ Error: APPWRITE_API_KEY environment variable is required');
+    console.log('Usage: APPWRITE_API_KEY=your_key node create_all_collections_complete.js');
+    process.exit(1);
 }
 
-const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
+const client = new Client()
+    .setEndpoint(endpoint)
+    .setProject(projectId)
+    .setKey(apiKey);
+
 const databases = new Databases(client);
 
+// Default permissions for all collections (public access for demo, restrict in prod)
 const defaultPermissions = [
-  Permission.read(Role.any()),
-  Permission.create(Role.any()),
-  Permission.update(Role.any()),
-  Permission.delete(Role.any()),
+    Permission.read(Role.any()),
+    Permission.create(Role.any()),
+    Permission.update(Role.any()),
+    Permission.delete(Role.any()),
 ];
 
-const syncFields = [
-  { key: 'localUuid', type: 'string', size: 100, required: true, unique: true },
-  { key: 'serverId', type: 'integer' },
-  { key: 'createdAt', type: 'integer', required: true },
-  { key: 'updatedAt', type: 'integer', required: true },
-  { key: 'deletedAt', type: 'integer' },
-  { key: 'lastModified', type: 'integer', required: true },
-  { key: 'createdAtIso', type: 'string', size: 50 },
-  { key: 'updatedAtIso', type: 'string', size: 50 },
-  { key: 'deletedAtIso', type: 'string', size: 50 },
-  { key: 'createdAtEpoch', type: 'integer', default: 0 },
-  { key: 'lastModifiedEpoch', type: 'integer', default: 0 },
-  { key: 'version', type: 'integer', default: 1 },
-  { key: 'origin', type: 'string', size: 20, default: 'local' },
-  { key: 'vectorClock', type: 'string', size: 500, default: '{}' },
-  { key: 'idempotencyKey', type: 'string', size: 200 },
-];
+// Schema definitions based on local_db.dart
+// Using drift types mapped to Appwrite types:
+// text() -> string
+// integer() -> integer
+// real() -> double
+// boolean() -> boolean
 
 const collections = [
-  {
-    id: 'rooms',
-    name: 'الغرف',
-    description: 'جدول الغرف الفندقية',
-    attributes: [
-      ...syncFields,
-      { key: 'roomNumber', type: 'string', size: 50, required: true, unique: true },
-      { key: 'type', type: 'string', size: 100, required: true },
-      { key: 'price', type: 'float', required: true },
-      { key: 'status', type: 'string', size: 50, required: true },
-      { key: 'imageUrl', type: 'string', size: 500 },
-      { key: 'cleaningStatus', type: 'string', size: 20, default: 'clean' },
-      { key: 'lastCleanedHotelDay', type: 'string', size: 50 },
-      { key: 'lastOccupiedHotelDay', type: 'string', size: 50 },
-      { key: 'requiresMaintenance', type: 'boolean', default: false },
-    ],
-  },
-  {
-    id: 'bookings',
-    name: 'الحجوزات',
-    description: 'جدول حجوزات الضيوف',
-    attributes: [
-      ...syncFields,
-      { key: 'serverBookingId', type: 'integer' },
-      { key: 'roomNumber', type: 'string', size: 50, required: true },
-      { key: 'guestName', type: 'string', size: 200, required: true },
-      { key: 'guestPhone', type: 'string', size: 20, required: true },
-      { key: 'guestIdType', type: 'string', size: 100, default: 'بطاقة شخصية' },
-      { key: 'guestIdNumber', type: 'string', size: 50, default: '' },
-      { key: 'guestIdIssueDate', type: 'string', size: 50 },
-      { key: 'guestIdIssuePlace', type: 'string', size: 200 },
-      { key: 'guestNationality', type: 'string', size: 100, required: true },
-      { key: 'guestEmail', type: 'string', size: 200 },
-      { key: 'guestAddress', type: 'string', size: 500 },
-      { key: 'checkinDate', type: 'string', size: 50, required: true },
-      { key: 'checkoutDate', type: 'string', size: 50 },
-      { key: 'actualCheckout', type: 'string', size: 50 },
-      { key: 'status', type: 'string', size: 50, required: true },
-      { key: 'notes', type: 'string', size: 1000 },
-      { key: 'expectedNights', type: 'integer', default: 1 },
-      { key: 'calculatedNights', type: 'integer', default: 1 },
-      { key: 'totalNightsCached', type: 'integer', default: 0 },
-      { key: 'stayDurationIso', type: 'string', size: 50 },
-      { key: 'lastNightEpoch', type: 'integer' },
-      { key: 'isOverdue', type: 'boolean', default: false },
-      { key: 'needsCheckoutReview', type: 'boolean', default: false },
-      { key: 'totalDueCached', type: 'float', default: 0 },
-      { key: 'totalPaidCached', type: 'float', default: 0 },
-      { key: 'remainingBalanceCached', type: 'float', default: 0 },
-      { key: 'isFullyPaid', type: 'boolean', default: false },
-      { key: 'hotelDayCheckin', type: 'string', size: 50 },
-      { key: 'hotelDayCheckout', type: 'string', size: 50 },
-    ],
-  },
-  {
-    id: 'booking_notes',
-    name: 'ملاحظات الحجوزات',
-    description: 'جدول ملاحظات الحجوزات',
-    attributes: [
-      ...syncFields,
-      { key: 'bookingId', type: 'integer', required: true },
-      { key: 'noteText', type: 'string', size: 1000, required: true },
-      { key: 'alertType', type: 'string', size: 20, required: true },
-      { key: 'alertUntil', type: 'string', size: 50 },
-      { key: 'isActive', type: 'integer', default: 1 },
-    ],
-  },
-  {
-    id: 'booking_nights',
-    name: 'ليالي الحجوزات',
-    description: 'جدول ليالي الحجوزات',
-    attributes: [
-      ...syncFields,
-      { key: 'bookingLocalId', type: 'integer', required: true },
-      { key: 'hotelDayKey', type: 'string', size: 50, required: true },
-      { key: 'nightStart', type: 'string', size: 50, required: true },
-      { key: 'nightEnd', type: 'string', size: 50, required: true },
-      { key: 'nightlyRate', type: 'float', default: 0 },
-      { key: 'sequence', type: 'integer', default: 0 },
-      { key: 'isProcessedByAutoFix', type: 'boolean', default: false },
-    ],
-  },
-  {
-    id: 'employees',
-    name: 'الموظفون',
-    description: 'جدول الموظفين',
-    attributes: [
-      ...syncFields,
-      { key: 'name', type: 'string', size: 200, required: true },
-      { key: 'basicSalary', type: 'float', required: true },
-      { key: 'position', type: 'string', size: 100, default: 'موظف' },
-      { key: 'phone', type: 'string', size: 20, default: '' },
-      { key: 'hireDate', type: 'string', size: 50, default: '' },
-      { key: 'status', type: 'string', size: 50, required: true },
-    ],
-  },
-  {
-    id: 'expenses',
-    name: 'المصروفات',
-    description: 'جدول المصروفات',
-    attributes: [
-      ...syncFields,
-      { key: 'expenseType', type: 'string', size: 100, required: true },
-      { key: 'relatedId', type: 'integer' },
-      { key: 'description', type: 'string', size: 500, required: true },
-      { key: 'amount', type: 'float', required: true },
-      { key: 'date', type: 'string', size: 50, required: true },
-      { key: 'cashTransactionId', type: 'integer' },
-      { key: 'hotelDayKey', type: 'string', size: 50 },
-      { key: 'categoryUuid', type: 'string', size: 100 },
-      { key: 'cashFlowUuid', type: 'string', size: 100 },
-      { key: 'isAutoGenerated', type: 'boolean', default: false },
-    ],
-  },
-  {
-    id: 'cash_transactions',
-    name: 'معاملات النقد',
-    description: 'جدول معاملات النقد',
-    attributes: [
-      ...syncFields,
-      { key: 'registerId', type: 'integer' },
-      { key: 'transactionType', type: 'string', size: 100, required: true },
-      { key: 'amount', type: 'float', required: true },
-      { key: 'referenceType', type: 'string', size: 100 },
-      { key: 'referenceId', type: 'integer' },
-      { key: 'description', type: 'string', size: 500 },
-      { key: 'transactionTime', type: 'string', size: 50, required: true },
-      { key: 'createdBy', type: 'integer' },
-    ],
-  },
-  {
-    id: 'payments',
-    name: 'الدفعات',
-    description: 'جدول الدفعات',
-    attributes: [
-      ...syncFields,
-      { key: 'serverPaymentId', type: 'integer' },
-      { key: 'bookingLocalId', type: 'integer' },
-      { key: 'serverBookingId', type: 'integer' },
-      { key: 'roomNumber', type: 'string', size: 50 },
-      { key: 'amount', type: 'float', required: true },
-      { key: 'paymentDate', type: 'string', size: 50, required: true },
-      { key: 'notes', type: 'string', size: 500 },
-      { key: 'paymentMethod', type: 'string', size: 100, required: true },
-      { key: 'revenueType', type: 'string', size: 100, required: true },
-      { key: 'cashTransactionLocalId', type: 'integer' },
-      { key: 'cashTransactionServerId', type: 'integer' },
-      { key: 'referenceNumber', type: 'string', size: 100 },
-      { key: 'hotelDayKey', type: 'string', size: 50 },
-      { key: 'isPendingBalance', type: 'boolean', default: false },
-      { key: 'linkedDebtUuid', type: 'string', size: 100 },
-      { key: 'bookingUuidCache', type: 'string', size: 100 },
-    ],
-  },
-  {
-    id: 'debts',
-    name: 'الديون',
-    description: 'جدول الديون',
-    attributes: [
-      ...syncFields,
-      { key: 'bookingLocalId', type: 'integer' },
-      { key: 'guestName', type: 'string', size: 200, required: true },
-      { key: 'checkinDate', type: 'string', size: 50, required: true },
-      { key: 'checkoutDate', type: 'string', size: 50, required: true },
-      { key: 'dateRecorded', type: 'string', size: 50, default: '' },
-      { key: 'debtReason', type: 'string', size: 500, default: '' },
-      { key: 'totalAmount', type: 'float', required: true },
-      { key: 'paidAmount', type: 'float', required: true },
-      { key: 'remainingAmount', type: 'float', required: true },
-      { key: 'paymentDate', type: 'string', size: 50, required: true },
-      { key: 'isSettled', type: 'integer', default: 0 },
-      { key: 'pledge', type: 'string', size: 500 },
-      { key: 'pledgeType', type: 'string', size: 50 },
-      { key: 'note', type: 'string', size: 500 },
-      { key: 'debtUuid', type: 'string', size: 100 },
-      { key: 'hotelDayOpened', type: 'string', size: 50 },
-      { key: 'hotelDayClosed', type: 'string', size: 50 },
-      { key: 'isFromAutoFix', type: 'boolean', default: false },
-      { key: 'settlementConfirmed', type: 'boolean', default: false },
-    ],
-  },
-  {
-    id: 'salary_cycles',
-    name: 'دورات الرواتب',
-    description: 'جدول دورات الرواتب',
-    attributes: [
-      ...syncFields,
-      { key: 'employeeId', type: 'integer', required: true },
-      { key: 'cycleKey', type: 'string', size: 50, required: true },
-      { key: 'hotelDayStart', type: 'string', size: 50 },
-      { key: 'hotelDayEnd', type: 'string', size: 50 },
-      { key: 'expectedAmount', type: 'float', default: 0 },
-      { key: 'actualPaid', type: 'float', default: 0 },
-      { key: 'remainingAmount', type: 'float', default: 0 },
-      { key: 'status', type: 'string', size: 20, default: 'draft' },
-    ],
-  },
-  {
-    id: 'salary_payments',
-    name: 'دفعات الرواتب',
-    description: 'جدول دفعات الرواتب',
-    attributes: [
-      ...syncFields,
-      { key: 'cycleId', type: 'integer', required: true },
-      { key: 'amount', type: 'float', default: 0 },
-      { key: 'hotelDayKey', type: 'string', size: 50 },
-      { key: 'paymentDateIso', type: 'string', size: 50, required: true },
-      { key: 'method', type: 'string', size: 20 },
-      { key: 'isAutoGenerated', type: 'boolean', default: false },
-    ],
-  },
-  {
-    id: 'hotel_day_ledger',
-    name: 'سجل الأيام الفندقية',
-    description: 'جدول سجل الأيام الفندقية',
-    attributes: [
-      ...syncFields,
-      { key: 'hotelDayKey', type: 'string', size: 50, required: true, unique: true },
-      { key: 'totalIncome', type: 'float', default: 0 },
-      { key: 'totalExpenses', type: 'float', default: 0 },
-      { key: 'pendingBalances', type: 'float', default: 0 },
-      { key: 'occupancyRate', type: 'float', default: 0 },
-      { key: 'bookingsProcessed', type: 'integer', default: 0 },
-      { key: 'paymentsProcessed', type: 'integer', default: 0 },
-      { key: 'debtsProcessed', type: 'integer', default: 0 },
-      { key: 'expensesProcessed', type: 'integer', default: 0 },
-      { key: 'status', type: 'string', size: 20, default: 'draft' },
-    ],
-  },
-  {
-    id: 'devices',
-    name: 'الأجهزة المسجلة',
-    description: 'جدول الأجهزة المسجلة',
-    attributes: [
-      ...syncFields,
-      { key: 'deviceName', type: 'string', size: 200, required: true },
-      { key: 'deviceType', type: 'string', size: 50, required: true },
-      { key: 'deviceModel', type: 'string', size: 100 },
-      { key: 'osVersion', type: 'string', size: 50 },
-      { key: 'status', type: 'string', size: 50 },
-      { key: 'lastActive', type: 'integer', required: true },
-      { key: 'lastSeen', type: 'string', size: 50, required: true },
-    ],
-  },
-  {
-    id: 'shift_notes',
-    name: 'Shift Notes',
-    description: 'ملاحظات الشيفت',
-    attributes: [
-      { key: 'localUuid', type: 'string', size: 100, required: true },
-      { key: 'serverId', type: 'integer', required: false },
-      { key: 'title', type: 'string', size: 500, required: true },
-      { key: 'content', type: 'string', size: 5000, required: true },
-      { key: 'priority', type: 'string', size: 50, required: false, default: 'medium' },
-      { key: 'shiftType', type: 'string', size: 50, required: false, default: 'all' },
-      { key: 'isRead', type: 'integer', required: false, default: 0 },
-      { key: 'expiresAt', type: 'string', size: 50, required: false },
-      { key: 'createdBy', type: 'string', size: 100, required: false, default: 'user' },
-      { key: 'createdAt', type: 'integer', required: true },
-      { key: 'updatedAt', type: 'integer', required: true },
-      { key: 'deletedAt', type: 'integer', required: false },
-      { key: 'deletedAtIso', type: 'string', size: 50, required: false },
-      { key: 'lastModified', type: 'integer', required: true },
-      { key: 'createdAtIso', type: 'string', size: 50, required: false },
-      { key: 'updatedAtIso', type: 'string', size: 50, required: false },
-      { key: 'createdAtEpoch', type: 'integer', required: false },
-      { key: 'lastModifiedEpoch', type: 'integer', required: false },
-      { key: 'version', type: 'integer', required: false, default: 1 },
-      { key: 'origin', type: 'string', size: 50, required: false, default: 'local' },
-      { key: 'vectorClock', type: 'string', size: 500, required: false },
-    ],
-    indexes: [
-      { key: 'idx_localUuid', type: 'unique', attributes: ['localUuid'] },
-      { key: 'idx_serverId', type: 'key', attributes: ['serverId'] },
-      { key: 'idx_isRead', type: 'key', attributes: ['isRead'] },
-      { key: 'idx_priority', type: 'key', attributes: ['priority'] },
-      { key: 'idx_shiftType', type: 'key', attributes: ['shiftType'] },
-      { key: 'idx_createdAt', type: 'key', attributes: ['createdAt'], orders: ['DESC'] },
-    ],
-  },
-  {
-    id: 'sync_logs',
-    name: 'سجل المزامنة',
-    description: 'جدول سجل المزامنة',
-    attributes: [
-      { key: 'localUuid', type: 'string', size: 100, required: true, unique: true },
-      { key: 'syncId', type: 'string', size: 100 },
-      { key: 'direction', type: 'string', size: 20 },
-      { key: 'deviceId', type: 'string', size: 100 },
-      { key: 'metadata', type: 'string', size: 2000 },
-      { key: 'operations', type: 'string', size: 2000 },
-      { key: 'checksumMatched', type: 'integer', default: 0 },
-      { key: 'status', type: 'string', size: 50, default: 'success' },
-      { key: 'createdAt', type: 'string', size: 50, required: true },
-      { key: 'syncType', type: 'string', size: 50, required: true },
-      { key: 'startTime', type: 'string', size: 50, required: true },
-      { key: 'endTime', type: 'string', size: 50 },
-      { key: 'errorMessage', type: 'string', size: 500 },
-    ],
-  },
+    {
+        id: 'rooms',
+        name: 'Rooms',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'roomNumber', type: 'string', size: 20, required: true },
+            { key: 'roomType', type: 'string', size: 50, required: true },
+            { key: 'status', type: 'string', size: 20, required: true },
+            { key: 'cleaningStatus', type: 'string', size: 20, required: true },
+            { key: 'requiresMaintenance', type: 'integer', required: false, min: 0, max: 1 },
+            { key: 'lastCleaningTime', type: 'string', size: 50, required: false },
+            { key: 'features', type: 'string', size: 500, required: false },
+            { key: 'basePrice', type: 'double', required: true },
+            { key: 'floor', type: 'integer', required: true },
+            { key: 'bedsCount', type: 'integer', required: true },
+            { key: 'serverId', type: 'integer', required: false }, // Sync field
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+        ],
+        indexes: [
+            { key: 'idx_rooms_uuid', type: 'unique', attributes: ['localUuid'] },
+            { key: 'idx_rooms_number', type: 'unique', attributes: ['roomNumber'] },
+        ]
+    },
+    {
+        id: 'bookings',
+        name: 'Bookings',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'roomNumber', type: 'string', size: 20, required: true },
+            { key: 'guestName', type: 'string', size: 100, required: true },
+            { key: 'guestPhone', type: 'string', size: 20, required: true },
+            { key: 'guestIdType', type: 'string', size: 50, required: true },
+            { key: 'guestIdNumber', type: 'string', size: 50, required: true },
+            { key: 'guestNationality', type: 'string', size: 50, required: true },
+            { key: 'checkinDate', type: 'string', size: 50, required: true },
+            { key: 'checkoutDate', type: 'string', size: 50, required: false },
+            { key: 'status', type: 'string', size: 20, required: true },
+            { key: 'notes', type: 'string', size: 1000, required: false },
+            { key: 'expectedNights', type: 'integer', required: true },
+            { key: 'calculatedNights', type: 'integer', required: true },
+            { key: 'totalDueCached', type: 'double', required: false },
+            { key: 'totalPaidCached', type: 'double', required: false },
+            { key: 'remainingBalanceCached', type: 'double', required: false },
+            { key: 'isFullyPaid', type: 'boolean', required: false },
+            { key: 'hotelDayCheckin', type: 'string', size: 20, required: false },
+            { key: 'hotelDayCheckout', type: 'string', size: 20, required: false },
+            { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+        ],
+        indexes: [
+            { key: 'idx_bookings_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    },
+    {
+        id: 'booking_notes',
+        name: 'BookingNotes',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'bookingId', type: 'integer', required: true },
+            { key: 'noteText', type: 'string', size: 1000, required: true },
+            { key: 'alertType', type: 'string', size: 20, required: true },
+            { key: 'isActive', type: 'integer', required: true },
+            { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+        ],
+        indexes: [
+            { key: 'idx_bn_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    },
+    {
+        id: 'booking_nights',
+        name: 'BookingNights',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'bookingLocalId', type: 'integer', required: true },
+            { key: 'hotelDayKey', type: 'string', size: 20, required: true },
+            { key: 'nightStart', type: 'string', size: 30, required: true },
+            { key: 'nightEnd', type: 'string', size: 30, required: true },
+            { key: 'nightlyRate', type: 'double', required: true },
+            { key: 'sequence', type: 'integer', required: true },
+            { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+        ],
+        indexes: [
+             { key: 'idx_bnight_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    },
+    {
+        id: 'payments',
+        name: 'Payments',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'bookingLocalId', type: 'integer', required: false },
+            { key: 'roomNumber', type: 'string', size: 20, required: false },
+            { key: 'amount', type: 'double', required: true },
+            { key: 'paymentDate', type: 'string', size: 50, required: true },
+            { key: 'paymentMethod', type: 'string', size: 50, required: true },
+            { key: 'revenueType', type: 'string', size: 50, required: true },
+            { key: 'notes', type: 'string', size: 500, required: false },
+            { key: 'hotelDayKey', type: 'string', size: 20, required: false },
+            { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+        ],
+        indexes: [
+            { key: 'idx_payments_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    },
+    {
+        id: 'expenses',
+        name: 'Expenses',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'expenseType', type: 'string', size: 50, required: true },
+            { key: 'description', type: 'string', size: 500, required: true },
+            { key: 'amount', type: 'double', required: true },
+            { key: 'date', type: 'string', size: 50, required: true },
+            { key: 'hotelDayKey', type: 'string', size: 20, required: false },
+            { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+        ],
+        indexes: [
+            { key: 'idx_expenses_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    },
+    {
+        id: 'cash_transactions',
+        name: 'CashTransactions',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'transactionType', type: 'string', size: 20, required: true },
+            { key: 'amount', type: 'double', required: true },
+            { key: 'transactionTime', type: 'string', size: 50, required: true },
+            { key: 'description', type: 'string', size: 500, required: false },
+            { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+        ],
+         indexes: [
+            { key: 'idx_cash_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    },
+    {
+        id: 'debts',
+        name: 'Debts',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'guestName', type: 'string', size: 100, required: true },
+            { key: 'totalAmount', type: 'double', required: true },
+            { key: 'paidAmount', type: 'double', required: true },
+            { key: 'remainingAmount', type: 'double', required: true },
+            { key: 'isSettled', type: 'integer', required: true },
+            { key: 'debtReason', type: 'string', size: 255, required: false },
+            { key: 'checkinDate', type: 'string', size: 50, required: false },
+             { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+        ],
+         indexes: [
+            { key: 'idx_debts_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    },
+    {
+        id: 'employees',
+        name: 'Employees',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'name', type: 'string', size: 100, required: true },
+            { key: 'basicSalary', type: 'double', required: true },
+            { key: 'position', type: 'string', size: 50, required: true },
+            { key: 'phone', type: 'string', size: 20, required: false },
+            { key: 'status', type: 'string', size: 20, required: true },
+             { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+        ],
+         indexes: [
+            { key: 'idx_emp_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    },
+    {
+        id: 'salary_cycles',
+        name: 'SalaryCycles',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'employeeId', type: 'integer', required: true },
+            { key: 'cycleKey', type: 'string', size: 20, required: true },
+            { key: 'expectedAmount', type: 'double', required: true },
+            { key: 'actualPaid', type: 'double', required: true },
+             { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+        ],
+         indexes: [
+            { key: 'idx_sal_cyc_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    },
+    {
+        id: 'salary_payments',
+        name: 'SalaryPayments',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+             { key: 'employeeId', type: 'integer', required: true },
+            { key: 'amount', type: 'double', required: true },
+            { key: 'paymentDate', type: 'string', size: 50, required: true },
+            { key: 'notes', type: 'string', size: 255, required: false },
+             { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+        ],
+         indexes: [
+            { key: 'idx_sal_pay_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    },
+    {
+        id: 'hotel_day_ledger',
+        name: 'HotelDayLedger',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'hotelDayKey', type: 'string', size: 20, required: true },
+            { key: 'totalIncome', type: 'double', required: true },
+            { key: 'totalExpenses', type: 'double', required: true },
+            { key: 'pendingBalances', type: 'double', required: true },
+            { key: 'status', type: 'string', size: 20, required: true },
+             { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+        ],
+         indexes: [
+            { key: 'idx_ledger_uuid', type: 'unique', attributes: ['localUuid'] },
+            { key: 'idx_ledger_key', type: 'unique', attributes: ['hotelDayKey'] },
+        ]
+    },
+    {
+         id: 'shift_notes',
+         name: 'ShiftNotes',
+         attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'title', type: 'string', size: 100, required: true },
+            { key: 'content', type: 'string', size: 1000, required: true },
+            { key: 'priority', type: 'string', size: 20, required: true },
+            { key: 'shiftType', type: 'string', size: 20, required: true },
+            { key: 'isRead', type: 'integer', required: true },
+             { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+             { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+         ],
+          indexes: [
+            { key: 'idx_notes_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    },
+    {
+        id: 'devices',
+        name: 'Devices',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'deviceId', type: 'string', size: 100, required: true },
+            { key: 'deviceName', type: 'string', size: 100, required: true },
+            { key: 'deviceType', type: 'string', size: 50, required: true },
+            { key: 'fcmToken', type: 'string', size: 255, required: false },
+            { key: 'lastSeen', type: 'string', size: 50, required: true },
+            { key: 'isActive', type: 'boolean', required: true },
+             { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+        ],
+         indexes: [
+            { key: 'idx_devices_uuid', type: 'unique', attributes: ['localUuid'] },
+            { key: 'idx_devices_id', type: 'unique', attributes: ['deviceId'] },
+        ]
+    },
+    {
+        id: 'sync_logs',
+        name: 'SyncLogs',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'deviceId', type: 'string', size: 100, required: true },
+            { key: 'status', type: 'string', size: 50, required: true },
+            { key: 'startTime', type: 'string', size: 50, required: true },
+            { key: 'endTime', type: 'string', size: 50, required: false },
+            { key: 'durationMs', type: 'integer', required: false },
+            { key: 'changesUploaded', type: 'integer', required: false },
+            { key: 'changesDownloaded', type: 'integer', required: false },
+            { key: 'errors', type: 'string', size: 5000, required: false },
+             { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+        ],
+         indexes: [
+            { key: 'idx_logs_uuid', type: 'unique', attributes: ['localUuid'] },
+        ]
+    }
 ];
 
-async function createAttribute(databaseId, collectionId, attribute) {
-  try {
-    console.log(`   → Creating attribute: ${attribute.key}`);
-    
-    switch (attribute.type) {
-      case 'string':
-        await databases.createStringAttribute(
-          databaseId,
-          collectionId,
-          attribute.key,
-          attribute.size || 255,
-          attribute.required || false,
-          attribute.default ?? undefined,
-          attribute.array || false,
-          attribute.encrypt ?? false
-        );
-        break;
-      case 'integer':
-        await databases.createIntegerAttribute(
-          databaseId,
-          collectionId,
-          attribute.key,
-          attribute.required || false,
-          attribute.minimum ?? undefined,
-          attribute.maximum ?? undefined,
-          attribute.default ?? undefined,
-          attribute.array || false
-        );
-        break;
-      case 'float':
-        await databases.createFloatAttribute(
-          databaseId,
-          collectionId,
-          attribute.key,
-          attribute.required || false,
-          attribute.minimum ?? undefined,
-          attribute.maximum ?? undefined,
-          attribute.default ?? undefined,
-          attribute.array || false
-        );
-        break;
-      case 'boolean':
-        await databases.createBooleanAttribute(
-          databaseId,
-          collectionId,
-          attribute.key,
-          attribute.required || false,
-          attribute.default ?? undefined,
-          attribute.array || false
-        );
-        break;
-      default:
-        console.warn(`   ⚠️  Unsupported type: ${attribute.type} for ${attribute.key}`);
+// Helper to delay execution (to avoid rate limits)
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function createCollections() {
+    console.log('🚀 Starting collection creation...');
+    console.log(`Endpoint: ${endpoint}`);
+    console.log(`Project: ${projectId}`);
+    console.log(`Database: ${databaseId}`);
+
+    try {
+        // Ensure Database exists
+        try {
+            await databases.get(databaseId);
+            console.log(`✅ Database ${databaseId} verified`);
+        } catch (e) {
+            if (e.code === 404) {
+                 console.log(`ℹ️ Database ${databaseId} not found. Creating...`);
+                 await databases.create(databaseId, 'Hotel DB');
+                 console.log(`✅ Database ${databaseId} created`);
+            } else {
+                throw e;
+            }
+        }
+        
+        // Loop through collection definitions
+        for (const col of collections) {
+            console.log(`\n---------------------------------------`);
+            console.log(`📂 Processing ${col.name} (${col.id})...`);
+            
+            // 1️⃣ Create Collection
+            try {
+                // Check if exists
+                await databases.getCollection(databaseId, col.id);
+                console.log(`   🔸 Collection already exists. Checking attributes...`);
+            } catch (e) {
+                if (e.code === 404) {
+                    await databases.createCollection(
+                        databaseId, 
+                        col.id, 
+                        col.name, 
+                        defaultPermissions
+                    );
+                    console.log(`   ✅ Created collection: ${col.name}`);
+                } else {
+                    console.error(`   ❌ Error checking collection ${col.name}: ${e.message}`);
+                    continue;
+                }
+            }
+
+            // 2️⃣ Create Attributes
+            for (const attr of col.attributes) {
+                try {
+                    // Try to get attribute (Appwrite doesn't have getAttribute, so we catch create error if exists)
+                    // Actually, creating duplicate attribute throws 409
+                    
+                    if (attr.type === 'string') {
+                         await databases.createStringAttribute(databaseId, col.id, attr.key, attr.size, attr.required);
+                    } else if (attr.type === 'integer') {
+                         await databases.createIntegerAttribute(databaseId, col.id, attr.key, attr.required, attr.min, attr.max);
+                    } else if (attr.type === 'double') {
+                         await databases.createFloatAttribute(databaseId, col.id, attr.key, attr.required, attr.min, attr.max);
+                    } else if (attr.type === 'boolean') {
+                         await databases.createBooleanAttribute(databaseId, col.id, attr.key, attr.required);
+                    }
+                    
+                    console.log(`      ➕ Created attribute: ${attr.key}`);
+                    await delay(200); // Small delay
+                    
+                } catch (e) {
+                    if (e.code === 409) {
+                         // Attribute already exists - ignore
+                         // console.log(`      🔸 Attribute ${attr.key} exists.`);
+                    } else {
+                        console.error(`      ❌ Failed to create attribute ${attr.key}: ${e.message}`);
+                    }
+                }
+            }
+            
+            // 3️⃣ Create Indexes
+            if (col.indexes) {
+                // Wait for attributes to be ready (attributes need to be available status)
+                console.log(`   ⏳ Waiting for attributes to index...`);
+                await delay(2000); 
+
+                for (const idx of col.indexes) {
+                    try {
+                         await databases.createIndex(
+                             databaseId, 
+                             col.id, 
+                             idx.key, 
+                             idx.type, 
+                             idx.attributes
+                         );
+                         console.log(`      📇 Created index: ${idx.key}`);
+                    } catch (e) {
+                        if (e.code === 409) {
+                            // Index exists
+                        } else {
+                             console.error(`      ❌ Failed to create index ${idx.key}: ${e.message}`);
+                        }
+                    }
+                }
+            }
+            
+            console.log(`   ✨ ${col.name} Completed`);
+        }
+        
+        console.log('\n✅ All operations finished successfully!');
+        
+    } catch (e) {
+        console.error('💥 Fatal Error:', e);
     }
-    console.log(`   ✅ Created: ${attribute.key}`);
-  } catch (error) {
-    if (error?.code === 409) {
-      console.log(`   ⏭️  Exists: ${attribute.key}`);
-    } else {
-      console.error(`   ❌ Failed: ${attribute.key}`, error.message || error);
-    }
-  }
 }
 
-async function ensureCollection(collection) {
-  console.log(`\n📋 Processing collection: ${collection.id} (${collection.name})`);
-  
-  try {
-    await databases.createCollection(
-      databaseId,
-      collection.id,
-      collection.name,
-      collection.permissions || defaultPermissions,
-      true,
-      true
-    );
-    console.log(`✅ Created collection: ${collection.id}`);
-  } catch (error) {
-    if (error?.code === 409) {
-      console.log(`⏭️  Collection exists: ${collection.id}`);
-    } else {
-      console.error(`❌ Failed to create collection ${collection.id}:`, error.message || error);
-      return false;
-    }
-  }
-
-  console.log(`\n   Creating ${collection.attributes.length} attributes...`);
-  for (const attr of collection.attributes) {
-    await createAttribute(databaseId, collection.id, attr);
-  }
-  
-  return true;
-}
-
-(async () => {
-  console.log('═══════════════════════════════════════');
-  console.log('🚀 Appwrite Collections Setup');
-  console.log('═══════════════════════════════════════');
-  console.log(`Endpoint: ${endpoint}`);
-  console.log(`Project: ${projectId}`);
-  console.log(`Database: ${databaseId}`);
-  console.log(`Collections: ${collections.length}`);
-  console.log('═══════════════════════════════════════\n');
-
-  let successCount = 0;
-  let failCount = 0;
-
-  for (const collection of collections) {
-    const success = await ensureCollection(collection);
-    if (success !== false) {
-      successCount++;
-    } else {
-      failCount++;
-    }
-  }
-
-  console.log('\n═══════════════════════════════════════');
-  console.log('📊 Summary');
-  console.log('═══════════════════════════════════════');
-  console.log(`✅ Success: ${successCount}/${collections.length}`);
-  if (failCount > 0) {
-    console.log(`❌ Failed: ${failCount}`);
-  }
-  console.log('═══════════════════════════════════════\n');
-
-  if (successCount === collections.length) {
-    console.log('🎉 All collections created successfully!');
-    console.log('\n💡 Next steps:');
-    console.log('   1. Verify collections in Appwrite Console');
-    console.log('   2. Test sync from Flutter app');
-    console.log('   3. Monitor sync logs');
-  } else {
-    console.log('⚠️  Some collections failed. Check the logs above.');
-  }
-})();
+createCollections();
