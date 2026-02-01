@@ -60,12 +60,7 @@ class ComprehensiveAppwriteBackupService {
       // 1. Rooms
       if (onProgress != null) onProgress('تصدير الغرف...', 0.1);
       final rooms = await db.select(db.rooms).get();
-      collectionsData[AppwriteConfig.roomsCollectionId] = rooms.map((e) {
-        final map = e.toJson();
-        // تحويل JSON Drift إلى Map مناسب لـ Appwrite
-        // إزالة الحقول المحلية البحتة إذا لزم الأمر
-        return map;
-      }).toList();
+      collectionsData[AppwriteConfig.roomsCollectionId] = rooms.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
       // 2. Bookings
       if (onProgress != null) onProgress('تصدير الحجوزات...', 0.2);
@@ -87,28 +82,43 @@ class ComprehensiveAppwriteBackupService {
       final employees = await db.select(db.employees).get();
       collectionsData[AppwriteConfig.employeesCollectionId] = employees.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
-      // 6. Others
+      // 6. Debts
+      if (onProgress != null) onProgress('تصدير الديون...', 0.6);
       final debts = await db.select(db.debts).get();
       collectionsData[AppwriteConfig.debtsCollectionId] = debts.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
+      // 7. Booking Notes
+      if (onProgress != null) onProgress('تصدير ملاحظات الحجوزات...', 0.7);
       final bookingNotes = await db.select(db.bookingNotes).get();
       collectionsData[AppwriteConfig.bookingNotesCollectionId] = bookingNotes.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
+      // 8. Cash Transactions
+      if (onProgress != null) onProgress('تصدير المعاملات النقدية...', 0.75);
       final cashTransactions = await db.select(db.cashTransactions).get();
       collectionsData[AppwriteConfig.cashTransactionsCollectionId] = cashTransactions.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
+      // 9. Shift Notes
+      if (onProgress != null) onProgress('تصدير ملاحظات النوبة...', 0.8);
       final shiftNotes = await db.select(db.shiftNotes).get();
       collectionsData[AppwriteConfig.shiftNotesCollectionId] = shiftNotes.map((e) => e.toJson() as Map<String, dynamic>).toList();
 
+      // 10. Booking Nights
+      if (onProgress != null) onProgress('تصدير ليالي الحجوزات...', 0.85);
       final bookingNights = await db.select(db.bookingNights).get();
       collectionsData[AppwriteConfig.bookingNightsCollectionId] = bookingNights.map((e) => e.toJson() as Map<String, dynamic>).toList();
 
+      // 11. Salary Cycles
+      if (onProgress != null) onProgress('تصدير دورات الرواتب...', 0.9);
       final salaryCycles = await db.select(db.salaryCycles).get();
       collectionsData[AppwriteConfig.salaryCyclesCollectionId] = salaryCycles.map((e) => e.toJson() as Map<String, dynamic>).toList();
 
+      // 12. Salary Payments
+      if (onProgress != null) onProgress('تصدير دفعات الرواتب...', 0.95);
       final salaryPayments = await db.select(db.salaryPayments).get();
       collectionsData[AppwriteConfig.salaryPaymentsCollectionId] = salaryPayments.map((e) => e.toJson() as Map<String, dynamic>).toList();
 
+      // 13. Hotel Day Ledger
+      if (onProgress != null) onProgress('تصدير دفتر اليومية...', 0.98);
       final ledger = await db.select(db.hotelDayLedger).get();
       collectionsData[AppwriteConfig.hotelDayLedgerCollectionId] = ledger.map((e) => e.toJson() as Map<String, dynamic>).toList();
       
