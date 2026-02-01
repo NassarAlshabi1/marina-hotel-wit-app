@@ -100,6 +100,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     final Map<String, GuestInfo> guestMap = {};
 
     for (final booking in bookings) {
+      if (!StatusUtils.isActiveBooking(booking.status)) continue;
+      
       final key = '${booking.guestName}_${booking.guestPhone}';
       final email = booking.guestEmail ?? '';
       final idType = booking.guestIdType;
