@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/core.dart';
 import '../../../../providers/appwrite_providers.dart' as ap;
+import '../../../../providers/repository_providers.dart';
 import '../../../../services/appwrite_config.dart';
 import '../../../../services/appwrite_cache_manager.dart';
 
@@ -779,7 +780,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     );
 
     try {
-      final database = ref.read(ap.databaseProvider);
+      final database = ref.read(databaseProvider);
       final appwriteService = ref.read(ap.appwriteServiceProvider);
 
       // فحص البيانات المحلية
