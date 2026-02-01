@@ -398,6 +398,21 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
+                color: Colors.teal.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(UIConstants.radiusMD),
+              ),
+              child: const Icon(Icons.bug_report, color: Colors.teal),
+            ),
+            title: const Text('اختبار تشخيصي'),
+            subtitle: const Text('فحص الاتصال والبيانات المحلية'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _runDiagnosticTest(),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(UIConstants.spacingSM),
+              decoration: BoxDecoration(
                 color: Colors.purple.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
@@ -743,6 +758,154 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       'shift_notes': 'ملاحظات الشيفت',
     };
     return translations[entity] ?? entity;
+  }
+
+  Future<void> _runDiagnosticTest() async {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('جاري إجراء الاختبار التشخيصي...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final database = ref.read(ap.databaseProvider);
+      final appwriteService = ref.read(ap.appwriteServiceProvider);
+
+      // فحص البيانات المحلية
+      final roomsCount = await database.select(database.rooms).get().then((l) => l.length);
+      final bookingsCount = await database.select(database.bookings).get().then((l) => l.length);
+      final paymentsCount = await database.select(database.payments).get().then((l) => l.length);
+
+      print('📊 البيانات المحلية:');
+      print('   الغرف: $roomsCount');
+      print('   الحجوزات: $bookingsCount');
+      print('   المدفوعات: $paymentsCount');
+
+      // فحص Appwrite
+      await appwriteService.initialize();
+      final isInitialized = appwriteService.isInitialized;
+      final projectInfo = appwriteService.getProjectInfo();
+
+      print('🔌 حالة Appwrite:');
+      print('   مُهيأ: $isInitialized');
+      print('   Project ID: ${projectInfo['projectId']}');
+      print('   Database ID: ${projectInfo['databaseId']}');
+
+      // اختبار رفع غرفة واحدة
+      String? testResult;
+      if (roomsCount > 0) {
+        try {
+          final room = await database.select(database.rooms).get().then((l) => l.first);
+          
+          final payload = <String, dynamic>{
+            'roomNumber': room.roomNumber,
+            'type': room.type,
+            'price': room.price,
+            'status': room.status,
+            'localUuid': room.localUuid,
+            'createdAt': room.createdAt,
+            'updatedAt': room.updatedAt,
+            'lastModified': room.lastModified,
+            'version': room.version,
+            'origin': room.origin,
+          };
+
+          if (room.serverId != null) payload['serverId'] = room.serverId;
+          if (room.deletedAt != null) payload['deletedAt'] = room.deletedAt;
+
+          print('📤 اختبار رفع غرفة ${room.roomNumber}...');
+          
+          final doc = await appwriteService.upsertRoom(room.localUuid, payload);
+          testResult = '✅ نجح رفع غرفة ${room.roomNumber}\nDocument ID: ${doc.$id}';
+          
+          print('✅ نجح الاختبار!');
+        } catch (e) {
+          testResult = '❌ فشل رفع الغرفة:\n$e';
+          print('❌ خطأ في رفع الغرفة: $e');
+        }
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.bug_report, color: Colors.teal),
+              SizedBox(width: 8),
+              Text('نتيجة الاختبار التشخيصي'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('📊 البيانات المحلية:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('• الغرف: $roomsCount'),
+                Text('• الحجوزات: $bookingsCount'),
+                Text('• المدفوعات: $paymentsCount'),
+                const SizedBox(height: 16),
+                const Text('🔌 حالة Appwrite:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('• مُهيأ: ${isInitialized ? "✅ نعم" : "❌ لا"}'),
+                Text('• Project ID: ${projectInfo['projectId']}'),
+                Text('• Database ID: ${projectInfo['databaseId']}'),
+                if (testResult != null) ...[
+                  const SizedBox(height: 16),
+                  const Text('🧪 اختبار الرفع:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(testResult),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('حسناً'),
+            ),
+          ],
+        ),
+      );
+    } catch (e, stackTrace) {
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      print('❌ خطأ في الاختبار التشخيصي: $e');
+      print('Stack trace: $stackTrace');
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.error, color: Colors.red),
+              SizedBox(width: 8),
+              Text('فشل الاختبار'),
+            ],
+          ),
+          content: Text('حدث خطأ:\n$e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('حسناً'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   void _showClearHistoryDialog() {
