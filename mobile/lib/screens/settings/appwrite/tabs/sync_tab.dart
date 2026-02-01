@@ -35,6 +35,14 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
       _cacheEnabled = prefs.getBool('appwrite_cache_enabled') ?? true;
     });
+    
+    // تفعيل المزامنة التلقائية إذا كانت مفعلة
+    if (_syncEnabled) {
+      final manager = ref.read(ap.appwriteSyncManagerProvider);
+      manager.startAutoSync(
+        interval: Duration(minutes: _syncInterval),
+      );
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -165,10 +173,10 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 ? 'المزامنة التلقائية مفعّلة'
                 : 'المزامنة مع Appwrite معطّلة (يدوي فقط)'),
             value: _syncEnabled,
-            onChanged: (value) {
+            onChanged: (value) async {
               setState(() => _syncEnabled = value);
-              _saveSettings();
-              _onSyncEnabledChanged(value);
+              await _saveSettings(); // حفظ الإعداد أولاً
+              _onSyncEnabledChanged(value); // ثم تفعيل/إيقاف المزامنة
             },
             secondary: Icon(
               _syncEnabled ? Icons.sync : Icons.sync_disabled,
@@ -192,9 +200,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 : 'المزامنة عند الاتصال معطّلة'),
             value: _autoSyncOnConnect,
             onChanged: _syncEnabled
-                ? (value) {
+                ? (value) async {
                     setState(() => _autoSyncOnConnect = value);
-                    _saveSettings();
+                    await _saveSettings();
                   }
                 : null,
             secondary: Icon(
