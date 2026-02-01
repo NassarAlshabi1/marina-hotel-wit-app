@@ -1520,11 +1520,9 @@ class AppwriteSyncManager {
   Future<Map<String, int>> pushAllLocalDataToAppwrite({
     bool skipDeleted = false, // تغيير إلى false لرفع كل شيء
   }) async {
-    // التأكد من تهيئة الخدمة أولاً
-    await appwriteService.initialize();
-
     _logger.info('🚀 بدء رفع جميع البيانات المحلية إلى Appwrite...',
         tag: 'SYNC');
+    
     final stats = <String, int>{
       'rooms': 0,
       'bookings': 0,
@@ -1542,6 +1540,17 @@ class AppwriteSyncManager {
     };
 
     try {
+      // التأكد من تهيئة الخدمة أولاً
+      _logger.info('🔄 تهيئة خدمة Appwrite...', tag: 'SYNC');
+      await appwriteService.initialize();
+      
+      // التحقق من الاتصال بـ Appwrite
+      if (!appwriteService.isInitialized) {
+        _logger.error('❌ فشل تهيئة Appwrite', tag: 'SYNC');
+        throw Exception('Appwrite service not initialized');
+      }
+      
+      _logger.info('✅ تم تهيئة Appwrite بنجاح', tag: 'SYNC');
       // رفع الغرف
       final rooms = await database.select(database.rooms).get();
       _logger.info('📦 وُجد ${rooms.length} غرفة في قاعدة البيانات المحلية', tag: 'SYNC');

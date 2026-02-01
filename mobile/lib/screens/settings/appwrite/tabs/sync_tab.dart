@@ -620,6 +620,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           .where((e) => e.key != 'errors')
           .fold<int>(0, (sum, e) => sum + (e.value));
       final errors = stats['errors'] ?? 0;
+      
+      // طباعة النتائج في console
+      print('📊 نتيجة الرفع الشامل:');
+      print('   إجمالي السجلات: $totalRecords');
+      print('   الأخطاء: $errors');
+      stats.entries.forEach((e) => print('   ${e.key}: ${e.value}'));
 
       // إظهار النتائج
       showDialog(
@@ -647,6 +653,17 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                if (totalRecords == 0)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text(
+                      '⚠️ لا توجد بيانات في قاعدة البيانات المحلية للرفع',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 if (errors > 0)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
@@ -690,17 +707,21 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           ],
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (!mounted) return;
 
       // إغلاق مؤشر التحميل في حالة الخطأ
       Navigator.pop(context);
+      
+      // طباعة الخطأ في console
+      print('❌ خطأ في الرفع الشامل: $e');
+      print('Stack trace: $stackTrace');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('فشل الرفع الشامل: $e'),
+          content: Text('فشل الرفع الشامل:\n${e.toString()}'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 8),
         ),
       );
     }
