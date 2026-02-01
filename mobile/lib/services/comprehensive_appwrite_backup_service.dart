@@ -263,8 +263,8 @@ class ComprehensiveAppwriteBackupService {
     clean.remove('\$collectionId');
     clean.remove('\$databaseId');
     
-    // تحويل التواريخ إلى صيغة ISO 8601 إذا كانت timestamps
-    // (هنا يعتمد على بنية جداولك في drift مقابل appwrite)
+    // إزالة الحقول الخاصة بـ Drift/SQLite
+    clean.remove('id');
     
     return clean;
   }
