@@ -415,7 +415,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                     );
                   },
                   icon: const Icon(Icons.payment, size: 14),
-                  label: const Text('دفع', style: TextStyle(fontSize: 12)),
+                  label: const Text('دفع', style: TextStyle(fontSize: 13)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
