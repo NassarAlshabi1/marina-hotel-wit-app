@@ -491,9 +491,15 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         markDataChanged();
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إتمام الحجز بنجاح'),
+          SnackBar(
+            content: const Text('تم إتمام الحجز بنجاح'),
             backgroundColor: Colors.green,
+            duration: const Duration(days: 1),
+            action: SnackBarAction(
+              label: 'إغلاق',
+              textColor: Colors.white,
+              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
           ),
         );
 

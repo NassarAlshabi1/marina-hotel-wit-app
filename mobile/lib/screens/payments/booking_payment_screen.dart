@@ -1259,6 +1259,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           'تم تسجيل دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية - ${_currencyFmt.format(amount)}',
         ),
         backgroundColor: Colors.green,
+        duration: const Duration(days: 1),
+        action: SnackBarAction(
+          label: 'إغلاق',
+          textColor: Colors.white,
+          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        ),
       ),
     );
   }
@@ -1587,9 +1593,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'),
+      SnackBar(
+        content: const Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'),
         backgroundColor: Colors.green,
+        duration: const Duration(days: 1),
+        action: SnackBarAction(
+          label: 'إغلاق',
+          textColor: Colors.white,
+          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        ),
       ),
     );
     Navigator.pop(context);
@@ -1931,6 +1943,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           'تم تمديد الإقامة $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'} وتسجيل الدفعة',
         ),
         backgroundColor: Colors.green,
+        duration: const Duration(days: 1),
+        action: SnackBarAction(
+          label: 'إغلاق',
+          textColor: Colors.white,
+          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        ),
       ),
     );
   }
