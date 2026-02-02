@@ -57,7 +57,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: const [
               Text(
                 'لوحة تحكم فندق مارينا',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               ),
               Spacer(),
               DashboardSyncButton(),
@@ -243,7 +243,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           children: [
             const Text(
               'حالة الغرف',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -290,7 +290,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                         textStyle: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 14, // تصغير الخط
+                          fontSize: 12, // تصغير الخط
                         ),
                       ),
                       child: Text(roomNumber),
@@ -425,7 +425,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 16),
             const Text(
               'غرفة جديدة قيد التجهيز',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text('نوع الغرفة: سرير فردي'),
@@ -543,12 +543,12 @@ class _StatCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 20, color: color), // تصغير الأيقونة
+              Icon(icon, size: 16, color: color), // تصغير الأيقونة
               const SizedBox(height: 2),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 20, // تصغير الخط
+                  fontSize: 16, // تصغير الخط
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
@@ -557,7 +557,7 @@ class _StatCard extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 10, // تصغير الخط
+                  fontSize: 9, // تصغير الخط
                   color: Colors.grey,
                 ),
                 textAlign: TextAlign.center,
@@ -589,11 +589,11 @@ class _LoadingStatCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 20, color: color),
+            Icon(icon, size: 16, color: color),
             const SizedBox(height: 2),
             SizedBox(
-              width: 14,
-              height: 14,
+              width: 12,
+              height: 12,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(color),
@@ -602,7 +602,7 @@ class _LoadingStatCard extends StatelessWidget {
             const SizedBox(height: 1),
             Text(
               title,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
+              style: const TextStyle(fontSize: 9, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],
