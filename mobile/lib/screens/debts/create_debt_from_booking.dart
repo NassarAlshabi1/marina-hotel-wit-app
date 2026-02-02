@@ -23,6 +23,9 @@ class _CreateDebtFromBookingScreenState
   bool _isManualProcessing = false;
   _AutoDebtData? _autoDebtData;
 
+  DateTime? _filterFromDate;
+  DateTime? _filterToDate;
+
   final _manualFormKey = GlobalKey<FormState>();
   late TextEditingController _manualGuestNameController;
   late TextEditingController _manualCheckinController;
@@ -144,56 +147,148 @@ class _CreateDebtFromBookingScreenState
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('خطأ: $e')),
       data: (bookings) {
-        final eligibleBookings =
-            bookings.where(_isDebtEligibleBooking).toList();
+        var eligibleBookings = bookings.where(_isDebtEligibleBooking).toList();
 
-        if (eligibleBookings.isEmpty) {
-          return const Center(
-              child: Text('لا توجد حجوزات محجوزة أو مكتملة لإنشاء دين منها'));
+        if (_filterFromDate != null) {
+          eligibleBookings = eligibleBookings.where((b) {
+            final checkin = DateTime.tryParse(b.checkinDate);
+            return checkin != null && !checkin.isBefore(_filterFromDate!);
+          }).toList();
+        }
+        if (_filterToDate != null) {
+          eligibleBookings = eligibleBookings.where((b) {
+            final checkin = DateTime.tryParse(b.checkinDate);
+            return checkin != null && !checkin.isAfter(_filterToDate!);
+          }).toList();
         }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: ListView.builder(
-                itemCount: eligibleBookings.length,
-                itemBuilder: (context, index) {
-                  final booking = eligibleBookings[index];
-                  final isSelected = booking.id == _selectedBooking?.id;
-                  return Card(
-                    color: isSelected ? Colors.blue.shade50 : null,
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: isSelected ? Colors.blue : Colors.grey,
-                        child: Text(booking.roomNumber),
+            _buildDateFilters(),
+            const SizedBox(height: 12),
+            if (eligibleBookings.isEmpty)
+              const Expanded(child: Center(child: Text('لا توجد حجوزات في هذه الفترة')))
+            else
+              Expanded(
+                child: ListView.builder(
+                  itemCount: eligibleBookings.length,
+                  itemBuilder: (context, index) {
+                    final booking = eligibleBookings[index];
+                    final isSelected = booking.id == _selectedBooking?.id;
+                    return Card(
+                      color: isSelected ? Colors.blue.shade50 : null,
+                      child: ListTile(
+                        dense: true,
+                        leading: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: isSelected ? Colors.blue : Colors.grey,
+                          child: Text(booking.roomNumber, style: const TextStyle(fontSize: 12)),
+                        ),
+                        title: Text(booking.guestName, style: const TextStyle(fontSize: 12)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('غرفة ${booking.roomNumber}', style: const TextStyle(fontSize: 12)),
+                            Text(
+                                '${_formatDate(booking.checkinDate)} - ${_formatDate(booking.checkoutDate ?? '')}',
+                                style: const TextStyle(fontSize: 12)),
+                            Text('الحالة: ${booking.status}', style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check_circle, color: Colors.blue.shade600, size: 20)
+                            : null,
+                        onTap: () => _selectBooking(booking),
                       ),
-                      title: Text(booking.guestName),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('غرفة ${booking.roomNumber}'),
-                          Text(
-                              '${_formatDate(booking.checkinDate)} - ${_formatDate(booking.checkoutDate ?? '')}'),
-                          Text('الحالة: ${booking.status}'),
-                        ],
-                      ),
-                      trailing: isSelected
-                          ? Icon(Icons.check_circle,
-                              color: Colors.blue.shade600)
-                          : null,
-                      onTap: () => _selectBooking(booking),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
             const SizedBox(height: 12),
             _buildAutoSummaryArea(),
           ],
         );
       },
     );
+  }
+
+  Widget _buildDateFilters() {
+    return Row(
+      children: [
+        Expanded(
+          child: InkWell(
+            onTap: () => _pickDate(isFrom: true),
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'من تاريخ',
+                labelStyle: TextStyle(fontSize: 12),
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              child: Text(
+                _filterFromDate != null ? _formatDateTime(_filterFromDate!) : 'اختر',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: InkWell(
+            onTap: () => _pickDate(isFrom: false),
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'إلى تاريخ',
+                labelStyle: TextStyle(fontSize: 12),
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              child: Text(
+                _filterToDate != null ? _formatDateTime(_filterToDate!) : 'اختر',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          onPressed: () => setState(() {
+            _filterFromDate = null;
+            _filterToDate = null;
+          }),
+          icon: const Icon(Icons.clear, size: 20),
+          tooltip: 'مسح الفلتر',
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickDate({required bool isFrom}) async {
+    final initial = isFrom ? _filterFromDate : _filterToDate;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isFrom) {
+          _filterFromDate = picked;
+        } else {
+          _filterToDate = picked;
+        }
+      });
+    }
+  }
+
+  String _formatDateTime(DateTime d) {
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
   Widget _buildAutoSummaryArea() {
