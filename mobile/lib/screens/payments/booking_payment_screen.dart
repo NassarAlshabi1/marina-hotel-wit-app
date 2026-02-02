@@ -196,7 +196,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     plannedCheckout: plannedCheckout,
                     actualCheckout: actualCheckout,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
@@ -261,8 +261,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         : '${widget.booking.guestIdType} • ${widget.booking.guestIdNumber}';
 
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -363,10 +363,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               _buildDetailChip(
                 context,
@@ -391,7 +391,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -408,7 +408,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: LinearProgressIndicator(
@@ -422,7 +422,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
