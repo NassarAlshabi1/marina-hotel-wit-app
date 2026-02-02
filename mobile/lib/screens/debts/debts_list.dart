@@ -668,6 +668,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     paidCtrl.addListener(recalculate);
     recalculate();
 
+    try {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -879,6 +880,20 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               : 'تم تحديث الدين بنجاح'),
         ),
       );
+    }
+    } finally {
+      totalCtrl.removeListener(recalculate);
+      paidCtrl.removeListener(recalculate);
+      guestNameCtrl.dispose();
+      checkinCtrl.dispose();
+      checkoutCtrl.dispose();
+      totalCtrl.dispose();
+      paidCtrl.dispose();
+      remainingCtrl.dispose();
+      debtReasonCtrl.dispose();
+      pledgeCtrl.dispose();
+      pledgeTypeCtrl.dispose();
+      noteCtrl.dispose();
     }
   }
 
