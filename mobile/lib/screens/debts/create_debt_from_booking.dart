@@ -94,7 +94,7 @@ class _CreateDebtFromBookingScreenState
                   Text(
                     '• الوضع التلقائي: تحويل الحجز الحالي إلى دين مع حساب الليالي وسعر الغرفة والمبالغ المدفوعة تلقائياً وتحرير الغرفة.\n'
                     '• الوضع اليدوي: إدخال دين يدوي لأي حالة سابقة أو غير مرتبطة بحجز.',
-                    style: TextStyle(fontSize: 13, height: 1.4),
+                    style: TextStyle(fontSize: 12, height: 1.4),
                   ),
                 ],
               ),
@@ -226,7 +226,7 @@ class _CreateDebtFromBookingScreenState
           children: [
             Text(
               'دين ${booking.guestName}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -267,9 +267,9 @@ class _CreateDebtFromBookingScreenState
               style: const TextStyle(fontSize: 12),
               decoration: InputDecoration(
                 labelText: 'تاريخ الدين',
-                labelStyle: const TextStyle(fontSize: 11),
+                labelStyle: const TextStyle(fontSize: 12),
                 hintText: 'مثال: 2026-02-01',
-                hintStyle: const TextStyle(fontSize: 10),
+                hintStyle: const TextStyle(fontSize: 12),
                 prefixIcon: const Icon(Icons.calendar_today, size: 16),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.edit_calendar, size: 18),
@@ -294,7 +294,7 @@ class _CreateDebtFromBookingScreenState
             const SizedBox(height: 12),
             Text(
               'سيتم إنشاء الدين وتحديث حالة الحجز إلى "مكتمل" وتحرير الغرفة ${booking.roomNumber}.',
-              style: const TextStyle(fontSize: 13, color: Colors.black54),
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 12),
             Row(
@@ -351,7 +351,7 @@ class _CreateDebtFromBookingScreenState
               style: const TextStyle(fontSize: 12),
               decoration: const InputDecoration(
                 labelText: 'اسم النزيل *',
-                labelStyle: TextStyle(fontSize: 11),
+                labelStyle: TextStyle(fontSize: 12),
                 border: OutlineInputBorder(),
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -369,9 +369,9 @@ class _CreateDebtFromBookingScreenState
                     style: const TextStyle(fontSize: 12),
                     decoration: InputDecoration(
                       labelText: 'تاريخ الوصول *',
-                      labelStyle: const TextStyle(fontSize: 11),
+                      labelStyle: const TextStyle(fontSize: 12),
                       hintText: '2026-02-01',
-                      hintStyle: const TextStyle(fontSize: 10),
+                      hintStyle: const TextStyle(fontSize: 12),
                       border: const OutlineInputBorder(),
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -402,9 +402,9 @@ class _CreateDebtFromBookingScreenState
                     style: const TextStyle(fontSize: 12),
                     decoration: InputDecoration(
                       labelText: 'تاريخ المغادرة',
-                      labelStyle: const TextStyle(fontSize: 11),
+                      labelStyle: const TextStyle(fontSize: 12),
                       hintText: '2026-02-01',
-                      hintStyle: const TextStyle(fontSize: 10),
+                      hintStyle: const TextStyle(fontSize: 12),
                       border: const OutlineInputBorder(),
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -437,7 +437,7 @@ class _CreateDebtFromBookingScreenState
                     style: const TextStyle(fontSize: 12),
                     decoration: const InputDecoration(
                       labelText: 'إجمالي المبلغ *',
-                      labelStyle: TextStyle(fontSize: 11),
+                      labelStyle: TextStyle(fontSize: 12),
                       border: OutlineInputBorder(),
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -455,7 +455,7 @@ class _CreateDebtFromBookingScreenState
                     style: const TextStyle(fontSize: 12),
                     decoration: const InputDecoration(
                       labelText: 'المبلغ المدفوع',
-                      labelStyle: TextStyle(fontSize: 11),
+                      labelStyle: TextStyle(fontSize: 12),
                       border: OutlineInputBorder(),
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -470,7 +470,7 @@ class _CreateDebtFromBookingScreenState
               style: const TextStyle(fontSize: 12),
               decoration: const InputDecoration(
                 labelText: 'سبب الدين',
-                labelStyle: TextStyle(fontSize: 11),
+                labelStyle: TextStyle(fontSize: 12),
                 border: OutlineInputBorder(),
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -483,7 +483,7 @@ class _CreateDebtFromBookingScreenState
               style: const TextStyle(fontSize: 12),
               decoration: const InputDecoration(
                 labelText: 'ملاحظات',
-                labelStyle: TextStyle(fontSize: 11),
+                labelStyle: TextStyle(fontSize: 12),
                 border: OutlineInputBorder(),
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
