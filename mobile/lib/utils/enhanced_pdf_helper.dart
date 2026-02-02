@@ -76,6 +76,7 @@ class EnhancedPdfHelper {
           : DateTime.parse(booking.checkinDate).add(Duration(days: nights)),
       issuedAt: DateTime.now(),
       notes: booking.notes,
+      discount: booking.discount,
     );
 
     await invoice.generatePDF();

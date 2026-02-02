@@ -362,6 +362,7 @@ class EnhancedInvoice {
   final DateTime checkOut;
   final DateTime issuedAt;
   final String? notes;
+  final double discount;
 
   EnhancedInvoice({
     required this.invoiceNumber,
@@ -376,12 +377,14 @@ class EnhancedInvoice {
     required this.checkOut,
     required this.issuedAt,
     this.notes,
+    this.discount = 0,
   });
 
   double get totalAmount => items.fold(0, (sum, item) => sum + item.total);
+  double get totalAfterDiscount => totalAmount - discount;
   double get totalPaid =>
       payments.fold(0, (sum, payment) => sum + payment.amount);
-  double get remainingBalance => totalAmount - totalPaid;
+  double get remainingBalance => totalAfterDiscount - totalPaid;
 
   /// إنشاء PDF احترافي للفاتورة
   Future<void> generatePDF() async {
@@ -553,10 +556,23 @@ class EnhancedInvoice {
             child: pw.Column(
               children: [
                 _buildSummaryRow('المجموع الفرعي:', totalAmount, fonts),
+                if (discount > 0) ...
+                  [
+                    pw.Divider(color: PdfColors.textLight),
+                    _buildSummaryRow(
+                      'التخفيض:',
+                      discount,
+                      fonts,
+                      color: PdfColors.success,
+                      isDiscount: true,
+                    ),
+                    pw.Divider(color: PdfColors.textLight),
+                    _buildSummaryRow('المجموع بعد التخفيض:', totalAfterDiscount, fonts),
+                  ],
                 pw.Divider(color: PdfColors.textLight),
                 _buildSummaryRow(
                   'ضريبة القيمة المضافة:',
-                  totalAmount * 0.15,
+                  totalAfterDiscount * 0.15,
                   fonts,
                   isSmall: true,
                 ),
@@ -579,7 +595,7 @@ class EnhancedInvoice {
                         ),
                       ),
                       pw.Text(
-                        EnhancedPdfUtils.formatCurrency(totalAmount * 1.15),
+                        EnhancedPdfUtils.formatCurrency(totalAfterDiscount * 1.15),
                         style: pw.TextStyle(
                           font: fonts.bold,
                           fontSize: 16,
@@ -618,7 +634,11 @@ class EnhancedInvoice {
     ArabicPdfFonts fonts, {
     bool isSmall = false,
     PdfColor? color,
+    bool isDiscount = false,
   }) {
+    final displayAmount = isDiscount
+        ? '- ${EnhancedPdfUtils.formatCurrency(amount)}'
+        : EnhancedPdfUtils.formatCurrency(amount);
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 2),
       child: pw.Row(
@@ -633,7 +653,7 @@ class EnhancedInvoice {
             ),
           ),
           pw.Text(
-            EnhancedPdfUtils.formatCurrency(amount),
+            displayAmount,
             style: pw.TextStyle(
               font: fonts.bold,
               fontSize: isSmall ? 10 : 12,

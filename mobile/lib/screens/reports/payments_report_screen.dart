@@ -534,6 +534,15 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                                       const SizedBox(height: 4),
                                       Text(
                                           'اسم الضيف: ${row.booking!.guestName}'),
+                                      if (row.booking!.discount > 0) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'التخفيض: ${_currencyFmt.format(row.booking!.discount)}',
+                                          style: TextStyle(
+                                            color: Colors.green.shade700,
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ],
                                 ),
