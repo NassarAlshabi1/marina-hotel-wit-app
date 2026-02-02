@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -9,8 +10,10 @@ import 'package:printing/printing.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/report_filter_utils.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
@@ -20,7 +23,8 @@ class PaymentsReportScreen extends ConsumerStatefulWidget {
       _PaymentsReportScreenState();
 }
 
-class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
+class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
+    with OptimizedReportFilterMixin {
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd HH:mm');
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
 
@@ -122,7 +126,18 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
-    final payments = await (db.select(db.payments)).get();
+    final fromStr = _fromDate != null
+        ? _fromDate!.toIso8601String().split('T')[0]
+        : null;
+    final toStr = _toDate != null
+        ? '${_toDate!.toIso8601String().split('T')[0]} 23:59:59'
+        : null;
+
+    final paymentsDao = ref.read(paymentsDaoProvider);
+    final payments = await paymentsDao.list(
+      from: fromStr,
+      to: toStr,
+    );
 
     final bookingIds =
         payments.map((p) => p.bookingLocalId).whereType<int>().toSet();
@@ -151,15 +166,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
     final filteredPayments = <Payment>[];
     for (final payment in payments) {
+      if (payment.deletedAt != null) continue;
       final booking = bookingMap[payment.bookingLocalId];
       final candidateRoom = payment.roomNumber ?? booking?.roomNumber;
-      final paymentDate = _parseDateTime(payment.paymentDate);
-      if (_fromDate != null && paymentDate.isBefore(_fromDate!)) {
-        continue;
-      }
-      if (_toDate != null && paymentDate.isAfter(_toDate!)) {
-        continue;
-      }
       if (_selectedRoom != null &&
           _selectedRoom!.isNotEmpty &&
           candidateRoom != _selectedRoom) {

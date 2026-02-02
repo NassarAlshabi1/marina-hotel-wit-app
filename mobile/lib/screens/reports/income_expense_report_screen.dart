@@ -17,6 +17,7 @@ import '../../services/daos/payments_dao.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/report_filter_utils.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
   const IncomeExpenseReportScreen({super.key});
@@ -27,7 +28,8 @@ class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
 }
 
 class _IncomeExpenseReportScreenState
-    extends ConsumerState<IncomeExpenseReportScreen> {
+    extends ConsumerState<IncomeExpenseReportScreen>
+    with OptimizedReportFilterMixin {
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
   final NumberFormat _currencyFormat = NumberFormat('#,##0', 'en_US');
 

@@ -14,6 +14,10 @@ import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/auth_local_store.dart';
 import '../services/sync_guardian.dart';
+import '../services/daos/payments_dao.dart';
+import '../services/daos/expenses_dao.dart';
+import '../services/daos/debts_dao.dart';
+import '../services/daos/outbox_dao.dart';
 
 import '../services/whatsapp_service.dart';
 import '../utils/status_utils.dart';
@@ -35,6 +39,22 @@ final syncHealthProvider = StreamProvider<SyncHealthSnapshot>(
 
 final databaseProvider = Provider<AppDatabase>(
   (ref) => DatabaseManager.instance,
+);
+
+final outboxDaoProvider = Provider<OutboxDao>(
+  (ref) => OutboxDao(ref.read(databaseProvider)),
+);
+
+final paymentsDaoProvider = Provider<PaymentsDao>(
+  (ref) => PaymentsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+);
+
+final expensesDaoProvider = Provider<ExpensesDao>(
+  (ref) => ExpensesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+);
+
+final debtsDaoProvider = Provider<DebtsDao>(
+  (ref) => DebtsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
 );
 
 final roomsRepoProvider = Provider<RoomsRepository>(

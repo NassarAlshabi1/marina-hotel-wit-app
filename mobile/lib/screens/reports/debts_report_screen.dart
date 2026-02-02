@@ -12,9 +12,11 @@ import '../../components/app_scaffold.dart';
 import '../../components/admin_layout.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/time.dart';
+import '../../utils/report_filter_utils.dart';
 
 class DebtsReportScreen extends ConsumerStatefulWidget {
   const DebtsReportScreen({super.key});
@@ -23,7 +25,8 @@ class DebtsReportScreen extends ConsumerStatefulWidget {
   ConsumerState<DebtsReportScreen> createState() => _DebtsReportScreenState();
 }
 
-class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
+class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen>
+    with OptimizedReportFilterMixin {
   final NumberFormat _currencyFormat = NumberFormat('#,##0', 'en_US');
 
   // ignore: unused_element
@@ -87,27 +90,15 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       _loading = true;
     });
     try {
-      final db = ref.read(coreProviders.dbProvider);
-      final query = db.select(db.debts);
-      final allDebts = await query.get();
-      final filtered = <Debt>[];
-      final fromFilter = _fromDate;
-      final toFilter = _toDate;
-      for (final debt in allDebts) {
-        final paymentDate = _parseDateTime(debt.paymentDate);
-        if (fromFilter != null && paymentDate.isBefore(fromFilter)) {
-          continue;
-        }
-        if (toFilter != null && paymentDate.isAfter(toFilter)) {
-          continue;
-        }
-        filtered.add(debt);
-      }
-      filtered.sort(
-        (a, b) => _parseDateTime(
-          b.paymentDate,
-        ).compareTo(_parseDateTime(a.paymentDate)),
-      );
+      final fromStr = _fromDate != null
+          ? _fromDate!.toIso8601String().split('T')[0]
+          : null;
+      final toStr = _toDate != null
+          ? '${_toDate!.toIso8601String().split('T')[0]} 23:59:59'
+          : null;
+
+      final debtsDao = ref.read(debtsDaoProvider);
+      final filtered = await debtsDao.list(from: fromStr, to: toStr);
       final guestMap = <String, _GuestDebtSummary>{};
       final monthlyMap = <String, _MonthlyDebtSummary>{};
       double totalDebt = 0;
