@@ -85,7 +85,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     );
     String status = existing?.status ?? 'شاغرة';
 
-    String? imageUrl = existing?.imageUrl;
+    final imageUrl = existing?.imageUrl;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
