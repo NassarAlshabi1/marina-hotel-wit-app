@@ -21,6 +21,10 @@ on:
   # Allows manual triggering of the workflow from the GitHub Actions tab
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-release-apk:
     # Runs the job on the latest Ubuntu runner
