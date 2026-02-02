@@ -369,8 +369,7 @@ class _CreateDebtFromBookingScreenState
   Widget _buildInfoChip(IconData icon, String label, String value,
       {Color? color}) {
     return Chip(
-      avatar: Icon(icon, size: 18, color: color ?? Colors.blue),
-      label: Text('$label: $value'),
+      label: Text('$label: $value', style: const TextStyle(fontSize: 12)),
       backgroundColor: (color ?? Colors.blue).withOpacity(0.08),
     );
   }
