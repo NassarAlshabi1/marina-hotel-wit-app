@@ -661,122 +661,80 @@ class _IncomeExpenseReportScreenState
     if (!_detailedMode) {
       return _buildStatsList();
     }
-    return DefaultTabController(
-      length: 2,
-      child: Column(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: TabBar(
-              indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              labelColor: Theme.of(context).colorScheme.onPrimary,
-              unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
-              dividerColor: Colors.transparent,
-              tabs: [
-                Tab(text: 'الدخل (${_incomeEntries.length})'),
-                Tab(text: 'المصروفات (${_expenseEntries.length})'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _buildIncomeList(),
-                _buildExpenseList(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    return _buildCombinedList();
   }
 
-  Widget _buildIncomeList() {
-    if (_incomeEntries.isEmpty) {
-      return const Center(child: Text('لا توجد إيرادات'));
+  Widget _buildCombinedList() {
+    final List<_CombinedEntry> combined = [];
+    for (final e in _incomeEntries) {
+      combined.add(_CombinedEntry(
+        date: e.date,
+        description: e.description,
+        amount: e.amount,
+        isIncome: true,
+        isSalary: false,
+        type: '',
+      ));
     }
+    for (final e in _expenseEntries) {
+      combined.add(_CombinedEntry(
+        date: e.date,
+        description: e.description.isNotEmpty ? e.description : e.type,
+        amount: e.amount,
+        isIncome: false,
+        isSalary: e.isSalary,
+        type: e.type,
+      ));
+    }
+    combined.sort((a, b) => b.date.compareTo(a.date));
+
+    if (combined.isEmpty) {
+      return const Center(child: Text('لا توجد بيانات'));
+    }
+
     return ListView.builder(
-      itemCount: _incomeEntries.length,
+      itemCount: combined.length,
       itemBuilder: (context, index) {
-        final entry = _incomeEntries[index];
+        final entry = combined[index];
+        final color = entry.isIncome
+            ? Colors.green
+            : (entry.isSalary ? Colors.orange : Colors.red);
+        final icon = entry.isIncome
+            ? Icons.arrow_downward
+            : (entry.isSalary ? Icons.people : Icons.arrow_upward);
+
         return Card(
           margin: const EdgeInsets.only(bottom: 6),
           child: ListTile(
             dense: true,
             leading: CircleAvatar(
-              backgroundColor: Colors.green.withOpacity(0.1),
+              backgroundColor: color.withOpacity(0.1),
               radius: 18,
-              child: const Icon(Icons.arrow_downward, color: Colors.green, size: 18),
+              child: Icon(icon, color: color, size: 18),
             ),
             title: Text(entry.description, style: const TextStyle(fontSize: 12)),
-            subtitle: Text(_dateFormat.format(entry.date), style: const TextStyle(fontSize: 10)),
-            trailing: Text(
-              _currencyFormat.format(entry.amount),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildExpenseList() {
-    if (_expenseEntries.isEmpty) {
-      return const Center(child: Text('لا توجد مصروفات'));
-    }
-    return ListView.builder(
-      itemCount: _expenseEntries.length,
-      itemBuilder: (context, index) {
-        final entry = _expenseEntries[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 6),
-          child: ListTile(
-            dense: true,
-            leading: CircleAvatar(
-              backgroundColor: (entry.isSalary ? Colors.orange : Colors.red).withOpacity(0.1),
-              radius: 18,
-              child: Icon(
-                entry.isSalary ? Icons.people : Icons.arrow_upward,
-                color: entry.isSalary ? Colors.orange : Colors.red,
-                size: 18,
-              ),
-            ),
-            title: Text(
-              entry.description.isNotEmpty ? entry.description : entry.type,
-              style: const TextStyle(fontSize: 12),
-            ),
             subtitle: Row(
               children: [
                 Text(_dateFormat.format(entry.date), style: const TextStyle(fontSize: 10)),
-                if (entry.isSalary) ...[
-                  const SizedBox(width: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text('راتب', style: TextStyle(fontSize: 8, color: Colors.orange)),
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                ],
+                  child: Text(
+                    entry.isIncome ? 'دخل' : (entry.isSalary ? 'راتب' : 'مصروف'),
+                    style: TextStyle(fontSize: 8, color: color),
+                  ),
+                ),
               ],
             ),
             trailing: Text(
-              _currencyFormat.format(entry.amount),
+              '${entry.isIncome ? '+' : '-'}${_currencyFormat.format(entry.amount)}',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: entry.isSalary ? Colors.orange : Colors.red,
+                color: color,
                 fontSize: 12,
               ),
             ),
@@ -843,4 +801,22 @@ class _ExpenseEntry {
   final String description;
   final double amount;
   final bool isSalary;
+}
+
+class _CombinedEntry {
+  _CombinedEntry({
+    required this.date,
+    required this.description,
+    required this.amount,
+    required this.isIncome,
+    required this.isSalary,
+    required this.type,
+  });
+
+  final DateTime date;
+  final String description;
+  final double amount;
+  final bool isIncome;
+  final bool isSalary;
+  final String type;
 }
