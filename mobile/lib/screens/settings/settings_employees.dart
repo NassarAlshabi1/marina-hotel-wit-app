@@ -6,6 +6,7 @@ import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../employees/salary_entitlements_screen.dart';
+import '../../services/salary_entitlement_service.dart';
 
 class SettingsEmployeesScreen extends ConsumerWidget {
   const SettingsEmployeesScreen({super.key});
@@ -326,12 +327,11 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () =>
-                        _showSalaryWithdrawalDialog(context, ref, employee),
-                    icon: const Icon(Icons.money_off, size: 16),
-                    label: const Text('سحب راتب'),
+                    onPressed: () => _showEmployeeEntitlement(context, employee),
+                    icon: const Icon(Icons.account_balance_wallet, size: 16),
+                    label: const Text('الاستحقاق', style: TextStyle(fontSize: 12)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
+                      backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -555,6 +555,70 @@ class SettingsEmployeesScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showEmployeeEntitlement(BuildContext context, Employee employee) async {
+    final service = SalaryEntitlementService(DatabaseManager.instance);
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final entitlement = await service.calculateEmployeeEntitlement(employee);
+      if (context.mounted) Navigator.pop(context);
+
+      if (!context.mounted) return;
+
+      final isPositive = entitlement.netEntitlement >= 0;
+      showDialog(
+        context: context,
+        builder: (context) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: Text('استحقاق ${employee.name}', style: const TextStyle(fontSize: 14)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _entitlementRow('تاريخ التعيين', '${entitlement.hireDate.year}-${entitlement.hireDate.month}-${entitlement.hireDate.day}'),
+                _entitlementRow('مدة العمل', '${entitlement.totalMonthsWorked} شهر'),
+                _entitlementRow('الراتب الشهري', CurrencyFormatter.formatAmount(entitlement.basicSalary)),
+                const Divider(),
+                _entitlementRow('إجمالي الاستحقاق', CurrencyFormatter.formatAmount(entitlement.totalEntitlement), Colors.green),
+                _entitlementRow('السحبيات', '- ${CurrencyFormatter.formatAmount(entitlement.totalWithdrawals)}', Colors.orange),
+                _entitlementRow('الخصومات', '- ${CurrencyFormatter.formatAmount(entitlement.totalDeductions)}', Colors.red),
+                const Divider(),
+                _entitlementRow('المتبقي', CurrencyFormatter.formatAmount(entitlement.netEntitlement), isPositive ? Colors.green : Colors.red, true),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) Navigator.pop(context);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e')));
+      }
+    }
+  }
+
+  Widget _entitlementRow(String label, String value, [Color? color, bool bold = false]) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12)),
+          Text(value, style: TextStyle(fontSize: 12, color: color, fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+        ],
       ),
     );
   }
