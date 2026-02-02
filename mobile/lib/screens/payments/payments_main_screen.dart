@@ -45,14 +45,14 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             TabBar(
               controller: _tabController,
               labelStyle: const TextStyle(
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
-              unselectedLabelStyle: const TextStyle(fontSize: 12),
+              unselectedLabelStyle: const TextStyle(fontSize: 11),
               tabs: const [
-                Tab(text: 'نظرة عامة', icon: Icon(Icons.dashboard, size: 20)),
-                Tab(text: 'المعاملات', icon: Icon(Icons.list, size: 20)),
-                Tab(text: 'الحجوزات النشطة', icon: Icon(Icons.hotel, size: 20)),
+                Tab(text: 'نظرة عامة', icon: Icon(Icons.dashboard, size: 18)),
+                Tab(text: 'المعاملات', icon: Icon(Icons.list, size: 18)),
+                Tab(text: 'الحجوزات النشطة', icon: Icon(Icons.hotel, size: 18)),
               ],
             ),
             Expanded(
@@ -389,14 +389,14 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                 ),
                 title: Text(
                   booking.guestName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('الهاتف: ${booking.guestPhone}', style: const TextStyle(fontSize: 11)),
-                    Text('دخول: ${booking.checkinDate}', style: const TextStyle(fontSize: 11)),
-                    Text('الجنسية: ${booking.guestNationality}', style: const TextStyle(fontSize: 11)),
+                    Text('الهاتف: ${booking.guestPhone}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text('دخول: ${booking.checkinDate}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text('الجنسية: ${booking.guestNationality}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
                   ],
                 ),
                 trailing: ElevatedButton.icon(

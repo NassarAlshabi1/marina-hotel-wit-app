@@ -223,7 +223,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                         CurrencyFormatter.formatAmount(payment.amount),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: 12,
                         ),
                       ),
                       subtitle: Column(
@@ -240,7 +240,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                               const SizedBox(width: 4),
                               Text(
                                 payment.paymentMethod,
-                                style: TextStyle(color: Colors.grey.shade700),
+                                style: TextStyle(color: Colors.grey.shade700, fontSize: 10),
                               ),
                               const SizedBox(width: 12),
                               Icon(
@@ -251,7 +251,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                               const SizedBox(width: 4),
                               Text(
                                 _getRevenueTypeLabel(payment.revenueType),
-                                style: TextStyle(color: Colors.grey.shade700),
+                                style: TextStyle(color: Colors.grey.shade700, fontSize: 10),
                               ),
                             ],
                           ),
@@ -266,7 +266,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                               const SizedBox(width: 4),
                               Text(
                                 payment.paymentDate,
-                                style: TextStyle(color: Colors.grey.shade700),
+                                style: TextStyle(color: Colors.grey.shade700, fontSize: 10),
                               ),
                             ],
                           ),
