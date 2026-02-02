@@ -209,7 +209,7 @@ class UnifiedSyncOrchestrator {
 
   Future<void> notifyLocalChange({String? table, String? operation}) async {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(seconds: 2), () async {
+    _debounceTimer = Timer(const Duration(seconds: 10), () async {
       // رفع تلقائي إلى Appwrite فقط بعد كل تغيير
       await _autoSyncToAppwrite(
         reason: 'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}',
