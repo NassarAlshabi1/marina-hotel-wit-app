@@ -11,21 +11,10 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
   DebtsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<Debt>> list({
-    String? from,
-    String? to,
-    bool includeDeleted = false,
-  }) {
+  Future<List<Debt>> list({bool includeDeleted = false}) {
     final query = select(debts);
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
-    }
-    if (from != null && to != null) {
-      query.where(
-        (t) =>
-            t.paymentDate.isBiggerOrEqualValue(from) &
-            t.paymentDate.isSmallerOrEqualValue(to),
-      );
     }
     query.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),

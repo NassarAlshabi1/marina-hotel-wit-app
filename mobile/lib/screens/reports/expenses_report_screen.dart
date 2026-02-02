@@ -10,10 +10,8 @@ import 'package:printing/printing.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
-import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
-import '../../utils/report_filter_utils.dart';
 
 class ExpensesReportScreen extends ConsumerStatefulWidget {
   const ExpensesReportScreen({
@@ -42,8 +40,7 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
       _ExpensesReportScreenState();
 }
 
-class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
-    with OptimizedReportFilterMixin {
+class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   // ignore: unused_element
@@ -153,32 +150,17 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
   }
 
   Future<_ExpensesReportResult> _loadExpensesReport(AppDatabase db) async {
-    final fromStr = _fromDate != null
-        ? _fromDate!.toIso8601String().split('T')[0]
-        : null;
-    final toStr = _toDate != null
-        ? '${_toDate!.toIso8601String().split('T')[0]} 23:59:59'
-        : null;
-
-    final expensesDao = ref.read(expensesDaoProvider);
-    List<Expense> expenses;
-
+    final query = db.select(db.expenses);
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
-      final allExpenses = await expensesDao.list(from: fromStr, to: toStr);
-      expenses = allExpenses
-          .where((e) => widget.allowedTypes!.contains(e.expenseType))
-          .toList();
-    } else {
-      expenses = await expensesDao.list(from: fromStr, to: toStr);
+      query.where((tbl) => tbl.expenseType.isIn(widget.allowedTypes!.toList()));
     }
-
     if (widget.showTypeFilter &&
         _selectedType != null &&
         _selectedType!.isNotEmpty) {
-      expenses = expenses
-          .where((e) => e.expenseType == _selectedType)
-          .toList();
+      query.where((tbl) => tbl.expenseType.equals(_selectedType!));
     }
+
+    final expenses = await query.get();
 
     final employeeMap = <int, Employee>{};
     if (widget.includeEmployeeDetails) {
@@ -202,10 +184,15 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
     final rows = <_ExpenseReportRow>[];
     double totalAmount = 0;
     for (final expense in expenses) {
-      if (expense.deletedAt != null) continue;
       final employee =
           expense.relatedId != null ? employeeMap[expense.relatedId!] : null;
       final date = _parseExpenseDate(expense.date);
+      if (_fromDate != null && date.isBefore(_fromDate!)) {
+        continue;
+      }
+      if (_toDate != null && date.isAfter(_toDate!)) {
+        continue;
+      }
       totalAmount += expense.amount;
       rows.add(
         _ExpenseReportRow(
