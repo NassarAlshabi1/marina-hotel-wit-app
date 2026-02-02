@@ -548,7 +548,7 @@ class _StatCard extends StatelessWidget {
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 16, // تصغير الخط
+                  fontSize: 20, // تصغير الخط
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
