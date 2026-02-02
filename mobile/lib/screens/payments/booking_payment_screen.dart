@@ -575,14 +575,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             textDirection: ui.TextDirection.ltr,
           ),
         ),
-        const Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            'طريقة الدفع',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-          ),
-        ),
-        const SizedBox(height: 12),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
