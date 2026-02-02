@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
@@ -209,12 +210,46 @@ class UnifiedSyncOrchestrator {
   Future<void> notifyLocalChange({String? table, String? operation}) async {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(seconds: 2), () async {
-      await syncNow(
-        push: true,
-        pull: true,
+      // رفع تلقائي إلى Appwrite فقط بعد كل تغيير
+      await _autoSyncToAppwrite(
         reason: 'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}',
       );
     });
+  }
+
+  /// رفع تلقائي إلى Appwrite فقط (بدون Google Drive)
+  Future<bool> _autoSyncToAppwrite({String reason = 'auto'}) async {
+    if (_syncing) {
+      return false;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+
+      if (!appwriteEnabled) {
+        debugPrint('ℹ️ Appwrite sync معطل - تخطي الرفع التلقائي');
+        return true;
+      }
+
+      _syncing = true;
+      debugPrint('🔄 رفع تلقائي إلى Appwrite: $reason');
+
+      final success = await _syncAppwrite(push: true, pull: false);
+
+      if (success) {
+        debugPrint('✅ تم الرفع التلقائي إلى Appwrite');
+      } else {
+        debugPrint('❌ فشل الرفع التلقائي إلى Appwrite');
+      }
+
+      return success;
+    } catch (e) {
+      debugPrint('❌ خطأ في الرفع التلقائي: $e');
+      return false;
+    } finally {
+      _syncing = false;
+    }
   }
 
   Future<bool> syncNow({
