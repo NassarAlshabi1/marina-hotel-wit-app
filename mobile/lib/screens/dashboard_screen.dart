@@ -290,7 +290,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                         textStyle: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 12, // تصغير الخط
+                          fontSize: 14, // تصغير الخط
                         ),
                       ),
                       child: Text(roomNumber),
