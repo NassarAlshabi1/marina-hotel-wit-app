@@ -12,7 +12,10 @@ import 'package:printing/printing.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
-import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/repository_providers.dart';
+import '../../services/daos/payments_dao.dart';
+import '../../services/daos/expenses_dao.dart';
+import '../../services/daos/outbox_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
@@ -57,28 +60,27 @@ class _IncomeExpenseReportScreenState
   Future<void> _fetchReport() async {
     setState(() => _loading = true);
     try {
-      final paymentsAsync = ref.read(coreProviders.paymentsProvider);
-      final expensesAsync = ref.read(coreProviders.expensesProvider);
+      final db = ref.read(databaseProvider);
+      final outboxDao = OutboxDao(db);
+      final paymentsDao = PaymentsDao(db, outboxDao);
+      final expensesDao = ExpensesDao(db, outboxDao);
 
-      final payments = paymentsAsync.maybeWhen(
-        data: (list) => list,
-        orElse: () => <dynamic>[],
-      );
-      final expenses = expensesAsync.maybeWhen(
-        data: (list) => list,
-        orElse: () => <dynamic>[],
-      );
+      final fromStr = _dateFormat.format(_fromDate);
+      final toStr = _dateFormat.format(_toDate);
+
+      final payments = await paymentsDao.list(from: fromStr, to: toStr);
+      final expenses = await expensesDao.list(from: fromStr, to: toStr);
 
       final result = await compute(_processReportData, _ReportParams(
         payments: payments.map((p) => {
-          'date': p.date,
-          'guestName': p.guestName,
+          'date': p.paymentDate,
+          'guestName': '',
           'amount': p.amount,
         }).toList(),
         expenses: expenses.map((e) => {
           'date': e.date,
-          'type': e.type,
-          'description': e.description,
+          'type': e.expenseType ?? '',
+          'description': e.description ?? '',
           'amount': e.amount,
         }).toList(),
         fromDate: _fromDate,
