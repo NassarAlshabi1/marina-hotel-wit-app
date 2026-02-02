@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../providers/repository_providers.dart';
 import '../services/local_db.dart';
 import '../utils/status_utils.dart';
+import '../utils/currency_formatter.dart';
 
 import '../widgets/dashboard_sync_button.dart';
 import '../widgets/smart_sync_widgets.dart';
@@ -14,48 +15,27 @@ import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
-  '101', '102', '103', '104',
-  '201', '202', '203', '204',
-  '301', '302', '303', '304',
-  '401', '402', '403', '404',
-  '501', '502', '503', '504',
+  '101',
+  '102',
+  '103',
+  '104',
+  '201',
+  '202',
+  '203',
+  '204',
+  '301',
+  '302',
+  '303',
+  '304',
+  '401',
+  '402',
+  '403',
+  '404',
+  '501',
+  '502',
+  '503',
+  '504',
 ];
-
-final todayPaymentsProvider = StreamProvider<double>((ref) {
-  final db = ref.watch(dbProvider);
-  final now = DateTime.now();
-  final todayStart = DateTime(now.year, now.month, now.day);
-  final todayEnd = todayStart.add(const Duration(days: 1));
-  return db
-      .customSelect(
-        'SELECT COALESCE(SUM(amount), 0) as total FROM payments '
-        'WHERE payment_date >= ? AND payment_date < ? AND deleted_at IS NULL',
-        variables: [
-          Variable.withString(todayStart.toIso8601String()),
-          Variable.withString(todayEnd.toIso8601String()),
-        ],
-      )
-      .watch()
-      .map((rows) => rows.isEmpty ? 0.0 : (rows.first.data['total'] ?? 0.0) as double);
-});
-
-final todayExpensesProvider = StreamProvider<double>((ref) {
-  final db = ref.watch(dbProvider);
-  final now = DateTime.now();
-  final todayStart = DateTime(now.year, now.month, now.day);
-  final todayEnd = todayStart.add(const Duration(days: 1));
-  return db
-      .customSelect(
-        'SELECT COALESCE(SUM(amount), 0) as total FROM expenses '
-        'WHERE expense_date >= ? AND expense_date < ? AND deleted_at IS NULL',
-        variables: [
-          Variable.withString(todayStart.toIso8601String()),
-          Variable.withString(todayEnd.toIso8601String()),
-        ],
-      )
-      .watch()
-      .map((rows) => rows.isEmpty ? 0.0 : (rows.first.data['total'] ?? 0.0) as double);
-});
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -67,336 +47,269 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: Colors.grey.shade100,
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 16),
-              const SmartSyncDashboardCard(),
-              const SizedBox(height: 16),
-              _buildStatisticsCards(),
-              const SizedBox(height: 20),
-              _buildRoomsSection(),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with sync button
+          Row(
+            children: const [
+              Text(
+                'لوحة تحكم فندق مارينا',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              Spacer(),
+              DashboardSyncButton(),
             ],
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildHeader() {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blue.shade600, Colors.blue.shade400],
-            ),
-            borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 20),
+
+          const SmartSyncDashboardCard(),
+
+          const SizedBox(height: 16),
+
+          _buildStatisticsCards(),
+
+          const SizedBox(height: 24),
+
+          Consumer(
+            builder: (context, ref, _) {
+              final roomsAsync = ref.watch(roomsListProvider);
+
+              return roomsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, st) => Center(child: Text('خطأ: $e')),
+                data: (rooms) => _buildRoomsStatusSection(context, rooms),
+              );
+            },
           ),
-          child: const Icon(Icons.hotel, color: Colors.white, size: 24),
-        ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'فندق مارينا',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'لوحة التحكم',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-        const DashboardSyncButton(),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildStatisticsCards() {
     final currencyFmt = NumberFormat('#,##0', 'en_US');
-    return Row(
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 3.2,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
       children: [
-        Expanded(
-          child: Consumer(
-            builder: (context, ref, _) {
-              final roomsAsync = ref.watch(roomsListProvider);
-              return roomsAsync.when(
-                loading: () => _buildStatCard(
-                  'الإشغال',
-                  '...',
-                  Icons.pie_chart_rounded,
-                  Colors.orange,
-                ),
-                error: (e, _) => _buildStatCard(
-                  'الإشغال',
-                  '--',
-                  Icons.pie_chart_rounded,
-                  Colors.orange,
-                ),
-                data: (rooms) {
-                  final total = rooms.length;
-                  final occupied = rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
-                  final rate = total > 0 ? ((occupied / total) * 100).round() : 0;
-                  return _buildStatCard(
-                    'الإشغال',
-                    '$rate%',
-                    Icons.pie_chart_rounded,
-                    Colors.orange,
-                  );
-                },
-              );
-            },
-          ),
+        // نسبة الإشغال
+        Consumer(
+          builder: (context, ref, _) {
+            final roomsAsync = ref.watch(roomsListProvider);
+            return roomsAsync.when(
+              loading: () => const _LoadingStatCard(
+                title: 'نسبة الإشغال',
+                icon: Icons.pie_chart,
+                color: Colors.orange,
+              ),
+              error: (e, _) => _StatCard(
+                title: 'نسبة الإشغال',
+                value: 'خطأ',
+                icon: Icons.pie_chart,
+                color: Colors.orange,
+              ),
+              data: (rooms) {
+                final totalRooms = rooms.length;
+                final occupiedRooms = rooms
+                    .where((r) => StatusUtils.isRoomOccupied(r.status))
+                    .length;
+                final occupancyRate = totalRooms > 0
+                    ? ((occupiedRooms / totalRooms) * 100).round()
+                    : 0;
+                return _StatCard(
+                  title: 'نسبة الإشغال',
+                  value: '$occupancyRate%',
+                  icon: Icons.pie_chart,
+                  color: Colors.orange,
+                );
+              },
+            );
+          },
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Consumer(
-            builder: (context, ref, _) {
-              final paymentsAsync = ref.watch(todayPaymentsProvider);
-              return paymentsAsync.when(
-                loading: () => _buildStatCard(
-                  'مدفوعات اليوم',
-                  '...',
-                  Icons.payments_rounded,
-                  Colors.green,
-                ),
-                error: (e, _) => _buildStatCard(
-                  'مدفوعات اليوم',
-                  '--',
-                  Icons.payments_rounded,
-                  Colors.green,
-                ),
-                data: (total) => _buildStatCard(
-                  'مدفوعات اليوم',
-                  currencyFmt.format(total),
-                  Icons.payments_rounded,
-                  Colors.green,
-                ),
-              );
-            },
-          ),
+
+        // المدفوعات اليومية
+        Consumer(
+          builder: (context, ref, _) {
+            final paymentsAsync = ref.watch(todayPaymentsProvider);
+            return paymentsAsync.when(
+              loading: () => const _LoadingStatCard(
+                title: 'مدفوعات اليوم',
+                icon: Icons.payments,
+                color: Colors.green,
+              ),
+              error: (e, _) => const _StatCard(
+                title: 'مدفوعات اليوم',
+                value: 'خطأ',
+                icon: Icons.payments,
+                color: Colors.green,
+              ),
+              data: (total) => _StatCard(
+                title: 'مدفوعات اليوم',
+                value: currencyFmt.format(total),
+                icon: Icons.payments,
+                color: Colors.green,
+              ),
+            );
+          },
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Consumer(
-            builder: (context, ref, _) {
-              final expensesAsync = ref.watch(todayExpensesProvider);
-              return expensesAsync.when(
-                loading: () => _buildStatCard(
-                  'المصروفات',
-                  '...',
-                  Icons.money_off_rounded,
-                  Colors.red,
-                ),
-                error: (e, _) => _buildStatCard(
-                  'المصروفات',
-                  '--',
-                  Icons.money_off_rounded,
-                  Colors.red,
-                ),
-                data: (total) => _buildStatCard(
-                  'المصروفات',
-                  currencyFmt.format(total),
-                  Icons.money_off_rounded,
-                  Colors.red,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
+
+        // المصروفات اليومية
+        Consumer(
+          builder: (context, ref, _) {
+            final expensesAsync = ref.watch(todayExpensesProvider);
+            return expensesAsync.when(
+              loading: () => const _LoadingStatCard(
+                title: 'مصروفات اليوم',
+                icon: Icons.money_off,
+                color: Colors.red,
+              ),
+              error: (e, _) => const _StatCard(
+                title: 'مصروفات اليوم',
+                value: 'خطأ',
+                icon: Icons.money_off,
+                color: Colors.red,
+              ),
+              data: (total) => _StatCard(
+                title: 'مصروفات اليوم',
+                value: currencyFmt.format(total),
+                icon: Icons.money_off,
+                color: Colors.red,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ExpensesReportScreen(),
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
+        ),
+
+        // الغرف المحجوزة
+        Consumer(
+          builder: (context, ref, _) {
+            final roomsAsync = ref.watch(roomsListProvider);
+            return roomsAsync.when(
+              loading: () => const _LoadingStatCard(
+                title: 'الغرف المحجوزة',
+                icon: Icons.bed,
+                color: Colors.blue,
+              ),
+              error: (e, _) => const _StatCard(
+                title: 'الغرف المحجوزة',
+                value: 'خطأ',
+                icon: Icons.bed,
+                color: Colors.blue,
+              ),
+              data: (rooms) {
+                final occupiedRooms = rooms
+                    .where((r) => StatusUtils.isRoomOccupied(r.status))
+                    .length;
+                return _StatCard(
+                  title: 'الغرف المحجوزة',
+                  value: occupiedRooms.toString(),
+                  icon: Icons.bed,
+                  color: Colors.blue,
+                );
+              },
+            );
+          },
         ),
       ],
     );
   }
 
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color, {
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRoomsSection() {
-    return Consumer(
-      builder: (context, ref, _) {
-        final roomsAsync = ref.watch(roomsListProvider);
-        return roomsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, st) => Center(child: Text('خطأ: $e')),
-          data: (rooms) => _buildRoomsCard(rooms),
-        );
-      },
-    );
-  }
-
-  Widget _buildRoomsCard(List<Room> rooms) {
+  Widget _buildRoomsStatusSection(BuildContext context, List<Room> rooms) {
     final Map<String, Room> roomsMap = {
       for (final room in rooms) room.roomNumber: room,
     };
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                'حالة الغرف',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              _buildLegendItem('محجوزة', Colors.red.shade600),
-              const SizedBox(width: 12),
-              _buildLegendItem('شاغرة', Colors.green.shade600),
-            ],
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.5,
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'حالة الغرف',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
-            itemCount: _dashboardRoomNumbers.length,
-            itemBuilder: (context, index) {
-              final roomNumber = _dashboardRoomNumbers[index];
-              final room = roomsMap[roomNumber];
-              return _buildRoomButton(context, roomNumber, room);
-            },
-          ),
-        ],
-      ),
-    );
-  }
+            const SizedBox(height: 10),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: _dashboardRoomNumbers.map((roomNumber) {
+                final room = roomsMap[roomNumber];
+                final bool isOccupied =
+                    room != null && StatusUtils.isRoomOccupied(room.status);
+                final bool isAvailable =
+                    room != null && StatusUtils.isRoomAvailable(room.status);
+                final bool isNewRoom =
+                    roomNumber == '503' || roomNumber == '504';
+                final Color backgroundColor = isOccupied
+                    ? Colors.red.shade600
+                    : (isAvailable
+                        ? Colors.green.shade600
+                        : (isNewRoom
+                            ? Colors.blue.shade400 // لون أزرق للغرف الجديدة
+                            : Colors.grey.shade500));
+                final bool useDarkText =
+                    backgroundColor.computeLuminance() > 0.5;
+                final Color foregroundColor =
+                    useDarkText ? Colors.black : Colors.white;
+                final String tooltipText = room != null
+                    ? room.status
+                    : (roomNumber == '503' || roomNumber == '504')
+                        ? 'غرفة جديدة - قيد التجهيز'
+                        : 'غير مسجل في النظام';
 
-  Widget _buildLegendItem(String label, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-      ],
-    );
-  }
-
-  Widget _buildRoomButton(BuildContext context, String roomNumber, Room? room) {
-    final bool isOccupied = room != null && StatusUtils.isRoomOccupied(room.status);
-    final bool isAvailable = room != null && StatusUtils.isRoomAvailable(room.status);
-    final bool isNewRoom = roomNumber == '503' || roomNumber == '504';
-
-    final Color bgColor = isOccupied
-        ? Colors.red.shade600
-        : (isAvailable
-            ? Colors.green.shade600
-            : (isNewRoom ? Colors.blue.shade400 : Colors.grey.shade400));
-
-    final String tooltipText = room != null
-        ? room.status
-        : (isNewRoom ? 'غرفة جديدة' : 'غير مسجلة');
-
-    return Tooltip(
-      message: tooltipText,
-      child: Material(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: () => _handleRoomTap(context, roomNumber, room),
-          child: Center(
-            child: Text(
-              roomNumber,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+                return Tooltip(
+                  message: tooltipText,
+                  child: SizedBox(
+                    width: 60,
+                    child: ElevatedButton(
+                      onPressed: () =>
+                          _handleRoomTap(context, roomNumber, room),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: backgroundColor,
+                        foregroundColor: foregroundColor,
+                        minimumSize: const Size(60, 40),
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        textStyle: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      child: Text(roomNumber),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  void _handleRoomTap(BuildContext context, String roomNumber, Room? room) async {
+  /// التعامل مع الضغط على أزرار الغرف
+  void _handleRoomTap(
+    BuildContext context,
+    String roomNumber,
+    Room? room,
+  ) async {
     if (roomNumber == '503' || roomNumber == '504') {
       _showNewRoomDialog(context, roomNumber);
     } else if (room != null) {
@@ -414,12 +327,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'إغلاق',
+            onPressed: () =>
+                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+          ),
         ),
       );
     }
   }
 
+  /// الانتقال إلى شاشة حجز جديد مع رقم الغرفة المحدد
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -428,10 +347,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Future<void> _navigateToPaymentForRoom(BuildContext context, String roomNumber) async {
+  /// الانتقال إلى شاشة إضافة دفعة للغرفة المحجوزة
+  Future<void> _navigateToPaymentForRoom(
+    BuildContext context,
+    String roomNumber,
+  ) async {
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
+
+      // البحث عن الحجز النشط للغرفة
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(
+        roomNumber,
+      );
 
       if (activeBooking == null) {
         if (context.mounted) {
@@ -439,12 +366,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             SnackBar(
               content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
               backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'إغلاق',
+                textColor: Colors.white,
+                onPressed: () =>
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              ),
             ),
           );
         }
         return;
       }
 
+      // الانتقال لشاشة إضافة دفعة
       if (context.mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -455,76 +390,236 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('خطأ في تحميل الحجز: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'إغلاق',
+              textColor: Colors.white,
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
+          ),
         );
       }
     }
   }
 
+  /// الانتقال إلى قائمة الحجوزات لغرفة محددة
+  void _navigateToBookingsForRoom(BuildContext context, String roomNumber) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const BookingsListScreen()));
+  }
+
+  /// إظهار حوار للغرف الجديدة 503 و 504
   void _showNewRoomDialog(BuildContext context, String roomNumber) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.info_outline, color: Colors.blue),
-            const SizedBox(width: 8),
-            Text('غرفة $roomNumber'),
-          ],
-        ),
-        content: const Text('هذه الغرفة جديدة وقيد التجهيز.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('حسناً'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showRoomDetailsDialog(BuildContext context, Room room) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('غرفة ${room.roomNumber}'),
+        title: Text('الغرفة $roomNumber'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildDetailRow('الحالة', room.status),
-            _buildDetailRow('النوع', room.type),
-            _buildDetailRow('السعر', '${room.price.toStringAsFixed(0)} ريال'),
+            const Icon(Icons.hotel, size: 48, color: Colors.blue),
+            const SizedBox(height: 16),
+            const Text(
+              'غرفة جديدة قيد التجهيز',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text('نوع الغرفة: سرير فردي'),
+            const Text('السعر المتوقع: 7,000 ريال'),
+            const Text('الحالة: قيد التجهيز'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: const Text(
+                '💡 هذه الغرفة متوفرة في الواجهة فقط ولم تُضف إلى قاعدة البيانات بعد.',
+                style: TextStyle(fontSize: 12, color: Colors.blue),
+              ),
+            ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('موافق'),
           ),
-          if (!StatusUtils.isRoomOccupied(room.status))
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _navigateToNewBooking(context, room.roomNumber);
-              },
-              child: const Text('حجز جديد'),
-            ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text(value),
+  /// إظهار تفاصيل الغرف الموجودة
+  void _showRoomDetailsDialog(BuildContext context, Room room) {
+    final isOccupied = StatusUtils.isRoomOccupied(room.status);
+    final statusColor = isOccupied ? Colors.red : Colors.green;
+    final statusIcon = isOccupied ? Icons.person : Icons.person_outline;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('الغرفة ${room.roomNumber}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(statusIcon, color: statusColor, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  room.status,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text('نوع الغرفة: ${room.type}'),
+            Text('السعر: ${CurrencyFormatter.formatAmount(room.price)} ريال'),
+          ],
+        ),
+        actions: [
+          if (isOccupied)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToBookingsForRoom(context, room.roomNumber);
+              },
+              child: const Text('عرض الحجز'),
+            ),
+          if (!isOccupied)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToNewBooking(context, room.roomNumber);
+              },
+              child: const Text('حجز جديد'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('إغلاق'),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingStatCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color color;
+
+  const _LoadingStatCard({
+    required this.title,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
+                    ),
+                  ),
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 9, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
