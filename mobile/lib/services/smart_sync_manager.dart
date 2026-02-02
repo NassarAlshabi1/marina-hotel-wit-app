@@ -787,50 +787,31 @@ class SmartSyncManager {
     try {
       _log('📤 رفع التغييرات المحلية إلى Google Drive...');
 
-      // محاولة استخدام Delta Sync أولاً (أسرع وأخف)
-      if (GoogleDriveDeltaSync.instance.isInitialized) {
-        _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
-        final deltaResult =
-            await GoogleDriveDeltaSync.instance.pushDeltaChanges();
-
-        if (deltaResult.success) {
-          await _updateLastSyncTime();
-          await _updateLastPushTime();
-          _log('✅ تم رفع ${deltaResult.changesCount} تغيير عبر Delta Sync');
-          return true;
-        } else if (deltaResult.changesCount == 0) {
-          _log('✓ لا توجد تغييرات للرفع');
-          await _updateLastPushTime();
-          return true;
-        } else {
-          _log('⚠️ فشل Delta Sync: ${deltaResult.message} - fallback إلى Full');
-        }
+      // استخدام Delta Sync فقط (رفع التغييرات الجديدة فقط)
+      if (!GoogleDriveDeltaSync.instance.isInitialized) {
+        _log('⚙️ تهيئة Delta Sync...');
+        await GoogleDriveDeltaSync.instance.initialize(
+          backupService: _backupService!,
+        );
       }
 
-      // Fallback: رفع النسخة الكاملة (للأمان)
-      _log('📦 رفع النسخة الكاملة...');
-      final backupData = await _backupService!.exportDatabaseToJson();
-      final existingMetadata = backupData['metadata'];
-      Map<String, dynamic> metadata;
-      if (existingMetadata is Map<String, dynamic>) {
-        metadata = existingMetadata;
-      } else if (existingMetadata is Map) {
-        metadata = Map<String, dynamic>.from(existingMetadata);
-        backupData['metadata'] = metadata;
+      _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
+      final deltaResult =
+          await GoogleDriveDeltaSync.instance.pushDeltaChanges();
+
+      if (deltaResult.success) {
+        await _updateLastSyncTime();
+        await _updateLastPushTime();
+        _log('✅ تم رفع ${deltaResult.changesCount} تغيير عبر Delta Sync');
+        return true;
+      } else if (deltaResult.changesCount == 0) {
+        _log('✓ لا توجد تغييرات للرفع');
+        await _updateLastPushTime();
+        return true;
       } else {
-        metadata = <String, dynamic>{};
-        backupData['metadata'] = metadata;
+        _log('❌ فشل Delta Sync: ${deltaResult.message}');
+        return false;
       }
-      metadata['device_id'] = _deviceId;
-      metadata['sync_type'] = 'push';
-      metadata['sync_timestamp'] = DateTime.now().toIso8601String();
-
-      await _backupService!.uploadBackup(backupData, isSync: true);
-      await _updateLastSyncTime();
-      await _updateLastPushTime();
-
-      _log('✅ تم رفع النسخة الكاملة بنجاح');
-      return true;
     } catch (e) {
       _log('❌ خطأ في رفع التغييرات: $e');
       return false;
