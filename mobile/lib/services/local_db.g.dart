@@ -1329,6 +1329,14 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
       'notes', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _discountMeta =
+      const VerificationMeta('discount');
+  @override
+  late final GeneratedColumn<double> discount = GeneratedColumn<double>(
+      'discount', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _expectedNightsMeta =
       const VerificationMeta('expectedNights');
   @override
@@ -1464,6 +1472,7 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
         actualCheckout,
         status,
         notes,
+        discount,
         expectedNights,
         calculatedNights,
         totalNightsCached,
@@ -1671,6 +1680,10 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
       context.handle(
           _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
     }
+    if (data.containsKey('discount')) {
+      context.handle(_discountMeta,
+          discount.isAcceptableOrUnknown(data['discount']!, _discountMeta));
+    }
     if (data.containsKey('expected_nights')) {
       context.handle(
           _expectedNightsMeta,
@@ -1818,6 +1831,8 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       notes: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+      discount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}discount'])!,
       expectedNights: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}expected_nights'])!,
       calculatedNights: attachedDatabase.typeMapping
@@ -1886,6 +1901,7 @@ class Booking extends DataClass implements Insertable<Booking> {
   final String? actualCheckout;
   final String status;
   final String? notes;
+  final double discount;
   final int expectedNights;
   final int calculatedNights;
   final int totalNightsCached;
@@ -1931,6 +1947,7 @@ class Booking extends DataClass implements Insertable<Booking> {
       this.actualCheckout,
       required this.status,
       this.notes,
+      required this.discount,
       required this.expectedNights,
       required this.calculatedNights,
       required this.totalNightsCached,
@@ -2004,6 +2021,7 @@ class Booking extends DataClass implements Insertable<Booking> {
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
+    map['discount'] = Variable<double>(discount);
     map['expected_nights'] = Variable<int>(expectedNights);
     map['calculated_nights'] = Variable<int>(calculatedNights);
     map['total_nights_cached'] = Variable<int>(totalNightsCached);
@@ -2086,6 +2104,7 @@ class Booking extends DataClass implements Insertable<Booking> {
       status: Value(status),
       notes:
           notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      discount: Value(discount),
       expectedNights: Value(expectedNights),
       calculatedNights: Value(calculatedNights),
       totalNightsCached: Value(totalNightsCached),
@@ -2146,6 +2165,7 @@ class Booking extends DataClass implements Insertable<Booking> {
       actualCheckout: serializer.fromJson<String?>(json['actualCheckout']),
       status: serializer.fromJson<String>(json['status']),
       notes: serializer.fromJson<String?>(json['notes']),
+      discount: serializer.fromJson<double>(json['discount']),
       expectedNights: serializer.fromJson<int>(json['expectedNights']),
       calculatedNights: serializer.fromJson<int>(json['calculatedNights']),
       totalNightsCached: serializer.fromJson<int>(json['totalNightsCached']),
@@ -2198,6 +2218,7 @@ class Booking extends DataClass implements Insertable<Booking> {
       'actualCheckout': serializer.toJson<String?>(actualCheckout),
       'status': serializer.toJson<String>(status),
       'notes': serializer.toJson<String?>(notes),
+      'discount': serializer.toJson<double>(discount),
       'expectedNights': serializer.toJson<int>(expectedNights),
       'calculatedNights': serializer.toJson<int>(calculatedNights),
       'totalNightsCached': serializer.toJson<int>(totalNightsCached),
@@ -2247,6 +2268,7 @@ class Booking extends DataClass implements Insertable<Booking> {
           Value<String?> actualCheckout = const Value.absent(),
           String? status,
           Value<String?> notes = const Value.absent(),
+          double? discount,
           int? expectedNights,
           int? calculatedNights,
           int? totalNightsCached,
@@ -2304,6 +2326,7 @@ class Booking extends DataClass implements Insertable<Booking> {
             actualCheckout.present ? actualCheckout.value : this.actualCheckout,
         status: status ?? this.status,
         notes: notes.present ? notes.value : this.notes,
+        discount: discount ?? this.discount,
         expectedNights: expectedNights ?? this.expectedNights,
         calculatedNights: calculatedNights ?? this.calculatedNights,
         totalNightsCached: totalNightsCached ?? this.totalNightsCached,
@@ -2393,6 +2416,7 @@ class Booking extends DataClass implements Insertable<Booking> {
           : this.actualCheckout,
       status: data.status.present ? data.status.value : this.status,
       notes: data.notes.present ? data.notes.value : this.notes,
+      discount: data.discount.present ? data.discount.value : this.discount,
       expectedNights: data.expectedNights.present
           ? data.expectedNights.value
           : this.expectedNights,
@@ -2466,6 +2490,7 @@ class Booking extends DataClass implements Insertable<Booking> {
           ..write('actualCheckout: $actualCheckout, ')
           ..write('status: $status, ')
           ..write('notes: $notes, ')
+          ..write('discount: $discount, ')
           ..write('expectedNights: $expectedNights, ')
           ..write('calculatedNights: $calculatedNights, ')
           ..write('totalNightsCached: $totalNightsCached, ')
@@ -2516,6 +2541,7 @@ class Booking extends DataClass implements Insertable<Booking> {
         actualCheckout,
         status,
         notes,
+        discount,
         expectedNights,
         calculatedNights,
         totalNightsCached,
@@ -2565,6 +2591,7 @@ class Booking extends DataClass implements Insertable<Booking> {
           other.actualCheckout == this.actualCheckout &&
           other.status == this.status &&
           other.notes == this.notes &&
+          other.discount == this.discount &&
           other.expectedNights == this.expectedNights &&
           other.calculatedNights == this.calculatedNights &&
           other.totalNightsCached == this.totalNightsCached &&
@@ -2612,6 +2639,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
   final Value<String?> actualCheckout;
   final Value<String> status;
   final Value<String?> notes;
+  final Value<double> discount;
   final Value<int> expectedNights;
   final Value<int> calculatedNights;
   final Value<int> totalNightsCached;
@@ -2657,6 +2685,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.actualCheckout = const Value.absent(),
     this.status = const Value.absent(),
     this.notes = const Value.absent(),
+    this.discount = const Value.absent(),
     this.expectedNights = const Value.absent(),
     this.calculatedNights = const Value.absent(),
     this.totalNightsCached = const Value.absent(),
@@ -2703,6 +2732,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.actualCheckout = const Value.absent(),
     required String status,
     this.notes = const Value.absent(),
+    this.discount = const Value.absent(),
     this.expectedNights = const Value.absent(),
     this.calculatedNights = const Value.absent(),
     this.totalNightsCached = const Value.absent(),
@@ -2758,6 +2788,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     Expression<String>? actualCheckout,
     Expression<String>? status,
     Expression<String>? notes,
+    Expression<double>? discount,
     Expression<int>? expectedNights,
     Expression<int>? calculatedNights,
     Expression<int>? totalNightsCached,
@@ -2804,6 +2835,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       if (actualCheckout != null) 'actual_checkout': actualCheckout,
       if (status != null) 'status': status,
       if (notes != null) 'notes': notes,
+      if (discount != null) 'discount': discount,
       if (expectedNights != null) 'expected_nights': expectedNights,
       if (calculatedNights != null) 'calculated_nights': calculatedNights,
       if (totalNightsCached != null) 'total_nights_cached': totalNightsCached,
@@ -2854,6 +2886,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       Value<String?>? actualCheckout,
       Value<String>? status,
       Value<String?>? notes,
+      Value<double>? discount,
       Value<int>? expectedNights,
       Value<int>? calculatedNights,
       Value<int>? totalNightsCached,
@@ -2899,6 +2932,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       actualCheckout: actualCheckout ?? this.actualCheckout,
       status: status ?? this.status,
       notes: notes ?? this.notes,
+      discount: discount ?? this.discount,
       expectedNights: expectedNights ?? this.expectedNights,
       calculatedNights: calculatedNights ?? this.calculatedNights,
       totalNightsCached: totalNightsCached ?? this.totalNightsCached,
@@ -3012,6 +3046,9 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (discount.present) {
+      map['discount'] = Variable<double>(discount.value);
+    }
     if (expectedNights.present) {
       map['expected_nights'] = Variable<int>(expectedNights.value);
     }
@@ -3089,6 +3126,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
           ..write('actualCheckout: $actualCheckout, ')
           ..write('status: $status, ')
           ..write('notes: $notes, ')
+          ..write('discount: $discount, ')
           ..write('expectedNights: $expectedNights, ')
           ..write('calculatedNights: $calculatedNights, ')
           ..write('totalNightsCached: $totalNightsCached, ')
@@ -20446,6 +20484,7 @@ typedef $$BookingsTableCreateCompanionBuilder = BookingsCompanion Function({
   Value<String?> actualCheckout,
   required String status,
   Value<String?> notes,
+  Value<double> discount,
   Value<int> expectedNights,
   Value<int> calculatedNights,
   Value<int> totalNightsCached,
@@ -20492,6 +20531,7 @@ typedef $$BookingsTableUpdateCompanionBuilder = BookingsCompanion Function({
   Value<String?> actualCheckout,
   Value<String> status,
   Value<String?> notes,
+  Value<double> discount,
   Value<int> expectedNights,
   Value<int> calculatedNights,
   Value<int> totalNightsCached,
@@ -20691,6 +20731,9 @@ class $$BookingsTableFilterComposer
 
   ColumnFilters<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get discount => $composableBuilder(
+      column: $table.discount, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get expectedNights => $composableBuilder(
       column: $table.expectedNights,
@@ -20960,6 +21003,9 @@ class $$BookingsTableOrderingComposer
   ColumnOrderings<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get discount => $composableBuilder(
+      column: $table.discount, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get expectedNights => $composableBuilder(
       column: $table.expectedNights,
       builder: (column) => ColumnOrderings(column));
@@ -21129,6 +21175,9 @@ class $$BookingsTableAnnotationComposer
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<double> get discount =>
+      $composableBuilder(column: $table.discount, builder: (column) => column);
 
   GeneratedColumn<int> get expectedNights => $composableBuilder(
       column: $table.expectedNights, builder: (column) => column);
@@ -21333,6 +21382,7 @@ class $$BookingsTableTableManager extends RootTableManager<
             Value<String?> actualCheckout = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<String?> notes = const Value.absent(),
+            Value<double> discount = const Value.absent(),
             Value<int> expectedNights = const Value.absent(),
             Value<int> calculatedNights = const Value.absent(),
             Value<int> totalNightsCached = const Value.absent(),
@@ -21379,6 +21429,7 @@ class $$BookingsTableTableManager extends RootTableManager<
             actualCheckout: actualCheckout,
             status: status,
             notes: notes,
+            discount: discount,
             expectedNights: expectedNights,
             calculatedNights: calculatedNights,
             totalNightsCached: totalNightsCached,
@@ -21425,6 +21476,7 @@ class $$BookingsTableTableManager extends RootTableManager<
             Value<String?> actualCheckout = const Value.absent(),
             required String status,
             Value<String?> notes = const Value.absent(),
+            Value<double> discount = const Value.absent(),
             Value<int> expectedNights = const Value.absent(),
             Value<int> calculatedNights = const Value.absent(),
             Value<int> totalNightsCached = const Value.absent(),
@@ -21471,6 +21523,7 @@ class $$BookingsTableTableManager extends RootTableManager<
             actualCheckout: actualCheckout,
             status: status,
             notes: notes,
+            discount: discount,
             expectedNights: expectedNights,
             calculatedNights: calculatedNights,
             totalNightsCached: totalNightsCached,

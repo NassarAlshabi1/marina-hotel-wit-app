@@ -263,22 +263,20 @@ class _AppwriteSettingsScreenState
             // تفعيل المزامنة
             _buildSettingSwitch(
               title: 'تفعيل المزامنة التلقائية',
-              subtitle: _syncEnabled 
-                  ? 'يتم المزامنة تلقائياً في الخلفية' 
+              subtitle: _syncEnabled
+                  ? 'يتم المزامنة تلقائياً في الخلفية'
                   : 'المزامنة التلقائية معطّلة (يدوي فقط)',
               value: _syncEnabled,
               onChanged: (value) async {
                 setState(() => _syncEnabled = value);
                 await _saveSettings();
-                
+
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        value 
-                          ? 'تم تفعيل المزامنة التلقائية' 
-                          : 'تم إيقاف المزامنة التلقائية'
-                      ),
+                      content: Text(value
+                          ? 'تم تفعيل المزامنة التلقائية'
+                          : 'تم إيقاف المزامنة التلقائية'),
                       duration: const Duration(seconds: 2),
                     ),
                   );
@@ -639,8 +637,8 @@ class _AppwriteSettingsScreenState
             ),
 
             const SizedBox(height: 12),
-            
-             // زر النسخ الاحتياطي الشامل
+
+            // زر النسخ الاحتياطي الشامل
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(

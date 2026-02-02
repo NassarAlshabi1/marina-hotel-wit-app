@@ -423,7 +423,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,
-              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
             ),
           ),
         );
@@ -498,7 +499,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,
-              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
             ),
           ),
         );

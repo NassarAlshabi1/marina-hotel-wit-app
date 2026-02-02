@@ -5,10 +5,8 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 
-
 import '../../providers/auth_provider.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-
 
 class RoomsListScreen extends ConsumerStatefulWidget {
   const RoomsListScreen({super.key});
@@ -120,7 +118,6 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   decoration: const InputDecoration(labelText: 'الحالة'),
                 ),
                 const SizedBox(height: 8),
-
               ],
             ),
           ),

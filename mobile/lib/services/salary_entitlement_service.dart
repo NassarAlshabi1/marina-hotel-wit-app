@@ -56,11 +56,14 @@ class SalaryEntitlementService {
     return entitlements;
   }
 
-  Future<SalaryEntitlement> calculateEmployeeEntitlement(Employee employee) async {
+  Future<SalaryEntitlement> calculateEmployeeEntitlement(
+      Employee employee) async {
     final now = DateTime.now();
     DateTime hireDate;
     try {
-      hireDate = employee.hireDate.isNotEmpty ? DateTime.parse(employee.hireDate) : now;
+      hireDate = employee.hireDate.isNotEmpty
+          ? DateTime.parse(employee.hireDate)
+          : now;
     } catch (e) {
       hireDate = now;
     }
@@ -80,15 +83,24 @@ class SalaryEntitlementService {
       final type = expense.expenseType.trim();
       if (type == 'سحب راتب' || type == 'سلفة' || type == 'رواتب') {
         totalWithdrawals += expense.amount;
-        transactions.add(SalaryTransaction(type: 'سحب', amount: expense.amount, date: expense.date, note: expense.description));
+        transactions.add(SalaryTransaction(
+            type: 'سحب',
+            amount: expense.amount,
+            date: expense.date,
+            note: expense.description));
       } else if (type == 'خصم راتب' || type == 'خصم' || type == 'غياب') {
         totalDeductions += expense.amount;
-        transactions.add(SalaryTransaction(type: 'خصم', amount: expense.amount, date: expense.date, note: expense.description));
+        transactions.add(SalaryTransaction(
+            type: 'خصم',
+            amount: expense.amount,
+            date: expense.date,
+            note: expense.description));
       }
     }
 
     transactions.sort((a, b) => b.date.compareTo(a.date));
-    final netEntitlement = totalEntitlement - totalWithdrawals - totalDeductions;
+    final netEntitlement =
+        totalEntitlement - totalWithdrawals - totalDeductions;
 
     return SalaryEntitlement(
       employee: employee,
@@ -111,7 +123,10 @@ class SalaryEntitlementService {
 
   Future<Map<String, dynamic>> getSummary() async {
     final entitlements = await calculateAllEntitlements();
-    double totalEntitlements = 0, totalWithdrawals = 0, totalDeductions = 0, totalNet = 0;
+    double totalEntitlements = 0,
+        totalWithdrawals = 0,
+        totalDeductions = 0,
+        totalNet = 0;
     for (final e in entitlements) {
       totalEntitlements += e.totalEntitlement;
       totalWithdrawals += e.totalWithdrawals;

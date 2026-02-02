@@ -41,10 +41,11 @@ class _AppwriteConnectionSettingsScreenState
   }
 
   void _onChanged() {
-    final hasChanges = _endpointController.text != AppwriteConfigManager.endpoint ||
-        _projectIdController.text != AppwriteConfigManager.projectId ||
-        _databaseIdController.text != AppwriteConfigManager.databaseId;
-    
+    final hasChanges =
+        _endpointController.text != AppwriteConfigManager.endpoint ||
+            _projectIdController.text != AppwriteConfigManager.projectId ||
+            _databaseIdController.text != AppwriteConfigManager.databaseId;
+
     if (hasChanges != _hasChanges) {
       setState(() => _hasChanges = hasChanges);
     }
@@ -79,12 +80,13 @@ class _AppwriteConnectionSettingsScreenState
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,
-              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
             ),
           ),
         );
         setState(() => _hasChanges = false);
-        
+
         _showRestartDialog();
       }
     } catch (e) {
@@ -97,7 +99,8 @@ class _AppwriteConnectionSettingsScreenState
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,
-              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
             ),
           ),
         );
@@ -158,7 +161,7 @@ class _AppwriteConnectionSettingsScreenState
     if (confirm != true) return;
 
     await AppwriteConfigManager.resetToDefaults();
-    
+
     setState(() {
       _endpointController.text = AppwriteConfig.endpoint;
       _projectIdController.text = AppwriteConfig.projectId;
@@ -175,11 +178,12 @@ class _AppwriteConnectionSettingsScreenState
           action: SnackBarAction(
             label: 'إغلاق',
             textColor: Colors.white,
-            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            onPressed: () =>
+                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
           ),
         ),
       );
-      
+
       _showRestartDialog();
     }
   }
@@ -189,17 +193,19 @@ class _AppwriteConnectionSettingsScreenState
 
     try {
       await Future.delayed(const Duration(seconds: 2));
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق'),
+            content: const Text(
+                'اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق'),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 5),
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,
-              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
             ),
           ),
         );
@@ -279,7 +285,8 @@ class _AppwriteConnectionSettingsScreenState
                 if (value == null || value.trim().isEmpty) {
                   return 'يرجى إدخال عنوان Endpoint';
                 }
-                if (!value.startsWith('http://') && !value.startsWith('https://')) {
+                if (!value.startsWith('http://') &&
+                    !value.startsWith('https://')) {
                   return 'يجب أن يبدأ العنوان بـ http:// أو https://';
                 }
                 return null;
@@ -325,7 +332,7 @@ class _AppwriteConnectionSettingsScreenState
 
   Widget _buildCurrentConfigCard() {
     final isCustom = AppwriteConfigManager.isUsingCustomConfig;
-    
+
     return Card(
       color: isCustom ? Colors.orange.shade50 : Colors.green.shade50,
       child: Padding(
@@ -345,7 +352,9 @@ class _AppwriteConnectionSettingsScreenState
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: isCustom ? Colors.orange.shade700 : Colors.green.shade700,
+                    color: isCustom
+                        ? Colors.orange.shade700
+                        : Colors.green.shade700,
                   ),
                 ),
               ],

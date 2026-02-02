@@ -71,21 +71,27 @@ class _IncomeExpenseReportScreenState
       final payments = await paymentsDao.list(from: fromStr, to: toStr);
       final expenses = await expensesDao.list(from: fromStr, to: toStr);
 
-      final result = await compute(_processReportData, _ReportParams(
-        payments: payments.map((p) => {
-          'date': p.paymentDate,
-          'guestName': '',
-          'amount': p.amount,
-        }).toList(),
-        expenses: expenses.map((e) => {
-          'date': e.date,
-          'type': e.expenseType,
-          'description': e.description,
-          'amount': e.amount,
-        }).toList(),
-        fromDate: _fromDate,
-        toDate: _toDate,
-      ));
+      final result = await compute(
+          _processReportData,
+          _ReportParams(
+            payments: payments
+                .map((p) => {
+                      'date': p.paymentDate,
+                      'guestName': '',
+                      'amount': p.amount,
+                    })
+                .toList(),
+            expenses: expenses
+                .map((e) => {
+                      'date': e.date,
+                      'type': e.expenseType,
+                      'description': e.description,
+                      'amount': e.amount,
+                    })
+                .toList(),
+            fromDate: _fromDate,
+            toDate: _toDate,
+          ));
 
       if (mounted) {
         setState(() {
@@ -116,12 +122,14 @@ class _IncomeExpenseReportScreenState
         if (isFrom) {
           _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
           if (_fromDate.isAfter(_toDate)) {
-            _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+            _toDate =
+                DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
           }
         } else {
           _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
           if (_toDate.isBefore(_fromDate)) {
-            _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+            _fromDate =
+                DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
           }
         }
       });
@@ -443,7 +451,8 @@ class _IncomeExpenseReportScreenState
                   children: [
                     const Text(
                       'فترة التقرير',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -453,11 +462,13 @@ class _IncomeExpenseReportScreenState
                             onPressed: () => _pickDate(isFrom: true),
                             icon: const Icon(Icons.calendar_today, size: 16),
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 10),
                             ),
                             label: Text(
                               'من: ${_dateFormat.format(_fromDate)}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
@@ -467,11 +478,13 @@ class _IncomeExpenseReportScreenState
                             onPressed: () => _pickDate(isFrom: false),
                             icon: const Icon(Icons.calendar_today, size: 16),
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 10),
                             ),
                             label: Text(
                               'إلى: ${_dateFormat.format(_toDate)}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
@@ -481,9 +494,11 @@ class _IncomeExpenseReportScreenState
                     Row(
                       children: [
                         FilterChip(
-                          label: const Text('تفصيلي', style: TextStyle(fontSize: 12)),
+                          label: const Text('تفصيلي',
+                              style: TextStyle(fontSize: 12)),
                           selected: _detailedMode,
-                          onSelected: (value) => setState(() => _detailedMode = value),
+                          onSelected: (value) =>
+                              setState(() => _detailedMode = value),
                         ),
                         const Spacer(),
                         ElevatedButton.icon(
@@ -491,7 +506,8 @@ class _IncomeExpenseReportScreenState
                           icon: const Icon(Icons.refresh, size: 18),
                           label: Text(_loading ? 'جارٍ...' : 'تحديث'),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
                           ),
                         ),
                       ],
@@ -570,7 +586,8 @@ class _IncomeExpenseReportScreenState
     );
   }
 
-  Widget _buildSummaryCard(String title, double amount, Color color, IconData icon) {
+  Widget _buildSummaryCard(
+      String title, double amount, Color color, IconData icon) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -661,19 +678,24 @@ class _IncomeExpenseReportScreenState
               radius: 18,
               child: Icon(icon, color: color, size: 18),
             ),
-            title: Text(entry.description, style: const TextStyle(fontSize: 12)),
+            title:
+                Text(entry.description, style: const TextStyle(fontSize: 12)),
             subtitle: Row(
               children: [
-                Text(_dateFormat.format(entry.date), style: const TextStyle(fontSize: 10)),
+                Text(_dateFormat.format(entry.date),
+                    style: const TextStyle(fontSize: 10)),
                 const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    entry.isIncome ? 'دخل' : (entry.isSalary ? 'راتب' : 'مصروف'),
+                    entry.isIncome
+                        ? 'دخل'
+                        : (entry.isSalary ? 'راتب' : 'مصروف'),
                     style: TextStyle(fontSize: 8, color: color),
                   ),
                 ),
@@ -716,7 +738,8 @@ class _IncomeExpenseReportScreenState
             dense: true,
             leading: const Icon(Icons.people, color: Colors.orange),
             title: const Text('عدد معاملات الرواتب'),
-            trailing: Text('${_expenseEntries.where((e) => e.isSalary).length}'),
+            trailing:
+                Text('${_expenseEntries.where((e) => e.isSalary).length}'),
           ),
         ],
       ),
@@ -808,7 +831,9 @@ _ReportResult _processReportData(_ReportParams params) {
       params.toDate.year,
       params.toDate.month,
       params.toDate.day,
-      23, 59, 59,
+      23,
+      59,
+      59,
     );
     return !date.isBefore(params.fromDate) && !date.isAfter(endOfDay);
   }

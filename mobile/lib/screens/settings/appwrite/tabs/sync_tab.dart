@@ -36,7 +36,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
       _cacheEnabled = prefs.getBool('appwrite_cache_enabled') ?? true;
     });
-    
+
     // تفعيل المزامنة التلقائية إذا كانت مفعلة
     if (_syncEnabled) {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
@@ -636,7 +636,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           .where((e) => e.key != 'errors')
           .fold<int>(0, (sum, e) => sum + (e.value));
       final errors = stats['errors'] ?? 0;
-      
+
       // طباعة النتائج في console
       debugPrint('📊 نتيجة الرفع الشامل:');
       debugPrint('   إجمالي السجلات: $totalRecords');
@@ -728,7 +728,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
 
       // إغلاق مؤشر التحميل في حالة الخطأ
       Navigator.pop(context);
-      
+
       // طباعة الخطأ في console
       debugPrint('❌ خطأ في الرفع الشامل: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -784,9 +784,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       final appwriteService = ref.read(ap.appwriteServiceProvider);
 
       // فحص البيانات المحلية
-      final roomsCount = await database.select(database.rooms).get().then((l) => l.length);
-      final bookingsCount = await database.select(database.bookings).get().then((l) => l.length);
-      final paymentsCount = await database.select(database.payments).get().then((l) => l.length);
+      final roomsCount =
+          await database.select(database.rooms).get().then((l) => l.length);
+      final bookingsCount =
+          await database.select(database.bookings).get().then((l) => l.length);
+      final paymentsCount =
+          await database.select(database.payments).get().then((l) => l.length);
 
       debugPrint('📊 البيانات المحلية:');
       debugPrint('   الغرف: $roomsCount');
@@ -807,8 +810,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       String? testResult;
       if (roomsCount > 0) {
         try {
-          final room = await database.select(database.rooms).get().then((l) => l.first);
-          
+          final room =
+              await database.select(database.rooms).get().then((l) => l.first);
+
           final payload = <String, dynamic>{
             'roomNumber': room.roomNumber,
             'type': room.type,
@@ -826,10 +830,11 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           if (room.deletedAt != null) payload['deletedAt'] = room.deletedAt;
 
           debugPrint('📤 اختبار رفع غرفة ${room.roomNumber}...');
-          
+
           final doc = await appwriteService.upsertRoom(room.localUuid, payload);
-          testResult = '✅ نجح رفع غرفة ${room.roomNumber}\nDocument ID: ${doc.$id}';
-          
+          testResult =
+              '✅ نجح رفع غرفة ${room.roomNumber}\nDocument ID: ${doc.$id}';
+
           debugPrint('✅ نجح الاختبار!');
         } catch (e) {
           testResult = '❌ فشل رفع الغرفة:\n$e';
@@ -855,18 +860,21 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('📊 البيانات المحلية:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('📊 البيانات المحلية:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 Text('• الغرف: $roomsCount'),
                 Text('• الحجوزات: $bookingsCount'),
                 Text('• المدفوعات: $paymentsCount'),
                 const SizedBox(height: 16),
-                const Text('🔌 حالة Appwrite:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('🔌 حالة Appwrite:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 Text('• مُهيأ: ${isInitialized ? "✅ نعم" : "❌ لا"}'),
                 Text('• Project ID: ${projectInfo['projectId']}'),
                 Text('• Database ID: ${projectInfo['databaseId']}'),
                 if (testResult != null) ...[
                   const SizedBox(height: 16),
-                  const Text('🧪 اختبار الرفع:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('🧪 اختبار الرفع:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   Text(testResult),
                 ],
               ],

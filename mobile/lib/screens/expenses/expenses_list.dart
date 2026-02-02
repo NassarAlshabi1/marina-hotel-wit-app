@@ -492,7 +492,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                         action: SnackBarAction(
                           label: 'إغلاق',
                           textColor: Colors.white,
-                          onPressed: () => ScaffoldMessenger.of(ctx).hideCurrentSnackBar(),
+                          onPressed: () =>
+                              ScaffoldMessenger.of(ctx).hideCurrentSnackBar(),
                         ),
                       ),
                     );

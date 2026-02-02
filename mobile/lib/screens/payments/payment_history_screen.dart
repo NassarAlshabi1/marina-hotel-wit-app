@@ -240,7 +240,8 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                               const SizedBox(width: 4),
                               Text(
                                 payment.paymentMethod,
-                                style: TextStyle(color: Colors.grey.shade700, fontSize: 10),
+                                style: TextStyle(
+                                    color: Colors.grey.shade700, fontSize: 10),
                               ),
                               const SizedBox(width: 12),
                               Icon(
@@ -251,7 +252,8 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                               const SizedBox(width: 4),
                               Text(
                                 _getRevenueTypeLabel(payment.revenueType),
-                                style: TextStyle(color: Colors.grey.shade700, fontSize: 10),
+                                style: TextStyle(
+                                    color: Colors.grey.shade700, fontSize: 10),
                               ),
                             ],
                           ),
@@ -266,7 +268,8 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                               const SizedBox(width: 4),
                               Text(
                                 payment.paymentDate,
-                                style: TextStyle(color: Colors.grey.shade700, fontSize: 10),
+                                style: TextStyle(
+                                    color: Colors.grey.shade700, fontSize: 10),
                               ),
                             ],
                           ),

@@ -314,9 +314,11 @@ class _AdminTableState extends State<AdminTable> {
                           : null,
                       tooltip: 'السابق',
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints:
+                          const BoxConstraints(minWidth: 32, minHeight: 32),
                     ),
-                    Text('${_currentPage + 1}/$totalPages', style: const TextStyle(fontSize: 12)),
+                    Text('${_currentPage + 1}/$totalPages',
+                        style: const TextStyle(fontSize: 12)),
                     IconButton(
                       icon: const Icon(Icons.chevron_left, size: 20),
                       onPressed: _currentPage < totalPages - 1
@@ -324,7 +326,8 @@ class _AdminTableState extends State<AdminTable> {
                           : null,
                       tooltip: 'التالي',
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints:
+                          const BoxConstraints(minWidth: 32, minHeight: 32),
                     ),
                   ],
                 ),

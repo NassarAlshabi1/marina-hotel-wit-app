@@ -308,7 +308,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     ),
                     Text(
                       'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • $_currentGuestPhone' : ''}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey),
                     ),
                     Text(
                       identityLine,
@@ -400,11 +403,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 children: [
                   Text(
                     'تقدم الدفع',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                   Text(
                     '${summary.paidPercentage.toStringAsFixed(1)}%',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                 ],
               ),
@@ -1441,7 +1446,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'إغلاق',
-            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            onPressed: () =>
+                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
           ),
         ),
       );

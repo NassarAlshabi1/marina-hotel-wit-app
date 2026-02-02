@@ -20,7 +20,7 @@ class AppwriteConfigManager {
     _endpoint = prefs.getString(_endpointKey) ?? AppwriteConfig.endpoint;
     _projectId = prefs.getString(_projectIdKey) ?? AppwriteConfig.projectId;
     _databaseId = prefs.getString(_databaseIdKey) ?? AppwriteConfig.databaseId;
-    
+
     if (kDebugMode) {
       debugPrint('📱 Appwrite Config Loaded:');
       debugPrint('   Endpoint: $_endpoint');
@@ -35,15 +35,15 @@ class AppwriteConfigManager {
     required String databaseId,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     await prefs.setString(_endpointKey, endpoint);
     await prefs.setString(_projectIdKey, projectId);
     await prefs.setString(_databaseIdKey, databaseId);
-    
+
     _endpoint = endpoint;
     _projectId = projectId;
     _databaseId = databaseId;
-    
+
     if (kDebugMode) {
       debugPrint('💾 Appwrite Config Saved:');
       debugPrint('   Endpoint: $_endpoint');
@@ -54,15 +54,15 @@ class AppwriteConfigManager {
 
   static Future<void> resetToDefaults() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     await prefs.remove(_endpointKey);
     await prefs.remove(_projectIdKey);
     await prefs.remove(_databaseIdKey);
-    
+
     _endpoint = AppwriteConfig.endpoint;
     _projectId = AppwriteConfig.projectId;
     _databaseId = AppwriteConfig.databaseId;
-    
+
     if (kDebugMode) {
       debugPrint('🔄 Appwrite Config Reset to Defaults');
     }
@@ -70,19 +70,19 @@ class AppwriteConfigManager {
 
   static bool get isUsingCustomConfig {
     return _endpoint != AppwriteConfig.endpoint ||
-           _projectId != AppwriteConfig.projectId ||
-           _databaseId != AppwriteConfig.databaseId;
+        _projectId != AppwriteConfig.projectId ||
+        _databaseId != AppwriteConfig.databaseId;
   }
 
   static Map<String, String> get currentConfig => {
-    'endpoint': _endpoint,
-    'projectId': _projectId,
-    'databaseId': _databaseId,
-  };
+        'endpoint': _endpoint,
+        'projectId': _projectId,
+        'databaseId': _databaseId,
+      };
 
   static Map<String, String> get defaultConfig => {
-    'endpoint': AppwriteConfig.endpoint,
-    'projectId': AppwriteConfig.projectId,
-    'databaseId': AppwriteConfig.databaseId,
-  };
+        'endpoint': AppwriteConfig.endpoint,
+        'projectId': AppwriteConfig.projectId,
+        'databaseId': AppwriteConfig.databaseId,
+      };
 }

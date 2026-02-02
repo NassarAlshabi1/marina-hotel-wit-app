@@ -168,7 +168,8 @@ class _CreateDebtFromBookingScreenState
             _buildDateFilters(),
             const SizedBox(height: 12),
             if (eligibleBookings.isEmpty)
-              const Expanded(child: Center(child: Text('لا توجد حجوزات في هذه الفترة')))
+              const Expanded(
+                  child: Center(child: Text('لا توجد حجوزات في هذه الفترة')))
             else
               Expanded(
                 child: ListView.builder(
@@ -182,22 +183,28 @@ class _CreateDebtFromBookingScreenState
                         dense: true,
                         leading: CircleAvatar(
                           radius: 16,
-                          backgroundColor: isSelected ? Colors.blue : Colors.grey,
-                          child: Text(booking.roomNumber, style: const TextStyle(fontSize: 12)),
+                          backgroundColor:
+                              isSelected ? Colors.blue : Colors.grey,
+                          child: Text(booking.roomNumber,
+                              style: const TextStyle(fontSize: 12)),
                         ),
-                        title: Text(booking.guestName, style: const TextStyle(fontSize: 12)),
+                        title: Text(booking.guestName,
+                            style: const TextStyle(fontSize: 12)),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('غرفة ${booking.roomNumber}', style: const TextStyle(fontSize: 12)),
+                            Text('غرفة ${booking.roomNumber}',
+                                style: const TextStyle(fontSize: 12)),
                             Text(
                                 '${_formatDate(booking.checkinDate)} - ${_formatDate(booking.checkoutDate ?? '')}',
                                 style: const TextStyle(fontSize: 12)),
-                            Text('الحالة: ${booking.status}', style: const TextStyle(fontSize: 12)),
+                            Text('الحالة: ${booking.status}',
+                                style: const TextStyle(fontSize: 12)),
                           ],
                         ),
                         trailing: isSelected
-                            ? Icon(Icons.check_circle, color: Colors.blue.shade600, size: 20)
+                            ? Icon(Icons.check_circle,
+                                color: Colors.blue.shade600, size: 20)
                             : null,
                         onTap: () => _selectBooking(booking),
                       ),
@@ -223,12 +230,15 @@ class _CreateDebtFromBookingScreenState
               decoration: const InputDecoration(
                 labelText: 'من تاريخ',
                 labelStyle: TextStyle(fontSize: 12),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
               child: Text(
-                _filterFromDate != null ? _formatDateTime(_filterFromDate!) : 'اختر',
+                _filterFromDate != null
+                    ? _formatDateTime(_filterFromDate!)
+                    : 'اختر',
                 style: const TextStyle(fontSize: 12),
               ),
             ),
@@ -242,12 +252,15 @@ class _CreateDebtFromBookingScreenState
               decoration: const InputDecoration(
                 labelText: 'إلى تاريخ',
                 labelStyle: TextStyle(fontSize: 12),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
               child: Text(
-                _filterToDate != null ? _formatDateTime(_filterToDate!) : 'اختر',
+                _filterToDate != null
+                    ? _formatDateTime(_filterToDate!)
+                    : 'اختر',
                 style: const TextStyle(fontSize: 12),
               ),
             ),

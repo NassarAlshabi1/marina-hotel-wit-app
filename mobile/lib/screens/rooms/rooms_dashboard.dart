@@ -150,7 +150,8 @@ class RoomsDashboard extends ConsumerWidget {
               action: SnackBarAction(
                 label: 'إغلاق',
                 textColor: Colors.white,
-                onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+                onPressed: () =>
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
               ),
             ),
           );
@@ -179,7 +180,8 @@ class RoomsDashboard extends ConsumerWidget {
           action: SnackBarAction(
             label: 'إغلاق',
             textColor: Colors.white,
-            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            onPressed: () =>
+                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
           ),
         ),
       );

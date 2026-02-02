@@ -9,15 +9,17 @@ class ComprehensiveBackupScreen extends ConsumerStatefulWidget {
   const ComprehensiveBackupScreen({super.key});
 
   @override
-  ConsumerState<ComprehensiveBackupScreen> createState() => _ComprehensiveBackupScreenState();
+  ConsumerState<ComprehensiveBackupScreen> createState() =>
+      _ComprehensiveBackupScreenState();
 }
 
-class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupScreen> {
+class _ComprehensiveBackupScreenState
+    extends ConsumerState<ComprehensiveBackupScreen> {
   final _backupService = ComprehensiveAppwriteBackupService();
   bool _isLoading = false;
   String? _statusMessage;
   double _progress = 0.0;
-  
+
   // وظيفة لتصدير النسخة الاحتياطية
   Future<void> _exportBackup() async {
     setState(() {
@@ -29,9 +31,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
     try {
       // الحصول على قاعدة البيانات من المزود
       final db = ref.read(databaseProvider);
-      
+
       final file = await _backupService.exportFullBackup(
-        db, 
+        db,
         onProgress: (msg, prog) {
           setState(() {
             _statusMessage = msg;
@@ -39,22 +41,23 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
           });
         },
       );
-      
+
       if (file != null) {
         setState(() {
           _statusMessage = 'تم إنشاء النسخة الاحتياطية بنجاح!';
           _isLoading = false;
         });
-        
+
         // عرض خيار المشاركة
         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('تم التصدير بنجاح'),
               action: SnackBarAction(
                 label: 'مشاركة',
                 onPressed: () {
-                   Share.shareXFiles([XFile(file.path)], text: 'نسخة احتياطية Marina Hotel');
+                  Share.shareXFiles([XFile(file.path)],
+                      text: 'نسخة احتياطية Marina Hotel');
                 },
               ),
             ),
@@ -88,10 +91,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
           builder: (ctx) => AlertDialog(
             title: const Text('تأكيد الاستعادة والرفع'),
             content: const Text(
-              'سيقوم هذا الإجراء برفع جميع البيانات من الملف المختار إلى خادم Appwrite.\n'
-              'سيتم تحديث السجلات الموجودة وإضافة السجلات الجديدة.\n\n'
-              'هل أنت متأكد من المتابعة؟'
-            ),
+                'سيقوم هذا الإجراء برفع جميع البيانات من الملف المختار إلى خادم Appwrite.\n'
+                'سيتم تحديث السجلات الموجودة وإضافة السجلات الجديدة.\n\n'
+                'هل أنت متأكد من المتابعة؟'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -104,7 +106,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
             ],
           ),
         );
-        
+
         if (confirm != true) {
           setState(() {
             _isLoading = false;
@@ -123,18 +125,18 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
           });
         },
       );
-      
+
       setState(() {
         _statusMessage = 'تمت عملية الرفع والمزامنة بنجاح!';
         _isLoading = false;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم رفع النسخة الاحتياطية إلى Appwrite بنجاح')),
+          const SnackBar(
+              content: Text('تم رفع النسخة الاحتياطية إلى Appwrite بنجاح')),
         );
       }
-
     } catch (e) {
       setState(() {
         _statusMessage = 'فشلت العملية: $e';
@@ -163,7 +165,7 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               ),
             ),
             const SizedBox(height: 32),
-            
+
             // زر التصدير
             _buildActionButton(
               icon: Icons.upload_file,
@@ -172,9 +174,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               subtitle: 'حفظ جميع البيانات في ملف واحد للمشاركة أو التخزين',
               onTap: _isLoading ? null : _exportBackup,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // زر الاستيراد والرفع
             _buildActionButton(
               icon: Icons.cloud_upload,
@@ -183,9 +185,9 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
               subtitle: 'اختيار ملف JSON ورفعه إلى السحابة فوراً',
               onTap: _isLoading ? null : _restoreAndUpload,
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // حالة التقدم
             if (_isLoading || _statusMessage != null)
               Container(
@@ -198,7 +200,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                 child: Column(
                   children: [
                     if (_isLoading) ...[
-                      LinearProgressIndicator(value: _progress > 0 ? _progress : null),
+                      LinearProgressIndicator(
+                          value: _progress > 0 ? _progress : null),
                       const SizedBox(height: 16),
                     ],
                     Text(
@@ -206,8 +209,8 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _statusMessage?.contains('خطأ') == true 
-                            ? Colors.red 
+                        color: _statusMessage?.contains('خطأ') == true
+                            ? Colors.red
                             : Colors.black87,
                       ),
                     ),

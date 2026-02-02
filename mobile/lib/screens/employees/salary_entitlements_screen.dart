@@ -9,10 +9,12 @@ class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
   const SalaryEntitlementsScreen({super.key});
 
   @override
-  ConsumerState<SalaryEntitlementsScreen> createState() => _SalaryEntitlementsScreenState();
+  ConsumerState<SalaryEntitlementsScreen> createState() =>
+      _SalaryEntitlementsScreenState();
 }
 
-class _SalaryEntitlementsScreenState extends ConsumerState<SalaryEntitlementsScreen> {
+class _SalaryEntitlementsScreenState
+    extends ConsumerState<SalaryEntitlementsScreen> {
   late SalaryEntitlementService _service;
   List<SalaryEntitlement> _entitlements = [];
   Map<String, dynamic> _summary = {};
@@ -41,11 +43,15 @@ class _SalaryEntitlementsScreenState extends ConsumerState<SalaryEntitlementsScr
   Widget build(BuildContext context) {
     return AppScaffold(
       title: 'استحقاقات الرواتب',
-      actions: [IconButton(onPressed: _loadData, icon: const Icon(Icons.refresh))],
+      actions: [
+        IconButton(onPressed: _loadData, icon: const Icon(Icons.refresh))
+      ],
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _entitlements.isEmpty
-              ? const Center(child: Text('لا يوجد موظفين نشطين', style: TextStyle(fontSize: 12)))
+              ? const Center(
+                  child: Text('لا يوجد موظفين نشطين',
+                      style: TextStyle(fontSize: 12)))
               : RefreshIndicator(onRefresh: _loadData, child: _buildContent()),
     );
   }
@@ -56,7 +62,8 @@ class _SalaryEntitlementsScreenState extends ConsumerState<SalaryEntitlementsScr
       children: [
         _buildSummaryCard(),
         const SizedBox(height: 8),
-        const Text('تفاصيل الموظفين:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        const Text('تفاصيل الموظفين:',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         ..._entitlements.map((e) => _buildEmployeeCard(e)),
       ],
@@ -71,14 +78,31 @@ class _SalaryEntitlementsScreenState extends ConsumerState<SalaryEntitlementsScr
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('ملخص الاستحقاقات', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            const Text('ملخص الاستحقاقات',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             _row('عدد الموظفين', '${_summary['count'] ?? 0}'),
-            _row('إجمالي الاستحقاقات', CurrencyFormatter.formatAmount(_summary['totalEntitlements'] ?? 0), Colors.green),
-            _row('إجمالي السحبيات', CurrencyFormatter.formatAmount(_summary['totalWithdrawals'] ?? 0), Colors.orange),
-            _row('إجمالي الخصومات', CurrencyFormatter.formatAmount(_summary['totalDeductions'] ?? 0), Colors.red),
+            _row(
+                'إجمالي الاستحقاقات',
+                CurrencyFormatter.formatAmount(
+                    _summary['totalEntitlements'] ?? 0),
+                Colors.green),
+            _row(
+                'إجمالي السحبيات',
+                CurrencyFormatter.formatAmount(
+                    _summary['totalWithdrawals'] ?? 0),
+                Colors.orange),
+            _row(
+                'إجمالي الخصومات',
+                CurrencyFormatter.formatAmount(
+                    _summary['totalDeductions'] ?? 0),
+                Colors.red),
             const Divider(),
-            _row('صافي المستحقات', CurrencyFormatter.formatAmount(_summary['totalNet'] ?? 0), Colors.blue.shade700, true),
+            _row(
+                'صافي المستحقات',
+                CurrencyFormatter.formatAmount(_summary['totalNet'] ?? 0),
+                Colors.blue.shade700,
+                true),
           ],
         ),
       ),
@@ -92,7 +116,11 @@ class _SalaryEntitlementsScreenState extends ConsumerState<SalaryEntitlementsScr
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontSize: 12)),
-          Text(value, style: TextStyle(fontSize: 12, color: color, fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
         ],
       ),
     );
@@ -105,10 +133,12 @@ class _SalaryEntitlementsScreenState extends ConsumerState<SalaryEntitlementsScr
       child: ExpansionTile(
         dense: true,
         tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-        title: Text(ent.employee.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        title: Text(ent.employee.name,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
         subtitle: Text(
           'المتبقي: ${CurrencyFormatter.formatAmount(ent.netEntitlement)}',
-          style: TextStyle(fontSize: 12, color: isPositive ? Colors.green : Colors.red),
+          style: TextStyle(
+              fontSize: 12, color: isPositive ? Colors.green : Colors.red),
         ),
         children: [
           Padding(
@@ -117,28 +147,56 @@ class _SalaryEntitlementsScreenState extends ConsumerState<SalaryEntitlementsScr
               children: [
                 _row('تاريخ التعيين', _formatDate(ent.hireDate)),
                 _row('مدة العمل', '${ent.totalMonthsWorked} شهر'),
-                _row('الراتب الشهري', CurrencyFormatter.formatAmount(ent.basicSalary)),
+                _row('الراتب الشهري',
+                    CurrencyFormatter.formatAmount(ent.basicSalary)),
                 const Divider(),
-                _row('إجمالي الاستحقاق', CurrencyFormatter.formatAmount(ent.totalEntitlement), Colors.green),
-                _row('السحبيات', '- ${CurrencyFormatter.formatAmount(ent.totalWithdrawals)}', Colors.orange),
-                _row('الخصومات', '- ${CurrencyFormatter.formatAmount(ent.totalDeductions)}', Colors.red),
+                _row(
+                    'إجمالي الاستحقاق',
+                    CurrencyFormatter.formatAmount(ent.totalEntitlement),
+                    Colors.green),
+                _row(
+                    'السحبيات',
+                    '- ${CurrencyFormatter.formatAmount(ent.totalWithdrawals)}',
+                    Colors.orange),
+                _row(
+                    'الخصومات',
+                    '- ${CurrencyFormatter.formatAmount(ent.totalDeductions)}',
+                    Colors.red),
                 const Divider(),
-                _row('المتبقي', CurrencyFormatter.formatAmount(ent.netEntitlement), isPositive ? Colors.green : Colors.red, true),
+                _row(
+                    'المتبقي',
+                    CurrencyFormatter.formatAmount(ent.netEntitlement),
+                    isPositive ? Colors.green : Colors.red,
+                    true),
                 if (ent.transactions.isNotEmpty) ...[
                   const Divider(),
-                  const Align(alignment: Alignment.centerRight, child: Text('آخر المعاملات:', style: TextStyle(fontSize: 12))),
+                  const Align(
+                      alignment: Alignment.centerRight,
+                      child: Text('آخر المعاملات:',
+                          style: TextStyle(fontSize: 12))),
                   ...ent.transactions.take(5).map((tx) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      children: [
-                        Text(tx.type, style: TextStyle(fontSize: 12, color: tx.type == 'سحب' ? Colors.orange : Colors.red)),
-                        const Spacer(),
-                        Text(CurrencyFormatter.formatAmount(tx.amount), style: const TextStyle(fontSize: 12)),
-                        const SizedBox(width: 8),
-                        Text(tx.date.length > 10 ? tx.date.substring(0, 10) : tx.date, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-                      ],
-                    ),
-                  )),
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            Text(tx.type,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: tx.type == 'سحب'
+                                        ? Colors.orange
+                                        : Colors.red)),
+                            const Spacer(),
+                            Text(CurrencyFormatter.formatAmount(tx.amount),
+                                style: const TextStyle(fontSize: 12)),
+                            const SizedBox(width: 8),
+                            Text(
+                                tx.date.length > 10
+                                    ? tx.date.substring(0, 10)
+                                    : tx.date,
+                                style: TextStyle(
+                                    fontSize: 10, color: Colors.grey.shade600)),
+                          ],
+                        ),
+                      )),
                 ],
               ],
             ),
@@ -148,5 +206,6 @@ class _SalaryEntitlementsScreenState extends ConsumerState<SalaryEntitlementsScr
     );
   }
 
-  String _formatDate(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  String _formatDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }

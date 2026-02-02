@@ -689,7 +689,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             duration: const Duration(seconds: 5),
             action: SnackBarAction(
               label: 'إغلاق',
-              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
             ),
           ),
         );
@@ -914,7 +915,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'إغلاق',
-            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            onPressed: () =>
+                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
           ),
         ));
       }
@@ -977,7 +979,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'إغلاق',
-            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            onPressed: () =>
+                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
           ),
         ),
       );

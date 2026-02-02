@@ -105,7 +105,8 @@ class AppwriteSyncManager {
         await outboxDao.cleanupStuckEntries();
         await outboxDao.retryFailed();
       } catch (e) {
-        _logger.warning('Failed to cleanup outbox on init', error: e, tag: 'SYNC');
+        _logger.warning('Failed to cleanup outbox on init',
+            error: e, tag: 'SYNC');
       }
 
       _enableDebouncedPush();
@@ -1513,7 +1514,7 @@ class AppwriteSyncManager {
   }) async {
     _logger.info('🚀 بدء رفع جميع البيانات المحلية إلى Appwrite...',
         tag: 'SYNC');
-    
+
     final stats = <String, int>{
       'rooms': 0,
       'bookings': 0,
@@ -1534,17 +1535,18 @@ class AppwriteSyncManager {
       // التأكد من تهيئة الخدمة أولاً
       _logger.info('🔄 تهيئة خدمة Appwrite...', tag: 'SYNC');
       await appwriteService.initialize();
-      
+
       // التحقق من الاتصال بـ Appwrite
       if (!appwriteService.isInitialized) {
         _logger.error('❌ فشل تهيئة Appwrite', tag: 'SYNC');
         throw Exception('Appwrite service not initialized');
       }
-      
+
       _logger.info('✅ تم تهيئة Appwrite بنجاح', tag: 'SYNC');
       // رفع الغرف
       final rooms = await database.select(database.rooms).get();
-      _logger.info('📦 وُجد ${rooms.length} غرفة في قاعدة البيانات المحلية', tag: 'SYNC');
+      _logger.info('📦 وُجد ${rooms.length} غرفة في قاعدة البيانات المحلية',
+          tag: 'SYNC');
       for (final room in rooms) {
         if (skipDeleted && room.deletedAt != null) continue;
         try {
@@ -1557,11 +1559,13 @@ class AppwriteSyncManager {
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['rooms']} غرفة من ${rooms.length}', tag: 'SYNC');
+      _logger.info('✅ تم رفع ${stats['rooms']} غرفة من ${rooms.length}',
+          tag: 'SYNC');
 
       // رفع الموظفين
       final employees = await database.select(database.employees).get();
-      _logger.info('📦 وُجد ${employees.length} موظف في قاعدة البيانات المحلية', tag: 'SYNC');
+      _logger.info('📦 وُجد ${employees.length} موظف في قاعدة البيانات المحلية',
+          tag: 'SYNC');
       for (final employee in employees) {
         if (skipDeleted && employee.deletedAt != null) continue;
         try {
@@ -1573,11 +1577,13 @@ class AppwriteSyncManager {
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['employees']} موظف من ${employees.length}', tag: 'SYNC');
+      _logger.info('✅ تم رفع ${stats['employees']} موظف من ${employees.length}',
+          tag: 'SYNC');
 
       // رفع الحجوزات
       final bookings = await database.select(database.bookings).get();
-      _logger.info('📦 وُجد ${bookings.length} حجز في قاعدة البيانات المحلية', tag: 'SYNC');
+      _logger.info('📦 وُجد ${bookings.length} حجز في قاعدة البيانات المحلية',
+          tag: 'SYNC');
       for (final booking in bookings) {
         if (skipDeleted && booking.deletedAt != null) continue;
         try {
@@ -1590,7 +1596,8 @@ class AppwriteSyncManager {
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['bookings']} حجز من ${bookings.length}', tag: 'SYNC');
+      _logger.info('✅ تم رفع ${stats['bookings']} حجز من ${bookings.length}',
+          tag: 'SYNC');
 
       // رفع المصروفات
       final expenses = await database.select(database.expenses).get();
@@ -1609,7 +1616,8 @@ class AppwriteSyncManager {
 
       // رفع المدفوعات
       final payments = await database.select(database.payments).get();
-      _logger.info('📦 وُجد ${payments.length} دفعة في قاعدة البيانات المحلية', tag: 'SYNC');
+      _logger.info('📦 وُجد ${payments.length} دفعة في قاعدة البيانات المحلية',
+          tag: 'SYNC');
       for (final payment in payments) {
         if (skipDeleted && payment.deletedAt != null) continue;
         try {
@@ -1621,7 +1629,8 @@ class AppwriteSyncManager {
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['payments']} دفعة من ${payments.length}', tag: 'SYNC');
+      _logger.info('✅ تم رفع ${stats['payments']} دفعة من ${payments.length}',
+          tag: 'SYNC');
 
       // رفع الديون
       final debts = await database.select(database.debts).get();
