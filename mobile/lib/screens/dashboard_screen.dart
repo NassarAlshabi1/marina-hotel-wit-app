@@ -64,19 +64,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
 
-          // Smart Sync Status Card
           const SmartSyncDashboardCard(),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
 
-          // Statistics Cards - بطاقات أصغر مع إحصائيات مفيدة أكثر
           _buildStatisticsCards(),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
 
-          // Rooms Status Section
           Consumer(
             builder: (context, ref, _) {
               final roomsAsync = ref.watch(roomsListProvider);
@@ -99,9 +96,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 2.5, // تصغير البطاقات
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
+      childAspectRatio: 3.2,
+      mainAxisSpacing: 6,
+      crossAxisSpacing: 6,
       children: [
         // نسبة الإشغال
         Consumer(
@@ -237,19 +234,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'حالة الغرف',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             Wrap(
-              alignment: WrapAlignment.center, // توسيط الأزرار
-              spacing: 8, // تقليل المسافات
-              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              spacing: 6,
+              runSpacing: 6,
               children: _dashboardRoomNumbers.map((roomNumber) {
                 final room = roomsMap[roomNumber];
                 final bool isOccupied =
@@ -278,20 +275,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 return Tooltip(
                   message: tooltipText,
                   child: SizedBox(
-                    width: 60, // تصغير الأزرار
+                    width: 52,
                     child: ElevatedButton(
                       onPressed: () =>
                           _handleRoomTap(context, roomNumber, room),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: backgroundColor,
                         foregroundColor: foregroundColor,
-                        minimumSize: const Size(60, 40), // تصغير الحجم
+                        minimumSize: const Size(52, 34),
+                        padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         textStyle: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 14, // تصغير الخط
+                          fontSize: 12,
                         ),
                       ),
                       child: Text(roomNumber),
@@ -538,33 +536,38 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(8), // تقليل padding
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
             children: [
-              Icon(icon, size: 16, color: color), // تصغير الأيقونة
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 16, // تصغير الخط
-                  fontWeight: FontWeight.bold,
-                  color: color,
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 9, // تصغير الخط
-                  color: Colors.grey,
-                ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),
@@ -588,26 +591,32 @@ class _LoadingStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Row(
           children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(height: 2),
-            SizedBox(
-              width: 12,
-              height: 12,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(color),
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
+                    ),
+                  ),
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 9, color: Colors.grey),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 1),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 9, color: Colors.grey),
-              textAlign: TextAlign.center,
             ),
           ],
         ),

@@ -247,47 +247,70 @@ class _SmartSyncDashboardCardState
         if (!isSignedIn) return const SizedBox.shrink();
 
         return Card(
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: isEnabled ? Colors.green : Colors.grey,
-              child: Icon(
-                isEnabled ? Icons.sync : Icons.sync_disabled,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            title: Text(
-              'المزامنة بين الأجهزة',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isEnabled ? 'مُفعلة - فحص كل $syncInterval دقائق' : 'معطلة',
-                ),
-                if (isSyncing)
-                  const Text(
-                    '🔄 جارِ المزامنة...',
-                    style: TextStyle(color: Colors.blue),
-                  ),
-                if (lastSync != null && !isSyncing)
-                  Text('آخر فحص: ${_formatLastSync(DateTime.parse(lastSync))}'),
-              ],
-            ),
-            trailing: isEnabled && !isSyncing
-                ? IconButton(
-                    icon: const Icon(Icons.sync_alt),
-                    onPressed: () async {
-                      final manager = ref.read(smartSyncManagerProvider);
-                      await manager.forceSyncNow();
-                    },
-                    tooltip: 'مزامنة الآن',
-                  )
-                : null,
+          margin: EdgeInsets.zero,
+          child: InkWell(
             onTap: () {
               Navigator.pushNamed(context, '/smart-sync-settings');
             },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isEnabled ? Colors.green : Colors.grey,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isEnabled ? Icons.sync : Icons.sync_disabled,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'المزامنة بين الأجهزة',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          isSyncing
+                              ? 'جارِ المزامنة...'
+                              : isEnabled
+                                  ? 'مُفعلة'
+                                  : 'معطلة',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isSyncing ? Colors.blue : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isEnabled && !isSyncing)
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.sync_alt, size: 18),
+                        onPressed: () async {
+                          final manager = ref.read(smartSyncManagerProvider);
+                          await manager.forceSyncNow();
+                        },
+                        tooltip: 'مزامنة الآن',
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         );
       },
