@@ -4,12 +4,11 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
-import 'package:image_picker/image_picker.dart';
+
 import '../../services/api_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 
-Future<ImagePicker> _lazyPicker() async => ImagePicker();
 
 class RoomsListScreen extends ConsumerStatefulWidget {
   const RoomsListScreen({super.key});
@@ -121,25 +120,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   decoration: const InputDecoration(labelText: 'الحالة'),
                 ),
                 const SizedBox(height: 8),
-                if (imageUrl != null)
-                  Image.network(imageUrl!, height: 120, fit: BoxFit.cover),
-                TextButton.icon(
-                  onPressed: () async {
-                    final picker = ImagePicker();
-                    final img = await picker.pickImage(
-                      source: ImageSource.gallery,
-                      maxWidth: 1600,
-                      maxHeight: 1600,
-                      imageQuality: 85,
-                    );
-                    if (img != null) {
-                      imageUrl = img.path;
-                      (ctx as Element).markNeedsBuild();
-                    }
-                  },
-                  icon: const Icon(Icons.image),
-                  label: const Text('اختر صورة'),
-                ),
+
               ],
             ),
           ),
@@ -177,45 +158,5 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       );
     }
     markDataChanged();
-  }
-
-  // ignore: unused_element
-  Future<void> _uploadImage(BuildContext context, String roomNumber) async {
-    try {
-      final picker = await _lazyPicker();
-      final picked = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 85,
-      );
-      if (picked == null) return;
-      final url = await ApiService.I.uploadRoomImage(roomNumber, picked.path);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(url != null ? 'تم رفع الصورة' : 'فشل رفع الصورة'),
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(
-          content: Text('خطأ: $e'),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-          ),
-        ));
-      }
-    }
   }
 }
