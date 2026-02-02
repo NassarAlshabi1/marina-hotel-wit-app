@@ -1,13 +1,13 @@
 name: Auto-fix & analyse
 
 on:
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
-      - 'capy/**'
+  workflow_dispatch:
+    inputs:
+      clean_cache:
+        description: 'تنظيف الكاش قبل البناء'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   lint:
@@ -22,9 +22,21 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: ${{ inputs.clean_cache == false }}
+
+      - name: 🧹 Clean cache
+        if: ${{ inputs.clean_cache == true }}
+        working-directory: mobile
+        run: |
+          echo "🧹 Cleaning all caches..."
+          rm -rf ~/.pub-cache
+          rm -rf build
+          rm -rf .dart_tool
+          flutter clean
+          echo "✅ Caches cleaned"
 
       - name: 📦 Install dependencies
-        working-directory: mobile          # <-- المجلد الفرعي
+        working-directory: mobile
         run: flutter pub get
 
       - name: 🏗️ Generate code
@@ -47,4 +59,3 @@ jobs:
       - name: 🔍 flutter analyse
         working-directory: mobile
         run: flutter analyze --no-fatal-infos
-        
