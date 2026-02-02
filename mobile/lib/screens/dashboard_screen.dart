@@ -1,4 +1,6 @@
-import 'dart:ui' as ui;\n\nimport 'package:drift/drift.dart';
+import 'dart:ui' as ui;
+
+import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
