@@ -13,7 +13,6 @@ import '../utils/status_utils.dart';
 import '../widgets/dashboard_sync_button.dart';
 import '../widgets/smart_sync_widgets.dart';
 import 'bookings/booking_edit.dart';
-import 'bookings/bookings_list.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
 
