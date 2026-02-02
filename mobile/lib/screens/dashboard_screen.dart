@@ -245,8 +245,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 10),
             Wrap(
               alignment: WrapAlignment.center,
-              spacing: 6,
-              runSpacing: 6,
+              spacing: 8,
+              runSpacing: 8,
               children: _dashboardRoomNumbers.map((roomNumber) {
                 final room = roomsMap[roomNumber];
                 final bool isOccupied =
