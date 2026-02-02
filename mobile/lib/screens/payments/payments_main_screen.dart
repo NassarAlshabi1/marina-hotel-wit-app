@@ -108,11 +108,6 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
               const SizedBox(height: 16),
 
-              // الرسم البياني
-              _buildPaymentMethodChart(payments),
-
-              const SizedBox(height: 16),
-
               // المدفوعات الأخيرة
               _buildRecentPayments(payments),
             ],
