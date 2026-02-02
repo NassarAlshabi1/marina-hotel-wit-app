@@ -56,8 +56,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Row(
             children: const [
               Text(
-                'لوحة التحكم - نظام إدارة الفندق',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                'لوحة تحكم فندق مارينا',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
               Spacer(),
               DashboardSyncButton(),
