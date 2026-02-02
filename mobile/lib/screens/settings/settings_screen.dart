@@ -9,7 +9,7 @@ import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
-import 'comprehensive_backup_screen.dart';
+import 'comprehensive_backup_screen.dart';\nimport 'google_drive_backup_screen.dart';
 import 'data_protection_screen.dart';
 import 'sync_performance_settings_screen.dart';
 import 'appwrite_settings_screen.dart';
@@ -377,7 +377,7 @@ class SettingsScreen extends ConsumerWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const ComprehensiveBackupScreen(),
+        builder: (context) => const GoogleDriveBackupScreen(),
       ),
     );
   }
