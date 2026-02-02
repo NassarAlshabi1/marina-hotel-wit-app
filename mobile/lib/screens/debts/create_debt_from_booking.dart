@@ -90,7 +90,7 @@ class _CreateDebtFromBookingScreenState
                   Text(
                     '• الوضع التلقائي: تحويل الحجز الحالي إلى دين مع حساب الليالي وسعر الغرفة والمبالغ المدفوعة تلقائياً وتحرير الغرفة.\n'
                     '• الوضع اليدوي: إدخال دين يدوي لأي حالة سابقة أو غير مرتبطة بحجز.',
-                    style: TextStyle(fontSize: 12, height: 1.4),
+                    style: TextStyle(fontSize: 13, height: 1.4),
                   ),
                 ],
               ),
@@ -222,7 +222,7 @@ class _CreateDebtFromBookingScreenState
           children: [
             Text(
               'دين ${booking.guestName}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -260,7 +260,7 @@ class _CreateDebtFromBookingScreenState
             const SizedBox(height: 12),
             Text(
               'سيتم إنشاء الدين وتحديث حالة الحجز إلى "مكتمل" وتحرير الغرفة ${booking.roomNumber}.',
-              style: const TextStyle(fontSize: 12, color: Colors.black54),
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
             ),
             const SizedBox(height: 12),
             Row(
