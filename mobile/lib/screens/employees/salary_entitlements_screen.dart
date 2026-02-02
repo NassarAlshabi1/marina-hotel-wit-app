@@ -34,6 +34,11 @@ class _SalaryEntitlementsScreenState
       _entitlements = _summary['entitlements'] as List<SalaryEntitlement>;
     } catch (e) {
       debugPrint('Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل البيانات: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

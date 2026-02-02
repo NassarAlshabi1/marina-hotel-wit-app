@@ -39,7 +39,7 @@ final todayPaymentsProvider = StreamProvider<double>((ref) {
         ],
       )
       .watch()
-      .map((rows) => rows.isEmpty ? 0.0 : (rows.first.data['total'] ?? 0.0) as double);
+      .map((rows) => rows.isEmpty ? 0.0 : (rows.first.data['total'] as num? ?? 0.0).toDouble());
 });
 
 final todayExpensesProvider = StreamProvider<double>((ref) {
@@ -57,7 +57,7 @@ final todayExpensesProvider = StreamProvider<double>((ref) {
         ],
       )
       .watch()
-      .map((rows) => rows.isEmpty ? 0.0 : (rows.first.data['total'] ?? 0.0) as double);
+      .map((rows) => rows.isEmpty ? 0.0 : (rows.first.data['total'] as num? ?? 0.0).toDouble());
 });
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -440,7 +440,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 ),
               ),
-            if (room.status == 'صيانة' || room.status != 'شاغرة') ...[
+            if (room.status != 'شاغرة') ...[
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
