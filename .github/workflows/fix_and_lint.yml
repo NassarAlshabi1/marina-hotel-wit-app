@@ -8,11 +8,6 @@ on:
         required: true
         default: 'main'
         type: string
-      clean_cache:
-        description: 'تنظيف الكاش قبل البناء'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   lint:
@@ -28,18 +23,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: ${{ inputs.clean_cache == false }}
-
-      - name: 🧹 Clean cache
-        if: ${{ inputs.clean_cache == true }}
-        working-directory: mobile
-        run: |
-          echo "🧹 Cleaning all caches..."
-          rm -rf ~/.pub-cache
-          rm -rf build
-          rm -rf .dart_tool
-          flutter clean
-          echo "✅ Caches cleaned"
+          cache: true
 
       - name: 📦 Install dependencies
         working-directory: mobile
