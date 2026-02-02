@@ -53,7 +53,6 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.2
   build_runner: ^2.4.13
-  freezed: ^2.5.7
   sqflite_common_ffi: ^2.3.3+1
   drift_dev: ^2.28.0
 
