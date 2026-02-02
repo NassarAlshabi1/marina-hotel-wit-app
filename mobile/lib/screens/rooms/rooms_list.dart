@@ -5,7 +5,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 
-import '../../services/api_service.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 

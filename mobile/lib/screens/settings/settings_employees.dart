@@ -623,6 +623,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
   }
 
+  // ignore: unused_element
   void _showSalaryWithdrawalDialog(
     BuildContext context,
     WidgetRef ref,

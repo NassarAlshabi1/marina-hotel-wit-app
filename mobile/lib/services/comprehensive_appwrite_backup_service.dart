@@ -28,6 +28,7 @@ class ComprehensiveAppwriteBackupService {
   final AppwriteLogger _logger = AppwriteLogger();
 
   // قائمة المجموعات التي سيتم نسخها احتياطياً
+  // ignore: unused_field
   final List<String> _collectionIds = [
     AppwriteConfig.roomsCollectionId,
     AppwriteConfig.bookingsCollectionId,

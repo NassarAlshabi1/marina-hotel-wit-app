@@ -214,6 +214,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     );
   }
 
+  // ignore: unused_element
   Widget _buildPaymentMethodChart(List<Payment> payments) {
     final methodCounts = <String, double>{};
 
