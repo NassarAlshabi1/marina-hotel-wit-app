@@ -247,7 +247,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             const SizedBox(height: 16),
             Wrap(
-              alignment: WrapAlignment.end, // إزاحة الأزرار إلى اليسار
+              alignment: WrapAlignment.center, // توسيط الأزرار
               spacing: 8, // تقليل المسافات
               runSpacing: 8,
               children: _dashboardRoomNumbers.map((roomNumber) {
