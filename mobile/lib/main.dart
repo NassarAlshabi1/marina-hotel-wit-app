@@ -142,14 +142,16 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     await _configureAutoSyncEngine(autoSyncEngine);
 
-    await autoSyncEngine.start();
+    // لا يتم بدء المزامنة تلقائياً عند فتح التطبيق
+    // await autoSyncEngine.start();
 
-    if (backupService.isSignedIn) {
-      debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
-      await autoSyncEngine.onSignInChanged(true);
-      await smartSync.onGoogleDriveSignInChanged(true);
-      debugPrint('✅ تم إشعار جميع أنظمة المزامنة');
-    }
+    // if (backupService.isSignedIn) {
+    //   debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
+    //   await autoSyncEngine.onSignInChanged(true);
+    //   await smartSync.onGoogleDriveSignInChanged(true);
+    //   debugPrint('✅ تم إشعار جميع أنظمة المزامنة');
+    // }
+    debugPrint('ℹ️ المزامنة التلقائية معطلة عند بدء التطبيق');
 
     await SyncQueueService.instance.initialize();
 
