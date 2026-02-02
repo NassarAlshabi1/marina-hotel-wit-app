@@ -433,7 +433,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     padding: const EdgeInsets.all(16),
                     child: TextFormField(
                       controller: _notes,
-                      maxLines: 4,
+                      maxLines: null,
+                      minLines: 2,
                       decoration: const InputDecoration(
                         labelText: 'ملاحظات إضافية',
                       ),
