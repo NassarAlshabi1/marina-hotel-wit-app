@@ -23,8 +23,6 @@ class _CreateDebtFromBookingScreenState
   bool _isManualProcessing = false;
   _AutoDebtData? _autoDebtData;
 
-  late TextEditingController _autoDebtDateController;
-
   final _manualFormKey = GlobalKey<FormState>();
   late TextEditingController _manualGuestNameController;
   late TextEditingController _manualCheckinController;
@@ -38,7 +36,6 @@ class _CreateDebtFromBookingScreenState
   void initState() {
     super.initState();
     final today = Time.nowDateString();
-    _autoDebtDateController = TextEditingController(text: today);
     _manualGuestNameController = TextEditingController();
     _manualCheckinController = TextEditingController(text: today);
     _manualCheckoutController = TextEditingController(text: today);
@@ -50,7 +47,6 @@ class _CreateDebtFromBookingScreenState
 
   @override
   void dispose() {
-    _autoDebtDateController.dispose();
     _manualGuestNameController.dispose();
     _manualCheckinController.dispose();
     _manualCheckoutController.dispose();
@@ -262,36 +258,6 @@ class _CreateDebtFromBookingScreenState
               ],
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _autoDebtDateController,
-              style: const TextStyle(fontSize: 12),
-              decoration: InputDecoration(
-                labelText: 'تاريخ الدين',
-                labelStyle: const TextStyle(fontSize: 12),
-                hintText: 'مثال: 2026-02-01',
-                hintStyle: const TextStyle(fontSize: 12),
-                prefixIcon: const Icon(Icons.calendar_today, size: 16),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.edit_calendar, size: 18),
-                  tooltip: 'اختيار تاريخ',
-                  onPressed: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.tryParse(_autoDebtDateController.text) ?? DateTime.now(),
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2030),
-                    );
-                    if (picked != null) {
-                      _autoDebtDateController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
-                    }
-                  },
-                ),
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 12),
             Text(
               'سيتم إنشاء الدين وتحديث حالة الحجز إلى "مكتمل" وتحرير الغرفة ${booking.roomNumber}.',
               style: const TextStyle(fontSize: 12, color: Colors.black54),
@@ -348,148 +314,88 @@ class _CreateDebtFromBookingScreenState
           children: [
             TextFormField(
               controller: _manualGuestNameController,
-              style: const TextStyle(fontSize: 12),
               decoration: const InputDecoration(
                 labelText: 'اسم النزيل *',
-                labelStyle: TextStyle(fontSize: 12),
                 border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               ),
               validator: (value) => value == null || value.trim().isEmpty
                   ? 'أدخل اسم النزيل'
                   : null,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     controller: _manualCheckinController,
-                    style: const TextStyle(fontSize: 12),
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'تاريخ الوصول *',
-                      labelStyle: const TextStyle(fontSize: 12),
-                      hintText: '2026-02-01',
-                      hintStyle: const TextStyle(fontSize: 12),
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.calendar_today, size: 16),
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.tryParse(_manualCheckinController.text) ?? DateTime.now(),
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2030),
-                          );
-                          if (picked != null) {
-                            _manualCheckinController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
-                          }
-                        },
-                      ),
+                      border: OutlineInputBorder(),
                     ),
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'أدخل تاريخ الوصول'
                         : null,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
                   child: TextFormField(
                     controller: _manualCheckoutController,
-                    style: const TextStyle(fontSize: 12),
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'تاريخ المغادرة',
-                      labelStyle: const TextStyle(fontSize: 12),
-                      hintText: '2026-02-01',
-                      hintStyle: const TextStyle(fontSize: 12),
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.calendar_today, size: 16),
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.tryParse(_manualCheckoutController.text) ?? DateTime.now(),
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2030),
-                          );
-                          if (picked != null) {
-                            _manualCheckoutController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
-                          }
-                        },
-                      ),
+                      border: OutlineInputBorder(),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     controller: _manualTotalController,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 12),
                     decoration: const InputDecoration(
                       labelText: 'إجمالي المبلغ *',
-                      labelStyle: TextStyle(fontSize: 12),
                       border: OutlineInputBorder(),
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     ),
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'أدخل المبلغ'
                         : null,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
                   child: TextFormField(
                     controller: _manualPaidController,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 12),
                     decoration: const InputDecoration(
                       labelText: 'المبلغ المدفوع',
-                      labelStyle: TextStyle(fontSize: 12),
                       border: OutlineInputBorder(),
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _manualReasonController,
-              style: const TextStyle(fontSize: 12),
               decoration: const InputDecoration(
                 labelText: 'سبب الدين',
-                labelStyle: TextStyle(fontSize: 12),
                 border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _manualNoteController,
-              maxLines: 2,
-              style: const TextStyle(fontSize: 12),
-              decoration: const InputDecoration(
-                labelText: 'ملاحظات',
-                labelStyle: TextStyle(fontSize: 12),
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               ),
             ),
             const SizedBox(height: 12),
+            TextFormField(
+              controller: _manualNoteController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'ملاحظات',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -527,7 +433,6 @@ class _CreateDebtFromBookingScreenState
       _selectedBooking = booking;
       _autoDebtData = null;
       _isAutoComputing = true;
-      _autoDebtDateController.text = Time.nowDateString();
     });
     _prepareAutoDebtData(booking);
   }
@@ -597,9 +502,7 @@ class _CreateDebtFromBookingScreenState
     final booking = _selectedBooking!;
     final data = _autoDebtData!;
     final nowIso = Time.nowIso();
-    final dateOnly = _autoDebtDateController.text.trim().isNotEmpty
-        ? _autoDebtDateController.text.trim()
-        : Time.nowDateString();
+    final dateOnly = Time.nowDateString();
 
     try {
       final debtsRepo = ref.read(debtsRepoProvider);
