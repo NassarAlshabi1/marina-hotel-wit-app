@@ -99,7 +99,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 2.0, // تصغير البطاقات
+      childAspectRatio: 2.5, // تصغير البطاقات
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       children: [
@@ -539,25 +539,25 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(12), // تقليل padding
+          padding: const EdgeInsets.all(8), // تقليل padding
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 24, color: color), // تصغير الأيقونة
-              const SizedBox(height: 4),
+              Icon(icon, size: 20, color: color), // تصغير الأيقونة
+              const SizedBox(height: 2),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 16, // تصغير الخط
+                  fontSize: 17, // تصغير الخط
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 12, // تصغير الخط
+                  fontSize: 10, // تصغير الخط
                   color: Colors.grey,
                 ),
                 textAlign: TextAlign.center,
@@ -585,24 +585,24 @@ class _LoadingStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 24, color: color),
-            const SizedBox(height: 4),
+            Icon(icon, size: 20, color: color),
+            const SizedBox(height: 2),
             SizedBox(
-              width: 16,
-              height: 16,
+              width: 14,
+              height: 14,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 1),
             Text(
               title,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],
