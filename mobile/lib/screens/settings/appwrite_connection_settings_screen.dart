@@ -91,19 +91,7 @@ class _AppwriteConnectionSettingsScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في حفظ الإعدادات: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              textColor: Colors.white,
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-            ),
-          ),
-        );
+        SnackBarHelper.showError(context, 'خطأ في حفظ الإعدادات: $e');
       }
     } finally {
       if (mounted) {
