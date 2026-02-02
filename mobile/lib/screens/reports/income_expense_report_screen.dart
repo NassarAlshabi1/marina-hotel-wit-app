@@ -79,8 +79,8 @@ class _IncomeExpenseReportScreenState
         }).toList(),
         expenses: expenses.map((e) => {
           'date': e.date,
-          'type': e.expenseType ?? '',
-          'description': e.description ?? '',
+          'type': e.expenseType,
+          'description': e.description,
           'amount': e.amount,
         }).toList(),
         fromDate: _fromDate,
@@ -101,11 +101,6 @@ class _IncomeExpenseReportScreenState
     } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  bool _isSalaryExpense(String type) {
-    final normalized = type.trim();
-    return normalized.contains('راتب');
   }
 
   Future<void> _pickDate({required bool isFrom}) async {

@@ -790,9 +790,8 @@ class SmartSyncManager {
       // استخدام Delta Sync فقط (رفع التغييرات الجديدة فقط)
       if (!GoogleDriveDeltaSync.instance.isInitialized) {
         _log('⚙️ تهيئة Delta Sync...');
-        await GoogleDriveDeltaSync.instance.initialize(
-          backupService: _backupService!,
-        );
+        final db = DatabaseManager.instance;
+        await GoogleDriveDeltaSync.instance.initialize(_backupService!, db);
       }
 
       _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
