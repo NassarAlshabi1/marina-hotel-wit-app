@@ -76,6 +76,7 @@ class Bookings extends Table with SyncFields {
   TextColumn get actualCheckout => text().nullable()();
   TextColumn get status => text()();
   TextColumn get notes => text().nullable()();
+  RealColumn get discount => real().withDefault(const Constant(0))();
   IntColumn get expectedNights => integer().withDefault(const Constant(1))();
   IntColumn get calculatedNights => integer().withDefault(const Constant(1))();
   IntColumn get totalNightsCached => integer().withDefault(const Constant(0))();
@@ -487,7 +488,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -910,6 +911,11 @@ class AppDatabase extends _$AppDatabase {
             }
 
             await m.database.customStatement('DROP TABLE shift_notes_old');
+          }
+
+          if (from < 22) {
+            // إضافة حقل التخفيض للحجوزات
+            await m.addColumn(bookings, bookings.discount);
           }
         },
       );
