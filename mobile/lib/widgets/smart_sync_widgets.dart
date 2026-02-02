@@ -240,8 +240,6 @@ class _SmartSyncDashboardCardState
       data: (status) {
         final isEnabled = status['enabled'] as bool;
         final isSyncing = status['is_syncing'] as bool;
-        final syncInterval = status['sync_interval_minutes'] as int;
-        final lastSync = status['last_sync_check'] as String?;
         final isSignedIn = status['signed_in'] as bool;
 
         if (!isSignedIn) return const SizedBox.shrink();
@@ -315,20 +313,5 @@ class _SmartSyncDashboardCardState
         );
       },
     );
-  }
-
-  String _formatLastSync(DateTime lastSync) {
-    final now = DateTime.now();
-    final difference = now.difference(lastSync);
-
-    if (difference.inMinutes < 1) {
-      return 'الآن';
-    } else if (difference.inMinutes < 60) {
-      return 'منذ ${difference.inMinutes} دقيقة';
-    } else if (difference.inHours < 24) {
-      return 'منذ ${difference.inHours} ساعة';
-    } else {
-      return 'منذ ${difference.inDays} يوم';
-    }
   }
 }

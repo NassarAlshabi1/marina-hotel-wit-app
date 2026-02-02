@@ -107,6 +107,10 @@ class RoomsRepository {
     return result;
   }
 
+  Future<int> updateStatus(int id, String status) async {
+    return update(id, status: status);
+  }
+
   // دوال النسخ الاحتياطي
 
   /// تصدير بيانات الغرف

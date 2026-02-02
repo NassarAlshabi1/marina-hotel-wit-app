@@ -1,8 +1,10 @@
+import 'dart:ui' as ui;\n\nimport 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../providers/repository_providers.dart';
+import '../providers/core_providers.dart';
 import '../services/local_db.dart';
 import '../utils/status_utils.dart';
 
@@ -68,7 +70,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         backgroundColor: Colors.grey.shade100,
         body: SafeArea(

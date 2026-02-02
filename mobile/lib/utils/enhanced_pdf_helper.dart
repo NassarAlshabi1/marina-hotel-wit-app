@@ -140,6 +140,7 @@ class EnhancedPdfHelper {
             totalPaidCached: 0,
             remainingBalanceCached: 0,
             isFullyPaid: false,
+            discount: 0,
             hotelDayCheckin: null,
             hotelDayCheckout: null,
             vectorClock: '{}',
