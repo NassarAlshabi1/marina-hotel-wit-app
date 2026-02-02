@@ -262,11 +262,12 @@ class StatCard extends StatelessWidget {
   }
 }
 
-class AdminTable extends StatelessWidget {
+class AdminTable extends StatefulWidget {
   final List<String> headers;
   final List<List<Widget>> rows;
   final bool striped;
   final bool bordered;
+  final int rowsPerPage;
 
   const AdminTable({
     super.key,
@@ -274,41 +275,96 @@ class AdminTable extends StatelessWidget {
     required this.rows,
     this.striped = true,
     this.bordered = true,
+    this.rowsPerPage = 50,
   });
 
   @override
+  State<AdminTable> createState() => _AdminTableState();
+}
+
+class _AdminTableState extends State<AdminTable> {
+  int _currentPage = 0;
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.all(AppColors.darkGray),
-        headingTextStyle: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
+    final totalRows = widget.rows.length;
+    final totalPages = (totalRows / widget.rowsPerPage).ceil();
+    final startIndex = _currentPage * widget.rowsPerPage;
+    final endIndex = (startIndex + widget.rowsPerPage).clamp(0, totalRows);
+    final visibleRows = widget.rows.sublist(startIndex, endIndex);
+
+    return Column(
+      children: [
+        if (totalRows > widget.rowsPerPage)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'عرض ${startIndex + 1}-$endIndex من $totalRows',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right, size: 20),
+                      onPressed: _currentPage > 0
+                          ? () => setState(() => _currentPage--)
+                          : null,
+                      tooltip: 'السابق',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                    Text('${_currentPage + 1}/$totalPages', style: const TextStyle(fontSize: 12)),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left, size: 20),
+                      onPressed: _currentPage < totalPages - 1
+                          ? () => setState(() => _currentPage++)
+                          : null,
+                      tooltip: 'التالي',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowColor: WidgetStateProperty.all(AppColors.darkGray),
+            headingTextStyle: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: widget.bordered
+                ? BoxDecoration(
+                    border: Border.all(color: AppColors.lightGray),
+                    borderRadius: BorderRadius.circular(8),
+                  )
+                : null,
+            columns: widget.headers
+                .map((header) => DataColumn(label: Text(header)))
+                .toList(),
+            rows: visibleRows
+                .asMap()
+                .entries
+                .map(
+                  (entry) => DataRow(
+                    color: widget.striped && (startIndex + entry.key) % 2 == 1
+                        ? WidgetStateProperty.all(
+                            AppColors.lightGray.withOpacity(0.3),
+                          )
+                        : null,
+                    cells: entry.value.map((cell) => DataCell(cell)).toList(),
+                  ),
+                )
+                .toList(),
+          ),
         ),
-        decoration: bordered
-            ? BoxDecoration(
-                border: Border.all(color: AppColors.lightGray),
-                borderRadius: BorderRadius.circular(8),
-              )
-            : null,
-        columns:
-            headers.map((header) => DataColumn(label: Text(header))).toList(),
-        rows: rows
-            .asMap()
-            .entries
-            .map(
-              (entry) => DataRow(
-                color: striped && entry.key % 2 == 1
-                    ? WidgetStateProperty.all(
-                        AppColors.lightGray.withOpacity(0.3),
-                      )
-                    : null,
-                cells: entry.value.map((cell) => DataCell(cell)).toList(),
-              ),
-            )
-            .toList(),
-      ),
+      ],
     );
   }
 }

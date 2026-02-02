@@ -644,6 +644,7 @@ class _IncomeExpenseReportScreenState
     }
 
     return ListView.builder(
+      cacheExtent: 500,
       itemCount: combined.length,
       itemBuilder: (context, index) {
         final entry = combined[index];
