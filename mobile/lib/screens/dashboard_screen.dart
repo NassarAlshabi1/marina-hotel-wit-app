@@ -64,15 +64,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 24),
 
           const SmartSyncDashboardCard(),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
 
           _buildStatisticsCards(),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 24),
 
           Consumer(
             builder: (context, ref, _) {
@@ -97,8 +97,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       childAspectRatio: 3.2,
-      mainAxisSpacing: 6,
-      crossAxisSpacing: 6,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
       children: [
         // نسبة الإشغال
         Consumer(
