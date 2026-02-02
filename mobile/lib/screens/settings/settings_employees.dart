@@ -5,7 +5,6 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
-import '../employees/salary_entitlements_screen.dart';
 
 class SettingsEmployeesScreen extends ConsumerWidget {
   const SettingsEmployeesScreen({super.key});
@@ -17,11 +16,6 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     return AppScaffold(
       title: 'إدارة الموظفين',
       actions: [
-        IconButton(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SalaryEntitlementsScreen())),
-          icon: const Icon(Icons.account_balance_wallet),
-          tooltip: 'استحقاقات الرواتب',
-        ),
         IconButton(
           onPressed: () => ref.read(syncServiceProvider).runSync(),
           icon: const Icon(Icons.sync),
