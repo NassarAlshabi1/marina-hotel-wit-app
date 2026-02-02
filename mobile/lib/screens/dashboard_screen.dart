@@ -275,21 +275,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 return Tooltip(
                   message: tooltipText,
                   child: SizedBox(
-                    width: 52,
+                    width: 60,
                     child: ElevatedButton(
                       onPressed: () =>
                           _handleRoomTap(context, roomNumber, room),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: backgroundColor,
                         foregroundColor: foregroundColor,
-                        minimumSize: const Size(52, 34),
+                        minimumSize: const Size(60, 40),
                         padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(6),
                         ),
                         textStyle: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                          fontSize: 14,
                         ),
                       ),
                       child: Text(roomNumber),
