@@ -64,7 +64,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           const SmartSyncDashboardCard(),
 
