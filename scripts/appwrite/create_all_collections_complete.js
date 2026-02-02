@@ -84,6 +84,7 @@ const collections = [
             { key: 'totalPaidCached', type: 'double', required: false },
             { key: 'remainingBalanceCached', type: 'double', required: false },
             { key: 'isFullyPaid', type: 'boolean', required: false },
+            { key: 'discount', type: 'double', required: false },
             { key: 'hotelDayCheckin', type: 'string', size: 20, required: false },
             { key: 'hotelDayCheckout', type: 'string', size: 20, required: false },
             { key: 'serverId', type: 'integer', required: false },

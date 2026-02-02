@@ -158,8 +158,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             checkout: actualCheckout ?? plannedCheckout,
           );
 
-          // التكلفة الإجمالية = الليالي الفعلية × سعر الليلة (وليس المتوقعة)
-          final totalAmount = actualNights * roomRate;
+          final discount = widget.booking.discount;
+          final subtotal = actualNights * roomRate;
+          final totalAmount = (subtotal - discount).clamp(0.0, subtotal);
           return StreamBuilder<List<db.Payment>>(
             stream: paymentsRepo.paymentsByBooking(widget.booking.id),
             builder: (context, paySnap) {
@@ -195,6 +196,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     checkin: checkin,
                     plannedCheckout: plannedCheckout,
                     actualCheckout: actualCheckout,
+                    discount: discount,
                   ),
                   const SizedBox(height: 8),
                   Container(
@@ -247,6 +249,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     required DateTime checkin,
     DateTime? plannedCheckout,
     DateTime? actualCheckout,
+    double discount = 0,
   }) {
     final progressPercentage = summary.paidPercentage / 100;
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
@@ -392,6 +395,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     ? Colors.orange
                     : Colors.green,
               ),
+              if (discount > 0)
+                _buildDetailChip(
+                  context,
+                  icon: Icons.discount,
+                  label: 'التخفيض',
+                  value: _currencyFmt.format(discount),
+                  color: Colors.purple,
+                ),
             ],
           ),
           const SizedBox(height: 10),

@@ -91,6 +91,7 @@ class AppwriteSchemaVerifier {
         {'key': 'totalPaidCached', 'type': 'double', 'default': 0},
         {'key': 'remainingBalanceCached', 'type': 'double', 'default': 0},
         {'key': 'isFullyPaid', 'type': 'boolean', 'default': false},
+        {'key': 'discount', 'type': 'double', 'default': 0},
         {'key': 'hotelDayCheckin', 'type': 'string', 'size': 50},
         {'key': 'hotelDayCheckout', 'type': 'string', 'size': 50},
       ],

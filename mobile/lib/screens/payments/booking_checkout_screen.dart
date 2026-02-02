@@ -57,8 +57,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                   )
                 : expectedNights;
 
-            // التكلفة الإجمالية = الليالي الفعلية × سعر الليلة
-            final totalDue = actualNights * roomPrice;
+            // التكلفة الإجمالية = الليالي الفعلية × سعر الليلة - التخفيض
+            final discount = widget.booking.discount;
+            final subtotal = actualNights * roomPrice;
+            final totalDue = (subtotal - discount).clamp(0.0, subtotal);
 
             return Padding(
               padding: const EdgeInsets.all(16.0),
@@ -100,6 +102,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                           Text(
                             'سعر الليلة: ${CurrencyFormatter.formatAmount(roomPrice)}',
                           ),
+                          if (discount > 0)
+                            Text(
+                              'التخفيض: ${CurrencyFormatter.formatAmount(discount)}',
+                              style: const TextStyle(color: Colors.purple),
+                            ),
                           Text(
                             'المبلغ المستحق: ${CurrencyFormatter.formatAmount(totalDue)}',
                           ),

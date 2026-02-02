@@ -446,7 +446,9 @@ class RestoreFixService {
       double? expectedTotal;
       int? expectedTotalCents;
       if (room != null) {
-        expectedTotalCents = _toCents(booking.calculatedNights * room.price);
+        final subtotalCents = _toCents(booking.calculatedNights * room.price);
+        final discountCents = _toCents(booking.discount);
+        expectedTotalCents = (subtotalCents - discountCents).clamp(0, subtotalCents);
         expectedTotal = _fromCents(expectedTotalCents);
 
         final remainingBalanceCents = expectedTotalCents - totalPaidCents;
@@ -827,7 +829,9 @@ class RestoreFixService {
     }
 
     final int totalNights = math.max(segments.length, 1);
-    final double totalDue = nightlyRate * totalNights;
+    final double subtotal = nightlyRate * totalNights;
+    final double discount = booking.discount;
+    final double totalDue = (subtotal - discount).clamp(0.0, subtotal);
     final String stayDurationIso =
         '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
     final int? lastNightEpoch = lastNightEnd != null

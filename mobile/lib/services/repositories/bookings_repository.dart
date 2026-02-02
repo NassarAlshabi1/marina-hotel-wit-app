@@ -39,6 +39,7 @@ class BookingsRepository {
     String? notes,
     int expectedNights = 1,
     int? calculatedNights,
+    double discount = 0,
   }) async {
     final result = await dao.insertOne(
       BookingsCompanion(
@@ -61,6 +62,7 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null
             ? d.Value(calculatedNights)
             : const d.Value.absent(),
+        discount: d.Value(discount),
       ),
     );
     await derivedFields.refreshForBookingId(result);
@@ -91,6 +93,7 @@ class BookingsRepository {
     String? notes,
     int? expectedNights,
     int? calculatedNights,
+    double? discount,
   }) async {
     final result = await dao.updateById(
       id,
@@ -136,6 +139,7 @@ class BookingsRepository {
         calculatedNights: calculatedNights != null
             ? d.Value(calculatedNights)
             : const d.Value.absent(),
+        discount: discount != null ? d.Value(discount) : const d.Value.absent(),
       ),
     );
     if (result > 0) {

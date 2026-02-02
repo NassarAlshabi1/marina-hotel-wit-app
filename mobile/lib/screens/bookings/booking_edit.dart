@@ -40,6 +40,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _checkout = TextEditingController();
   final _expectedNights = TextEditingController(text: '1');
   final _notes = TextEditingController();
+  final _discount = TextEditingController(text: '0');
 
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
@@ -80,6 +81,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _notes.addListener(markDataChanged);
     _advancePayment.addListener(markDataChanged);
     _paymentNotes.addListener(markDataChanged);
+    _discount.addListener(markDataChanged);
 
     final b = widget.existing;
     if (b != null) {
@@ -96,6 +98,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       _checkout.text = b.checkoutDate ?? '';
       _expectedNights.text = b.expectedNights.toString();
       _notes.text = b.notes ?? '';
+      _discount.text = b.discount.toStringAsFixed(0);
       _status = b.status;
       _idType = b.guestIdType;
       _roomInitialized = true;
@@ -128,6 +131,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _notes.removeListener(markDataChanged);
     _advancePayment.removeListener(markDataChanged);
     _paymentNotes.removeListener(markDataChanged);
+    _discount.removeListener(markDataChanged);
 
     _guestName.dispose();
     _guestPhone.dispose();
@@ -143,6 +147,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _notes.dispose();
     _advancePayment.dispose();
     _paymentNotes.dispose();
+    _discount.dispose();
     super.dispose();
   }
 
@@ -405,6 +410,23 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   ),
                 ),
                 const SizedBox(height: 20),
+                _buildSectionTitle('التخفيض (اختياري)'),
+                Card(
+                  color: Colors.orange.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: TextFormField(
+                      controller: _discount,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'مبلغ التخفيض',
+                        helperText: 'أدخل مبلغ التخفيض الثابت (سيُخصم من إجمالي الحجز)',
+                        prefixIcon: Icon(Icons.discount),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 _buildSectionTitle('ملاحظات الحجز'),
                 Card(
                   child: Padding(
@@ -446,6 +468,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             checkout: checkoutDt,
                           );
                     final notes = _optionalText(_notes.text);
+                    final discount =
+                        double.tryParse(_discount.text.trim()) ?? 0;
                     const String? email = null;
 
                     final blacklist = ref.read(blacklistRepoProvider);
@@ -496,6 +520,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         notes: notes,
                         expectedNights: expectedNights,
                         calculatedNights: calculatedNights,
+                        discount: discount,
                       );
                     } else {
                       await repo.update(
@@ -516,6 +541,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         notes: notes,
                         expectedNights: expectedNights,
                         calculatedNights: calculatedNights,
+                        discount: discount,
                       );
                     }
 

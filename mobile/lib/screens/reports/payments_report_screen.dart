@@ -213,7 +213,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         final room = roomsMap[booking.roomNumber];
         final nights = booking.expectedNights > 0 ? booking.expectedNights : 1;
         final pricePerNight = room?.price ?? 0;
-        bookingTotals[bookingId] = nights * pricePerNight;
+        final discount = booking.discount;
+        final total = (nights * pricePerNight) - discount;
+        bookingTotals[bookingId] = total > 0 ? total : 0;
       }
 
       final allPaymentsForBookings = await (db.select(db.payments)

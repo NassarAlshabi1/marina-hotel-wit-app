@@ -58,8 +58,10 @@ class BookingDerivedFieldsService {
         .getSingleOrNull();
 
     final nightlyRate = room?.price ?? 0.0;
+    final subtotal = nightlyRate * totalNights;
+    final discount = booking.discount;
     final totalDue = double.parse(
-      (nightlyRate * totalNights).toStringAsFixed(2),
+      ((subtotal - discount).clamp(0.0, subtotal)).toStringAsFixed(2),
     );
 
     final payments = await (db.select(db.payments)
