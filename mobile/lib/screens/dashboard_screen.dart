@@ -314,8 +314,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               const Spacer(),
               _buildLegendItem('محجوزة', Colors.red.shade600),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               _buildLegendItem('شاغرة', Colors.green.shade600),
+              const SizedBox(width: 8),
+              _buildLegendItem('صيانة', Colors.orange.shade600),
             ],
           ),
           const SizedBox(height: 16),
@@ -361,13 +363,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildRoomButton(BuildContext context, String roomNumber, Room? room) {
     final bool isOccupied = room != null && StatusUtils.isRoomOccupied(room.status);
     final bool isAvailable = room != null && StatusUtils.isRoomAvailable(room.status);
+    final bool isMaintenance = room != null && room.status == 'صيانة';
     final bool isNewRoom = roomNumber == '503' || roomNumber == '504';
 
     final Color bgColor = isOccupied
         ? Colors.red.shade600
         : (isAvailable
             ? Colors.green.shade600
-            : (isNewRoom ? Colors.blue.shade400 : Colors.grey.shade400));
+            : (isMaintenance
+                ? Colors.orange.shade600
+                : (isNewRoom ? Colors.blue.shade400 : Colors.grey.shade400)));
 
     final String tooltipText = room != null
         ? room.status
@@ -375,25 +380,115 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Tooltip(
       message: tooltipText,
-      child: Material(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
+      child: GestureDetector(
+        onLongPress: room != null ? () => _showRoomOptionsDialog(context, room) : null,
+        child: Material(
+          color: bgColor,
           borderRadius: BorderRadius.circular(10),
-          onTap: () => _handleRoomTap(context, roomNumber, room),
-          child: Center(
-            child: Text(
-              roomNumber,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => _handleRoomTap(context, roomNumber, room),
+            child: Center(
+              child: Text(
+                roomNumber,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  void _showRoomOptionsDialog(BuildContext context, Room room) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.settings, color: Colors.blue.shade600),
+            const SizedBox(width: 8),
+            Text('غرفة ${room.roomNumber}'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('الحالة الحالية: ${room.status}'),
+            const SizedBox(height: 16),
+            if (room.status != 'صيانة')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await _updateRoomStatus(room, 'صيانة');
+                  },
+                  icon: const Icon(Icons.build, color: Colors.white),
+                  label: const Text('تحويل إلى صيانة'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade600,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            if (room.status == 'صيانة' || room.status != 'شاغرة') ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await _updateRoomStatus(room, 'شاغرة');
+                  },
+                  icon: const Icon(Icons.check_circle, color: Colors.white),
+                  label: const Text('إعادة إلى شاغرة'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade600,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateRoomStatus(Room room, String newStatus) async {
+    try {
+      final roomsRepo = ref.read(roomsRepoProvider);
+      await roomsRepo.updateStatus(room.id, newStatus);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم تحديث حالة الغرفة ${room.roomNumber} إلى $newStatus'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تحديث الحالة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _handleRoomTap(BuildContext context, String roomNumber, Room? room) async {
