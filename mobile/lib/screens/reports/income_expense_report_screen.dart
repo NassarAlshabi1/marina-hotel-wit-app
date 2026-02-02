@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -68,91 +69,41 @@ class _IncomeExpenseReportScreenState
         orElse: () => <dynamic>[],
       );
 
-      final incomeList = <_IncomeEntry>[];
-      for (final p in payments) {
-        final dateStr = (p.date ?? '').toString().trim();
-        if (dateStr.isEmpty) continue;
-        DateTime? dt;
-        try {
-          dt = DateTime.parse(
-            dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
-          );
-        } catch (_) {
-          continue;
-        }
-        if (!_isWithinRange(dt)) continue;
-        incomeList.add(
-          _IncomeEntry(
-            date: dt,
-            description: 'دفعة حجز - ${p.guestName ?? ''}',
-            amount: (p.amount ?? 0).toDouble(),
-          ),
-        );
+      final result = await compute(_processReportData, _ReportParams(
+        payments: payments.map((p) => {
+          'date': p.date,
+          'guestName': p.guestName,
+          'amount': p.amount,
+        }).toList(),
+        expenses: expenses.map((e) => {
+          'date': e.date,
+          'type': e.type,
+          'description': e.description,
+          'amount': e.amount,
+        }).toList(),
+        fromDate: _fromDate,
+        toDate: _toDate,
+      ));
+
+      if (mounted) {
+        setState(() {
+          _incomeEntries = result.incomeEntries;
+          _expenseEntries = result.expenseEntries;
+          _incomeTotal = result.incomeTotal;
+          _expenseTotal = result.expenseTotal;
+          _salaryTotal = result.salaryTotal;
+          _net = result.net;
+          _loading = false;
+        });
       }
-
-      final expenseList = <_ExpenseEntry>[];
-      for (final e in expenses) {
-        final dateStr = (e.date ?? '').toString().trim();
-        if (dateStr.isEmpty) continue;
-        DateTime? dt;
-        try {
-          dt = DateTime.parse(
-            dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
-          );
-        } catch (_) {
-          continue;
-        }
-        if (!_isWithinRange(dt)) continue;
-        final type = (e.type ?? '').toString();
-        expenseList.add(
-          _ExpenseEntry(
-            date: dt,
-            type: type,
-            description: (e.description ?? '').toString(),
-            amount: (e.amount ?? 0).toDouble(),
-            isSalary: _isSalaryExpense(type),
-          ),
-        );
-      }
-
-      incomeList.sort((a, b) => a.date.compareTo(b.date));
-      expenseList.sort((a, b) => a.date.compareTo(b.date));
-
-      final incTotal = incomeList.fold<double>(0, (s, e) => s + e.amount);
-      final expTotal = expenseList.fold<double>(0, (s, e) => s + e.amount);
-      final salTotal = expenseList
-          .where((e) => e.isSalary)
-          .fold<double>(0, (s, e) => s + e.amount);
-
-      setState(() {
-        _incomeEntries = incomeList;
-        _expenseEntries = expenseList;
-        _incomeTotal = incTotal;
-        _expenseTotal = expTotal;
-        _salaryTotal = salTotal;
-        _net = incTotal - expTotal;
-        _loading = false;
-      });
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   bool _isSalaryExpense(String type) {
     final normalized = type.trim();
     return normalized.contains('راتب');
-  }
-
-  bool _isWithinRange(DateTime date) {
-    final endOfDay = DateTime(
-      _toDate.year,
-      _toDate.month,
-      _toDate.day,
-      23,
-      59,
-      59,
-    );
-    return !date.isBefore(_fromDate) && !date.isAfter(endOfDay);
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
@@ -819,4 +770,117 @@ class _CombinedEntry {
   final bool isIncome;
   final bool isSalary;
   final String type;
+}
+
+class _ReportParams {
+  final List<Map<String, dynamic>> payments;
+  final List<Map<String, dynamic>> expenses;
+  final DateTime fromDate;
+  final DateTime toDate;
+
+  _ReportParams({
+    required this.payments,
+    required this.expenses,
+    required this.fromDate,
+    required this.toDate,
+  });
+}
+
+class _ReportResult {
+  final List<_IncomeEntry> incomeEntries;
+  final List<_ExpenseEntry> expenseEntries;
+  final double incomeTotal;
+  final double expenseTotal;
+  final double salaryTotal;
+  final double net;
+
+  _ReportResult({
+    required this.incomeEntries,
+    required this.expenseEntries,
+    required this.incomeTotal,
+    required this.expenseTotal,
+    required this.salaryTotal,
+    required this.net,
+  });
+}
+
+_ReportResult _processReportData(_ReportParams params) {
+  bool isWithinRange(DateTime date) {
+    final endOfDay = DateTime(
+      params.toDate.year,
+      params.toDate.month,
+      params.toDate.day,
+      23, 59, 59,
+    );
+    return !date.isBefore(params.fromDate) && !date.isAfter(endOfDay);
+  }
+
+  bool isSalaryExpense(String type) {
+    return type.trim().contains('راتب');
+  }
+
+  final incomeList = <_IncomeEntry>[];
+  for (final p in params.payments) {
+    final dateStr = (p['date'] ?? '').toString().trim();
+    if (dateStr.isEmpty) continue;
+    DateTime? dt;
+    try {
+      dt = DateTime.parse(
+        dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
+      );
+    } catch (_) {
+      continue;
+    }
+    if (!isWithinRange(dt)) continue;
+    incomeList.add(
+      _IncomeEntry(
+        date: dt,
+        description: 'دفعة حجز - ${p['guestName'] ?? ''}',
+        amount: ((p['amount'] ?? 0) as num).toDouble(),
+      ),
+    );
+  }
+
+  final expenseList = <_ExpenseEntry>[];
+  for (final e in params.expenses) {
+    final dateStr = (e['date'] ?? '').toString().trim();
+    if (dateStr.isEmpty) continue;
+    DateTime? dt;
+    try {
+      dt = DateTime.parse(
+        dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
+      );
+    } catch (_) {
+      continue;
+    }
+    if (!isWithinRange(dt)) continue;
+    final type = (e['type'] ?? '').toString();
+    expenseList.add(
+      _ExpenseEntry(
+        date: dt,
+        type: type,
+        description: (e['description'] ?? '').toString(),
+        amount: ((e['amount'] ?? 0) as num).toDouble(),
+        isSalary: isSalaryExpense(type),
+      ),
+    );
+  }
+
+  incomeList.sort((a, b) => a.date.compareTo(b.date));
+  expenseList.sort((a, b) => a.date.compareTo(b.date));
+
+  final incTotal = incomeList.fold<double>(0, (s, e) => s + e.amount);
+  final expTotal = expenseList.fold<double>(0, (s, e) => s + e.amount);
+  final salTotal = expenseList
+      .where((e) => e.isSalary)
+      .fold<double>(0, (s, e) => s + e.amount);
+
+  return _ReportResult(
+    incomeEntries: incomeList,
+    expenseEntries: expenseList,
+    incomeTotal: incTotal,
+    expenseTotal: expTotal,
+    salaryTotal: salTotal,
+    net: incTotal - expTotal,
+  );
 }
