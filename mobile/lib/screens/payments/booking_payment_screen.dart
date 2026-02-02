@@ -302,13 +302,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     Text(
                       widget.booking.guestName,
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
                       'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • $_currentGuestPhone' : ''}',
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
                     ),
                     Text(
                       identityLine,
@@ -468,7 +468,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           Text(
             '${_currencyFmt.format(amount)}',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -528,7 +528,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             SizedBox(height: 16),
             Text(
               'تم سداد المبلغ كاملاً',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 8),
             Text(
@@ -547,7 +547,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         children: [
           const Text(
             'إضافة دفعة جديدة',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
 
@@ -579,7 +579,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           alignment: Alignment.centerRight,
           child: Text(
             'طريقة الدفع',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ),
         const SizedBox(height: 12),
@@ -604,7 +604,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           alignment: Alignment.centerRight,
           child: Text(
             'دفعات سريعة',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ),
         const SizedBox(height: 12),
@@ -715,7 +715,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         children: [
           const Text(
             'الإجراءات المتاحة',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
 
@@ -771,7 +771,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 children: [
                   const Text(
                     'معلومات الحجز',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   _buildInfoRow('رقم الحجز', widget.booking.localUuid),
