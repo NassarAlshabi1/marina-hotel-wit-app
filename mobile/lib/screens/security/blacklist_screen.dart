@@ -61,11 +61,11 @@ class BlacklistScreen extends ConsumerWidget {
                       switch (value) {
                         case 'toggle':
                           await repo.updateActive(e.id, !e.active);
-                          _logger.logTransaction(type: TransactionType.update, entity: 'Blacklist', entityId: e.id, details: e.active ? 'تعطيل' : 'تفعيل');
+                          _logger.logTransaction(type: TransactionType.update, entity: 'Blacklist', entityId: e.id.toString(), details: e.active ? 'تعطيل' : 'تفعيل');
                           break;
                         case 'delete':
                           await repo.delete(e.id);
-                          _logger.logTransaction(type: TransactionType.delete, entity: 'Blacklist', entityId: e.id, details: 'حذف من القائمة السوداء');
+                          _logger.logTransaction(type: TransactionType.delete, entity: 'Blacklist', entityId: e.id.toString(), details: 'حذف من القائمة السوداء');
                           break;
                       }
                     },

@@ -145,7 +145,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
         status: status,
       );
-      _logger.logTransaction(type: TransactionType.update, entity: 'Employee', entityId: existing.id, details: 'تعديل موظف: ${name.text.trim()}');
+      _logger.logTransaction(type: TransactionType.update, entity: 'Employee', entityId: existing.id.toString(), details: 'تعديل موظف: ${name.text.trim()}');
     }
 
     markDataChanged();

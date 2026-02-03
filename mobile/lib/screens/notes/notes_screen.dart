@@ -221,7 +221,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     switch (action) {
       case 'read':
         await repo.markAsRead(note.id);
-        _logger.logTransaction(type: TransactionType.update, entity: 'Note', entityId: note.id, details: 'وضع علامة مقروء');
+        _logger.logTransaction(type: TransactionType.update, entity: 'Note', entityId: note.id.toString(), details: 'وضع علامة مقروء');
         _refreshData();
         break;
       case 'edit':
@@ -263,7 +263,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
 
     if (confirmed == true) {
       await ref.read(simpleNotesRepoProvider).deleteNote(note.id);
-      _logger.logTransaction(type: TransactionType.delete, entity: 'Note', entityId: note.id, details: 'حذف ملاحظة');
+      _logger.logTransaction(type: TransactionType.delete, entity: 'Note', entityId: note.id.toString(), details: 'حذف ملاحظة');
       _refreshData();
     }
   }
@@ -371,7 +371,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         priority: priority,
         shiftType: shiftType,
       );
-      _logger.logTransaction(type: TransactionType.update, entity: 'Note', entityId: note.id, details: 'تعديل ملاحظة: $title');
+      _logger.logTransaction(type: TransactionType.update, entity: 'Note', entityId: note.id.toString(), details: 'تعديل ملاحظة: $title');
     }
 
     markDataChanged();
