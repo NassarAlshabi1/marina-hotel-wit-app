@@ -195,10 +195,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
   Widget _buildDebtsList(List<Debt> allDebts) {
     // تطبيق البحث والتصفية
-    List<Debt> filteredDebts = allDebts.where((debt) {
+    final filteredDebts = allDebts.where((debt) {
       // البحث
       final matchesSearch = _searchQuery.isEmpty ||
           debt.guestName.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
 
       // التصفية حسب الحالة
       bool matchesFilter = true;
