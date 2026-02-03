@@ -85,12 +85,12 @@ class _CreateDebtFromBookingScreenState
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     'اختر الوضع:',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     '• تلقائي: من حجز موجود\n• يدوي: إدخال بيانات الدين',
                     style: TextStyle(fontSize: 11, height: 1.3, color: Colors.grey[700]),
