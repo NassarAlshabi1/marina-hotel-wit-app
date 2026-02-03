@@ -158,7 +158,7 @@ class NeuDateButton extends StatelessWidget {
               style: TextStyle(
                 color: scheme.onSurface,
                 fontWeight: FontWeight.w700,
-                fontSize: 13,
+                fontSize: 11,
               ),
               overflow: TextOverflow.ellipsis,
             ),
