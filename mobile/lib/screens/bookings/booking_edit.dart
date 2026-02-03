@@ -434,11 +434,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                 _buildSectionTitle('ملاحظات الحجز'),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     child: TextFormField(
                       controller: _notes,
-                      maxLines: null,
-                      minLines: 2,
+                      minLines: 1,
+                      maxLines: 5,
                       decoration: const InputDecoration(
                         labelText: 'ملاحظات إضافية',
                       ),
