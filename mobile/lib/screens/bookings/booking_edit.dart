@@ -245,6 +245,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             Expanded(
                               child: TextFormField(
                                 controller: _guestIdIssuePlace,
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                                 decoration: const InputDecoration(
                                   labelText: 'جهة الإصدار',
                                 ),
@@ -255,6 +256,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         const SizedBox(height: 10),
                         TextFormField(
                           controller: _guestNationality,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                           decoration: const InputDecoration(
                             labelText: 'الجنسية *',
                           ),
@@ -263,6 +265,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         const SizedBox(height: 10),
                         TextFormField(
                           controller: _guestAddress,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                           decoration: const InputDecoration(
                             labelText: 'العنوان',
                           ),
@@ -680,6 +683,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       error: (err, stack) => TextFormField(
         controller: _roomNumber,
         readOnly: true,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         decoration: const InputDecoration(
           labelText: 'رقم الغرفة *',
           helperText: 'تعذر تحميل قائمة الغرف، أدخل الرقم يدوياً',
@@ -731,6 +735,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           return TextFormField(
             controller: _roomNumber,
             readOnly: widget.existing == null,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             decoration: const InputDecoration(
               labelText: 'رقم الغرفة *',
               helperText: 'لا توجد غرف شاغرة متاحة حالياً',
@@ -742,6 +747,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         return DropdownButtonFormField<String>(
           value: currentValue.isNotEmpty ? currentValue : null,
           items: items,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
           onChanged: (value) {
             setState(() {
               _roomNumber.text = value ?? '';
