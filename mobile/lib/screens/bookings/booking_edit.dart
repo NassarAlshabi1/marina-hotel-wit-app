@@ -418,14 +418,15 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                 Card(
                   color: Colors.orange.shade50,
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     child: TextFormField(
                       controller: _discount,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
                         labelText: 'مبلغ التخفيض',
-                        helperText: 'أدخل مبلغ التخفيض الثابت (سيُخصم من إجمالي الحجز)',
-                        prefixIcon: Icon(Icons.discount),
+                        prefixIcon: Icon(Icons.discount, size: 20),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: 10),
                       ),
                     ),
                   ),
