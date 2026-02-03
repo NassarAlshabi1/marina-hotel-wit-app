@@ -26,7 +26,7 @@ class NeuCard extends StatelessWidget {
     final card = AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       margin: margin,
-      padding: padding ?? const EdgeInsets.all(16),
+      padding: padding ?? const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F7F9),
         borderRadius: BorderRadius.circular(borderRadius),
@@ -80,7 +80,7 @@ class NeuStatCard extends StatelessWidget {
     final primaryColor = iconColor ?? scheme.primary;
 
     return NeuCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -88,30 +88,30 @@ class NeuStatCard extends StatelessWidget {
           Container(
             decoration: BoxDecoration(
               color: primaryColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            padding: const EdgeInsets.all(10),
-            child: Icon(icon, color: primaryColor, size: 22),
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, color: primaryColor, size: 20),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: scheme.onSurface.withOpacity(0.75),
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: valueColor ?? scheme.onSurface,
-              fontSize: emphasize ? 22 : 18,
+              fontSize: emphasize ? 18 : 15,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -139,7 +139,7 @@ class NeuDateButton extends StatelessWidget {
 
     return NeuCard(
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -148,8 +148,8 @@ class NeuDateButton extends StatelessWidget {
               color: scheme.primary.withOpacity(0.12),
               borderRadius: BorderRadius.circular(8),
             ),
-            padding: const EdgeInsets.all(6),
-            child: Icon(icon, color: scheme.primary, size: 18),
+            padding: const EdgeInsets.all(5),
+            child: Icon(icon, color: scheme.primary, size: 16),
           ),
           const SizedBox(width: 8),
           Flexible(
@@ -189,7 +189,7 @@ class NeuQuickFilterChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? scheme.primary : scheme.surface,
           borderRadius: BorderRadius.circular(20),
@@ -211,7 +211,7 @@ class NeuQuickFilterChip extends StatelessWidget {
           style: TextStyle(
             color: selected ? scheme.onPrimary : scheme.onSurface,
             fontWeight: FontWeight.w700,
-            fontSize: 12.5,
+            fontSize: 11,
           ),
         ),
       ),
@@ -239,7 +239,7 @@ class NeuSectionHeader extends StatelessWidget {
     final color = iconColor ?? scheme.primary;
 
     return NeuCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
           Container(
@@ -247,8 +247,8 @@ class NeuSectionHeader extends StatelessWidget {
               color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            padding: const EdgeInsets.all(8),
-            child: Icon(icon, color: color, size: 20),
+            padding: const EdgeInsets.all(6),
+            child: Icon(icon, color: color, size: 18),
           ),
           const SizedBox(width: 10),
           Expanded(

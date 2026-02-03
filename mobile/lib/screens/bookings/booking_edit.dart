@@ -179,7 +179,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                 _buildSectionTitle('بيانات النزيل'),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       children: [
                         TextFormField(
@@ -269,11 +269,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _buildSectionTitle('تفاصيل الحجز'),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       children: [
                         _buildRoomSelector(roomsAsync),
@@ -332,14 +332,14 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _buildSectionTitle('الدفع المقدم (اختياري)'),
                 Card(
                   color: _hasAdvancePayment
                       ? Colors.green.shade50
                       : Colors.grey.shade50,
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       children: [
                         CheckboxListTile(
@@ -409,12 +409,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _buildSectionTitle('التخفيض (اختياري)'),
                 Card(
                   color: Colors.orange.shade50,
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     child: TextFormField(
                       controller: _discount,
                       keyboardType: TextInputType.number,
@@ -426,11 +426,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _buildSectionTitle('ملاحظات الحجز'),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     child: TextFormField(
                       controller: _notes,
                       maxLines: null,

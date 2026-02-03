@@ -82,7 +82,7 @@ class _SalaryEntitlementsScreenState
     return Card(
       color: Colors.blue.shade50,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -137,7 +137,7 @@ class _SalaryEntitlementsScreenState
   Widget _buildEmployeeCard(SalaryEntitlement ent) {
     final isPositive = ent.netEntitlement >= 0;
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 6),
       child: ExpansionTile(
         dense: true,
         tilePadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -150,7 +150,7 @@ class _SalaryEntitlementsScreenState
         ),
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             child: Column(
               children: [
                 _row('تاريخ التعيين', _formatDate(ent.hireDate)),
