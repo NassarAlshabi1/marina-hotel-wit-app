@@ -256,7 +256,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Text(
               value,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
