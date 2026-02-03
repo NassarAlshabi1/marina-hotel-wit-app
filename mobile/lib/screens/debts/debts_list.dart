@@ -658,6 +658,25 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     final pledgeTypeCtrl =
         TextEditingController(text: existing?.pledgeType ?? '');
     final noteCtrl = TextEditingController(text: existing?.note ?? '');
+    const titleStyle = TextStyle(fontSize: 14, fontWeight: FontWeight.bold);
+    const labelStyle = TextStyle(fontSize: 13, fontWeight: FontWeight.bold);
+    const fieldStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.bold);
+
+    Future<void> pickDate(
+      BuildContext pickerContext,
+      TextEditingController controller,
+    ) async {
+      final initial = DateTime.tryParse(controller.text) ?? DateTime.now();
+      final picked = await showDatePicker(
+        context: pickerContext,
+        initialDate: initial,
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+      );
+      if (picked != null) {
+        controller.text = Time.safeIsoToDateString(picked.toIso8601String());
+      }
+    }
 
     void recalculate() {
       final total = CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
@@ -677,7 +696,10 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         return Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            title: Text(existing == null ? 'إضافة دين جديد' : 'تعديل الدين'),
+            title: Text(
+              existing == null ? 'إضافة دين جديد' : 'تعديل الدين',
+              style: titleStyle,
+            ),
             content: SizedBox(
               width: double.maxFinite,
               child: SingleChildScrollView(
@@ -686,9 +708,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   children: [
                     TextField(
                       controller: guestNameCtrl,
-                      decoration: const InputDecoration(
+                      style: fieldStyle,
+                      decoration: InputDecoration(
                         labelText: 'اسم النزيل*',
-                        border: OutlineInputBorder(),
+                        labelStyle: labelStyle,
+                        floatingLabelStyle: labelStyle,
+                        border: const OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -697,22 +722,34 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         Expanded(
                           child: TextField(
                             controller: checkinCtrl,
-                            decoration: const InputDecoration(
+                            readOnly: true,
+                            onTap: () => pickDate(dialogContext, checkinCtrl),
+                            style: fieldStyle,
+                            decoration: InputDecoration(
                               labelText: 'تاريخ الدخول',
-                              border: OutlineInputBorder(),
+                              labelStyle: labelStyle,
+                              floatingLabelStyle: labelStyle,
+                              border: const OutlineInputBorder(),
+                              suffixIcon:
+                                  const Icon(Icons.calendar_today, size: 18),
                             ),
-                            keyboardType: TextInputType.datetime,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: TextField(
                             controller: checkoutCtrl,
-                            decoration: const InputDecoration(
+                            readOnly: true,
+                            onTap: () => pickDate(dialogContext, checkoutCtrl),
+                            style: fieldStyle,
+                            decoration: InputDecoration(
                               labelText: 'تاريخ الخروج',
-                              border: OutlineInputBorder(),
+                              labelStyle: labelStyle,
+                              floatingLabelStyle: labelStyle,
+                              border: const OutlineInputBorder(),
+                              suffixIcon:
+                                  const Icon(Icons.calendar_today, size: 18),
                             ),
-                            keyboardType: TextInputType.datetime,
                           ),
                         ),
                       ],
@@ -720,9 +757,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     const SizedBox(height: 12),
                     TextField(
                       controller: debtReasonCtrl,
-                      decoration: const InputDecoration(
+                      style: fieldStyle,
+                      decoration: InputDecoration(
                         labelText: 'سبب الدين',
-                        border: OutlineInputBorder(),
+                        labelStyle: labelStyle,
+                        floatingLabelStyle: labelStyle,
+                        border: const OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -731,9 +771,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         Expanded(
                           child: TextField(
                             controller: totalCtrl,
-                            decoration: const InputDecoration(
+                            style: fieldStyle,
+                            decoration: InputDecoration(
                               labelText: 'إجمالي المبلغ*',
-                              border: OutlineInputBorder(),
+                              labelStyle: labelStyle,
+                              floatingLabelStyle: labelStyle,
+                              border: const OutlineInputBorder(),
                               // suffixText: 'ر.س',
                             ),
                             keyboardType: TextInputType.number,
@@ -743,9 +786,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         Expanded(
                           child: TextField(
                             controller: paidCtrl,
-                            decoration: const InputDecoration(
+                            style: fieldStyle,
+                            decoration: InputDecoration(
                               labelText: 'المدفوع',
-                              border: OutlineInputBorder(),
+                              labelStyle: labelStyle,
+                              floatingLabelStyle: labelStyle,
+                              border: const OutlineInputBorder(),
                               // suffixText: 'ر.س',
                             ),
                             keyboardType: TextInputType.number,
@@ -756,12 +802,15 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     const SizedBox(height: 12),
                     TextField(
                       controller: remainingCtrl,
-                      decoration: const InputDecoration(
+                      readOnly: true,
+                      style: fieldStyle,
+                      decoration: InputDecoration(
                         labelText: 'المتبقي',
-                        border: OutlineInputBorder(),
+                        labelStyle: labelStyle,
+                        floatingLabelStyle: labelStyle,
+                        border: const OutlineInputBorder(),
                         // suffixText: 'ر.س',
                       ),
-                      readOnly: true,
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -769,9 +818,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         Expanded(
                           child: TextField(
                             controller: pledgeCtrl,
-                            decoration: const InputDecoration(
+                            style: fieldStyle,
+                            decoration: InputDecoration(
                               labelText: 'الرهن',
-                              border: OutlineInputBorder(),
+                              labelStyle: labelStyle,
+                              floatingLabelStyle: labelStyle,
+                              border: const OutlineInputBorder(),
                             ),
                           ),
                         ),
@@ -779,9 +831,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         Expanded(
                           child: TextField(
                             controller: pledgeTypeCtrl,
-                            decoration: const InputDecoration(
+                            style: fieldStyle,
+                            decoration: InputDecoration(
                               labelText: 'نوع الرهن',
-                              border: OutlineInputBorder(),
+                              labelStyle: labelStyle,
+                              floatingLabelStyle: labelStyle,
+                              border: const OutlineInputBorder(),
                             ),
                           ),
                         ),
@@ -790,9 +845,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     const SizedBox(height: 12),
                     TextField(
                       controller: noteCtrl,
-                      decoration: const InputDecoration(
+                      style: fieldStyle,
+                      decoration: InputDecoration(
                         labelText: 'ملاحظة إضافية',
-                        border: OutlineInputBorder(),
+                        labelStyle: labelStyle,
+                        floatingLabelStyle: labelStyle,
+                        border: const OutlineInputBorder(),
                       ),
                       maxLines: 2,
                     ),

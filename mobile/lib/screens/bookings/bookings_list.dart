@@ -264,7 +264,7 @@ class _CompactBookingCard extends StatelessWidget {
           );
         },
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -274,37 +274,44 @@ class _CompactBookingCard extends StatelessWidget {
                   CircleAvatar(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
-                    radius: 16,
-                    child: Text(index.toString()),
+                    radius: 14,
+                    child: Text(
+                      index.toString(),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'الغرفة ${booking.roomNumber}',
-                          style: theme.textTheme.titleMedium,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text(
                           booking.guestName,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         if (booking.guestPhone.isNotEmpty)
                           Text(
                             booking.guestPhone,
-                            style: theme.textTheme.bodySmall,
+                            style: const TextStyle(fontSize: 10),
                           ),
                       ],
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.12),
@@ -312,37 +319,44 @@ class _CompactBookingCard extends StatelessWidget {
                     ),
                     child: Text(
                       statusText,
-                      style: theme.textTheme.labelMedium?.copyWith(
+                      style: TextStyle(
                         color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 14),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      _formatDate(booking.checkinDate) +
+                          (plannedText != null ? ' • حتى $plannedText' : ''),
+                      style: const TextStyle(
+                        fontSize: 9,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Icon(Icons.calendar_today, size: 16),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      _formatDate(booking.checkinDate) +
-                          (plannedText != null ? ' • حتى $plannedText' : ''),
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ),
-                ],
-              ),
               if (actualText != null) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.logout, size: 16),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.logout, size: 14),
+                    const SizedBox(width: 4),
                     Text(
                       'خروج فعلي $actualText',
-                      style: theme.textTheme.bodySmall,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),

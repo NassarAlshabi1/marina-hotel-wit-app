@@ -25,6 +25,9 @@ class _CreateDebtFromBookingScreenState
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
   final _dateFormat = DateFormat('yyyy-MM-dd');
+  static const _titleStyle = TextStyle(fontSize: 14, fontWeight: FontWeight.bold);
+  static const _labelStyle = TextStyle(fontSize: 13, fontWeight: FontWeight.bold);
+  static const _fieldStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.bold);
 
   @override
   void dispose() {
@@ -98,12 +101,13 @@ class _CreateDebtFromBookingScreenState
               children: [
                 const Text(
                   'اختر الحجز',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: _titleStyle,
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Booking>(
                   value: _selectedBooking,
                   isExpanded: true,
+                  style: _fieldStyle,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     contentPadding:
@@ -115,6 +119,7 @@ class _CreateDebtFromBookingScreenState
                       child: Text(
                         '${booking.roomNumber} - ${booking.guestName}',
                         overflow: TextOverflow.ellipsis,
+                        style: _fieldStyle,
                       ),
                     );
                   }).toList(),
@@ -144,15 +149,15 @@ class _CreateDebtFromBookingScreenState
     final booking = _selectedBooking!;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'معلومات الحجز',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: _titleStyle,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildInfoRow('الغرفة', booking.roomNumber),
             _buildInfoRow('الضيف', booking.guestName),
             _buildInfoRow('الهوية', booking.guestIdNumber),
@@ -180,17 +185,26 @@ class _CreateDebtFromBookingScreenState
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
           SizedBox(
-            width: 120,
+            width: 110,
             child: Text(
               '$label:',
-              style: const TextStyle(color: Colors.grey),
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-          Expanded(child: Text(value)),
+          Expanded(
+            child: Text(
+              value,
+              style: _fieldStyle,
+            ),
+          ),
         ],
       ),
     );
@@ -199,15 +213,15 @@ class _CreateDebtFromBookingScreenState
   Widget _buildDateRangeSelector() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'فترة الدين',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: _titleStyle,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -253,10 +267,15 @@ class _CreateDebtFromBookingScreenState
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
+          labelStyle: _labelStyle,
+          floatingLabelStyle: _labelStyle,
           border: const OutlineInputBorder(),
           suffixIcon: const Icon(Icons.calendar_today, size: 18),
         ),
-        child: Text(_formatDate(date)),
+        child: Text(
+          _formatDate(date),
+          style: _fieldStyle,
+        ),
       ),
     );
   }
@@ -315,15 +334,15 @@ class _CreateDebtFromBookingScreenState
     return Card(
       color: Colors.orange.shade50,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'ملخص الدين',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: _titleStyle,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildInfoRow('عدد الليالي', '${data.nights}'),
             _buildInfoRow(
               'سعر الليلة',
@@ -352,8 +371,11 @@ class _CreateDebtFromBookingScreenState
     return TextFormField(
       controller: _amountController,
       keyboardType: TextInputType.number,
+      style: _fieldStyle,
       decoration: const InputDecoration(
         labelText: 'مبلغ الدين',
+        labelStyle: _labelStyle,
+        floatingLabelStyle: _labelStyle,
         border: OutlineInputBorder(),
         prefixIcon: Icon(Icons.attach_money),
       ),
@@ -364,8 +386,11 @@ class _CreateDebtFromBookingScreenState
     return TextFormField(
       controller: _notesController,
       maxLines: 3,
+      style: _fieldStyle,
       decoration: const InputDecoration(
         labelText: 'ملاحظات',
+        labelStyle: _labelStyle,
+        floatingLabelStyle: _labelStyle,
         border: OutlineInputBorder(),
         prefixIcon: Icon(Icons.note),
       ),

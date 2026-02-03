@@ -174,12 +174,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           body: Form(
             key: _formKey,
             child: ListView(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               children: [
                 _buildSectionTitle('بيانات النزيل'),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     child: Column(
                       children: [
                         TextFormField(
@@ -189,7 +189,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           ),
                           validator: _req,
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         TextFormField(
                           controller: _guestPhone,
                           decoration: const InputDecoration(
@@ -198,7 +198,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           keyboardType: TextInputType.phone,
                           validator: _req,
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
                           value: _idType,
                           items: _idTypes
@@ -213,7 +213,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             labelText: 'نوع الهوية',
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         TextFormField(
                           controller: _guestIdNumber,
                           decoration: const InputDecoration(
@@ -223,7 +223,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           inputFormatters: [_idNumberFormatter],
                           validator: _req,
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
                             Expanded(
@@ -241,7 +241,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: TextFormField(
                                 controller: _guestIdIssuePlace,
@@ -253,16 +253,16 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         TextFormField(
                           controller: _guestNationality,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                           decoration: const InputDecoration(
                             labelText: 'الجنسية *',
                           ),
                           validator: _req,
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         TextFormField(
                           controller: _guestAddress,
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
@@ -274,16 +274,16 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 _buildSectionTitle('تفاصيل الحجز'),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     child: Column(
                       children: [
                         _buildRoomSelector(roomsAsync),
-                        const SizedBox(height: 10),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
+                        const SizedBox(height: 6),
                         TextFormField(
                           controller: _checkin,
                           readOnly: true,
@@ -296,7 +296,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           validator: _req,
                           onTap: () => _pickDate(_checkin),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         TextFormField(
                           controller: _checkout,
                           readOnly: true,
@@ -309,7 +309,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           onChanged: (_) => _recalculateExpectedNights(),
                           onTap: () => _pickDate(_checkout),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
                           value: _status,
                           items: _statusOptions
@@ -325,7 +325,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           ),
                         ),
                         if (widget.existing?.actualCheckout != null) ...[
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
                           TextFormField(
                             initialValue: widget.existing?.actualCheckout,
                             readOnly: true,
@@ -339,14 +339,14 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 _buildSectionTitle('الدفع المقدم (اختياري)'),
                 Card(
                   color: _hasAdvancePayment
                       ? Colors.green.shade50
                       : Colors.grey.shade50,
                   child: Padding(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     child: Column(
                       children: [
                         CheckboxListTile(
@@ -363,7 +363,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           activeColor: Colors.green,
                         ),
                         if (_hasAdvancePayment) ...[
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
                           TextFormField(
                             controller: _advancePayment,
                             keyboardType: TextInputType.number,
@@ -385,7 +385,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                   }
                                 : null,
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
                             value: _paymentMethod,
                             items: _paymentMethods
@@ -403,7 +403,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               labelText: 'طريقة الدفع',
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
                           TextFormField(
                             controller: _paymentNotes,
                             decoration: const InputDecoration(
@@ -416,12 +416,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 _buildSectionTitle('التخفيض (اختياري)'),
                 Card(
                   color: Colors.orange.shade50,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     child: TextFormField(
                       controller: _discount,
                       keyboardType: TextInputType.number,
@@ -434,11 +434,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 _buildSectionTitle('ملاحظات الحجز'),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     child: TextFormField(
                       controller: _notes,
                       minLines: 1,
@@ -449,7 +449,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 FilledButton.icon(
                   onPressed: () async {
                     if (!_formKey.currentState!.validate()) {
@@ -618,10 +618,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
   Widget _buildSectionTitle(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -675,15 +675,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   }
 
   Widget _buildRoomSelector(AsyncValue<List<Room>> roomsAsync) {
+    final roomTextStyle = TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+      color: Colors.grey.shade600,
+    );
     return roomsAsync.when(
       loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
+        padding: EdgeInsets.symmetric(vertical: 8),
         child: LinearProgressIndicator(),
       ),
       error: (err, stack) => TextFormField(
         controller: _roomNumber,
         readOnly: true,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        style: roomTextStyle,
         decoration: const InputDecoration(
           labelText: 'رقم الغرفة *',
           helperText: 'تعذر تحميل قائمة الغرف، أدخل الرقم يدوياً',
@@ -718,7 +723,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           items.add(
             DropdownMenuItem(
               value: currentValue,
-              child: Text('$currentValue (الحالي)'),
+              child: Text(
+                '$currentValue (الحالي)',
+                style: roomTextStyle,
+              ),
             ),
           );
         }
@@ -726,7 +734,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           availableRooms.map(
             (room) => DropdownMenuItem(
               value: room.roomNumber,
-              child: Text('${room.roomNumber} • ${room.type}'),
+              child: Text(
+                '${room.roomNumber} • ${room.type}',
+                style: roomTextStyle,
+              ),
             ),
           ),
         );
@@ -735,7 +746,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           return TextFormField(
             controller: _roomNumber,
             readOnly: widget.existing == null,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            style: roomTextStyle,
             decoration: const InputDecoration(
               labelText: 'رقم الغرفة *',
               helperText: 'لا توجد غرف شاغرة متاحة حالياً',
@@ -747,7 +758,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         return DropdownButtonFormField<String>(
           value: currentValue.isNotEmpty ? currentValue : null,
           items: items,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: roomTextStyle,
           onChanged: (value) {
             setState(() {
               _roomNumber.text = value ?? '';
