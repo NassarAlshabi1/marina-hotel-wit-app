@@ -4,22 +4,32 @@
  * يوفر الإعدادات والوظائف المشتركة بين جميع نقاط النهاية
  */
 
+// تسجيل وقت البداية للقياس
+define('API_START_TIME', microtime(true));
+
 // إعداد الترويسات للـ CORS و JSON
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-header('Access-Control-Max-Age: 3600');
-
-// معالجة طلبات OPTIONS (preflight)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit(0);
-}
 
 // تضمين ملفات الإعدادات والاتصال
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/db.php';
+
+// تضمين الملفات الأساسية للـ API
+require_once __DIR__ . '/core/errors.php';
+require_once __DIR__ . '/core/validator.php';
+require_once __DIR__ . '/core/middleware.php';
+
+// تطبيق CORS middleware
+ApiMiddleware::cors();
+
+// التحقق من صيانة النظام
+ApiMiddleware::checkMaintenance();
+
+// التحقق من صحة JSON
+ApiMiddleware::validateJson();
+
+// التحقق من حجم البيانات
+ApiMiddleware::checkPayloadSize();
 
 /**
  * إرجاع استجابة JSON موحدة
