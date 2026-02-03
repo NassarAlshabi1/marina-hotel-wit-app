@@ -287,6 +287,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: filteredDebts.length,
       itemBuilder: (context, index) {

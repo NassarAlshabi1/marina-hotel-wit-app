@@ -147,6 +147,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: notes.length,
       itemBuilder: (context, index) {

@@ -85,6 +85,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               // قائمة الموظفين
               Expanded(
                 child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: employees.length,
                   itemBuilder: (context, index) {

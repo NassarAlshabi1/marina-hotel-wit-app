@@ -58,6 +58,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           error: (e, st) => Center(child: Text('خطأ: $e')),
           data: (rooms) {
             return ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
               itemCount: rooms.length,
               itemBuilder: (c, i) {
                 final r = rooms[i];

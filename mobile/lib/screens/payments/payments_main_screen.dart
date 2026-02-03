@@ -369,6 +369,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         }
 
         return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(12),
           itemCount: activeBookings.length,
           itemBuilder: (context, index) {

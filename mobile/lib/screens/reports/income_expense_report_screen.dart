@@ -699,6 +699,7 @@ class _IncomeExpenseReportScreenState
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       cacheExtent: 500,
       itemCount: combined.length,
       itemBuilder: (context, index) {

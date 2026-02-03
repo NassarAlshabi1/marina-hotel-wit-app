@@ -89,6 +89,7 @@ class RoomsDashboard extends ConsumerWidget {
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: sortedFloors.length,
       itemBuilder: (context, index) {

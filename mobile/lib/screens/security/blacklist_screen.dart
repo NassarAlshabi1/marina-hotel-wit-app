@@ -25,6 +25,7 @@ class BlacklistScreen extends ConsumerWidget {
             return _EmptyState(onAdd: () => _openAddDialog(context, repo));
           }
           return ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(12),
             itemCount: entries.length,
             itemBuilder: (context, index) {

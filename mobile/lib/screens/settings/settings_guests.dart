@@ -81,6 +81,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               // قائمة الضيوف
               Expanded(
                 child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: filteredGuests.length,
                   itemBuilder: (context, index) {

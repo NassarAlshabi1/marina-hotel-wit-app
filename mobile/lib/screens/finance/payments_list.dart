@@ -19,6 +19,7 @@ class PaymentsListScreen extends ConsumerWidget {
           }
           final list = snapshot.data!;
           return ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
             itemCount: list.length,
             itemBuilder: (c, i) {
               final p = list[i];
