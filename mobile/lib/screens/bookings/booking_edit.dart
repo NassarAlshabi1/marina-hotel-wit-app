@@ -217,10 +217,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         TextFormField(
                           controller: _guestIdNumber,
                           decoration: const InputDecoration(
-                            labelText: 'رقم الهوية',
+                            labelText: 'رقم الهوية *',
                           ),
                           keyboardType: TextInputType.number,
                           inputFormatters: [_idNumberFormatter],
+                          validator: _req,
                         ),
                         const SizedBox(height: 10),
                         Row(
@@ -447,7 +448,15 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                 const SizedBox(height: 20),
                 FilledButton.icon(
                   onPressed: () async {
-                    if (!_formKey.currentState!.validate()) return;
+                    if (!_formKey.currentState!.validate()) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('يرجى تعبئة اسم النزيل ورقم الهوية'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
                     final name = _guestName.text.trim();
                     final phone = _normalizePhone(_guestPhone.text);
                     final nationality = _guestNationality.text.trim().isEmpty
