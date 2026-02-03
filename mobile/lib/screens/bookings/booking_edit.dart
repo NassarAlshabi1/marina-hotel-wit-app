@@ -427,7 +427,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
                         labelText: 'مبلغ التخفيض',
-                        prefixIcon: Icon(Icons.discount, size: 20),
+                        prefixIcon: Icon(Icons.discount, size: 16),
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(vertical: 10),
                       ),
