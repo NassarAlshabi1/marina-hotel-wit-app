@@ -83,21 +83,20 @@ class _CreateDebtFromBookingScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
                   Text(
-                    'اختر الوضع المناسب لإنشاء الدين:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    'اختر الوضع:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
-                  SizedBox(height: 6),
+                  SizedBox(height: 4),
                   Text(
-                    '• الوضع التلقائي: تحويل الحجز الحالي إلى دين مع حساب الليالي وسعر الغرفة والمبالغ المدفوعة تلقائياً وتحرير الغرفة.\n'
-                    '• الوضع اليدوي: إدخال دين يدوي لأي حالة سابقة أو غير مرتبطة بحجز.',
-                    style: TextStyle(fontSize: 13, height: 1.4),
+                    '• تلقائي: من حجز موجود\n• يدوي: إدخال بيانات الدين',
+                    style: TextStyle(fontSize: 11, height: 1.3, color: Colors.grey.shade700),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _buildModeToggle(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Expanded(
               child: _autoMode
                   ? _buildAutoMode(bookingsAsync)
@@ -110,32 +109,64 @@ class _CreateDebtFromBookingScreenState
   }
 
   Widget _buildModeToggle() {
-    return Row(
-      children: [
-        Expanded(
-          child: ChoiceChip(
-            label: const Text('تلقائي (من حجز)'),
-            selected: _autoMode,
-            onSelected: (value) {
-              if (!value) return;
-              setState(() => _autoMode = true);
-            },
-            selectedColor: Colors.orange.shade200,
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _autoMode = true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: _autoMode ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: _autoMode
+                      ? [BoxShadow(color: Colors.black12, blurRadius: 4)]
+                      : null,
+                ),
+                child: Text(
+                  'تلقائي',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: _autoMode ? FontWeight.bold : FontWeight.normal,
+                    color: _autoMode ? Colors.blue.shade700 : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ChoiceChip(
-            label: const Text('يدوي'),
-            selected: !_autoMode,
-            onSelected: (value) {
-              if (!value) return;
-              setState(() => _autoMode = false);
-            },
-            selectedColor: Colors.green.shade200,
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _autoMode = false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: !_autoMode ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: !_autoMode
+                      ? [BoxShadow(color: Colors.black12, blurRadius: 4)]
+                      : null,
+                ),
+                child: Text(
+                  'يدوي',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: !_autoMode ? FontWeight.bold : FontWeight.normal,
+                    color: !_autoMode ? Colors.green.shade700 : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -161,26 +192,40 @@ class _CreateDebtFromBookingScreenState
                 itemBuilder: (context, index) {
                   final booking = eligibleBookings[index];
                   final isSelected = booking.id == _selectedBooking?.id;
-                  return Card(
-                    color: isSelected ? Colors.blue.shade50 : null,
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: isSelected ? Colors.blue : Colors.grey,
-                        child: Text(booking.roomNumber),
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.blue.shade50 : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? Colors.blue.shade300 : Colors.grey.shade200,
+                        width: isSelected ? 1.5 : 1,
                       ),
-                      title: Text(booking.guestName),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('غرفة ${booking.roomNumber}'),
-                          Text(
-                              '${_formatDate(booking.checkinDate)} - ${_formatDate(booking.checkoutDate ?? '')}'),
-                          Text('الحالة: ${booking.status}'),
-                        ],
+                    ),
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      leading: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.blue : Colors.grey.shade400,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            booking.roomNumber,
+                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      title: Text(booking.guestName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                        '${_formatDate(booking.checkinDate)} - ${_formatDate(booking.checkoutDate ?? '')}',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                       ),
                       trailing: isSelected
-                          ? Icon(Icons.check_circle,
-                              color: Colors.blue.shade600)
+                          ? Icon(Icons.check_circle, color: Colors.blue.shade600, size: 20)
                           : null,
                       onTap: () => _selectBooking(booking),
                     ),
@@ -210,73 +255,82 @@ class _CreateDebtFromBookingScreenState
     final booking = _selectedBooking!;
     final data = _autoDebtData!;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'دين ${booking.guestName}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'دين ${booking.guestName}',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _buildInfoBox('الليالي', data.nights.toString(), Colors.blue),
+              const SizedBox(width: 8),
+              _buildInfoBox('سعر الليلة', _formatCurrency(data.roomRate), Colors.teal),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildInfoBox('الإجمالي', _formatCurrency(data.total), Colors.indigo),
+              const SizedBox(width: 8),
+              _buildInfoBox('المدفوع', _formatCurrency(data.paid), Colors.green),
+              const SizedBox(width: 8),
+              _buildInfoBox('المتبقي', _formatCurrency(data.remaining), Colors.red),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'سيتم إنشاء الدين وتحرير الغرفة ${booking.roomNumber}',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isAutoProcessing ? null : _createAutoDebtFromBooking,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade600,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: _isAutoProcessing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('حفظ وتحرير الغرفة', style: TextStyle(fontSize: 13)),
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _buildInfoChip(
-                    Icons.nightlight, 'الليالي', data.nights.toString()),
-                _buildInfoChip(Icons.attach_money, 'سعر الليلة',
-                    _formatCurrency(data.roomRate)),
-                _buildInfoChip(
-                    Icons.summarize, 'الإجمالي', _formatCurrency(data.total)),
-                _buildInfoChip(
-                    Icons.payments, 'المدفوع', _formatCurrency(data.paid)),
-                _buildInfoChip(
-                    Icons.warning, 'المتبقي', _formatCurrency(data.remaining),
-                    color: Colors.red.shade600),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'سيتم إنشاء الدين وتحديث حالة الحجز إلى "مكتمل" وتحرير الغرفة ${booking.roomNumber}.',
-              style: const TextStyle(fontSize: 13, color: Colors.black54),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed:
-                        _isAutoProcessing ? null : _createAutoDebtFromBooking,
-                    icon: _isAutoProcessing
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.check),
-                    label: Text(_isAutoProcessing
-                        ? 'جاري الحفظ...'
-                        : 'حفظ وتحرير الغرفة'),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange.shade600),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String label, String value,
-      {Color? color}) {
-    return Chip(
-      avatar: Icon(icon, size: 18, color: color ?? Colors.blue),
-      label: Text('$label: $value'),
-      backgroundColor: (color ?? Colors.blue).withOpacity(0.08),
+  Widget _buildInfoBox(String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Text(label, style: TextStyle(fontSize: 10, color: color)),
+            const SizedBox(height: 2),
+            Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+          ],
+        ),
+      ),
     );
   }
 
@@ -289,98 +343,134 @@ class _CreateDebtFromBookingScreenState
           children: [
             TextFormField(
               controller: _manualGuestNameController,
-              decoration: const InputDecoration(
-                  labelText: 'اسم النزيل *', border: OutlineInputBorder()),
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'اسم النزيل *',
+                labelStyle: const TextStyle(fontSize: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
               validator: (value) => value == null || value.trim().isEmpty
                   ? 'أدخل اسم النزيل'
                   : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     controller: _manualCheckinController,
-                    decoration: const InputDecoration(
-                        labelText: 'تاريخ الوصول *',
-                        border: OutlineInputBorder()),
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'تاريخ الوصول *',
+                      labelStyle: const TextStyle(fontSize: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'أدخل تاريخ الوصول'
                         : null,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextFormField(
                     controller: _manualCheckoutController,
-                    decoration: const InputDecoration(
-                        labelText: 'تاريخ المغادرة',
-                        border: OutlineInputBorder()),
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'تاريخ المغادرة',
+                      labelStyle: const TextStyle(fontSize: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     controller: _manualTotalController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                        labelText: 'إجمالي المبلغ *',
-                        border: OutlineInputBorder()),
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'إجمالي المبلغ *',
+                      labelStyle: const TextStyle(fontSize: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'أدخل المبلغ'
                         : null,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextFormField(
                     controller: _manualPaidController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                        labelText: 'المبلغ المدفوع',
-                        border: OutlineInputBorder()),
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'المبلغ المدفوع',
+                      labelStyle: const TextStyle(fontSize: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             TextFormField(
               controller: _manualReasonController,
-              decoration: const InputDecoration(
-                  labelText: 'سبب الدين', border: OutlineInputBorder()),
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'سبب الدين',
+                labelStyle: const TextStyle(fontSize: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             TextFormField(
               controller: _manualNoteController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                  labelText: 'ملاحظات', border: OutlineInputBorder()),
+              maxLines: 2,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'ملاحظات',
+                labelStyle: const TextStyle(fontSize: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton.icon(
+                  child: ElevatedButton(
                     onPressed: _isManualProcessing ? null : _saveManualDebt,
-                    icon: _isManualProcessing
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: _isManualProcessing
                         ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.save),
-                    label: Text(_isManualProcessing
-                        ? 'جاري الحفظ...'
-                        : 'حفظ الدين اليدوي'),
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('حفظ الدين', style: TextStyle(fontSize: 13)),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 OutlinedButton(
                   onPressed: _resetManualForm,
-                  child: const Text('إعادة تعيين'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('مسح', style: TextStyle(fontSize: 13)),
                 ),
               ],
             ),
