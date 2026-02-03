@@ -485,7 +485,7 @@ class _CreateDebtFromBookingScreenState
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 suffixIcon: const Icon(Icons.calendar_today, size: 18),
               ),
-              onTap: () => _pickManualDebtDate(),
+              onTap: () => _pickDate(_manualDebtDateController),
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -558,19 +558,6 @@ class _CreateDebtFromBookingScreenState
     );
     if (picked != null) {
       setState(() => _autoDebtDate = picked);
-    }
-  }
-
-  Future<void> _pickManualDebtDate() async {
-    final initial = DateTime.tryParse(_manualDebtDateController.text) ?? DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      _manualDebtDateController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
     }
   }
 
