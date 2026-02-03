@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' as drift;
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../services/screen_sync_controller.dart';
+import '../../utils/theme.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -21,310 +23,258 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   @override
   String get screenId => 'booking_edit';
 
-  @override
-  Duration get debounceDelay => const Duration(seconds: 15);
-
   final _formKey = GlobalKey<FormState>();
-  final _guestName = TextEditingController();
-  final _guestPhone = TextEditingController();
-  final _guestNationality = TextEditingController(text: 'يمني');
-  final _guestAddress = TextEditingController();
-  final _guestIdNumber = TextEditingController();
-  final _idNumberFormatter = FilteringTextInputFormatter.allow(
-    RegExp(r'[0-9]'),
-  );
-  final _guestIdIssueDate = TextEditingController();
-  final _guestIdIssuePlace = TextEditingController();
-  final _roomNumber = TextEditingController();
-  final _checkin = TextEditingController();
-  final _checkout = TextEditingController();
-  final _expectedNights = TextEditingController(text: '1');
-  final _notes = TextEditingController();
-  final _discount = TextEditingController(text: '0');
+  bool _saving = false;
 
-  String _status = 'محجوزة';
-  String _idType = 'بطاقة شخصية';
-  bool _roomInitialized = false;
+  late TextEditingController _guestCtrl;
+  late TextEditingController _phoneCtrl;
+  late TextEditingController _addressCtrl;
+  late TextEditingController _nightlyCtrl;
+  late TextEditingController _advanceCtrl;
+  late TextEditingController _notesCtrl;
+  late TextEditingController _nationalityCtrl;
+  late TextEditingController _discountCtrl;
+  late TextEditingController _idTypeCtrl;
+  late TextEditingController _idNumberCtrl;
+  late TextEditingController _idIssuePlaceCtrl;
+  late TextEditingController _idIssueDateCtrl;
 
-  // متغيرات الدفع المتقدم
-  bool _hasAdvancePayment = false;
-  final _advancePayment = TextEditingController();
-  String _paymentMethod = 'نقداً';
-  final _paymentNotes = TextEditingController();
-  static const _paymentMethods = ['نقداً', 'تحويل بنكي'];
+  String? _selectedRoom;
+  String _selectedStatus = 'active';
+  DateTime _checkinDate = DateTime.now();
+  TimeOfDay _checkinTime = TimeOfDay.now();
+  int _expectedNights = 1;
 
-  static const _idTypes = [
-    'بطاقة شخصية',
-    'جواز سفر',
-    'رخصة قيادة',
-    'بطاقة عسكرية',
-    'استبيان',
-    'شهادة ميلاد',
-  ];
-  static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
+  List<Room> _rooms = [];
+  List<Booking> _activeBookings = [];
+  bool _loadingRooms = true;
+
+  int _currentStep = 0;
 
   @override
   void initState() {
     super.initState();
-
-    _guestName.addListener(markDataChanged);
-    _guestPhone.addListener(markDataChanged);
-    _guestNationality.addListener(markDataChanged);
-    _guestAddress.addListener(markDataChanged);
-    _guestIdNumber.addListener(markDataChanged);
-    _guestIdIssueDate.addListener(markDataChanged);
-    _guestIdIssuePlace.addListener(markDataChanged);
-    _roomNumber.addListener(markDataChanged);
-    _checkin.addListener(markDataChanged);
-    _checkout.addListener(markDataChanged);
-    _expectedNights.addListener(markDataChanged);
-    _notes.addListener(markDataChanged);
-    _advancePayment.addListener(markDataChanged);
-    _paymentNotes.addListener(markDataChanged);
-    _discount.addListener(markDataChanged);
-
     final b = widget.existing;
+    _guestCtrl = TextEditingController(text: b?.guestName ?? '');
+    _phoneCtrl = TextEditingController(text: b?.guestPhone ?? '');
+    _addressCtrl = TextEditingController(text: b?.guestAddress ?? '');
+    _nightlyCtrl =
+        TextEditingController(text: b?.nightlyRate.toStringAsFixed(0) ?? '');
+    _advanceCtrl =
+        TextEditingController(text: b?.advancePayment.toStringAsFixed(0) ?? '');
+    _notesCtrl = TextEditingController(text: b?.notes ?? '');
+    _nationalityCtrl = TextEditingController(text: b?.guestNationality ?? '');
+    _discountCtrl =
+        TextEditingController(text: b?.discount?.toStringAsFixed(0) ?? '');
+    _idTypeCtrl = TextEditingController(text: b?.guestIdType ?? '');
+    _idNumberCtrl = TextEditingController(text: b?.guestIdNumber ?? '');
+    _idIssuePlaceCtrl = TextEditingController(text: b?.guestIdIssuePlace ?? '');
+    _idIssueDateCtrl = TextEditingController(text: b?.guestIdIssueDate ?? '');
+
     if (b != null) {
-      _guestName.text = b.guestName;
-      _guestPhone.text = b.guestPhone;
-      _guestNationality.text =
-          b.guestNationality.isEmpty ? 'يمني' : b.guestNationality;
-      _guestAddress.text = b.guestAddress ?? '';
-      _guestIdNumber.text = b.guestIdNumber;
-      _guestIdIssueDate.text = b.guestIdIssueDate ?? '';
-      _guestIdIssuePlace.text = b.guestIdIssuePlace ?? '';
-      _roomNumber.text = b.roomNumber;
-      _checkin.text = b.checkinDate;
-      _checkout.text = b.checkoutDate ?? '';
-      _expectedNights.text = b.expectedNights.toString();
-      _notes.text = b.notes ?? '';
-      _discount.text = b.discount.toStringAsFixed(0);
-      _status = b.status;
-      _idType = b.guestIdType;
-      _roomInitialized = true;
-    } else {
-      if (widget.initialRoomNumber != null &&
-          widget.initialRoomNumber!.isNotEmpty) {
-        _roomNumber.text = widget.initialRoomNumber!;
-        _roomInitialized = true;
-      }
-      _checkin.text = _formatDateTime(DateTime.now());
+      _selectedRoom = b.roomNumber;
+      _selectedStatus = b.status;
+      _checkinDate = b.checkinDate;
+      _checkinTime = TimeOfDay(hour: b.checkinDate.hour, minute: b.checkinDate.minute);
+      _expectedNights = b.expectedNights ?? 1;
+    } else if (widget.initialRoomNumber != null) {
+      _selectedRoom = widget.initialRoomNumber;
     }
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _recalculateExpectedNights(),
-    );
+
+    _loadRooms();
+  }
+
+  Future<void> _loadRooms() async {
+    final repo = ref.read(roomsRepoProvider);
+    final bookingsRepo = ref.read(bookingsRepoProvider);
+    final rooms = await repo.getAll();
+    final activeBookings =
+        await bookingsRepo.getAllActive(includeReserved: true);
+    if (mounted) {
+      setState(() {
+        _rooms = rooms;
+        _activeBookings = activeBookings;
+        _loadingRooms = false;
+      });
+    }
   }
 
   @override
   void dispose() {
-    _guestName.removeListener(markDataChanged);
-    _guestPhone.removeListener(markDataChanged);
-    _guestNationality.removeListener(markDataChanged);
-    _guestAddress.removeListener(markDataChanged);
-    _guestIdNumber.removeListener(markDataChanged);
-    _guestIdIssueDate.removeListener(markDataChanged);
-    _guestIdIssuePlace.removeListener(markDataChanged);
-    _roomNumber.removeListener(markDataChanged);
-    _checkin.removeListener(markDataChanged);
-    _checkout.removeListener(markDataChanged);
-    _expectedNights.removeListener(markDataChanged);
-    _notes.removeListener(markDataChanged);
-    _advancePayment.removeListener(markDataChanged);
-    _paymentNotes.removeListener(markDataChanged);
-    _discount.removeListener(markDataChanged);
-
-    _guestName.dispose();
-    _guestPhone.dispose();
-    _guestNationality.dispose();
-    _guestAddress.dispose();
-    _guestIdNumber.dispose();
-    _guestIdIssueDate.dispose();
-    _guestIdIssuePlace.dispose();
-    _roomNumber.dispose();
-    _checkin.dispose();
-    _checkout.dispose();
-    _expectedNights.dispose();
-    _notes.dispose();
-    _advancePayment.dispose();
-    _paymentNotes.dispose();
-    _discount.dispose();
+    _guestCtrl.dispose();
+    _phoneCtrl.dispose();
+    _addressCtrl.dispose();
+    _nightlyCtrl.dispose();
+    _advanceCtrl.dispose();
+    _notesCtrl.dispose();
+    _nationalityCtrl.dispose();
+    _discountCtrl.dispose();
+    _idTypeCtrl.dispose();
+    _idNumberCtrl.dispose();
+    _idIssuePlaceCtrl.dispose();
+    _idIssueDateCtrl.dispose();
     super.dispose();
   }
 
+  Set<String> get _occupiedRooms {
+    final occupiedRooms = <String>{};
+    for (final booking in _activeBookings) {
+      if (widget.existing == null || booking.id != widget.existing!.id) {
+        occupiedRooms.add(booking.roomNumber);
+      }
+    }
+    return occupiedRooms;
+  }
+
+  bool get _isEdit => widget.existing != null;
+  String get _title => _isEdit ? 'تعديل الحجز' : 'حجز جديد';
+
   @override
   Widget build(BuildContext context) {
-    final repo = ref.watch(bookingsRepoProvider);
-    final roomsAsync = ref.watch(roomsListProvider);
-    return wrapWithSyncOnExit(
-      child: Directionality(
-        textDirection: TextDirection.rtl,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(widget.existing == null ? 'إضافة حجز' : 'تعديل حجز'),
-            actions: [
-              StreamBuilder<SyncStatus>(
-                stream: syncStatusStream,
-                builder: (context, snapshot) {
-                  final status = snapshot.data ?? SyncStatus.idle;
-                  return _buildSyncIndicator(status);
-                },
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Scaffold(
+      backgroundColor: scheme.background,
+      appBar: _buildAppBar(context, scheme),
+      body: _loadingRooms
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  _buildStepIndicator(scheme),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _buildCurrentStep(scheme),
+                        ),
+                      ),
+                    ),
+                  ),
+                  _buildNavigationButtons(scheme),
+                ],
               ),
-            ],
+            ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context, ColorScheme scheme) {
+    return AppBar(
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              _isEdit ? Icons.edit_calendar : Icons.add_business,
+              size: 20,
+              color: Colors.white,
+            ),
           ),
-          body: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
+          const SizedBox(width: 12),
+          Text(_title),
+        ],
+      ),
+      elevation: 0,
+      actions: [
+        if (_isEdit)
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: _confirmDelete,
+            tooltip: 'حذف الحجز',
+          ),
+      ],
+    );
+  }
+
+  Widget _buildStepIndicator(ColorScheme scheme) {
+    final steps = [
+      {'icon': Icons.person, 'label': 'الضيف'},
+      {'icon': Icons.hotel, 'label': 'الغرفة'},
+      {'icon': Icons.payments, 'label': 'الدفع'},
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: List.generate(steps.length, (index) {
+          final isActive = index == _currentStep;
+          final isCompleted = index < _currentStep;
+
+          return Expanded(
+            child: Row(
               children: [
-                _buildSectionTitle('بيانات النزيل'),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: _guestName,
-                          decoration: const InputDecoration(
-                            labelText: 'اسم النزيل *',
-                          ),
-                          validator: _req,
-                        ),
-                        const SizedBox(height: 11),
-                        TextFormField(
-                          controller: _guestPhone,
-                          decoration: const InputDecoration(
-                            labelText: 'رقم الهاتف *',
-                          ),
-                          keyboardType: TextInputType.phone,
-                          validator: _req,
-                        ),
-                        const SizedBox(height: 11),
-                        DropdownButtonFormField<String>(
-                          value: _idType,
-                          items: _idTypes
-                              .map(
-                                (t) =>
-                                    DropdownMenuItem(value: t, child: Text(t)),
-                              )
-                              .toList(),
-                          onChanged: (value) =>
-                              setState(() => _idType = value ?? _idType),
-                          decoration: const InputDecoration(
-                            labelText: 'نوع الهوية',
-                          ),
-                        ),
-                        const SizedBox(height: 11),
-                        TextFormField(
-                          controller: _guestIdNumber,
-                          decoration: const InputDecoration(
-                            labelText: 'رقم الهوية',
-                          ),
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [_idNumberFormatter],
-                        ),
-                        const SizedBox(height: 11),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _guestIdIssueDate,
-                                readOnly: true,
-                                decoration: const InputDecoration(
-                                  labelText: 'تاريخ إصدار الهوية',
-                                  suffixIcon: Icon(Icons.calendar_today),
-                                ),
-                                onTap: () => _pickDate(
-                                  _guestIdIssueDate,
-                                  onlyDate: true,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _guestIdIssuePlace,
-                                decoration: const InputDecoration(
-                                  labelText: 'جهة الإصدار',
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 11),
-                        TextFormField(
-                          controller: _guestNationality,
-                          decoration: const InputDecoration(
-                            labelText: 'الجنسية *',
-                          ),
-                          validator: _req,
-                        ),
-                        const SizedBox(height: 11),
-                        TextFormField(
-                          controller: _guestAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'العنوان',
-                          ),
-                        ),
-                      ],
+                if (index > 0)
+                  Expanded(
+                    child: Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: isCompleted || isActive
+                            ? AppColors.primaryColor
+                            : scheme.outline.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                _buildSectionTitle('تفاصيل الحجز'),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
+                GestureDetector(
+                  onTap: () => setState(() => _currentStep = index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? AppColors.primaryColor
+                          : isCompleted
+                              ? AppColors.primaryColor.withOpacity(0.15)
+                              : scheme.surface,
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(
+                        color: isActive || isCompleted
+                            ? AppColors.primaryColor
+                            : scheme.outline.withOpacity(0.3),
+                        width: 2,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildRoomSelector(roomsAsync),
-                        const SizedBox(height: 11),
-                        const SizedBox(height: 11),
-                        TextFormField(
-                          controller: _checkin,
-                          readOnly: true,
-                          decoration: const InputDecoration(
-                            labelText: 'تاريخ الوصول *',
-                            helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
-                            suffixIcon: Icon(Icons.event_available),
-                          ),
-                          validator: _req,
-                          onTap: () => _pickDate(_checkin),
+                        Icon(
+                          isCompleted
+                              ? Icons.check_circle
+                              : steps[index]['icon'] as IconData,
+                          size: 18,
+                          color: isActive
+                              ? Colors.white
+                              : isCompleted
+                                  ? AppColors.primaryColor
+                                  : scheme.outline,
                         ),
-                        const SizedBox(height: 11),
-                        TextFormField(
-                          controller: _checkout,
-                          readOnly: true,
-                          decoration: const InputDecoration(
-                            labelText: 'تاريخ المغادرة المخطط',
-                            helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
-                            suffixIcon: Icon(Icons.event_busy),
-                          ),
-                          onChanged: (_) => _recalculateExpectedNights(),
-                          onTap: () => _pickDate(_checkout),
-                        ),
-                        const SizedBox(height: 11),
-                        DropdownButtonFormField<String>(
-                          value: _status,
-                          items: _statusOptions
-                              .map(
-                                (s) =>
-                                    DropdownMenuItem(value: s, child: Text(s)),
-                              )
-                              .toList(),
-                          onChanged: (value) =>
-                              setState(() => _status = value ?? _status),
-                          decoration: const InputDecoration(
-                            labelText: 'حالة الحجز',
-                          ),
-                        ),
-                        if (widget.existing?.actualCheckout != null) ...[
-                          const SizedBox(height: 11),
-                          TextFormField(
-                            initialValue: widget.existing?.actualCheckout,
-                            readOnly: true,
-                            decoration: const InputDecoration(
-                              labelText: 'تاريخ المغادرة الفعلي',
-                              suffixIcon: Icon(Icons.lock_clock),
+                        if (isActive) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            steps[index]['label'] as String,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
@@ -332,488 +282,1328 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 18),
-                _buildSectionTitle('الدفع المقدم (اختياري)'),
-                Card(
-                  color: _hasAdvancePayment
-                      ? Colors.green.shade50
-                      : Colors.grey.shade50,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        CheckboxListTile(
-                          title: const Text('هل تم استلام دفعة مقدمة؟'),
-                          subtitle: Text(
-                            _hasAdvancePayment
-                                ? 'سيتم تسجيل الدفعة مع الحجز مباشرة'
-                                : 'يمكن تسجيل الدفعات لاحقاً من شاشة المدفوعات',
-                          ),
-                          value: _hasAdvancePayment,
-                          onChanged: (value) => setState(
-                            () => _hasAdvancePayment = value ?? false,
-                          ),
-                          activeColor: Colors.green,
-                        ),
-                        if (_hasAdvancePayment) ...[
-                          const SizedBox(height: 11),
-                          TextFormField(
-                            controller: _advancePayment,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'مبلغ الدفعة المقدمة *',
-                              helperText: 'أدخل المبلغ المستلم من النزيل',
-                              // prefixText: 'ر.س ',
-                            ),
-                            validator: _hasAdvancePayment
-                                ? (v) {
-                                    if (v == null || v.trim().isEmpty) {
-                                      return 'مطلوب عند تحديد دفعة مقدمة';
-                                    }
-                                    final amount = double.tryParse(v.trim());
-                                    if (amount == null || amount <= 0) {
-                                      return 'المبلغ يجب أن يكون أكبر من صفر';
-                                    }
-                                    return null;
-                                  }
-                                : null,
-                          ),
-                          const SizedBox(height: 11),
-                          DropdownButtonFormField<String>(
-                            value: _paymentMethod,
-                            items: _paymentMethods
-                                .map(
-                                  (method) => DropdownMenuItem(
-                                    value: method,
-                                    child: Text(method),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) => setState(
-                              () => _paymentMethod = value ?? _paymentMethod,
-                            ),
-                            decoration: const InputDecoration(
-                              labelText: 'طريقة الدفع',
-                            ),
-                          ),
-                          const SizedBox(height: 11),
-                          TextFormField(
-                            controller: _paymentNotes,
-                            decoration: const InputDecoration(
-                              labelText: 'ملاحظات الدفعة',
-                              helperText: 'مثال: عربون لثلاث ليالي',
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                if (index < steps.length - 1 && index == _currentStep)
+                  const Spacer(),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildCurrentStep(ColorScheme scheme) {
+    switch (_currentStep) {
+      case 0:
+        return _buildGuestInfoStep(scheme);
+      case 1:
+        return _buildRoomStep(scheme);
+      case 2:
+        return _buildPaymentStep(scheme);
+      default:
+        return _buildGuestInfoStep(scheme);
+    }
+  }
+
+  Widget _buildGuestInfoStep(ColorScheme scheme) {
+    return Column(
+      key: const ValueKey('guest'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionCard(
+          scheme: scheme,
+          icon: Icons.person,
+          title: 'معلومات الضيف الأساسية',
+          iconColor: AppColors.primaryColor,
+          children: [
+            _buildModernTextField(
+              controller: _guestCtrl,
+              label: 'اسم الضيف',
+              icon: Icons.person_outline,
+              validator: _req,
+              textCapitalization: TextCapitalization.words,
+            ),
+            const SizedBox(height: 12),
+            _buildModernTextField(
+              controller: _phoneCtrl,
+              label: 'رقم الهاتف',
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+]'))],
+            ),
+            const SizedBox(height: 12),
+            _buildModernTextField(
+              controller: _nationalityCtrl,
+              label: 'الجنسية',
+              icon: Icons.flag_outlined,
+            ),
+            const SizedBox(height: 12),
+            _buildModernTextField(
+              controller: _addressCtrl,
+              label: 'العنوان',
+              icon: Icons.location_on_outlined,
+              maxLines: 2,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildSectionCard(
+          scheme: scheme,
+          icon: Icons.badge,
+          title: 'بيانات الهوية',
+          iconColor: AppColors.infoColor,
+          isCollapsible: true,
+          initiallyExpanded: _idNumberCtrl.text.isNotEmpty,
+          children: [
+            _buildModernTextField(
+              controller: _idTypeCtrl,
+              label: 'نوع الهوية',
+              icon: Icons.credit_card_outlined,
+              hint: 'بطاقة شخصية / جواز سفر',
+            ),
+            const SizedBox(height: 12),
+            _buildModernTextField(
+              controller: _idNumberCtrl,
+              label: 'رقم الهوية',
+              icon: Icons.numbers,
+              keyboardType: TextInputType.text,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildModernTextField(
+                    controller: _idIssueDateCtrl,
+                    label: 'تاريخ الإصدار',
+                    icon: Icons.calendar_today_outlined,
                   ),
                 ),
-                const SizedBox(height: 18),
-                _buildSectionTitle('التخفيض (اختياري)'),
-                Card(
-                  color: Colors.orange.shade50,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: TextFormField(
-                      controller: _discount,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'مبلغ التخفيض',
-                        helperText: 'أدخل مبلغ التخفيض الثابت (سيُخصم من إجمالي الحجز)',
-                        prefixIcon: Icon(Icons.discount),
-                      ),
-                    ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildModernTextField(
+                    controller: _idIssuePlaceCtrl,
+                    label: 'مكان الإصدار',
+                    icon: Icons.place_outlined,
                   ),
                 ),
-                const SizedBox(height: 18),
-                _buildSectionTitle('ملاحظات الحجز'),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: TextFormField(
-                      controller: _notes,
-                      maxLines: null,
-                      minLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'ملاحظات إضافية',
-                      ),
-                    ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoomStep(ColorScheme scheme) {
+    return Column(
+      key: const ValueKey('room'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionCard(
+          scheme: scheme,
+          icon: Icons.hotel,
+          title: 'اختيار الغرفة',
+          iconColor: AppColors.successColor,
+          children: [
+            _buildRoomSelector(scheme),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildSectionCard(
+          scheme: scheme,
+          icon: Icons.calendar_month,
+          title: 'تواريخ الإقامة',
+          iconColor: AppColors.warningColor,
+          children: [
+            _buildDateTimeSelector(scheme),
+            const SizedBox(height: 14),
+            _buildNightsSelector(scheme),
+            const SizedBox(height: 12),
+            _buildCheckoutPreview(scheme),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildSectionCard(
+          scheme: scheme,
+          icon: Icons.info_outline,
+          title: 'حالة الحجز',
+          iconColor: AppColors.infoColor,
+          children: [
+            _buildStatusSelector(scheme),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentStep(ColorScheme scheme) {
+    final nightlyRate = double.tryParse(_nightlyCtrl.text) ?? 0;
+    final discount = double.tryParse(_discountCtrl.text) ?? 0;
+    final totalAmount = (nightlyRate * _expectedNights) - discount;
+    final advance = double.tryParse(_advanceCtrl.text) ?? 0;
+    final remaining = totalAmount - advance;
+
+    return Column(
+      key: const ValueKey('payment'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionCard(
+          scheme: scheme,
+          icon: Icons.attach_money,
+          title: 'تفاصيل الأسعار',
+          iconColor: AppColors.successColor,
+          children: [
+            _buildModernTextField(
+              controller: _nightlyCtrl,
+              label: 'سعر الليلة',
+              icon: Icons.nightlight_outlined,
+              keyboardType: TextInputType.number,
+              validator: _req,
+              suffix: 'ر.ي',
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            ),
+            const SizedBox(height: 12),
+            _buildModernTextField(
+              controller: _discountCtrl,
+              label: 'الخصم',
+              icon: Icons.discount_outlined,
+              keyboardType: TextInputType.number,
+              suffix: 'ر.ي',
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            ),
+            const SizedBox(height: 12),
+            _buildModernTextField(
+              controller: _advanceCtrl,
+              label: 'الدفعة المقدمة',
+              icon: Icons.payments_outlined,
+              keyboardType: TextInputType.number,
+              suffix: 'ر.ي',
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildPriceSummaryCard(scheme, totalAmount, advance, remaining, discount),
+        const SizedBox(height: 12),
+        _buildSectionCard(
+          scheme: scheme,
+          icon: Icons.notes,
+          title: 'ملاحظات',
+          iconColor: AppColors.mediumGray,
+          isCollapsible: true,
+          initiallyExpanded: _notesCtrl.text.isNotEmpty,
+          children: [
+            _buildModernTextField(
+              controller: _notesCtrl,
+              label: 'ملاحظات إضافية',
+              icon: Icons.edit_note,
+              maxLines: 3,
+              hint: 'أي ملاحظات خاصة بالحجز...',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionCard({
+    required ColorScheme scheme,
+    required IconData icon,
+    required String title,
+    required Color iconColor,
+    required List<Widget> children,
+    bool isCollapsible = false,
+    bool initiallyExpanded = true,
+  }) {
+    if (isCollapsible) {
+      return _CollapsibleSection(
+        icon: icon,
+        title: title,
+        iconColor: iconColor,
+        initiallyExpanded: initiallyExpanded,
+        children: children,
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: Icon(icon, color: iconColor, size: 20),
                 ),
-                const SizedBox(height: 20),
-                FilledButton.icon(
-                  onPressed: () async {
-                    if (!_formKey.currentState!.validate()) return;
-                    final name = _guestName.text.trim();
-                    final phone = _normalizePhone(_guestPhone.text);
-                    final nationality = _guestNationality.text.trim().isEmpty
-                        ? 'غير معروف'
-                        : _guestNationality.text.trim();
-                    final address = _optionalText(_guestAddress.text);
-                    final idNumber = _guestIdNumber.text.trim();
-                    final idIssueDate = _optionalText(_guestIdIssueDate.text);
-                    final idIssuePlace = _optionalText(_guestIdIssuePlace.text);
-                    final roomNumber = _roomNumber.text.trim();
-                    final checkin = _checkin.text.trim();
-                    final checkout = _optionalText(_checkout.text);
-                    final expectedNights =
-                        int.tryParse(_expectedNights.text.trim()) ?? 1;
-                    final checkinDt = _parseDateTime(checkin);
-                    final checkoutDt =
-                        checkout != null ? _parseDateTime(checkout) : null;
-                    final calculatedNights = checkinDt == null
-                        ? expectedNights
-                        : Time.nightsWithCutoff(
-                            checkinDt,
-                            checkout: checkoutDt,
-                          );
-                    final notes = _optionalText(_notes.text);
-                    final discount =
-                        double.tryParse(_discount.text.trim()) ?? 0;
-                    const String? email = null;
-
-                    final blacklist = ref.read(blacklistRepoProvider);
-                    final isBlacklisted = await blacklist.isNameBlacklisted(
-                      name,
-                    );
-                    if (isBlacklisted && mounted) {
-                      final proceed = await showDialog<bool>(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) => AlertDialog(
-                          title: const Text('تحذير أمني'),
-                          content: Text(
-                            'الاسم "$name" موجود في القائمة السوداء ومطلوب أمنياً. هل ترغب بمتابعة تسجيل الحجز؟',
-                          ),
-                          icon: const Icon(Icons.warning, color: Colors.red),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('إلغاء'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('متابعة'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (proceed != true) return;
-                    }
-
-                    if (widget.existing == null) {
-                      await repo.create(
-                        roomNumber: roomNumber,
-                        guestName: name,
-                        guestPhone: phone,
-                        guestIdType: _idType,
-                        guestIdNumber: idNumber,
-                        guestIdIssueDate: idIssueDate,
-                        guestIdIssuePlace: idIssuePlace,
-                        guestNationality: nationality,
-                        guestEmail: email,
-                        guestAddress: address,
-                        checkinDate: checkin,
-                        checkoutDate: checkout,
-                        actualCheckout: null,
-                        status: _status,
-                        notes: notes,
-                        expectedNights: expectedNights,
-                        calculatedNights: calculatedNights,
-                        discount: discount,
-                      );
-                    } else {
-                      await repo.update(
-                        widget.existing!.id,
-                        roomNumber: roomNumber,
-                        guestName: name,
-                        guestPhone: phone,
-                        guestIdType: _idType,
-                        guestIdNumber: idNumber,
-                        guestIdIssueDate: idIssueDate,
-                        guestIdIssuePlace: idIssuePlace,
-                        guestNationality: nationality,
-                        guestEmail: email,
-                        guestAddress: address,
-                        checkinDate: checkin,
-                        checkoutDate: checkout,
-                        status: _status,
-                        notes: notes,
-                        expectedNights: expectedNights,
-                        calculatedNights: calculatedNights,
-                        discount: discount,
-                      );
-                    }
-
-                    await _refreshRoomOccupancy(ref);
-
-                    await syncNow();
-                    if (mounted) Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.save),
-                  label: const Text('حفظ الحجز'),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: scheme.onSurface,
+                  ),
                 ),
               ],
             ),
           ),
+          Divider(height: 1, color: scheme.outline.withOpacity(0.1)),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? hint,
+    String? suffix,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      validator: validator,
+      textCapitalization: textCapitalization,
+      inputFormatters: inputFormatters,
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        suffixText: suffix,
+        prefixIcon: Icon(icon, size: 20),
+        filled: true,
+        fillColor: AppColors.backgroundColor,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.lightGray, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primaryColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.dangerColor, width: 1),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      ),
+      onChanged: (_) => setState(() {}),
+    );
+  }
+
+  Widget _buildRoomSelector(ColorScheme scheme) {
+    final availableRooms = _rooms.where((r) => !_occupiedRooms.contains(r.number)).toList();
+    final occupiedRooms = _rooms.where((r) => _occupiedRooms.contains(r.number)).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (availableRooms.isNotEmpty) ...[
+          Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: AppColors.successColor,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'الغرف المتاحة (${availableRooms.length})',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface.withOpacity(0.7),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: availableRooms.map((room) => _buildRoomChip(room, scheme, false)).toList(),
+          ),
+        ],
+        if (occupiedRooms.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: AppColors.dangerColor,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'الغرف المشغولة (${occupiedRooms.length})',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface.withOpacity(0.7),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: occupiedRooms.map((room) => _buildRoomChip(room, scheme, true)).toList(),
+          ),
+        ],
+        if (_selectedRoom == null && _rooms.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              'الرجاء اختيار غرفة',
+              style: TextStyle(
+                color: AppColors.dangerColor,
+                fontSize: 12,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildRoomChip(Room room, ColorScheme scheme, bool isOccupied) {
+    final isSelected = _selectedRoom == room.number;
+    final canSelect = !isOccupied || isSelected;
+
+    return GestureDetector(
+      onTap: canSelect ? () => setState(() => _selectedRoom = room.number) : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primaryColor
+              : isOccupied
+                  ? scheme.surface
+                  : scheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primaryColor
+                : isOccupied
+                    ? AppColors.dangerColor.withOpacity(0.3)
+                    : AppColors.lightGray,
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primaryColor.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.hotel,
+              color: isSelected
+                  ? Colors.white
+                  : isOccupied
+                      ? AppColors.dangerColor.withOpacity(0.5)
+                      : AppColors.primaryColor,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              room.number,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: isSelected
+                    ? Colors.white
+                    : isOccupied
+                        ? scheme.onSurface.withOpacity(0.4)
+                        : scheme.onSurface,
+              ),
+            ),
+            if (room.floor != null)
+              Text(
+                'طابق ${room.floor}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isSelected
+                      ? Colors.white.withOpacity(0.8)
+                      : scheme.onSurface.withOpacity(0.5),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSyncIndicator(SyncStatus status) {
-    switch (status) {
-      case SyncStatus.pending:
-        return const Padding(
-          padding: EdgeInsets.all(8),
+  Widget _buildDateTimeSelector(ColorScheme scheme) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildDateTimeTile(
+            scheme: scheme,
+            icon: Icons.calendar_today,
+            label: 'تاريخ الدخول',
+            value: '${_checkinDate.day}/${_checkinDate.month}/${_checkinDate.year}',
+            onTap: () => _selectDate(context),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildDateTimeTile(
+            scheme: scheme,
+            icon: Icons.access_time,
+            label: 'وقت الدخول',
+            value: _checkinTime.format(context),
+            onTap: () => _selectTime(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateTimeTile({
+    required ColorScheme scheme,
+    required IconData icon,
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.lightGray),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 16, color: AppColors.primaryColor),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: scheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNightsSelector(ColorScheme scheme) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryColor.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primaryColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.nights_stay,
+              color: AppColors.primaryColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'عدد الليالي المتوقعة',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: scheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$_expectedNights ${_expectedNights == 1 ? 'ليلة' : 'ليالي'}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Row(
+            children: [
+              _buildNightButton(
+                icon: Icons.remove,
+                onTap: _expectedNights > 1
+                    ? () => setState(() => _expectedNights--)
+                    : null,
+              ),
+              Container(
+                width: 50,
+                alignment: Alignment.center,
+                child: Text(
+                  '$_expectedNights',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              _buildNightButton(
+                icon: Icons.add,
+                onTap: () => setState(() => _expectedNights++),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNightButton({
+    required IconData icon,
+    VoidCallback? onTap,
+  }) {
+    final isEnabled = onTap != null;
+    return Material(
+      color: isEnabled ? AppColors.primaryColor : AppColors.lightGray,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
           child: Icon(
-            Icons.cloud_upload_outlined,
-            color: Colors.orange,
+            icon,
+            color: isEnabled ? Colors.white : AppColors.mediumGray,
             size: 20,
           ),
-        );
-      case SyncStatus.syncing:
-        return const Padding(
-          padding: EdgeInsets.all(8),
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Colors.blue,
-            ),
-          ),
-        );
-      case SyncStatus.synced:
-        return const Padding(
-          padding: EdgeInsets.all(8),
-          child: Icon(Icons.cloud_done, color: Colors.green, size: 20),
-        );
-      case SyncStatus.queued:
-        return const Padding(
-          padding: EdgeInsets.all(8),
-          child: Icon(Icons.cloud_off, color: Colors.grey, size: 20),
-        );
-      default:
-        return const SizedBox.shrink();
-    }
-  }
-
-  Widget _buildSectionTitle(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  Future<void> _pickDate(
-    TextEditingController controller, {
-    bool onlyDate = false,
-  }) async {
-    final initial = _parseDateTime(controller.text) ?? DateTime.now();
-    final date = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (date == null) return;
-    if (onlyDate) {
-      controller.text = _formatDateTime(
-        DateTime(date.year, date.month, date.day, 0, 0, 0),
-      ).substring(0, 10);
-      return;
-    }
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(initial),
-    );
-    if (time == null) return;
-    final selected = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    );
-    setState(() {
-      controller.text = _formatDateTime(selected);
-    });
-    if (controller == _checkout || controller == _checkin) {
-      _recalculateExpectedNights();
-    }
-  }
-
-  void _recalculateExpectedNights() {
-    final checkinDt = _parseDateTime(_checkin.text.trim());
-    if (checkinDt == null) return;
-    final checkoutDt = _parseDateTime(_checkout.text.trim());
-    final nights = Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
-    setState(() {
-      _expectedNights.text = nights.toString();
-    });
-  }
-
-  Widget _buildRoomSelector(AsyncValue<List<Room>> roomsAsync) {
-    return roomsAsync.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        child: LinearProgressIndicator(),
-      ),
-      error: (err, stack) => TextFormField(
-        controller: _roomNumber,
-        readOnly: true,
-        decoration: const InputDecoration(
-          labelText: 'رقم الغرفة *',
-          helperText: 'تعذر تحميل قائمة الغرف، أدخل الرقم يدوياً',
         ),
-        validator: _req,
       ),
-      data: (rooms) {
-        final availableRooms = rooms
-            .where((room) => StatusUtils.isRoomAvailable(room.status))
-            .toList()
-          ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+    );
+  }
 
-        final currentValue = _roomNumber.text.trim();
-        if (!_roomInitialized &&
-            widget.existing == null &&
-            availableRooms.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _roomNumber.text = availableRooms.first.roomNumber;
-                _roomInitialized = true;
-              });
-            }
-          });
-        } else if (!_roomInitialized && widget.existing != null) {
-          _roomInitialized = true;
-        }
-
-        final items = <DropdownMenuItem<String>>[];
-        if (currentValue.isNotEmpty &&
-            !availableRooms.any((room) => room.roomNumber == currentValue)) {
-          items.add(
-            DropdownMenuItem(
-              value: currentValue,
-              child: Text('$currentValue (الحالي)'),
+  Widget _buildCheckoutPreview(ColorScheme scheme) {
+    final checkoutDate = _checkinDate.add(Duration(days: _expectedNights));
+    
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.infoColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.infoColor.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.logout,
+            color: AppColors.infoColor,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Text(
+            'تاريخ الخروج المتوقع:',
+            style: TextStyle(
+              fontSize: 13,
+              color: scheme.onSurface.withOpacity(0.7),
             ),
-          );
-        }
-        items.addAll(
-          availableRooms.map(
-            (room) => DropdownMenuItem(
-              value: room.roomNumber,
-              child: Text('${room.roomNumber} • ${room.type}'),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${checkoutDate.day}/${checkoutDate.month}/${checkoutDate.year}',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppColors.infoColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusSelector(ColorScheme scheme) {
+    final statuses = [
+      {'value': 'active', 'label': 'نشط', 'icon': Icons.check_circle, 'color': AppColors.successColor},
+      {'value': 'reserved', 'label': 'محجوز', 'icon': Icons.schedule, 'color': AppColors.warningColor},
+      {'value': 'checked_out', 'label': 'خرج', 'icon': Icons.logout, 'color': AppColors.infoColor},
+      {'value': 'cancelled', 'label': 'ملغي', 'icon': Icons.cancel, 'color': AppColors.dangerColor},
+    ];
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: statuses.map((status) {
+        final isSelected = _selectedStatus == status['value'];
+        final color = status['color'] as Color;
+
+        return GestureDetector(
+          onTap: () => setState(() => _selectedStatus = status['value'] as String),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? color : scheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? color : color.withOpacity(0.3),
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: color.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  status['icon'] as IconData,
+                  size: 18,
+                  color: isSelected ? Colors.white : color,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  status['label'] as String,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? Colors.white : color,
+                  ),
+                ),
+              ],
             ),
           ),
         );
+      }).toList(),
+    );
+  }
 
-        if (items.isEmpty) {
-          return TextFormField(
-            controller: _roomNumber,
-            readOnly: widget.existing == null,
-            decoration: const InputDecoration(
-              labelText: 'رقم الغرفة *',
-              helperText: 'لا توجد غرف شاغرة متاحة حالياً',
+  Widget _buildPriceSummaryCard(
+    ColorScheme scheme,
+    double total,
+    double advance,
+    double remaining,
+    double discount,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primaryColor,
+            AppColors.primaryDark,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryColor.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.receipt_long,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'ملخص الفاتورة',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
-            validator: _req,
-          );
-        }
+            const SizedBox(height: 14),
+            _buildSummaryRow('سعر الليلة × $_expectedNights', '${(double.tryParse(_nightlyCtrl.text) ?? 0) * _expectedNights}'),
+            if (discount > 0)
+              _buildSummaryRow('الخصم', '-$discount', isDiscount: true),
+            _buildSummaryRow('الدفعة المقدمة', '-$advance'),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Divider(color: Colors.white24, height: 1),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'المتبقي',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white70,
+                  ),
+                ),
+                Text(
+                  '${remaining.toStringAsFixed(0)} ر.ي',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: remaining > 0 ? Colors.white : AppColors.successColor,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-        return DropdownButtonFormField<String>(
-          value: currentValue.isNotEmpty ? currentValue : null,
-          items: items,
-          onChanged: (value) {
-            setState(() {
-              _roomNumber.text = value ?? '';
-            });
-          },
-          decoration: const InputDecoration(labelText: 'رقم الغرفة *'),
-          validator: (value) =>
-              value == null || value.trim().isEmpty ? 'مطلوب' : null,
+  Widget _buildSummaryRow(String label, String value, {bool isDiscount = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ),
+          Text(
+            '$value ر.ي',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isDiscount ? Colors.greenAccent : Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavigationButtons(ColorScheme scheme) {
+    final isLastStep = _currentStep == 2;
+    final isFirstStep = _currentStep == 0;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            if (!isFirstStep)
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => setState(() => _currentStep--),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('السابق'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: const BorderSide(color: AppColors.primaryColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            if (!isFirstStep) const SizedBox(width: 12),
+            Expanded(
+              flex: isFirstStep ? 1 : 1,
+              child: ElevatedButton.icon(
+                onPressed: _saving
+                    ? null
+                    : isLastStep
+                        ? _submit
+                        : () => _validateAndNext(),
+                icon: _saving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Icon(isLastStep ? Icons.check : Icons.arrow_forward),
+                label: Text(
+                  _saving
+                      ? 'جاري الحفظ...'
+                      : isLastStep
+                          ? (_isEdit ? 'تحديث الحجز' : 'إنشاء الحجز')
+                          : 'التالي',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isLastStep ? AppColors.successColor : AppColors.primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _validateAndNext() {
+    if (_currentStep == 0) {
+      if (_guestCtrl.text.trim().isEmpty) {
+        _showError('الرجاء إدخال اسم الضيف');
+        return;
+      }
+    } else if (_currentStep == 1) {
+      if (_selectedRoom == null) {
+        _showError('الرجاء اختيار غرفة');
+        return;
+      }
+    }
+    setState(() => _currentStep++);
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _checkinDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppColors.primaryColor,
+            ),
+          ),
+          child: child!,
         );
       },
     );
-  }
-
-  Future<void> _refreshRoomOccupancy(WidgetRef ref) async {
-    final db = ref.read(databaseProvider);
-    final roomsRepo = ref.read(roomsRepoProvider);
-    final bookings = await (db.select(
-      db.bookings,
-    )..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
-    final occupiedRooms = <String>{};
-    for (final booking in bookings) {
-      if (StatusUtils.isActiveBooking(booking.status)) {
-        occupiedRooms.add(booking.roomNumber);
-      }
-    }
-
-    final rooms = await (db.select(
-      db.rooms,
-    )..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
-    for (final room in rooms) {
-      final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
-      final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
-      final isCurrentlyAvailable = StatusUtils.isRoomAvailable(room.status);
-      final target = StatusUtils.roomStatusForOccupancy(shouldBeOccupied);
-      if (shouldBeOccupied && !isCurrentlyOccupied) {
-        await roomsRepo.updateByRoomNumber(room.roomNumber, status: target);
-      } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
-        await roomsRepo.updateByRoomNumber(room.roomNumber, status: target);
-      }
+    if (picked != null) {
+      setState(() => _checkinDate = picked);
     }
   }
 
-  DateTime? _parseDateTime(String value) {
-    if (value.isEmpty) return null;
-    final normalized = value.contains('T') ? value : value.replaceAll(' ', 'T');
-    final withSeconds =
-        normalized.length == 16 ? '${normalized}:00' : normalized;
+  Future<void> _selectTime(BuildContext context) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _checkinTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppColors.primaryColor,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => _checkinTime = picked);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(message),
+          ],
+        ),
+        backgroundColor: AppColors.dangerColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.dangerColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.delete_forever, color: AppColors.dangerColor),
+            ),
+            const SizedBox(width: 12),
+            const Text('حذف الحجز'),
+          ],
+        ),
+        content: const Text('هل أنت متأكد من حذف هذا الحجز؟ لا يمكن التراجع عن هذا الإجراء.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.dangerColor,
+            ),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _deleteBooking();
+    }
+  }
+
+  Future<void> _deleteBooking() async {
+    if (widget.existing == null) return;
+    setState(() => _saving = true);
     try {
-      return DateTime.parse(withSeconds);
-    } catch (_) {
-      return null;
+      final repo = ref.read(bookingsRepoProvider);
+      await repo.delete(widget.existing!.id);
+      markDataChanged();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('تم حذف الحجز بنجاح'),
+              ],
+            ),
+            backgroundColor: AppColors.successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      _showError('فشل في حذف الحجز: $e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
-  String _formatDateTime(DateTime dt) {
-    final y = dt.year.toString().padLeft(4, '0');
-    final m = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
-    final h = dt.hour.toString().padLeft(2, '0');
-    final min = dt.minute.toString().padLeft(2, '0');
-    final s = dt.second.toString().padLeft(2, '0');
-    return '$y-$m-$d $h:$min:$s';
-  }
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedRoom == null) {
+      _showError('الرجاء اختيار غرفة');
+      setState(() => _currentStep = 1);
+      return;
+    }
+    if (_nightlyCtrl.text.trim().isEmpty) {
+      _showError('الرجاء إدخال سعر الليلة');
+      return;
+    }
 
-  String _normalizePhone(String value) {
-    final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digitsOnly.isEmpty) {
-      return value.trim();
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(bookingsRepoProvider);
+      final checkinDateTime = DateTime(
+        _checkinDate.year,
+        _checkinDate.month,
+        _checkinDate.day,
+        _checkinTime.hour,
+        _checkinTime.minute,
+      );
+
+      final companion = BookingsCompanion(
+        guestName: drift.Value(_guestCtrl.text.trim()),
+        guestPhone: drift.Value(_optionalText(_phoneCtrl.text)),
+        guestAddress: drift.Value(_optionalText(_addressCtrl.text)),
+        guestNationality: drift.Value(_optionalText(_nationalityCtrl.text)),
+        guestIdType: drift.Value(_optionalText(_idTypeCtrl.text)),
+        guestIdNumber: drift.Value(_optionalText(_idNumberCtrl.text)),
+        guestIdIssuePlace: drift.Value(_optionalText(_idIssuePlaceCtrl.text)),
+        guestIdIssueDate: drift.Value(_optionalText(_idIssueDateCtrl.text)),
+        roomNumber: drift.Value(_selectedRoom!),
+        checkinDate: drift.Value(checkinDateTime),
+        nightlyRate: drift.Value(double.tryParse(_nightlyCtrl.text) ?? 0),
+        advancePayment: drift.Value(double.tryParse(_advanceCtrl.text) ?? 0),
+        discount: drift.Value(double.tryParse(_discountCtrl.text)),
+        status: drift.Value(_selectedStatus),
+        notes: drift.Value(_optionalText(_notesCtrl.text)),
+        expectedNights: drift.Value(_expectedNights),
+      );
+
+      if (_isEdit) {
+        await repo.update(widget.existing!.id, companion);
+      } else {
+        await repo.insert(companion);
+      }
+
+      markDataChanged();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Text(_isEdit ? 'تم تحديث الحجز بنجاح' : 'تم إنشاء الحجز بنجاح'),
+              ],
+            ),
+            backgroundColor: AppColors.successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      _showError('فشل في حفظ الحجز: $e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    var normalized = digitsOnly;
-    if (normalized.startsWith('00') && normalized.length > 2) {
-      normalized = normalized.substring(2);
-    }
-    if (normalized.startsWith('0') && normalized.length == 10) {
-      normalized = normalized.substring(1);
-    }
-    if (normalized.startsWith('967')) {
-      return normalized;
-    }
-    return '967$normalized';
   }
 
   String? _optionalText(String text) =>
       text.trim().isEmpty ? null : text.trim();
   String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null;
+}
+
+class _CollapsibleSection extends StatefulWidget {
+  final IconData icon;
+  final String title;
+  final Color iconColor;
+  final List<Widget> children;
+  final bool initiallyExpanded;
+
+  const _CollapsibleSection({
+    required this.icon,
+    required this.title,
+    required this.iconColor,
+    required this.children,
+    this.initiallyExpanded = false,
+  });
+
+  @override
+  State<_CollapsibleSection> createState() => _CollapsibleSectionState();
+}
+
+class _CollapsibleSectionState extends State<_CollapsibleSection>
+    with SingleTickerProviderStateMixin {
+  late bool _isExpanded;
+  late AnimationController _controller;
+  late Animation<double> _iconTurns;
+
+  @override
+  void initState() {
+    super.initState();
+    _isExpanded = widget.initiallyExpanded;
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _iconTurns = Tween<double>(begin: 0.0, end: 0.5).animate(_controller);
+    if (_isExpanded) _controller.value = 1.0;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() {
+      _isExpanded = !_isExpanded;
+      if (_isExpanded) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: _toggle,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: widget.iconColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(widget.icon, color: widget.iconColor, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  RotationTransition(
+                    turns: _iconTurns,
+                    child: Icon(
+                      Icons.expand_more,
+                      color: scheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          ClipRect(
+            child: AnimatedCrossFade(
+              firstChild: const SizedBox.shrink(),
+              secondChild: Column(
+                children: [
+                  Divider(height: 1, color: scheme.outline.withOpacity(0.1)),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: widget.children,
+                    ),
+                  ),
+                ],
+              ),
+              crossFadeState: _isExpanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 200),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
