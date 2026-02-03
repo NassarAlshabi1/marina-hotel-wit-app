@@ -12,6 +12,7 @@ import 'package:printing/printing.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
+import '../../components/widgets/neu_card.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/daos/expenses_dao.dart';
@@ -135,6 +136,64 @@ class _IncomeExpenseReportScreenState
       });
       _fetchReport();
     }
+  }
+
+  bool _isToday() {
+    final now = DateTime.now();
+    return _fromDate.year == now.year &&
+        _fromDate.month == now.month &&
+        _fromDate.day == now.day &&
+        _toDate.year == now.year &&
+        _toDate.month == now.month &&
+        _toDate.day == now.day;
+  }
+
+  bool _isThisWeek() {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    return _fromDate.year == weekStart.year &&
+        _fromDate.month == weekStart.month &&
+        _fromDate.day == weekStart.day;
+  }
+
+  bool _isThisMonth() {
+    final now = DateTime.now();
+    return _fromDate.year == now.year &&
+        _fromDate.month == now.month &&
+        _fromDate.day == 1;
+  }
+
+  bool _isThisYear() {
+    final now = DateTime.now();
+    return _fromDate.year == now.year &&
+        _fromDate.month == 1 &&
+        _fromDate.day == 1;
+  }
+
+  void _setQuickFilter(String type) {
+    final now = DateTime.now();
+    setState(() {
+      switch (type) {
+        case 'today':
+          _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
+          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'week':
+          final weekStart = now.subtract(Duration(days: now.weekday - 1));
+          _fromDate = DateTime(weekStart.year, weekStart.month, weekStart.day, 0, 0, 0);
+          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'month':
+          _fromDate = DateTime(now.year, now.month, 1, 0, 0, 0);
+          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'year':
+          _fromDate = DateTime(now.year, 1, 1, 0, 0, 0);
+          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+      }
+    });
+    _fetchReport();
   }
 
   Future<pw.Document> _buildPdfDocument() async {
@@ -443,77 +502,90 @@ class _IncomeExpenseReportScreenState
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'فترة التقرير',
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
+            NeuCard(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.date_range_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'فترة التقرير',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: NeuDateButton(
+                          icon: Icons.calendar_month_rounded,
+                          label: 'من: ${_dateFormat.format(_fromDate)}',
+                          onTap: () => _pickDate(isFrom: true),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: NeuDateButton(
+                          icon: Icons.event_rounded,
+                          label: 'إلى: ${_dateFormat.format(_toDate)}',
+                          onTap: () => _pickDate(isFrom: false),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
                       children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _pickDate(isFrom: true),
-                            icon: const Icon(Icons.calendar_today, size: 16),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 10),
-                            ),
-                            label: Text(
-                              'من: ${_dateFormat.format(_fromDate)}',
-                              style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          ),
+                        NeuQuickFilterChip(
+                          label: 'اليوم',
+                          selected: _isToday(),
+                          onTap: () => _setQuickFilter('today'),
                         ),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _pickDate(isFrom: false),
-                            icon: const Icon(Icons.calendar_today, size: 16),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 10),
-                            ),
-                            label: Text(
-                              'إلى: ${_dateFormat.format(_toDate)}',
-                              style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          ),
+                        NeuQuickFilterChip(
+                          label: 'الأسبوع',
+                          selected: _isThisWeek(),
+                          onTap: () => _setQuickFilter('week'),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        FilterChip(
-                          label: const Text('تفصيلي',
-                              style: TextStyle(fontSize: 12)),
+                        const SizedBox(width: 8),
+                        NeuQuickFilterChip(
+                          label: 'الشهر',
+                          selected: _isThisMonth(),
+                          onTap: () => _setQuickFilter('month'),
+                        ),
+                        const SizedBox(width: 8),
+                        NeuQuickFilterChip(
+                          label: 'السنة',
+                          selected: _isThisYear(),
+                          onTap: () => _setQuickFilter('year'),
+                        ),
+                        const SizedBox(width: 12),
+                        NeuQuickFilterChip(
+                          label: _detailedMode ? '📋 تفصيلي' : '📊 ملخص',
                           selected: _detailedMode,
-                          onSelected: (value) =>
-                              setState(() => _detailedMode = value),
-                        ),
-                        const Spacer(),
-                        ElevatedButton.icon(
-                          onPressed: _loading ? null : _fetchReport,
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: Text(_loading ? 'جارٍ...' : 'تحديث'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                          ),
+                          onTap: () => setState(() => _detailedMode = !_detailedMode),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
@@ -537,88 +609,53 @@ class _IncomeExpenseReportScreenState
   }
 
   Widget _buildSummaryCards() {
-    return Column(
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      alignment: WrapAlignment.center,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildSummaryCard(
-                'إجمالي الدخل',
-                _incomeTotal,
-                Colors.green,
-                Icons.arrow_downward,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildSummaryCard(
-                'إجمالي المصروفات',
-                _expenseTotal,
-                Colors.red,
-                Icons.arrow_upward,
-              ),
-            ),
-          ],
+        SizedBox(
+          width: 160,
+          child: NeuStatCard(
+            icon: Icons.trending_down_rounded,
+            title: 'إجمالي الدخل',
+            value: _currencyFormat.format(_incomeTotal),
+            iconColor: Colors.green,
+            valueColor: Colors.green.shade700,
+          ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _buildSummaryCard(
-                'مصروفات الرواتب',
-                _salaryTotal,
-                Colors.orange,
-                Icons.people,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildSummaryCard(
-                'صافي الربح',
-                _net,
-                _net >= 0 ? Colors.green : Colors.red,
-                _net >= 0 ? Icons.trending_up : Icons.trending_down,
-              ),
-            ),
-          ],
+        SizedBox(
+          width: 160,
+          child: NeuStatCard(
+            icon: Icons.trending_up_rounded,
+            title: 'إجمالي المصروفات',
+            value: _currencyFormat.format(_expenseTotal),
+            iconColor: Colors.red,
+            valueColor: Colors.red.shade700,
+          ),
+        ),
+        SizedBox(
+          width: 160,
+          child: NeuStatCard(
+            icon: Icons.people_rounded,
+            title: 'مصروفات الرواتب',
+            value: _currencyFormat.format(_salaryTotal),
+            iconColor: Colors.orange,
+            valueColor: Colors.orange.shade700,
+          ),
+        ),
+        SizedBox(
+          width: 160,
+          child: NeuStatCard(
+            icon: _net >= 0 ? Icons.rocket_launch_rounded : Icons.warning_rounded,
+            title: 'صافي الربح',
+            value: _currencyFormat.format(_net),
+            iconColor: _net >= 0 ? Colors.teal : Colors.red,
+            valueColor: _net >= 0 ? Colors.teal.shade700 : Colors.red.shade700,
+            emphasize: true,
+          ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSummaryCard(
-      String title, double amount, Color color, IconData icon) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 18),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _currencyFormat.format(amount),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
