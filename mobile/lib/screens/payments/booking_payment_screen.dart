@@ -13,6 +13,7 @@ import '../../services/providers.dart';
 
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
+import '../../providers/repository_providers.dart';
 import 'payment_history_screen.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
@@ -33,6 +34,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   double _remainingAmount = 0;
   late String _currentGuestPhone;
   bool _isSavingPayment = false;
+  bool _hasDebt = false;
 
   Payment _mapDbPaymentToUi(db.Payment p) {
     return Payment(
@@ -105,6 +107,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     _tabController = TabController(length: 2, vsync: this);
     _phoneController = TextEditingController(text: widget.booking.guestPhone);
     _currentGuestPhone = widget.booking.guestPhone;
+    _checkForDebts();
+  }
+
+  Future<void> _checkForDebts() async {
+    final debtsRepo = ref.read(debtsRepoProvider);
+    final debts = await debtsRepo.listByBookingLocalId(widget.booking.id);
+    if (mounted) {
+      setState(() {
+        _hasDebt = debts.any((d) => d.isSettled == 0 && d.remainingAmount > 0);
+      });
+    }
   }
 
   @override
@@ -395,6 +408,26 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     ? Colors.orange
                     : Colors.green,
               ),
+              if (_hasDebt)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade300),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.warning, size: 14, color: Colors.red.shade700),
+                      const SizedBox(width: 4),
+                      Text(
+                        'يوجد دين',
+                        style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
               if (discount > 0)
                 _buildDetailChip(
                   context,
