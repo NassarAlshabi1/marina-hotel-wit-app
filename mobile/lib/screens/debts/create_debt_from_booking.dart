@@ -323,7 +323,7 @@ class _CreateDebtFromBookingScreenState
           ),
           const SizedBox(height: 10),
           Text(
-            'سيتم إنشاء الدين وتحرير الغرفة ${booking.roomNumber}',
+            'سيتم إنشاء الدين للغرفة ${booking.roomNumber}',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 10),
@@ -341,7 +341,7 @@ class _CreateDebtFromBookingScreenState
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('حفظ وتحرير الغرفة', style: TextStyle(fontSize: 13)),
+                  : const Text('حفظ الدين', style: TextStyle(fontSize: 13)),
             ),
           ),
         ],
@@ -635,14 +635,11 @@ class _CreateDebtFromBookingScreenState
     setState(() => _isAutoProcessing = true);
     final booking = _selectedBooking!;
     final data = _autoDebtData!;
-    final nowIso = Time.nowIso();
     final selectedDateIso = _autoDebtDate.toIso8601String();
     final selectedDateOnly = '${_autoDebtDate.year}-${_autoDebtDate.month.toString().padLeft(2, '0')}-${_autoDebtDate.day.toString().padLeft(2, '0')}';
 
     try {
       final debtsRepo = ref.read(debtsRepoProvider);
-      final bookingsRepo = ref.read(bookingsRepoProvider);
-      final roomsRepo = ref.read(roomsRepoProvider);
 
       final existingDebts = await debtsRepo.listByBookingLocalId(booking.id);
       Debt? openDebt;
@@ -680,23 +677,11 @@ class _CreateDebtFromBookingScreenState
         );
       }
 
-      await bookingsRepo.update(
-        booking.id,
-        status: 'مكتمل',
-        actualCheckout: nowIso,
-        calculatedNights: data.nights,
-      );
-
-      final room = await roomsRepo.watchByNumber(booking.roomNumber).first;
-      if (room != null) {
-        await roomsRepo.update(room.id, status: 'شاغرة');
-      }
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'تم إنشاء الدين (${_formatCurrency(data.remaining)}) وتحرير الغرفة ${booking.roomNumber}'),
+              'تم إنشاء الدين (${_formatCurrency(data.remaining)}) للغرفة ${booking.roomNumber}'),
           backgroundColor: Colors.orange.shade700,
         ),
       );
