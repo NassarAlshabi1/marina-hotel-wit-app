@@ -174,12 +174,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           body: Form(
             key: _formKey,
             child: ListView(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               children: [
                 _buildSectionTitle('بيانات النزيل'),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       children: [
                         TextFormField(
@@ -275,7 +275,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                 _buildSectionTitle('تفاصيل الحجز'),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       children: [
                         _buildRoomSelector(roomsAsync),
@@ -343,7 +343,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       ? Colors.green.shade50
                       : Colors.grey.shade50,
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       children: [
                         CheckboxListTile(
@@ -614,10 +614,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
   Widget _buildSectionTitle(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
       ),
     );
   }
