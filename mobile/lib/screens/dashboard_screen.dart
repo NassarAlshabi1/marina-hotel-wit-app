@@ -326,16 +326,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
-              final width = MediaQuery.sizeOf(context).width;
-              final crossAxisCount = width < 360 ? 2 : width < 480 ? 3 : 4;
+              const crossAxisCount = 4;
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 1.5,
+                  mainAxisSpacing: 6,
+                  crossAxisSpacing: 6,
+                  childAspectRatio: 1.2,
                 ),
                 itemCount: _dashboardRoomNumbers.length,
                 itemBuilder: (context, index) {
@@ -393,9 +392,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         onLongPress: room != null ? () => _showRoomOptionsDialog(context, room) : null,
         child: Material(
           color: bgColor,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           child: InkWell(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             onTap: () => _handleRoomTap(context, roomNumber, room),
             child: Center(
               child: Text(
@@ -403,7 +402,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 12,
                 ),
               ),
             ),
