@@ -217,10 +217,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         TextFormField(
                           controller: _guestIdNumber,
                           decoration: const InputDecoration(
-                            labelText: 'رقم الهوية',
+                            labelText: 'رقم الهوية *',
                           ),
                           keyboardType: TextInputType.number,
                           inputFormatters: [_idNumberFormatter],
+                          validator: _req,
                         ),
                         const SizedBox(height: 10),
                         Row(
