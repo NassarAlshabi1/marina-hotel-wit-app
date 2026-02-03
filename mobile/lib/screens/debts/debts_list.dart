@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../services/logging_service.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 import 'create_debt_from_booking.dart';
@@ -17,6 +18,24 @@ class DebtsListScreen extends ConsumerStatefulWidget {
 
 class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     with SyncOnExitMixin {
+  final _logger = LoggingService();
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onRefresh() async {
+    ref.invalidate(debtsListProvider);
+    _logger.logTransaction(
+      type: TransactionType.sync,
+      entity: 'Debts',
+      details: 'تحديث قائمة الديون',
+    );
+  }
+
   @override
   String get screenId => 'debts_list';
   String _searchQuery = '';
@@ -36,7 +55,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             tooltip: 'إضافة دين جديد',
           ),
         ],
-        body: Column(
+        body: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: Column(
           children: [
             // شريط البحث والتصفية
             _buildSearchAndFilters(),
@@ -66,6 +87,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               ),
             ),
           ],
+        ),
         ),
       ),
     );

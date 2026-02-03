@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../services/logging_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import 'payment_history_screen.dart';
@@ -19,6 +20,8 @@ class PaymentsMainScreen extends ConsumerStatefulWidget {
 
 class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     with SingleTickerProviderStateMixin, SyncOnExitMixin {
+  final _logger = LoggingService();
+
   @override
   String get screenId => 'payments_main';
   late TabController _tabController;

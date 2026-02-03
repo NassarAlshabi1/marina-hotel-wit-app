@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../providers/repository_providers.dart';
 import '../providers/core_providers.dart';
 import '../services/local_db.dart';
+import '../services/logging_service.dart';
 import '../utils/status_utils.dart';
 
 import '../widgets/dashboard_sync_button.dart';
@@ -68,6 +69,18 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  final _logger = LoggingService();
+
+  Future<void> _onRefresh() async {
+    ref.invalidate(roomsListProvider);
+    ref.invalidate(todayPaymentsProvider);
+    _logger.logTransaction(
+      type: TransactionType.sync,
+      entity: 'Dashboard',
+      details: 'تحديث البيانات',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -75,7 +88,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       child: Scaffold(
         backgroundColor: Colors.grey.shade100,
         body: SafeArea(
-          child: ListView(
+          child: RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
               _buildHeader(),
@@ -86,6 +101,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(height: 20),
               _buildRoomsSection(),
             ],
+          ),
           ),
         ),
       ),

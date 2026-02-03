@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../services/logging_service.dart';
 import '../../utils/currency_formatter.dart';
 
 import '../../providers/auth_provider.dart';
@@ -17,6 +18,17 @@ class RoomsListScreen extends ConsumerStatefulWidget {
 
 class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     with SyncOnExitMixin {
+  final _logger = LoggingService();
+
+  Future<void> _onRefresh() async {
+    ref.invalidate(roomsListProvider);
+    _logger.logTransaction(
+      type: TransactionType.sync,
+      entity: 'Rooms',
+      details: 'تحديث قائمة الغرف',
+    );
+  }
+
   @override
   String get screenId => 'rooms_list';
 
@@ -39,7 +51,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
               icon: const Icon(Icons.add),
             ),
         ],
-        body: roomsStream.when(
+        body: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: roomsStream.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, st) => Center(child: Text('خطأ: $e')),
           data: (rooms) {
@@ -62,6 +76,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
               },
             );
           },
+        ),
         ),
       ),
     );
