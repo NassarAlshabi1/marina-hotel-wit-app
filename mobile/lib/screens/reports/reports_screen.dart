@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/core_providers.dart' as coreProviders;
+import '../../services/logging_service.dart';
 import '../../utils/status_utils.dart';
 import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
@@ -12,6 +13,7 @@ import 'income_expense_report_screen.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
+  static final _logger = LoggingService();
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final db = ref.watch(coreProviders.dbProvider);
@@ -19,7 +21,10 @@ class ReportsScreen extends ConsumerWidget {
       title: 'التقارير',
       actions: [
         IconButton(
-          onPressed: () => ref.read(coreProviders.syncProvider).runSync(),
+          onPressed: () {
+            _logger.logTransaction(type: TransactionType.sync, entity: 'Reports', details: 'مزامنة التقارير');
+            ref.read(coreProviders.syncProvider).runSync();
+          },
           icon: const Icon(Icons.sync),
         ),
       ],

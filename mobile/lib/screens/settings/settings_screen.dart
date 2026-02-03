@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
+import '../../services/logging_service.dart';
 import '../../providers/theme_provider.dart';
 import '../../utils/status_utils.dart';
 import 'settings_employees.dart';

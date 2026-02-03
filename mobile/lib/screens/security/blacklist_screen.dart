@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/repositories/blacklist_repository.dart';
+import '../../services/logging_service.dart';
 
 class BlacklistScreen extends ConsumerWidget {
   const BlacklistScreen({super.key});
+  static final _logger = LoggingService();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -59,9 +61,11 @@ class BlacklistScreen extends ConsumerWidget {
                       switch (value) {
                         case 'toggle':
                           await repo.updateActive(e.id, !e.active);
+                          _logger.logTransaction(type: TransactionType.update, entity: 'Blacklist', entityId: e.id, details: e.active ? 'تعطيل' : 'تفعيل');
                           break;
                         case 'delete':
                           await repo.delete(e.id);
+                          _logger.logTransaction(type: TransactionType.delete, entity: 'Blacklist', entityId: e.id, details: 'حذف من القائمة السوداء');
                           break;
                       }
                     },
@@ -162,6 +166,7 @@ class BlacklistScreen extends ConsumerWidget {
                 reason: reason.text,
                 notes: notes.text,
               );
+              _logger.logTransaction(type: TransactionType.create, entity: 'Blacklist', details: 'إضافة: ${name.text}');
               navigator.pop();
             },
             child: const Text('حفظ'),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/local_db.dart';
+import '../../services/logging_service.dart';
 import '../../utils/currency_formatter.dart';
 
 class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
@@ -16,6 +17,7 @@ class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
 class _SalaryEntitlementsScreenState
     extends ConsumerState<SalaryEntitlementsScreen> {
   late SalaryEntitlementService _service;
+  final _logger = LoggingService();
   List<SalaryEntitlement> _entitlements = [];
   Map<String, dynamic> _summary = {};
   bool _isLoading = true;
@@ -32,6 +34,7 @@ class _SalaryEntitlementsScreenState
     try {
       _summary = await _service.getSummary();
       _entitlements = _summary['entitlements'] as List<SalaryEntitlement>;
+      _logger.logTransaction(type: TransactionType.sync, entity: 'SalaryEntitlements', details: 'تحديث استحقاقات الرواتب');
     } catch (e) {
       debugPrint('Error: $e');
       if (mounted) {

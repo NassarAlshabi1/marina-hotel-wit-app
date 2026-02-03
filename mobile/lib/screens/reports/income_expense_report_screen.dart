@@ -17,6 +17,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
+import '../../services/logging_service.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {

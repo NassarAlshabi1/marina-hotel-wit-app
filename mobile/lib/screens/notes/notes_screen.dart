@@ -4,6 +4,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../models/shift_note_adapter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/logging_service.dart';
 
 /// شاشة الملاحظات البسيطة
 class NotesScreen extends ConsumerStatefulWidget {
@@ -18,6 +19,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   @override
   String get screenId => 'notes_screen';
   late TabController _tabController;
+  final _logger = LoggingService();
 
   @override
   void initState() {
@@ -219,6 +221,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     switch (action) {
       case 'read':
         await repo.markAsRead(note.id);
+        _logger.logTransaction(type: TransactionType.update, entity: 'Note', entityId: note.id, details: 'وضع علامة مقروء');
         _refreshData();
         break;
       case 'edit':
@@ -260,6 +263,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
 
     if (confirmed == true) {
       await ref.read(simpleNotesRepoProvider).deleteNote(note.id);
+      _logger.logTransaction(type: TransactionType.delete, entity: 'Note', entityId: note.id, details: 'حذف ملاحظة');
       _refreshData();
     }
   }
@@ -357,6 +361,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         priority: priority,
         shiftType: shiftType,
       );
+      _logger.logTransaction(type: TransactionType.create, entity: 'Note', details: 'إضافة ملاحظة: $title');
     } else {
       // تحديث موجود
       await repo.updateNote(
@@ -366,6 +371,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         priority: priority,
         shiftType: shiftType,
       );
+      _logger.logTransaction(type: TransactionType.update, entity: 'Note', entityId: note.id, details: 'تعديل ملاحظة: $title');
     }
 
     markDataChanged();

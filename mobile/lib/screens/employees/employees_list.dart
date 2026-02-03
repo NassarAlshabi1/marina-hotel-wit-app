@@ -4,6 +4,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
+import '../../services/logging_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 
@@ -19,6 +20,12 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     with SyncOnExitMixin {
   @override
   String get screenId => 'employees_list';
+  final _logger = LoggingService();
+
+  Future<void> _onRefresh() async {
+    _logger.logTransaction(type: TransactionType.sync, entity: 'Employees', details: 'تحديث قائمة الموظفين');
+    await ref.read(syncServiceProvider).runSync();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +43,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
             icon: const Icon(Icons.add),
           ),
         ],
-        body: StreamBuilder(
+        body: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: StreamBuilder(
           stream: repo.watchAll(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
@@ -44,6 +53,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
             }
             final list = snapshot.data!;
             return ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
               itemCount: list.length,
               itemBuilder: (c, i) {
                 final e = list[i];
@@ -58,6 +68,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
             );
           },
         ),
+      ),
       ),
     );
   }
@@ -126,6 +137,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
         status: status,
       );
+      _logger.logTransaction(type: TransactionType.create, entity: 'Employee', details: 'إضافة موظف: ${name.text.trim()}');
     } else {
       await repo.update(
         existing.id,
@@ -133,6 +145,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
         status: status,
       );
+      _logger.logTransaction(type: TransactionType.update, entity: 'Employee', entityId: existing.id, details: 'تعديل موظف: ${name.text.trim()}');
     }
 
     markDataChanged();
