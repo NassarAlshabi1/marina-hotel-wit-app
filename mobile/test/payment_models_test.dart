@@ -42,35 +42,35 @@ void main() {
     test('يجب أن تحتوي على جميع الحالات', () {
       expect(PaymentStatus.values.length, 4);
       expect(PaymentStatus.values, contains(PaymentStatus.pending));
-      expect(PaymentStatus.values, contains(PaymentStatus.partial));
       expect(PaymentStatus.values, contains(PaymentStatus.completed));
+      expect(PaymentStatus.values, contains(PaymentStatus.failed));
       expect(PaymentStatus.values, contains(PaymentStatus.refunded));
     });
 
     test('يجب أن تحتوي على أسماء عربية صحيحة', () {
       expect(PaymentStatus.pending.displayName, 'في الانتظار');
-      expect(PaymentStatus.partial.displayName, 'دفع جزئي');
       expect(PaymentStatus.completed.displayName, 'مكتمل');
+      expect(PaymentStatus.failed.displayName, 'فشل');
       expect(PaymentStatus.refunded.displayName, 'مسترد');
     });
 
     test('يجب أن تحتوي على ألوان مميزة', () {
       expect(PaymentStatus.pending.color, Colors.orange);
-      expect(PaymentStatus.partial.color, Colors.blue);
       expect(PaymentStatus.completed.color, Colors.green);
-      expect(PaymentStatus.refunded.color, Colors.red);
+      expect(PaymentStatus.failed.color, Colors.red);
+      expect(PaymentStatus.refunded.color, Colors.blue);
     });
   });
 
   group('BookingPaymentSummary', () {
-    test('يجب حساب المبلغ المتبقي بشكل صحيح', () {
+    test('يجب حفظ المبلغ المتبقي بشكل صحيح', () {
       final summary = BookingPaymentSummary(
         bookingId: 'test-booking-1',
-        guestName: 'أحمد',
-        roomNumber: '101',
         totalAmount: 50000,
         paidAmount: 20000,
+        remainingAmount: 30000,
         payments: [],
+        overallStatus: PaymentStatus.pending,
       );
 
       expect(summary.remainingAmount, 30000);
@@ -79,39 +79,39 @@ void main() {
     test('يجب حساب نسبة الدفع بشكل صحيح', () {
       final summary = BookingPaymentSummary(
         bookingId: 'test-booking-2',
-        guestName: 'محمد',
-        roomNumber: '102',
         totalAmount: 100000,
         paidAmount: 25000,
+        remainingAmount: 75000,
         payments: [],
+        overallStatus: PaymentStatus.pending,
       );
 
-      expect(summary.paymentProgress, 0.25);
+      expect(summary.paidPercentage, 25.0);
     });
 
     test('يجب أن تكون isFullyPaid صحيحة عند الدفع الكامل', () {
       final fullyPaid = BookingPaymentSummary(
         bookingId: 'test-booking-3',
-        guestName: 'علي',
-        roomNumber: '103',
         totalAmount: 50000,
         paidAmount: 50000,
+        remainingAmount: 0,
         payments: [],
+        overallStatus: PaymentStatus.completed,
       );
 
       expect(fullyPaid.isFullyPaid, isTrue);
       expect(fullyPaid.remainingAmount, 0);
-      expect(fullyPaid.paymentProgress, 1.0);
+      expect(fullyPaid.paidPercentage, 100.0);
     });
 
     test('يجب أن تكون isFullyPaid خاطئة عند الدفع الجزئي', () {
       final partialPaid = BookingPaymentSummary(
         bookingId: 'test-booking-4',
-        guestName: 'سعيد',
-        roomNumber: '104',
         totalAmount: 50000,
         paidAmount: 30000,
+        remainingAmount: 20000,
         payments: [],
+        overallStatus: PaymentStatus.pending,
       );
 
       expect(partialPaid.isFullyPaid, isFalse);
@@ -120,105 +120,115 @@ void main() {
     test('يجب معالجة الدفع الزائد بشكل صحيح', () {
       final overPaid = BookingPaymentSummary(
         bookingId: 'test-booking-5',
-        guestName: 'خالد',
-        roomNumber: '105',
         totalAmount: 50000,
         paidAmount: 60000,
+        remainingAmount: -10000,
         payments: [],
+        overallStatus: PaymentStatus.completed,
       );
 
       expect(overPaid.remainingAmount, -10000);
       expect(overPaid.isFullyPaid, isTrue);
+      expect(overPaid.paidPercentage, 120.0);
     });
 
     test('يجب معالجة المبلغ صفر', () {
       final zeroPaid = BookingPaymentSummary(
         bookingId: 'test-booking-6',
-        guestName: 'فهد',
-        roomNumber: '106',
         totalAmount: 50000,
         paidAmount: 0,
+        remainingAmount: 50000,
         payments: [],
+        overallStatus: PaymentStatus.pending,
       );
 
       expect(zeroPaid.remainingAmount, 50000);
-      expect(zeroPaid.paymentProgress, 0.0);
+      expect(zeroPaid.paidPercentage, 0.0);
       expect(zeroPaid.isFullyPaid, isFalse);
     });
 
-    test('يجب إرجاع حالة الدفع الصحيحة', () {
+    test('يجب حفظ حالة الدفع بشكل صحيح', () {
       final pending = BookingPaymentSummary(
         bookingId: 'test-1',
-        guestName: 'ضيف',
-        roomNumber: '101',
         totalAmount: 50000,
         paidAmount: 0,
+        remainingAmount: 50000,
         payments: [],
+        overallStatus: PaymentStatus.pending,
       );
-      expect(pending.status, PaymentStatus.pending);
+      expect(pending.overallStatus, PaymentStatus.pending);
 
-      final partial = BookingPaymentSummary(
+      final failed = BookingPaymentSummary(
         bookingId: 'test-2',
-        guestName: 'ضيف',
-        roomNumber: '102',
         totalAmount: 50000,
-        paidAmount: 25000,
+        paidAmount: 0,
+        remainingAmount: 50000,
         payments: [],
+        overallStatus: PaymentStatus.failed,
       );
-      expect(partial.status, PaymentStatus.partial);
+      expect(failed.overallStatus, PaymentStatus.failed);
 
       final completed = BookingPaymentSummary(
         bookingId: 'test-3',
-        guestName: 'ضيف',
-        roomNumber: '103',
         totalAmount: 50000,
         paidAmount: 50000,
+        remainingAmount: 0,
         payments: [],
+        overallStatus: PaymentStatus.completed,
       );
-      expect(completed.status, PaymentStatus.completed);
+      expect(completed.overallStatus, PaymentStatus.completed);
     });
 
     test('حالات واقعية من الفندق', () {
       final realCase = BookingPaymentSummary(
         bookingId: 'booking-302',
-        guestName: 'فايز جهلان',
-        roomNumber: '302',
         totalAmount: 42900,
         paidAmount: 0,
+        remainingAmount: 42900,
         payments: [],
+        overallStatus: PaymentStatus.pending,
       );
 
       expect(realCase.remainingAmount, 42900);
-      expect(realCase.paymentProgress, 0.0);
-      expect(realCase.status, PaymentStatus.pending);
+      expect(realCase.paidPercentage, 0.0);
+      expect(realCase.overallStatus, PaymentStatus.pending);
     });
   });
 
-  group('PaymentRecord', () {
+  group('Payment', () {
     test('يجب إنشاء سجل دفع بشكل صحيح', () {
-      final record = PaymentRecord(
+      final record = Payment(
         id: 'pay-1',
         bookingId: 'booking-1',
         amount: 15000,
         method: PaymentMethod.cash,
-        date: DateTime(2024, 1, 15, 10, 30),
+        status: PaymentStatus.completed,
+        paymentDate: DateTime(2024, 1, 15, 10, 30),
+        receivedBy: 'admin',
+        createdAt: DateTime(2024, 1, 15, 10, 31),
+        updatedAt: DateTime(2024, 1, 15, 10, 31),
       );
 
       expect(record.id, 'pay-1');
       expect(record.bookingId, 'booking-1');
       expect(record.amount, 15000);
       expect(record.method, PaymentMethod.cash);
-      expect(record.date.year, 2024);
+      expect(record.status, PaymentStatus.completed);
+      expect(record.paymentDate.year, 2024);
     });
 
     test('يجب دعم جميع طرق الدفع', () {
       for (final method in PaymentMethod.values) {
-        final record = PaymentRecord(
+        final record = Payment(
           id: 'pay-${method.name}',
           bookingId: 'booking-1',
           amount: 10000,
           method: method,
-          date: DateTime.now(),
+          status: PaymentStatus.pending,
+          paymentDate: DateTime.now(),
+          receivedBy: 'system',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
         );
         expect(record.method, method);
       }
