@@ -4,7 +4,6 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
-import '../../services/logging_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 
@@ -20,11 +19,12 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     with SyncOnExitMixin {
   @override
   String get screenId => 'employees_list';
-  final _logger = LoggingService();
 
   Future<void> _onRefresh() async {
-    _logger.logTransaction(type: TransactionType.sync, entity: 'Employees', details: 'تحديث قائمة الموظفين');
+    final logger = ref.read(loggingServiceProvider);
+    logger.logTransaction(type: TransactionType.sync, entity: 'Employees', details: 'تحديث قائمة الموظفين');
     await ref.read(syncServiceProvider).runSync();
+    ref.invalidate(employeesListProvider);
   }
 
   @override
@@ -131,13 +131,14 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     if (ok != true) return;
 
     final repo = ref.read(employeesRepoProvider);
+    final logger = ref.read(loggingServiceProvider);
     if (existing == null) {
       await repo.create(
         name: name.text.trim(),
         basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
         status: status,
       );
-      _logger.logTransaction(type: TransactionType.create, entity: 'Employee', details: 'إضافة موظف: ${name.text.trim()}');
+      logger.logTransaction(type: TransactionType.create, entity: 'Employee', details: 'إضافة موظف: ${name.text.trim()}');
     } else {
       await repo.update(
         existing.id,
@@ -145,7 +146,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
         status: status,
       );
-      _logger.logTransaction(type: TransactionType.update, entity: 'Employee', entityId: existing.id.toString(), details: 'تعديل موظف: ${name.text.trim()}');
+      logger.logTransaction(type: TransactionType.update, entity: 'Employee', entityId: existing.id.toString(), details: 'تعديل موظف: ${name.text.trim()}');
     }
 
     markDataChanged();

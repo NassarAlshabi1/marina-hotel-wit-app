@@ -25,6 +25,8 @@ export '../providers/backup_provider.dart';
 export '../providers/auto_backup_provider.dart';
 // إضافة Smart Sync Providers
 export '../providers/smart_sync_provider.dart';
+// إضافة Logging Provider
+export '../providers/logging_provider.dart';
 
 final syncGuardianProvider = Provider<SyncGuardian>(
   (ref) => SyncGuardian.instance,
