@@ -502,18 +502,18 @@ class _IncomeExpenseReportScreenState
         ),
       ],
       body: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(8),
         child: Column(
           children: [
             NeuCard(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8),
@@ -521,13 +521,13 @@ class _IncomeExpenseReportScreenState
                         child: Icon(
                           Icons.date_range_rounded,
                           color: Theme.of(context).colorScheme.primary,
-                          size: 18,
+                          size: 16,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       const Text(
                         'فترة التقرير',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
@@ -613,12 +613,12 @@ class _IncomeExpenseReportScreenState
 
   Widget _buildSummaryCards() {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 6,
+      runSpacing: 6,
       alignment: WrapAlignment.center,
       children: [
         SizedBox(
-          width: 140,
+          width: 120,
           child: NeuStatCard(
             icon: Icons.trending_down_rounded,
             title: 'إجمالي الدخل',
@@ -628,7 +628,7 @@ class _IncomeExpenseReportScreenState
           ),
         ),
         SizedBox(
-          width: 140,
+          width: 120,
           child: NeuStatCard(
             icon: Icons.trending_up_rounded,
             title: 'إجمالي المصروفات',
@@ -638,7 +638,7 @@ class _IncomeExpenseReportScreenState
           ),
         ),
         SizedBox(
-          width: 140,
+          width: 120,
           child: NeuStatCard(
             icon: Icons.people_rounded,
             title: 'مصروفات الرواتب',
@@ -648,7 +648,7 @@ class _IncomeExpenseReportScreenState
           ),
         ),
         SizedBox(
-          width: 140,
+          width: 120,
           child: NeuStatCard(
             icon: _net >= 0 ? Icons.rocket_launch_rounded : Icons.warning_rounded,
             title: 'صافي الربح',
@@ -719,11 +719,11 @@ class _IncomeExpenseReportScreenState
               child: Icon(icon, color: color, size: 18),
             ),
             title:
-                Text(entry.description, style: const TextStyle(fontSize: 13)),
+                Text(entry.description, style: const TextStyle(fontSize: 11)),
             subtitle: Row(
               children: [
                 Text(_dateFormat.format(entry.date),
-                    style: const TextStyle(fontSize: 12)),
+                    style: const TextStyle(fontSize: 10)),
                 const SizedBox(width: 4),
                 Container(
                   padding:
@@ -746,7 +746,7 @@ class _IncomeExpenseReportScreenState
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: color,
-                fontSize: 13,
+                fontSize: 11,
               ),
             ),
           ),

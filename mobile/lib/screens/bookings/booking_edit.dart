@@ -148,7 +148,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(8),
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
                           child: _buildCurrentStep(scheme),
@@ -179,7 +179,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
               color: Colors.white,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Text(_title),
         ],
       ),
@@ -203,7 +203,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     ];
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
       decoration: BoxDecoration(
         color: scheme.surface,
         boxShadow: [
@@ -238,7 +238,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   onTap: () => setState(() => _currentStep = index),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: isActive
                           ? AppColors.primaryColor
@@ -260,7 +260,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           isCompleted
                               ? Icons.check_circle
                               : steps[index]['icon'] as IconData,
-                          size: 18,
+                          size: 14,
                           color: isActive
                               ? Colors.white
                               : isCompleted
@@ -273,7 +273,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             steps[index]['label'] as String,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 12,
+                              fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -323,7 +323,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
               validator: _req,
               textCapitalization: TextCapitalization.words,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildModernTextField(
               controller: _phoneCtrl,
               label: 'رقم الهاتف',
@@ -331,13 +331,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
               keyboardType: TextInputType.phone,
               inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+]'))],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildModernTextField(
               controller: _nationalityCtrl,
               label: 'الجنسية',
               icon: Icons.flag_outlined,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildModernTextField(
               controller: _addressCtrl,
               label: 'العنوان',
@@ -346,7 +346,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _buildSectionCard(
           scheme: scheme,
           icon: Icons.badge,
@@ -361,14 +361,14 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
               icon: Icons.credit_card_outlined,
               hint: 'بطاقة شخصية / جواز سفر',
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildModernTextField(
               controller: _idNumberCtrl,
               label: 'رقم الهوية',
               icon: Icons.numbers,
               keyboardType: TextInputType.text,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -378,7 +378,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     icon: Icons.calendar_today_outlined,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _buildModernTextField(
                     controller: _idIssuePlaceCtrl,
@@ -408,7 +408,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
             _buildRoomSelector(scheme),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _buildSectionCard(
           scheme: scheme,
           icon: Icons.calendar_month,
@@ -416,13 +416,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           iconColor: AppColors.warningColor,
           children: [
             _buildDateTimeSelector(scheme),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             _buildNightsSelector(scheme),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildCheckoutPreview(scheme),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _buildSectionCard(
           scheme: scheme,
           icon: Icons.info_outline,
@@ -462,7 +462,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
               suffix: 'ر.ي',
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildModernTextField(
               controller: _discountCtrl,
               label: 'الخصم',
@@ -471,7 +471,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
               suffix: 'ر.ي',
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildModernTextField(
               controller: _advanceCtrl,
               label: 'الدفعة المقدمة',
@@ -482,9 +482,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _buildPriceSummaryCard(scheme, totalAmount, advance, remaining, discount),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _buildSectionCard(
           scheme: scheme,
           icon: Icons.notes,
@@ -541,22 +541,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: iconColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, color: iconColor, size: 20),
+                  child: Icon(icon, color: iconColor, size: 16),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: scheme.onSurface,
                   ),
@@ -566,7 +566,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           ),
           Divider(height: 1, color: scheme.outline.withOpacity(0.1)),
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: children,
@@ -596,12 +596,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       validator: validator,
       textCapitalization: textCapitalization,
       inputFormatters: inputFormatters,
-      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         suffixText: suffix,
-        prefixIcon: Icon(icon, size: 20),
+        prefixIcon: Icon(icon, size: 16),
         filled: true,
         fillColor: AppColors.backgroundColor,
         border: OutlineInputBorder(
@@ -620,7 +620,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.dangerColor, width: 1),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       ),
       onChanged: (_) => setState(() {}),
     );
@@ -655,7 +655,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -663,7 +663,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           ),
         ],
         if (occupiedRooms.isNotEmpty) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           Row(
             children: [
               Container(
@@ -685,7 +685,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -715,7 +715,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       onTap: canSelect ? () => setState(() => _selectedRoom = room.number) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
               ? AppColors.primaryColor
@@ -750,14 +750,14 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   : isOccupied
                       ? AppColors.dangerColor.withOpacity(0.5)
                       : AppColors.primaryColor,
-              size: 24,
+              size: 20,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               room.number,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontSize: 12,
                 color: isSelected
                     ? Colors.white
                     : isOccupied
@@ -793,7 +793,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
             onTap: () => _selectDate(context),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         Expanded(
           child: _buildDateTimeTile(
             scheme: scheme,
@@ -818,7 +818,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: AppColors.backgroundColor,
           borderRadius: BorderRadius.circular(12),
@@ -829,22 +829,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           children: [
             Row(
               children: [
-                Icon(icon, size: 16, color: AppColors.primaryColor),
-                const SizedBox(width: 6),
+                Icon(icon, size: 14, color: AppColors.primaryColor),
+                const SizedBox(width: 4),
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 9,
                     color: scheme.onSurface.withOpacity(0.6),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               value,
               style: TextStyle(
-                fontSize: 15,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: scheme.onSurface,
               ),
@@ -857,7 +857,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
   Widget _buildNightsSelector(ColorScheme scheme) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: AppColors.primaryColor.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
@@ -874,10 +874,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
             child: const Icon(
               Icons.nights_stay,
               color: AppColors.primaryColor,
-              size: 22,
+              size: 18,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -885,7 +885,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                 Text(
                   'عدد الليالي المتوقعة',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 11,
                     color: scheme.onSurface.withOpacity(0.7),
                   ),
                 ),
@@ -893,7 +893,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                 Text(
                   '$_expectedNights ${_expectedNights == 1 ? 'ليلة' : 'ليالي'}',
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primaryColor,
                   ),
@@ -1084,7 +1084,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         child: Column(
           children: [
             Row(
@@ -1101,7 +1101,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     size: 24,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 const Text(
                   'ملخص الفاتورة',
                   style: TextStyle(
@@ -1112,7 +1112,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             _buildSummaryRow('سعر الليلة × $_expectedNights', '${(double.tryParse(_nightlyCtrl.text) ?? 0) * _expectedNights}'),
             if (discount > 0)
               _buildSummaryRow('الخصم', '-$discount', isDiscount: true),
@@ -1179,7 +1179,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final isFirstStep = _currentStep == 0;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: scheme.surface,
         boxShadow: [
@@ -1208,7 +1208,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   ),
                 ),
               ),
-            if (!isFirstStep) const SizedBox(width: 12),
+            if (!isFirstStep) const SizedBox(width: 8),
             Expanded(
               flex: isFirstStep ? 1 : 1,
               child: ElevatedButton.icon(
@@ -1338,7 +1338,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
               ),
               child: const Icon(Icons.delete_forever, color: AppColors.dangerColor),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             const Text('حذف الحجز'),
           ],
         ),
@@ -1548,23 +1548,23 @@ class _CollapsibleSectionState extends State<_CollapsibleSection>
             onTap: _toggle,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(8),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: widget.iconColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(widget.icon, color: widget.iconColor, size: 20),
+                    child: Icon(widget.icon, color: widget.iconColor, size: 16),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       widget.title,
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
                         color: scheme.onSurface,
                       ),
@@ -1588,7 +1588,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection>
                 children: [
                   Divider(height: 1, color: scheme.outline.withOpacity(0.1)),
                   Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: widget.children,
