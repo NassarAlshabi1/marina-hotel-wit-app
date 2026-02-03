@@ -34,7 +34,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   double _remainingAmount = 0;
   late String _currentGuestPhone;
   bool _isSavingPayment = false;
-  bool _hasDebt = false;
+  double _debtAmount = 0;
 
   Payment _mapDbPaymentToUi(db.Payment p) {
     return Payment(
@@ -114,8 +114,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final debtsRepo = ref.read(debtsRepoProvider);
     final debts = await debtsRepo.listByBookingLocalId(widget.booking.id);
     if (mounted) {
+      double totalDebt = 0;
+      for (final d in debts) {
+        if (d.isSettled == 0 && d.remainingAmount > 0) {
+          totalDebt += d.remainingAmount;
+        }
+      }
       setState(() {
-        _hasDebt = debts.any((d) => d.isSettled == 0 && d.remainingAmount > 0);
+        _debtAmount = totalDebt;
       });
     }
   }
@@ -408,7 +414,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     ? Colors.orange
                     : Colors.green,
               ),
-              if (_hasDebt)
+              if (_debtAmount > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -422,7 +428,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       Icon(Icons.warning, size: 14, color: Colors.red.shade700),
                       const SizedBox(width: 4),
                       Text(
-                        'يوجد دين',
+                        'يوجد دين ${_currencyFmt.format(_debtAmount)}',
                         style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.bold),
                       ),
                     ],
