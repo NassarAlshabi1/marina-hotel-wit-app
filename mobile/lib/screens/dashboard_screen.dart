@@ -324,25 +324,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              const crossAxisCount = 4;
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  mainAxisSpacing: 6,
-                  crossAxisSpacing: 6,
-                  childAspectRatio: 1.2,
-                ),
-                itemCount: _dashboardRoomNumbers.length,
-                itemBuilder: (context, index) {
-                  final roomNumber = _dashboardRoomNumbers[index];
-                  final room = roomsMap[roomNumber];
-                  return _buildRoomButton(context, roomNumber, room);
-                },
-              );
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.5,
+            ),
+            itemCount: _dashboardRoomNumbers.length,
+            itemBuilder: (context, index) {
+              final roomNumber = _dashboardRoomNumbers[index];
+              final room = roomsMap[roomNumber];
+              return _buildRoomButton(context, roomNumber, room);
             },
           ),
         ],
@@ -392,9 +387,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         onLongPress: room != null ? () => _showRoomOptionsDialog(context, room) : null,
         child: Material(
           color: bgColor,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           child: InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             onTap: () => _handleRoomTap(context, roomNumber, room),
             child: Center(
               child: Text(
@@ -402,7 +397,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                  fontSize: 14,
                 ),
               ),
             ),
