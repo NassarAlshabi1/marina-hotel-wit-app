@@ -229,6 +229,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               child: TextFormField(
                                 controller: _guestIdIssueDate,
                                 readOnly: true,
+                                style: const TextStyle(fontSize: 13),
                                 decoration: const InputDecoration(
                                   labelText: 'تاريخ إصدار الهوية',
                                   suffixIcon: Icon(Icons.calendar_today),
@@ -282,6 +283,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         TextFormField(
                           controller: _checkin,
                           readOnly: true,
+                          style: const TextStyle(fontSize: 13),
                           decoration: const InputDecoration(
                             labelText: 'تاريخ الوصول *',
                             helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
@@ -294,6 +296,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         TextFormField(
                           controller: _checkout,
                           readOnly: true,
+                          style: const TextStyle(fontSize: 13),
                           decoration: const InputDecoration(
                             labelText: 'تاريخ المغادرة المخطط',
                             helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
