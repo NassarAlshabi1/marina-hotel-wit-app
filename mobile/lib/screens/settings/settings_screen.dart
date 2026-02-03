@@ -317,11 +317,13 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
+    final width = MediaQuery.sizeOf(context).width;
+    final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         childAspectRatio: 1.2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,

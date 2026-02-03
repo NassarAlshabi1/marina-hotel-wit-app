@@ -96,8 +96,10 @@ class BackupOverviewTab extends ConsumerWidget {
   }
 
   Widget _buildQuickStatsGrid() {
+    final width = MediaQuery.sizeOf(context).width;
+    final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
     return GridView.count(
-      crossAxisCount: 2,
+      crossAxisCount: crossAxisCount,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: UIConstants.spacingMD,
@@ -209,8 +211,10 @@ class BackupOverviewTab extends ConsumerWidget {
   }
 
   Widget _buildQuickActionsGrid() {
+    final width = MediaQuery.sizeOf(context).width;
+    final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
     return GridView.count(
-      crossAxisCount: 2,
+      crossAxisCount: crossAxisCount,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: UIConstants.spacingMD,

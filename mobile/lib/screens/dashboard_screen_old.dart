@@ -83,11 +83,14 @@ class DashboardScreen extends ConsumerWidget {
                       ? ((occupiedRooms / totalRooms) * 100).round()
                       : 0;
 
+                  final screenWidth = MediaQuery.sizeOf(context).width;
+                  final crossAxisCount = screenWidth < 360 ? 1 : screenWidth < 600 ? 2 : 3;
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       GridView.count(
-                        crossAxisCount: 2,
+                        crossAxisCount: crossAxisCount,
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         childAspectRatio: 1.5,

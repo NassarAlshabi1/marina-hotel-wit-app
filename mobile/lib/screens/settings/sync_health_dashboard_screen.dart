@@ -166,14 +166,18 @@ class _SyncHealthDashboardScreenState
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.3,
-          children: [
+        Builder(
+          builder: (context) {
+            final width = MediaQuery.sizeOf(context).width;
+            final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
+            return GridView.count(
+              crossAxisCount: crossAxisCount,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.3,
+              children: [
             MetricCard(
               title: 'المزامنات الناجحة',
               value: '${dashboard.orchestratorMetrics?.successfulSyncs ?? 0}',
@@ -211,6 +215,8 @@ class _SyncHealthDashboardScreenState
               color: metrics.dataLossRisk > 0.5 ? Colors.red : Colors.green,
             ),
           ],
+            );
+          },
         ),
       ],
     );

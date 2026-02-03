@@ -252,14 +252,18 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               ],
             ),
             const SizedBox(height: UIConstants.spacingMD),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: UIConstants.spacingMD,
-              crossAxisSpacing: UIConstants.spacingMD,
-              childAspectRatio: 1.5,
-              children: [
+            Builder(
+              builder: (context) {
+                final width = MediaQuery.sizeOf(context).width;
+                final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
+                return GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: crossAxisCount,
+                  mainAxisSpacing: UIConstants.spacingMD,
+                  crossAxisSpacing: UIConstants.spacingMD,
+                  childAspectRatio: 1.5,
+                  children: [
                 StatCard(
                   title: 'إجمالي المزامنات',
                   value: '$totalSyncs',
@@ -285,6 +289,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                   color: Colors.red,
                 ),
               ],
+                );
+              },
             ),
           ],
         ),

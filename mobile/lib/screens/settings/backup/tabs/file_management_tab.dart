@@ -109,11 +109,14 @@ class FileManagementTab extends ConsumerWidget {
       {'name': 'SQL', 'icon': Icons.storage, 'color': Colors.blue},
     ];
 
+    final width = MediaQuery.sizeOf(context).width;
+    final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         mainAxisSpacing: UIConstants.spacingMD,
         crossAxisSpacing: UIConstants.spacingMD,
         childAspectRatio: 1.5,

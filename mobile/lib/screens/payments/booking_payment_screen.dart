@@ -591,20 +591,26 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             textDirection: ui.TextDirection.ltr,
           ),
         ),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 2.5,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: 2,
-          itemBuilder: (context, index) {
-            final methods = [PaymentMethod.cash, PaymentMethod.transfer];
-            final method = methods[index];
-            return _buildPaymentMethodCard(method);
+        Builder(
+          builder: (context) {
+            final width = MediaQuery.sizeOf(context).width;
+            final crossAxisCount = width < 320 ? 1 : 2;
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                childAspectRatio: 2.5,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: 2,
+              itemBuilder: (context, index) {
+                final methods = [PaymentMethod.cash, PaymentMethod.transfer];
+                final method = methods[index];
+                return _buildPaymentMethodCard(method);
+              },
+            );
           },
         ),
         const SizedBox(height: 20),

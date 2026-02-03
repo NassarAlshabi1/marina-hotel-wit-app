@@ -324,20 +324,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.5,
-            ),
-            itemCount: _dashboardRoomNumbers.length,
-            itemBuilder: (context, index) {
-              final roomNumber = _dashboardRoomNumbers[index];
-              final room = roomsMap[roomNumber];
-              return _buildRoomButton(context, roomNumber, room);
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = MediaQuery.sizeOf(context).width;
+              final crossAxisCount = width < 360 ? 2 : width < 480 ? 3 : 4;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 1.5,
+                ),
+                itemCount: _dashboardRoomNumbers.length,
+                itemBuilder: (context, index) {
+                  final roomNumber = _dashboardRoomNumbers[index];
+                  final room = roomsMap[roomNumber];
+                  return _buildRoomButton(context, roomNumber, room);
+                },
+              );
             },
           ),
         ],
