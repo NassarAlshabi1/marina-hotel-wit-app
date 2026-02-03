@@ -80,7 +80,7 @@ class NeuStatCard extends StatelessWidget {
     final primaryColor = iconColor ?? scheme.primary;
 
     return NeuCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -88,30 +88,30 @@ class NeuStatCard extends StatelessWidget {
           Container(
             decoration: BoxDecoration(
               color: primaryColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            padding: const EdgeInsets.all(10),
-            child: Icon(icon, color: primaryColor, size: 22),
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, color: primaryColor, size: 18),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: scheme.onSurface.withOpacity(0.75),
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: valueColor ?? scheme.onSurface,
-              fontSize: emphasize ? 22 : 18,
+              fontSize: emphasize ? 16 : 12,
               fontWeight: FontWeight.w900,
             ),
           ),
