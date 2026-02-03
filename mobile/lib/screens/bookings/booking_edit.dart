@@ -230,9 +230,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               child: TextFormField(
                                 controller: _guestIdIssueDate,
                                 readOnly: true,
+                                style: const TextStyle(fontSize: 12),
                                 decoration: const InputDecoration(
                                   labelText: 'تاريخ إصدار الهوية',
-                                  suffixIcon: Icon(Icons.calendar_today),
+                                  suffixIcon: Icon(Icons.calendar_today, size: 20),
                                 ),
                                 onTap: () => _pickDate(
                                   _guestIdIssueDate,
@@ -283,10 +284,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         TextFormField(
                           controller: _checkin,
                           readOnly: true,
+                          style: const TextStyle(fontSize: 12),
                           decoration: const InputDecoration(
                             labelText: 'تاريخ الوصول *',
                             helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
-                            suffixIcon: Icon(Icons.event_available),
+                            helperStyle: TextStyle(fontSize: 10),
+                            suffixIcon: Icon(Icons.event_available, size: 20),
                           ),
                           validator: _req,
                           onTap: () => _pickDate(_checkin),
@@ -295,10 +298,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         TextFormField(
                           controller: _checkout,
                           readOnly: true,
+                          style: const TextStyle(fontSize: 12),
                           decoration: const InputDecoration(
                             labelText: 'تاريخ المغادرة المخطط',
                             helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
-                            suffixIcon: Icon(Icons.event_busy),
+                            helperStyle: TextStyle(fontSize: 10),
+                            suffixIcon: Icon(Icons.event_busy, size: 20),
                           ),
                           onChanged: (_) => _recalculateExpectedNights(),
                           onTap: () => _pickDate(_checkout),
@@ -323,9 +328,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           TextFormField(
                             initialValue: widget.existing?.actualCheckout,
                             readOnly: true,
+                            style: const TextStyle(fontSize: 12),
                             decoration: const InputDecoration(
                               labelText: 'تاريخ المغادرة الفعلي',
-                              suffixIcon: Icon(Icons.lock_clock),
+                              suffixIcon: Icon(Icons.lock_clock, size: 20),
                             ),
                           ),
                         ],
