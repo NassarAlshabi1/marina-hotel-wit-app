@@ -368,7 +368,7 @@ class _CreateDebtFromBookingScreenState
         ),
         child: Text(
           formatDate(_fromDate),
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -387,7 +387,7 @@ class _CreateDebtFromBookingScreenState
         ),
         child: Text(
           formatDate(_toDate),
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -397,7 +397,7 @@ class _CreateDebtFromBookingScreenState
     return TextField(
       controller: _amountController,
       keyboardType: TextInputType.number,
-      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
       decoration: InputDecoration(
         labelText: 'مبلغ الدين',
         labelStyle: const TextStyle(fontWeight: FontWeight.bold),
@@ -412,8 +412,9 @@ class _CreateDebtFromBookingScreenState
   Widget _buildNotesField() {
     return TextField(
       controller: _notesController,
-      maxLines: 4,
-      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+      minLines: 1,
+      maxLines: 5,
+      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
       decoration: InputDecoration(
         labelText: 'ملاحظات',
         labelStyle: const TextStyle(fontWeight: FontWeight.bold),
@@ -421,7 +422,6 @@ class _CreateDebtFromBookingScreenState
         hintStyle: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey[400]),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        alignLabelWithHint: true,
       ),
     );
   }
