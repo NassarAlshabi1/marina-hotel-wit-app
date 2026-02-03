@@ -21,7 +21,7 @@ class LoggingService {
   factory LoggingService() => _instance;
   LoggingService._internal();
 
-  final List<LogEntry> _logs = [];
+  final Queue<LogEntry> _logs = Queue<LogEntry>();
   static const int _maxLogs = 500;
 
   List<LogEntry> get logs => List.unmodifiable(_logs);
@@ -35,7 +35,7 @@ class LoggingService {
     );
     _logs.add(entry);
     if (_logs.length > _maxLogs) {
-      _logs.removeAt(0);
+      _logs.removeFirst();
     }
     if (kDebugMode) {
       developer.log(
