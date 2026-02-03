@@ -22,6 +22,7 @@ class _CreateDebtFromBookingScreenState
   bool _isAutoProcessing = false;
   bool _isManualProcessing = false;
   _AutoDebtData? _autoDebtData;
+  DateTime _autoDebtDate = DateTime.now();
 
   final _manualFormKey = GlobalKey<FormState>();
   late TextEditingController _manualGuestNameController;
@@ -31,6 +32,7 @@ class _CreateDebtFromBookingScreenState
   late TextEditingController _manualPaidController;
   late TextEditingController _manualReasonController;
   late TextEditingController _manualNoteController;
+  late TextEditingController _manualDebtDateController;
 
   @override
   void initState() {
@@ -43,6 +45,7 @@ class _CreateDebtFromBookingScreenState
     _manualPaidController = TextEditingController();
     _manualReasonController = TextEditingController(text: 'دين سابق');
     _manualNoteController = TextEditingController();
+    _manualDebtDateController = TextEditingController(text: today);
   }
 
   @override
@@ -54,6 +57,7 @@ class _CreateDebtFromBookingScreenState
     _manualPaidController.dispose();
     _manualReasonController.dispose();
     _manualNoteController.dispose();
+    _manualDebtDateController.dispose();
     super.dispose();
   }
 
@@ -288,6 +292,36 @@ class _CreateDebtFromBookingScreenState
             ],
           ),
           const SizedBox(height: 10),
+          GestureDetector(
+            onTap: () => _pickAutoDebtDate(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 18, color: Colors.grey.shade600),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('تاريخ تسجيل الدين', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                        Text(
+                          '${_autoDebtDate.year}-${_autoDebtDate.month.toString().padLeft(2, '0')}-${_autoDebtDate.day.toString().padLeft(2, '0')}',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.edit, size: 16, color: Colors.blue.shade600),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           Text(
             'سيتم إنشاء الدين وتحرير الغرفة ${booking.roomNumber}',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
@@ -435,6 +469,20 @@ class _CreateDebtFromBookingScreenState
             ),
             const SizedBox(height: 10),
             TextFormField(
+              controller: _manualDebtDateController,
+              readOnly: true,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'تاريخ تسجيل الدين',
+                labelStyle: const TextStyle(fontSize: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                suffixIcon: const Icon(Icons.calendar_today, size: 18),
+              ),
+              onTap: () => _pickManualDebtDate(),
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
               controller: _manualNoteController,
               maxLines: 2,
               style: const TextStyle(fontSize: 13),
@@ -485,8 +533,39 @@ class _CreateDebtFromBookingScreenState
       _selectedBooking = booking;
       _autoDebtData = null;
       _isAutoComputing = true;
+      // تعيين تاريخ الدين من تاريخ المغادرة أو الوصول
+      final checkoutDate = booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty
+          ? DateTime.tryParse(booking.checkoutDate!)
+          : null;
+      final checkinDate = DateTime.tryParse(booking.checkinDate);
+      _autoDebtDate = checkoutDate ?? checkinDate ?? DateTime.now();
     });
     _prepareAutoDebtData(booking);
+  }
+
+  Future<void> _pickAutoDebtDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _autoDebtDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() => _autoDebtDate = picked);
+    }
+  }
+
+  Future<void> _pickManualDebtDate() async {
+    final initial = DateTime.tryParse(_manualDebtDateController.text) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      _manualDebtDateController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    }
   }
 
   Future<void> _prepareAutoDebtData(Booking booking) async {
@@ -551,7 +630,8 @@ class _CreateDebtFromBookingScreenState
     final booking = _selectedBooking!;
     final data = _autoDebtData!;
     final nowIso = Time.nowIso();
-    final dateOnly = Time.nowDateString();
+    final selectedDateIso = _autoDebtDate.toIso8601String();
+    final selectedDateOnly = '${_autoDebtDate.year}-${_autoDebtDate.month.toString().padLeft(2, '0')}-${_autoDebtDate.day.toString().padLeft(2, '0')}';
 
     try {
       final debtsRepo = ref.read(debtsRepoProvider);
@@ -572,8 +652,8 @@ class _CreateDebtFromBookingScreenState
           id: openDebt.id,
           totalAmount: data.total,
           paidAmount: data.paid,
-          checkoutDate: nowIso,
-          dateRecorded: dateOnly,
+          checkoutDate: selectedDateIso,
+          dateRecorded: selectedDateOnly,
           debtReason: 'مغادرة مع مبلغ متبقي',
           note: 'تحديث تلقائي من شاشة الديون - غرفة ${booking.roomNumber}',
         );
@@ -582,12 +662,12 @@ class _CreateDebtFromBookingScreenState
           bookingLocalId: booking.id,
           guestName: booking.guestName,
           checkinDate: booking.checkinDate,
-          checkoutDate: nowIso,
-          dateRecorded: dateOnly,
+          checkoutDate: selectedDateIso,
+          dateRecorded: selectedDateOnly,
           debtReason: 'مغادرة مع مبلغ متبقي',
           totalAmount: data.total,
           paidAmount: data.paid,
-          paymentDate: dateOnly,
+          paymentDate: selectedDateOnly,
           isSettled: false,
           note:
               'تم الإنشاء تلقائياً من شاشة الديون (غرفة ${booking.roomNumber})',
@@ -642,6 +722,9 @@ class _CreateDebtFromBookingScreenState
     final checkout = _manualCheckoutController.text.trim().isEmpty
         ? _manualCheckinController.text.trim()
         : _manualCheckoutController.text.trim();
+    final debtDate = _manualDebtDateController.text.trim().isEmpty
+        ? Time.nowDateString()
+        : _manualDebtDateController.text.trim();
 
     setState(() => _isManualProcessing = true);
 
@@ -651,11 +734,11 @@ class _CreateDebtFromBookingScreenState
         guestName: _manualGuestNameController.text.trim(),
         checkinDate: _manualCheckinController.text.trim(),
         checkoutDate: checkout,
-        dateRecorded: Time.nowDateString(),
+        dateRecorded: debtDate,
         debtReason: _manualReasonController.text.trim(),
         totalAmount: total,
         paidAmount: paid,
-        paymentDate: Time.nowDateString(),
+        paymentDate: debtDate,
         isSettled: paid >= total,
         note: _manualNoteController.text.trim().isEmpty
             ? null
@@ -693,6 +776,7 @@ class _CreateDebtFromBookingScreenState
     _manualPaidController.clear();
     _manualReasonController.text = 'دين سابق';
     _manualNoteController.clear();
+    _manualDebtDateController.text = today;
   }
 
   static bool _isDebtEligibleBooking(Booking booking) {
