@@ -40,7 +40,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _checkout = TextEditingController();
   final _expectedNights = TextEditingController(text: '1');
   final _notes = TextEditingController();
-  final _discount = TextEditingController(text: '0');
+  final _discount = TextEditingController();
 
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
@@ -98,7 +98,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       _checkout.text = b.checkoutDate ?? '';
       _expectedNights.text = b.expectedNights.toString();
       _notes.text = b.notes ?? '';
-      _discount.text = b.discount.toStringAsFixed(0);
+      _discount.text = b.discount > 0 ? b.discount.toStringAsFixed(0) : '';
       _status = b.status;
       _idType = b.guestIdType;
       _roomInitialized = true;
