@@ -761,72 +761,70 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   Widget _buildActionsTab(BookingPaymentSummary summary) {
+    final actions = <Widget>[
+      _buildActionCard(
+        'عرض الفاتورة الشاملة',
+        'عرض وطباعة الفاتورة التفصيلية',
+        Icons.receipt_long,
+        Colors.teal,
+        () => _generateInvoice(summary),
+      ),
+      _buildActionCard(
+        'سجل المدفوعات',
+        'عرض تاريخ جميع المدفوعات',
+        Icons.history,
+        Colors.purple,
+        () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                PaymentHistoryScreen(bookingId: widget.booking.localUuid),
+          ),
+        ),
+      ),
+      if (summary.isFullyPaid)
+        _buildActionCard(
+          'تسجيل المغادرة',
+          'تسجيل مغادرة العميل وتحرير الغرفة',
+          Icons.logout,
+          Colors.green,
+          () => _showCheckoutConfirmation(summary),
+        ),
+      _buildActionCard(
+        'إرسال كشف حساب',
+        'إرسال ملخص المدفوعات للعميل',
+        Icons.send,
+        Colors.orange,
+        () => _sendAccountStatement(summary),
+      ),
+    ];
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'الإجراءات المتاحة',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.1,
+            children: actions,
           ),
-          const SizedBox(height: 16),
-
-          // إجراءات المدفوعات
-          _buildActionCard(
-            'عرض الفاتورة الشاملة',
-            'عرض وطباعة الفاتورة التفصيلية',
-            Icons.receipt_long,
-            Colors.blue,
-            () => _generateInvoice(summary),
-          ),
-
-          _buildActionCard(
-            'سجل المدفوعات',
-            'عرض تاريخ جميع المدفوعات',
-            Icons.history,
-            Colors.purple,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    PaymentHistoryScreen(bookingId: widget.booking.localUuid),
-              ),
-            ),
-          ),
-
-          if (summary.isFullyPaid) ...[
-            _buildActionCard(
-              'تسجيل المغادرة',
-              'تسجيل مغادرة العميل وتحرير الغرفة',
-              Icons.logout,
-              Colors.green,
-              () => _showCheckoutConfirmation(summary),
-            ),
-          ],
-
-          _buildActionCard(
-            'إرسال كشف حساب',
-            'إرسال ملخص المدفوعات للعميل',
-            Icons.send,
-            Colors.orange,
-            () => _sendAccountStatement(summary),
-          ),
-
-          const SizedBox(height: 20),
-
-          // معلومات الحجز
+          const SizedBox(height: 12),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'معلومات الحجز',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   _buildInfoRow('رقم الحجز', widget.booking.localUuid),
                   _buildInfoRow(
                     'تاريخ الوصول',
@@ -858,36 +856,67 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     VoidCallback onTap,
   ) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.2),
-          child: Icon(icon, color: color),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: color.withOpacity(0.15),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
           SizedBox(
-            width: 100,
+            width: 80,
             child: Text(
               '$label:',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.grey,
+                fontSize: 11,
               ),
             ),
           ),
-          Expanded(child: Text(value)),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 11),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
