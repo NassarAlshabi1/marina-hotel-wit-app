@@ -346,7 +346,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       ? Colors.green.shade50
                       : Colors.grey.shade50,
                   child: Padding(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     child: Column(
                       children: [
                         CheckboxListTile(
@@ -361,9 +361,15 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             () => _hasAdvancePayment = value ?? false,
                           ),
                           activeColor: Colors.green,
+                          dense: true,
+                          visualDensity: const VisualDensity(
+                            horizontal: -4,
+                            vertical: -3,
+                          ),
+                          contentPadding: EdgeInsets.zero,
                         ),
                         if (_hasAdvancePayment) ...[
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           TextFormField(
                             controller: _advancePayment,
                             keyboardType: TextInputType.number,
@@ -385,7 +391,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                   }
                                 : null,
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           DropdownButtonFormField<String>(
                             value: _paymentMethod,
                             items: _paymentMethods
@@ -403,7 +409,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               labelText: 'طريقة الدفع',
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           TextFormField(
                             controller: _paymentNotes,
                             decoration: const InputDecoration(
