@@ -669,7 +669,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     recalculate();
 
     try {
-    final confirmed = await showDialog<bool>(
+      final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return Directionality(
