@@ -331,7 +331,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               crossAxisCount: 4,
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
-              childAspectRatio: 1.5,
+              childAspectRatio: 1.2,
             ),
             itemCount: _dashboardRoomNumbers.length,
             itemBuilder: (context, index) {
