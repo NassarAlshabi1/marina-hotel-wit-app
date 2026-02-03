@@ -17,7 +17,7 @@ class BackupOverviewTab extends ConsumerWidget {
         const SizedBox(height: UIConstants.spacingLG),
 
         // Quick Stats Grid
-        _buildQuickStatsGrid(),
+        _buildQuickStatsGrid(context),
 
         const SizedBox(height: UIConstants.spacingLG),
 
@@ -35,7 +35,7 @@ class BackupOverviewTab extends ConsumerWidget {
           title: 'إجراءات سريعة',
           icon: Icons.flash_on,
         ),
-        _buildQuickActionsGrid(),
+_buildQuickActionsGrid(context),
       ],
     );
   }
@@ -95,7 +95,7 @@ class BackupOverviewTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickStatsGrid() {
+  Widget _buildQuickStatsGrid(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
     return GridView.count(
@@ -210,7 +210,7 @@ class BackupOverviewTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickActionsGrid() {
+  Widget _buildQuickActionsGrid(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
     return GridView.count(

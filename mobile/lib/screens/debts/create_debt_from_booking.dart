@@ -93,7 +93,7 @@ class _CreateDebtFromBookingScreenState
                   SizedBox(height: 4),
                   Text(
                     '• تلقائي: من حجز موجود\n• يدوي: إدخال بيانات الدين',
-                    style: TextStyle(fontSize: 11, height: 1.3, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: 11, height: 1.3, color: Colors.grey[700]),
                   ),
                 ],
               ),

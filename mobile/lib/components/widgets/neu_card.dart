@@ -19,7 +19,6 @@ class NeuCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? const Color(0xFF2D2D2D) : const Color(0xFFE8EEF1);
     final shadowDark = isDark ? Colors.black54 : const Color(0xFFBEC8D1);
     final shadowLight = isDark ? const Color(0xFF3D3D3D) : Colors.white;
 

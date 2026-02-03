@@ -33,6 +33,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
 
   List<Debt> _rows = [];
   List<_GuestDebtSummary> _guestSummaries = [];
+  // ignore: unused_field
   List<_MonthlyDebtSummary> _monthlySummaries = [];
 
   double _totalDebt = 0;

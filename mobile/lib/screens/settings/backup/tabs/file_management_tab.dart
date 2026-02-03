@@ -21,7 +21,7 @@ class FileManagementTab extends ConsumerWidget {
           title: 'أنواع الملفات المدعومة',
           icon: Icons.file_present,
         ),
-        _buildFileTypesGrid(),
+        _buildFileTypesGrid(context),
 
         const SizedBox(height: UIConstants.spacingLG),
 
@@ -101,7 +101,7 @@ class FileManagementTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildFileTypesGrid() {
+  Widget _buildFileTypesGrid(BuildContext context) {
     final fileTypes = [
       {'name': 'JSON', 'icon': Icons.code, 'color': Colors.orange},
       {'name': 'CSV', 'icon': Icons.table_chart, 'color': Colors.green},

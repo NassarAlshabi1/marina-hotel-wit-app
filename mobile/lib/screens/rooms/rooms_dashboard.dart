@@ -144,7 +144,9 @@ class RoomsDashboard extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-          SnackBarHelper.showWarning(context, 'لا يوجد حجز محجوز للغرفة $roomNumber');
+              content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
+              backgroundColor: Colors.orange,
+            ),
           );
         }
         return;
