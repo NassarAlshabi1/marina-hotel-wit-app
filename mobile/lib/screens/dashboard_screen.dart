@@ -252,10 +252,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -267,12 +267,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 8),
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: 6),
             Text(
               value,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -281,7 +281,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Text(
               title,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 9,
                 color: Colors.grey.shade600,
               ),
             ),
