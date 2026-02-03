@@ -124,7 +124,7 @@ void main() {
     group('الكسور العشرية', () {
       test('يجب تقريب الكسور', () {
         expect(formatYemeniAmount(1000.4), 'ألف ريال يمني فقط');
-        expect(formatYemeniAmount(1000.5), 'ألف ريال يمني فقط');
+        expect(formatYemeniAmount(1000.5), 'ألف و واحد ريال يمني فقط');
         expect(formatYemeniAmount(1000.6), 'ألف و واحد ريال يمني فقط');
       });
     });
