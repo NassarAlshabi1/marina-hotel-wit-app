@@ -1,6 +1,3 @@
-import 'dart:math';
-
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -476,8 +473,6 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                         )
                       : ListView(
                           children: [
-                            _buildChartsSection(),
-                            const SizedBox(height: 16),
                             _buildGuestsTable(),
                             const SizedBox(height: 16),
                             _buildDebtsTable(),
@@ -532,100 +527,6 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         const SizedBox(height: 4),
         Text(value),
       ],
-    );
-  }
-
-  Widget _buildChartsSection() {
-    return SizedBox(
-      width: min(MediaQuery.of(context).size.width - 64, 560),
-      height: 320,
-      child: Card(
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'تطور المبلغ المتبقي شهريًا',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Expanded(child: _buildMonthlyBarChart()),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMonthlyBarChart() {
-    if (_monthlySummaries.isEmpty) {
-      return const Center(child: Text('لا توجد بيانات كافية للعرض'));
-    }
-    final groups = <BarChartGroupData>[];
-    for (var i = 0; i < _monthlySummaries.length; i++) {
-      final month = _monthlySummaries[i];
-      groups.add(
-        BarChartGroupData(
-          x: i,
-          barRods: [
-            BarChartRodData(
-              toY: month.remainingAmount,
-              gradient: const LinearGradient(
-                colors: [Colors.indigo, Colors.blueAccent],
-              ),
-              width: 18,
-            ),
-          ],
-        ),
-      );
-    }
-    return BarChart(
-      BarChartData(
-        barGroups: groups,
-        borderData: FlBorderData(show: false),
-        gridData: FlGridData(show: false),
-        barTouchData: BarTouchData(enabled: false),
-        titlesData: FlTitlesData(
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) {
-                if (value == 0) {
-                  return const Text('0');
-                }
-                final amount = value / 1000;
-                if (amount >= 1) {
-                  return Text('${amount.toStringAsFixed(0)}k');
-                }
-                return Text(value.toStringAsFixed(0));
-              },
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                final index = value.toInt();
-                if (index < 0 || index >= _monthlySummaries.length) {
-                  return const SizedBox.shrink();
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    _monthlySummaries[index].label,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
     );
   }
 
