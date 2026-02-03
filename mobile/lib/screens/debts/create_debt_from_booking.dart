@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
-import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 
 class CreateDebtFromBookingScreen extends ConsumerStatefulWidget {
@@ -24,6 +24,7 @@ class _CreateDebtFromBookingScreenState
   DateTime _toDate = DateTime.now();
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
+  final _dateFormat = DateFormat('yyyy-MM-dd');
 
   @override
   void dispose() {
@@ -32,443 +33,373 @@ class _CreateDebtFromBookingScreenState
     super.dispose();
   }
 
+  String _formatDate(DateTime date) => _dateFormat.format(date);
+
   @override
   Widget build(BuildContext context) {
-    final bookingsAsync = ref.watch(bookingsListProvider);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('دين من حجز موجود', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        centerTitle: true,
+        title: const Text('إنشاء دين من حجز'),
       ),
-      body: SafeArea(
-        child: _selectedBooking == null
-            ? _buildGuestsList(bookingsAsync)
-            : _buildDebtForm(),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildBookingSelector(),
+            if (_selectedBooking != null) ...[
+              const SizedBox(height: 16),
+              _buildBookingInfo(),
+              const SizedBox(height: 16),
+              _buildDateRangeSelector(),
+              const SizedBox(height: 16),
+              _buildComputeButton(),
+              if (_debtData != null) ...[
+                const SizedBox(height: 16),
+                _buildDebtSummary(),
+                const SizedBox(height: 16),
+                _buildAmountField(),
+                const SizedBox(height: 16),
+                _buildNotesField(),
+                const SizedBox(height: 24),
+                _buildCreateButton(),
+              ],
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildGuestsList(AsyncValue<List<Booking>> bookingsAsync) {
-    return bookingsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, st) => Center(child: Text('خطأ: $e', style: const TextStyle(fontWeight: FontWeight.bold))),
-      data: (bookings) {
-        final bookedRooms = bookings.where((b) => b.status == 'محجوز').toList();
-
-        if (bookedRooms.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                Text(
-                  'لا توجد غرف محجوزة حالياً',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
+  Widget _buildBookingSelector() {
+    final bookingsRepo = ref.watch(bookingsRepoProvider);
+    return StreamBuilder<List<Booking>>(
+      stream: bookingsRepo.watchList(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final bookings = snapshot.data!
+            .where((b) => b.status != 'checked_out' && b.status != 'cancelled')
+            .toList();
+        if (bookings.isEmpty) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('لا توجد حجوزات نشطة'),
             ),
           );
         }
-
-        return Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[200]!),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'اختر النزيل لتسجيل دين عليه',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[700],
-                      ),
-                    ),
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'اختر الحجز',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<Booking>(
+                  value: _selectedBooking,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
-                ],
-              ),
+                  items: bookings.map((booking) {
+                    return DropdownMenuItem(
+                      value: booking,
+                      child: Text(
+                        '${booking.roomNumber} - ${booking.guestName}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (booking) {
+                    setState(() {
+                      _selectedBooking = booking;
+                      _debtData = null;
+                      if (booking != null) {
+                        final checkin = DateTime.tryParse(booking.checkinDate);
+                        if (checkin != null) {
+                          _fromDate = checkin;
+                          _toDate = _resolveCheckout(booking);
+                        }
+                      }
+                    });
+                  },
+                ),
+              ],
             ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: bookedRooms.length,
-                itemBuilder: (context, index) {
-                  final booking = bookedRooms[index];
-                  return _buildGuestCard(booking);
-                },
-              ),
-            ),
-          ],
+          ),
         );
       },
     );
   }
 
-  Widget _buildGuestCard(Booking booking) {
+  Widget _buildBookingInfo() {
+    final booking = _selectedBooking!;
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: InkWell(
-        onTap: () => _selectBooking(booking),
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                width: 45,
-                height: 45,
-                decoration: BoxDecoration(
-                  color: Colors.orange[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    booking.roomNumber,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: Colors.orange[800],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      booking.guestName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'هوية: ${booking.idNumber}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    if (booking.roomRate != null)
-                      Text(
-                        'سعر الليلة: ${CurrencyFormatter.format(booking.roomRate!)}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[500],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
-            ],
-          ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'معلومات الحجز',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            _buildInfoRow('الغرفة', booking.roomNumber),
+            _buildInfoRow('الضيف', booking.guestName),
+            _buildInfoRow('الهوية', booking.guestIdNumber),
+            _buildInfoRow('تاريخ الدخول', booking.checkinDate.split(' ')[0]),
+            if (booking.checkoutDate != null)
+              _buildInfoRow('تاريخ الخروج', booking.checkoutDate!.split(' ')[0]),
+            _buildInfoRow('الحالة', booking.status),
+            _buildInfoRow(
+              'الإجمالي المستحق',
+              CurrencyFormatter.formatAmount(booking.totalDueCached),
+            ),
+            _buildInfoRow(
+              'المدفوع',
+              CurrencyFormatter.formatAmount(booking.totalPaidCached),
+            ),
+            _buildInfoRow(
+              'المتبقي',
+              CurrencyFormatter.formatAmount(booking.remainingBalanceCached),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Future<void> _selectBooking(Booking booking) async {
-    setState(() {
-      _selectedBooking = booking;
-      _isComputing = true;
-    });
-
-    await _computeDebtData(booking);
-
-    setState(() {
-      _isComputing = false;
-    });
-  }
-
-  Future<void> _computeDebtData(Booking booking) async {
-    final paymentsRepo = ref.read(paymentsRepoProvider);
-    final checkIn = DateTime.tryParse(booking.checkinDate ?? '') ?? DateTime.now();
-    final checkout = _resolveCheckout(booking);
-    final nights = checkout.difference(checkIn).inDays.clamp(1, 365);
-    final rate = booking.roomRate ?? 0.0;
-    final total = nights * rate;
-
-    final payments = await paymentsRepo.getForBooking(booking.id);
-    final paid = payments.fold<double>(0, (sum, p) => sum + (p.amount ?? 0));
-
-    setState(() {
-      _debtData = _DebtData(
-        nights: nights,
-        roomRate: rate,
-        total: total,
-        paid: paid,
-      );
-      _amountController.text = _debtData!.remaining.toStringAsFixed(0);
-      _fromDate = checkIn;
-      _toDate = checkout;
-    });
-  }
-
-  Widget _buildDebtForm() {
-    if (_isComputing) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final booking = _selectedBooking!;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  _buildInfoRow('النزيل', booking.guestName),
-                  _buildInfoRow('الغرفة', booking.roomNumber),
-                  _buildInfoRow('رقم الهوية', booking.idNumber),
-                  if (_debtData != null) ...[
-                    _buildInfoRow('الليالي', '${_debtData!.nights} ليلة'),
-                    _buildInfoRow('سعر الليلة', CurrencyFormatter.format(_debtData!.roomRate)),
-                    _buildInfoRow('الإجمالي', CurrencyFormatter.format(_debtData!.total)),
-                    _buildInfoRow('المدفوع', CurrencyFormatter.format(_debtData!.paid)),
-                    Divider(color: Colors.grey[300]),
-                    _buildInfoRow(
-                      'المتبقي',
-                      CurrencyFormatter.format(_debtData!.remaining),
-                      valueColor: Colors.red,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _buildFromDateField()),
-              const SizedBox(width: 10),
-              Expanded(child: _buildToDateField()),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildAmountField(),
-          const SizedBox(height: 12),
-          _buildNotesField(),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    setState(() {
-                      _selectedBooking = null;
-                      _debtData = null;
-                      _amountController.clear();
-                      _notesController.clear();
-                    });
-                  },
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text('رجوع', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: _isProcessing ? null : _saveDebt,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: _isProcessing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'حفظ الدين',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value, {Color? valueColor}) {
+  Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: const TextStyle(color: Colors.grey),
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: valueColor ?? Colors.black87,
-            ),
-          ),
+          Expanded(child: Text(value)),
         ],
       ),
     );
   }
 
-  Widget _buildFromDateField() {
-    return InkWell(
-      onTap: () => _pickDate(isFrom: true),
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: 'من تاريخ',
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-          suffixIcon: const Icon(Icons.calendar_today, size: 18),
-        ),
-        child: Text(
-          formatDate(_fromDate),
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+  Widget _buildDateRangeSelector() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'فترة الدين',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDateField(
+                    'من',
+                    _fromDate,
+                    (date) => setState(() => _fromDate = date),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildDateField(
+                    'إلى',
+                    _toDate,
+                    (date) => setState(() => _toDate = date),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildToDateField() {
+  Widget _buildDateField(
+    String label,
+    DateTime date,
+    ValueChanged<DateTime> onChanged,
+  ) {
     return InkWell(
-      onTap: () => _pickDate(isFrom: false),
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: date,
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now().add(const Duration(days: 365)),
+        );
+        if (picked != null) {
+          onChanged(picked);
+        }
+      },
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: 'إلى تاريخ',
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          labelText: label,
+          border: const OutlineInputBorder(),
           suffixIcon: const Icon(Icons.calendar_today, size: 18),
         ),
-        child: Text(
-          formatDate(_toDate),
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        child: Text(_formatDate(date)),
+      ),
+    );
+  }
+
+  Widget _buildComputeButton() {
+    return ElevatedButton.icon(
+      onPressed: _isComputing ? null : _computeDebt,
+      icon: _isComputing
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.calculate),
+      label: Text(_isComputing ? 'جاري الحساب...' : 'احسب الدين'),
+    );
+  }
+
+  Future<void> _computeDebt() async {
+    if (_selectedBooking == null) return;
+
+    setState(() => _isComputing = true);
+
+    try {
+      final booking = _selectedBooking!;
+      final nights = _toDate.difference(_fromDate).inDays;
+      if (nights <= 0) {
+        _showError('فترة غير صالحة');
+        return;
+      }
+
+      final nightlyRate = booking.totalNightsCached > 0
+          ? booking.totalDueCached / booking.totalNightsCached
+          : 0.0;
+
+      final total = nightlyRate * nights;
+      final paid = booking.totalPaidCached;
+
+      setState(() {
+        _debtData = _DebtData(
+          nights: nights,
+          roomRate: nightlyRate,
+          total: total,
+          paid: paid,
+        );
+        _amountController.text =
+            CurrencyFormatter.formatAmount(_debtData!.remaining);
+      });
+    } finally {
+      setState(() => _isComputing = false);
+    }
+  }
+
+  Widget _buildDebtSummary() {
+    final data = _debtData!;
+    return Card(
+      color: Colors.orange.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'ملخص الدين',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            _buildInfoRow('عدد الليالي', '${data.nights}'),
+            _buildInfoRow(
+              'سعر الليلة',
+              CurrencyFormatter.formatAmount(data.roomRate),
+            ),
+            _buildInfoRow(
+              'الإجمالي',
+              CurrencyFormatter.formatAmount(data.total),
+            ),
+            _buildInfoRow(
+              'المدفوع',
+              CurrencyFormatter.formatAmount(data.paid),
+            ),
+            const Divider(),
+            _buildInfoRow(
+              'المتبقي (الدين)',
+              CurrencyFormatter.formatAmount(data.remaining),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildAmountField() {
-    return TextField(
+    return TextFormField(
       controller: _amountController,
       keyboardType: TextInputType.number,
-      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         labelText: 'مبلغ الدين',
-        labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        suffixText: 'ر.ي',
-        suffixStyle: const TextStyle(fontWeight: FontWeight.bold),
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.attach_money),
       ),
     );
   }
 
   Widget _buildNotesField() {
-    return TextField(
+    return TextFormField(
       controller: _notesController,
-      minLines: 1,
-      maxLines: 5,
-      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-      decoration: InputDecoration(
+      maxLines: 3,
+      decoration: const InputDecoration(
         labelText: 'ملاحظات',
-        labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-        hintText: 'أدخل ملاحظات إضافية هنا...',
-        hintStyle: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey[400]),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.note),
       ),
     );
   }
 
-  Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate = isFrom ? _fromDate : _toDate;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+  Widget _buildCreateButton() {
+    return ElevatedButton.icon(
+      onPressed: _isProcessing ? null : _createDebt,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+      icon: _isProcessing
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : const Icon(Icons.add),
+      label: Text(_isProcessing ? 'جاري الإنشاء...' : 'إنشاء الدين'),
     );
-    if (picked != null) {
-      setState(() {
-        if (isFrom) {
-          _fromDate = picked;
-          if (_fromDate.isAfter(_toDate)) {
-            _toDate = _fromDate;
-          }
-        } else {
-          _toDate = picked;
-          if (_toDate.isBefore(_fromDate)) {
-            _fromDate = _toDate;
-          }
-        }
-        _recalculateAmount();
-      });
-    }
   }
 
-  void _recalculateAmount() {
-    if (_debtData == null || _selectedBooking == null) return;
-    final nights = _toDate.difference(_fromDate).inDays.clamp(1, 365);
-    final total = nights * _debtData!.roomRate;
-    final remaining = (total - _debtData!.paid).clamp(0, total);
-    _amountController.text = remaining.toStringAsFixed(0);
-  }
+  Future<void> _createDebt() async {
+    if (_selectedBooking == null || _debtData == null) return;
 
-  Future<void> _saveDebt() async {
-    final amount = double.tryParse(_amountController.text) ?? 0;
-    if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى إدخال مبلغ صحيح', style: TextStyle(fontWeight: FontWeight.bold)),
-          backgroundColor: Colors.orange,
-        ),
-      );
+    final amount = CurrencyFormatter.parseAmount(_amountController.text);
+    if (amount == null || amount <= 0) {
+      _showError('يرجى إدخال مبلغ صحيح');
       return;
     }
 
@@ -477,47 +408,46 @@ class _CreateDebtFromBookingScreenState
     try {
       final booking = _selectedBooking!;
       final debtsRepo = ref.read(debtsRepoProvider);
+      final now = DateTime.now();
 
-      final debt = Debt(
-        id: 0,
-        date: _fromDate.toIso8601String().split('T')[0],
+      await debtsRepo.create(
+        bookingLocalId: booking.id,
         guestName: booking.guestName,
-        description: 'دين من حجز غرفة ${booking.roomNumber} (${formatDate(_fromDate)} - ${formatDate(_toDate)})',
-        amount: amount,
+        checkinDate: _formatDate(_fromDate),
+        checkoutDate: _formatDate(_toDate),
+        dateRecorded: _formatDate(now),
+        debtReason:
+            'دين من حجز الغرفة ${booking.roomNumber} للفترة ${_formatDate(_fromDate)} - ${_formatDate(_toDate)}',
+        totalAmount: amount,
         paidAmount: 0,
-        status: 'غير مسدد',
-        bookingId: booking.id,
-        dueDate: _toDate.toIso8601String().split('T')[0],
-        notes: _notesController.text.isEmpty ? null : _notesController.text,
-        createdAt: DateTime.now().toIso8601String(),
-        updatedAt: DateTime.now().toIso8601String(),
+        paymentDate: _formatDate(now),
+        note: _notesController.text.isNotEmpty ? _notesController.text : null,
       );
-
-      await debtsRepo.insert(debt);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم تسجيل دين بمبلغ ${CurrencyFormatter.format(amount)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            content: Text(
+              'تم إنشاء الدين بمبلغ ${CurrencyFormatter.formatAmount(amount)}',
+            ),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context, true);
+        Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ: $e', style: const TextStyle(fontWeight: FontWeight.bold)),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showError('حدث خطأ: $e');
     } finally {
       if (mounted) {
         setState(() => _isProcessing = false);
       }
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   DateTime _resolveCheckout(Booking booking) {
