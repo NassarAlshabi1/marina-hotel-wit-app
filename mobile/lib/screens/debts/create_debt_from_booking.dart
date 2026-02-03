@@ -377,7 +377,7 @@ class _CreateDebtFromBookingScreenState
           children: [
             TextFormField(
               controller: _manualGuestNameController,
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
                 labelText: 'اسم النزيل *',
                 labelStyle: const TextStyle(fontSize: 12),
@@ -394,29 +394,35 @@ class _CreateDebtFromBookingScreenState
                 Expanded(
                   child: TextFormField(
                     controller: _manualCheckinController,
-                    style: const TextStyle(fontSize: 13),
+                    readOnly: true,
+                    style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'تاريخ الوصول *',
                       labelStyle: const TextStyle(fontSize: 12),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      suffixIcon: const Icon(Icons.calendar_today, size: 16),
                     ),
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'أدخل تاريخ الوصول'
                         : null,
+                    onTap: () => _pickDate(_manualCheckinController),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextFormField(
                     controller: _manualCheckoutController,
-                    style: const TextStyle(fontSize: 13),
+                    readOnly: true,
+                    style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'تاريخ المغادرة',
                       labelStyle: const TextStyle(fontSize: 12),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      suffixIcon: const Icon(Icons.calendar_today, size: 16),
                     ),
+                    onTap: () => _pickDate(_manualCheckoutController),
                   ),
                 ),
               ],
@@ -428,7 +434,7 @@ class _CreateDebtFromBookingScreenState
                   child: TextFormField(
                     controller: _manualTotalController,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 13),
+                    style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'إجمالي المبلغ *',
                       labelStyle: const TextStyle(fontSize: 12),
@@ -445,7 +451,7 @@ class _CreateDebtFromBookingScreenState
                   child: TextFormField(
                     controller: _manualPaidController,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 13),
+                    style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'المبلغ المدفوع',
                       labelStyle: const TextStyle(fontSize: 12),
@@ -459,7 +465,7 @@ class _CreateDebtFromBookingScreenState
             const SizedBox(height: 10),
             TextFormField(
               controller: _manualReasonController,
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
                 labelText: 'سبب الدين',
                 labelStyle: const TextStyle(fontSize: 12),
@@ -471,7 +477,7 @@ class _CreateDebtFromBookingScreenState
             TextFormField(
               controller: _manualDebtDateController,
               readOnly: true,
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
                 labelText: 'تاريخ تسجيل الدين',
                 labelStyle: const TextStyle(fontSize: 12),
@@ -485,7 +491,7 @@ class _CreateDebtFromBookingScreenState
             TextFormField(
               controller: _manualNoteController,
               maxLines: 2,
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
                 labelText: 'ملاحظات',
                 labelStyle: const TextStyle(fontSize: 12),
@@ -565,6 +571,19 @@ class _CreateDebtFromBookingScreenState
     );
     if (picked != null) {
       _manualDebtDateController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    }
+  }
+
+  Future<void> _pickDate(TextEditingController controller) async {
+    final initial = DateTime.tryParse(controller.text) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      controller.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
     }
   }
 
