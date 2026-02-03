@@ -618,7 +618,7 @@ class _IncomeExpenseReportScreenState
       alignment: WrapAlignment.center,
       children: [
         SizedBox(
-          width: 150,
+          width: 140,
           child: NeuStatCard(
             icon: Icons.trending_down_rounded,
             title: 'إجمالي الدخل',
@@ -628,7 +628,7 @@ class _IncomeExpenseReportScreenState
           ),
         ),
         SizedBox(
-          width: 150,
+          width: 140,
           child: NeuStatCard(
             icon: Icons.trending_up_rounded,
             title: 'إجمالي المصروفات',
@@ -638,7 +638,7 @@ class _IncomeExpenseReportScreenState
           ),
         ),
         SizedBox(
-          width: 150,
+          width: 140,
           child: NeuStatCard(
             icon: Icons.people_rounded,
             title: 'مصروفات الرواتب',
@@ -648,7 +648,7 @@ class _IncomeExpenseReportScreenState
           ),
         ),
         SizedBox(
-          width: 150,
+          width: 140,
           child: NeuStatCard(
             icon: _net >= 0 ? Icons.rocket_launch_rounded : Icons.warning_rounded,
             title: 'صافي الربح',
