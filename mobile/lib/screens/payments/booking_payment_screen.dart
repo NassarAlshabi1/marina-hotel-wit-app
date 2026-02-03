@@ -399,12 +399,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 label: 'سعر الليلة',
                 value: '${_currencyFmt.format(roomRate)}',
               ),
-              _buildDetailChip(
-                context,
-                icon: Icons.nightlight_round,
-                label: 'الليالي المتوقعة',
-                value: expectedNights.toString(),
-              ),
+              // _buildDetailChip(
+              //   context,
+              //   icon: Icons.nightlight_round,
+              //   label: 'الليالي المتوقعة',
+              //   value: expectedNights.toString(),
+              // ),
               _buildDetailChip(
                 context,
                 icon: Icons.task_alt,
