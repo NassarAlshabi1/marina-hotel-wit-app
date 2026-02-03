@@ -199,7 +199,6 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       // البحث
       final matchesSearch = _searchQuery.isEmpty ||
           debt.guestName.toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
 
       // التصفية حسب الحالة
       bool matchesFilter = true;
