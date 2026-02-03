@@ -556,18 +556,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: chipColor),
+          Icon(icon, size: 14, color: chipColor),
           const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
               color: chipColor,
               fontWeight: FontWeight.bold,
-              fontSize: 12,
+              fontSize: 10,
             ),
           ),
           const SizedBox(width: 6),
-          Text(value, style: TextStyle(color: chipColor, fontSize: 12)),
+          Text(value, style: TextStyle(color: chipColor, fontSize: 11)),
         ],
       ),
     );
