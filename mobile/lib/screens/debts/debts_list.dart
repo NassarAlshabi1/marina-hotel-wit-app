@@ -55,7 +55,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                       Icon(Icons.error, size: 64, color: Colors.red.shade400),
                       const SizedBox(height: 16),
                       Text('حدث خطأ في تحميل البيانات',
-                          style: TextStyle(color: Colors.red.shade700)),
+                          style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       Text(error.toString(),
                           style: const TextStyle(color: Colors.grey)),
@@ -79,8 +79,10 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         children: [
           // شريط البحث
           TextField(
+            style: const TextStyle(fontWeight: FontWeight.bold),
             decoration: InputDecoration(
               hintText: 'ابحث باسم النزيل أو رقم الغرفة...',
+              hintStyle: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey[500]),
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(25),
@@ -113,7 +115,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   Widget _buildFilterChip(String label, String value) {
     final isSelected = _filterStatus == value;
     return FilterChip(
-      label: Text(label),
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
       selected: isSelected,
       onSelected: (selected) => setState(() => _filterStatus = value),
       selectedColor: Colors.blue.shade100,
@@ -255,10 +257,10 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                 size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(emptyMessage,
-                style: const TextStyle(fontSize: 18, color: Colors.grey)),
+                style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             const Text('اضغط على + لإضافة دين جديد',
-                style: TextStyle(color: Colors.grey)),
+                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
           ],
         ),
       );
@@ -356,7 +358,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     children: [
                       Text('إجمالي المبلغ',
                           style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 12)),
+                              color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.bold)),
                       Text(CurrencyFormatter.formatAmount(debt.totalAmount),
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
@@ -368,7 +370,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     children: [
                       Text('المدفوع',
                           style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 12)),
+                              color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.bold)),
                       Text(CurrencyFormatter.formatAmount(debt.paidAmount),
                           style: TextStyle(
                               fontWeight: FontWeight.bold,
@@ -382,7 +384,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     children: [
                       Text('المتبقي',
                           style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 12)),
+                              color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.bold)),
                       Text(CurrencyFormatter.formatAmount(debt.remainingAmount),
                           style: TextStyle(
                               fontWeight: FontWeight.bold,
@@ -409,10 +411,10 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     Icon(Icons.security, size: 16, color: Colors.blue.shade700),
                     const SizedBox(width: 8),
                     Text('رهن: ${debt.pledge}',
-                        style: TextStyle(color: Colors.blue.shade700)),
+                        style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold)),
                     if (debt.pledgeType?.isNotEmpty == true)
                       Text(' (${debt.pledgeType})',
-                          style: TextStyle(color: Colors.blue.shade600)),
+                          style: TextStyle(color: Colors.blue.shade600, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -429,7 +431,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
-                child: Text(debt.note!, style: const TextStyle(fontSize: 13)),
+                child: Text(debt.note!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ],
 
@@ -526,11 +528,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         Icon(icon, size: 14, color: Colors.grey.shade600),
         const SizedBox(width: 4),
         Text('$label: ',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.bold)),
         Expanded(
           child: Text(value,
               style:
-                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
         ),
       ],
     );
