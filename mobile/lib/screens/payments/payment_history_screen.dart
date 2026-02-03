@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
-import '../../services/logging_service.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 
@@ -19,7 +18,6 @@ class PaymentHistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
-  final _logger = LoggingService();
   String? _selectedRevenueType;
   String? _selectedPaymentMethod;
   DateTime? _fromDate;

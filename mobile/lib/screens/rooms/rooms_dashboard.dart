@@ -6,6 +6,7 @@ import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../components/widgets/room_widgets.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/snackbar_helper.dart';
 import '../bookings/booking_edit.dart';
 import '../payments/booking_payment_screen.dart';
 
@@ -143,10 +144,7 @@ class RoomsDashboard extends ConsumerWidget {
 
       if (activeBooking == null) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
           SnackBarHelper.showWarning(context, 'لا يوجد حجز محجوز للغرفة $roomNumber');
-          );
         }
         return;
       }

@@ -6,7 +6,6 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
-import '../../services/logging_service.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
@@ -20,18 +19,6 @@ class ExpensesListScreen extends ConsumerStatefulWidget {
 
 class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     with SyncOnExitMixin {
-  final _logger = LoggingService();
-
-  Future<void> _onRefresh() async {
-    ref.invalidate(expensesRepoProvider);
-    ref.invalidate(employeesListProvider);
-    _logger.logTransaction(
-      type: TransactionType.sync,
-      entity: 'Expenses',
-      details: 'تحديث قائمة المصروفات',
-    );
-  }
-
   @override
   String get screenId => 'expenses_list';
   final DateFormat _dateFormat = DateFormat('yyyy/MM/dd');

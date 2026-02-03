@@ -25,7 +25,7 @@ import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
-import 'providers/repository_providers.dart';
+import 'providers/repository_providers.dart' hide LogLevel;
 import 'services/seed.dart';
 import 'services/app_session_manager.dart';
 import 'services/google_drive_backup_service.dart';

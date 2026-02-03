@@ -10,7 +10,6 @@ import '../../components/admin_layout.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/local_db.dart';
-import '../../services/logging_service.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/time.dart';
 
@@ -34,7 +33,6 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
 
   List<Debt> _rows = [];
   List<_GuestDebtSummary> _guestSummaries = [];
-  List<_MonthlyDebtSummary> _monthlySummaries = [];
 
   double _totalDebt = 0;
   double _totalPaid = 0;
@@ -147,7 +145,6 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       setState(() {
         _rows = filtered;
         _guestSummaries = guestSummaries;
-        _monthlySummaries = monthlySummaries;
         _totalDebt = totalDebt;
         _totalPaid = totalPaid;
         _totalRemaining = totalRemaining;

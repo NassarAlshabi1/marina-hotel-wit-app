@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../services/local_db.dart';
-import '../../services/logging_service.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
 import '../../utils/time.dart';
@@ -24,18 +23,6 @@ class BookingsListScreen extends ConsumerStatefulWidget {
 
 class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
     with SyncOnExitMixin {
-  final _logger = LoggingService();
-
-  Future<void> _onRefresh() async {
-    ref.invalidate(bookingsListProvider);
-    ref.invalidate(roomsListProvider);
-    _logger.logTransaction(
-      type: TransactionType.sync,
-      entity: 'Bookings',
-      details: 'تحديث قائمة الحجوزات',
-    );
-  }
-
   @override
   String get screenId => 'bookings_list';
   final _currencyFmt = NumberFormat('#,##0', 'en_US');

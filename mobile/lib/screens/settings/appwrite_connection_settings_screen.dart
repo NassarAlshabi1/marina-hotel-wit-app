@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/appwrite_config_manager.dart';
 import '../../services/appwrite_config.dart';
+import '../../utils/snackbar_helper.dart';
 
 class AppwriteConnectionSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteConnectionSettingsScreen({super.key});
