@@ -536,145 +536,26 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   }
 
   Widget _buildChartsSection() {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      children: [
-        SizedBox(
-          width: min(MediaQuery.of(context).size.width - 64, 480),
-          height: 320,
-          child: Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'توزيع المبالغ المتبقية حسب النزيل',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(child: _buildGuestPieChart()),
-                ],
-              ),
-            ),
-          ),
-        ),
-        SizedBox(
-          width: min(MediaQuery.of(context).size.width - 64, 560),
-          height: 320,
-          child: Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'تطور المبلغ المتبقي شهريًا',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(child: _buildMonthlyBarChart()),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGuestPieChart() {
-    if (_guestSummaries.isEmpty || _totalRemaining <= 0) {
-      return const Center(child: Text('لا توجد بيانات كافية للعرض'));
-    }
-    final sorted = List<_GuestDebtSummary>.from(_guestSummaries);
-    final topGuests = sorted.take(5).toList();
-    double others = 0;
-    for (var i = 5; i < sorted.length; i++) {
-      others += sorted[i].remainingAmount;
-    }
-    final colors = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.red,
-      Colors.grey,
-    ];
-    final sections = <PieChartSectionData>[];
-    for (var i = 0; i < topGuests.length; i++) {
-      final guest = topGuests[i];
-      sections.add(
-        PieChartSectionData(
-          color: colors[i % colors.length],
-          value: guest.remainingAmount,
-          title:
-              '${(guest.remainingAmount / _totalRemaining * 100).toStringAsFixed(1)}%',
-          radius: 70,
-          titleStyle: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
-        ),
-      );
-    }
-    if (others > 0) {
-      sections.add(
-        PieChartSectionData(
-          color: colors.last,
-          value: others,
-          title: '${(others / _totalRemaining * 100).toStringAsFixed(1)}%',
-          radius: 70,
-          titleStyle: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
-        ),
-      );
-    }
-    return Row(
-      children: [
-        Expanded(
-          child: PieChart(
-            PieChartData(
-              sections: sections,
-              sectionsSpace: 2,
-              centerSpaceRadius: 40,
-              borderData: FlBorderData(show: false),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ListView(
+    return SizedBox(
+      width: min(MediaQuery.of(context).size.width - 64, 560),
+      height: 320,
+      child: Card(
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (var i = 0; i < topGuests.length; i++)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: colors[i % colors.length],
-                  ),
-                  title: Text(topGuests[i].guestName),
-                  subtitle: Text(
-                    'المتبقي: ${_currencyFormat.format(topGuests[i].remainingAmount)}',
-                  ),
-                ),
-              if (others > 0)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(backgroundColor: colors.last),
-                  title: const Text('أخرى'),
-                  subtitle: Text('المتبقي: ${_currencyFormat.format(others)}'),
-                ),
+              const Text(
+                'تطور المبلغ المتبقي شهريًا',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Expanded(child: _buildMonthlyBarChart()),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 
