@@ -42,8 +42,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _checkout = TextEditingController();
   final _expectedNights = TextEditingController(text: '1');
   final _notes = TextEditingController();
-  final _discount = TextEditingController();
-  final _discountStartDate = TextEditingController();
 
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
@@ -84,8 +82,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _notes.addListener(markDataChanged);
     _advancePayment.addListener(markDataChanged);
     _paymentNotes.addListener(markDataChanged);
-    _discount.addListener(markDataChanged);
-    _discountStartDate.addListener(markDataChanged);
 
     final b = widget.existing;
     if (b != null) {
@@ -102,8 +98,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       _checkout.text = b.checkoutDate ?? '';
       _expectedNights.text = b.expectedNights.toString();
       _notes.text = b.notes ?? '';
-      _discount.text = b.discount > 0 ? b.discount.toStringAsFixed(0) : '';
-      _discountStartDate.text = b.discountStartDate ?? '';
       _status = b.status;
       _idType = b.guestIdType;
       _roomInitialized = true;
@@ -136,8 +130,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _notes.removeListener(markDataChanged);
     _advancePayment.removeListener(markDataChanged);
     _paymentNotes.removeListener(markDataChanged);
-    _discount.removeListener(markDataChanged);
-    _discountStartDate.removeListener(markDataChanged);
 
     _guestName.dispose();
     _guestPhone.dispose();
@@ -153,8 +145,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _notes.dispose();
     _advancePayment.dispose();
     _paymentNotes.dispose();
-    _discount.dispose();
-    _discountStartDate.dispose();
     super.dispose();
   }
 
@@ -479,41 +469,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   ),
                 ),
                 const SizedBox(height: 6),
-                _buildSectionTitle('التخفيض (اختياري)'),
-                Card(
-                  color: Colors.orange.shade50,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: _discount,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'مبلغ التخفيض (لكل ليلة)',
-                            prefixIcon: Icon(Icons.discount, size: 16),
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(vertical: 10),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _discountStartDate,
-                          readOnly: true,
-                          decoration: const InputDecoration(
-                            labelText: 'تاريخ بدء التخفيض',
-                            prefixIcon: Icon(Icons.calendar_today, size: 16),
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(vertical: 10),
-                            hintText: 'اضغط لاختيار التاريخ',
-                          ),
-                          onTap: () => _pickDate(_discountStartDate, onlyDate: true),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
                 _buildSectionTitle('ملاحظات الحجز'),
                 Card(
                   child: Padding(
@@ -566,11 +521,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             checkout: checkoutDt,
                           );
                     final notes = _optionalText(_notes.text);
-                    final discount =
-                        double.tryParse(_discount.text.trim()) ?? 0;
-                    final discountStartDate = _discountStartDate.text.trim().isEmpty
-                        ? null
-                        : _discountStartDate.text.trim();
                     const String? email = null;
 
                     final blacklist = ref.read(blacklistRepoProvider);
@@ -621,8 +571,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         notes: notes,
                         expectedNights: expectedNights,
                         calculatedNights: calculatedNights,
-                        discount: discount,
-                        discountStartDate: discountStartDate,
                       );
                     } else {
                       await repo.update(
@@ -643,8 +591,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         notes: notes,
                         expectedNights: expectedNights,
                         calculatedNights: calculatedNights,
-                        discount: discount,
-                        discountStartDate: discountStartDate,
                       );
                     }
 

@@ -27,6 +27,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   late final TextEditingController _idIssuePlaceController;
   late final TextEditingController _addressController;
 
+  final Map<int, TextEditingController> _discountControllers = {};
+  final Map<int, TextEditingController> _discountStartDateControllers = {};
+
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final _idNumberFormatter = FilteringTextInputFormatter.allow(
     RegExp(r'[0-9]'),
@@ -71,6 +74,12 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     for (final booking in widget.guest.bookings) {
       _roomSelections[booking.id] = booking.roomNumber;
       _originalRooms[booking.id] = booking.roomNumber;
+      _discountControllers[booking.id] = TextEditingController(
+        text: booking.discount > 0 ? booking.discount.toStringAsFixed(0) : '',
+      );
+      _discountStartDateControllers[booking.id] = TextEditingController(
+        text: booking.discountStartDate ?? '',
+      );
     }
   }
 
@@ -84,6 +93,12 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     _idIssueDateController.dispose();
     _idIssuePlaceController.dispose();
     _addressController.dispose();
+    for (final controller in _discountControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _discountStartDateControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -126,6 +141,12 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         final oldRoomNumber = _originalRooms[booking.id]!;
         final newRoomNumber = _roomSelections[booking.id]!;
         final roomChanged = oldRoomNumber != newRoomNumber;
+        final discountText = _discountControllers[booking.id]?.text.trim() ?? '';
+        final discount = double.tryParse(discountText) ?? 0;
+        final discountStartDateText =
+            _discountStartDateControllers[booking.id]?.text.trim() ?? '';
+        final discountStartDate =
+            discountStartDateText.isNotEmpty ? discountStartDateText : null;
 
         await bookingsRepo.update(
           booking.id,
@@ -139,6 +160,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           guestIdIssuePlace: idIssuePlace.isNotEmpty ? idIssuePlace : null,
           guestAddress: address.isNotEmpty ? address : null,
           roomNumber: newRoomNumber,
+          discount: discount,
+          discountStartDate: discountStartDate,
         );
 
         if (roomChanged) {
@@ -473,6 +496,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
   Widget _buildBookingRoomCard(Booking booking) {
     final roomsAsync = ref.watch(roomsListProvider);
+    final discountController = _discountControllers[booking.id]!;
+    final discountStartDateController =
+        _discountStartDateControllers[booking.id]!;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -600,6 +626,28 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                         ),
                       ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: discountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'مبلغ التخفيض (لكل ليلة)',
+                        prefixIcon: Icon(Icons.discount),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: discountStartDateController,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'تاريخ بدء التخفيض',
+                        prefixIcon: Icon(Icons.calendar_today),
+                        hintText: 'اضغط لاختيار التاريخ',
+                        border: OutlineInputBorder(),
+                      ),
+                      onTap: () => _pickDate(discountStartDateController),
+                    ),
                   ],
                 );
               },
