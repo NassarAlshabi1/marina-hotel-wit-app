@@ -456,8 +456,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   ),
                 ),
                 const SizedBox(height: 14),
-                FilledButton.icon(
-                  onPressed: () async {
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: FilledButton.icon(
+                    onPressed: () async {
                     if (!_formKey.currentState!.validate()) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -576,6 +578,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   icon: const Icon(Icons.save),
                   label: const Text('حفظ الحجز'),
                 ),
+              ),
               ],
             ),
           ),
