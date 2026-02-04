@@ -16,6 +16,7 @@ import 'appwrite_settings_screen.dart';
 import 'sync_debug_logs_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import '../security/blacklist_screen.dart';
+import 'php_api_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -149,6 +150,17 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                     builder: (context) => const AppwriteSettingsScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'إعدادات PHP API',
+              subtitle: 'ربط التطبيق مع سيرفر PHP/MySQL',
+              icon: Icons.api,
+              color: Colors.amber,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const PhpApiSettingsScreen()),
               ),
             ),
             _SettingsItem(
