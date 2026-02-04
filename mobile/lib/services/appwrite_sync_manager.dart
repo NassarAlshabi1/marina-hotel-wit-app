@@ -1898,6 +1898,9 @@ class AppwriteSyncManager {
   }
 
   Map<String, dynamic> _shiftNoteToRemote(ShiftNote note) {
+    final createdAtIso = note.createdAtIso ??
+        DateTime.fromMillisecondsSinceEpoch(note.createdAt * 1000)
+            .toIso8601String();
     final data = <String, dynamic>{
       'localUuid': note.localUuid,
       'title': note.title,
@@ -1905,14 +1908,10 @@ class AppwriteSyncManager {
       'priority': note.priority,
       'shiftType': note.shiftType,
       'isRead': note.isRead,
-      'createdAt': note.createdAt,
-      'updatedAt': note.updatedAt,
-      'lastModified': note.lastModified,
+      'createdAt': createdAtIso,
+      'createdBy': note.createdBy,
     };
-    _putIfNotNull(data, 'serverId', note.serverId);
-    _putIfNotNull(data, 'deletedAt', note.deletedAt);
-    _putIfStringNotEmpty(data, 'createdAtIso', note.createdAtIso);
-    _putIfStringNotEmpty(data, 'updatedAtIso', note.updatedAtIso);
+    _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
     return data;
   }
 
