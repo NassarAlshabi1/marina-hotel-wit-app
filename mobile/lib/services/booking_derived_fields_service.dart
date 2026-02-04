@@ -58,11 +58,35 @@ class BookingDerivedFieldsService {
         .getSingleOrNull();
 
     final nightlyRate = room?.price ?? 0.0;
-    final subtotal = nightlyRate * totalNights;
     final discount = booking.discount;
-    final totalDue = double.parse(
-      ((subtotal - discount).clamp(0.0, subtotal)).toStringAsFixed(2),
-    );
+    final discountStartDate = _parseDateTime(booking.discountStartDate);
+    
+    double totalDue;
+    if (discountStartDate != null && discount > 0) {
+      int nightsBeforeDiscount = 0;
+      int nightsWithDiscount = 0;
+      
+      for (final segment in segments) {
+        if (segment.start.isBefore(discountStartDate)) {
+          nightsBeforeDiscount++;
+        } else {
+          nightsWithDiscount++;
+        }
+      }
+      
+      final fullPriceTotal = nightlyRate * nightsBeforeDiscount;
+      final discountedRate = (nightlyRate - discount).clamp(0.0, nightlyRate);
+      final discountedTotal = discountedRate * nightsWithDiscount;
+      
+      totalDue = double.parse(
+        (fullPriceTotal + discountedTotal).toStringAsFixed(2),
+      );
+    } else {
+      final subtotal = nightlyRate * totalNights;
+      totalDue = double.parse(
+        ((subtotal - discount).clamp(0.0, subtotal)).toStringAsFixed(2),
+      );
+    }
 
     final payments = await (db.select(db.payments)
           ..where(
