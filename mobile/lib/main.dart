@@ -67,6 +67,16 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
   debugPrint('═══════════════════════════════════════════════════════');
 
   try {
+    final prefs = await SharedPreferences.getInstance();
+    final disableGoogleDriveSyncOnStart =
+        prefs.getBool('google_drive_sync_disable_on_start') ?? false;
+    if (disableGoogleDriveSyncOnStart) {
+      await prefs.setBool('google_drive_sync_enabled', false);
+    }
+    if (!prefs.containsKey('google_drive_sync_enabled')) {
+      await prefs.setBool('google_drive_sync_enabled', false);
+    }
+
     debugPrint('📦 Initializing Appwrite Config Manager...');
     await AppwriteConfigManager.init();
     debugPrint('✅ Appwrite Config loaded');

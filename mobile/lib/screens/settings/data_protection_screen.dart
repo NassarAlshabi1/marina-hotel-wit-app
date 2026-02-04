@@ -25,6 +25,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   bool _syncBusy = false;
   bool _appwriteBusy = false;
   bool _scheduledEnabled = false;
+  bool _googleDriveSyncEnabled = false;
+  bool _googleDriveSyncDisableOnStart = false;
   TimeOfDay _scheduledTime = const TimeOfDay(hour: 21, minute: 0);
   final List<int> _intervalOptions = [1, 2, 5, 10, 15, 30, 60];
   final Map<ConflictResolution, String> _conflictDescriptions = {
@@ -56,6 +58,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     final timeString = prefs.getString('auto_backup_time') ?? '21:0';
     final parts = timeString.split(':');
     final scheduled = prefs.getBool('scheduled_backup_enabled') ?? false;
+    final googleDriveSyncEnabled =
+        prefs.getBool('google_drive_sync_enabled') ?? false;
+    final googleDriveSyncDisableOnStart =
+        prefs.getBool('google_drive_sync_disable_on_start') ?? false;
     if (!mounted) return;
     setState(() {
       _maxBackupsController.text = maxBackups.toString();
@@ -65,6 +71,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         minute: int.parse(parts[1]),
       );
       _scheduledEnabled = scheduled;
+      _googleDriveSyncEnabled = googleDriveSyncEnabled;
+      _googleDriveSyncDisableOnStart = googleDriveSyncDisableOnStart;
     });
   }
 
@@ -199,6 +207,66 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           content: Text('تم تحديث وقت النسخ إلى ${picked.format(context)}'),
         ),
       );
+    }
+  }
+
+  Future<void> _toggleGoogleDriveSyncEnabled(bool enabled) async {
+    setState(() => _syncBusy = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('google_drive_sync_enabled', enabled);
+      if (!mounted) return;
+      setState(() => _googleDriveSyncEnabled = enabled);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled
+                ? 'تم تفعيل مزامنة Google Drive'
+                : 'تم إيقاف مزامنة Google Drive',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في تغيير حالة مزامنة Google Drive: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _syncBusy = false);
+    }
+  }
+
+  Future<void> _toggleGoogleDriveSyncDisableOnStart(bool enabled) async {
+    setState(() => _syncBusy = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('google_drive_sync_disable_on_start', enabled);
+      if (!mounted) return;
+      setState(() => _googleDriveSyncDisableOnStart = enabled);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled
+                ? 'سيتم تعطيل مزامنة Google Drive عند بدء التشغيل'
+                : 'تم إيقاف التعطيل التلقائي عند بدء التشغيل',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في تغيير إعداد بدء التشغيل: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _syncBusy = false);
     }
   }
 
@@ -775,6 +843,32 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                   '${deviceId.substring(0, 8)}...',
                 ),
             ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildCard(
+          SwitchListTile(
+            title: const Text('تفعيل مزامنة Google Drive'),
+            subtitle: Text(
+              _googleDriveSyncEnabled
+                  ? 'مفعلة - مزامنة اختيارية بين الأجهزة'
+                  : 'معطلة - Appwrite هو المصدر الأساسي',
+            ),
+            value: _googleDriveSyncEnabled,
+            onChanged: _syncBusy ? null : _toggleGoogleDriveSyncEnabled,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildCard(
+          SwitchListTile(
+            title: const Text('تعطيل مزامنة Google Drive عند بدء التشغيل'),
+            subtitle: Text(
+              _googleDriveSyncDisableOnStart
+                  ? 'ستتعطل تلقائياً عند فتح التطبيق'
+                  : 'لن يتم التعطيل تلقائياً',
+            ),
+            value: _googleDriveSyncDisableOnStart,
+            onChanged: _syncBusy ? null : _toggleGoogleDriveSyncDisableOnStart,
           ),
         ),
         const SizedBox(height: 12),

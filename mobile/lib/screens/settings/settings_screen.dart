@@ -330,15 +330,15 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
     final width = MediaQuery.sizeOf(context).width;
-    final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
+    final crossAxisCount = 3;
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
-        childAspectRatio: 1.2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+        childAspectRatio: 1.5,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -349,29 +349,31 @@ class SettingsScreen extends ConsumerWidget {
             onTap: item.onTap,
             borderRadius: BorderRadius.circular(12),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     item.icon,
-                    size: 32,
+                    size: 20,
                     color: item.color,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Text(
                     item.title,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     item.subtitle,
                     style: const TextStyle(
-                      fontSize: 10,
+                      fontSize: 9,
                       color: Colors.grey,
                     ),
                     textAlign: TextAlign.center,
@@ -485,10 +487,13 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (context) => AboutDialog(
         applicationName: 'تطبيق إدارة الفندق',
-        applicationVersion: '1.0.0',
-        applicationLegalese: '© 2024 Marina Hotel',
+        applicationVersion: '1.2',
+        applicationLegalese: '© 2026 Marina Hotel',
         children: const [
           Text('تطبيق شامل لإدارة العمليات الفندقية'),
+          SizedBox(height: 6),
+          Text('تصميم Eng: Nassar Alshabi'),
+          Text('Phone: +967 734587456'),
         ],
       ),
     );
