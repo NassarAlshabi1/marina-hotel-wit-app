@@ -170,17 +170,19 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     }
 
     final contact = await FlutterContacts.openExternalPick();
-    if (contact != null) {
-      final fullContact = await FlutterContacts.getContact(contact.id, withProperties: true);
-      if (fullContact != null && fullContact.phones.isNotEmpty) {
-        final rawPhone = fullContact.phones.first.number;
-        final normalizedPhone = _normalizePhoneForWhatsApp(rawPhone);
-        _guestPhone.text = normalizedPhone;
-        if (_guestName.text.isEmpty) {
-          _guestName.text = fullContact.displayName;
-        }
-        markDataChanged();
+    if (contact == null || !mounted) return;
+
+    final fullContact = await FlutterContacts.getContact(contact.id, withProperties: true);
+    if (!mounted) return;
+
+    if (fullContact != null && fullContact.phones.isNotEmpty) {
+      final rawPhone = fullContact.phones.first.number;
+      final normalizedPhone = _normalizePhoneForWhatsApp(rawPhone);
+      _guestPhone.text = normalizedPhone;
+      if (_guestName.text.isEmpty) {
+        _guestName.text = fullContact.displayName;
       }
+      markDataChanged();
     }
   }
 
