@@ -168,6 +168,7 @@ int? _epoch(Map<String, dynamic> json, String key, Source src) {
 
 int? _asInt(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
+  if (v is bool) return v ? 1 : 0;
   if (v is int) return v;
   if (v is num) return v.toInt();
   if (v is String) {
