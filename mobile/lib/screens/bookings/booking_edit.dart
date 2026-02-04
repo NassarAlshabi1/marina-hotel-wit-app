@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
@@ -151,6 +153,31 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     super.dispose();
   }
 
+  Future<void> _pickContact() async {
+    final status = await Permission.contacts.request();
+    if (!status.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('يرجى منح صلاحية الوصول لجهات الاتصال')),
+        );
+      }
+      return;
+    }
+
+    final contact = await FlutterContacts.openExternalPick();
+    if (contact != null) {
+      final fullContact = await FlutterContacts.getContact(contact.id, withProperties: true);
+      if (fullContact != null && fullContact.phones.isNotEmpty) {
+        final phone = fullContact.phones.first.number.replaceAll(RegExp(r'[^0-9+]'), '');
+        _guestPhone.text = phone;
+        if (_guestName.text.isEmpty) {
+          _guestName.text = fullContact.displayName;
+        }
+        markDataChanged();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final repo = ref.watch(bookingsRepoProvider);
@@ -192,8 +219,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _guestPhone,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'رقم الهاتف',
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.contacts),
+                              tooltip: 'اختيار من جهات الاتصال',
+                              onPressed: _pickContact,
+                            ),
                           ),
                           keyboardType: TextInputType.phone,
                         ),
