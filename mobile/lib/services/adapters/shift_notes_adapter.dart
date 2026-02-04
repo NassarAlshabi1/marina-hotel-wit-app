@@ -92,17 +92,20 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
   @override
   Map<String, dynamic> toJson(ShiftNote model, {required Source src}) {
     if (src == Source.appwrite) {
-      final createdAt = model.createdAtIso ?? _isoFromEpoch(model.createdAt);
       return {
+        'localUuid': model.localUuid,
         'title': model.title,
         'content': model.content,
         'priority': model.priority,
         'shiftType': model.shiftType,
         'isRead': model.isRead,
-        'createdBy': model.createdBy,
-        'createdAt': createdAt,
-        if (model.expiresAt != null && model.expiresAt!.isNotEmpty)
-          'expiresAt': model.expiresAt,
+        'createdAt': model.createdAt,
+        'updatedAt': model.updatedAt,
+        'lastModified': model.lastModified,
+        if (model.serverId != null) 'serverId': model.serverId,
+        if (model.deletedAt != null) 'deletedAt': model.deletedAt,
+        if (model.createdAtIso != null) 'createdAtIso': model.createdAtIso,
+        if (model.updatedAtIso != null) 'updatedAtIso': model.updatedAtIso,
       };
     }
     return {
@@ -124,11 +127,6 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       _k(src, 'origin', 'origin'): model.origin,
     };
   }
-}
-
-String _isoFromEpoch(int epochSeconds) {
-  return DateTime.fromMillisecondsSinceEpoch(epochSeconds * 1000)
-      .toIso8601String();
 }
 
 // Helpers

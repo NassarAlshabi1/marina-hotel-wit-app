@@ -349,16 +349,13 @@ class AppwriteSchemaVerifier {
     },
     'shift_notes': {
       'name': 'Shift Notes',
-      'includeSyncFields': false,
+      'includeSyncFields': true,
       'attributes': [
-        {'key': 'title', 'type': 'string', 'size': 200, 'required': true},
+        {'key': 'title', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'content', 'type': 'string', 'size': 1000, 'required': true},
-        {'key': 'priority', 'type': 'string', 'size': 20, 'default': 'medium'},
-        {'key': 'shiftType', 'type': 'string', 'size': 20, 'default': 'all'},
-        {'key': 'isRead', 'type': 'integer', 'default': 0},
-        {'key': 'createdAt', 'type': 'string', 'size': 50, 'required': true},
-        {'key': 'expiresAt', 'type': 'string', 'size': 50},
-        {'key': 'createdBy', 'type': 'string', 'size': 50, 'default': 'user'},
+        {'key': 'priority', 'type': 'string', 'size': 20, 'required': true},
+        {'key': 'shiftType', 'type': 'string', 'size': 20, 'required': true},
+        {'key': 'isRead', 'type': 'integer', 'required': true},
       ],
     },
   };
