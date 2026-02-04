@@ -170,7 +170,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     }
 
     final contact = await FlutterContacts.openExternalPick();
-<<<<<<< capy/test2
     if (contact == null || !mounted) return;
 
     final fullContact = await FlutterContacts.getContact(contact.id, withProperties: true);
@@ -184,19 +183,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         _guestName.text = fullContact.displayName;
       }
       markDataChanged();
-=======
-    if (contact != null) {
-      final fullContact = await FlutterContacts.getContact(contact.id, withProperties: true);
-      if (fullContact != null && fullContact.phones.isNotEmpty) {
-        final rawPhone = fullContact.phones.first.number;
-        final normalizedPhone = _normalizePhoneForWhatsApp(rawPhone);
-        _guestPhone.text = normalizedPhone;
-        if (_guestName.text.isEmpty) {
-          _guestName.text = fullContact.displayName;
-        }
-        markDataChanged();
-      }
->>>>>>> capy/php
     }
   }
 
@@ -204,29 +190,16 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     var phone = value.replaceAll(RegExp(r'[^0-9+]'), '');
     if (phone.startsWith('+')) {
       phone = phone.substring(1);
-<<<<<<< capy/test2
-    } else if (phone.startsWith('00')) {
-      phone = phone.substring(2);
-    } else if (phone.startsWith('0') && phone.length > 8) {
-      // Assume local number, add Yemen country code
-      phone = '967${phone.substring(1)}';
-    } else if (phone.length == 9 && (phone.startsWith('7'))) {
-      // Local yemeni number without leading zero
-      phone = '967$phone';
-    }
-    // For other cases (like international numbers without +/00), we return them as is.
-=======
     }
     if (phone.startsWith('00')) {
       phone = phone.substring(2);
     }
-    if (phone.startsWith('0') && phone.length >= 9) {
+    if (phone.startsWith('0') && phone.length == 10) {
       phone = '967${phone.substring(1)}';
     }
-    if (!phone.startsWith('967') && phone.length >= 9) {
+    if (!phone.startsWith('967') && phone.length == 9) {
       phone = '967$phone';
     }
->>>>>>> capy/php
     return phone;
   }
 
@@ -534,11 +507,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             contentPadding: EdgeInsets.symmetric(vertical: 10),
                             hintText: 'اضغط لاختيار التاريخ',
                           ),
-<<<<<<< capy/test2
                           onTap: () => _pickDate(_discountStartDate, onlyDate: true),
-=======
-                          onTap: () => _pickDate(_discountStartDate, initialDate: DateTime.now()),
->>>>>>> capy/php
                         ),
                       ],
                     ),
