@@ -76,7 +76,12 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
       lastModified: d.Value(lastModified),
-      createdAtIso: _vStr(json, 'createdAtIso', src),
+      createdAtIso: _vStr(
+        json,
+        'createdAtIso',
+        src,
+        fallback: _asString(json, 'createdAt', src),
+      ),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       version: _vInt(json, 'version', src, fallback: 1),
@@ -86,6 +91,20 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
 
   @override
   Map<String, dynamic> toJson(ShiftNote model, {required Source src}) {
+    if (src == Source.appwrite) {
+      final createdAt = model.createdAtIso ?? _isoFromEpoch(model.createdAt);
+      return {
+        'title': model.title,
+        'content': model.content,
+        'priority': model.priority,
+        'shiftType': model.shiftType,
+        'isRead': model.isRead,
+        'createdBy': model.createdBy,
+        'createdAt': createdAt,
+        if (model.expiresAt != null && model.expiresAt!.isNotEmpty)
+          'expiresAt': model.expiresAt,
+      };
+    }
     return {
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
@@ -105,6 +124,11 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       _k(src, 'origin', 'origin'): model.origin,
     };
   }
+}
+
+String _isoFromEpoch(int epochSeconds) {
+  return DateTime.fromMillisecondsSinceEpoch(epochSeconds * 1000)
+      .toIso8601String();
 }
 
 // Helpers
@@ -140,11 +164,18 @@ int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final s = _asString(json, key, src);
   if (s == null) return null;
   final parsed = int.tryParse(s);
-  return parsed;
+  if (parsed != null) return parsed;
+  final normalized = s.contains('T') ? s : s.replaceFirst(' ', 'T');
+  try {
+    return DateTime.parse(normalized).millisecondsSinceEpoch ~/ 1000;
+  } catch (_) {
+    return null;
+  }
 }
 
 int? _asInt(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
+  if (v is bool) return v ? 1 : 0;
   if (v is int) return v;
   if (v is num) return v.toInt();
   if (v is String) {
