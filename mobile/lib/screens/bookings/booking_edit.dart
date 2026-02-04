@@ -188,16 +188,16 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     var phone = value.replaceAll(RegExp(r'[^0-9+]'), '');
     if (phone.startsWith('+')) {
       phone = phone.substring(1);
-    }
-    if (phone.startsWith('00')) {
+    } else if (phone.startsWith('00')) {
       phone = phone.substring(2);
-    }
-    if (phone.startsWith('0') && phone.length >= 9) {
+    } else if (phone.startsWith('0') && phone.length > 8) {
+      // Assume local number, add Yemen country code
       phone = '967${phone.substring(1)}';
-    }
-    if (!phone.startsWith('967') && phone.length >= 9) {
+    } else if (phone.length == 9 && (phone.startsWith('7'))) {
+      // Local yemeni number without leading zero
       phone = '967$phone';
     }
+    // For other cases (like international numbers without +/00), we return them as is.
     return phone;
   }
 
