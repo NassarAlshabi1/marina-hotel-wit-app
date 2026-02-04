@@ -308,13 +308,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       const SizedBox(height: 12),
                       _buildTextField(
                         controller: _phoneController,
-                        label: 'رقم الهاتف',
+                        label: 'رقم الهاتف (اختياري)',
                         icon: Icons.phone,
                         keyboardType: TextInputType.phone,
-                        validator: (value) =>
-                            value == null || value.trim().isEmpty
-                                ? 'رقم الهاتف مطلوب'
-                                : null,
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(

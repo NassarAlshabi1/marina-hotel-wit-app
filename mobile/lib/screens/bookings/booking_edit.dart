@@ -193,10 +193,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         TextFormField(
                           controller: _guestPhone,
                           decoration: const InputDecoration(
-                            labelText: 'رقم الهاتف *',
+                            labelText: 'رقم الهاتف',
                           ),
                           keyboardType: TextInputType.phone,
-                          validator: _req,
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
