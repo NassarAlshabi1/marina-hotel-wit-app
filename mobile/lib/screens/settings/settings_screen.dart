@@ -153,17 +153,6 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             _SettingsItem(
-              title: 'إعدادات PHP API',
-              subtitle: 'ربط التطبيق مع سيرفر PHP/MySQL',
-              icon: Icons.api,
-              color: Colors.amber,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const PhpApiSettingsScreen()),
-              ),
-            ),
-            _SettingsItem(
               title: 'سجلات المزامنة',
               subtitle: 'مراقبة مزامنة Google Drive',
               icon: Icons.monitor_heart,
@@ -205,6 +194,17 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.info,
               color: Colors.grey,
               onTap: () => _showAboutDialog(context),
+            ),
+            _SettingsItem(
+              title: 'إعدادات PHP API',
+              subtitle: 'ربط التطبيق مع سيرفر PHP/MySQL',
+              icon: Icons.api,
+              color: Colors.amber,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const PhpApiSettingsScreen()),
+              ),
             ),
           ]),
         ],
@@ -361,7 +361,7 @@ class SettingsScreen extends ConsumerWidget {
                   Text(
                     item.title,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
