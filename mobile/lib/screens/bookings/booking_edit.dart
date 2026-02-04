@@ -505,7 +505,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             contentPadding: EdgeInsets.symmetric(vertical: 10),
                             hintText: 'اضغط لاختيار التاريخ',
                           ),
-                          onTap: () => _pickDate(_discountStartDate, initialDate: DateTime.now()),
+                          onTap: () => _pickDate(_discountStartDate, onlyDate: true),
                         ),
                       ],
                     ),
