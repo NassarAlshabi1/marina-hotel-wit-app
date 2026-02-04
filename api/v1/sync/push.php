@@ -44,6 +44,15 @@ try {
             continue;
         }
         
+        if (!isValidEntity($entity)) {
+            $results[] = [
+                'localUuid' => $localUuid,
+                'success' => false,
+                'error' => 'اسم كيان غير صالح: ' . $entity
+            ];
+            continue;
+        }
+        
         try {
             // تحويل البيانات من camelCase إلى snake_case
             $snakeData = camelToSnake($data);
@@ -94,6 +103,31 @@ try {
         'user_id' => $user['id']
     ]);
     jsonResponse(false, null, 'حدث خطأ أثناء المزامنة', 500);
+}
+
+/**
+ * قائمة الكيانات المسموح بها (whitelist)
+ */
+function getValidEntities() {
+    return [
+        'rooms',
+        'bookings',
+        'booking_notes',
+        'employees',
+        'expenses',
+        'expense_categories',
+        'cash_transactions',
+        'payments',
+        'shift_notes',
+        'daily_closures'
+    ];
+}
+
+/**
+ * التحقق من صحة اسم الكيان
+ */
+function isValidEntity($entity) {
+    return in_array($entity, getValidEntities(), true);
 }
 
 /**
@@ -358,7 +392,7 @@ function filterAllowedFields($table, $data) {
     ];
     
     if (!isset($allowedFields[$table])) {
-        return $data;
+        return [];
     }
     
     $filtered = [];
