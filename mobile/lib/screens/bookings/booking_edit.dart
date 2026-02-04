@@ -256,7 +256,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _guestNationality,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
                           decoration: const InputDecoration(
                             labelText: 'الجنسية *',
                           ),
@@ -422,7 +422,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 _buildSectionTitle('التخفيض (اختياري)'),
                 Card(
                   color: Colors.orange.shade50,
@@ -440,7 +440,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 _buildSectionTitle('ملاحظات الحجز'),
                 Card(
                   child: Padding(
