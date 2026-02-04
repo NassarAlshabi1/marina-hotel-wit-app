@@ -77,6 +77,7 @@ class Bookings extends Table with SyncFields {
   TextColumn get status => text()();
   TextColumn get notes => text().nullable()();
   RealColumn get discount => real().withDefault(const Constant(0))();
+  TextColumn get discountStartDate => text().nullable()();
   IntColumn get expectedNights => integer().withDefault(const Constant(1))();
   IntColumn get calculatedNights => integer().withDefault(const Constant(1))();
   IntColumn get totalNightsCached => integer().withDefault(const Constant(0))();
