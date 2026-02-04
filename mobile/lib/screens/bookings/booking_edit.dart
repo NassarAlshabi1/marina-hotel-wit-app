@@ -168,14 +168,32 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     if (contact != null) {
       final fullContact = await FlutterContacts.getContact(contact.id, withProperties: true);
       if (fullContact != null && fullContact.phones.isNotEmpty) {
-        final phone = fullContact.phones.first.number.replaceAll(RegExp(r'[^0-9+]'), '');
-        _guestPhone.text = phone;
+        final rawPhone = fullContact.phones.first.number;
+        final normalizedPhone = _normalizePhoneForWhatsApp(rawPhone);
+        _guestPhone.text = normalizedPhone;
         if (_guestName.text.isEmpty) {
           _guestName.text = fullContact.displayName;
         }
         markDataChanged();
       }
     }
+  }
+
+  String _normalizePhoneForWhatsApp(String value) {
+    var phone = value.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (phone.startsWith('+')) {
+      phone = phone.substring(1);
+    }
+    if (phone.startsWith('00')) {
+      phone = phone.substring(2);
+    }
+    if (phone.startsWith('0') && phone.length >= 9) {
+      phone = '967${phone.substring(1)}';
+    }
+    if (!phone.startsWith('967') && phone.length >= 9) {
+      phone = '967$phone';
+    }
+    return phone;
   }
 
   @override
