@@ -329,7 +329,6 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
-    final width = MediaQuery.sizeOf(context).width;
     final crossAxisCount = 3;
     return GridView.builder(
       shrinkWrap: true,
