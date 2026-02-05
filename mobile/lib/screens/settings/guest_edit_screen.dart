@@ -29,6 +29,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
   final Map<int, TextEditingController> _discountControllers = {};
   final Map<int, TextEditingController> _discountStartDateControllers = {};
+  final Map<int, TextEditingController> _checkinDateControllers = {};
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final _idNumberFormatter = FilteringTextInputFormatter.allow(
@@ -80,6 +81,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       _discountStartDateControllers[booking.id] = TextEditingController(
         text: booking.discountStartDate ?? '',
       );
+      _checkinDateControllers[booking.id] = TextEditingController(
+        text: booking.checkinDate.split('T').first,
+      );
     }
   }
 
@@ -97,6 +101,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       controller.dispose();
     }
     for (final controller in _discountStartDateControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _checkinDateControllers.values) {
       controller.dispose();
     }
     super.dispose();
@@ -147,6 +154,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
             _discountStartDateControllers[booking.id]?.text.trim() ?? '';
         final discountStartDate =
             discountStartDateText.isNotEmpty ? discountStartDateText : null;
+        final checkinDateText =
+            _checkinDateControllers[booking.id]?.text.trim() ?? '';
+        final checkinDateChanged = checkinDateText.isNotEmpty &&
+            checkinDateText != booking.checkinDate.split('T').first;
 
         await bookingsRepo.update(
           booking.id,
@@ -162,6 +173,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           roomNumber: newRoomNumber,
           discount: discount,
           discountStartDate: discountStartDate,
+          checkinDate: checkinDateChanged ? checkinDateText : null,
         );
 
         if (roomChanged) {
@@ -620,6 +632,57 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                                 child: Text(
                                   'سيتم نقل الغرفة من $originalRoom إلى $currentValue',
                                   style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _checkinDateControllers[booking.id],
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: 'تاريخ الدخول',
+                        prefixIcon: const Icon(Icons.login),
+                        hintText: 'اضغط لتعديل تاريخ الدخول',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: _checkinDateControllers[booking.id]!.text !=
+                                booking.checkinDate.split('T').first
+                            ? const Icon(Icons.edit, color: Colors.orange)
+                            : null,
+                      ),
+                      onTap: () async {
+                        final controller = _checkinDateControllers[booking.id]!;
+                        await _pickDate(controller);
+                        setState(() {});
+                      },
+                    ),
+                    if (_checkinDateControllers[booking.id]!.text !=
+                        booking.checkinDate.split('T').first)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.info_outline,
+                                size: 16,
+                                color: Colors.blue,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'سيتم تغيير تاريخ الدخول وإعادة حساب المبالغ تلقائياً',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue.shade700,
+                                  ),
                                 ),
                               ),
                             ],
