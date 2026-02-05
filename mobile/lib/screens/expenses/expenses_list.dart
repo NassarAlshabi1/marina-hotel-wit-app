@@ -25,6 +25,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   DateTime? _fromDate;
   DateTime? _toDate;
   String? selectedType;
+  late Stream<List<Expense>> _expensesStream;
   static const String _salaryType = 'رواتب';
   static const String _salaryWithdrawAction = 'سحب من الراتب';
   static const String _salaryDeductionAction = 'خصم من الراتب';
@@ -48,11 +49,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final now = DateTime.now();
     _fromDate = DateTime(now.year, now.month, 1);
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    _expensesStream = _buildExpensesStream();
   }
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.watch(expensesRepoProvider);
     final employeesAsync = ref.watch(employeesListProvider);
 
     return wrapWithSyncOnExit(
@@ -74,7 +75,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               for (final emp in employees) emp.id: emp.name,
             };
             return StreamBuilder<List<Expense>>(
-              stream: repo.watchAll(),
+              stream: _expensesStream,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const Center(
@@ -84,8 +85,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final allExpenses = snapshot.data!;
-                final filteredExpenses = _filterByDate(allExpenses);
+                final filteredExpenses = snapshot.data!;
                 final totalAmount = filteredExpenses.fold<double>(
                   0,
                   (sum, e) => sum + e.amount,
@@ -128,19 +128,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
   }
 
-  List<Expense> _filterByDate(List<Expense> expenses) {
-    final from = _fromDate;
-    final to = _toDate;
-    final filtered = expenses.where((expense) {
-      final date = _parseExpenseDate(expense.date);
-      if (from != null && date.isBefore(from)) return false;
-      if (to != null && date.isAfter(to)) return false;
-      return true;
-    }).toList();
-    filtered.sort(
-      (a, b) => _parseExpenseDate(b.date).compareTo(_parseExpenseDate(a.date)),
-    );
-    return filtered;
+  Stream<List<Expense>> _buildExpensesStream() {
+    final repo = ref.read(expensesRepoProvider);
+    final fromStr = _fromDate != null ? Time.dateToString(_fromDate!) : null;
+    final toStr = _toDate != null ? Time.dateToString(_toDate!) : null;
+    return Stream.fromFuture(repo.listFiltered(from: fromStr, to: toStr));
+  }
+
+  void _refreshExpensesStream() {
+    setState(() {
+      _expensesStream = _buildExpensesStream();
+    });
   }
 
   DateTime _parseExpenseDate(String value) {
@@ -171,6 +169,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
         }
       }
+      _expensesStream = _buildExpensesStream();
     });
   }
 
@@ -583,7 +582,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     markDataChanged();
     if (mounted) {
-      setState(() {});
+      _refreshExpensesStream();
     }
   }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +20,13 @@ class GoogleDriveLogsScreen extends ConsumerStatefulWidget {
 class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
   LogLevel? _filterLevel;
   String _searchQuery = '';
+  Timer? _debounceTimer;
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +105,10 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onChanged: (value) {
-                    setState(() => _searchQuery = value.toLowerCase());
+                    _debounceTimer?.cancel();
+                    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+                      setState(() => _searchQuery = value.toLowerCase());
+                    });
                   },
                 ),
                 const SizedBox(height: 8),

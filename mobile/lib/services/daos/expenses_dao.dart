@@ -38,6 +38,29 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
+  Future<List<Expense>> listFiltered({
+    String? from,
+    String? to,
+    String? expenseType,
+    bool includeDeleted = false,
+  }) async {
+    final q = select(expenses);
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+
+    if (from != null) {
+      q.where((t) => t.date.isBiggerOrEqualValue(from));
+    }
+    if (to != null) {
+      q.where((t) => t.date.isSmallerOrEqualValue(to));
+    }
+    if (expenseType != null && expenseType.isNotEmpty) {
+      q.where((t) => t.expenseType.equals(expenseType));
+    }
+
+    q.orderBy([(t) => OrderingTerm.desc(t.date)]);
+    return q.get();
+  }
+
   Stream<List<Expense>> watchList({bool includeDeleted = false}) {
     final q = select(expenses);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());

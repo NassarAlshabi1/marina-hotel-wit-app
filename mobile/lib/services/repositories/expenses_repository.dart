@@ -16,6 +16,12 @@ class ExpensesRepository {
 
   Stream<List<Expense>> watchAll() => dao.watchList();
   Stream<Expense?> watchOne(int id) => dao.watchById(id);
+  Future<List<Expense>> listFiltered({
+    String? from,
+    String? to,
+    String? expenseType,
+  }) =>
+      dao.listFiltered(from: from, to: to, expenseType: expenseType);
 
   Future<int> create({
     required String expenseType,

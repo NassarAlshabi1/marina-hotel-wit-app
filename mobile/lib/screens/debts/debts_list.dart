@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
@@ -21,6 +23,13 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   String get screenId => 'debts_list';
   String _searchQuery = '';
   String _filterStatus = 'all'; // all, pending, settled, overdue
+  Timer? _debounceTimer;
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +99,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
-            onChanged: (value) => setState(() => _searchQuery = value),
+            onChanged: (value) {
+              _debounceTimer?.cancel();
+              _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+                setState(() => _searchQuery = value);
+              });
+            },
           ),
 
           const SizedBox(height: 12),

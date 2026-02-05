@@ -44,6 +44,33 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
+  Future<List<Payment>> listForReport({
+    String? from,
+    String? to,
+    String? roomNumber,
+    bool includeDeleted = false,
+  }) async {
+    final q = select(payments);
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+
+    if (from != null && to != null) {
+      q.where(
+        (t) =>
+            t.paymentDate.isBiggerOrEqualValue(from) &
+            t.paymentDate.isSmallerOrEqualValue(to),
+      );
+    }
+
+    if (roomNumber != null && roomNumber.isNotEmpty) {
+      q.where((t) => t.roomNumber.equals(roomNumber));
+    }
+
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
+    return q.get();
+  }
+
   Stream<List<Payment>> watchList({
     int? bookingLocalId,
     bool includeDeleted = false,

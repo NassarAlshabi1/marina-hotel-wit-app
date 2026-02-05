@@ -10,6 +10,8 @@ import 'package:printing/printing.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
+import '../../services/daos/expenses_dao.dart';
+import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 
@@ -150,17 +152,29 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<_ExpensesReportResult> _loadExpensesReport(AppDatabase db) async {
-    final query = db.select(db.expenses);
-    if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
-      query.where((tbl) => tbl.expenseType.isIn(widget.allowedTypes!.toList()));
-    }
-    if (widget.showTypeFilter &&
-        _selectedType != null &&
-        _selectedType!.isNotEmpty) {
-      query.where((tbl) => tbl.expenseType.equals(_selectedType!));
-    }
+    final outboxDao = OutboxDao(db);
+    final expensesDao = ExpensesDao(db, outboxDao);
+    final fromStr =
+        _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : null;
+    final toStr =
+        _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : null;
+    final selectedType = widget.showTypeFilter &&
+            _selectedType != null &&
+            _selectedType!.isNotEmpty
+        ? _selectedType
+        : null;
 
-    final expenses = await query.get();
+    var expenses = await expensesDao.listFiltered(
+      from: fromStr,
+      to: toStr,
+      expenseType: selectedType,
+    );
+
+    if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
+      expenses = expenses
+          .where((expense) => widget.allowedTypes!.contains(expense.expenseType))
+          .toList();
+    }
 
     final employeeMap = <int, Employee>{};
     if (widget.includeEmployeeDetails) {
@@ -177,22 +191,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       }
     }
 
-    expenses.sort(
-      (a, b) => _parseExpenseDate(b.date).compareTo(_parseExpenseDate(a.date)),
-    );
-
     final rows = <_ExpenseReportRow>[];
     double totalAmount = 0;
     for (final expense in expenses) {
       final employee =
           expense.relatedId != null ? employeeMap[expense.relatedId!] : null;
       final date = _parseExpenseDate(expense.date);
-      if (_fromDate != null && date.isBefore(_fromDate!)) {
-        continue;
-      }
-      if (_toDate != null && date.isAfter(_toDate!)) {
-        continue;
-      }
       totalAmount += expense.amount;
       rows.add(
         _ExpenseReportRow(

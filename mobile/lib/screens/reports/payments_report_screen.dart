@@ -9,6 +9,8 @@ import 'package:printing/printing.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
+import '../../services/daos/outbox_dao.dart';
+import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 
@@ -122,7 +124,17 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
-    final payments = await (db.select(db.payments)).get();
+    final outboxDao = OutboxDao(db);
+    final paymentsDao = PaymentsDao(db, outboxDao);
+    final fromStr =
+        _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : null;
+    final toStr =
+        _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : null;
+    final payments = await paymentsDao.listForReport(
+      from: fromStr,
+      to: toStr,
+      roomNumber: _selectedRoom,
+    );
 
     final bookingIds =
         payments.map((p) => p.bookingLocalId).whereType<int>().toSet();
@@ -149,36 +161,11 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             .get();
     final roomsMap = {for (final r in rooms) r.roomNumber: r};
 
-    final filteredPayments = <Payment>[];
-    for (final payment in payments) {
-      final booking = bookingMap[payment.bookingLocalId];
-      final candidateRoom = payment.roomNumber ?? booking?.roomNumber;
-      final paymentDate = _parseDateTime(payment.paymentDate);
-      if (_fromDate != null && paymentDate.isBefore(_fromDate!)) {
-        continue;
-      }
-      if (_toDate != null && paymentDate.isAfter(_toDate!)) {
-        continue;
-      }
-      if (_selectedRoom != null &&
-          _selectedRoom!.isNotEmpty &&
-          candidateRoom != _selectedRoom) {
-        continue;
-      }
-      filteredPayments.add(payment);
-    }
-
-    filteredPayments.sort((a, b) {
-      final aDate = _parseDateTime(a.paymentDate);
-      final bDate = _parseDateTime(b.paymentDate);
-      return bDate.compareTo(aDate);
-    });
-
     final rows = <_PaymentReportRow>[];
     double totalPaid = 0;
     final relevantBookingIds = <int>{};
 
-    for (final payment in filteredPayments) {
+    for (final payment in payments) {
       final booking = bookingMap[payment.bookingLocalId];
       final roomNumber =
           booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
