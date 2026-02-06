@@ -44,7 +44,6 @@ import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/logging/log_models.dart';
 import 'services/sync_queue_service.dart';
 import 'services/appwrite_config_manager.dart';
-import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
 
@@ -352,35 +351,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         await Seeder(database).seedIfEmpty();
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
-        _pullAppwriteUpdatesOnStart();
       } finally {
         _isConfiguringSession = false;
         if (_pendingDatabase != null) {
           _processPendingDatabase();
         }
-      }
-    });
-  }
-
-  void _pullAppwriteUpdatesOnStart() {
-    Future.microtask(() async {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-        if (!appwriteEnabled) {
-          debugPrint('⏭️ Appwrite sync disabled, skipping startup pull');
-          return;
-        }
-        debugPrint('🔄 Pulling updates from Appwrite on startup...');
-        final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
-        final result = await syncManager.sync(push: false, pull: true);
-        if (result.isSuccess) {
-          debugPrint('✅ Appwrite startup sync completed: ${result.recordsPulled} records pulled');
-        } else {
-          debugPrint('⚠️ Appwrite startup sync failed: ${result.errorMessage}');
-        }
-      } catch (e, s) {
-        debugPrint('❌ Error pulling Appwrite updates on startup: $e\n$s');
       }
     });
   }
