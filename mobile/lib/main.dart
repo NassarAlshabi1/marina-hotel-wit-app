@@ -58,13 +58,14 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  await _initializeFullyAutomatedSyncSystem();
-
-  debugPrint('🔥 Initializing Firebase...');
-  await FCMService().initialize();
-
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
+
+  unawaited(_initializeFullyAutomatedSyncSystem());
+  Future.delayed(const Duration(seconds: 2), () {
+    debugPrint('🔥 Initializing Firebase...');
+    FCMService().initialize();
+  });
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
@@ -344,7 +345,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     _pendingDatabase = null;
     _isConfiguringSession = true;
-    Future.microtask(() async {
+    Future.delayed(const Duration(milliseconds: 100), () async {
       try {
         if (_sessionConfigured) {
           await AppSessionManager.onAppCloseOrBackground();
@@ -368,7 +369,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   }
 
   void _startRealtimeSync() {
-    Future.microtask(() async {
+    Future.delayed(const Duration(seconds: 3), () async {
       try {
         final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
         final deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
