@@ -45,6 +45,7 @@ import 'services/logging/log_models.dart';
 import 'services/sync_queue_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
+import 'services/fcm_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
@@ -58,6 +59,9 @@ Future<void> main() async {
   ]);
 
   await _initializeFullyAutomatedSyncSystem();
+
+  debugPrint('🔥 Initializing Firebase...');
+  await FCMService().initialize();
 
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runApp(const ProviderScope(child: App()));
