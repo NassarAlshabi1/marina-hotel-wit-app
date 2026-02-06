@@ -155,11 +155,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       guest.bookings.sort((a, b) => b.checkinDate.compareTo(a.checkinDate));
     }
 
-    return guestMap.values.toList()
+    final sortedGuests = guestMap.values.where((g) => g.bookings.isNotEmpty).toList()
       ..sort(
         (a, b) => b.bookings.first.checkinDate
             .compareTo(a.bookings.first.checkinDate),
       );
+    return sortedGuests;
   }
 
   List<GuestInfo> _filterGuests(List<GuestInfo> guests) {
@@ -308,7 +309,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     final activeBookings = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
         .length;
-    final lastVisit = guest.bookings.first.checkinDate;
+    final lastVisit = guest.bookings.isNotEmpty
+        ? guest.bookings.first.checkinDate
+        : '';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -599,7 +602,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               ),
               _buildInfoRow(
                 'آخر زيارة:',
-                _formatDate(guest.bookings.first.checkinDate),
+                guest.bookings.isNotEmpty
+                    ? _formatDate(guest.bookings.first.checkinDate)
+                    : '-',
               ),
               if (guest.bookings.length > 1)
                 _buildInfoRow(
