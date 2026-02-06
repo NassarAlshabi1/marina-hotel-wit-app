@@ -1,0 +1,21 @@
+{
+  "projectId": "690ff0da0025518570c1",
+  "functions": [
+    {
+      "name": "sync-notify",
+      "id": "sync-notify",
+      "runtime": "node-18.0",
+      "path": "functions/sync-notify",
+      "entrypoint": "src/main.js",
+      "events": [
+        "databases.hotel_db.collections.bookings.documents.*.create",
+        "databases.hotel_db.collections.bookings.documents.*.update",
+        "databases.hotel_db.collections.rooms.documents.*.update",
+        "databases.hotel_db.collections.payments.documents.*.create",
+        "databases.hotel_db.collections.expenses.documents.*.create"
+      ],
+      "timeout": 15,
+      "enabled": true
+    }
+  ]
+}
