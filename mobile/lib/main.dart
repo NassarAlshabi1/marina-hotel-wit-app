@@ -372,6 +372,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       try {
         final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
         final deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
+        if (deviceId == null) {
+          debugPrint('⚠️ Device ID not available, skipping realtime sync');
+          return;
+        }
         
         await AppwriteRealtimeSync().initialize(
           syncManager: syncManager,

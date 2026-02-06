@@ -30,7 +30,7 @@ class FCMService {
 
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-      NotificationSettings settings = await _messaging.requestPermission(
+      final NotificationSettings settings = await _messaging.requestPermission(
         alert: true,
         announcement: false,
         badge: true,
