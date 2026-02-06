@@ -44,6 +44,8 @@ import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/logging/log_models.dart';
 import 'services/sync_queue_service.dart';
 import 'services/appwrite_config_manager.dart';
+import 'services/appwrite_realtime_sync.dart';
+import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
 
@@ -351,6 +353,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         await Seeder(database).seedIfEmpty();
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
+        _startRealtimeSync();
       } finally {
         _isConfiguringSession = false;
         if (_pendingDatabase != null) {
@@ -360,8 +363,27 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     });
   }
 
+  void _startRealtimeSync() {
+    Future.microtask(() async {
+      try {
+        final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+        final deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
+        
+        await AppwriteRealtimeSync().initialize(
+          syncManager: syncManager,
+          deviceId: deviceId,
+        );
+        await AppwriteRealtimeSync().start();
+        debugPrint('📡 Realtime sync started');
+      } catch (e) {
+        debugPrint('❌ Realtime sync init error: $e');
+      }
+    });
+  }
+
   @override
   void dispose() {
+    AppwriteRealtimeSync().stop();
     if (_sessionConfigured) {
       unawaited(AppSessionManager.onAppCloseOrBackground());
     }
