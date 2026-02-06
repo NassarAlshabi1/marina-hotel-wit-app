@@ -45,7 +45,6 @@ import 'services/logging/log_models.dart';
 import 'services/sync_queue_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
-import 'services/fcm_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
@@ -62,10 +61,6 @@ Future<void> main() async {
   runApp(const ProviderScope(child: App()));
 
   unawaited(_initializeFullyAutomatedSyncSystem());
-  Future.delayed(const Duration(seconds: 2), () {
-    debugPrint('🔥 Initializing Firebase...');
-    FCMService().initialize();
-  });
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {

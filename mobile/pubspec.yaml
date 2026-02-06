@@ -38,8 +38,6 @@ dependencies:
   device_info_plus: ^10.1.2
   appwrite: ^17.1.0
   collection: ^1.18.0
-  firebase_core: ^3.8.1
-  firebase_messaging: ^15.1.6
 
   # Required for file-based SQLite backup/restore helpers
   sqflite: ^2.3.3+1
