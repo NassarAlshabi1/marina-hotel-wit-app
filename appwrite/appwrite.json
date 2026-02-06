@@ -1,0 +1,26 @@
+{
+  "projectId": "$APPWRITE_PROJECT_ID",
+  "projectName": "Marina Hotel",
+  "functions": [
+    {
+      "name": "sync-notify",
+      "id": "sync-notify",
+      "runtime": "node-18.0",
+      "path": "functions/sync-notify",
+      "entrypoint": "src/main.js",
+      "execute": ["any"],
+      "events": [
+        "databases.*.collections.rooms.documents.*",
+        "databases.*.collections.bookings.documents.*",
+        "databases.*.collections.employees.documents.*",
+        "databases.*.collections.expenses.documents.*",
+        "databases.*.collections.payments.documents.*",
+        "databases.*.collections.debts.documents.*",
+        "databases.*.collections.notes.documents.*"
+      ],
+      "schedule": "",
+      "timeout": 15,
+      "enabled": true
+    }
+  ]
+}
