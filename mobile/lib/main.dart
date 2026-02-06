@@ -76,6 +76,9 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     if (!prefs.containsKey('google_drive_sync_enabled')) {
       await prefs.setBool('google_drive_sync_enabled', false);
     }
+    if (!prefs.containsKey('appwrite_sync_enabled')) {
+      await prefs.setBool('appwrite_sync_enabled', true);
+    }
 
     debugPrint('📦 Initializing Appwrite Config Manager...');
     await AppwriteConfigManager.init();
