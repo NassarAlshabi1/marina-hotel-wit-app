@@ -62,16 +62,22 @@ class BookingDerivedFieldsService {
     final discountStartDate = _parseDateTime(booking.discountStartDate);
     
     double totalDue;
-    if (discountStartDate != null && discount > 0) {
+    if (discount > 0) {
       int nightsBeforeDiscount = 0;
       int nightsWithDiscount = 0;
       
-      for (final segment in segments) {
-        if (segment.start.isBefore(discountStartDate)) {
-          nightsBeforeDiscount++;
-        } else {
-          nightsWithDiscount++;
+      if (discountStartDate != null) {
+        for (final segment in segments) {
+          final segmentDate = DateTime(segment.start.year, segment.start.month, segment.start.day);
+          final discountDate = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
+          if (segmentDate.isBefore(discountDate)) {
+            nightsBeforeDiscount++;
+          } else {
+            nightsWithDiscount++;
+          }
         }
+      } else {
+        nightsWithDiscount = totalNights;
       }
       
       final fullPriceTotal = nightlyRate * nightsBeforeDiscount;
@@ -83,9 +89,7 @@ class BookingDerivedFieldsService {
       );
     } else {
       final subtotal = nightlyRate * totalNights;
-      totalDue = double.parse(
-        ((subtotal - discount).clamp(0.0, subtotal)).toStringAsFixed(2),
-      );
+      totalDue = double.parse(subtotal.toStringAsFixed(2));
     }
 
     final payments = await (db.select(db.payments)
