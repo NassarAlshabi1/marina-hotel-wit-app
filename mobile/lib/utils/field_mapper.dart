@@ -40,6 +40,8 @@ class FieldMapper {
       'status': 'status',
       'notes': 'notes',
       'discount': 'discount',
+      'discountType': 'discount_type',
+      'discountStartDate': 'discount_start_date',
       'expectedNights': 'expected_nights',
       'calculatedNights': 'calculated_nights',
       'totalNightsCached': 'total_nights_cached',

@@ -40,6 +40,7 @@ class BookingsRepository {
     int expectedNights = 1,
     int? calculatedNights,
     double discount = 0,
+    String discountType = 'per_night',
     String? discountStartDate,
   }) async {
     final result = await dao.insertOne(
@@ -64,6 +65,7 @@ class BookingsRepository {
             ? d.Value(calculatedNights)
             : const d.Value.absent(),
         discount: d.Value(discount),
+        discountType: d.Value(discountType),
         discountStartDate: d.Value(discountStartDate),
       ),
     );
@@ -96,6 +98,7 @@ class BookingsRepository {
     int? expectedNights,
     int? calculatedNights,
     double? discount,
+    String? discountType,
     String? discountStartDate,
   }) async {
     final result = await dao.updateById(
@@ -143,6 +146,9 @@ class BookingsRepository {
             ? d.Value(calculatedNights)
             : const d.Value.absent(),
         discount: discount != null ? d.Value(discount) : const d.Value.absent(),
+        discountType: discountType != null
+            ? d.Value(discountType)
+            : const d.Value.absent(),
         discountStartDate: discountStartDate != null
             ? d.Value(discountStartDate)
             : const d.Value.absent(),

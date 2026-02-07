@@ -30,6 +30,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
   final Map<int, TextEditingController> _discountControllers = {};
   final Map<int, TextEditingController> _discountStartDateControllers = {};
+  final Map<int, String> _discountTypeSelections = {};
   final Map<int, TextEditingController> _checkinDateControllers = {};
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -79,6 +80,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       _discountControllers[booking.id] = TextEditingController(
         text: booking.discount > 0 ? booking.discount.toStringAsFixed(0) : '',
       );
+      _discountTypeSelections[booking.id] = booking.discountType;
       _discountStartDateControllers[booking.id] = TextEditingController(
         text: booking.discountStartDate ?? '',
       );
@@ -151,6 +153,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         final roomChanged = oldRoomNumber != newRoomNumber;
         final discountText = _discountControllers[booking.id]?.text.trim() ?? '';
         final discount = double.tryParse(discountText) ?? 0;
+        final discountType = _discountTypeSelections[booking.id] ?? 'per_night';
         final discountStartDateText =
             _discountStartDateControllers[booking.id]?.text.trim() ?? '';
         final discountStartDate =
@@ -173,6 +176,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           guestAddress: address.isNotEmpty ? address : null,
           roomNumber: newRoomNumber,
           discount: discount,
+          discountType: discountType,
           discountStartDate: discountStartDate,
           checkinDate: checkinDateChanged ? checkinDateText : null,
         );
@@ -698,22 +702,51 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       controller: discountController,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'مبلغ التخفيض (لكل ليلة)',
+                        labelText: 'مبلغ التخفيض',
                         prefixIcon: Icon(Icons.discount),
                         border: OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _discountTypeSelections[booking.id] ?? 'per_night',
+                      decoration: const InputDecoration(
+                        labelText: 'نوع التخفيض',
+                        prefixIcon: Icon(Icons.attach_money),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'total',
+                          child: Text('تخفيض إجمالي (يطرح من الإجمالي)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'per_night',
+                          child: Text('تخفيض لكل ليلة (يطرح من سعر الليلة)'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _discountTypeSelections[booking.id] = value!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: discountStartDateController,
                       readOnly: true,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'تاريخ بدء التخفيض',
-                        prefixIcon: Icon(Icons.calendar_today),
-                        hintText: 'اضغط لاختيار التاريخ',
-                        border: OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.calendar_today),
+                        hintText: _discountTypeSelections[booking.id] == 'per_night'
+                            ? 'اضغط لاختيار التاريخ (اختياري)'
+                            : 'غير متاح للتخفيض الإجمالي',
+                        border: const OutlineInputBorder(),
+                        enabled: _discountTypeSelections[booking.id] == 'per_night',
                       ),
-                      onTap: () => _pickDate(discountStartDateController),
+                      onTap: _discountTypeSelections[booking.id] == 'per_night'
+                          ? () => _pickDate(discountStartDateController)
+                          : null,
                     ),
                   ],
                 );

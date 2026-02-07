@@ -147,6 +147,19 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       status: _vStr(json, 'status', src, fallback: ''),
       notes: _vStr(json, 'notes', src),
       discount: _vDouble(json, 'discount', src, fallback: 0),
+      discountType: _vStr(
+        json,
+        'discountType',
+        src,
+        altKey: 'discount_type',
+        fallback: 'per_night',
+      ),
+      discountStartDate: _vStr(
+        json,
+        'discountStartDate',
+        src,
+        altKey: 'discount_start_date',
+      ),
       expectedNights: _vInt(
         json,
         'expectedNights',
@@ -237,6 +250,8 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       _k(src, 'status', 'status'): model.status,
       _k(src, 'notes', 'notes'): model.notes,
       _k(src, 'discount', 'discount'): model.discount,
+      _k(src, 'discountType', 'discount_type'): model.discountType,
+      _k(src, 'discountStartDate', 'discount_start_date'): model.discountStartDate,
       _k(src, 'expectedNights', 'expected_nights'): model.expectedNights,
       _k(src, 'calculatedNights', 'calculated_nights'): model.calculatedNights,
       _k(src, 'totalNightsCached', 'total_nights_cached'):

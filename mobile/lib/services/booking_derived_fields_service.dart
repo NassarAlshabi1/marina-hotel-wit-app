@@ -59,34 +59,48 @@ class BookingDerivedFieldsService {
 
     final nightlyRate = room?.price ?? 0.0;
     final discount = booking.discount;
+    final discountType = booking.discountType;
     final discountStartDate = _parseDateTime(booking.discountStartDate);
     
     double totalDue;
+    
+    // حساب التخفيض بناءً على النوع
     if (discount > 0) {
-      int nightsBeforeDiscount = 0;
-      int nightsWithDiscount = 0;
-      
-      if (discountStartDate != null) {
-        for (final segment in segments) {
-          final segmentDate = DateTime(segment.start.year, segment.start.month, segment.start.day);
-          final discountDate = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
-          if (segmentDate.isBefore(discountDate)) {
-            nightsBeforeDiscount++;
-          } else {
-            nightsWithDiscount++;
-          }
-        }
+      if (discountType == 'total') {
+        // تخفيض إجمالي: يطرح من الإجمالي النهائي
+        final subtotal = nightlyRate * totalNights;
+        totalDue = double.parse(
+          (subtotal - discount).clamp(0.0, subtotal).toStringAsFixed(2),
+        );
       } else {
-        nightsWithDiscount = totalNights;
+        // تخفيض لكل ليلة: يطرح من سعر الليلة
+        int nightsBeforeDiscount = 0;
+        int nightsWithDiscount = 0;
+        
+        if (discountStartDate != null) {
+          // التخفيض يبدأ من تاريخ معين
+          for (final segment in segments) {
+            final segmentDate = DateTime(segment.start.year, segment.start.month, segment.start.day);
+            final discountDate = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
+            if (segmentDate.isBefore(discountDate)) {
+              nightsBeforeDiscount++;
+            } else {
+              nightsWithDiscount++;
+            }
+          }
+        } else {
+          // التخفيض على جميع الليالي
+          nightsWithDiscount = totalNights;
+        }
+        
+        final fullPriceTotal = nightlyRate * nightsBeforeDiscount;
+        final discountedRate = (nightlyRate - discount).clamp(0.0, nightlyRate);
+        final discountedTotal = discountedRate * nightsWithDiscount;
+        
+        totalDue = double.parse(
+          (fullPriceTotal + discountedTotal).toStringAsFixed(2),
+        );
       }
-      
-      final fullPriceTotal = nightlyRate * nightsBeforeDiscount;
-      final discountedRate = (nightlyRate - discount).clamp(0.0, nightlyRate);
-      final discountedTotal = discountedRate * nightsWithDiscount;
-      
-      totalDue = double.parse(
-        (fullPriceTotal + discountedTotal).toStringAsFixed(2),
-      );
     } else {
       final subtotal = nightlyRate * totalNights;
       totalDue = double.parse(subtotal.toStringAsFixed(2));
