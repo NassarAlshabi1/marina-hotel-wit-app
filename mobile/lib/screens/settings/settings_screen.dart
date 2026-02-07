@@ -11,6 +11,7 @@ import 'settings_users.dart';
 import 'settings_maintenance.dart';
 import 'google_drive_backup_screen.dart';
 import 'appwrite_settings_screen.dart';
+import 'php_api_settings_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import '../security/blacklist_screen.dart';
 
@@ -127,6 +128,17 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                     builder: (context) => const AppwriteSettingsScreen()),
+              ),
+            ),
+            _SettingsItem(
+              title: 'PHP API',
+              subtitle: 'إعدادات الخادم والاتصال',
+              icon: Icons.api,
+              color: Colors.indigo,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const PhpApiSettingsScreen()),
               ),
             ),
           ]),
