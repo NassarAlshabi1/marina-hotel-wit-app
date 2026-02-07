@@ -200,7 +200,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     final prefs = await SharedPreferences.getInstance();
 
     if (!prefs.containsKey(_prefsPushEnabledKey)) {
-      await prefs.setBool(_prefsPushEnabledKey, true);
+      await prefs.setBool(_prefsPushEnabledKey, false);
     }
     if (!prefs.containsKey(_prefsPullEnabledKey)) {
       await prefs.setBool(_prefsPullEnabledKey, false);
@@ -218,7 +218,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       await prefs.setString(_prefsSyncModeKey, SyncMode.smart.name);
     }
 
-    _pushEnabled = prefs.getBool(_prefsPushEnabledKey) ?? true;
+    _pushEnabled = prefs.getBool(_prefsPushEnabledKey) ?? false;
     _pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? false;
     _debounceSeconds =
         prefs.getInt(_prefsDebounceSecondsKey) ?? _defaultDebounceSeconds;
@@ -237,6 +237,12 @@ class GoogleDriveUnifiedSyncCoordinator {
     _log('🔐 Sign-in status changed: $isSignedIn');
 
     if (isSignedIn) {
+      final prefs = await SharedPreferences.getInstance();
+      final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+      if (!syncEnabled) {
+        _log('⏸️ Google Drive sync disabled - skipping monitoring');
+        return;
+      }
       await _startMonitoring();
       await performSync(trigger: SyncTrigger.manual, mode: SyncMode.smart);
     } else {
@@ -248,6 +254,12 @@ class GoogleDriveUnifiedSyncCoordinator {
 
   Future<void> _startMonitoring() async {
     if (!_isInitialized || !(_backupService?.isSignedIn ?? false)) {
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!syncEnabled) {
+      _log('⏸️ Google Drive sync disabled - monitoring skipped');
       return;
     }
 
@@ -747,6 +759,24 @@ class GoogleDriveUnifiedSyncCoordinator {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefsPushEnabledKey, enabled);
     _pushEnabled = enabled;
+
+    if (!enabled) {
+      _outboxSubscription?.cancel();
+      _outboxSubscription = null;
+    } else {
+      final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+      if (_isInitialized && syncEnabled && (_backupService?.isSignedIn ?? false)) {
+        _outboxSubscription?.cancel();
+        if (_database != null) {
+          _outboxSubscription =
+              (_database!.select(_database!.outbox)).watch().listen((_) {
+            _log('📦 Detected change in outbox', level: LogLevel.debug);
+            notifyLocalChange();
+          });
+        }
+      }
+    }
+
     _log('🔧 Push ${enabled ? 'enabled' : 'disabled'}');
   }
 

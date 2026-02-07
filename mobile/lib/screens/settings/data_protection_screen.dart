@@ -8,6 +8,7 @@ import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/alarm_backup.dart';
 import '../../services/auto_backup_manager.dart';
 import '../../services/smart_sync_manager.dart';
+import '../../services/google_drive_unified_sync_coordinator.dart';
 import 'appwrite_settings_screen.dart';
 
 class DataProtectionScreen extends ConsumerStatefulWidget {
@@ -27,6 +28,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   bool _scheduledEnabled = false;
   bool _googleDriveSyncEnabled = false;
   bool _googleDriveSyncDisableOnStart = false;
+  bool _googleDrivePushEnabled = false;
   TimeOfDay _scheduledTime = const TimeOfDay(hour: 21, minute: 0);
   final List<int> _intervalOptions = [1, 2, 5, 10, 15, 30, 60];
   final Map<ConflictResolution, String> _conflictDescriptions = {
@@ -62,6 +64,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         prefs.getBool('google_drive_sync_enabled') ?? false;
     final googleDriveSyncDisableOnStart =
         prefs.getBool('google_drive_sync_disable_on_start') ?? false;
+    final googleDrivePushEnabled =
+        prefs.getBool('gd_unified_push_enabled') ?? false;
     if (!mounted) return;
     setState(() {
       _maxBackupsController.text = maxBackups.toString();
@@ -73,6 +77,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       _scheduledEnabled = scheduled;
       _googleDriveSyncEnabled = googleDriveSyncEnabled;
       _googleDriveSyncDisableOnStart = googleDriveSyncDisableOnStart;
+      _googleDrivePushEnabled = googleDrivePushEnabled;
     });
   }
 
@@ -215,8 +220,16 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('google_drive_sync_enabled', enabled);
+      if (!enabled) {
+        await GoogleDriveUnifiedSyncCoordinator.instance.setPushEnabled(false);
+      }
       if (!mounted) return;
-      setState(() => _googleDriveSyncEnabled = enabled);
+      setState(() {
+        _googleDriveSyncEnabled = enabled;
+        if (!enabled) {
+          _googleDrivePushEnabled = false;
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -261,6 +274,43 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير إعداد بدء التشغيل: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _syncBusy = false);
+    }
+  }
+
+  Future<void> _toggleGoogleDrivePushEnabled(bool enabled) async {
+    if (!_googleDriveSyncEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('فعّل مزامنة Google Drive أولاً'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    setState(() => _syncBusy = true);
+    try {
+      await GoogleDriveUnifiedSyncCoordinator.instance
+          .setPushEnabled(enabled);
+      if (!mounted) return;
+      setState(() => _googleDrivePushEnabled = enabled);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled ? 'تم تفعيل الرفع إلى Google Drive' : 'تم إيقاف الرفع',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في تغيير إعداد الرفع: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -851,11 +901,26 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             title: const Text('تفعيل مزامنة Google Drive'),
             subtitle: Text(
               _googleDriveSyncEnabled
-                  ? 'مفعلة - مزامنة اختيارية بين الأجهزة'
-                  : 'معطلة - Appwrite هو المصدر الأساسي',
+                  ? 'مفعلة - المزامنة تعمل عند الحاجة'
+                  : 'معطلة - لن يتم أي رفع أو سحب',
             ),
             value: _googleDriveSyncEnabled,
             onChanged: _syncBusy ? null : _toggleGoogleDriveSyncEnabled,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildCard(
+          SwitchListTile(
+            title: const Text('تفعيل الرفع إلى Google Drive'),
+            subtitle: Text(
+              _googleDrivePushEnabled
+                  ? 'سيرفع التغييرات والنسخ عند الحاجة'
+                  : 'الرفع معطل بشكل كامل',
+            ),
+            value: _googleDrivePushEnabled,
+            onChanged: (!_googleDriveSyncEnabled || _syncBusy)
+                ? null
+                : _toggleGoogleDrivePushEnabled,
           ),
         ),
         const SizedBox(height: 12),
