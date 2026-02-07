@@ -142,6 +142,8 @@ class EnhancedPdfHelper {
             remainingBalanceCached: 0,
             isFullyPaid: false,
             discount: 0,
+            discountType: 'per_night',
+            discountStartDate: null,
             hotelDayCheckin: null,
             hotelDayCheckout: null,
             vectorClock: '{}',
