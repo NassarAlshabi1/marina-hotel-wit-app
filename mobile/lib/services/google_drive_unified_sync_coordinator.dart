@@ -203,7 +203,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       await prefs.setBool(_prefsPushEnabledKey, true);
     }
     if (!prefs.containsKey(_prefsPullEnabledKey)) {
-      await prefs.setBool(_prefsPullEnabledKey, true);
+      await prefs.setBool(_prefsPullEnabledKey, false);
     }
     if (!prefs.containsKey(_prefsDebounceSecondsKey)) {
       await prefs.setInt(_prefsDebounceSecondsKey, _defaultDebounceSeconds);
@@ -219,13 +219,18 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
 
     _pushEnabled = prefs.getBool(_prefsPushEnabledKey) ?? true;
-    _pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? true;
+    _pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? false;
     _debounceSeconds =
         prefs.getInt(_prefsDebounceSecondsKey) ?? _defaultDebounceSeconds;
     _pullIntervalMinutes =
         prefs.getInt(_prefsPullIntervalKey) ?? _defaultPullIntervalMinutes;
     _fullBackupIntervalHours =
         prefs.getInt(_prefsFullBackupIntervalKey) ?? _defaultFullBackupHours;
+
+    if (_pullEnabled) {
+      _pullEnabled = false;
+      await prefs.setBool(_prefsPullEnabledKey, false);
+    }
   }
 
   Future<void> onSignInChanged(bool isSignedIn) async {
@@ -530,16 +535,28 @@ class GoogleDriveUnifiedSyncCoordinator {
           _lastFullBackupTime!.toIso8601String(),
         );
       } else if (effectiveMode == SyncMode.deltaOnly) {
-        pulled = await _performDeltaPull();
+        if (_pullEnabled) {
+          pulled = await _performDeltaPull();
+        } else {
+          _log('⏸️ Pull disabled - skipping delta pull');
+          pulled = 0;
+        }
       } else {
         if (_hasPendingChanges || trigger == SyncTrigger.localChange) {
           pushed = await _performDeltaPush();
         }
 
-        if (trigger == SyncTrigger.appForeground ||
-            trigger == SyncTrigger.periodic ||
-            trigger == SyncTrigger.manual) {
+        if (_pullEnabled &&
+            (trigger == SyncTrigger.appForeground ||
+                trigger == SyncTrigger.periodic ||
+                trigger == SyncTrigger.manual)) {
           pulled = await _performDeltaPull();
+        } else if (!_pullEnabled &&
+            (trigger == SyncTrigger.appForeground ||
+                trigger == SyncTrigger.periodic ||
+                trigger == SyncTrigger.manual)) {
+          _log('⏸️ Pull disabled - skipping delta pull');
+          pulled = 0;
         }
       }
 
@@ -832,6 +849,10 @@ class GoogleDriveUnifiedSyncCoordinator {
     try {
       if (!_isInitialized || !(_backupService?.isSignedIn ?? false)) {
         _log('⚠️ Cannot pull - not initialized or not signed in');
+        return false;
+      }
+      if (!_pullEnabled) {
+        _log('⏸️ Pull disabled - skipping');
         return false;
       }
 
