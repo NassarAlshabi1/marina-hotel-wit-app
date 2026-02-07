@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/repository_providers.dart';
+import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../services/repositories/payments_repository.dart';
 import '../../utils/status_utils.dart';
@@ -189,6 +190,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
             await roomsRepo.updateByRoomNumber(newRoomNumber, status: 'محجوزة');
           }
         }
+
+        final derivedService = BookingDerivedFieldsService(db);
+        await derivedService.refreshForBookingId(booking.id);
       }
 
       if (mounted) {
