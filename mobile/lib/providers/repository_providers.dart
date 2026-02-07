@@ -14,6 +14,7 @@ import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/auth_local_store.dart';
 import '../services/sync_guardian.dart';
+import '../services/diagnostics/diagnostics_logger.dart';
 
 import '../services/whatsapp_service.dart';
 import '../utils/status_utils.dart';
@@ -31,6 +32,10 @@ final syncGuardianProvider = Provider<SyncGuardian>(
 );
 final syncHealthProvider = StreamProvider<SyncHealthSnapshot>(
   (ref) => ref.watch(syncGuardianProvider).watchHealth(),
+);
+
+final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>(
+  (ref) => DiagnosticsLogger.instance,
 );
 
 final databaseProvider = Provider<AppDatabase>(

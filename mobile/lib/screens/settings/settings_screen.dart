@@ -13,6 +13,7 @@ import 'google_drive_backup_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'php_api_settings_screen.dart';
 import 'whatsapp_settings_screen.dart';
+import 'diagnostics_screen.dart';
 import '../security/blacklist_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -165,6 +166,17 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.palette,
               color: Colors.purple,
               onTap: () => _showAppSettingsDialog(context),
+            ),
+            _SettingsItem(
+              title: 'تشخيص شامل',
+              subtitle: 'تقارير شاملة عن النظام والبيانات',
+              icon: Icons.bug_report,
+              color: Colors.teal,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const DiagnosticsScreen()),
+              ),
             ),
             _SettingsItem(
               title: 'معلومات التطبيق',
