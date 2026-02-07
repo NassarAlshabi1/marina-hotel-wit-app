@@ -1775,44 +1775,26 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   ) async {
     final whatsappService = ref.read(whatsappServiceProvider);
 
-    // بناء كشف الحساب البسيط
-    String statement = 'مارينا هوتل - كشف حساب\n';
-    statement += 'العميل: ${widget.booking.guestName}\n';
+    // بناء كشف الحساب
+    String statement = 'كشف حساب\n\n';
     statement += 'الغرفة: ${widget.booking.roomNumber}\n';
     statement += 'تاريخ الوصول: ${widget.booking.checkinDate.split(' ')[0]}\n';
-    if (widget.booking.checkoutDate != null) {
-      statement +=
-          'تاريخ المغادرة: ${widget.booking.checkoutDate!.split(' ')[0]}\n';
-    }
+    
     statement += '\nتفاصيل الحساب:\n';
-    statement +=
-        'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)}\n';
+    statement += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)}\n';
     statement += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)}\n';
-    statement +=
-        'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)}\n\n';
+    statement += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)}\n';
 
     if (summary.payments.isNotEmpty) {
-      statement += 'سجل المدفوعات:\n';
+      statement += '\nسجل المدفوعات:\n';
       for (int i = 0; i < summary.payments.length; i++) {
         final payment = summary.payments[i];
-        final paymentDate = DateFormat(
-          'dd/MM/yyyy',
-          'ar',
-        ).format(payment.paymentDate);
-        statement +=
-            '${i + 1}. ${_currencyFmt.format(payment.amount)} - ${payment.method.displayName} - $paymentDate\n';
+        final paymentDate = DateFormat('dd/MM/yyyy').format(payment.paymentDate);
+        statement += '${i + 1}. ${_currencyFmt.format(payment.amount)} - $paymentDate\n';
       }
-      statement += '\n';
     }
 
-    if (summary.remainingAmount > 0) {
-      statement += 'يرجى تسديد المبلغ المتبقي\n\n';
-    } else {
-      statement += 'تم سداد المبلغ بالكامل\n\n';
-    }
-
-    statement += 'شكراً لاختياركم فندق مارينا\n';
-    statement += 'للاستفسار: 9677734587456';
+    statement += '\nشكراً لاختياركم فندق مارينا';
 
     try {
       final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
