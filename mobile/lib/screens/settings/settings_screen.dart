@@ -410,17 +410,6 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
-
-  Widget _infoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.grey)),
-        const SizedBox(width: 12),
-        Flexible(child: Text(value, textAlign: TextAlign.end)),
-      ],
-    );
-  }
 }
 
 class _SettingsItem {
