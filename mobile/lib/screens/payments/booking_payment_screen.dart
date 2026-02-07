@@ -782,14 +782,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       ),
-      if (summary.isFullyPaid)
-        _buildActionCard(
-          'تسجيل المغادرة',
-          'تسجيل مغادرة العميل وتحرير الغرفة',
-          Icons.logout,
-          Colors.green,
-          () => _showCheckoutConfirmation(summary),
-        ),
+      _buildActionCard(
+        'تسجيل المغادرة',
+        summary.isFullyPaid ? 'تسجيل مغادرة العميل' : 'تحذير: يوجد مبلغ متبقي!',
+        Icons.logout,
+        summary.isFullyPaid ? Colors.green : Colors.red,
+        () => _showCheckoutConfirmation(summary),
+      ),
       _buildActionCard(
         'إرسال كشف حساب',
         'إرسال ملخص المدفوعات للعميل',
@@ -1631,12 +1630,68 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   void _showCheckoutConfirmation(BookingPaymentSummary summary) {
+    final hasRemaining = summary.remainingAmount > 0;
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('تأكيد المغادرة'),
-        content: const Text(
-          'هل تريد تسجيل مغادرة العميل وتحرير الغرفة؟\n\nسيتم تحديث حالة الحجز والغرفة.',
+        title: Row(
+          children: [
+            Icon(
+              hasRemaining ? Icons.warning : Icons.check_circle,
+              color: hasRemaining ? Colors.red : Colors.green,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              hasRemaining ? 'تحذير!' : 'تأكيد المغادرة',
+              style: TextStyle(color: hasRemaining ? Colors.red : null),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (hasRemaining) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.money_off, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Text(
+                          'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '⚠️ سيتم خصم المبلغ من راتبكم',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            const Text('هل تريد تسجيل مغادرة العميل وتحرير الغرفة؟'),
+          ],
         ),
         actions: [
           TextButton(
@@ -1648,8 +1703,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               Navigator.pop(context);
               _processCheckout();
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('تأكيد المغادرة'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: hasRemaining ? Colors.red : Colors.green,
+            ),
+            child: Text(hasRemaining ? 'متابعة رغم ذلك' : 'تأكيد المغادرة'),
           ),
         ],
       ),
