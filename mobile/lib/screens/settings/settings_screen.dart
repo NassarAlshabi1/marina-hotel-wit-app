@@ -314,9 +314,9 @@ class SettingsScreen extends ConsumerWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
-        childAspectRatio: 1.5,
+        childAspectRatio: 1.9,
         crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        mainAxisSpacing: 10,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -340,7 +340,7 @@ class SettingsScreen extends ConsumerWidget {
                   Text(
                     item.title,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -351,7 +351,7 @@ class SettingsScreen extends ConsumerWidget {
                   Text(
                     item.subtitle,
                     style: const TextStyle(
-                      fontSize: 9,
+                      fontSize: 12,
                       color: Colors.grey,
                     ),
                     textAlign: TextAlign.center,

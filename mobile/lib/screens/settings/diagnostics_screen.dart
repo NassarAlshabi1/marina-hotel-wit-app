@@ -1,25 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:battery_plus/battery_plus.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/diagnostics/diagnostics_logger.dart';
 import '../../services/logging/log_models.dart';
 import '../../services/sync_guardian.dart';
-import '../../utils/env.dart';
-import '../../services/appwrite_config.dart';
 
 class DiagnosticsScreen extends ConsumerStatefulWidget {
   const DiagnosticsScreen({super.key});
@@ -29,20 +22,11 @@ class DiagnosticsScreen extends ConsumerStatefulWidget {
 }
 
 class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
-  static const _dbFileName = 'marina_hotel.db';
-
   Map<String, dynamic>? _snapshot;
   Map<String, int> _counts = {};
   bool _loading = false;
   String? _error;
   String _selectedTable = 'all';
-
-  Map<String, String> _deviceInfo = {};
-  Map<String, String> _appInfo = {};
-  Map<String, String> _storageInfo = {};
-  String _connectivity = 'unknown';
-  int? _batteryLevel;
-  String? _batteryState;
 
   @override
   void initState() {
@@ -56,14 +40,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       _error = null;
     });
     try {
-      await Future.wait([
-        _loadSnapshot(),
-        _loadDeviceInfo(),
-        _loadAppInfo(),
-        _loadConnectivity(),
-        _loadBattery(),
-        _loadStorage(),
-      ]);
+      await _loadSnapshot();
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -94,119 +71,6 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       _counts = counts;
       _selectedTable = 'all';
     });
-  }
-
-  Future<void> _loadDeviceInfo() async {
-    final plugin = DeviceInfoPlugin();
-    Map<String, String> info = {};
-    if (Platform.isAndroid) {
-      final data = await plugin.androidInfo;
-      info = {
-        'platform': 'Android',
-        'brand': data.brand,
-        'model': data.model,
-        'device': data.device,
-        'manufacturer': data.manufacturer,
-        'sdk': data.version.sdkInt.toString(),
-        'release': data.version.release,
-      };
-    } else if (Platform.isIOS) {
-      final data = await plugin.iosInfo;
-      info = {
-        'platform': 'iOS',
-        'name': data.name,
-        'model': data.model,
-        'systemName': data.systemName,
-        'systemVersion': data.systemVersion,
-      };
-    } else {
-      final data = await plugin.deviceInfo;
-      info = data.data.map((key, value) => MapEntry(key, '$value'));
-    }
-    setState(() {
-      _deviceInfo = info;
-    });
-  }
-
-  Future<void> _loadAppInfo() async {
-    final info = await PackageInfo.fromPlatform();
-    setState(() {
-      _appInfo = {
-        'appName': info.appName,
-        'packageName': info.packageName,
-        'version': info.version,
-        'buildNumber': info.buildNumber,
-        'baseApiUrl': Env.baseApiUrl,
-        'appwriteEndpoint': AppwriteConfig.endpoint,
-        'appwriteProjectId': AppwriteConfig.projectId,
-        'appwriteDatabaseId': AppwriteConfig.databaseId,
-      };
-    });
-  }
-
-  Future<void> _loadConnectivity() async {
-    final result = await Connectivity().checkConnectivity();
-    setState(() {
-      _connectivity = result.name;
-    });
-  }
-
-  Future<void> _loadBattery() async {
-    final battery = Battery();
-    final level = await battery.batteryLevel;
-    final state = await battery.batteryState;
-    setState(() {
-      _batteryLevel = level;
-      _batteryState = state.name;
-    });
-  }
-
-  Future<void> _loadStorage() async {
-    final docsDir = await getApplicationDocumentsDirectory();
-    final dbPath = await sqflite.getDatabasesPath();
-    final dbFile = File('$dbPath/${_dbFileName}');
-    final dbSize = await _fileSize(dbFile);
-    final docsSize = await _directorySize(docsDir);
-    setState(() {
-      _storageInfo = {
-        'documentsDir': docsDir.path,
-        'documentsSize': _formatBytes(docsSize),
-        'databasePath': dbFile.path,
-        'databaseSize': _formatBytes(dbSize),
-      };
-    });
-  }
-
-  Future<int> _fileSize(File file) async {
-    try {
-      if (await file.exists()) {
-        return await file.length();
-      }
-    } catch (_) {}
-    return 0;
-  }
-
-  Future<int> _directorySize(Directory directory) async {
-    int total = 0;
-    try {
-      await for (final entity in directory.list(recursive: true)) {
-        if (entity is File) {
-          total += await entity.length();
-        }
-      }
-    } catch (_) {}
-    return total;
-  }
-
-  String _formatBytes(int bytes) {
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    double size = bytes.toDouble();
-    int index = 0;
-    while (size >= 1024 && index < sizes.length - 1) {
-      size /= 1024;
-      index++;
-    }
-    return '${size.toStringAsFixed(2)} ${sizes[index]}';
   }
 
   int _totalRecords() {
@@ -242,14 +106,6 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     final encoder = const JsonEncoder.withIndent('  ');
     final payload = {
       'generatedAt': DateTime.now().toIso8601String(),
-      'app': _appInfo,
-      'device': _deviceInfo,
-      'storage': _storageInfo,
-      'connectivity': _connectivity,
-      'battery': {
-        'level': _batteryLevel,
-        'state': _batteryState,
-      },
       'sync': _syncToMap(health),
       'counts': _counts,
       'data': _selectedTable == 'all'
@@ -330,14 +186,13 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
 
   Widget _buildContent() {
     return DefaultTabController(
-      length: 6,
+      length: 5,
       child: Column(
         children: [
           const TabBar(
             isScrollable: true,
             tabs: [
               Tab(text: 'ملخص'),
-              Tab(text: 'النظام'),
               Tab(text: 'المزامنة'),
               Tab(text: 'الجداول'),
               Tab(text: 'السجلات'),
@@ -348,7 +203,6 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
             child: TabBarView(
               children: [
                 _buildSummaryTab(),
-                _buildSystemTab(),
                 _buildSyncTab(),
                 _buildTablesTab(),
                 _buildLogsTab(),
@@ -370,46 +224,11 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
         _buildStatCard('عدد الجداول', tablesCount.toString()),
         const SizedBox(height: 12),
         _buildStatCard('إجمالي السجلات', totalRecords.toString()),
-        const SizedBox(height: 12),
-        _buildStatCard('قاعدة البيانات', _storageInfo['databaseSize'] ?? '-'),
-        const SizedBox(height: 12),
-        _buildStatCard('ملفات التطبيق', _storageInfo['documentsSize'] ?? '-'),
-        const SizedBox(height: 12),
-        _buildStatCard('الاتصال', _connectivity),
-        const SizedBox(height: 12),
-        _buildStatCard(
-          'البطارية',
-          _batteryLevel == null
-              ? '-'
-              : '${_batteryLevel}% (${_batteryState ?? '-'})',
-        ),
         const SizedBox(height: 16),
         Text(
           'آخر تحديث: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}',
           style: const TextStyle(color: Colors.grey),
         ),
-      ],
-    );
-  }
-
-  Widget _buildSystemTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildSectionTitle('معلومات التطبيق'),
-        ..._appInfo.entries.map((e) => _buildKeyValue(e.key, e.value)),
-        const SizedBox(height: 16),
-        _buildSectionTitle('معلومات الجهاز'),
-        ..._deviceInfo.entries.map((e) => _buildKeyValue(e.key, e.value)),
-        const SizedBox(height: 16),
-        _buildSectionTitle('التخزين'),
-        ..._storageInfo.entries.map((e) => _buildKeyValue(e.key, e.value)),
-        const SizedBox(height: 16),
-        _buildSectionTitle('الاتصال والبطارية'),
-        _buildKeyValue('connectivity', _connectivity),
-        _buildKeyValue('battery', _batteryLevel == null
-            ? '-'
-            : '${_batteryLevel}% (${_batteryState ?? '-'})'),
       ],
     );
   }
