@@ -355,14 +355,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showBackupDialog(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const GoogleDriveBackupScreen(),
-      ),
-    );
-  }
 
   void _showAppSettingsDialog(BuildContext context) {
     showDialog(
@@ -401,52 +393,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showSystemReports(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => Consumer(
-        builder: (context, ref, _) {
-          final backupState = ref.watch(backupStatusProvider);
-          final totalBackups = ref.watch(totalBackupsCountProvider);
-          final dbSize = ref.watch(databaseSizeProvider);
-          final lastDrive = ref.watch(lastBackupTimeProvider);
-          final lastLocal = ref.watch(lastLocalBackupTimeProvider);
-          return AlertDialog(
-            title: const Text('تقارير النظام'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _infoRow('تسجيل Google Drive',
-                    backupState.isSignedIn ? 'متصل' : 'غير متصل'),
-                const SizedBox(height: 6),
-                _infoRow('عدد النسخ الاحتياطية', '$totalBackups'),
-                const SizedBox(height: 6),
-                _infoRow('آخر نسخة سحابية', lastDrive?.toString() ?? '—'),
-                const SizedBox(height: 6),
-                _infoRow('آخر نسخة محلية', lastLocal?.toString() ?? '—'),
-                const SizedBox(height: 6),
-                _infoRow(
-                    'حجم قاعدة البيانات',
-                    dbSize != null
-                        ? '${(dbSize / (1024 * 1024)).toStringAsFixed(2)} MB'
-                        : '—'),
-                const Divider(height: 16),
-                Text(backupState.message ?? '',
-                    style: const TextStyle(fontSize: 12)),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('إغلاق'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
 
   void _showAboutDialog(BuildContext context) {
     showDialog(
