@@ -5,17 +5,32 @@ import 'package:path_provider/path_provider.dart';
 import 'appwrite_config.dart';
 import 'appwrite_service.dart';
 
+class AppwriteBackupResult {
+  final File file;
+  final Map<String, int> counts;
+  final int totalRecords;
+  final DateTime timestamp;
+
+  const AppwriteBackupResult({
+    required this.file,
+    required this.counts,
+    required this.totalRecords,
+    required this.timestamp,
+  });
+}
+
 class AppwriteBackupService {
   AppwriteBackupService({AppwriteService? appwriteService})
       : _appwriteService = appwriteService ?? AppwriteService();
 
   final AppwriteService _appwriteService;
 
-  Future<File> exportBackup({String? deviceId}) async {
+  Future<AppwriteBackupResult> exportBackup({String? deviceId}) async {
     await _appwriteService.initialize();
 
     final timestamp = DateTime.now().toUtc();
     final collections = <String, dynamic>{};
+    final counts = <String, int>{};
     final collectionIds = <String>[
       AppwriteConfig.roomsCollectionId,
       AppwriteConfig.bookingsCollectionId,
@@ -45,7 +60,10 @@ class AppwriteBackupService {
                 ...doc.data,
               })
           .toList();
+      counts[id] = docs.length;
     }
+
+    final totalRecords = counts.values.fold<int>(0, (sum, v) => sum + v);
 
     final payload = {
       'metadata': {
@@ -53,6 +71,8 @@ class AppwriteBackupService {
         'projectId': AppwriteConfig.projectId,
         'databaseId': AppwriteConfig.databaseId,
         'deviceId': deviceId,
+        'totalRecords': totalRecords,
+        'counts': counts,
       },
       'collections': collections,
     };
@@ -67,6 +87,12 @@ class AppwriteBackupService {
         'appwrite_backup_${DateFormat('yyyyMMdd_HHmmss').format(timestamp)}.json';
     final file = File('${targetDir.path}/$fileName');
     await file.writeAsString(jsonEncode(payload));
-    return file;
+
+    return AppwriteBackupResult(
+      file: file,
+      counts: counts,
+      totalRecords: totalRecords,
+      timestamp: timestamp,
+    );
   }
 }

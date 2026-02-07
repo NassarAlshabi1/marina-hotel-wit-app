@@ -374,15 +374,33 @@ class AppwriteToolsTab extends ConsumerWidget {
     final service = AppwriteBackupService(
       appwriteService: ref.read(ap.appwriteServiceProvider),
     );
-    final file = await service.exportBackup(deviceId: deviceId);
+    final result = await service.exportBackup(deviceId: deviceId);
 
     if (!context.mounted) return;
+
+    final sortedCounts = result.counts.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تم إنشاء النسخة الاحتياطية'),
-        content: Text(file.path),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('المسار: ${result.file.path}'),
+              const SizedBox(height: 12),
+              Text('إجمالي السجلات: ${result.totalRecords}'),
+              const SizedBox(height: 8),
+              const Text('تفاصيل الجداول:'),
+              const SizedBox(height: 6),
+              ...sortedCounts.map(
+                (e) => Text('• ${e.key}: ${e.value}'),
+              ),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -391,7 +409,7 @@ class AppwriteToolsTab extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await Share.shareXFiles([XFile(file.path)]);
+              await Share.shareXFiles([XFile(result.file.path)]);
             },
             child: const Text('مشاركة'),
           ),
