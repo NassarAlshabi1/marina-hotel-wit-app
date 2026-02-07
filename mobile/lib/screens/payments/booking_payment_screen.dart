@@ -1691,27 +1691,79 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   void _sendAccountStatement(BookingPaymentSummary summary) {
+    if (_currentGuestPhone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا يوجد رقم هاتف للعميل'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('إرسال كشف حساب'),
-        content: Text(
-          'سيتم إرسال كشف حساب تفصيلي للعميل ${widget.booking.guestName} على رقم $_currentGuestPhone',
+        title: const Row(
+          children: [
+            Icon(Icons.receipt_long, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('إرسال كشف حساب'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('سيتم إرسال كشف حساب تفصيلي للعميل:'),
+            const SizedBox(height: 12),
+            _buildStatementPreviewRow('العميل', widget.booking.guestName),
+            _buildStatementPreviewRow('الغرفة', widget.booking.roomNumber),
+            _buildStatementPreviewRow('الإجمالي', _currencyFmt.format(summary.totalAmount)),
+            _buildStatementPreviewRow('المدفوع', _currencyFmt.format(summary.paidAmount)),
+            _buildStatementPreviewRow(
+              'المتبقي',
+              _currencyFmt.format(summary.remainingAmount),
+              valueColor: summary.remainingAmount > 0 ? Colors.red : Colors.green,
+            ),
+            const Divider(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.phone, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(_currentGuestPhone, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
-          ElevatedButton(
+          FilledButton.icon(
             onPressed: () {
               Navigator.pop(context);
-              // TODO: إرسال كشف الحساب عبر WhatsApp أو SMS
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم إرسال كشف الحساب للعميل')),
-              );
+              _performSendAccountStatement(summary);
             },
-            child: const Text('إرسال'),
+            icon: const Icon(Icons.send, size: 18),
+            label: const Text('إرسال واتساب'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatementPreviewRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey)),
+          Text(
+            value,
+            style: TextStyle(fontWeight: FontWeight.bold, color: valueColor),
           ),
         ],
       ),
