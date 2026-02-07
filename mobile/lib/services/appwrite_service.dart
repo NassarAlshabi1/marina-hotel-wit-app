@@ -1,6 +1,7 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'appwrite_config.dart';
+import 'appwrite_config_manager.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_cache_manager.dart';
@@ -31,9 +32,14 @@ class AppwriteService {
   Future<void> initialize() async {
     if (_initialized) return;
 
-    _client = Client()
-        .setEndpoint(AppwriteConfig.endpoint)
-        .setProject(AppwriteConfig.projectId);
+    final endpoint = AppwriteConfigManager.endpoint;
+    final projectId = AppwriteConfigManager.projectId;
+    final apiKey = AppwriteConfigManager.apiKey;
+
+    _client = Client().setEndpoint(endpoint).setProject(projectId);
+    if (apiKey.isNotEmpty) {
+      _client.setKey(apiKey);
+    }
 
     // إزالة selfSigned في الإنتاج، مفيدة للتطوير
     // _client.setSelfSigned(status: true);
@@ -105,7 +111,7 @@ class AppwriteService {
 
       Future<List<models.Document>> performOperation() async {
         final documentList = await _databases.listDocuments(
-          databaseId: AppwriteConfig.databaseId,
+          databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
           queries: pagedQueries,
         );
@@ -166,7 +172,7 @@ class AppwriteService {
         try {
           await _networkHelper.withRetryAndTimeout(
             operation: () => _databases.deleteDocument(
-              databaseId: AppwriteConfig.databaseId,
+              databaseId: AppwriteConfigManager.databaseId,
               collectionId: collectionId,
               documentId: doc.$id,
             ),
@@ -214,7 +220,7 @@ class AppwriteService {
     try {
       return await _networkHelper.withRetryAndTimeout(
         operation: () => _databases.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
+          databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
           documentId: documentId,
           data: data,
@@ -226,7 +232,7 @@ class AppwriteService {
       if (e.code == 404) {
         return await _networkHelper.withRetryAndTimeout(
           operation: () => _databases.createDocument(
-            databaseId: AppwriteConfig.databaseId,
+            databaseId: AppwriteConfigManager.databaseId,
             collectionId: collectionId,
             documentId: documentId,
             data: data,
@@ -245,7 +251,7 @@ class AppwriteService {
     try {
       await _networkHelper.withRetryAndTimeout(
         operation: () => _databases.deleteDocument(
-          databaseId: AppwriteConfig.databaseId,
+          databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
           documentId: documentId,
         ),
@@ -670,7 +676,7 @@ class AppwriteService {
 
       await _networkHelper.withTimeout(
         operation: () => _databases.listDocuments(
-          databaseId: AppwriteConfig.databaseId,
+          databaseId: AppwriteConfigManager.databaseId,
           collectionId: AppwriteConfig.roomsCollectionId,
         ),
         operationName: 'quickConnectionTest',
@@ -710,7 +716,7 @@ class AppwriteService {
       try {
         await _networkHelper.withTimeout(
           operation: () => _databases.createDocument(
-            databaseId: AppwriteConfig.databaseId,
+            databaseId: AppwriteConfigManager.databaseId,
             collectionId: testCollection,
             documentId: testDocumentId,
             data: {
@@ -739,7 +745,7 @@ class AppwriteService {
         try {
           await _networkHelper.withTimeout(
             operation: () => _databases.getDocument(
-              databaseId: AppwriteConfig.databaseId,
+              databaseId: AppwriteConfigManager.databaseId,
               collectionId: testCollection,
               documentId: testDocumentId,
             ),
@@ -756,7 +762,7 @@ class AppwriteService {
         try {
           await _networkHelper.withTimeout(
             operation: () => _databases.deleteDocument(
-              databaseId: AppwriteConfig.databaseId,
+              databaseId: AppwriteConfigManager.databaseId,
               collectionId: testCollection,
               documentId: testDocumentId,
             ),
@@ -800,7 +806,7 @@ class AppwriteService {
           final testCollection = AppwriteConfig.syncLogsCollectionId;
           final testDocumentId = 'connection_test_temp';
           await _databases.deleteDocument(
-            databaseId: AppwriteConfig.databaseId,
+            databaseId: AppwriteConfigManager.databaseId,
             collectionId: testCollection,
             documentId: testDocumentId,
           );
@@ -825,7 +831,7 @@ class AppwriteService {
     _ensureInitialized();
     return await _networkHelper.withTimeout(
       operation: () => _databases.getDocument(
-        databaseId: AppwriteConfig.databaseId,
+        databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
         documentId: documentId,
       ),
@@ -842,7 +848,7 @@ class AppwriteService {
     _ensureInitialized();
     return await _networkHelper.withTimeout(
       operation: () => _databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
+        databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
         documentId: documentId,
         data: data,
@@ -860,7 +866,7 @@ class AppwriteService {
     _ensureInitialized();
     return await _networkHelper.withTimeout(
       operation: () => _databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
+        databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
         documentId: documentId,
         data: data,
@@ -916,7 +922,7 @@ class AppwriteService {
     return {
       'endpoint': AppwriteConfig.endpoint,
       'projectId': AppwriteConfig.projectId,
-      'databaseId': AppwriteConfig.databaseId,
+      'databaseId': AppwriteConfigManager.databaseId,
       'initialized': _initialized.toString(),
     };
   }

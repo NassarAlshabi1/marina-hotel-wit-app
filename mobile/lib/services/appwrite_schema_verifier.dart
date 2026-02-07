@@ -1,6 +1,7 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
 import 'appwrite_config.dart';
+import 'appwrite_config_manager.dart';
 
 /// سكريبت للتحقق من مطابقة جداول Appwrite Cloud
 ///
@@ -385,9 +386,14 @@ class AppwriteSchemaVerifier {
   static Future<Map<String, dynamic>> verifySchema() async {
     debugPrint('🔍 بدء التحقق من مطابقة جداول Appwrite Cloud...\n');
 
-    final client = Client()
-        .setEndpoint(AppwriteConfig.endpoint)
-        .setProject(AppwriteConfig.projectId);
+    final endpoint = AppwriteConfigManager.endpoint;
+    final projectId = AppwriteConfigManager.projectId;
+    final apiKey = AppwriteConfigManager.apiKey;
+
+    final client = Client().setEndpoint(endpoint).setProject(projectId);
+    if (apiKey.isNotEmpty) {
+      client.setKey(apiKey);
+    }
 
     final databases = Databases(client);
     final results = <String, dynamic>{
@@ -410,7 +416,7 @@ class AppwriteSchemaVerifier {
 
       try {
         final response = await databases.listDocuments(
-          databaseId: AppwriteConfig.databaseId,
+          databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
           queries: [],
         );
@@ -476,7 +482,7 @@ class AppwriteSchemaVerifier {
 
     debugPrint('# إنشاء Collection: $collectionId');
     debugPrint('appwrite databases createCollection \\');
-    debugPrint('  --databaseId ${AppwriteConfig.databaseId} \\');
+    debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
     debugPrint('  --collectionId $collectionId \\');
     debugPrint('  --name "${schema['name']}"');
     debugPrint('');
@@ -496,26 +502,26 @@ class AppwriteSchemaVerifier {
       if (type == 'string') {
         final size = attr['size'] ?? 255;
         debugPrint('appwrite databases createStringAttribute \\');
-        debugPrint('  --databaseId ${AppwriteConfig.databaseId} \\');
+        debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
         debugPrint('  --collectionId $collectionId \\');
         debugPrint('  --key $key \\');
         debugPrint('  --size $size \\');
         debugPrint('  --required $required');
       } else if (type == 'integer') {
         debugPrint('appwrite databases createIntegerAttribute \\');
-        debugPrint('  --databaseId ${AppwriteConfig.databaseId} \\');
+        debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
         debugPrint('  --collectionId $collectionId \\');
         debugPrint('  --key $key \\');
         debugPrint('  --required $required');
       } else if (type == 'double') {
         debugPrint('appwrite databases createFloatAttribute \\');
-        debugPrint('  --databaseId ${AppwriteConfig.databaseId} \\');
+        debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
         debugPrint('  --collectionId $collectionId \\');
         debugPrint('  --key $key \\');
         debugPrint('  --required $required');
       } else if (type == 'boolean') {
         debugPrint('appwrite databases createBooleanAttribute \\');
-        debugPrint('  --databaseId ${AppwriteConfig.databaseId} \\');
+        debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
         debugPrint('  --collectionId $collectionId \\');
         debugPrint('  --key $key \\');
         debugPrint('  --required $required');
