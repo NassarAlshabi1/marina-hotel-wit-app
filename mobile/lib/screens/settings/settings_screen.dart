@@ -10,13 +10,9 @@ import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
 import 'google_drive_backup_screen.dart';
-import 'data_protection_screen.dart';
-import 'sync_performance_settings_screen.dart';
 import 'appwrite_settings_screen.dart';
-import 'sync_debug_logs_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import '../security/blacklist_screen.dart';
-import 'php_api_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -108,61 +104,38 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
-          // قسم النظام
-          _buildSectionTitle('إعدادات النظام', Icons.settings),
+          // قسم المزامنة والنسخ الاحتياطي
+          _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
           _buildSettingsGrid(context, [
             _SettingsItem(
-              title: 'النسخ الاحتياطي',
-              subtitle: 'Google Drive + التخزين المحلي',
-              icon: Icons.backup,
-              color: Colors.indigo,
-              onTap: () => _showBackupDialog(context),
-            ),
-            _SettingsItem(
-              title: 'مركز النسخ والمزامنة',
-              subtitle: 'توحيد النسخ الاحتياطي والمزامنة الذكية',
-              icon: Icons.shield_moon,
-              color: Colors.cyan,
+              title: 'Google Drive',
+              subtitle: 'النسخ الاحتياطي والمزامنة والسجلات',
+              icon: Icons.cloud,
+              color: Colors.blue,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const DataProtectionScreen()),
+                    builder: (context) => const GoogleDriveBackupScreen()),
               ),
             ),
             _SettingsItem(
-              title: 'تحسين أداء المزامنة',
-              subtitle: 'ضبط استهلاك البطارية والبيانات',
-              icon: Icons.tune,
-              color: Colors.deepPurple,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        const SyncPerformanceSettingsScreen()),
-              ),
-            ),
-            _SettingsItem(
-              title: 'إعدادات Appwrite',
-              subtitle: 'مزامنة سحابية وإعدادات متقدمة',
+              title: 'Appwrite',
+              subtitle: 'المزامنة السحابية',
               icon: Icons.cloud_sync,
-              color: Colors.blueAccent,
+              color: Colors.pink,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
                     builder: (context) => const AppwriteSettingsScreen()),
               ),
             ),
-            _SettingsItem(
-              title: 'سجلات المزامنة',
-              subtitle: 'مراقبة مزامنة Google Drive',
-              icon: Icons.monitor_heart,
-              color: Colors.deepOrange,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const SyncDebugLogsScreen()),
-              ),
-            ),
+          ]),
+
+          const SizedBox(height: 20),
+
+          // قسم إعدادات عامة
+          _buildSectionTitle('إعدادات عامة', Icons.settings),
+          _buildSettingsGrid(context, [
             _SettingsItem(
               title: 'رسالة الواتساب',
               subtitle: 'تخصيص نص رسالة الدفع',
@@ -175,18 +148,11 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             _SettingsItem(
-              title: 'إعدادات التطبيق',
-              subtitle: 'تخصيص إعدادات التطبيق',
-              icon: Icons.app_settings_alt,
-              color: Colors.teal,
+              title: 'المظهر',
+              subtitle: 'الوضع الليلي والألوان',
+              icon: Icons.palette,
+              color: Colors.purple,
               onTap: () => _showAppSettingsDialog(context),
-            ),
-            _SettingsItem(
-              title: 'تقارير النظام',
-              subtitle: 'عرض حالة وتقارير النظام',
-              icon: Icons.assessment,
-              color: Colors.red,
-              onTap: () => _showSystemReports(context),
             ),
             _SettingsItem(
               title: 'معلومات التطبيق',
@@ -194,17 +160,6 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.info,
               color: Colors.grey,
               onTap: () => _showAboutDialog(context),
-            ),
-            _SettingsItem(
-              title: 'إعدادات PHP API',
-              subtitle: 'ربط التطبيق مع سيرفر PHP/MySQL',
-              icon: Icons.api,
-              color: Colors.amber,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const PhpApiSettingsScreen()),
-              ),
             ),
           ]),
         ],
