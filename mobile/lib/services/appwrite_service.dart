@@ -38,7 +38,7 @@ class AppwriteService {
 
     _client = Client().setEndpoint(endpoint).setProject(projectId);
     if (apiKey.isNotEmpty) {
-      _client.setKey(apiKey);
+      _client.setHeaders({'X-Appwrite-Key': apiKey});
     }
 
     // إزالة selfSigned في الإنتاج، مفيدة للتطوير

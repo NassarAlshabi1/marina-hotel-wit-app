@@ -392,7 +392,7 @@ class AppwriteSchemaVerifier {
 
     final client = Client().setEndpoint(endpoint).setProject(projectId);
     if (apiKey.isNotEmpty) {
-      client.setKey(apiKey);
+      client.setHeaders({'X-Appwrite-Key': apiKey});
     }
 
     final databases = Databases(client);
