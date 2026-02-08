@@ -10,7 +10,11 @@ class BookingDerivedFieldsService {
 
   final AppDatabase db;
 
-  Future<void> refreshForBookingId(int bookingId, {DateTime? now}) async {
+  Future<void> refreshForBookingId(
+    int bookingId, {
+    DateTime? now,
+    bool forceRebuild = false,
+  }) async {
     final booking =
         await (db.select(db.bookings)
               ..where((b) => b.id.equals(bookingId))
@@ -20,10 +24,14 @@ class BookingDerivedFieldsService {
       return;
     }
 
-    await refreshForBooking(booking, now: now);
+    await refreshForBooking(booking, now: now, forceRebuild: forceRebuild);
   }
 
-  Future<void> refreshForBooking(Booking booking, {DateTime? now}) async {
+  Future<void> refreshForBooking(
+    Booking booking, {
+    DateTime? now,
+    bool forceRebuild = false,
+  }) async {
     final moment = now ?? DateTime.now();
 
     final checkin = _parseDateTime(booking.checkinDate);
@@ -38,20 +46,14 @@ class BookingDerivedFieldsService {
         actualCheckout == null && StatusUtils.isBookingActive(booking);
 
     DateTime checkout = actualCheckout ?? plannedCheckout ?? moment;
-    if (bookingActive && plannedCheckout == null) {
+    if (bookingActive &&
+        (plannedCheckout == null || moment.isAfter(plannedCheckout))) {
       checkout = moment;
     }
 
     if (!checkout.isAfter(checkin)) {
       checkout = checkin.add(const Duration(minutes: 1));
     }
-
-    final segments = _buildNightSegments(checkin, checkout);
-    final totalNights = segments.length;
-    final expectedNightsValue =
-        plannedCheckout != null && actualCheckout == null
-        ? totalNights
-        : booking.expectedNights;
 
     final room =
         await (db.select(db.rooms)
@@ -64,57 +66,55 @@ class BookingDerivedFieldsService {
     final discountType = booking.discountType;
     final discountStartDate = _parseDateTime(booking.discountStartDate);
 
-    double totalDue;
-
-    // حساب التخفيض بناءً على النوع
-    if (discount > 0) {
-      if (discountType == 'total') {
-        // تخفيض إجمالي: يطرح من الإجمالي النهائي
-        final subtotal = nightlyRate * totalNights;
-        totalDue = double.parse(
-          (subtotal - discount).clamp(0.0, subtotal).toStringAsFixed(2),
-        );
-      } else {
-        // تخفيض لكل ليلة: يطرح من سعر الليلة
-        int nightsBeforeDiscount = 0;
-        int nightsWithDiscount = 0;
-
-        if (discountStartDate != null) {
-          // التخفيض يبدأ من تاريخ معين
-          for (final segment in segments) {
-            final segmentDate = DateTime(
-              segment.start.year,
-              segment.start.month,
-              segment.start.day,
-            );
-            final discountDate = DateTime(
-              discountStartDate.year,
-              discountStartDate.month,
-              discountStartDate.day,
-            );
-            if (segmentDate.isBefore(discountDate)) {
-              nightsBeforeDiscount++;
-            } else {
-              nightsWithDiscount++;
-            }
-          }
-        } else {
-          // التخفيض على جميع الليالي
-          nightsWithDiscount = totalNights;
-        }
-
-        final fullPriceTotal = nightlyRate * nightsBeforeDiscount;
-        final discountedRate = (nightlyRate - discount).clamp(0.0, nightlyRate);
-        final discountedTotal = discountedRate * nightsWithDiscount;
-
-        totalDue = double.parse(
-          (fullPriceTotal + discountedTotal).toStringAsFixed(2),
-        );
-      }
+    if (forceRebuild) {
+      await _rebuildBookingNights(
+        booking: booking,
+        checkin: checkin,
+        checkout: checkout,
+        nightlyRate: nightlyRate,
+        discount: discount,
+        discountType: discountType,
+        discountStartDate: discountStartDate,
+      );
     } else {
-      final subtotal = nightlyRate * totalNights;
-      totalDue = double.parse(subtotal.toStringAsFixed(2));
+      await _ensureBookingNights(
+        booking: booking,
+        checkin: checkin,
+        checkout: checkout,
+        nightlyRate: nightlyRate,
+        discount: discount,
+        discountType: discountType,
+        discountStartDate: discountStartDate,
+      );
     }
+
+    final nights =
+        await (db.select(db.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(booking.id))
+              ..where((n) => n.deletedAt.isNull()))
+            .get();
+
+    final totalNights = nights.length;
+    final totalNightAmount = nights.fold<double>(
+      0,
+      (sum, night) => sum + night.nightlyRate,
+    );
+
+    double totalDue = totalNightAmount;
+    if (discount > 0 && discountType == 'total') {
+      totalDue = double.parse(
+        (totalNightAmount - discount)
+            .clamp(0.0, totalNightAmount)
+            .toStringAsFixed(2),
+      );
+    } else {
+      totalDue = double.parse(totalNightAmount.toStringAsFixed(2));
+    }
+
+    final expectedNightsValue =
+        plannedCheckout != null && actualCheckout == null
+        ? totalNights
+        : booking.expectedNights;
 
     final payments =
         await (db.select(db.payments)
@@ -145,7 +145,7 @@ class BookingDerivedFieldsService {
 
     final stayDurationIso =
         '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
-    final lastNightEpoch = segments.last.end.millisecondsSinceEpoch ~/ 1000;
+    final lastNightEpoch = _resolveLastNightEpoch(nights, checkout);
 
     final hotelDayCheckin = Time.hotelDayKey(now: checkin);
     final hotelDayCheckout = Time.hotelDayKey(now: checkout);
@@ -178,7 +178,109 @@ class BookingDerivedFieldsService {
           lastModifiedEpoch: d.Value(stamp),
         ),
       );
+    });
+  }
 
+  Future<void> _ensureBookingNights({
+    required Booking booking,
+    required DateTime checkin,
+    required DateTime checkout,
+    required double nightlyRate,
+    required double discount,
+    required String discountType,
+    required DateTime? discountStartDate,
+  }) async {
+    final lastNight =
+        await (db.select(db.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(booking.id))
+              ..where((n) => n.deletedAt.isNull())
+              ..orderBy([
+                (n) => d.OrderingTerm(
+                  expression: n.nightEnd,
+                  mode: d.OrderingMode.desc,
+                ),
+              ])
+              ..limit(1))
+            .getSingleOrNull();
+
+    DateTime start = checkin;
+    if (lastNight != null) {
+      final parsed = _parseDateTime(lastNight.nightEnd);
+      if (parsed != null) {
+        start = parsed;
+      }
+    }
+
+    if (start.isBefore(checkin)) {
+      start = checkin;
+    }
+
+    if (!checkout.isAfter(start)) {
+      return;
+    }
+
+    final segments = _buildNightSegments(start, checkout);
+    if (segments.isEmpty) {
+      return;
+    }
+
+    final nowUtc = DateTime.now().toUtc();
+    final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
+    final stampIso = nowUtc.toIso8601String();
+
+    await db.batch((batch) {
+      int sequence = lastNight?.sequence ?? 0;
+      for (final segment in segments) {
+        sequence += 1;
+        final rate = _calculateNightlyRate(
+          segment.start,
+          nightlyRate,
+          discount,
+          discountType,
+          discountStartDate,
+        );
+        batch.insert(
+          db.bookingNights,
+          BookingNightsCompanion(
+            localUuid: d.Value(IdGen.uuid()),
+            createdAt: d.Value(stamp),
+            updatedAt: d.Value(stamp),
+            lastModified: d.Value(stamp),
+            createdAtIso: d.Value(stampIso),
+            updatedAtIso: d.Value(stampIso),
+            createdAtEpoch: d.Value(stamp),
+            lastModifiedEpoch: d.Value(stamp),
+            origin: const d.Value('derived'),
+            bookingLocalId: d.Value(booking.id),
+            hotelDayKey: d.Value(segment.hotelDayKey),
+            nightStart: d.Value(segment.start.toIso8601String()),
+            nightEnd: d.Value(segment.end.toIso8601String()),
+            nightlyRate: d.Value(rate),
+            sequence: d.Value(sequence),
+            isProcessedByAutoFix: const d.Value(false),
+          ),
+          mode: d.InsertMode.insertOrIgnore,
+        );
+      }
+    });
+  }
+
+  Future<void> _rebuildBookingNights({
+    required Booking booking,
+    required DateTime checkin,
+    required DateTime checkout,
+    required double nightlyRate,
+    required double discount,
+    required String discountType,
+    required DateTime? discountStartDate,
+  }) async {
+    final segments = _buildNightSegments(checkin, checkout);
+
+    final nowUtc = DateTime.now().toUtc();
+    final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
+    final stampIso = nowUtc.toIso8601String();
+
+    await db.transaction(() async {
       await (db.delete(
         db.bookingNights,
       )..where((t) => t.bookingLocalId.equals(booking.id))).go();
@@ -187,6 +289,13 @@ class BookingDerivedFieldsService {
         int sequence = 0;
         for (final segment in segments) {
           sequence += 1;
+          final rate = _calculateNightlyRate(
+            segment.start,
+            nightlyRate,
+            discount,
+            discountType,
+            discountStartDate,
+          );
           batch.insert(
             db.bookingNights,
             BookingNightsCompanion(
@@ -203,7 +312,7 @@ class BookingDerivedFieldsService {
               hotelDayKey: d.Value(segment.hotelDayKey),
               nightStart: d.Value(segment.start.toIso8601String()),
               nightEnd: d.Value(segment.end.toIso8601String()),
-              nightlyRate: d.Value(nightlyRate),
+              nightlyRate: d.Value(rate),
               sequence: d.Value(sequence),
               isProcessedByAutoFix: const d.Value(false),
             ),
@@ -212,6 +321,49 @@ class BookingDerivedFieldsService {
         }
       });
     });
+  }
+
+  double _calculateNightlyRate(
+    DateTime date,
+    double baseRate,
+    double discount,
+    String discountType,
+    DateTime? discountStartDate,
+  ) {
+    var rate = baseRate;
+    if (discount > 0 && discountType != 'total') {
+      final bookingDay = DateTime(date.year, date.month, date.day);
+      if (discountStartDate == null) {
+        rate = (baseRate - discount).clamp(0.0, baseRate);
+      } else {
+        final discountDay = DateTime(
+          discountStartDate.year,
+          discountStartDate.month,
+          discountStartDate.day,
+        );
+        if (!bookingDay.isBefore(discountDay)) {
+          rate = (baseRate - discount).clamp(0.0, baseRate);
+        }
+      }
+    }
+    return double.parse(rate.toStringAsFixed(2));
+  }
+
+  int _resolveLastNightEpoch(List<BookingNight> nights, DateTime fallback) {
+    if (nights.isEmpty) {
+      return fallback.millisecondsSinceEpoch ~/ 1000;
+    }
+    DateTime? latest;
+    for (final night in nights) {
+      final parsed = _parseDateTime(night.nightEnd);
+      if (parsed != null) {
+        if (latest == null || parsed.isAfter(latest)) {
+          latest = parsed;
+        }
+      }
+    }
+    final end = latest ?? fallback;
+    return end.millisecondsSinceEpoch ~/ 1000;
   }
 
   DateTime? _parseDateTime(String? value) {

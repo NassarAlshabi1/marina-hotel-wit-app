@@ -38,7 +38,10 @@ class RecalculateBookingNightsMigration {
         );
 
         // إعادة حساب جميع الحقول المشتقة بناءً على التواريخ
-        await derivedFieldsService.refreshForBooking(booking);
+        await derivedFieldsService.refreshForBooking(
+          booking,
+          forceRebuild: true,
+        );
 
         successCount++;
       } catch (e) {
@@ -81,7 +84,10 @@ class RecalculateBookingNightsMigration {
           final oldTotalDue = booking.totalDueCached;
 
           // إعادة الحساب
-          await derivedFieldsService.refreshForBooking(booking);
+          await derivedFieldsService.refreshForBooking(
+            booking,
+            forceRebuild: true,
+          );
 
           // الحصول على القيم الجديدة
           final updatedBooking = await (db.select(
