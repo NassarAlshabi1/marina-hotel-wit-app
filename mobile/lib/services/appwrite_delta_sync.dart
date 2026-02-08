@@ -257,6 +257,9 @@ class AppwriteDeltaSync {
         'salary_cycles': AppwriteConfig.salaryCyclesCollectionId,
         'salary_payments': AppwriteConfig.salaryPaymentsCollectionId,
         'shift_notes': AppwriteConfig.shiftNotesCollectionId,
+        'price_adjustments': AppwriteConfig.priceAdjustmentsCollectionId,
+        'audit_logs': AppwriteConfig.auditLogsCollectionId,
+        'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
       };
 
       for (final entry in entitiesToPull.entries) {
@@ -355,6 +358,15 @@ class AppwriteDeltaSync {
         break;
       case 'employees':
         await _applyEmployeeChange(db, documentId, data);
+        break;
+      case 'price_adjustments':
+        await _applyPriceAdjustmentChange(db, documentId, data);
+        break;
+      case 'audit_logs':
+        await _applyAuditLogChange(db, documentId, data);
+        break;
+      case 'payment_voids':
+        await _applyPaymentVoidChange(db, documentId, data);
         break;
     }
   }
@@ -456,6 +468,9 @@ class AppwriteDeltaSync {
       notes: _nullableValue<String>(_asString(data['notes'])),
       expectedNights: d.Value(_asInt(data['expectedNights']) ?? 1),
       calculatedNights: d.Value(_asInt(data['calculatedNights']) ?? 1),
+      discount: d.Value(_asDouble(data['discount']) ?? 0.0),
+      discountType: d.Value(_asString(data['discountType']) ?? 'per_night'),
+      discountStartDate: _nullableValue<String>(_asString(data['discountStartDate'])),
     );
 
     await db.into(db.bookings).insertOnConflictUpdate(companion);
@@ -593,6 +608,137 @@ class AppwriteDeltaSync {
     await db.into(db.employees).insertOnConflictUpdate(companion);
   }
 
+  Future<void> _applyPriceAdjustmentChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final targetType = _asString(data['targetType']);
+    final targetUuid = _asString(data['targetUuid']);
+    if (targetType == null || targetUuid == null) return;
+
+    final companion = PriceAdjustmentsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      targetType: d.Value(targetType),
+      targetUuid: d.Value(targetUuid),
+      adjustmentType: d.Value(_asString(data['adjustmentType']) ?? ''),
+      previousValue: d.Value(_asDouble(data['previousValue'])),
+      newValue: d.Value(_asDouble(data['newValue'])),
+      reason: _nullableValue<String>(_asString(data['reason'])),
+      effectiveDate: d.Value(_asString(data['effectiveDate']) ?? ''),
+      appliedBy: d.Value(_asString(data['appliedBy']) ?? ''),
+      hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
+      isReversed: d.Value(_asBool(data['isReversed']) ?? false),
+      reversedAt: _nullableValue<String>(_asString(data['reversedAt'])),
+      reversedBy: _nullableValue<String>(_asString(data['reversedBy'])),
+    );
+
+    await db.into(db.priceAdjustments).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyAuditLogChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final operationType = _asString(data['operationType']);
+    final entityType = _asString(data['entityType']);
+    if (operationType == null || entityType == null) return;
+
+    final timestamp = _asInt(data['timestamp']) ?? Time.nowEpoch();
+
+    final companion = AuditLogsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      operationType: d.Value(operationType),
+      entityType: d.Value(entityType),
+      entityUuid: d.Value(_asString(data['entityUuid']) ?? ''),
+      entityId: _nullableValue<int>(_asInt(data['entityId'])),
+      previousState: _nullableValue<String>(_asString(data['previousState'])),
+      newState: _nullableValue<String>(_asString(data['newState'])),
+      changedFields: _nullableValue<String>(_asString(data['changedFields'])),
+      performedBy: d.Value(_asString(data['performedBy']) ?? ''),
+      deviceId: d.Value(_asString(data['deviceId']) ?? ''),
+      ipAddress: _nullableValue<String>(_asString(data['ipAddress'])),
+      hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
+      timestamp: d.Value(timestamp),
+      timestampIso: d.Value(
+        _asString(data['timestampIso']) ??
+            DateTime.fromMillisecondsSinceEpoch(timestamp * 1000).toIso8601String(),
+      ),
+      isFinancial: d.Value(_asBool(data['isFinancial']) ?? false),
+      amountImpact: _nullableValue<double>(_asDoubleOrNull(data['amountImpact'])),
+    );
+
+    await db.into(db.auditLogs).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyPaymentVoidChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final originalPaymentUuid = _asString(data['originalPaymentUuid']);
+    if (originalPaymentUuid == null) return;
+
+    final voidedAt = _asInt(data['voidedAt']) ?? Time.nowEpoch();
+
+    final companion = PaymentVoidsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      originalPaymentUuid: d.Value(originalPaymentUuid),
+      originalPaymentId: d.Value(_asInt(data['originalPaymentId']) ?? 0),
+      bookingUuid: d.Value(_asString(data['bookingUuid']) ?? ''),
+      voidedAmount: d.Value(_asDouble(data['voidedAmount'])),
+      voidReason: d.Value(_asString(data['voidReason']) ?? ''),
+      voidedBy: d.Value(_asString(data['voidedBy']) ?? ''),
+      voidedAt: d.Value(voidedAt),
+      voidedAtIso: d.Value(
+        _asString(data['voidedAtIso']) ??
+            DateTime.fromMillisecondsSinceEpoch(voidedAt * 1000).toIso8601String(),
+      ),
+      hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
+      reversalPaymentUuid: _nullableValue<String>(_asString(data['reversalPaymentUuid'])),
+      approvedBy: _nullableValue<String>(_asString(data['approvedBy'])),
+    );
+
+    await db.into(db.paymentVoids).insertOnConflictUpdate(companion);
+  }
+
+  bool? _asBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final t = value.toLowerCase();
+      if (t == 'true' || t == '1') return true;
+      if (t == 'false' || t == '0') return false;
+    }
+    return null;
+  }
+
+  double? _asDoubleOrNull(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
   String? _getCollectionId(String entity) {
     switch (entity) {
       case 'rooms':
@@ -621,6 +767,12 @@ class AppwriteDeltaSync {
         return AppwriteConfig.salaryPaymentsCollectionId;
       case 'shift_notes':
         return AppwriteConfig.shiftNotesCollectionId;
+      case 'price_adjustments':
+        return AppwriteConfig.priceAdjustmentsCollectionId;
+      case 'audit_logs':
+        return AppwriteConfig.auditLogsCollectionId;
+      case 'payment_voids':
+        return AppwriteConfig.paymentVoidsCollectionId;
       default:
         return null;
     }

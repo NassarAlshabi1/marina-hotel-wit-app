@@ -3,15 +3,27 @@ import 'package:intl/intl.dart';
 /// دوال تنسيق الأرقام المالية (بدون رموز عملة)
 class CurrencyFormatter {
   static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
+  static final NumberFormat _decimalFormatter = NumberFormat('#,##0.00', 'en_US');
+
+  /// تقريب المبلغ بشكل صحيح (banker's rounding avoided, standard rounding)
+  static int _roundAmount(double amount) {
+    return (amount + 0.5).floor();
+  }
 
   /// تنسيق المبلغ بالفواصل فقط (5,000)
   static String formatCurrency(double amount, {bool showDecimals = false}) {
-    return _intFormatter.format(amount.truncate());
+    if (showDecimals) {
+      return _decimalFormatter.format(amount);
+    }
+    return _intFormatter.format(_roundAmount(amount));
   }
 
   /// تنسيق المبلغ بالفواصل فقط (5,000)
   static String formatAmount(double amount, {bool showDecimals = false}) {
-    return _intFormatter.format(amount.truncate());
+    if (showDecimals) {
+      return _decimalFormatter.format(amount);
+    }
+    return _intFormatter.format(_roundAmount(amount));
   }
 
   /// تنسيق المبلغ بالفواصل الإنجليزية (للأنظمة التي لا تدعم الفواصل العربية)
@@ -19,17 +31,20 @@ class CurrencyFormatter {
     double amount, {
     bool showDecimals = false,
   }) {
-    return _intFormatter.format(amount.truncate());
+    if (showDecimals) {
+      return _decimalFormatter.format(amount);
+    }
+    return _intFormatter.format(_roundAmount(amount));
   }
 
   /// تنسيق المبلغ للعرض في واجهة المستخدم (أرقام فقط)
   static String formatForDisplay(double amount, {bool showDecimals = false}) {
-    return formatAmount(amount);
+    return formatAmount(amount, showDecimals: showDecimals);
   }
 
   /// تنسيق المبلغ للرسائل النصية (أرقام فقط)
   static String formatForMessage(double amount, {bool showDecimals = false}) {
-    return formatAmount(amount);
+    return formatAmount(amount, showDecimals: showDecimals);
   }
 
   /// تحويل المبلغ من النص إلى رقم
@@ -69,10 +84,10 @@ class CurrencyFormatter {
 
     final parsed = double.tryParse(cleanText);
     if (parsed == null) return null;
-    return parsed.truncateToDouble();
+    return parsed;
   }
 
   /// إنشاء NumberFormat للاستخدام المتكرر
   static NumberFormat get defaultFormatter => _intFormatter;
-  static NumberFormat get decimalFormatter => _intFormatter;
+  static NumberFormat get decimalFormatter => _decimalFormatter;
 }

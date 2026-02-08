@@ -295,6 +295,98 @@ class HotelDayLedger extends Table with SyncFields {
   ];
 }
 
+@DataClassName('PriceAdjustment')
+class PriceAdjustments extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get targetType => text()();
+  TextColumn get targetUuid => text()();
+  TextColumn get adjustmentType => text()();
+  RealColumn get previousValue => real()();
+  RealColumn get newValue => real()();
+  TextColumn get reason => text().nullable()();
+  TextColumn get effectiveDate => text()();
+  TextColumn get appliedBy => text()();
+  TextColumn get hotelDayKey => text()();
+  BoolColumn get isReversed => boolean().withDefault(const Constant(false))();
+  TextColumn get reversedAt => text().nullable()();
+  TextColumn get reversedBy => text().nullable()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_price_adj_target',
+      'CREATE INDEX idx_price_adj_target ON price_adjustments (target_type, target_uuid)',
+    ),
+    Index(
+      'idx_price_adj_day',
+      'CREATE INDEX idx_price_adj_day ON price_adjustments (hotel_day_key)',
+    ),
+  ];
+}
+
+@DataClassName('AuditLog')
+class AuditLogs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get localUuid => text().unique()();
+  TextColumn get operationType => text()();
+  TextColumn get entityType => text()();
+  TextColumn get entityUuid => text()();
+  IntColumn get entityId => integer().nullable()();
+  TextColumn get previousState => text().nullable()();
+  TextColumn get newState => text().nullable()();
+  TextColumn get changedFields => text().nullable()();
+  TextColumn get performedBy => text()();
+  TextColumn get deviceId => text()();
+  TextColumn get ipAddress => text().nullable()();
+  TextColumn get hotelDayKey => text()();
+  IntColumn get timestamp => integer()();
+  TextColumn get timestampIso => text()();
+  BoolColumn get isFinancial => boolean().withDefault(const Constant(false))();
+  RealColumn get amountImpact => real().nullable()();
+  IntColumn get createdAt => integer()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_audit_entity',
+      'CREATE INDEX idx_audit_entity ON audit_logs (entity_type, entity_uuid)',
+    ),
+    Index(
+      'idx_audit_timestamp',
+      'CREATE INDEX idx_audit_timestamp ON audit_logs (timestamp DESC)',
+    ),
+    Index(
+      'idx_audit_financial',
+      'CREATE INDEX idx_audit_financial ON audit_logs (is_financial, hotel_day_key)',
+    ),
+  ];
+}
+
+@DataClassName('PaymentVoid')
+class PaymentVoids extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get originalPaymentUuid => text().unique()();
+  IntColumn get originalPaymentId => integer()();
+  TextColumn get bookingUuid => text()();
+  RealColumn get voidedAmount => real()();
+  TextColumn get voidReason => text()();
+  TextColumn get voidedBy => text()();
+  IntColumn get voidedAt => integer()();
+  TextColumn get voidedAtIso => text()();
+  TextColumn get hotelDayKey => text()();
+  TextColumn get reversalPaymentUuid => text().nullable()();
+  TextColumn get approvedBy => text().nullable()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_void_booking',
+      'CREATE INDEX idx_void_booking ON payment_voids (booking_uuid)',
+    ),
+    Index(
+      'idx_void_day',
+      'CREATE INDEX idx_void_day ON payment_voids (hotel_day_key)',
+    ),
+  ];
+}
+
 @DataClassName('AutoFixRun')
 class AutoFixRuns extends Table {
   IntColumn get id => integer().autoIncrement()();

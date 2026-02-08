@@ -13,6 +13,9 @@ import 'salary_payments_adapter.dart';
 import 'booking_notes_adapter.dart';
 import 'cash_transactions_adapter.dart';
 import 'shift_notes_adapter.dart';
+import 'price_adjustments_adapter.dart';
+import 'audit_logs_adapter.dart';
+import 'payment_voids_adapter.dart';
 
 class AdapterRegistry {
   AdapterRegistry(this.db)
@@ -77,6 +80,22 @@ class AdapterRegistry {
         db: db,
         table: db.shiftNotes,
         adapter: ShiftNotesAdapter(IdResolver(db)),
+      ),
+      priceAdjustments =
+          BaseRepository<PriceAdjustment, PriceAdjustmentsCompanion>(
+            db: db,
+            table: db.priceAdjustments,
+            adapter: PriceAdjustmentsAdapter(IdResolver(db)),
+          ),
+      auditLogs = BaseRepository<AuditLog, AuditLogsCompanion>(
+        db: db,
+        table: db.auditLogs,
+        adapter: AuditLogsAdapter(IdResolver(db)),
+      ),
+      paymentVoids = BaseRepository<PaymentVoid, PaymentVoidsCompanion>(
+        db: db,
+        table: db.paymentVoids,
+        adapter: PaymentVoidsAdapter(IdResolver(db)),
       );
 
   final AppDatabase db;
@@ -94,4 +113,8 @@ class AdapterRegistry {
   final BaseRepository<CashTransaction, CashTransactionsCompanion>
   cashTransactions;
   final BaseRepository<ShiftNote, ShiftNotesCompanion> shiftNotes;
+  final BaseRepository<PriceAdjustment, PriceAdjustmentsCompanion>
+      priceAdjustments;
+  final BaseRepository<AuditLog, AuditLogsCompanion> auditLogs;
+  final BaseRepository<PaymentVoid, PaymentVoidsCompanion> paymentVoids;
 }

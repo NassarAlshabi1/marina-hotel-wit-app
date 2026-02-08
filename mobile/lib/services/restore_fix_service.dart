@@ -447,12 +447,34 @@ class RestoreFixService {
       double? expectedTotal;
       int? expectedTotalCents;
       if (room != null) {
-        final subtotalCents = _toCents(booking.calculatedNights * room.price);
-        final discountCents = _toCents(booking.discount);
-        expectedTotalCents = (subtotalCents - discountCents).clamp(
-          0,
-          subtotalCents,
-        );
+        final nights = await (db.select(db.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(booking.id))
+              ..where((n) => n.deletedAt.isNull()))
+            .get();
+        
+        final double totalNightAmount;
+        if (nights.isNotEmpty) {
+          totalNightAmount = nights.fold<double>(0.0, (sum, n) => sum + n.nightlyRate);
+        } else {
+          final baseRate = room.price;
+          final discount = booking.discount;
+          final discountType = booking.discountType;
+          if (discountType == 'total') {
+            totalNightAmount = (baseRate * booking.calculatedNights - discount)
+                .clamp(0.0, baseRate * booking.calculatedNights);
+          } else if (discount > 0) {
+            final discountedRate = (baseRate - discount).clamp(0.0, baseRate);
+            totalNightAmount = discountedRate * booking.calculatedNights;
+          } else {
+            totalNightAmount = baseRate * booking.calculatedNights;
+          }
+        }
+        
+        double finalTotal = totalNightAmount;
+        if (booking.discount > 0 && booking.discountType == 'total') {
+          finalTotal = (totalNightAmount - booking.discount).clamp(0.0, totalNightAmount);
+        }
+        expectedTotalCents = _toCents(finalTotal);
         expectedTotal = _fromCents(expectedTotalCents);
 
         final remainingBalanceCents = expectedTotalCents - totalPaidCents;
@@ -783,7 +805,10 @@ class RestoreFixService {
     }
 
     final segments = _buildNightSegments(checkin, checkout);
-    final double nightlyRate = room.price;
+    final double baseNightlyRate = room.price;
+    final double discount = booking.discount;
+    final String discountType = booking.discountType;
+    final DateTime? discountStartDate = _parseDate(booking.discountStartDate);
     final List<BookingNightsCompanion> nightRows = [];
 
     int sequence = 0;
@@ -792,6 +817,14 @@ class RestoreFixService {
     for (final segment in segments) {
       sequence++;
       lastNightEnd = segment.end;
+
+      final double nightlyRate = _calculateNightlyRateForSegment(
+        segmentStart: segment.start,
+        baseRate: baseNightlyRate,
+        discount: discount,
+        discountType: discountType,
+        discountStartDate: discountStartDate,
+      );
 
       final int rowEpoch = Time.nowEpoch();
       final String rowIso = DateTime.now().toUtc().toIso8601String();
@@ -832,9 +865,15 @@ class RestoreFixService {
     }
 
     final int totalNights = math.max(segments.length, 1);
-    final double subtotal = nightlyRate * totalNights;
-    final double discount = booking.discount;
-    final double totalDue = (subtotal - discount).clamp(0.0, subtotal);
+    final double totalNightAmount = nightRows.fold<double>(
+      0.0,
+      (sum, row) => sum + (row.nightlyRate.value ?? 0.0),
+    );
+    double totalDue = totalNightAmount;
+    if (discount > 0 && discountType == 'total') {
+      totalDue = (totalNightAmount - discount).clamp(0.0, totalNightAmount);
+    }
+    totalDue = double.parse(totalDue.toStringAsFixed(2));
     final String stayDurationIso =
         '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
     final int? lastNightEpoch = lastNightEnd != null
@@ -1121,6 +1160,34 @@ class RestoreFixService {
 
   String _hotelDayKey(DateTime value) =>
       Time.dateToString(_hotelDayStart(value));
+
+  double _calculateNightlyRateForSegment({
+    required DateTime segmentStart,
+    required double baseRate,
+    required double discount,
+    required String discountType,
+    required DateTime? discountStartDate,
+  }) {
+    if (baseRate < 0) baseRate = 0;
+    var rate = baseRate;
+    if (discount > 0 && discountType != 'total') {
+      final hotelDay = _hotelDayStart(segmentStart);
+      final hotelDayDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
+      if (discountStartDate == null) {
+        rate = (baseRate - discount).clamp(0.0, baseRate);
+      } else {
+        final discountDay = DateTime(
+          discountStartDate.year,
+          discountStartDate.month,
+          discountStartDate.day,
+        );
+        if (!hotelDayDate.isBefore(discountDay)) {
+          rate = (baseRate - discount).clamp(0.0, baseRate);
+        }
+      }
+    }
+    return double.parse(rate.toStringAsFixed(2));
+  }
 
   /// تسجيل التغيير في جدول RestoreFixLog
   Future<void> _logChange({

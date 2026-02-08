@@ -59,12 +59,13 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     if (discountStartDate == null) {
       return Time.nightsWithCutoff(checkin, checkout: checkout);
     }
-    final discountDay = DateTime(
+    final discountDayStart = DateTime(
       discountStartDate.year,
       discountStartDate.month,
       discountStartDate.day,
+      14,
     );
-    final effectiveStart = discountDay.isAfter(checkin) ? discountDay : checkin;
+    final effectiveStart = discountDayStart.isAfter(checkin) ? discountDayStart : checkin;
     if (!checkout.isAfter(effectiveStart)) {
       return 0;
     }

@@ -7,10 +7,22 @@ import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../../models/enhanced_payment_models.dart';
-import '../../models/enhanced_reports.dart';
-import '../../services/local_db.dart';
-import '../../utils/enhanced_pdf_utils.dart';
+import '../models/enhanced_payment_models.dart';
+import '../models/enhanced_reports.dart';
+import '../services/local_db.dart';
+import 'enhanced_pdf_utils.dart';
+
+DateTime _safeParseDateTime(String? dateStr, {DateTime? fallback}) {
+  if (dateStr == null || dateStr.trim().isEmpty) {
+    return fallback ?? DateTime.now();
+  }
+  final normalized = dateStr.contains('T') ? dateStr : dateStr.replaceFirst(' ', 'T');
+  try {
+    return DateTime.parse(normalized);
+  } catch (_) {
+    return fallback ?? DateTime.now();
+  }
+}
 
 /// مساعد لإنشاء PDF محسّنة من البيانات الموجودة
 class EnhancedPdfHelper {
@@ -70,10 +82,10 @@ class EnhancedPdfHelper {
       payments: payments,
       hotelName: 'فندق مارينا بلازا',
       hotelAddress: 'القاهرة - شارع احمد قاسم',
-      checkIn: DateTime.parse(booking.checkinDate),
-      checkOut: booking.checkoutDate != null
-          ? DateTime.parse(booking.checkoutDate!)
-          : DateTime.parse(booking.checkinDate).add(Duration(days: nights)),
+      checkIn: _safeParseDateTime(booking.checkinDate),
+      checkOut: booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty
+          ? _safeParseDateTime(booking.checkoutDate)
+          : _safeParseDateTime(booking.checkinDate).add(Duration(days: nights)),
       issuedAt: DateTime.now(),
       notes: booking.notes,
       discount: booking.discount,
@@ -156,7 +168,7 @@ class EnhancedPdfHelper {
         roomNumber: booking.roomNumber,
         amount: payment.amount,
         method: payment.paymentMethod,
-        paymentDate: DateTime.parse(payment.paymentDate),
+        paymentDate: _safeParseDateTime(payment.paymentDate),
         receivedBy: 'النظام',
         notes: payment.notes,
       );
@@ -187,7 +199,7 @@ class EnhancedPdfHelper {
             description: expense.description,
             category: expense.expenseType,
             amount: expense.amount,
-            date: DateTime.parse(expense.date),
+            date: _safeParseDateTime(expense.date),
             notes: null,
           ),
         )

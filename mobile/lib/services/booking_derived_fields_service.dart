@@ -324,15 +324,17 @@ class BookingDerivedFieldsService {
   }
 
   double _calculateNightlyRate(
-    DateTime date,
+    DateTime segmentStart,
     double baseRate,
     double discount,
     String discountType,
     DateTime? discountStartDate,
   ) {
+    if (baseRate < 0) baseRate = 0;
     var rate = baseRate;
     if (discount > 0 && discountType != 'total') {
-      final bookingDay = DateTime(date.year, date.month, date.day);
+      final hotelDay = Time.hotelDayStart(segmentStart);
+      final hotelDayDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
       if (discountStartDate == null) {
         rate = (baseRate - discount).clamp(0.0, baseRate);
       } else {
@@ -341,7 +343,7 @@ class BookingDerivedFieldsService {
           discountStartDate.month,
           discountStartDate.day,
         );
-        if (!bookingDay.isBefore(discountDay)) {
+        if (!hotelDayDate.isBefore(discountDay)) {
           rate = (baseRate - discount).clamp(0.0, baseRate);
         }
       }
