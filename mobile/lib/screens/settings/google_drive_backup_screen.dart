@@ -9,27 +9,11 @@ import '../../services/google_drive_backup_service.dart';
 import '../../utils/theme.dart';
 import 'google_drive_logs_screen.dart';
 
-class GoogleDriveBackupScreen extends ConsumerStatefulWidget {
+class GoogleDriveBackupScreen extends ConsumerWidget {
   const GoogleDriveBackupScreen({super.key});
 
   @override
-  ConsumerState<GoogleDriveBackupScreen> createState() =>
-      _GoogleDriveBackupScreenState();
-}
-
-class _GoogleDriveBackupScreenState
-    extends ConsumerState<GoogleDriveBackupScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // تحديث حجم قاعدة البيانات عند دخول الشاشة
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(backupStatusProvider.notifier).updateDatabaseSize();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final backupState = ref.watch(backupStatusProvider);
 
     return AppScaffold(
@@ -52,44 +36,59 @@ class _GoogleDriveBackupScreenState
             tooltip: 'تحديث قائمة النسخ',
           ),
       ],
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // رسائل الحالة والأخطاء
-            if (backupState.message != null) ...[
-              _buildStatusMessage(backupState),
-              const SizedBox(height: 16),
-            ],
+      body: const GoogleDriveBackupContent(),
+    );
+  }
+}
 
-            Expanded(
-              child: ListView(
-                children: [
-                  // قسم حالة Google Drive
-                  _buildConnectionStatusCard(backupState),
-                  const SizedBox(height: 16),
+class GoogleDriveBackupContent extends ConsumerStatefulWidget {
+  const GoogleDriveBackupContent({super.key});
 
-                  if (backupState.isSignedIn) ...[
-                    // قسم معلومات النظام
-                    _buildSystemInfoCard(backupState),
-                    const SizedBox(height: 16),
+  @override
+  ConsumerState<GoogleDriveBackupContent> createState() =>
+      _GoogleDriveBackupContentState();
+}
 
-                    // قسم النسخ الاحتياطي اليدوي
-                    _buildManualBackupCard(backupState),
-                    const SizedBox(height: 16),
+class _GoogleDriveBackupContentState
+    extends ConsumerState<GoogleDriveBackupContent> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(backupStatusProvider.notifier).updateDatabaseSize();
+    });
+  }
 
-                    // قسم استعادة النسخ
-                    _buildRestoreCard(backupState),
-                    const SizedBox(height: 16),
+  @override
+  Widget build(BuildContext context) {
+    final backupState = ref.watch(backupStatusProvider);
 
-                    // قسم النسخ التلقائي
-                    _buildAutoBackupCard(backupState),
-                  ],
-                ],
-              ),
-            ),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          if (backupState.message != null) ...[
+            _buildStatusMessage(backupState),
+            const SizedBox(height: 16),
           ],
-        ),
+          Expanded(
+            child: ListView(
+              children: [
+                _buildConnectionStatusCard(backupState),
+                const SizedBox(height: 16),
+                if (backupState.isSignedIn) ...[
+                  _buildSystemInfoCard(backupState),
+                  const SizedBox(height: 16),
+                  _buildManualBackupCard(backupState),
+                  const SizedBox(height: 16),
+                  _buildRestoreCard(backupState),
+                  const SizedBox(height: 16),
+                  _buildAutoBackupCard(backupState),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

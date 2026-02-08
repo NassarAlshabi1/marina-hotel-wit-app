@@ -95,41 +95,12 @@ class LocalBackupService {
     }
 
     try {
-      Directory? selectedDir;
+      final Directory selectedDir;
 
       if (Platform.isAndroid) {
-        try {
-          final manualDir = Directory(
-            '/storage/emulated/0/Documents/$_backupFolderName',
-          );
-          if (!await manualDir.exists()) {
-            await manualDir.create(recursive: true);
-            debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${manualDir.path}');
-          }
-          selectedDir = manualDir;
-        } catch (e) {
-          debugPrint('⚠️ تعذر استخدام المسار اليدوي، سيتم استخدام بديل: $e');
-        }
-
-        if (selectedDir == null) {
-          final externalDirs = await getExternalStorageDirectories(
-            type: StorageDirectory.documents,
-          );
-          if (externalDirs != null && externalDirs.isNotEmpty) {
-            final fallbackDir = Directory(
-              p.join(externalDirs.first.path, _backupFolderName),
-            );
-            if (!await fallbackDir.exists()) {
-              await fallbackDir.create(recursive: true);
-              debugPrint(
-                '✅ تم إنشاء مجلد النسخ الاحتياطي: ${fallbackDir.path}',
-              );
-            }
-            selectedDir = fallbackDir;
-          }
-        }
-
-        selectedDir ??= await getApplicationDocumentsDirectory();
+        selectedDir = Directory(
+          '/storage/emulated/0/Documents/$_backupFolderName',
+        );
       } else {
         selectedDir = await getApplicationDocumentsDirectory();
       }
