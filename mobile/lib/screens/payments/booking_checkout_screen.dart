@@ -132,7 +132,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                         if (checkout == null) {
                           return actualNights * roomPrice;
                         }
-                        if (discount > 0 && discountType == 'per_night') {
+                        if (discount > 0 && discountType == 'per_night' && checkin != null) {
                           final discountedNights = _countNightsWithDiscount(
                             checkin,
                             checkout,
