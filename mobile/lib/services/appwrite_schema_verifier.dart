@@ -1,6 +1,5 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
-import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
 
 /// سكريبت للتحقق من مطابقة جداول Appwrite Cloud
@@ -392,7 +391,7 @@ class AppwriteSchemaVerifier {
 
     final client = Client().setEndpoint(endpoint).setProject(projectId);
     if (apiKey.isNotEmpty) {
-      client.setHeaders({'X-Appwrite-Key': apiKey});
+      client.addHeader('X-Appwrite-Key', apiKey);
     }
 
     final databases = Databases(client);
