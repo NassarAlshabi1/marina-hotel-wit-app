@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/smart_sync_provider.dart';
 import '../providers/backup_provider.dart';
+import '../screens/settings/smart_sync_settings_screen.dart';
 
 /// Widget لعرض حالة المزامنة في الوقت الفعلي
 class SmartSyncStatusWidget extends ConsumerWidget {
@@ -248,7 +249,11 @@ class _SmartSyncDashboardCardState
           margin: EdgeInsets.zero,
           child: InkWell(
             onTap: () {
-              Navigator.pushNamed(context, '/smart-sync-settings');
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SmartSyncSettingsScreen(),
+                ),
+              );
             },
             borderRadius: BorderRadius.circular(8),
             child: Padding(
