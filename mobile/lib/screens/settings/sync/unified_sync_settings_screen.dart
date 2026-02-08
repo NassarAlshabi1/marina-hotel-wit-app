@@ -81,10 +81,7 @@ class _UnifiedSyncSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'حالة المزامنة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -168,10 +165,7 @@ class _UnifiedSyncSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'الأداء والبطارية',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -225,10 +219,7 @@ class _UnifiedSyncSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'المزامنة الذكية',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -282,10 +273,7 @@ class _UnifiedSyncSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'Appwrite Sync',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -339,10 +327,7 @@ class _UnifiedSyncSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'إعدادات متقدمة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),

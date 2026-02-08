@@ -87,8 +87,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     if (b != null) {
       _guestName.text = b.guestName;
       _guestPhone.text = b.guestPhone;
-      _guestNationality.text =
-          b.guestNationality.isEmpty ? 'يمني' : b.guestNationality;
+      _guestNationality.text = b.guestNationality.isEmpty
+          ? 'يمني'
+          : b.guestNationality;
       _guestAddress.text = b.guestAddress ?? '';
       _guestIdNumber.text = b.guestIdNumber;
       _guestIdIssueDate.text = b.guestIdIssueDate ?? '';
@@ -162,7 +163,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final contact = await FlutterContacts.openExternalPick();
     if (contact == null || !mounted) return;
 
-    final fullContact = await FlutterContacts.getContact(contact.id, withProperties: true);
+    final fullContact = await FlutterContacts.getContact(
+      contact.id,
+      withProperties: true,
+    );
     if (!mounted) return;
 
     if (fullContact != null && fullContact.phones.isNotEmpty) {
@@ -276,7 +280,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               child: TextFormField(
                                 controller: _guestIdIssueDate,
                                 readOnly: true,
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                                 decoration: const InputDecoration(
                                   labelText: 'تاريخ إصدار الهوية',
                                   suffixIcon: Icon(Icons.calendar_today),
@@ -291,7 +298,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             Expanded(
                               child: TextFormField(
                                 controller: _guestIdIssuePlace,
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                                 decoration: const InputDecoration(
                                   labelText: 'جهة الإصدار',
                                 ),
@@ -302,7 +312,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _guestNationality,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.normal,
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'الجنسية *',
                           ),
@@ -311,7 +324,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _guestAddress,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'العنوان',
                           ),
@@ -333,7 +349,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         TextFormField(
                           controller: _checkin,
                           readOnly: true,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'تاريخ الوصول *',
                             helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
@@ -346,7 +365,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         TextFormField(
                           controller: _checkout,
                           readOnly: true,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'تاريخ المغادرة المخطط',
                             helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
@@ -488,121 +510,124 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   padding: const EdgeInsets.only(bottom: 20),
                   child: FilledButton.icon(
                     onPressed: () async {
-                    if (!_formKey.currentState!.validate()) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('يرجى تعبئة اسم النزيل ورقم الهوية'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-                    final name = _guestName.text.trim();
-                    final phone = _normalizePhone(_guestPhone.text);
-                    final nationality = _guestNationality.text.trim().isEmpty
-                        ? 'غير معروف'
-                        : _guestNationality.text.trim();
-                    final address = _optionalText(_guestAddress.text);
-                    final idNumber = _guestIdNumber.text.trim();
-                    final idIssueDate = _optionalText(_guestIdIssueDate.text);
-                    final idIssuePlace = _optionalText(_guestIdIssuePlace.text);
-                    final roomNumber = _roomNumber.text.trim();
-                    final checkin = _checkin.text.trim();
-                    final checkout = _optionalText(_checkout.text);
-                    final expectedNights =
-                        int.tryParse(_expectedNights.text.trim()) ?? 1;
-                    final checkinDt = _parseDateTime(checkin);
-                    final checkoutDt =
-                        checkout != null ? _parseDateTime(checkout) : null;
-                    final calculatedNights = checkinDt == null
-                        ? expectedNights
-                        : Time.nightsWithCutoff(
-                            checkinDt,
-                            checkout: checkoutDt,
-                          );
-                    final notes = _optionalText(_notes.text);
-                    const String? email = null;
-
-                    final blacklist = ref.read(blacklistRepoProvider);
-                    final isBlacklisted = await blacklist.isNameBlacklisted(
-                      name,
-                    );
-                    if (isBlacklisted && mounted) {
-                      final proceed = await showDialog<bool>(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) => AlertDialog(
-                          title: const Text('تحذير أمني'),
-                          content: Text(
-                            'الاسم "$name" موجود في القائمة السوداء ومطلوب أمنياً. هل ترغب بمتابعة تسجيل الحجز؟',
+                      if (!_formKey.currentState!.validate()) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('يرجى تعبئة اسم النزيل ورقم الهوية'),
+                            backgroundColor: Colors.red,
                           ),
-                          icon: const Icon(Icons.warning, color: Colors.red),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('إلغاء'),
+                        );
+                        return;
+                      }
+                      final name = _guestName.text.trim();
+                      final phone = _normalizePhone(_guestPhone.text);
+                      final nationality = _guestNationality.text.trim().isEmpty
+                          ? 'غير معروف'
+                          : _guestNationality.text.trim();
+                      final address = _optionalText(_guestAddress.text);
+                      final idNumber = _guestIdNumber.text.trim();
+                      final idIssueDate = _optionalText(_guestIdIssueDate.text);
+                      final idIssuePlace = _optionalText(
+                        _guestIdIssuePlace.text,
+                      );
+                      final roomNumber = _roomNumber.text.trim();
+                      final checkin = _checkin.text.trim();
+                      final checkout = _optionalText(_checkout.text);
+                      final expectedNights =
+                          int.tryParse(_expectedNights.text.trim()) ?? 1;
+                      final checkinDt = _parseDateTime(checkin);
+                      final checkoutDt = checkout != null
+                          ? _parseDateTime(checkout)
+                          : null;
+                      final calculatedNights = checkinDt == null
+                          ? expectedNights
+                          : Time.nightsWithCutoff(
+                              checkinDt,
+                              checkout: checkoutDt,
+                            );
+                      final notes = _optionalText(_notes.text);
+                      const String? email = null;
+
+                      final blacklist = ref.read(blacklistRepoProvider);
+                      final isBlacklisted = await blacklist.isNameBlacklisted(
+                        name,
+                      );
+                      if (isBlacklisted && mounted) {
+                        final proceed = await showDialog<bool>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => AlertDialog(
+                            title: const Text('تحذير أمني'),
+                            content: Text(
+                              'الاسم "$name" موجود في القائمة السوداء ومطلوب أمنياً. هل ترغب بمتابعة تسجيل الحجز؟',
                             ),
-                            ElevatedButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('متابعة'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (proceed != true) return;
-                    }
+                            icon: const Icon(Icons.warning, color: Colors.red),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('إلغاء'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('متابعة'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (proceed != true) return;
+                      }
 
-                    if (widget.existing == null) {
-                      await repo.create(
-                        roomNumber: roomNumber,
-                        guestName: name,
-                        guestPhone: phone,
-                        guestIdType: _idType,
-                        guestIdNumber: idNumber,
-                        guestIdIssueDate: idIssueDate,
-                        guestIdIssuePlace: idIssuePlace,
-                        guestNationality: nationality,
-                        guestEmail: email,
-                        guestAddress: address,
-                        checkinDate: checkin,
-                        checkoutDate: checkout,
-                        actualCheckout: null,
-                        status: _status,
-                        notes: notes,
-                        expectedNights: expectedNights,
-                        calculatedNights: calculatedNights,
-                      );
-                    } else {
-                      await repo.update(
-                        widget.existing!.id,
-                        roomNumber: roomNumber,
-                        guestName: name,
-                        guestPhone: phone,
-                        guestIdType: _idType,
-                        guestIdNumber: idNumber,
-                        guestIdIssueDate: idIssueDate,
-                        guestIdIssuePlace: idIssuePlace,
-                        guestNationality: nationality,
-                        guestEmail: email,
-                        guestAddress: address,
-                        checkinDate: checkin,
-                        checkoutDate: checkout,
-                        status: _status,
-                        notes: notes,
-                        expectedNights: expectedNights,
-                        calculatedNights: calculatedNights,
-                      );
-                    }
+                      if (widget.existing == null) {
+                        await repo.create(
+                          roomNumber: roomNumber,
+                          guestName: name,
+                          guestPhone: phone,
+                          guestIdType: _idType,
+                          guestIdNumber: idNumber,
+                          guestIdIssueDate: idIssueDate,
+                          guestIdIssuePlace: idIssuePlace,
+                          guestNationality: nationality,
+                          guestEmail: email,
+                          guestAddress: address,
+                          checkinDate: checkin,
+                          checkoutDate: checkout,
+                          actualCheckout: null,
+                          status: _status,
+                          notes: notes,
+                          expectedNights: expectedNights,
+                          calculatedNights: calculatedNights,
+                        );
+                      } else {
+                        await repo.update(
+                          widget.existing!.id,
+                          roomNumber: roomNumber,
+                          guestName: name,
+                          guestPhone: phone,
+                          guestIdType: _idType,
+                          guestIdNumber: idNumber,
+                          guestIdIssueDate: idIssueDate,
+                          guestIdIssuePlace: idIssuePlace,
+                          guestNationality: nationality,
+                          guestEmail: email,
+                          guestAddress: address,
+                          checkinDate: checkin,
+                          checkoutDate: checkout,
+                          status: _status,
+                          notes: notes,
+                          expectedNights: expectedNights,
+                          calculatedNights: calculatedNights,
+                        );
+                      }
 
-                    await _refreshRoomOccupancy(ref);
+                      await _refreshRoomOccupancy(ref);
 
-                    await syncNow();
-                    if (mounted) Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.save),
-                  label: const Text('حفظ الحجز'),
+                      await syncNow();
+                      if (mounted) Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.save),
+                    label: const Text('حفظ الحجز'),
+                  ),
                 ),
-              ),
               ],
             ),
           ),
@@ -729,10 +754,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         validator: _req,
       ),
       data: (rooms) {
-        final availableRooms = rooms
-            .where((room) => StatusUtils.isRoomAvailable(room.status))
-            .toList()
-          ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+        final availableRooms =
+            rooms
+                .where((room) => StatusUtils.isRoomAvailable(room.status))
+                .toList()
+              ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
 
         final currentValue = _roomNumber.text.trim();
         if (!_roomInitialized &&
@@ -756,10 +782,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           items.add(
             DropdownMenuItem(
               value: currentValue,
-              child: Text(
-                '$currentValue (الحالي)',
-                style: roomTextStyle,
-              ),
+              child: Text('$currentValue (الحالي)', style: roomTextStyle),
             ),
           );
         }
@@ -810,8 +833,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final roomsRepo = ref.read(roomsRepoProvider);
     final bookings = await (db.select(
       db.bookings,
-    )..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
     final occupiedRooms = <String>{};
     for (final booking in bookings) {
       if (StatusUtils.isActiveBooking(booking.status)) {
@@ -821,8 +843,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
     final rooms = await (db.select(
       db.rooms,
-    )..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
     for (final room in rooms) {
       final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
       final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
@@ -839,8 +860,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   DateTime? _parseDateTime(String value) {
     if (value.isEmpty) return null;
     final normalized = value.contains('T') ? value : value.replaceAll(' ', 'T');
-    final withSeconds =
-        normalized.length == 16 ? '${normalized}:00' : normalized;
+    final withSeconds = normalized.length == 16
+        ? '${normalized}:00'
+        : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {

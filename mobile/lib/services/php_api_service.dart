@@ -27,7 +27,11 @@ class PhpApiResult<T> {
     return PhpApiResult(success: true, data: data, message: message);
   }
 
-  factory PhpApiResult.error(String message, {int? statusCode, Map<String, dynamic>? errors}) {
+  factory PhpApiResult.error(
+    String message, {
+    int? statusCode,
+    Map<String, dynamic>? errors,
+  }) {
     return PhpApiResult(
       success: false,
       message: message,
@@ -83,11 +87,13 @@ class PhpApiService {
     );
 
     if (config.enableLogging) {
-      _dio.interceptors.add(LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        logPrint: (o) => debugPrint('📡 PHP API: $o'),
-      ));
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+          logPrint: (o) => debugPrint('📡 PHP API: $o'),
+        ),
+      );
     }
   }
 
@@ -120,10 +126,7 @@ class PhpApiService {
     handler.next(response);
   }
 
-  Future<void> _onError(
-    DioException e,
-    ErrorInterceptorHandler handler,
-  ) async {
+  Future<void> _onError(DioException e, ErrorInterceptorHandler handler) async {
     final statusCode = e.response?.statusCode ?? 0;
 
     _logRequest(
@@ -164,7 +167,10 @@ class PhpApiService {
       'type': type,
       'method': method,
       'path': path,
-      'data': data?.toString().substring(0, (data.toString().length).clamp(0, 500)),
+      'data': data?.toString().substring(
+        0,
+        (data.toString().length).clamp(0, 500),
+      ),
       'statusCode': statusCode,
       'timestamp': DateTime.now().toIso8601String(),
     });
@@ -210,7 +216,10 @@ class PhpApiService {
         }
 
         _updateStatus(PhpApiStatus.connected);
-        return PhpApiResult.success(user ?? {}, message: 'تم تسجيل الدخول بنجاح');
+        return PhpApiResult.success(
+          user ?? {},
+          message: 'تم تسجيل الدخول بنجاح',
+        );
       }
 
       _updateStatus(PhpApiStatus.error);
@@ -283,7 +292,10 @@ class PhpApiService {
         ...?extraParams,
       };
 
-      final response = await _dio.get('/$endpoint.php', queryParameters: queryParams);
+      final response = await _dio.get(
+        '/$endpoint.php',
+        queryParameters: queryParams,
+      );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         final rawData = response.data['data'] as List? ?? [];
@@ -540,9 +552,7 @@ class PhpApiService {
           response = await _dio.get(endpoint, queryParameters: queryParams);
       }
 
-      return PhpApiResult.success(
-        Map<String, dynamic>.from(response.data),
-      );
+      return PhpApiResult.success(Map<String, dynamic>.from(response.data));
     } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }

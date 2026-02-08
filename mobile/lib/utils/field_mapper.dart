@@ -371,7 +371,7 @@ class FieldMapper {
       'guest_phone',
       'guest_nationality',
       'checkin_date',
-      'status'
+      'status',
     ],
     'employees': ['name', 'basic_salary', 'status'],
     'expenses': ['expense_type', 'description', 'amount', 'date'],

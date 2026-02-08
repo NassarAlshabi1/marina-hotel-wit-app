@@ -25,9 +25,18 @@ class _CreateDebtFromBookingScreenState
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
   final _dateFormat = DateFormat('yyyy-MM-dd');
-  static const _titleStyle = TextStyle(fontSize: 14, fontWeight: FontWeight.bold);
-  static const _labelStyle = TextStyle(fontSize: 13, fontWeight: FontWeight.bold);
-  static const _fieldStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.bold);
+  static const _titleStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
+  );
+  static const _labelStyle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.bold,
+  );
+  static const _fieldStyle = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+  );
 
   @override
   void dispose() {
@@ -41,9 +50,7 @@ class _CreateDebtFromBookingScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('إنشاء دين من حجز'),
-      ),
+      appBar: AppBar(title: const Text('إنشاء دين من حجز')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -99,10 +106,7 @@ class _CreateDebtFromBookingScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'اختر الحجز',
-                  style: _titleStyle,
-                ),
+                const Text('اختر الحجز', style: _titleStyle),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Booking>(
                   value: _selectedBooking,
@@ -110,8 +114,10 @@ class _CreateDebtFromBookingScreenState
                   style: _fieldStyle,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                   items: bookings.map((booking) {
                     return DropdownMenuItem(
@@ -153,17 +159,17 @@ class _CreateDebtFromBookingScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'معلومات الحجز',
-              style: _titleStyle,
-            ),
+            const Text('معلومات الحجز', style: _titleStyle),
             const SizedBox(height: 8),
             _buildInfoRow('الغرفة', booking.roomNumber),
             _buildInfoRow('الضيف', booking.guestName),
             _buildInfoRow('الهوية', booking.guestIdNumber),
             _buildInfoRow('تاريخ الدخول', booking.checkinDate.split(' ')[0]),
             if (booking.checkoutDate != null)
-              _buildInfoRow('تاريخ الخروج', booking.checkoutDate!.split(' ')[0]),
+              _buildInfoRow(
+                'تاريخ الخروج',
+                booking.checkoutDate!.split(' ')[0],
+              ),
             _buildInfoRow('الحالة', booking.status),
             _buildInfoRow(
               'الإجمالي المستحق',
@@ -199,12 +205,7 @@ class _CreateDebtFromBookingScreenState
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: _fieldStyle,
-            ),
-          ),
+          Expanded(child: Text(value, style: _fieldStyle)),
         ],
       ),
     );
@@ -217,10 +218,7 @@ class _CreateDebtFromBookingScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'فترة الدين',
-              style: _titleStyle,
-            ),
+            const Text('فترة الدين', style: _titleStyle),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -272,10 +270,7 @@ class _CreateDebtFromBookingScreenState
           border: const OutlineInputBorder(),
           suffixIcon: const Icon(Icons.calendar_today, size: 18),
         ),
-        child: Text(
-          _formatDate(date),
-          style: _fieldStyle,
-        ),
+        child: Text(_formatDate(date), style: _fieldStyle),
       ),
     );
   }
@@ -321,8 +316,9 @@ class _CreateDebtFromBookingScreenState
           total: total,
           paid: paid,
         );
-        _amountController.text =
-            CurrencyFormatter.formatAmount(_debtData!.remaining);
+        _amountController.text = CurrencyFormatter.formatAmount(
+          _debtData!.remaining,
+        );
       });
     } finally {
       setState(() => _isComputing = false);
@@ -338,10 +334,7 @@ class _CreateDebtFromBookingScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'ملخص الدين',
-              style: _titleStyle,
-            ),
+            const Text('ملخص الدين', style: _titleStyle),
             const SizedBox(height: 8),
             _buildInfoRow('عدد الليالي', '${data.nights}'),
             _buildInfoRow(
@@ -352,10 +345,7 @@ class _CreateDebtFromBookingScreenState
               'الإجمالي',
               CurrencyFormatter.formatAmount(data.total),
             ),
-            _buildInfoRow(
-              'المدفوع',
-              CurrencyFormatter.formatAmount(data.paid),
-            ),
+            _buildInfoRow('المدفوع', CurrencyFormatter.formatAmount(data.paid)),
             const Divider(),
             _buildInfoRow(
               'المتبقي (الدين)',

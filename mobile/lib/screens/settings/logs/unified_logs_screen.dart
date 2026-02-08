@@ -57,8 +57,10 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 children: [
                   Icon(Icons.delete_forever, size: 20, color: Colors.red),
                   const SizedBox(width: 8),
-                  const Text('مسح السجلات',
-                      style: TextStyle(color: Colors.red)),
+                  const Text(
+                    'مسح السجلات',
+                    style: TextStyle(color: Colors.red),
+                  ),
                 ],
               ),
             ),
@@ -146,57 +148,129 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
 
   Widget _buildAllLogsTab() {
     return _buildLogsList([
-      _createLogEntry('info', 'Appwrite', 'Connection established successfully',
-          '2024-01-29T18:00:00'),
       _createLogEntry(
-          'success', 'Sync', 'Sync completed: 42 items', '2024-01-29T17:55:00'),
-      _createLogEntry('warning', 'Google Drive', 'Low storage space',
-          '2024-01-29T17:50:00'),
-      _createLogEntry('error', 'Appwrite', 'Failed to sync table: guests',
-          '2024-01-29T17:45:00'),
+        'info',
+        'Appwrite',
+        'Connection established successfully',
+        '2024-01-29T18:00:00',
+      ),
       _createLogEntry(
-          'info', 'Sync', 'Starting automatic sync', '2024-01-29T17:40:00'),
-      _createLogEntry('success', 'Google Drive', 'Backup uploaded successfully',
-          '2024-01-29T17:35:00'),
+        'success',
+        'Sync',
+        'Sync completed: 42 items',
+        '2024-01-29T17:55:00',
+      ),
+      _createLogEntry(
+        'warning',
+        'Google Drive',
+        'Low storage space',
+        '2024-01-29T17:50:00',
+      ),
+      _createLogEntry(
+        'error',
+        'Appwrite',
+        'Failed to sync table: guests',
+        '2024-01-29T17:45:00',
+      ),
+      _createLogEntry(
+        'info',
+        'Sync',
+        'Starting automatic sync',
+        '2024-01-29T17:40:00',
+      ),
+      _createLogEntry(
+        'success',
+        'Google Drive',
+        'Backup uploaded successfully',
+        '2024-01-29T17:35:00',
+      ),
     ]);
   }
 
   Widget _buildAppwriteLogsTab() {
     return _buildLogsList([
-      _createLogEntry('info', 'Appwrite', 'Connection established successfully',
-          '2024-01-29T18:00:00'),
-      _createLogEntry('error', 'Appwrite', 'Failed to sync table: guests',
-          '2024-01-29T17:45:00'),
-      _createLogEntry('info', 'Appwrite', 'API call: GET /databases',
-          '2024-01-29T17:30:00'),
       _createLogEntry(
-          'warning', 'Appwrite', 'Slow response: 2.5s', '2024-01-29T17:25:00'),
+        'info',
+        'Appwrite',
+        'Connection established successfully',
+        '2024-01-29T18:00:00',
+      ),
+      _createLogEntry(
+        'error',
+        'Appwrite',
+        'Failed to sync table: guests',
+        '2024-01-29T17:45:00',
+      ),
+      _createLogEntry(
+        'info',
+        'Appwrite',
+        'API call: GET /databases',
+        '2024-01-29T17:30:00',
+      ),
+      _createLogEntry(
+        'warning',
+        'Appwrite',
+        'Slow response: 2.5s',
+        '2024-01-29T17:25:00',
+      ),
     ]);
   }
 
   Widget _buildGoogleDriveLogsTab() {
     return _buildLogsList([
-      _createLogEntry('warning', 'Google Drive', 'Low storage space',
-          '2024-01-29T17:50:00'),
-      _createLogEntry('success', 'Google Drive', 'Backup uploaded successfully',
-          '2024-01-29T17:35:00'),
-      _createLogEntry('info', 'Google Drive', 'Connected to account',
-          '2024-01-29T17:20:00'),
-      _createLogEntry('error', 'Google Drive', 'Upload failed: network error',
-          '2024-01-29T17:15:00'),
+      _createLogEntry(
+        'warning',
+        'Google Drive',
+        'Low storage space',
+        '2024-01-29T17:50:00',
+      ),
+      _createLogEntry(
+        'success',
+        'Google Drive',
+        'Backup uploaded successfully',
+        '2024-01-29T17:35:00',
+      ),
+      _createLogEntry(
+        'info',
+        'Google Drive',
+        'Connected to account',
+        '2024-01-29T17:20:00',
+      ),
+      _createLogEntry(
+        'error',
+        'Google Drive',
+        'Upload failed: network error',
+        '2024-01-29T17:15:00',
+      ),
     ]);
   }
 
   Widget _buildSyncLogsTab() {
     return _buildLogsList([
       _createLogEntry(
-          'success', 'Sync', 'Sync completed: 42 items', '2024-01-29T17:55:00'),
+        'success',
+        'Sync',
+        'Sync completed: 42 items',
+        '2024-01-29T17:55:00',
+      ),
       _createLogEntry(
-          'info', 'Sync', 'Starting automatic sync', '2024-01-29T17:40:00'),
-      _createLogEntry('warning', 'Sync', 'Conflict detected: guest_123',
-          '2024-01-29T17:30:00'),
-      _createLogEntry('success', 'Sync', 'Conflict resolved automatically',
-          '2024-01-29T17:29:00'),
+        'info',
+        'Sync',
+        'Starting automatic sync',
+        '2024-01-29T17:40:00',
+      ),
+      _createLogEntry(
+        'warning',
+        'Sync',
+        'Conflict detected: guest_123',
+        '2024-01-29T17:30:00',
+      ),
+      _createLogEntry(
+        'success',
+        'Sync',
+        'Conflict resolved automatically',
+        '2024-01-29T17:29:00',
+      ),
     ]);
   }
 
@@ -205,17 +279,22 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
     var filteredLogs = logs;
 
     if (_selectedLevel != 'all') {
-      filteredLogs =
-          logs.where((log) => log['level'] == _selectedLevel).toList();
+      filteredLogs = logs
+          .where((log) => log['level'] == _selectedLevel)
+          .toList();
     }
 
     if (_searchQuery.isNotEmpty) {
       filteredLogs = filteredLogs
-          .where((log) =>
-              log['message']!
-                  .toLowerCase()
-                  .contains(_searchQuery.toLowerCase()) ||
-              log['source']!.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .where(
+            (log) =>
+                log['message']!.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ) ||
+                log['source']!.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ),
+          )
           .toList();
     }
 
@@ -274,10 +353,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
           ),
           child: Icon(levelIcon, color: levelColor, size: 20),
         ),
-        title: Text(
-          message,
-          style: const TextStyle(fontSize: 14),
-        ),
+        title: Text(message, style: const TextStyle(fontSize: 14)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -412,7 +488,9 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               _buildDetailRow('المصدر', log['source']!),
               _buildDetailRow('الرسالة', log['message']!),
               _buildDetailRow(
-                  'الوقت', DateTimeFormatter.formatDateTime(log['timestamp']!)),
+                'الوقت',
+                DateTimeFormatter.formatDateTime(log['timestamp']!),
+              ),
             ],
           ),
         ),
@@ -448,9 +526,9 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   }
 
   void _exportLogs() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('جاري تصدير السجلات...')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('جاري تصدير السجلات...')));
   }
 
   void _clearLogs() {
@@ -459,7 +537,8 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
       builder: (context) => AlertDialog(
         title: const Text('تحذير'),
         content: const Text(
-            'هل تريد حذف جميع السجلات؟ لا يمكن التراجع عن هذا الإجراء.'),
+          'هل تريد حذف جميع السجلات؟ لا يمكن التراجع عن هذا الإجراء.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

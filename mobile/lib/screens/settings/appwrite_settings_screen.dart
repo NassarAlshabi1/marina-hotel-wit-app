@@ -186,8 +186,9 @@ class _AppwriteSettingsScreenState
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color:
-                                state.isConnected ? Colors.green : Colors.red,
+                            color: state.isConnected
+                                ? Colors.green
+                                : Colors.red,
                           ),
                         ),
                         if (state.errorMessage != null) ...[
@@ -288,9 +289,11 @@ class _AppwriteSettingsScreenState
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(value
-                          ? 'تم تفعيل المزامنة التلقائية'
-                          : 'تم إيقاف المزامنة التلقائية'),
+                      content: Text(
+                        value
+                            ? 'تم تفعيل المزامنة التلقائية'
+                            : 'تم إيقاف المزامنة التلقائية',
+                      ),
                       duration: const Duration(seconds: 2),
                     ),
                   );

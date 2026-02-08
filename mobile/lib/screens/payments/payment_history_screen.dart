@@ -47,11 +47,11 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             child: widget.bookingId == null
                 ? _buildPaymentsList(paymentsRepo.watchAll())
                 : StreamBuilder<Booking?>(
-                    stream: (database.select(database.bookings)
-                          ..where(
-                            (t) => t.localUuid.equals(widget.bookingId!),
-                          ))
-                        .watchSingleOrNull(),
+                    stream:
+                        (database.select(database.bookings)..where(
+                              (t) => t.localUuid.equals(widget.bookingId!),
+                            ))
+                            .watchSingleOrNull(),
                     builder: (context, bookingSnap) {
                       if (bookingSnap.connectionState ==
                           ConnectionState.waiting) {
@@ -241,7 +241,9 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                               Text(
                                 payment.paymentMethod,
                                 style: TextStyle(
-                                    color: Colors.grey.shade700, fontSize: 10),
+                                  color: Colors.grey.shade700,
+                                  fontSize: 10,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Icon(
@@ -253,7 +255,9 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                               Text(
                                 _getRevenueTypeLabel(payment.revenueType),
                                 style: TextStyle(
-                                    color: Colors.grey.shade700, fontSize: 10),
+                                  color: Colors.grey.shade700,
+                                  fontSize: 10,
+                                ),
                               ),
                             ],
                           ),
@@ -269,7 +273,9 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                               Text(
                                 payment.paymentDate,
                                 style: TextStyle(
-                                    color: Colors.grey.shade700, fontSize: 10),
+                                  color: Colors.grey.shade700,
+                                  fontSize: 10,
+                                ),
                               ),
                             ],
                           ),

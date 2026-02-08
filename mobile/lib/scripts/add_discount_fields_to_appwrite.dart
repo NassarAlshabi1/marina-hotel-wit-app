@@ -5,12 +5,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 /// Script لإضافة الحقول الجديدة إلى Appwrite Cloud
-/// 
+///
 /// الاستخدام:
 /// ```bash
 /// dart run lib/scripts/add_discount_fields_to_appwrite.dart <API_KEY>
 /// ```
-/// 
+///
 /// للحصول على API Key:
 /// 1. افتح Appwrite Console: https://cloud.appwrite.io/console
 /// 2. اذهب إلى Settings → API Keys
@@ -24,17 +24,17 @@ const String collectionId = 'bookings';
 Future<void> main(List<String> args) async {
   print('🚀 إضافة حقول التخفيض إلى Appwrite Cloud');
   print('═══════════════════════════════════════════════');
-  
+
   // التحقق من وجود API Key
   String? apiKey;
-  
+
   if (args.isEmpty) {
     print('📝 الرجاء إدخال API Key:');
     apiKey = stdin.readLineSync()?.trim();
   } else {
     apiKey = args[0];
   }
-  
+
   if (apiKey == null || apiKey.isEmpty) {
     print('❌ خطأ: API Key مطلوب');
     print('\nللحصول على API Key:');
@@ -42,19 +42,21 @@ Future<void> main(List<String> args) async {
     print('2. اختر المشروع → Settings → API Keys');
     print('3. أنشئ API Key جديد مع صلاحيات: databases.write');
     print('\nثم شغل الأمر:');
-    print('dart run lib/scripts/add_discount_fields_to_appwrite.dart <API_KEY>');
+    print(
+      'dart run lib/scripts/add_discount_fields_to_appwrite.dart <API_KEY>',
+    );
     exit(1);
   }
-  
+
   print('\n📊 المعلومات:');
   print('Endpoint: $endpoint');
   print('Project ID: $projectId');
   print('Database ID: $databaseId');
   print('Collection ID: $collectionId');
   print('\n');
-  
+
   final client = http.Client();
-  
+
   try {
     // 1. إضافة حقل discountType
     print('1️⃣ إضافة حقل discountType...');
@@ -66,16 +68,16 @@ Future<void> main(List<String> args) async {
       required: false,
       defaultValue: 'per_night',
     );
-    
+
     if (result1) {
       print('   ✅ تم إضافة discountType بنجاح');
     } else {
       print('   ⚠️ فشل إضافة discountType (قد يكون موجود مسبقاً)');
     }
-    
+
     // انتظار قليلاً قبل إضافة الحقل الثاني
     await Future.delayed(const Duration(seconds: 2));
-    
+
     // 2. إضافة حقل discountStartDate
     print('\n2️⃣ إضافة حقل discountStartDate...');
     final result2 = await addStringAttribute(
@@ -85,20 +87,19 @@ Future<void> main(List<String> args) async {
       size: 50,
       required: false,
     );
-    
+
     if (result2) {
       print('   ✅ تم إضافة discountStartDate بنجاح');
     } else {
       print('   ⚠️ فشل إضافة discountStartDate (قد يكون موجود مسبقاً)');
     }
-    
+
     print('\n═══════════════════════════════════════════════');
     print('✅ اكتمل التحديث!');
     print('\nملاحظات:');
     print('• الحقول قد تحتاج بضع ثوانٍ لتكون جاهزة (Indexing)');
     print('• تحقق من Appwrite Console للتأكد');
     print('• يمكنك الآن استخدام التطبيق بشكل طبيعي');
-    
   } catch (e) {
     print('\n❌ خطأ: $e');
     exit(1);
@@ -118,14 +119,14 @@ Future<bool> addStringAttribute({
   final url = Uri.parse(
     '$endpoint/databases/$databaseId/collections/$collectionId/attributes/string',
   );
-  
+
   final body = {
     'key': attributeKey,
     'size': size,
     'required': required,
     if (defaultValue != null) 'default': defaultValue,
   };
-  
+
   try {
     final response = await client.post(
       url,
@@ -136,7 +137,7 @@ Future<bool> addStringAttribute({
       },
       body: json.encode(body),
     );
-    
+
     if (response.statusCode == 201 || response.statusCode == 202) {
       return true;
     } else if (response.statusCode == 409) {

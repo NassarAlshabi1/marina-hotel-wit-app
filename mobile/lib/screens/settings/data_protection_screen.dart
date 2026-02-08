@@ -295,8 +295,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     }
     setState(() => _syncBusy = true);
     try {
-      await GoogleDriveUnifiedSyncCoordinator.instance
-          .setPushEnabled(enabled);
+      await GoogleDriveUnifiedSyncCoordinator.instance.setPushEnabled(enabled);
       if (!mounted) return;
       setState(() => _googleDrivePushEnabled = enabled);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -744,7 +743,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                 data: (stats) {
                   final lastSyncLabel =
                       _formatOptionalDate(stats['lastSyncTime'] as String?) ??
-                          '---';
+                      '---';
                   final successRate = stats['successRate'];
                   final successLabel = successRate is num
                       ? '${successRate.toStringAsFixed(0)}%'
@@ -1089,8 +1088,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               color: isErrorMessage
                   ? Colors.red.shade50
                   : isSuccessMessage
-                      ? Colors.green.shade50
-                      : Colors.blue.shade50,
+                  ? Colors.green.shade50
+                  : Colors.blue.shade50,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -1099,8 +1098,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                 color: isErrorMessage
                     ? Colors.red.shade700
                     : isSuccessMessage
-                        ? Colors.green.shade700
-                        : Colors.blue.shade700,
+                    ? Colors.green.shade700
+                    : Colors.blue.shade700,
                 fontWeight: FontWeight.w600,
               ),
             ),

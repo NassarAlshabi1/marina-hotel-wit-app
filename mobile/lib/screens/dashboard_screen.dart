@@ -17,11 +17,26 @@ import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
-  '101', '102', '103', '104',
-  '201', '202', '203', '204',
-  '301', '302', '303', '304',
-  '401', '402', '403', '404',
-  '501', '502', '503', '504',
+  '101',
+  '102',
+  '103',
+  '104',
+  '201',
+  '202',
+  '203',
+  '204',
+  '301',
+  '302',
+  '303',
+  '304',
+  '401',
+  '402',
+  '403',
+  '404',
+  '501',
+  '502',
+  '503',
+  '504',
 ];
 
 final todayPaymentsProvider = StreamProvider<double>((ref) {
@@ -39,7 +54,11 @@ final todayPaymentsProvider = StreamProvider<double>((ref) {
         ],
       )
       .watch()
-      .map((rows) => rows.isEmpty ? 0.0 : (rows.first.data['total'] as num? ?? 0.0).toDouble());
+      .map(
+        (rows) => rows.isEmpty
+            ? 0.0
+            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
+      );
 });
 
 final todayExpensesProvider = StreamProvider<double>((ref) {
@@ -57,7 +76,11 @@ final todayExpensesProvider = StreamProvider<double>((ref) {
         ],
       )
       .watch()
-      .map((rows) => rows.isEmpty ? 0.0 : (rows.first.data['total'] as num? ?? 0.0).toDouble());
+      .map(
+        (rows) => rows.isEmpty
+            ? 0.0
+            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
+      );
 });
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -149,8 +172,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
                 data: (rooms) {
                   final total = rooms.length;
-                  final occupied = rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
-                  final rate = total > 0 ? ((occupied / total) * 100).round() : 0;
+                  final occupied = rooms
+                      .where((r) => StatusUtils.isRoomOccupied(r.status))
+                      .length;
+                  final rate = total > 0
+                      ? ((occupied / total) * 100).round()
+                      : 0;
                   return _buildStatCard(
                     'الإشغال',
                     '$rate%',
@@ -215,7 +242,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Colors.red,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ExpensesReportScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const ExpensesReportScreen(),
+                    ),
                   ),
                 ),
               );
@@ -264,10 +293,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 1),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 9,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -358,24 +384,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+        ),
       ],
     );
   }
 
   Widget _buildRoomButton(BuildContext context, String roomNumber, Room? room) {
-    final bool isOccupied = room != null && StatusUtils.isRoomOccupied(room.status);
-    final bool isAvailable = room != null && StatusUtils.isRoomAvailable(room.status);
+    final bool isOccupied =
+        room != null && StatusUtils.isRoomOccupied(room.status);
+    final bool isAvailable =
+        room != null && StatusUtils.isRoomAvailable(room.status);
     final bool isMaintenance = room != null && room.status == 'صيانة';
     final bool isNewRoom = roomNumber == '503' || roomNumber == '504';
 
     final Color bgColor = isOccupied
         ? Colors.red.shade600
         : (isAvailable
-            ? Colors.green.shade600
-            : (isMaintenance
-                ? Colors.orange.shade600
-                : (isNewRoom ? Colors.blue.shade400 : Colors.grey.shade400)));
+              ? Colors.green.shade600
+              : (isMaintenance
+                    ? Colors.orange.shade600
+                    : (isNewRoom
+                          ? Colors.blue.shade400
+                          : Colors.grey.shade400)));
 
     final String tooltipText = room != null
         ? room.status
@@ -384,7 +417,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Tooltip(
       message: tooltipText,
       child: GestureDetector(
-        onLongPress: room != null ? () => _showRoomOptionsDialog(context, room) : null,
+        onLongPress: room != null
+            ? () => _showRoomOptionsDialog(context, room)
+            : null,
         child: Material(
           color: bgColor,
           borderRadius: BorderRadius.circular(10),
@@ -477,7 +512,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم تحديث حالة الغرفة ${room.roomNumber} إلى $newStatus'),
+            content: Text(
+              'تم تحديث حالة الغرفة ${room.roomNumber} إلى $newStatus',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -494,7 +531,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  void _handleRoomTap(BuildContext context, String roomNumber, Room? room) async {
+  void _handleRoomTap(
+    BuildContext context,
+    String roomNumber,
+    Room? room,
+  ) async {
     if (roomNumber == '503' || roomNumber == '504') {
       _showNewRoomDialog(context, roomNumber);
     } else if (room != null) {
@@ -526,10 +567,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Future<void> _navigateToPaymentForRoom(BuildContext context, String roomNumber) async {
+  Future<void> _navigateToPaymentForRoom(
+    BuildContext context,
+    String roomNumber,
+  ) async {
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(
+        roomNumber,
+      );
 
       if (activeBooking == null) {
         if (context.mounted) {

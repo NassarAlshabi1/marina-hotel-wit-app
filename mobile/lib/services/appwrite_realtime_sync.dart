@@ -7,7 +7,8 @@ import 'appwrite_config.dart';
 import 'appwrite_sync_manager.dart';
 
 class AppwriteRealtimeSync {
-  static final AppwriteRealtimeSync _instance = AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance =
+      AppwriteRealtimeSync._internal();
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
 
@@ -45,7 +46,10 @@ class AppwriteRealtimeSync {
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) return;
 
     final channels = _collections
-        .map((c) => 'databases.${AppwriteConfig.databaseId}.collections.$c.documents')
+        .map(
+          (c) =>
+              'databases.${AppwriteConfig.databaseId}.collections.$c.documents',
+        )
         .toList();
 
     _subscription = _realtime!.subscribe(channels);
@@ -69,7 +73,7 @@ class AppwriteRealtimeSync {
   void _onEvent(RealtimeMessage message) {
     final payload = message.payload;
     final sourceDevice = payload['device_id'] ?? payload['lastModifiedBy'];
-    
+
     if (sourceDevice == _currentDeviceId) return;
 
     _debounceTimer?.cancel();
@@ -97,6 +101,6 @@ class AppwriteRealtimeSync {
   }
 
   void dispose() => stop();
-  
+
   bool get isListening => _isListening;
 }

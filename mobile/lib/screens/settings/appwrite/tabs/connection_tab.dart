@@ -51,8 +51,9 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color:
-                    (isConnected ? Colors.green : Colors.red).withOpacity(0.1),
+                color: (isConnected ? Colors.green : Colors.red).withOpacity(
+                  0.1,
+                ),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -75,10 +76,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
               isConnected
                   ? 'الاتصال بـ Appwrite يعمل بشكل طبيعي'
                   : (state.errorMessage ?? 'تعذر الاتصال بالخادم'),
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: UIConstants.spacingLG),
@@ -128,10 +126,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'معلومات المشروع',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -185,10 +180,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'إعدادات الاتصال',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -279,9 +271,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تحذير'),
-        content: const Text(
-          'هل تريد إعادة تهيئة الاتصال؟',
-        ),
+        content: const Text('هل تريد إعادة تهيئة الاتصال؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -294,8 +284,10 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
               await _checkConnection();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('إعادة تعيين',
-                style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'إعادة تعيين',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

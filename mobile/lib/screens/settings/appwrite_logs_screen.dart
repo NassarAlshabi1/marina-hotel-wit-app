@@ -106,9 +106,12 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                   ),
                   onChanged: (value) {
                     _debounceTimer?.cancel();
-                    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-                      setState(() => _searchQuery = value.toLowerCase());
-                    });
+                    _debounceTimer = Timer(
+                      const Duration(milliseconds: 300),
+                      () {
+                        setState(() => _searchQuery = value.toLowerCase());
+                      },
+                    );
                   },
                 ),
                 const SizedBox(height: 8),
@@ -182,8 +185,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                     separatorBuilder: (context, index) =>
                         const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      final log = filteredLogs[
-                          filteredLogs.length - 1 - index]; // عكس الترتيب
+                      final log =
+                          filteredLogs[filteredLogs.length -
+                              1 -
+                              index]; // عكس الترتيب
                       return _buildLogEntry(log);
                     },
                   ),

@@ -19,14 +19,14 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {
           'key': 'roomNumber',
           'type': 'string',
           'size': 50,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'type', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'price', 'type': 'double', 'required': true},
@@ -36,7 +36,7 @@ class AppwriteSchemaVerifier {
           'key': 'cleaningStatus',
           'type': 'string',
           'size': 20,
-          'default': 'clean'
+          'default': 'clean',
         },
         {'key': 'lastCleanedHotelDay', 'type': 'string', 'size': 50},
         {'key': 'lastOccupiedHotelDay', 'type': 'string', 'size': 50},
@@ -52,7 +52,7 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'serverBookingId', 'type': 'integer'},
         {'key': 'roomNumber', 'type': 'string', 'size': 50, 'required': true},
@@ -62,7 +62,7 @@ class AppwriteSchemaVerifier {
           'key': 'guestIdType',
           'type': 'string',
           'size': 50,
-          'default': 'بطاقة شخصية'
+          'default': 'بطاقة شخصية',
         },
         {'key': 'guestIdNumber', 'type': 'string', 'size': 100, 'default': ''},
         {'key': 'guestIdIssueDate', 'type': 'string', 'size': 50},
@@ -71,7 +71,7 @@ class AppwriteSchemaVerifier {
           'key': 'guestNationality',
           'type': 'string',
           'size': 50,
-          'required': true
+          'required': true,
         },
         {'key': 'guestEmail', 'type': 'string', 'size': 100},
         {'key': 'guestAddress', 'type': 'string', 'size': 200},
@@ -92,7 +92,12 @@ class AppwriteSchemaVerifier {
         {'key': 'remainingBalanceCached', 'type': 'double', 'default': 0},
         {'key': 'isFullyPaid', 'type': 'boolean', 'default': false},
         {'key': 'discount', 'type': 'double', 'default': 0},
-        {'key': 'discountType', 'type': 'string', 'size': 20, 'default': 'per_night'},
+        {
+          'key': 'discountType',
+          'type': 'string',
+          'size': 20,
+          'default': 'per_night',
+        },
         {'key': 'discountStartDate', 'type': 'string', 'size': 50},
         {'key': 'hotelDayCheckin', 'type': 'string', 'size': 50},
         {'key': 'hotelDayCheckout', 'type': 'string', 'size': 50},
@@ -107,7 +112,7 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'bookingId', 'type': 'integer', 'required': true},
         {'key': 'noteText', 'type': 'string', 'size': 1000, 'required': true},
@@ -125,7 +130,7 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'bookingLocalId', 'type': 'integer', 'required': true},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50, 'required': true},
@@ -145,7 +150,7 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'name', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'basicSalary', 'type': 'double', 'required': true},
@@ -164,7 +169,7 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'expenseType', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'relatedId', 'type': 'integer'},
@@ -187,14 +192,14 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'registerId', 'type': 'integer'},
         {
           'key': 'transactionType',
           'type': 'string',
           'size': 20,
-          'required': true
+          'required': true,
         },
         {'key': 'amount', 'type': 'double', 'required': true},
         {'key': 'referenceType', 'type': 'string', 'size': 50},
@@ -204,7 +209,7 @@ class AppwriteSchemaVerifier {
           'key': 'transactionTime',
           'type': 'string',
           'size': 50,
-          'required': true
+          'required': true,
         },
         {'key': 'createdBy', 'type': 'integer'},
       ],
@@ -218,7 +223,7 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'serverPaymentId', 'type': 'integer'},
         {'key': 'bookingLocalId', 'type': 'integer'},
@@ -231,7 +236,7 @@ class AppwriteSchemaVerifier {
           'key': 'paymentMethod',
           'type': 'string',
           'size': 20,
-          'required': true
+          'required': true,
         },
         {'key': 'revenueType', 'type': 'string', 'size': 20, 'required': true},
         {'key': 'cashTransactionLocalId', 'type': 'integer'},
@@ -252,7 +257,7 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'bookingLocalId', 'type': 'integer'},
         {'key': 'guestName', 'type': 'string', 'size': 100, 'required': true},
@@ -284,7 +289,7 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'employeeId', 'type': 'integer', 'required': true},
         {'key': 'cycleKey', 'type': 'string', 'size': 50, 'required': true},
@@ -305,7 +310,7 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'cycleId', 'type': 'integer', 'required': true},
         {'key': 'amount', 'type': 'double', 'default': 0},
@@ -314,7 +319,7 @@ class AppwriteSchemaVerifier {
           'key': 'paymentDateIso',
           'type': 'string',
           'size': 50,
-          'required': true
+          'required': true,
         },
         {'key': 'method', 'type': 'string', 'size': 50},
         {'key': 'isAutoGenerated', 'type': 'boolean', 'default': false},
@@ -329,14 +334,14 @@ class AppwriteSchemaVerifier {
           'type': 'string',
           'size': 36,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {
           'key': 'hotelDayKey',
           'type': 'string',
           'size': 50,
           'required': true,
-          'unique': true
+          'unique': true,
         },
         {'key': 'totalIncome', 'type': 'double', 'default': 0},
         {'key': 'totalExpenses', 'type': 'double', 'default': 0},
@@ -447,8 +452,8 @@ class AppwriteSchemaVerifier {
       'total': totalCollections,
       'found': foundCollections,
       'missing': missingCollections,
-      'percentage':
-          ((foundCollections / totalCollections) * 100).toStringAsFixed(1),
+      'percentage': ((foundCollections / totalCollections) * 100)
+          .toStringAsFixed(1),
     };
 
     debugPrint('═══════════════════════════════════════');

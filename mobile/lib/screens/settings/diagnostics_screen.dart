@@ -82,9 +82,9 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     if (jsonStr == null) return;
     await Clipboard.setData(ClipboardData(text: jsonStr));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم نسخ تقرير التشخيص')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم نسخ تقرير التشخيص')));
   }
 
   Future<void> _exportJson() async {
@@ -98,10 +98,9 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   }
 
   String? _buildDiagnosticsJson() {
-    final health = ref.read(syncHealthProvider).maybeWhen(
-          data: (value) => value,
-          orElse: () => null,
-        );
+    final health = ref
+        .read(syncHealthProvider)
+        .maybeWhen(data: (value) => value, orElse: () => null);
     final logs = DiagnosticsLogger.instance.getLogs();
     final encoder = const JsonEncoder.withIndent('  ');
     final payload = {
@@ -154,10 +153,10 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? _buildErrorState()
-              : _snapshot == null
-                  ? const Center(child: Text('لا توجد بيانات'))
-                  : _buildContent(),
+          ? _buildErrorState()
+          : _snapshot == null
+          ? const Center(child: Text('لا توجد بيانات'))
+          : _buildContent(),
     );
   }
 
@@ -302,9 +301,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                     ),
                     IconButton(
                       onPressed: () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: jsonStr),
-                        );
+                        await Clipboard.setData(ClipboardData(text: jsonStr));
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('تم نسخ الجدول')),
@@ -392,9 +389,9 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     final file = await DiagnosticsLogger.instance.exportLogs();
     if (file == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر تصدير السجلات')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تعذر تصدير السجلات')));
       return;
     }
     await Share.shareXFiles([XFile(file.path)], text: 'سجلات التشخيص');
@@ -419,14 +416,14 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                 Row(
                   children: [
                     const Expanded(
-                      child: Text('تفاصيل السجل',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'تفاصيل السجل',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                     IconButton(
                       onPressed: () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: details),
-                        );
+                        await Clipboard.setData(ClipboardData(text: details));
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('تم نسخ السجل')),
@@ -517,19 +514,13 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
+      child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 
   Widget _buildKeyValue(String key, String value) {
     return Card(
-      child: ListTile(
-        title: Text(key),
-        subtitle: Text(value),
-      ),
+      child: ListTile(title: Text(key), subtitle: Text(value)),
     );
   }
 }

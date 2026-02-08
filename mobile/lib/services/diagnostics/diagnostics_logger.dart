@@ -16,7 +16,10 @@ class DiagnosticsLogger extends ChangeNotifier {
   bool _initialized = false;
   int _maxEntries = 500;
 
-  Future<void> initialize({int maxEntries = 500, bool enableFile = true}) async {
+  Future<void> initialize({
+    int maxEntries = 500,
+    bool enableFile = true,
+  }) async {
     if (_initialized) return;
     _initialized = true;
     _maxEntries = maxEntries;

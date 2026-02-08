@@ -660,10 +660,10 @@ class _AutoSyncEngineMonitorScreenState
       if (mounted) {
         final message = result.success
             ? '✅ ${result.message}\n'
-                '📤 مرفوع: ${result.pushedChanges ?? 0}\n'
-                '📥 مسحوب: ${result.pulledChanges ?? 0}'
+                  '📤 مرفوع: ${result.pushedChanges ?? 0}\n'
+                  '📥 مسحوب: ${result.pulledChanges ?? 0}'
             : '❌ ${result.message}\n'
-                '${result.error ?? ""}';
+                  '${result.error ?? ""}';
 
         showDialog(
           context: context,

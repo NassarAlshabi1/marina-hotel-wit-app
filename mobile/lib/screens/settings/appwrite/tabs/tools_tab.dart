@@ -18,28 +18,16 @@ class AppwriteToolsTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(UIConstants.spacingMD),
       children: [
-        SectionHeader(
-          title: 'أدوات الاختبار',
-          icon: Icons.bug_report,
-        ),
+        SectionHeader(title: 'أدوات الاختبار', icon: Icons.bug_report),
         _buildTestingToolsCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(
-          title: 'أدوات الصيانة',
-          icon: Icons.build,
-        ),
+        SectionHeader(title: 'أدوات الصيانة', icon: Icons.build),
         _buildMaintenanceToolsCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(
-          title: 'إدارة البيانات',
-          icon: Icons.storage,
-        ),
+        SectionHeader(title: 'إدارة البيانات', icon: Icons.storage),
         _buildDataManagementCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(
-          title: 'السجلات والإحصائيات',
-          icon: Icons.analytics,
-        ),
+        SectionHeader(title: 'السجلات والإحصائيات', icon: Icons.analytics),
         _buildLogsStatsCard(context, ref),
       ],
     );
@@ -278,9 +266,9 @@ class AppwriteToolsTab extends ConsumerWidget {
     WidgetRef ref, {
     bool fullTest = false,
   }) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('جاري اختبار الاتصال...')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('جاري اختبار الاتصال...')));
 
     final service = ref.read(ap.appwriteServiceProvider);
     await service.initialize();
@@ -316,10 +304,12 @@ class AppwriteToolsTab extends ConsumerWidget {
               Text('مشاكل حرجة: ${report.criticalIssueCount}'),
               if (issues.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                ...issues.map((issue) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Text('• ${issue.toArabicMessage()}'),
-                    )),
+                ...issues.map(
+                  (issue) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text('• ${issue.toArabicMessage()}'),
+                  ),
+                ),
                 if (report.issueCount > issues.length) Text('... والمزيد'),
               ],
             ],
@@ -338,9 +328,9 @@ class AppwriteToolsTab extends ConsumerWidget {
   Future<void> _clearCache(BuildContext context, WidgetRef ref) async {
     ref.read(ap.appwriteCacheManagerProvider).clear();
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم مسح التخزين المؤقت')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم مسح التخزين المؤقت')));
     }
   }
 
@@ -349,9 +339,9 @@ class AppwriteToolsTab extends ConsumerWidget {
     await service.initialize();
     await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم إعادة تهيئة الاتصال')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم إعادة تهيئة الاتصال')));
     }
   }
 
@@ -359,9 +349,9 @@ class AppwriteToolsTab extends ConsumerWidget {
     final db = ref.read(databaseProvider);
     await db.customStatement('REINDEX');
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم إعادة بناء الفهارس')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم إعادة بناء الفهارس')));
     }
   }
 
@@ -395,9 +385,7 @@ class AppwriteToolsTab extends ConsumerWidget {
               const SizedBox(height: 8),
               const Text('تفاصيل الجداول:'),
               const SizedBox(height: 6),
-              ...sortedCounts.map(
-                (e) => Text('• ${e.key}: ${e.value}'),
-              ),
+              ...sortedCounts.map((e) => Text('• ${e.key}: ${e.value}')),
             ],
           ),
         ),
@@ -423,29 +411,29 @@ class AppwriteToolsTab extends ConsumerWidget {
     final file = await logger.exportLogs();
     if (!context.mounted) return;
     if (file == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا توجد سجلات للتصدير')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا توجد سجلات للتصدير')));
       return;
     }
     await Share.shareXFiles([XFile(file.path)]);
   }
 
   void _openLogs(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AppwriteLogsScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AppwriteLogsScreen()));
   }
 
   void _openStats(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AppwriteSyncStatsScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AppwriteSyncStatsScreen()));
   }
 
   void _showNotAvailable(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('غير متاح حالياً')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('غير متاح حالياً')));
   }
 }

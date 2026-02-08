@@ -502,133 +502,168 @@ class AppwriteService {
   }
 
   // Booking Notes
-  Future<List<models.Document>> listBookingNotes(
-      {List<String>? queries, bool useCache = true}) async {
+  Future<List<models.Document>> listBookingNotes({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
     _ensureInitialized();
     return _listAllDocumentsInternal(
-        collectionId: AppwriteConfig.bookingNotesCollectionId,
-        queries: queries ?? [],
-        useCache: useCache);
+      collectionId: AppwriteConfig.bookingNotesCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
   }
 
   Future<models.Document> upsertBookingNote(
-      String documentId, Map<String, dynamic> data) async {
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     _ensureInitialized();
     return _upsertDocumentInternal(
-        collectionId: AppwriteConfig.bookingNotesCollectionId,
-        documentId: documentId,
-        data: data);
+      collectionId: AppwriteConfig.bookingNotesCollectionId,
+      documentId: documentId,
+      data: data,
+    );
   }
 
   Future<void> deleteBookingNote(String documentId) async {
     _ensureInitialized();
     return _deleteDocumentInternal(
-        collectionId: AppwriteConfig.bookingNotesCollectionId,
-        documentId: documentId);
+      collectionId: AppwriteConfig.bookingNotesCollectionId,
+      documentId: documentId,
+    );
   }
 
   // Booking Nights
-  Future<List<models.Document>> listBookingNights(
-      {List<String>? queries, bool useCache = true}) async {
+  Future<List<models.Document>> listBookingNights({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
     _ensureInitialized();
     return _listAllDocumentsInternal(
-        collectionId: AppwriteConfig.bookingNightsCollectionId,
-        queries: queries ?? [],
-        useCache: useCache);
+      collectionId: AppwriteConfig.bookingNightsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
   }
 
   Future<models.Document> upsertBookingNight(
-      String documentId, Map<String, dynamic> data) async {
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     _ensureInitialized();
     return _upsertDocumentInternal(
-        collectionId: AppwriteConfig.bookingNightsCollectionId,
-        documentId: documentId,
-        data: data);
+      collectionId: AppwriteConfig.bookingNightsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
   }
 
   Future<void> deleteBookingNight(String documentId) async {
     _ensureInitialized();
     return _deleteDocumentInternal(
-        collectionId: AppwriteConfig.bookingNightsCollectionId,
-        documentId: documentId);
+      collectionId: AppwriteConfig.bookingNightsCollectionId,
+      documentId: documentId,
+    );
   }
 
   // Cash Transactions
-  Future<List<models.Document>> listCashTransactions(
-      {List<String>? queries, bool useCache = true}) async {
+  Future<List<models.Document>> listCashTransactions({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
     _ensureInitialized();
     return _listAllDocumentsInternal(
-        collectionId: AppwriteConfig.cashTransactionsCollectionId,
-        queries: queries ?? [],
-        useCache: useCache);
+      collectionId: AppwriteConfig.cashTransactionsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
   }
 
   Future<models.Document> upsertCashTransaction(
-      String documentId, Map<String, dynamic> data) async {
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     _ensureInitialized();
     return _upsertDocumentInternal(
-        collectionId: AppwriteConfig.cashTransactionsCollectionId,
-        documentId: documentId,
-        data: data);
+      collectionId: AppwriteConfig.cashTransactionsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
   }
 
   Future<void> deleteCashTransaction(String documentId) async {
     _ensureInitialized();
     return _deleteDocumentInternal(
-        collectionId: AppwriteConfig.cashTransactionsCollectionId,
-        documentId: documentId);
+      collectionId: AppwriteConfig.cashTransactionsCollectionId,
+      documentId: documentId,
+    );
   }
 
   // Salary Cycles
-  Future<List<models.Document>> listSalaryCycles(
-      {List<String>? queries, bool useCache = true}) async {
+  Future<List<models.Document>> listSalaryCycles({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
     _ensureInitialized();
     return _listAllDocumentsInternal(
-        collectionId: AppwriteConfig.salaryCyclesCollectionId,
-        queries: queries ?? [],
-        useCache: useCache);
+      collectionId: AppwriteConfig.salaryCyclesCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
   }
 
   Future<models.Document> upsertSalaryCycle(
-      String documentId, Map<String, dynamic> data) async {
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     _ensureInitialized();
     return _upsertDocumentInternal(
-        collectionId: AppwriteConfig.salaryCyclesCollectionId,
-        documentId: documentId,
-        data: data);
+      collectionId: AppwriteConfig.salaryCyclesCollectionId,
+      documentId: documentId,
+      data: data,
+    );
   }
 
   Future<void> deleteSalaryCycle(String documentId) async {
     _ensureInitialized();
     return _deleteDocumentInternal(
-        collectionId: AppwriteConfig.salaryCyclesCollectionId,
-        documentId: documentId);
+      collectionId: AppwriteConfig.salaryCyclesCollectionId,
+      documentId: documentId,
+    );
   }
 
   // Salary Payments
-  Future<List<models.Document>> listSalaryPayments(
-      {List<String>? queries, bool useCache = true}) async {
+  Future<List<models.Document>> listSalaryPayments({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
     _ensureInitialized();
     return _listAllDocumentsInternal(
-        collectionId: AppwriteConfig.salaryPaymentsCollectionId,
-        queries: queries ?? [],
-        useCache: useCache);
+      collectionId: AppwriteConfig.salaryPaymentsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
   }
 
   Future<models.Document> upsertSalaryPayment(
-      String documentId, Map<String, dynamic> data) async {
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     _ensureInitialized();
     return _upsertDocumentInternal(
-        collectionId: AppwriteConfig.salaryPaymentsCollectionId,
-        documentId: documentId,
-        data: data);
+      collectionId: AppwriteConfig.salaryPaymentsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
   }
 
   Future<void> deleteSalaryPayment(String documentId) async {
     _ensureInitialized();
     return _deleteDocumentInternal(
-        collectionId: AppwriteConfig.salaryPaymentsCollectionId,
-        documentId: documentId);
+      collectionId: AppwriteConfig.salaryPaymentsCollectionId,
+      documentId: documentId,
+    );
   }
 
   // Generic methods for delta sync
@@ -778,7 +813,8 @@ class AppwriteService {
 
       // حساب الحالة النهائية
       final tests = results['tests'] as Map<String, dynamic>;
-      results['overall_success'] = tests['ping'] == true &&
+      results['overall_success'] =
+          tests['ping'] == true &&
           (tests['write'] == true || tests['write'] == null) &&
           (tests['read'] == true || tests['read'] == null) &&
           (tests['delete'] == true || tests['delete'] == null);
@@ -786,14 +822,19 @@ class AppwriteService {
       if (results['overall_success'] == true) {
         _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');
       } else {
-        _logger.warning('Full connection test failed: $results',
-            tag: 'CONNECTION_TEST');
+        _logger.warning(
+          'Full connection test failed: $results',
+          tag: 'CONNECTION_TEST',
+        );
       }
 
       return results;
     } catch (e) {
-      _logger.error('Full connection test fatal error',
-          error: e, tag: 'CONNECTION_TEST');
+      _logger.error(
+        'Full connection test fatal error',
+        error: e,
+        tag: 'CONNECTION_TEST',
+      );
       results['overall_success'] = false;
       results['error'] = e.toString();
       return results;

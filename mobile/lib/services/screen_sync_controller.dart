@@ -99,9 +99,7 @@ class ScreenSyncController {
       }
 
       if (!SmartSyncManager.instance.isDriveSignedIn) {
-        debugPrint(
-          '🔒 [$screenId] المستخدم غير مسجل في Google Drive',
-        );
+        debugPrint('🔒 [$screenId] المستخدم غير مسجل في Google Drive');
         return false;
       }
 
@@ -143,7 +141,8 @@ class ScreenSyncController {
         return true;
       } else {
         debugPrint(
-            '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox');
+          '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox',
+        );
         return false;
       }
     } on CircuitBreakerOpenException catch (e) {

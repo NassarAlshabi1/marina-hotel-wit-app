@@ -91,7 +91,8 @@ class ErrorCenterScreen extends ConsumerWidget {
   _ViewEntry _toViewEntry(LogEntry entry) {
     return _ViewEntry(
       title: entry.message,
-      subtitle: '[${entry.tag}] ${entry.level.name.toUpperCase()}' +
+      subtitle:
+          '[${entry.tag}] ${entry.level.name.toUpperCase()}' +
           (entry.error != null ? ' • ${entry.error}' : ''),
       timestamp: entry.timestamp,
     );

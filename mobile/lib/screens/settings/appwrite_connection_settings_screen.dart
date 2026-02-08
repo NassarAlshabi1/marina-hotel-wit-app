@@ -50,9 +50,9 @@ class _AppwriteConnectionSettingsScreenState
   void _onChanged() {
     final hasChanges =
         _endpointController.text != AppwriteConfigManager.endpoint ||
-            _projectIdController.text != AppwriteConfigManager.projectId ||
-            _databaseIdController.text != AppwriteConfigManager.databaseId ||
-            _apiKeyController.text != AppwriteConfigManager.apiKey;
+        _projectIdController.text != AppwriteConfigManager.projectId ||
+        _databaseIdController.text != AppwriteConfigManager.databaseId ||
+        _apiKeyController.text != AppwriteConfigManager.apiKey;
 
     if (hasChanges != _hasChanges) {
       setState(() => _hasChanges = hasChanges);
@@ -197,7 +197,8 @@ class _AppwriteConnectionSettingsScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-                'اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق'),
+              'اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق',
+            ),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 5),
             action: SnackBarAction(
@@ -379,7 +380,10 @@ class _AppwriteConnectionSettingsScreenState
             _buildConfigRow('Endpoint', AppwriteConfigManager.endpoint),
             _buildConfigRow('Project ID', AppwriteConfigManager.projectId),
             _buildConfigRow('Database ID', AppwriteConfigManager.databaseId),
-            _buildConfigRow('API Key', _maskApiKey(AppwriteConfigManager.apiKey)),
+            _buildConfigRow(
+              'API Key',
+              _maskApiKey(AppwriteConfigManager.apiKey),
+            ),
           ],
         ),
       ),
@@ -409,10 +413,7 @@ class _AppwriteConnectionSettingsScreenState
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                color: Colors.grey.shade700,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
             ),
           ),
         ],
@@ -464,9 +465,7 @@ class _AppwriteConnectionSettingsScreenState
                 onPressed: _resetToDefaults,
                 icon: const Icon(Icons.restart_alt),
                 label: const Text('إعادة تعيين'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.orange,
-                ),
+                style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
               ),
             ),
           ],

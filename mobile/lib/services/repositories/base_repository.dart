@@ -31,10 +31,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
     for (final target in targets) {
       try {
-        return await db.into(table).insert(
-              comp,
-              onConflict: DoUpdate((_) => comp, target: target),
-            );
+        return await db
+            .into(table)
+            .insert(comp, onConflict: DoUpdate((_) => comp, target: target));
       } catch (e, st) {
         lastError = e;
         lastStack = st;
@@ -88,9 +87,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     final sanitizedName = tableName.replaceAll("'", "''");
 
     final indexRows = await db
-        .customSelect(
-          "PRAGMA index_list('$sanitizedName')",
-        )
+        .customSelect("PRAGMA index_list('$sanitizedName')")
         .get();
     for (final row in indexRows) {
       final isUnique = row.data['unique'] == 1 || row.data['unique'] == true;
@@ -103,9 +100,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       }
       final sanitizedIndex = indexName.replaceAll("'", "''");
       final infoRows = await db
-          .customSelect(
-            "PRAGMA index_info('$sanitizedIndex')",
-          )
+          .customSelect("PRAGMA index_info('$sanitizedIndex')")
           .get();
       final cols = <Column>[];
       for (final info in infoRows) {

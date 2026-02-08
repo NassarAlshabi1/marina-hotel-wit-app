@@ -26,10 +26,7 @@ class FileManagementTab extends ConsumerWidget {
         const SizedBox(height: UIConstants.spacingLG),
 
         // Recent Operations
-        SectionHeader(
-          title: 'العمليات الأخيرة',
-          icon: Icons.history,
-        ),
+        SectionHeader(title: 'العمليات الأخيرة', icon: Icons.history),
         _buildRecentOperationsList(),
       ],
     );
@@ -45,25 +42,16 @@ class FileManagementTab extends ConsumerWidget {
         padding: const EdgeInsets.all(UIConstants.spacingMD),
         child: Column(
           children: [
-            const Icon(
-              Icons.import_export,
-              size: 48,
-              color: Colors.blue,
-            ),
+            const Icon(Icons.import_export, size: 48, color: Colors.blue),
             const SizedBox(height: UIConstants.spacingMD),
             const Text(
               'استيراد وتصدير البيانات',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: UIConstants.spacingSM),
             Text(
               'انقل بياناتك بسهولة بين الأجهزة',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(color: Colors.grey.shade600),
             ),
             const SizedBox(height: UIConstants.spacingLG),
             Row(
@@ -110,7 +98,11 @@ class FileManagementTab extends ConsumerWidget {
     ];
 
     final width = MediaQuery.sizeOf(context).width;
-    final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
+    final crossAxisCount = width < 360
+        ? 1
+        : width < 600
+        ? 2
+        : 3;
 
     return GridView.builder(
       shrinkWrap: true,
@@ -139,9 +131,7 @@ class FileManagementTab extends ConsumerWidget {
                 const SizedBox(height: UIConstants.spacingSM),
                 Text(
                   fileType['name'] as String,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -203,9 +193,7 @@ class FileManagementTab extends ConsumerWidget {
             color: isExport ? Colors.green : Colors.blue,
           ),
         ),
-        title: Text(
-          '${isExport ? 'تصدير' : 'استيراد'} ${operation['format']}',
-        ),
+        title: Text('${isExport ? 'تصدير' : 'استيراد'} ${operation['format']}'),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

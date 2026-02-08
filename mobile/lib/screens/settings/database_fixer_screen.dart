@@ -37,9 +37,9 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في التحقق: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ في التحقق: $e')));
       }
     } finally {
       setState(() {
@@ -98,17 +98,15 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
       } else if (result.success && result.totalFixed == 0) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('لا توجد مشاكل للإصلاح'),
-            ),
+            const SnackBar(content: Text('لا توجد مشاكل للإصلاح')),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في الإصلاح: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ في الإصلاح: $e')));
       }
     } finally {
       setState(() {
@@ -167,10 +165,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
                 const SizedBox(width: 8),
                 const Text(
                   'معلومات',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -237,10 +232,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
             else if (!report.hasIssues)
               const Text(
                 '✓ قاعدة البيانات صحيحة',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               )
             else ...[
               _buildIssueItem(
@@ -282,10 +274,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
         children: [
           Icon(icon, size: 20, color: Colors.orange[700]),
           const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: const TextStyle(fontSize: 14),
-          ),
+          Text('$label: ', style: const TextStyle(fontSize: 14)),
           Text(
             '$count',
             style: TextStyle(
@@ -360,10 +349,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
         children: [
           const Icon(Icons.build, size: 20, color: Colors.green),
           const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: const TextStyle(fontSize: 14),
-          ),
+          Text('$label: ', style: const TextStyle(fontSize: 14)),
           Text(
             '$count',
             style: TextStyle(

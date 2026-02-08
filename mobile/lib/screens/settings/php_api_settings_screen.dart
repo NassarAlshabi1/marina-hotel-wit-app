@@ -230,10 +230,7 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
     return Card(
       child: ListTile(
         leading: Icon(statusIcon, color: statusColor, size: 32),
-        title: Text(
-          'حالة الاتصال',
-          style: theme.textTheme.titleMedium,
-        ),
+        title: Text('حالة الاتصال', style: theme.textTheme.titleMedium),
         subtitle: Text(
           statusText,
           style: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
@@ -397,8 +394,10 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
                   children: [
                     Icon(Icons.dns, color: theme.colorScheme.primary),
                     const SizedBox(width: 8),
-                    Text('السيرفرات المحفوظة',
-                        style: theme.textTheme.titleMedium),
+                    Text(
+                      'السيرفرات المحفوظة',
+                      style: theme.textTheme.titleMedium,
+                    ),
                   ],
                 ),
                 IconButton(
@@ -524,7 +523,9 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
                   await _loadSettings();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('تم إعادة الإعدادات الافتراضية')),
+                      const SnackBar(
+                        content: Text('تم إعادة الإعدادات الافتراضية'),
+                      ),
                     );
                   }
                 },

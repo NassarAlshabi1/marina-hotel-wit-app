@@ -49,11 +49,7 @@ class _IncomeExpenseReportScreenState
   @override
   void initState() {
     super.initState();
-    _fromDate = DateTime(
-      _toDate.year,
-      _toDate.month,
-      1,
-    );
+    _fromDate = DateTime(_toDate.year, _toDate.month, 1);
     _toDate = DateTime(_toDate.year, _toDate.month, _toDate.day, 23, 59, 59);
     _fetchReport();
   }
@@ -73,26 +69,31 @@ class _IncomeExpenseReportScreenState
       final expenses = await expensesDao.list(from: fromStr, to: toStr);
 
       final result = await compute(
-          _processReportData,
-          _ReportParams(
-            payments: payments
-                .map((p) => {
-                      'date': p.paymentDate,
-                      'guestName': '',
-                      'amount': p.amount,
-                    })
-                .toList(),
-            expenses: expenses
-                .map((e) => {
-                      'date': e.date,
-                      'type': e.expenseType,
-                      'description': e.description,
-                      'amount': e.amount,
-                    })
-                .toList(),
-            fromDate: _fromDate,
-            toDate: _toDate,
-          ));
+        _processReportData,
+        _ReportParams(
+          payments: payments
+              .map(
+                (p) => {
+                  'date': p.paymentDate,
+                  'guestName': '',
+                  'amount': p.amount,
+                },
+              )
+              .toList(),
+          expenses: expenses
+              .map(
+                (e) => {
+                  'date': e.date,
+                  'type': e.expenseType,
+                  'description': e.description,
+                  'amount': e.amount,
+                },
+              )
+              .toList(),
+          fromDate: _fromDate,
+          toDate: _toDate,
+        ),
+      );
 
       if (mounted) {
         setState(() {
@@ -123,14 +124,26 @@ class _IncomeExpenseReportScreenState
         if (isFrom) {
           _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
           if (_fromDate.isAfter(_toDate)) {
-            _toDate =
-                DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+            _toDate = DateTime(
+              picked.year,
+              picked.month,
+              picked.day,
+              23,
+              59,
+              59,
+            );
           }
         } else {
           _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
           if (_toDate.isBefore(_fromDate)) {
-            _fromDate =
-                DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+            _fromDate = DateTime(
+              picked.year,
+              picked.month,
+              picked.day,
+              0,
+              0,
+              0,
+            );
           }
         }
       });
@@ -180,7 +193,14 @@ class _IncomeExpenseReportScreenState
           break;
         case 'week':
           final weekStart = now.subtract(Duration(days: now.weekday - 1));
-          _fromDate = DateTime(weekStart.year, weekStart.month, weekStart.day, 0, 0, 0);
+          _fromDate = DateTime(
+            weekStart.year,
+            weekStart.month,
+            weekStart.day,
+            0,
+            0,
+            0,
+          );
           _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
           break;
         case 'month':
@@ -248,25 +268,25 @@ class _IncomeExpenseReportScreenState
 
     final incomeRows = _detailedMode
         ? _incomeEntries
-            .map(
-              (e) => [
-                _dateFormat.format(e.date),
-                e.description,
-                EnhancedPdfUtils.formatNumber(e.amount),
-              ],
-            )
-            .toList()
+              .map(
+                (e) => [
+                  _dateFormat.format(e.date),
+                  e.description,
+                  EnhancedPdfUtils.formatNumber(e.amount),
+                ],
+              )
+              .toList()
         : const <List<String>>[];
     final expenseRows = _detailedMode
         ? _expenseEntries
-            .map(
-              (e) => [
-                _dateFormat.format(e.date),
-                e.description.isNotEmpty ? e.description : e.type,
-                EnhancedPdfUtils.formatNumber(e.amount),
-              ],
-            )
-            .toList()
+              .map(
+                (e) => [
+                  _dateFormat.format(e.date),
+                  e.description.isNotEmpty ? e.description : e.type,
+                  EnhancedPdfUtils.formatNumber(e.amount),
+                ],
+              )
+              .toList()
         : const <List<String>>[];
 
     final fromLabel = DateFormat('yyyy-MM-dd').format(_fromDate);
@@ -512,7 +532,9 @@ class _IncomeExpenseReportScreenState
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
@@ -524,7 +546,10 @@ class _IncomeExpenseReportScreenState
                       const SizedBox(width: 10),
                       const Text(
                         'فترة التقرير',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ],
                   ),
@@ -580,7 +605,8 @@ class _IncomeExpenseReportScreenState
                         NeuQuickFilterChip(
                           label: _detailedMode ? '📋 تفصيلي' : '📊 ملخص',
                           selected: _detailedMode,
-                          onTap: () => setState(() => _detailedMode = !_detailedMode),
+                          onTap: () =>
+                              setState(() => _detailedMode = !_detailedMode),
                         ),
                       ],
                     ),
@@ -595,12 +621,12 @@ class _IncomeExpenseReportScreenState
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : (_incomeEntries.isEmpty && _expenseEntries.isEmpty)
-                      ? const EmptyState(
-                          title: 'لا توجد بيانات',
-                          message: 'لا يوجد دخل أو مصروفات ضمن الفترة المحددة.',
-                          icon: Icons.receipt_long,
-                        )
-                      : _buildDetails(),
+                  ? const EmptyState(
+                      title: 'لا توجد بيانات',
+                      message: 'لا يوجد دخل أو مصروفات ضمن الفترة المحددة.',
+                      icon: Icons.receipt_long,
+                    )
+                  : _buildDetails(),
             ),
           ],
         ),
@@ -647,7 +673,9 @@ class _IncomeExpenseReportScreenState
         SizedBox(
           width: 160,
           child: NeuStatCard(
-            icon: _net >= 0 ? Icons.rocket_launch_rounded : Icons.warning_rounded,
+            icon: _net >= 0
+                ? Icons.rocket_launch_rounded
+                : Icons.warning_rounded,
             title: 'صافي الربح',
             value: _currencyFormat.format(_net),
             iconColor: _net >= 0 ? Colors.teal : Colors.red,
@@ -669,24 +697,28 @@ class _IncomeExpenseReportScreenState
   Widget _buildCombinedList() {
     final List<_CombinedEntry> combined = [];
     for (final e in _incomeEntries) {
-      combined.add(_CombinedEntry(
-        date: e.date,
-        description: e.description,
-        amount: e.amount,
-        isIncome: true,
-        isSalary: false,
-        type: '',
-      ));
+      combined.add(
+        _CombinedEntry(
+          date: e.date,
+          description: e.description,
+          amount: e.amount,
+          isIncome: true,
+          isSalary: false,
+          type: '',
+        ),
+      );
     }
     for (final e in _expenseEntries) {
-      combined.add(_CombinedEntry(
-        date: e.date,
-        description: e.description.isNotEmpty ? e.description : e.type,
-        amount: e.amount,
-        isIncome: false,
-        isSalary: e.isSalary,
-        type: e.type,
-      ));
+      combined.add(
+        _CombinedEntry(
+          date: e.date,
+          description: e.description.isNotEmpty ? e.description : e.type,
+          amount: e.amount,
+          isIncome: false,
+          isSalary: e.isSalary,
+          type: e.type,
+        ),
+      );
     }
     combined.sort((a, b) => b.date.compareTo(a.date));
 
@@ -715,16 +747,22 @@ class _IncomeExpenseReportScreenState
               radius: 18,
               child: Icon(icon, color: color, size: 18),
             ),
-            title:
-                Text(entry.description, style: const TextStyle(fontSize: 12)),
+            title: Text(
+              entry.description,
+              style: const TextStyle(fontSize: 12),
+            ),
             subtitle: Row(
               children: [
-                Text(_dateFormat.format(entry.date),
-                    style: const TextStyle(fontSize: 10)),
+                Text(
+                  _dateFormat.format(entry.date),
+                  style: const TextStyle(fontSize: 10),
+                ),
                 const SizedBox(width: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -775,8 +813,9 @@ class _IncomeExpenseReportScreenState
             dense: true,
             leading: const Icon(Icons.people, color: Colors.orange),
             title: const Text('عدد معاملات الرواتب'),
-            trailing:
-                Text('${_expenseEntries.where((e) => e.isSalary).length}'),
+            trailing: Text(
+              '${_expenseEntries.where((e) => e.isSalary).length}',
+            ),
           ),
         ],
       ),

@@ -664,8 +664,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   Future<void> _markAsRead(ShiftNote note) async {
     setState(() => _isProcessing = true);
     try {
-      final success =
-          await ref.read(shiftNotesRepoProvider).markAsRead(note.id);
+      final success = await ref
+          .read(shiftNotesRepoProvider)
+          .markAsRead(note.id);
       if (success) {
         // إعادة تحديث البيانات
         ref.invalidate(activeShiftNotesProvider);
@@ -850,7 +851,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                             onPressed: () async {
                               final date = await showDatePicker(
                                 context: context,
-                                initialDate: expiresAt ??
+                                initialDate:
+                                    expiresAt ??
                                     DateTime.now().add(const Duration(days: 7)),
                                 firstDate: DateTime.now(),
                                 lastDate: DateTime.now().add(
@@ -950,8 +952,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           createdBy: existingNote.createdBy,
         );
 
-        final success =
-            await ref.read(shiftNotesRepoProvider).update(updatedNote);
+        final success = await ref
+            .read(shiftNotesRepoProvider)
+            .update(updatedNote);
 
         if (success && mounted) {
           ScaffoldMessenger.of(

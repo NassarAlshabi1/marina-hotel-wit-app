@@ -40,8 +40,8 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
               onPressed: state.isWorking
                   ? null
                   : () => ref
-                      .read(backupStatusProvider.notifier)
-                      .refreshBackupsList(),
+                        .read(backupStatusProvider.notifier)
+                        .refreshBackupsList(),
             ),
           ),
           _buildBackupsList(state),
@@ -61,8 +61,10 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
       ),
       child: Row(
         children: [
-          Icon(isError ? Icons.error : Icons.check_circle,
-              color: isError ? Colors.red : Colors.green),
+          Icon(
+            isError ? Icons.error : Icons.check_circle,
+            color: isError ? Colors.red : Colors.green,
+          ),
           const SizedBox(width: UIConstants.spacingSM),
           Expanded(child: Text(state.message ?? '')),
         ],
@@ -115,8 +117,9 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
               icon: Icon(state.isSignedIn ? Icons.link_off : Icons.link),
               label: Text(state.isSignedIn ? 'قطع الاتصال' : 'الاتصال'),
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    state.isSignedIn ? Colors.red : UIConstants.backupColor,
+                backgroundColor: state.isSignedIn
+                    ? Colors.red
+                    : UIConstants.backupColor,
                 foregroundColor: Colors.white,
               ),
             ),
@@ -143,9 +146,9 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
                 const SizedBox(width: UIConstants.spacingSM),
                 Text(
                   'إنشاء نسخة احتياطية',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -174,8 +177,9 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
               child: ElevatedButton.icon(
                 onPressed: state.isWorking
                     ? null
-                    : () =>
-                        ref.read(backupStatusProvider.notifier).createBackup(),
+                    : () => ref
+                          .read(backupStatusProvider.notifier)
+                          .createBackup(),
                 icon: state.status == BackupStatus.uploading
                     ? const SizedBox(
                         width: 16,
@@ -183,9 +187,11 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.cloud_upload),
-                label: Text(state.status == BackupStatus.uploading
-                    ? 'جاري الرفع...'
-                    : 'إنشاء نسخة احتياطية الآن'),
+                label: Text(
+                  state.status == BackupStatus.uploading
+                      ? 'جاري الرفع...'
+                      : 'إنشاء نسخة احتياطية الآن',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -218,12 +224,14 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
     final sizeInMB = backup.size != null
         ? (backup.size! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
-    final recordsCount = (backup.metadata?['total_records'] as int?) ??
+    final recordsCount =
+        (backup.metadata?['total_records'] as int?) ??
         int.tryParse(backup.appProperties['records_count'] ?? '') ??
         0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
-    final formatLabel =
-        backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
+    final formatLabel = backup.format == BackupFormat.sqlite
+        ? 'SQLite'
+        : 'JSON';
 
     return Card(
       margin: EdgeInsets.only(bottom: UIConstants.spacingSM),
@@ -234,10 +242,7 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
             color: Colors.blue.withOpacity(0.1),
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
           ),
-          child: const Icon(
-            Icons.backup,
-            color: Colors.blue,
-          ),
+          child: const Icon(Icons.backup, color: Colors.blue),
         ),
         title: Text(
           dateFormatter.format(backup.createdTime),
@@ -258,12 +263,16 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
 
   void _showRestoreConfirmation(DriveBackupFile backup) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    final recordsCount = (backup.metadata?['total_records'] as int?) ??
+    final recordsCount =
+        (backup.metadata?['total_records'] as int?) ??
         int.tryParse(backup.appProperties['records_count'] ?? '') ??
         0;
-    final recordsLabel = recordsCount > 0 ? recordsCount.toString() : 'غير معروف';
-    final formatLabel =
-        backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
+    final recordsLabel = recordsCount > 0
+        ? recordsCount.toString()
+        : 'غير معروف';
+    final formatLabel = backup.format == BackupFormat.sqlite
+        ? 'SQLite'
+        : 'JSON';
 
     showDialog(
       context: context,
@@ -275,7 +284,10 @@ class _GoogleDriveTabState extends ConsumerState<GoogleDriveTab> {
           children: [
             const Text(
               '⚠️ سيتم استبدال جميع البيانات الحالية بالنسخة المختارة:',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
             ),
             const SizedBox(height: 12),
             Text('التاريخ: ${dateFormatter.format(backup.createdTime)}'),

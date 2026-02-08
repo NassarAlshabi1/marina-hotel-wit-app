@@ -44,9 +44,9 @@ class SalaryEntitlementService {
   SalaryEntitlementService(this._db);
 
   Future<List<SalaryEntitlement>> calculateAllEntitlements() async {
-    final employees = await (_db.select(_db.employees)
-          ..where((e) => e.status.equals('active')))
-        .get();
+    final employees = await (_db.select(
+      _db.employees,
+    )..where((e) => e.status.equals('active'))).get();
 
     final entitlements = <SalaryEntitlement>[];
     for (final employee in employees) {
@@ -57,7 +57,8 @@ class SalaryEntitlementService {
   }
 
   Future<SalaryEntitlement> calculateEmployeeEntitlement(
-      Employee employee) async {
+    Employee employee,
+  ) async {
     final now = DateTime.now();
     DateTime hireDate;
     try {
@@ -71,9 +72,9 @@ class SalaryEntitlementService {
     final totalMonthsWorked = _calculateMonthsDifference(hireDate, now);
     final totalEntitlement = totalMonthsWorked * employee.basicSalary;
 
-    final expenses = await (_db.select(_db.expenses)
-          ..where((e) => e.relatedId.equals(employee.id)))
-        .get();
+    final expenses = await (_db.select(
+      _db.expenses,
+    )..where((e) => e.relatedId.equals(employee.id))).get();
 
     double totalWithdrawals = 0;
     double totalDeductions = 0;
@@ -83,18 +84,24 @@ class SalaryEntitlementService {
       final type = expense.expenseType.trim();
       if (type == 'سحب راتب' || type == 'سلفة' || type == 'رواتب') {
         totalWithdrawals += expense.amount;
-        transactions.add(SalaryTransaction(
+        transactions.add(
+          SalaryTransaction(
             type: 'سحب',
             amount: expense.amount,
             date: expense.date,
-            note: expense.description));
+            note: expense.description,
+          ),
+        );
       } else if (type == 'خصم راتب' || type == 'خصم' || type == 'غياب') {
         totalDeductions += expense.amount;
-        transactions.add(SalaryTransaction(
+        transactions.add(
+          SalaryTransaction(
             type: 'خصم',
             amount: expense.amount,
             date: expense.date,
-            note: expense.description));
+            note: expense.description,
+          ),
+        );
       }
     }
 

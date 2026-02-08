@@ -114,16 +114,14 @@ class DatabaseFixer {
 
     try {
       // البحث عن المدفوعات التي تشير لحجوزات غير موجودة
-      final orphanPayments = await db.customSelect(
-        '''
+      final orphanPayments = await db.customSelect('''
         SELECT p.id, p.booking_local_id, p.room_number
         FROM payments p
         LEFT JOIN bookings b ON p.booking_local_id = b.id
         WHERE p.booking_local_id IS NOT NULL 
           AND b.id IS NULL
           AND p.deleted_at IS NULL
-        ''',
-      ).get();
+        ''').get();
 
       for (final payment in orphanPayments) {
         final paymentId = payment.data['id'] as int;
@@ -151,14 +149,12 @@ class DatabaseFixer {
 
     try {
       // البحث عن المصروفات التي تشير لبيانات غير موجودة
-      final orphanExpenses = await db.customSelect(
-        '''
+      final orphanExpenses = await db.customSelect('''
         SELECT e.id, e.related_id, e.expense_type
         FROM expenses e
         WHERE e.related_id IS NOT NULL 
           AND e.deleted_at IS NULL
-        ''',
-      ).get();
+        ''').get();
 
       for (final expense in orphanExpenses) {
         final expenseId = expense.data['id'] as int;
@@ -170,14 +166,14 @@ class DatabaseFixer {
         // التحقق من وجود البيانات المرتبطة بناءً على نوع المصروف
         if (relatedId != null) {
           if (expenseType == 'employee') {
-            final employee = await (db.select(db.employees)
-                  ..where((e) => e.id.equals(relatedId)))
-                .getSingleOrNull();
+            final employee = await (db.select(
+              db.employees,
+            )..where((e) => e.id.equals(relatedId))).getSingleOrNull();
             if (employee == null) shouldFix = true;
           } else if (expenseType == 'booking') {
-            final booking = await (db.select(db.bookings)
-                  ..where((b) => b.id.equals(relatedId)))
-                .getSingleOrNull();
+            final booking = await (db.select(
+              db.bookings,
+            )..where((b) => b.id.equals(relatedId))).getSingleOrNull();
             if (booking == null) shouldFix = true;
           }
         }
@@ -208,8 +204,7 @@ class DatabaseFixer {
 
     try {
       // التحقق من serverId الفاسدة
-      final invalidServerIds = await db.customSelect(
-        '''
+      final invalidServerIds = await db.customSelect('''
         SELECT 'rooms' as table_name, COUNT(*) as count 
         FROM rooms 
         WHERE server_id IS NOT NULL AND typeof(server_id) = 'text' AND server_id LIKE '%-%'
@@ -221,8 +216,7 @@ class DatabaseFixer {
         SELECT 'expenses', COUNT(*) 
         FROM expenses 
         WHERE server_id IS NOT NULL AND typeof(server_id) = 'text' AND server_id LIKE '%-%'
-        ''',
-      ).get();
+        ''').get();
 
       int totalInvalidServerIds = 0;
       for (final row in invalidServerIds) {
@@ -232,32 +226,29 @@ class DatabaseFixer {
       report.invalidServerIds = totalInvalidServerIds;
 
       // التحقق من المدفوعات اليتيمة
-      final orphanPaymentsResult = await db.customSelect(
-        '''
+      final orphanPaymentsResult = await db.customSelect('''
         SELECT COUNT(*) as count
         FROM payments p
         LEFT JOIN bookings b ON p.booking_local_id = b.id
         WHERE p.booking_local_id IS NOT NULL 
           AND b.id IS NULL
           AND p.deleted_at IS NULL
-        ''',
-      ).getSingle();
+        ''').getSingle();
 
       report.orphanPayments = orphanPaymentsResult.data['count'] as int;
 
       // التحقق من المصروفات اليتيمة
-      final orphanExpensesResult = await db.customSelect(
-        '''
+      final orphanExpensesResult = await db.customSelect('''
         SELECT COUNT(*) as count
         FROM expenses e
         WHERE e.related_id IS NOT NULL 
           AND e.deleted_at IS NULL
-        ''',
-      ).getSingle();
+        ''').getSingle();
 
       report.orphanExpenses = orphanExpensesResult.data['count'] as int;
 
-      report.hasIssues = report.invalidServerIds > 0 ||
+      report.hasIssues =
+          report.invalidServerIds > 0 ||
           report.orphanPayments > 0 ||
           report.orphanExpenses > 0;
     } catch (e) {

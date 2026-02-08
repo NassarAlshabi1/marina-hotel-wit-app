@@ -138,9 +138,9 @@ class _SyncHealthDashboardScreenState
             Text(
               statusText,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             StatusIndicator(status: status),
@@ -169,7 +169,11 @@ class _SyncHealthDashboardScreenState
         Builder(
           builder: (context) {
             final width = MediaQuery.sizeOf(context).width;
-            final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
+            final crossAxisCount = width < 360
+                ? 1
+                : width < 600
+                ? 2
+                : 3;
             return GridView.count(
               crossAxisCount: crossAxisCount,
               shrinkWrap: true,
@@ -178,43 +182,48 @@ class _SyncHealthDashboardScreenState
               mainAxisSpacing: 12,
               childAspectRatio: 1.3,
               children: [
-            MetricCard(
-              title: 'المزامنات الناجحة',
-              value: '${dashboard.orchestratorMetrics?.successfulSyncs ?? 0}',
-              icon: Icons.check_circle,
-              color: Colors.green,
-            ),
-            MetricCard(
-              title: 'المزامنات الفاشلة',
-              value: '${dashboard.orchestratorMetrics?.failedSyncs ?? 0}',
-              icon: Icons.error,
-              color: Colors.red,
-            ),
-            MetricCard(
-              title: 'متوسط المدة',
-              value: _formatDuration(metrics.averageSyncDuration),
-              icon: Icons.timer,
-              color: Colors.blue,
-            ),
-            MetricCard(
-              title: 'معدل التعارضات',
-              value: '${(metrics.conflictRate * 100).toStringAsFixed(0)}%',
-              icon: Icons.merge_type,
-              color: metrics.conflictRate > 0.3 ? Colors.orange : Colors.green,
-            ),
-            MetricCard(
-              title: 'آخر مزامنة ناجحة',
-              value: _formatLastSync(orchestratorMetrics.lastSuccessfulSync),
-              icon: Icons.access_time,
-              color: Colors.teal,
-            ),
-            MetricCard(
-              title: 'خطر فقدان البيانات',
-              value: '${(metrics.dataLossRisk * 100).toStringAsFixed(0)}%',
-              icon: Icons.warning,
-              color: metrics.dataLossRisk > 0.5 ? Colors.red : Colors.green,
-            ),
-          ],
+                MetricCard(
+                  title: 'المزامنات الناجحة',
+                  value:
+                      '${dashboard.orchestratorMetrics?.successfulSyncs ?? 0}',
+                  icon: Icons.check_circle,
+                  color: Colors.green,
+                ),
+                MetricCard(
+                  title: 'المزامنات الفاشلة',
+                  value: '${dashboard.orchestratorMetrics?.failedSyncs ?? 0}',
+                  icon: Icons.error,
+                  color: Colors.red,
+                ),
+                MetricCard(
+                  title: 'متوسط المدة',
+                  value: _formatDuration(metrics.averageSyncDuration),
+                  icon: Icons.timer,
+                  color: Colors.blue,
+                ),
+                MetricCard(
+                  title: 'معدل التعارضات',
+                  value: '${(metrics.conflictRate * 100).toStringAsFixed(0)}%',
+                  icon: Icons.merge_type,
+                  color: metrics.conflictRate > 0.3
+                      ? Colors.orange
+                      : Colors.green,
+                ),
+                MetricCard(
+                  title: 'آخر مزامنة ناجحة',
+                  value: _formatLastSync(
+                    orchestratorMetrics.lastSuccessfulSync,
+                  ),
+                  icon: Icons.access_time,
+                  color: Colors.teal,
+                ),
+                MetricCard(
+                  title: 'خطر فقدان البيانات',
+                  value: '${(metrics.dataLossRisk * 100).toStringAsFixed(0)}%',
+                  icon: Icons.warning,
+                  color: metrics.dataLossRisk > 0.5 ? Colors.red : Colors.green,
+                ),
+              ],
             );
           },
         ),
@@ -507,13 +516,15 @@ class _SyncHealthDashboardScreenState
 
     final hasIssues = report.hasIssues;
     final hasCritical = report.hasCriticalIssues;
-    final statusColor =
-        hasCritical ? Colors.red : (hasIssues ? Colors.orange : Colors.green);
+    final statusColor = hasCritical
+        ? Colors.red
+        : (hasIssues ? Colors.orange : Colors.green);
     final statusIcon = hasCritical
         ? Icons.error
         : (hasIssues ? Icons.warning : Icons.check_circle);
-    final statusText =
-        hasCritical ? 'مشاكل حرجة' : (hasIssues ? 'تحذيرات' : 'سليم');
+    final statusText = hasCritical
+        ? 'مشاكل حرجة'
+        : (hasIssues ? 'تحذيرات' : 'سليم');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -276,14 +276,17 @@ class _SmartSyncDashboardCardState
                       children: [
                         Text(
                           'المزامنة بين الأجهزة',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         Text(
                           isSyncing
                               ? 'جارِ المزامنة...'
                               : isEnabled
-                                  ? 'مُفعلة'
-                                  : 'معطلة',
+                              ? 'مُفعلة'
+                              : 'معطلة',
                           style: TextStyle(
                             fontSize: 10,
                             color: isSyncing ? Colors.blue : Colors.grey,

@@ -60,8 +60,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initial =
-        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initial = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -165,8 +166,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
-    final fromLabel =
-        _fromDate != null ? _dateFormat.format(_fromDate!) : 'غير محدد';
+    final fromLabel = _fromDate != null
+        ? _dateFormat.format(_fromDate!)
+        : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
     final totalGuests = _guestSummaries.length;
 
@@ -467,18 +469,18 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _rows.isEmpty
-                      ? const EmptyState(
-                          title: 'لا توجد بيانات',
-                          message: 'لم يتم العثور على ديون ضمن النطاق المحدد.',
-                          icon: Icons.assessment_outlined,
-                        )
-                      : ListView(
-                          children: [
-                            _buildGuestsTable(),
-                            const SizedBox(height: 16),
-                            _buildDebtsTable(),
-                          ],
-                        ),
+                  ? const EmptyState(
+                      title: 'لا توجد بيانات',
+                      message: 'لم يتم العثور على ديون ضمن النطاق المحدد.',
+                      icon: Icons.assessment_outlined,
+                    )
+                  : ListView(
+                      children: [
+                        _buildGuestsTable(),
+                        const SizedBox(height: 16),
+                        _buildDebtsTable(),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -603,16 +605,14 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-      child: Text(
-        '$label: $text',
-        style: const TextStyle(fontSize: 12),
-      ),
+      child: Text('$label: $text', style: const TextStyle(fontSize: 12)),
     );
   }
 
   DateTime _parseDateTime(String value) {
-    final normalized =
-        value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized = value.contains('T')
+        ? value
+        : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {

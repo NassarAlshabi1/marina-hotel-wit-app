@@ -56,8 +56,9 @@ class _ComprehensiveBackupScreenState
               action: SnackBarAction(
                 label: 'مشاركة',
                 onPressed: () {
-                  Share.shareXFiles([XFile(file.path)],
-                      text: 'نسخة احتياطية Marina Hotel');
+                  Share.shareXFiles([
+                    XFile(file.path),
+                  ], text: 'نسخة احتياطية Marina Hotel');
                 },
               ),
             ),
@@ -91,9 +92,10 @@ class _ComprehensiveBackupScreenState
           builder: (ctx) => AlertDialog(
             title: const Text('تأكيد الاستعادة والرفع'),
             content: const Text(
-                'سيقوم هذا الإجراء برفع جميع البيانات من الملف المختار إلى خادم Appwrite.\n'
-                'سيتم تحديث السجلات الموجودة وإضافة السجلات الجديدة.\n\n'
-                'هل أنت متأكد من المتابعة؟'),
+              'سيقوم هذا الإجراء برفع جميع البيانات من الملف المختار إلى خادم Appwrite.\n'
+              'سيتم تحديث السجلات الموجودة وإضافة السجلات الجديدة.\n\n'
+              'هل أنت متأكد من المتابعة؟',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -134,7 +136,8 @@ class _ComprehensiveBackupScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('تم رفع النسخة الاحتياطية إلى Appwrite بنجاح')),
+            content: Text('تم رفع النسخة الاحتياطية إلى Appwrite بنجاح'),
+          ),
         );
       }
     } catch (e) {
@@ -201,7 +204,8 @@ class _ComprehensiveBackupScreenState
                   children: [
                     if (_isLoading) ...[
                       LinearProgressIndicator(
-                          value: _progress > 0 ? _progress : null),
+                        value: _progress > 0 ? _progress : null,
+                      ),
                       const SizedBox(height: 16),
                     ],
                     Text(
@@ -275,10 +279,7 @@ class _ComprehensiveBackupScreenState
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                 ],
               ),

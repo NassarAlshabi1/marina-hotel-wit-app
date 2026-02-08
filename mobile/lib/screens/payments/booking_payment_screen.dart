@@ -273,10 +273,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final progressPercentage = summary.paidPercentage / 100;
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
     final checkinText = dateFmt.format(checkin);
-    final plannedText =
-        plannedCheckout != null ? dateFmt.format(plannedCheckout) : null;
-    final actualText =
-        actualCheckout != null ? dateFmt.format(actualCheckout) : null;
+    final plannedText = plannedCheckout != null
+        ? dateFmt.format(plannedCheckout)
+        : null;
+    final actualText = actualCheckout != null
+        ? dateFmt.format(actualCheckout)
+        : null;
     final hasPhone = _currentGuestPhone.isNotEmpty;
     final identityLine = widget.booking.guestIdNumber.isEmpty
         ? widget.booking.guestIdType
@@ -331,9 +333,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     Text(
                       'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • $_currentGuestPhone' : ''}',
                       style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
                     ),
                     Text(
                       identityLine,
@@ -416,7 +419,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
               if (_debtAmount > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red.shade100,
                     borderRadius: BorderRadius.circular(8),
@@ -429,7 +435,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       const SizedBox(width: 4),
                       Text(
                         'يوجد دين ${_currencyFmt.format(_debtAmount)}',
-                        style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.red.shade700,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -454,12 +464,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   Text(
                     'تقدم الدفع',
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 12),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
                   Text(
                     '${summary.paidPercentage.toStringAsFixed(1)}%',
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 12),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -873,7 +887,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               const SizedBox(height: 10),
               Text(
                 title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -1023,13 +1040,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               onPressed: _isSavingPayment
                   ? null
                   : () => _processPayment(
-                        method,
-                        amountController.text,
-                        notesController.text,
-                        referenceController.text,
-                        cardDigitsController.text,
-                        bankController.text,
-                      ),
+                      method,
+                      amountController.text,
+                      notesController.text,
+                      referenceController.text,
+                      cardDigitsController.text,
+                      bankController.text,
+                    ),
               child: _isSavingPayment
                   ? const SizedBox(
                       width: 20,
@@ -1197,8 +1214,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         final amount = nights * roomRate;
 
         return ElevatedButton(
-          onPressed:
-              amount > 0 ? () => _showDailyPaymentDialog(nights, amount) : null,
+          onPressed: amount > 0
+              ? () => _showDailyPaymentDialog(nights, amount)
+              : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.orange,
             foregroundColor: Colors.white,
@@ -1316,8 +1334,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final now = DateTime.now();
     final currentNights = Time.nightsWithCutoff(checkin, checkout: now);
     final currentTotal = currentNights * roomRate;
-    final allPayments =
-        await paymentsRepo.paymentsByBooking(widget.booking.id).first;
+    final allPayments = await paymentsRepo
+        .paymentsByBooking(widget.booking.id)
+        .first;
     final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
     final newRemaining = (currentTotal - totalPaid).clamp(0.0, currentTotal);
 
@@ -1405,8 +1424,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
 
     final totalAmount = actualNights * roomRate;
-    final payments =
-        await paymentsRepo.paymentsByBooking(widget.booking.id).first;
+    final payments = await paymentsRepo
+        .paymentsByBooking(widget.booking.id)
+        .first;
     final paidAmount = payments.fold<double>(0, (s, p) => s + p.amount);
     final remainingAmount = ((totalAmount - paidAmount).clamp(
       0.0,
@@ -1631,7 +1651,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   void _showCheckoutConfirmation(BookingPaymentSummary summary) {
     final hasRemaining = summary.remainingAmount > 0;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1776,19 +1796,30 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             const SizedBox(height: 12),
             _buildStatementPreviewRow('العميل', widget.booking.guestName),
             _buildStatementPreviewRow('الغرفة', widget.booking.roomNumber),
-            _buildStatementPreviewRow('الإجمالي', _currencyFmt.format(summary.totalAmount)),
-            _buildStatementPreviewRow('المدفوع', _currencyFmt.format(summary.paidAmount)),
+            _buildStatementPreviewRow(
+              'الإجمالي',
+              _currencyFmt.format(summary.totalAmount),
+            ),
+            _buildStatementPreviewRow(
+              'المدفوع',
+              _currencyFmt.format(summary.paidAmount),
+            ),
             _buildStatementPreviewRow(
               'المتبقي',
               _currencyFmt.format(summary.remainingAmount),
-              valueColor: summary.remainingAmount > 0 ? Colors.red : Colors.green,
+              valueColor: summary.remainingAmount > 0
+                  ? Colors.red
+                  : Colors.green,
             ),
             const Divider(height: 16),
             Row(
               children: [
                 const Icon(Icons.phone, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text(_currentGuestPhone, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  _currentGuestPhone,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ],
@@ -1811,7 +1842,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
-  Widget _buildStatementPreviewRow(String label, String value, {Color? valueColor}) {
+  Widget _buildStatementPreviewRow(
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -1836,18 +1871,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String statement = 'كشف حساب\n\n';
     statement += 'الغرفة: ${widget.booking.roomNumber}\n';
     statement += 'تاريخ الوصول: ${widget.booking.checkinDate.split(' ')[0]}\n';
-    
+
     statement += '\nتفاصيل الحساب:\n';
-    statement += 'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)}\n';
+    statement +=
+        'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)}\n';
     statement += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)}\n';
-    statement += 'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)}\n';
+    statement +=
+        'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)}\n';
 
     if (summary.payments.isNotEmpty) {
       statement += '\nسجل المدفوعات:\n';
       for (int i = 0; i < summary.payments.length; i++) {
         final payment = summary.payments[i];
-        final paymentDate = DateFormat('dd/MM/yyyy').format(payment.paymentDate);
-        statement += '${i + 1}. ${_currencyFmt.format(payment.amount)} - $paymentDate\n';
+        final paymentDate = DateFormat(
+          'dd/MM/yyyy',
+        ).format(payment.paymentDate);
+        statement +=
+            '${i + 1}. ${_currencyFmt.format(payment.amount)} - $paymentDate\n';
       }
     }
 

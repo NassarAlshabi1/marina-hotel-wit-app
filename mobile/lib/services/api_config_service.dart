@@ -42,14 +42,14 @@ class ApiConfig {
   }
 
   Map<String, dynamic> toJson() => {
-        'baseUrl': baseUrl,
-        'apiKey': apiKey,
-        'connectTimeout': connectTimeout,
-        'receiveTimeout': receiveTimeout,
-        'enableLogging': enableLogging,
-        'useSsl': useSsl,
-        'customHeaders': customHeaders,
-      };
+    'baseUrl': baseUrl,
+    'apiKey': apiKey,
+    'connectTimeout': connectTimeout,
+    'receiveTimeout': receiveTimeout,
+    'enableLogging': enableLogging,
+    'useSsl': useSsl,
+    'customHeaders': customHeaders,
+  };
 
   factory ApiConfig.fromJson(Map<String, dynamic> json) {
     return ApiConfig(
@@ -84,8 +84,9 @@ class ApiConfigService {
   final List<ServerInfo> _serverList = [];
   List<ServerInfo> get serverList => List.unmodifiable(_serverList);
 
-  final ValueNotifier<ApiConfig> configNotifier =
-      ValueNotifier(ApiConfig.defaultConfig);
+  final ValueNotifier<ApiConfig> configNotifier = ValueNotifier(
+    ApiConfig.defaultConfig,
+  );
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
@@ -135,10 +136,9 @@ class ApiConfigService {
   }
 
   Future<void> updateTimeouts({int? connect, int? receive}) async {
-    await saveConfig(_currentConfig.copyWith(
-      connectTimeout: connect,
-      receiveTimeout: receive,
-    ));
+    await saveConfig(
+      _currentConfig.copyWith(connectTimeout: connect, receiveTimeout: receive),
+    );
   }
 
   Future<void> toggleLogging(bool enable) async {
@@ -165,10 +165,9 @@ class ApiConfigService {
       (s) => s.id == serverId,
       orElse: () => throw Exception('السيرفر غير موجود'),
     );
-    await saveConfig(_currentConfig.copyWith(
-      baseUrl: server.url,
-      apiKey: server.apiKey,
-    ));
+    await saveConfig(
+      _currentConfig.copyWith(baseUrl: server.url, apiKey: server.apiKey),
+    );
   }
 
   Future<void> _saveServerList() async {
@@ -220,13 +219,13 @@ class ServerInfo {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'url': url,
-        'apiKey': apiKey,
-        'addedAt': addedAt.toIso8601String(),
-        'isDefault': isDefault,
-      };
+    'id': id,
+    'name': name,
+    'url': url,
+    'apiKey': apiKey,
+    'addedAt': addedAt.toIso8601String(),
+    'isDefault': isDefault,
+  };
 
   factory ServerInfo.fromJson(Map<String, dynamic> json) {
     return ServerInfo(

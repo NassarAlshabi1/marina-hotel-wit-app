@@ -20,8 +20,9 @@ class WhatsAppService {
     required String phoneE164,
     required String message,
   }) async {
-    final sanitizedPhone =
-        phoneE164.startsWith('+') ? phoneE164.substring(1) : phoneE164;
+    final sanitizedPhone = phoneE164.startsWith('+')
+        ? phoneE164.substring(1)
+        : phoneE164;
     final chatId = '$sanitizedPhone@c.us';
     final endpoint = Uri.parse('$baseUrl/$instanceId/sendMessage/$token');
 
