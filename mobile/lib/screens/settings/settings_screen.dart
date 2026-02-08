@@ -337,7 +337,7 @@ class SettingsScreen extends ConsumerWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
-        childAspectRatio: 1.9,
+        childAspectRatio: 2.4,
         crossAxisSpacing: 8,
         mainAxisSpacing: 10,
       ),
