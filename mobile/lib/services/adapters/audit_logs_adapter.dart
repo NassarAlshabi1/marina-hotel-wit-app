@@ -68,7 +68,7 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
         fallback: DateTime.fromMillisecondsSinceEpoch(timestamp * 1000).toIso8601String(),
       ),
       isFinancial: _vBool(json, 'isFinancial', src, altKey: 'is_financial', fallback: false),
-      amountImpact: _vDouble(json, 'amountImpact', src, altKey: 'amount_impact'),
+      amountImpact: _vInt(json, 'amountImpact', src, altKey: 'amount_impact'),
       createdAt: d.Value(createdAt),
     );
   }

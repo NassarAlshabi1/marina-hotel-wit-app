@@ -79,7 +79,7 @@ class PaymentVoidsAdapter
       bookingUuid: refs.bookingUuidCache != null
           ? d.Value(refs.bookingUuidCache!)
           : _vStr(json, 'bookingUuid', src, altKey: 'booking_uuid', fallback: ''),
-      voidedAmount: _vDouble(json, 'voidedAmount', src, altKey: 'voided_amount', fallback: 0.0),
+      voidedAmount: _vInt(json, 'voidedAmount', src, altKey: 'voided_amount', fallback: 0),
       voidReason: _vStr(json, 'voidReason', src, altKey: 'void_reason', fallback: ''),
       voidedBy: _vStr(json, 'voidedBy', src, altKey: 'voided_by', fallback: ''),
       voidedAt: d.Value(voidedAt),

@@ -58,7 +58,7 @@ class SalaryPaymentsAdapter
       ),
       serverId: _vInt(json, 'serverId', src),
       cycleId: _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
-      amount: _vDouble(json, 'amount', src, fallback: 0.0),
+      amount: _vInt(json, 'amount', src, fallback: 0),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       paymentDateIso: _vStr(
         json,

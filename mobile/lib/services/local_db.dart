@@ -35,7 +35,7 @@ class Rooms extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get roomNumber => text().unique()();
   TextColumn get type => text()();
-  RealColumn get price => real()();
+  IntColumn get price => integer()();
   TextColumn get status => text()();
   TextColumn get imageUrl => text().nullable()();
   TextColumn get cleaningStatus =>
@@ -76,7 +76,7 @@ class Bookings extends Table with SyncFields {
   TextColumn get actualCheckout => text().nullable()();
   TextColumn get status => text()();
   TextColumn get notes => text().nullable()();
-  RealColumn get discount => real().withDefault(const Constant(0))();
+  IntColumn get discount => integer().withDefault(const Constant(0))();
   TextColumn get discountType =>
       text().withDefault(const Constant('per_night'))();
   TextColumn get discountStartDate => text().nullable()();
@@ -88,10 +88,10 @@ class Bookings extends Table with SyncFields {
   BoolColumn get isOverdue => boolean().withDefault(const Constant(false))();
   BoolColumn get needsCheckoutReview =>
       boolean().withDefault(const Constant(false))();
-  RealColumn get totalDueCached => real().withDefault(const Constant(0))();
-  RealColumn get totalPaidCached => real().withDefault(const Constant(0))();
-  RealColumn get remainingBalanceCached =>
-      real().withDefault(const Constant(0))();
+  IntColumn get totalDueCached => integer().withDefault(const Constant(0))();
+  IntColumn get totalPaidCached => integer().withDefault(const Constant(0))();
+  IntColumn get remainingBalanceCached =>
+      integer().withDefault(const Constant(0))();
   BoolColumn get isFullyPaid => boolean().withDefault(const Constant(false))();
   TextColumn get hotelDayCheckin => text().nullable()();
   TextColumn get hotelDayCheckout => text().nullable()();
@@ -124,7 +124,7 @@ class BookingNotes extends Table with SyncFields {
 class Employees extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text()();
-  RealColumn get basicSalary => real()();
+  IntColumn get basicSalary => integer()();
   TextColumn get position => text().withDefault(const Constant('موظف'))();
   TextColumn get phone => text().withDefault(const Constant(''))();
   TextColumn get hireDate => text().withDefault(const Constant(''))();
@@ -136,7 +136,7 @@ class Expenses extends Table with SyncFields {
   TextColumn get expenseType => text()();
   IntColumn get relatedId => integer().nullable()();
   TextColumn get description => text()();
-  RealColumn get amount => real()();
+  IntColumn get amount => integer()();
   TextColumn get date => text()();
   IntColumn get cashTransactionId => integer().nullable()();
   TextColumn get hotelDayKey => text().nullable()();
@@ -161,7 +161,7 @@ class CashTransactions extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get registerId => integer().nullable()();
   TextColumn get transactionType => text()();
-  RealColumn get amount => real()();
+  IntColumn get amount => integer()();
   TextColumn get referenceType => text().nullable()();
   IntColumn get referenceId => integer().nullable()();
   TextColumn get description => text().nullable()();
@@ -176,7 +176,7 @@ class Payments extends Table with SyncFields {
       integer().nullable().references(Bookings, #id)();
   IntColumn get serverBookingId => integer().nullable()();
   TextColumn get roomNumber => text().nullable()();
-  RealColumn get amount => real()();
+  IntColumn get amount => integer()();
   TextColumn get paymentDate => text()();
   TextColumn get notes => text().nullable()();
   TextColumn get paymentMethod => text()();
@@ -212,9 +212,9 @@ class Debts extends Table with SyncFields {
   TextColumn get checkoutDate => text()();
   TextColumn get dateRecorded => text().withDefault(const Constant(''))();
   TextColumn get debtReason => text().withDefault(const Constant(''))();
-  RealColumn get totalAmount => real()();
-  RealColumn get paidAmount => real()();
-  RealColumn get remainingAmount => real()();
+  IntColumn get totalAmount => integer()();
+  IntColumn get paidAmount => integer()();
+  IntColumn get remainingAmount => integer()();
   TextColumn get paymentDate => text()();
   IntColumn get isSettled => integer().withDefault(const Constant(0))();
   TextColumn get pledge => text().nullable()();
@@ -264,10 +264,14 @@ class BookingNights extends Table with SyncFields {
   TextColumn get hotelDayKey => text()();
   TextColumn get nightStart => text()();
   TextColumn get nightEnd => text()();
-  RealColumn get nightlyRate => real().withDefault(const Constant(0))();
+  IntColumn get nightlyRate => integer().withDefault(const Constant(0))();
   IntColumn get sequence => integer().withDefault(const Constant(0))();
   BoolColumn get isProcessedByAutoFix =>
       boolean().withDefault(const Constant(false))();
+  IntColumn get baseRate => integer().withDefault(const Constant(0))();
+  IntColumn get adjustment => integer().withDefault(const Constant(0))();
+  IntColumn get finalRate => integer().withDefault(const Constant(0))();
+  TextColumn get appliedAdjustmentUuid => text().nullable()();
 
   @override
   List<Set<Column>>? get uniqueKeys => [
@@ -279,10 +283,10 @@ class BookingNights extends Table with SyncFields {
 class HotelDayLedger extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get hotelDayKey => text()();
-  RealColumn get totalIncome => real().withDefault(const Constant(0))();
-  RealColumn get totalExpenses => real().withDefault(const Constant(0))();
-  RealColumn get pendingBalances => real().withDefault(const Constant(0))();
-  RealColumn get occupancyRate => real().withDefault(const Constant(0))();
+  IntColumn get totalIncome => integer().withDefault(const Constant(0))();
+  IntColumn get totalExpenses => integer().withDefault(const Constant(0))();
+  IntColumn get pendingBalances => integer().withDefault(const Constant(0))();
+  IntColumn get occupancyRate => integer().withDefault(const Constant(0))();
   IntColumn get bookingsProcessed => integer().withDefault(const Constant(0))();
   IntColumn get paymentsProcessed => integer().withDefault(const Constant(0))();
   IntColumn get debtsProcessed => integer().withDefault(const Constant(0))();
@@ -301,8 +305,8 @@ class PriceAdjustments extends Table with SyncFields {
   TextColumn get targetType => text()();
   TextColumn get targetUuid => text()();
   TextColumn get adjustmentType => text()();
-  RealColumn get previousValue => real()();
-  RealColumn get newValue => real()();
+  IntColumn get previousValue => integer()();
+  IntColumn get newValue => integer()();
   TextColumn get reason => text().nullable()();
   TextColumn get effectiveDate => text()();
   TextColumn get appliedBy => text()();
@@ -319,6 +323,33 @@ class PriceAdjustments extends Table with SyncFields {
     Index(
       'idx_price_adj_day',
       'CREATE INDEX idx_price_adj_day ON price_adjustments (hotel_day_key)',
+    ),
+  ];
+}
+
+@DataClassName('BookingPriceAdjustment')
+class BookingPriceAdjustments extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get bookingLocalUuid => text()();
+  IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
+  IntColumn get adjustmentType => integer().withDefault(const Constant(0))();
+  IntColumn get amount => integer().withDefault(const Constant(0))();
+  TextColumn get effectiveHotelDay => text()();
+  TextColumn get endHotelDay => text().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  TextColumn get reason => text().nullable()();
+  TextColumn get appliedBy => text().nullable()();
+  TextColumn get cancelledAt => text().nullable()();
+  TextColumn get cancelledBy => text().nullable()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_booking_price_adj_booking',
+      'CREATE INDEX idx_booking_price_adj_booking ON booking_price_adjustments (booking_local_uuid, is_active)',
+    ),
+    Index(
+      'idx_booking_price_adj_dates',
+      'CREATE INDEX idx_booking_price_adj_dates ON booking_price_adjustments (effective_hotel_day, end_hotel_day)',
     ),
   ];
 }
@@ -341,7 +372,7 @@ class AuditLogs extends Table {
   IntColumn get timestamp => integer()();
   TextColumn get timestampIso => text()();
   BoolColumn get isFinancial => boolean().withDefault(const Constant(false))();
-  RealColumn get amountImpact => real().nullable()();
+  IntColumn get amountImpact => integer().nullable()();
   IntColumn get createdAt => integer()();
 
   List<Index> get indexes => [
@@ -366,7 +397,7 @@ class PaymentVoids extends Table with SyncFields {
   TextColumn get originalPaymentUuid => text().unique()();
   IntColumn get originalPaymentId => integer()();
   TextColumn get bookingUuid => text()();
-  RealColumn get voidedAmount => real()();
+  IntColumn get voidedAmount => integer()();
   TextColumn get voidReason => text()();
   TextColumn get voidedBy => text()();
   IntColumn get voidedAt => integer()();
@@ -441,9 +472,9 @@ class SalaryCycles extends Table with SyncFields {
   TextColumn get cycleKey => text()();
   TextColumn get hotelDayStart => text().nullable()();
   TextColumn get hotelDayEnd => text().nullable()();
-  RealColumn get expectedAmount => real().withDefault(const Constant(0))();
-  RealColumn get actualPaid => real().withDefault(const Constant(0))();
-  RealColumn get remainingAmount => real().withDefault(const Constant(0))();
+  IntColumn get expectedAmount => integer().withDefault(const Constant(0))();
+  IntColumn get actualPaid => integer().withDefault(const Constant(0))();
+  IntColumn get remainingAmount => integer().withDefault(const Constant(0))();
   TextColumn get status => text().withDefault(const Constant('draft'))();
 
   @override
@@ -456,7 +487,7 @@ class SalaryCycles extends Table with SyncFields {
 class SalaryPayments extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get cycleId => integer().references(SalaryCycles, #id)();
-  RealColumn get amount => real().withDefault(const Constant(0))();
+  IntColumn get amount => integer().withDefault(const Constant(0))();
   TextColumn get hotelDayKey => text().nullable()();
   TextColumn get paymentDateIso => text()();
   TextColumn get method => text().nullable()();
@@ -574,6 +605,7 @@ class SyncConflicts extends Table {
     SyncLog,
     SyncConflicts,
     PriceAdjustments,
+    BookingPriceAdjustments,
     AuditLogs,
     PaymentVoids,
   ],
@@ -586,7 +618,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1018,6 +1050,205 @@ class AppDatabase extends _$AppDatabase {
         // إضافة حقل نوع التخفيض (total أو per_night)
         await m.addColumn(bookings, bookings.discountType);
       }
+      if (from < 24) {
+        // Migration 24: تحويل المبالغ المالية من REAL إلى INTEGER
+        // وإضافة جدول BookingPriceAdjustments
+        
+        // 1. إنشاء جدول BookingPriceAdjustments
+        await m.createTable(bookingPriceAdjustments);
+        
+        // 2. تحويل المبالغ في الجداول الموجودة من REAL إلى INTEGER
+        // نستخدم CAST للتحويل مع تقريب القيم
+        
+        // rooms.price
+        try {
+          await m.database.customStatement(
+            'UPDATE rooms SET price = CAST(ROUND(price) AS INTEGER) WHERE price IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log('Migration 24: rooms.price conversion failed: $e', name: 'db.migration');
+        }
+        
+        // bookings cached fields
+        try {
+          await m.database.customStatement(
+            'UPDATE bookings SET '
+            'discount = CAST(ROUND(discount) AS INTEGER), '
+            'total_due_cached = CAST(ROUND(total_due_cached) AS INTEGER), '
+            'total_paid_cached = CAST(ROUND(total_paid_cached) AS INTEGER), '
+            'remaining_balance_cached = CAST(ROUND(remaining_balance_cached) AS INTEGER) '
+            'WHERE 1=1',
+          );
+        } catch (e) {
+          developer.log('Migration 24: bookings conversion failed: $e', name: 'db.migration');
+        }
+        
+        // employees.basic_salary
+        try {
+          await m.database.customStatement(
+            'UPDATE employees SET basic_salary = CAST(ROUND(basic_salary) AS INTEGER) WHERE basic_salary IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log('Migration 24: employees conversion failed: $e', name: 'db.migration');
+        }
+        
+        // expenses.amount
+        try {
+          await m.database.customStatement(
+            'UPDATE expenses SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log('Migration 24: expenses conversion failed: $e', name: 'db.migration');
+        }
+        
+        // cash_transactions.amount
+        try {
+          await m.database.customStatement(
+            'UPDATE cash_transactions SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log('Migration 24: cash_transactions conversion failed: $e', name: 'db.migration');
+        }
+        
+        // payments.amount
+        try {
+          await m.database.customStatement(
+            'UPDATE payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log('Migration 24: payments conversion failed: $e', name: 'db.migration');
+        }
+        
+        // debts amounts
+        try {
+          await m.database.customStatement(
+            'UPDATE debts SET '
+            'total_amount = CAST(ROUND(total_amount) AS INTEGER), '
+            'paid_amount = CAST(ROUND(paid_amount) AS INTEGER), '
+            'remaining_amount = CAST(ROUND(remaining_amount) AS INTEGER) '
+            'WHERE 1=1',
+          );
+        } catch (e) {
+          developer.log('Migration 24: debts conversion failed: $e', name: 'db.migration');
+        }
+        
+        // booking_nights.nightly_rate + إضافة الأعمدة الجديدة
+        try {
+          await m.database.customStatement(
+            'UPDATE booking_nights SET nightly_rate = CAST(ROUND(nightly_rate) AS INTEGER) WHERE nightly_rate IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log('Migration 24: booking_nights.nightly_rate conversion failed: $e', name: 'db.migration');
+        }
+        
+        // إضافة أعمدة BookingNights الجديدة (baseRate, adjustment, finalRate)
+        try {
+          await m.addColumn(bookingNights, bookingNights.baseRate);
+        } catch (e) {
+          developer.log('Migration 24: add baseRate failed: $e', name: 'db.migration');
+        }
+        try {
+          await m.addColumn(bookingNights, bookingNights.adjustment);
+        } catch (e) {
+          developer.log('Migration 24: add adjustment failed: $e', name: 'db.migration');
+        }
+        try {
+          await m.addColumn(bookingNights, bookingNights.finalRate);
+        } catch (e) {
+          developer.log('Migration 24: add finalRate failed: $e', name: 'db.migration');
+        }
+        try {
+          await m.addColumn(bookingNights, bookingNights.appliedAdjustmentUuid);
+        } catch (e) {
+          developer.log('Migration 24: add appliedAdjustmentUuid failed: $e', name: 'db.migration');
+        }
+        
+        // تحديث القيم الافتراضية للأعمدة الجديدة
+        try {
+          await m.database.customStatement(
+            'UPDATE booking_nights SET '
+            'base_rate = COALESCE(nightly_rate, 0), '
+            'adjustment = 0, '
+            'final_rate = COALESCE(nightly_rate, 0) '
+            'WHERE base_rate IS NULL OR base_rate = 0',
+          );
+        } catch (e) {
+          developer.log('Migration 24: booking_nights defaults failed: $e', name: 'db.migration');
+        }
+        
+        // hotel_day_ledger amounts
+        try {
+          await m.database.customStatement(
+            'UPDATE hotel_day_ledger SET '
+            'total_income = CAST(ROUND(total_income) AS INTEGER), '
+            'total_expenses = CAST(ROUND(total_expenses) AS INTEGER), '
+            'pending_balances = CAST(ROUND(pending_balances) AS INTEGER), '
+            'occupancy_rate = CAST(ROUND(occupancy_rate) AS INTEGER) '
+            'WHERE 1=1',
+          );
+        } catch (e) {
+          developer.log('Migration 24: hotel_day_ledger conversion failed: $e', name: 'db.migration');
+        }
+        
+        // price_adjustments amounts
+        try {
+          await m.database.customStatement(
+            'UPDATE price_adjustments SET '
+            'previous_value = CAST(ROUND(previous_value) AS INTEGER), '
+            'new_value = CAST(ROUND(new_value) AS INTEGER) '
+            'WHERE 1=1',
+          );
+        } catch (e) {
+          developer.log('Migration 24: price_adjustments conversion failed: $e', name: 'db.migration');
+        }
+        
+        // payment_voids.voided_amount
+        try {
+          await m.database.customStatement(
+            'UPDATE payment_voids SET voided_amount = CAST(ROUND(voided_amount) AS INTEGER) WHERE voided_amount IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log('Migration 24: payment_voids conversion failed: $e', name: 'db.migration');
+        }
+        
+        // salary_cycles amounts
+        try {
+          await m.database.customStatement(
+            'UPDATE salary_cycles SET '
+            'expected_amount = CAST(ROUND(expected_amount) AS INTEGER), '
+            'actual_paid = CAST(ROUND(actual_paid) AS INTEGER), '
+            'remaining_amount = CAST(ROUND(remaining_amount) AS INTEGER) '
+            'WHERE 1=1',
+          );
+        } catch (e) {
+          developer.log('Migration 24: salary_cycles conversion failed: $e', name: 'db.migration');
+        }
+        
+        // salary_payments.amount
+        try {
+          await m.database.customStatement(
+            'UPDATE salary_payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log('Migration 24: salary_payments conversion failed: $e', name: 'db.migration');
+        }
+        
+        // audit_logs.amount_impact
+        try {
+          await m.database.customStatement(
+            'UPDATE audit_logs SET amount_impact = CAST(ROUND(amount_impact) AS INTEGER) WHERE amount_impact IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log('Migration 24: audit_logs conversion failed: $e', name: 'db.migration');
+        }
+        
+        // إضافة حقل discountStartDate للحجوزات إذا لم يكن موجوداً
+        try {
+          await m.addColumn(bookings, bookings.discountStartDate);
+        } catch (e) {
+          developer.log('Migration 24: add discountStartDate already exists or failed: $e', name: 'db.migration');
+        }
+      }
     },
   );
 
@@ -1039,9 +1270,10 @@ class AppDatabase extends _$AppDatabase {
     final sessionsData = await select(appSessions).get();
     final salaryCyclesData = await select(salaryCycles).get();
     final salaryPaymentsData = await select(salaryPayments).get();
+    final bookingPriceAdjustmentsData = await select(bookingPriceAdjustments).get();
 
     return {
-      'rooms': roomsData.map((e) => e.toJson()).toList(),
+      'rooms': roomsData.map((e) => e.toJson()).toList()
       'bookings': bookingsData.map((e) => e.toJson()).toList(),
       'booking_notes': bookingNotesData.map((e) => e.toJson()).toList(),
       'shift_notes': shiftNotesData.map((e) => e.toJson()).toList(),
@@ -1057,6 +1289,7 @@ class AppDatabase extends _$AppDatabase {
       'app_sessions': sessionsData.map((e) => e.toJson()).toList(),
       'salary_cycles': salaryCyclesData.map((e) => e.toJson()).toList(),
       'salary_payments': salaryPaymentsData.map((e) => e.toJson()).toList(),
+      'booking_price_adjustments': bookingPriceAdjustmentsData.map((e) => e.toJson()).toList(),
       'guests': <Map<String, dynamic>>[],
       'services': <Map<String, dynamic>>[],
       'settings': <Map<String, dynamic>>[],
@@ -1192,6 +1425,11 @@ class AppDatabase extends _$AppDatabase {
         salaryPayments,
         'salary_payments',
         (row) => SalaryPayment.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<BookingPriceAdjustment>(
+        bookingPriceAdjustments,
+        'booking_price_adjustments',
+        (row) => BookingPriceAdjustment.fromJson(row),
       );
 
       // إعادة تفعيل foreign key constraints

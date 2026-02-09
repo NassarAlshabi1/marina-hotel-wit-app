@@ -117,11 +117,7 @@ class RestoreFixService {
       paymentsDao = PaymentsDao(db, OutboxDao(db)),
       debtsDao = DebtsDao(db, OutboxDao(db));
 
-  /// تحويل المبلغ إلى cents (أعداد صحيحة)
-  int _toCents(double amount) => (amount * 100).round();
-
-  /// تحويل من cents إلى double
-  double _fromCents(int cents) => cents / 100;
+  // ملاحظة: جميع المبالغ المالية تستخدم int (الريال اليمني بدون كسور)
 
   /// إنشاء لقطة احتياطية محلية قبل بدء عملية الإصلاح
   Future<RestoreSnapshot> createLocalSnapshot(
@@ -434,52 +430,48 @@ class RestoreFixService {
                 ..where((p) => p.deletedAt.isNull()))
               .get();
 
-      final totalPaidCents = payments.fold<int>(
+      final totalPaid = payments.fold<int>(
         0,
-        (sum, payment) => sum + _toCents(payment.amount),
+        (sum, payment) => sum + payment.amount,
       );
-      final totalPaid = _fromCents(totalPaidCents);
 
       final room =
           await (db.select(db.rooms)
                 ..where((r) => r.roomNumber.equals(booking.roomNumber)))
               .getSingleOrNull();
-      double? expectedTotal;
-      int? expectedTotalCents;
+      int? expectedTotal;
       if (room != null) {
         final nights = await (db.select(db.bookingNights)
               ..where((n) => n.bookingLocalId.equals(booking.id))
               ..where((n) => n.deletedAt.isNull()))
             .get();
         
-        final double totalNightAmount;
+        final int totalNightAmount;
         if (nights.isNotEmpty) {
-          totalNightAmount = nights.fold<double>(0.0, (sum, n) => sum + n.nightlyRate);
+          totalNightAmount = nights.fold<int>(0, (sum, n) => sum + n.nightlyRate);
         } else {
           final baseRate = room.price;
           final discount = booking.discount;
           final discountType = booking.discountType;
           if (discountType == 'total') {
             totalNightAmount = (baseRate * booking.calculatedNights - discount)
-                .clamp(0.0, baseRate * booking.calculatedNights);
+                .clamp(0, baseRate * booking.calculatedNights);
           } else if (discount > 0) {
-            final discountedRate = (baseRate - discount).clamp(0.0, baseRate);
+            final discountedRate = (baseRate - discount).clamp(0, baseRate);
             totalNightAmount = discountedRate * booking.calculatedNights;
           } else {
             totalNightAmount = baseRate * booking.calculatedNights;
           }
         }
         
-        double finalTotal = totalNightAmount;
+        int finalTotal = totalNightAmount;
         if (booking.discount > 0 && booking.discountType == 'total') {
-          finalTotal = (totalNightAmount - booking.discount).clamp(0.0, totalNightAmount);
+          finalTotal = (totalNightAmount - booking.discount).clamp(0, totalNightAmount);
         }
-        expectedTotalCents = _toCents(finalTotal);
-        expectedTotal = _fromCents(expectedTotalCents);
+        expectedTotal = finalTotal;
 
-        final remainingBalanceCents = expectedTotalCents - totalPaidCents;
-        final remainingBalance = _fromCents(remainingBalanceCents);
-        final isFullyPaid = remainingBalanceCents <= 0;
+        final remainingBalance = (expectedTotal - totalPaid).clamp(0, expectedTotal);
+        final isFullyPaid = remainingBalance <= 0;
 
         if (booking.totalDueCached != expectedTotal ||
             booking.totalPaidCached != totalPaid ||
@@ -499,12 +491,12 @@ class RestoreFixService {
           );
 
           changes.add(
-            'تحديث المبالغ المخزنة للحجز #${booking.id}: الإجمالي=${expectedTotal.toStringAsFixed(2)}, المدفوع=${totalPaid.toStringAsFixed(2)}, المتبقي=${remainingBalance.toStringAsFixed(2)}',
+            'تحديث المبالغ المخزنة للحجز #${booking.id}: الإجمالي=$expectedTotal, المدفوع=$totalPaid, المتبقي=$remainingBalance',
           );
           debugPrint('💰 ${changes.last}');
         }
 
-        if ((totalPaidCents - expectedTotalCents).abs() > 1) {
+        if ((totalPaid - expectedTotal).abs() > 0 && totalPaid != expectedTotal) {
           await _logChange(
             fixId: fixId,
             targetTable: 'payments',
@@ -525,7 +517,7 @@ class RestoreFixService {
             newData: {'expected_total': expectedTotal},
           );
           final warningMsg =
-              'تنبيه: الحجز #${booking.id} - إجمالي المدفوعات (${totalPaid.toStringAsFixed(2)}) لا يتطابق مع المتوقع (${expectedTotal.toStringAsFixed(2)})';
+              'تنبيه: الحجز #${booking.id} - إجمالي المدفوعات ($totalPaid) لا يتطابق مع المتوقع ($expectedTotal)';
           changes.add(warningMsg);
           debugPrint('⚠️ $warningMsg');
         }
@@ -536,19 +528,14 @@ class RestoreFixService {
                 ..where((d) => d.bookingLocalId.equals(booking.id))
                 ..where((d) => d.deletedAt.isNull()))
               .get();
-      if (debts.isNotEmpty &&
-          expectedTotal != null &&
-          expectedTotalCents != null) {
-        final remainingCents = expectedTotalCents - totalPaidCents;
-        final isSettled = remainingCents <= 0 ? 1 : 0;
+      if (debts.isNotEmpty && expectedTotal != null) {
+        final remaining = (expectedTotal - totalPaid).clamp(0, expectedTotal);
+        final isSettled = remaining <= 0 ? 1 : 0;
         for (final debt in debts) {
-          final debtTotalCents = _toCents(debt.totalAmount);
-          final debtPaidCents = _toCents(debt.paidAmount);
-          final debtRemainingCents = _toCents(debt.remainingAmount);
           final shouldUpdate =
-              debtTotalCents != expectedTotalCents ||
-              debtPaidCents != totalPaidCents ||
-              debtRemainingCents != remainingCents ||
+              debt.totalAmount != expectedTotal ||
+              debt.paidAmount != totalPaid ||
+              debt.remainingAmount != remaining ||
               debt.isSettled != isSettled;
           if (shouldUpdate) {
             await _logConflict(
@@ -565,7 +552,7 @@ class RestoreFixService {
               newData: {
                 'total_amount': expectedTotal,
                 'paid_amount': totalPaid,
-                'remaining_amount': _fromCents(remainingCents),
+                'remaining_amount': remaining,
                 'is_settled': isSettled,
               },
             );
@@ -573,16 +560,16 @@ class RestoreFixService {
               db.debts,
             )..where((t) => t.id.equals(debt.id))).write(
               DebtsCompanion(
-                totalAmount: Value(_fromCents(expectedTotalCents)),
-                paidAmount: Value(_fromCents(totalPaidCents)),
-                remainingAmount: Value(_fromCents(remainingCents)),
+                totalAmount: Value(expectedTotal),
+                paidAmount: Value(totalPaid),
+                remainingAmount: Value(remaining),
                 isSettled: Value(isSettled),
                 updatedAt: Value(Time.nowEpoch()),
                 lastModified: Value(Time.nowEpoch()),
               ),
             );
             changes.add(
-              'إعادة احتساب الدين للحجز #${booking.id}: المتبقي ${_fromCents(remainingCents).toStringAsFixed(2)}، تم ${isSettled == 1 ? 'إغلاق الدين' : 'تحديثه'}',
+              'إعادة احتساب الدين للحجز #${booking.id}: المتبقي $remaining، تم ${isSettled == 1 ? 'إغلاق الدين' : 'تحديثه'}',
             );
           }
         }
@@ -805,8 +792,8 @@ class RestoreFixService {
     }
 
     final segments = _buildNightSegments(checkin, checkout);
-    final double baseNightlyRate = room.price;
-    final double discount = booking.discount;
+    final int baseNightlyRate = room.price;
+    final int discount = booking.discount;
     final String discountType = booking.discountType;
     final DateTime? discountStartDate = _parseDate(booking.discountStartDate);
     final List<BookingNightsCompanion> nightRows = [];
@@ -818,7 +805,7 @@ class RestoreFixService {
       sequence++;
       lastNightEnd = segment.end;
 
-      final double nightlyRate = _calculateNightlyRateForSegment(
+      final int nightlyRate = _calculateNightlyRateForSegment(
         segmentStart: segment.start,
         baseRate: baseNightlyRate,
         discount: discount,
@@ -865,15 +852,14 @@ class RestoreFixService {
     }
 
     final int totalNights = math.max(segments.length, 1);
-    final double totalNightAmount = nightRows.fold<double>(
-      0.0,
+    final int totalNightAmount = nightRows.fold<int>(
+      0,
       (sum, row) => sum + row.nightlyRate.value,
     );
-    double totalDue = totalNightAmount;
+    int totalDue = totalNightAmount;
     if (discount > 0 && discountType == 'total') {
-      totalDue = (totalNightAmount - discount).clamp(0.0, totalNightAmount);
+      totalDue = (totalNightAmount - discount).clamp(0, totalNightAmount);
     }
-    totalDue = double.parse(totalDue.toStringAsFixed(2));
     final String stayDurationIso =
         '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
     final int? lastNightEpoch = lastNightEnd != null
@@ -891,9 +877,9 @@ class RestoreFixService {
               ..where((p) => p.bookingLocalId.equals(booking.id))
               ..where((p) => p.deletedAt.isNull()))
             .get();
-    int totalPaidCents = 0;
+    int totalPaid = 0;
     for (final payment in paymentRows) {
-      totalPaidCents += _toCents(payment.amount);
+      totalPaid += payment.amount;
       final String key =
           payment.hotelDayKey ??
           _hotelDayKey(_parseDate(payment.paymentDate) ?? restoreMoment);
@@ -902,22 +888,17 @@ class RestoreFixService {
       accumulator.paymentsTotal += payment.amount;
     }
 
-    final int totalDueCents = _toCents(totalDue);
-    int remainingCents = totalDueCents - totalPaidCents;
-    if (remainingCents < 0) remainingCents = 0;
+    int remaining = totalDue - totalPaid;
+    if (remaining < 0) remaining = 0;
 
-    final double totalDueRounded = _fromCents(totalDueCents);
-    final double totalPaidRounded = _fromCents(totalPaidCents);
-    final double remaining = _fromCents(remainingCents);
-
-    final bool isFullyPaid = remainingCents <= 0;
-    final bool needsReview = isOverdue || remainingCents > 0;
+    final bool isFullyPaid = remaining <= 0;
+    final bool needsReview = isOverdue || remaining > 0;
 
     final pendingAccumulator = ledger.putIfAbsent(
       hotelDayCheckout,
       () => _LedgerAccumulator(),
     );
-    if (remainingCents > 0) {
+    if (remaining > 0) {
       pendingAccumulator.pendingBalance += remaining;
       pendingAccumulator.debtsProcessed += 1;
     }
@@ -935,8 +916,8 @@ class RestoreFixService {
         lastNightEpoch: Value(lastNightEpoch),
         isOverdue: Value(isOverdue),
         needsCheckoutReview: Value(needsReview),
-        totalDueCached: Value(totalDueRounded),
-        totalPaidCached: Value(totalPaidRounded),
+        totalDueCached: Value(totalDue),
+        totalPaidCached: Value(totalPaid),
         remainingBalanceCached: Value(remaining),
         isFullyPaid: Value(isFullyPaid),
         hotelDayCheckin: Value(hotelDayCheckin),
@@ -1002,15 +983,9 @@ class RestoreFixService {
           version: const Value(1),
           origin: const Value('auto_fix'),
           hotelDayKey: Value(key),
-          totalIncome: Value(
-            double.parse(accumulator.totalIncome.toStringAsFixed(2)),
-          ),
-          totalExpenses: Value(
-            double.parse(accumulator.totalExpenses.toStringAsFixed(2)),
-          ),
-          pendingBalances: Value(
-            double.parse(accumulator.pendingBalance.toStringAsFixed(2)),
-          ),
+          totalIncome: Value(accumulator.totalIncome),
+          totalExpenses: Value(accumulator.totalExpenses),
+          pendingBalances: Value(accumulator.pendingBalance),
           occupancyRate: Value(
             double.parse(occupancy.clamp(0, 1).toStringAsFixed(4)),
           ),
@@ -1161,20 +1136,20 @@ class RestoreFixService {
   String _hotelDayKey(DateTime value) =>
       Time.dateToString(_hotelDayStart(value));
 
-  double _calculateNightlyRateForSegment({
+  int _calculateNightlyRateForSegment({
     required DateTime segmentStart,
-    required double baseRate,
-    required double discount,
+    required int baseRate,
+    required int discount,
     required String discountType,
     required DateTime? discountStartDate,
   }) {
-    if (baseRate < 0) baseRate = 0;
+    if (baseRate < 0) return 0;
     var rate = baseRate;
     if (discount > 0 && discountType != 'total') {
       final hotelDay = _hotelDayStart(segmentStart);
       final hotelDayDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
       if (discountStartDate == null) {
-        rate = (baseRate - discount).clamp(0.0, baseRate);
+        rate = (baseRate - discount).clamp(0, baseRate);
       } else {
         final discountDay = DateTime(
           discountStartDate.year,
@@ -1182,11 +1157,11 @@ class RestoreFixService {
           discountStartDate.day,
         );
         if (!hotelDayDate.isBefore(discountDay)) {
-          rate = (baseRate - discount).clamp(0.0, baseRate);
+          rate = (baseRate - discount).clamp(0, baseRate);
         }
       }
     }
-    return double.parse(rate.toStringAsFixed(2));
+    return rate;
   }
 
   /// تسجيل التغيير في جدول RestoreFixLog
@@ -1424,10 +1399,10 @@ class _BookingStructuresResult {
 }
 
 class _LedgerAccumulator {
-  double totalIncome = 0;
-  double totalExpenses = 0;
-  double pendingBalance = 0;
-  double paymentsTotal = 0;
+  int totalIncome = 0;
+  int totalExpenses = 0;
+  int pendingBalance = 0;
+  int paymentsTotal = 0;
   int bookingsProcessed = 0;
   int paymentsProcessed = 0;
   int debtsProcessed = 0;

@@ -104,26 +104,26 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
         altKey: 'debt_reason',
         fallback: '',
       ),
-      totalAmount: _vDouble(
+      totalAmount: _vInt(
         json,
         'totalAmount',
         src,
         altKey: 'total_amount',
-        fallback: 0.0,
+        fallback: 0,
       ),
-      paidAmount: _vDouble(
+      paidAmount: _vInt(
         json,
         'paidAmount',
         src,
         altKey: 'paid_amount',
-        fallback: 0.0,
+        fallback: 0,
       ),
-      remainingAmount: _vDouble(
+      remainingAmount: _vInt(
         json,
         'remainingAmount',
         src,
         altKey: 'remaining_amount',
-        fallback: 0.0,
+        fallback: 0,
       ),
       paymentDate: _vStr(
         json,

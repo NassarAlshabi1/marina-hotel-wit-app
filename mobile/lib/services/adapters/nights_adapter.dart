@@ -91,12 +91,12 @@ class NightsAdapter
         fallback: '',
       ),
       nightEnd: _vStr(json, 'nightEnd', src, altKey: 'night_end', fallback: ''),
-      nightlyRate: _vDouble(
+      nightlyRate: _vInt(
         json,
         'nightlyRate',
         src,
         altKey: 'nightly_rate',
-        fallback: 0.0,
+        fallback: 0,
       ),
       sequence: _vInt(json, 'sequence', src, fallback: 0),
       isProcessedByAutoFix: _vBool(
@@ -104,6 +104,33 @@ class NightsAdapter
         'isProcessedByAutoFix',
         src,
         fallback: false,
+      ),
+      baseRate: _vInt(
+        json,
+        'baseRate',
+        src,
+        altKey: 'base_rate',
+        fallback: 0,
+      ),
+      adjustment: _vInt(
+        json,
+        'adjustment',
+        src,
+        altKey: 'adjustment',
+        fallback: 0,
+      ),
+      finalRate: _vInt(
+        json,
+        'finalRate',
+        src,
+        altKey: 'final_rate',
+        fallback: 0,
+      ),
+      appliedAdjustmentUuid: _vStr(
+        json,
+        'appliedAdjustmentUuid',
+        src,
+        altKey: 'applied_adjustment_uuid',
       ),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
@@ -145,6 +172,11 @@ class NightsAdapter
       _k(src, 'sequence', 'sequence'): model.sequence,
       _k(src, 'isProcessedByAutoFix', 'is_processed_by_auto_fix'):
           model.isProcessedByAutoFix,
+      _k(src, 'baseRate', 'base_rate'): model.baseRate,
+      _k(src, 'adjustment', 'adjustment'): model.adjustment,
+      _k(src, 'finalRate', 'final_rate'): model.finalRate,
+      _k(src, 'appliedAdjustmentUuid', 'applied_adjustment_uuid'):
+          model.appliedAdjustmentUuid,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,

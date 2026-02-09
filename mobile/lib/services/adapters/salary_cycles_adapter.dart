@@ -79,26 +79,26 @@ class SalaryCyclesAdapter
         altKey: 'hotel_day_end',
         fallback: '',
       ),
-      expectedAmount: _vDouble(
+      expectedAmount: _vInt(
         json,
         'expectedAmount',
         src,
         altKey: 'expected_amount',
-        fallback: 0.0,
+        fallback: 0,
       ),
-      actualPaid: _vDouble(
+      actualPaid: _vInt(
         json,
         'actualPaid',
         src,
         altKey: 'actual_paid',
-        fallback: 0.0,
+        fallback: 0,
       ),
-      remainingAmount: _vDouble(
+      remainingAmount: _vInt(
         json,
         'remainingAmount',
         src,
         altKey: 'remaining_amount',
-        fallback: 0.0,
+        fallback: 0,
       ),
       status: _vStr(json, 'status', src, fallback: 'draft'),
       createdAt: d.Value(createdAt),

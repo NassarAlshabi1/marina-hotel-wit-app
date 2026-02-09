@@ -97,7 +97,7 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
         altKey: 'booking_id',
       ),
       roomNumber: _vStr(json, 'roomNumber', src, altKey: 'room_number'),
-      amount: _vDouble(json, 'amount', src, fallback: 0.0),
+      amount: _vInt(json, 'amount', src, fallback: 0),
       paymentDate: _vStr(
         json,
         'paymentDate',

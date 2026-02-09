@@ -61,7 +61,7 @@ class BookingDerivedFieldsService {
               ..where((r) => r.deletedAt.isNull()))
             .getSingleOrNull();
 
-    final nightlyRate = room?.price ?? 0.0;
+    final nightlyRate = room?.price ?? 0;
     final discount = booking.discount;
     final discountType = booking.discountType;
     final discountStartDate = _parseDateTime(booking.discountStartDate);
@@ -95,20 +95,14 @@ class BookingDerivedFieldsService {
             .get();
 
     final totalNights = nights.length;
-    final totalNightAmount = nights.fold<double>(
+    final totalNightAmount = nights.fold<int>(
       0,
       (sum, night) => sum + night.nightlyRate,
     );
 
-    double totalDue = totalNightAmount;
+    int totalDue = totalNightAmount;
     if (discount > 0 && discountType == 'total') {
-      totalDue = double.parse(
-        (totalNightAmount - discount)
-            .clamp(0.0, totalNightAmount)
-            .toStringAsFixed(2),
-      );
-    } else {
-      totalDue = double.parse(totalNightAmount.toStringAsFixed(2));
+      totalDue = (totalNightAmount - discount).clamp(0, totalNightAmount);
     }
 
     final expectedNightsValue =
@@ -127,21 +121,17 @@ class BookingDerivedFieldsService {
               ..where((p) => p.deletedAt.isNull()))
             .get();
 
-    final totalPaid = double.parse(
-      payments.fold<double>(0.0, (sum, p) => sum + p.amount).toStringAsFixed(2),
-    );
+    final totalPaid = payments.fold<int>(0, (sum, p) => sum + p.amount);
 
-    final remainingRaw = double.parse(
-      (totalDue - totalPaid).toStringAsFixed(2),
-    );
-    final remaining = remainingRaw < 0 ? 0.0 : remainingRaw;
+    final remainingRaw = totalDue - totalPaid;
+    final remaining = remainingRaw < 0 ? 0 : remainingRaw;
 
-    final isFullyPaid = remaining <= 0.009;
+    final isFullyPaid = remaining <= 0;
     final isOverdue =
         bookingActive &&
         plannedCheckout != null &&
         moment.isAfter(plannedCheckout);
-    final needsReview = isOverdue || remaining > 0.009;
+    final needsReview = isOverdue || remaining > 0;
 
     final stayDurationIso =
         '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
@@ -185,8 +175,8 @@ class BookingDerivedFieldsService {
     required Booking booking,
     required DateTime checkin,
     required DateTime checkout,
-    required double nightlyRate,
-    required double discount,
+    required int nightlyRate,
+    required int discount,
     required String discountType,
     required DateTime? discountStartDate,
   }) async {
@@ -269,8 +259,8 @@ class BookingDerivedFieldsService {
     required Booking booking,
     required DateTime checkin,
     required DateTime checkout,
-    required double nightlyRate,
-    required double discount,
+    required int nightlyRate,
+    required int discount,
     required String discountType,
     required DateTime? discountStartDate,
   }) async {
@@ -323,10 +313,10 @@ class BookingDerivedFieldsService {
     });
   }
 
-  double _calculateNightlyRate(
+  int _calculateNightlyRate(
     DateTime segmentStart,
-    double baseRate,
-    double discount,
+    int baseRate,
+    int discount,
     String discountType,
     DateTime? discountStartDate,
   ) {
@@ -336,7 +326,7 @@ class BookingDerivedFieldsService {
       final hotelDay = Time.hotelDayStart(segmentStart);
       final hotelDayDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
       if (discountStartDate == null) {
-        rate = (baseRate - discount).clamp(0.0, baseRate);
+        rate = (baseRate - discount).clamp(0, baseRate);
       } else {
         final discountDay = DateTime(
           discountStartDate.year,
@@ -344,11 +334,11 @@ class BookingDerivedFieldsService {
           discountStartDate.day,
         );
         if (!hotelDayDate.isBefore(discountDay)) {
-          rate = (baseRate - discount).clamp(0.0, baseRate);
+          rate = (baseRate - discount).clamp(0, baseRate);
         }
       }
     }
-    return double.parse(rate.toStringAsFixed(2));
+    return rate;
   }
 
   int _resolveLastNightEpoch(List<BookingNight> nights, DateTime fallback) {

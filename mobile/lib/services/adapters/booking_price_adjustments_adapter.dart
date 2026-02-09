@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+
 import '../local_db.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
@@ -7,19 +8,19 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class CashTransactionsAdapter
-    extends EntityAdapter<CashTransaction, CashTransactionsCompanion> {
-  CashTransactionsAdapter(this.resolver);
+class BookingPriceAdjustmentsAdapter
+    extends EntityAdapter<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion> {
+  BookingPriceAdjustmentsAdapter(this.resolver);
   final IdResolver resolver;
 
   @override
-  String get collectionId => 'cash_transactions';
+  String get collectionId => 'booking_price_adjustments';
 
   @override
-  String get drivePath => 'cash_transactions.json';
+  String get drivePath => 'booking_price_adjustments.json';
 
   @override
-  String get tableName => 'cash_transactions';
+  String get tableName => 'booking_price_adjustments';
 
   @override
   Future<ResolveResult> resolveRefs(
@@ -27,29 +28,29 @@ class CashTransactionsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    final uuid =
-        _asString(json, 'localUuid', src) ??
-        _asString(json, 'local_uuid', src) ??
-        IdGen.uuid();
-    // ignore: unused_local_variable
-    final serverId =
-        _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
-    // ignore: unused_local_variable
-    final localId = _asInt(json, 'id', src);
-
+    final bookingUuid =
+        _asString(json, 'bookingLocalUuid', src) ??
+        _asString(json, 'booking_local_uuid', src) ??
+        _asString(json, 'booking_uuid', src);
+    final localId =
+        _asInt(json, 'bookingLocalId', src) ??
+        _asInt(json, 'booking_local_id', src);
+    final resolvedId = await resolver.resolveBooking(
+      localId: localId,
+      uuid: bookingUuid,
+    );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
-
     return ResolveResult(
-      bookingLocalId: null,
-      bookingUuidCache: uuid,
+      bookingLocalId: resolvedId,
+      bookingUuidCache: bookingUuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
     );
   }
 
   @override
-  CashTransactionsCompanion fromJson(
+  BookingPriceAdjustmentsCompanion fromJson(
     Map<String, dynamic> json, {
     required Source src,
     required ResolveResult refs,
@@ -61,36 +62,50 @@ class CashTransactionsAdapter
         refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
-
-    return CashTransactionsCompanion(
+    return BookingPriceAdjustmentsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(refs.bookingUuidCache ?? IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
-      registerId: _vInt(json, 'registerId', src, altKey: 'register_id'),
-      transactionType: _vStr(
+      bookingLocalUuid: _vStr(
         json,
-        'transactionType',
+        'bookingLocalUuid',
         src,
-        altKey: 'transaction_type',
-        fallback: 'expense',
+        altKey: 'booking_local_uuid',
+        fallback: refs.bookingUuidCache ?? '',
+      ),
+      bookingLocalId: refs.bookingLocalId != null
+          ? d.Value(refs.bookingLocalId)
+          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+      adjustmentType: _vInt(
+        json,
+        'adjustmentType',
+        src,
+        altKey: 'adjustment_type',
+        fallback: 0,
       ),
       amount: _vInt(json, 'amount', src, fallback: 0),
-      referenceType: _vStr(
+      effectiveHotelDay: _vStr(
         json,
-        'referenceType',
+        'effectiveHotelDay',
         src,
-        altKey: 'reference_type',
+        altKey: 'effective_hotel_day',
+        fallback: '',
       ),
-      referenceId: _vInt(json, 'referenceId', src, altKey: 'reference_id'),
-      description: _vStr(json, 'description', src),
-      transactionTime: _vStr(
+      endHotelDay: _vStr(
         json,
-        'transactionTime',
+        'endHotelDay',
         src,
-        altKey: 'transaction_time',
-        fallback: DateTime.now().toIso8601String(),
+        altKey: 'end_hotel_day',
       ),
-      createdBy: _vInt(json, 'createdBy', src, altKey: 'created_by'),
+      isActive: _vBool(json, 'isActive', src, altKey: 'is_active', fallback: true),
+      reason: _vStr(json, 'reason', src),
+      appliedBy: _vStr(json, 'appliedBy', src, altKey: 'applied_by'),
+      cancelledAt: _vStr(json, 'cancelledAt', src, altKey: 'cancelled_at'),
+      cancelledBy: _vStr(json, 'cancelledBy', src, altKey: 'cancelled_by'),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -98,37 +113,52 @@ class CashTransactionsAdapter
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
+      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
     );
   }
 
   @override
-  Map<String, dynamic> toJson(CashTransaction model, {required Source src}) {
+  Map<String, dynamic> toJson(BookingPriceAdjustment model, {required Source src}) {
     return {
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'registerId', 'register_id'): model.registerId,
-      _k(src, 'transactionType', 'transaction_type'): model.transactionType,
+      _k(src, 'bookingLocalUuid', 'booking_local_uuid'): model.bookingLocalUuid,
+      _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
+      _k(src, 'adjustmentType', 'adjustment_type'): model.adjustmentType,
       _k(src, 'amount', 'amount'): model.amount,
-      _k(src, 'referenceType', 'reference_type'): model.referenceType,
-      _k(src, 'referenceId', 'reference_id'): model.referenceId,
-      _k(src, 'description', 'description'): model.description,
-      _k(src, 'transactionTime', 'transaction_time'): model.transactionTime,
-      _k(src, 'createdBy', 'created_by'): model.createdBy,
+      _k(src, 'effectiveHotelDay', 'effective_hotel_day'): model.effectiveHotelDay,
+      _k(src, 'endHotelDay', 'end_hotel_day'): model.endHotelDay,
+      _k(src, 'isActive', 'is_active'): model.isActive,
+      _k(src, 'reason', 'reason'): model.reason,
+      _k(src, 'appliedBy', 'applied_by'): model.appliedBy,
+      _k(src, 'cancelledAt', 'cancelled_at'): model.cancelledAt,
+      _k(src, 'cancelledBy', 'cancelled_by'): model.cancelledBy,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
   }
 }
-
-// Helpers (Copied from bookings_adapter.dart to avoid dependency issues if not shared)
-// In a real refactor, these should be in a shared mixin or utility file.
 
 d.Value<int> _vInt(
   Map<String, dynamic> json,
@@ -158,16 +188,16 @@ d.Value<String> _vStr(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(
+d.Value<bool> _vBool(
   Map<String, dynamic> json,
   String key,
   Source src, {
   String? altKey,
-  double? fallback,
+  bool? fallback,
 }) {
   final v =
-      _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
@@ -177,8 +207,7 @@ int? _epoch(Map<String, dynamic> json, String key, Source src) {
   if (v != null) return v;
   final s = _asString(json, key, src);
   if (s == null) return null;
-  final parsed = int.tryParse(s);
-  return parsed;
+  return int.tryParse(s);
 }
 
 int? _asInt(Map<String, dynamic> json, String key, Source src) {
@@ -193,19 +222,22 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-double? _asDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
-  return null;
-}
-
 String? _asString(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
   if (v == null) return null;
   return v.toString();
+}
+
+bool? _asBool(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v is bool) return v;
+  if (v is num) return v != 0;
+  if (v is String) {
+    final t = v.toLowerCase();
+    if (t == 'true' || t == '1') return true;
+    if (t == 'false' || t == '0') return false;
+  }
+  return null;
 }
 
 Object? _raw(Map<String, dynamic> json, String key, Source src) {

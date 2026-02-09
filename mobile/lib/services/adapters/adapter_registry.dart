@@ -16,6 +16,7 @@ import 'shift_notes_adapter.dart';
 import 'price_adjustments_adapter.dart';
 import 'audit_logs_adapter.dart';
 import 'payment_voids_adapter.dart';
+import 'booking_price_adjustments_adapter.dart';
 
 class AdapterRegistry {
   AdapterRegistry(this.db)
@@ -96,7 +97,13 @@ class AdapterRegistry {
         db: db,
         table: db.paymentVoids,
         adapter: PaymentVoidsAdapter(IdResolver(db)),
-      );
+      ),
+      bookingPriceAdjustments =
+          BaseRepository<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion>(
+            db: db,
+            table: db.bookingPriceAdjustments,
+            adapter: BookingPriceAdjustmentsAdapter(IdResolver(db)),
+          );
 
   final AppDatabase db;
   final IdResolver resolver;
@@ -117,4 +124,6 @@ class AdapterRegistry {
       priceAdjustments;
   final BaseRepository<AuditLog, AuditLogsCompanion> auditLogs;
   final BaseRepository<PaymentVoid, PaymentVoidsCompanion> paymentVoids;
+  final BaseRepository<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion>
+      bookingPriceAdjustments;
 }

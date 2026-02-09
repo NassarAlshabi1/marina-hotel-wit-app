@@ -148,7 +148,7 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       ),
       status: _vStr(json, 'status', src, fallback: ''),
       notes: _vStr(json, 'notes', src),
-      discount: _vDouble(json, 'discount', src, fallback: 0),
+      discount: _vInt(json, 'discount', src, fallback: 0),
       discountType: _vStr(
         json,
         'discountType',
@@ -185,9 +185,9 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       lastNightEpoch: _vInt(json, 'lastNightEpoch', src),
       isOverdue: _vBool(json, 'isOverdue', src),
       needsCheckoutReview: _vBool(json, 'needsCheckoutReview', src),
-      totalDueCached: _vDouble(json, 'totalDueCached', src),
-      totalPaidCached: _vDouble(json, 'totalPaidCached', src),
-      remainingBalanceCached: _vDouble(json, 'remainingBalanceCached', src),
+      totalDueCached: _vInt(json, 'totalDueCached', src),
+      totalPaidCached: _vInt(json, 'totalPaidCached', src),
+      remainingBalanceCached: _vInt(json, 'remainingBalanceCached', src),
       isFullyPaid: _vBool(json, 'isFullyPaid', src),
       hotelDayCheckin: _vStr(
         json,

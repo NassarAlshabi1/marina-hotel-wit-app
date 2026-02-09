@@ -64,7 +64,7 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
         fallback: '',
       ),
       type: _vStr(json, 'type', src, fallback: ''),
-      price: _vDouble(json, 'price', src, fallback: 0.0),
+      price: _vInt(json, 'price', src, fallback: 0),
       status: _vStr(json, 'status', src, fallback: ''),
       imageUrl: _vStr(json, 'imageUrl', src, altKey: 'image_url'),
       cleaningStatus: _vStr(

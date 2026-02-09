@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
@@ -446,6 +447,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 TextField(
                   controller: amountController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'المبلغ *',
                     border: OutlineInputBorder(),
@@ -509,8 +511,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     );
 
     if (result == true) {
-      final amount = CurrencyFormatter.parseAmount(amountController.text);
-      if (amount == null || amount <= 0) {
+      final parsedAmount =
+          CurrencyFormatter.parseAmount(amountController.text);
+      if (parsedAmount == null || parsedAmount <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('يرجى إدخال مبلغ صحيح'),
@@ -519,6 +522,16 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         );
         return;
       }
+      if (parsedAmount % 1 != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('المبلغ يجب أن يكون بدون كسور'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      final int amount = parsedAmount.round();
 
       setState(() => _isProcessing = true);
 
