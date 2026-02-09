@@ -1799,7 +1799,7 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _totalPaidCachedMeta = const VerificationMeta(
     'totalPaidCached',
@@ -1811,7 +1811,7 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _remainingBalanceCachedMeta =
       const VerificationMeta('remainingBalanceCached');
@@ -1823,7 +1823,7 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
         false,
         type: DriftSqlType.double,
         requiredDuringInsert: false,
-        defaultValue: const Constant(0),
+        defaultValue: const Constant(0.0),
       );
   static const VerificationMeta _isFullyPaidMeta = const VerificationMeta(
     'isFullyPaid',
@@ -13730,7 +13730,7 @@ class $BookingNightsTable extends BookingNights
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _baseRateMeta = const VerificationMeta(
     'baseRate',
@@ -13742,7 +13742,7 @@ class $BookingNightsTable extends BookingNights
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _adjustmentMeta = const VerificationMeta(
     'adjustment',
@@ -13754,7 +13754,7 @@ class $BookingNightsTable extends BookingNights
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _finalRateMeta = const VerificationMeta(
     'finalRate',
@@ -13766,7 +13766,7 @@ class $BookingNightsTable extends BookingNights
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _appliedAdjustmentUuidMeta =
       const VerificationMeta('appliedAdjustmentUuid');
@@ -15188,7 +15188,7 @@ class $HotelDayLedgerTable extends HotelDayLedger
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _totalExpensesMeta = const VerificationMeta(
     'totalExpenses',
@@ -15200,7 +15200,7 @@ class $HotelDayLedgerTable extends HotelDayLedger
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _pendingBalancesMeta = const VerificationMeta(
     'pendingBalances',
@@ -15212,7 +15212,7 @@ class $HotelDayLedgerTable extends HotelDayLedger
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _occupancyRateMeta = const VerificationMeta(
     'occupancyRate',
@@ -15224,7 +15224,7 @@ class $HotelDayLedgerTable extends HotelDayLedger
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _bookingsProcessedMeta = const VerificationMeta(
     'bookingsProcessed',
