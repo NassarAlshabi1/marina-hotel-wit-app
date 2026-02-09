@@ -1287,7 +1287,7 @@ class AppDatabase extends _$AppDatabase {
     final bookingPriceAdjustmentsData = await select(bookingPriceAdjustments).get();
 
     return {
-      'rooms': roomsData.map((e) => e.toJson()).toList()
+      'rooms': roomsData.map((e) => e.toJson()).toList(),
       'bookings': bookingsData.map((e) => e.toJson()).toList(),
       'booking_notes': bookingNotesData.map((e) => e.toJson()).toList(),
       'shift_notes': shiftNotesData.map((e) => e.toJson()).toList(),
