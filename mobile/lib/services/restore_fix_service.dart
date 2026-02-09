@@ -10,6 +10,7 @@ import 'daos/rooms_dao.dart';
 import 'daos/payments_dao.dart';
 import 'daos/outbox_dao.dart';
 import 'daos/debts_dao.dart';
+import 'enhanced_booking_calculation_service.dart';
 import '../utils/time.dart';
 import '../utils/status_utils.dart';
 import '../utils/id.dart';
@@ -773,48 +774,27 @@ class RestoreFixService {
     required DateTime restoreMoment,
     required Map<String, _LedgerAccumulator> ledger,
   }) async {
-    final bool bookingActive =
-        booking.actualCheckout == null &&
-        (StatusUtils.isBookingActive(booking) || booking.checkoutDate == null);
+    final calcService = EnhancedBookingCalculationService(db);
+    final calculation =
+        await calcService.calculateForBooking(booking, now: restoreMoment);
+    final breakdown = calculation.breakdown;
 
-    final DateTime checkin = _parseDate(booking.checkinDate) ?? restoreMoment;
-    DateTime checkout =
-        _parseDate(booking.actualCheckout) ??
-        _parseDate(booking.checkoutDate) ??
-        restoreMoment;
-
-    if (bookingActive && restoreMoment.isAfter(checkin)) {
-      checkout = restoreMoment;
-    }
-
-    if (!checkout.isAfter(checkin)) {
-      checkout = checkin.add(const Duration(hours: 12));
-    }
-
-    final segments = _buildNightSegments(checkin, checkout);
-    final int baseNightlyRate = room.price;
-    final int discount = booking.discount;
-    final String discountType = booking.discountType;
-    final DateTime? discountStartDate = _parseDate(booking.discountStartDate);
     final List<BookingNightsCompanion> nightRows = [];
-
     int sequence = 0;
-    DateTime? lastNightEnd;
 
-    for (final segment in segments) {
+    for (final night in breakdown) {
       sequence++;
-      lastNightEnd = segment.end;
-
-      final int nightlyRate = _calculateNightlyRateForSegment(
-        segmentStart: segment.start,
-        baseRate: baseNightlyRate,
-        discount: discount,
-        discountType: discountType,
-        discountStartDate: discountStartDate,
-      );
-
       final int rowEpoch = Time.nowEpoch();
       final String rowIso = DateTime.now().toUtc().toIso8601String();
+      final appliedJson = night.appliedAdjustments.isEmpty
+          ? null
+          : jsonEncode(
+              night.appliedAdjustments.map((a) => a.toJson()).toList(),
+            );
+      final appliedUuid = night.appliedAdjustments.length == 1
+          ? night.appliedAdjustments.first.uuid
+          : null;
+
       nightRows.add(
         BookingNightsCompanion(
           localUuid: Value(IdGen.uuid()),
@@ -831,51 +811,49 @@ class RestoreFixService {
           version: const Value(1),
           origin: const Value('auto_fix'),
           bookingLocalId: Value(booking.id),
-          hotelDayKey: Value(segment.hotelDayKey),
-          nightStart: Value(segment.start.toIso8601String()),
-          nightEnd: Value(segment.end.toIso8601String()),
-          nightlyRate: Value(nightlyRate),
+          hotelDayKey: Value(night.hotelDayKey),
+          nightStart: Value(night.nightStart.toIso8601String()),
+          nightEnd: Value(night.nightEnd.toIso8601String()),
+          nightlyRate: Value(night.finalRate.toDouble()),
+          baseRate: Value(night.baseRate.toDouble()),
+          adjustment: Value(night.adjustmentAmount.toDouble()),
+          finalRate: Value(night.finalRate.toDouble()),
+          appliedAdjustmentUuid: Value(appliedUuid),
+          appliedAdjustmentsJson: Value(appliedJson),
           sequence: Value(sequence),
           isProcessedByAutoFix: const Value(true),
         ),
       );
 
       final accumulator = ledger.putIfAbsent(
-        segment.hotelDayKey,
+        night.hotelDayKey,
         () => _LedgerAccumulator(),
       );
-      accumulator.totalIncome += nightlyRate;
+      accumulator.totalIncome += night.finalRate;
       accumulator.bookingsProcessed += 1;
-      if (bookingActive) {
+      if (calculation.bookingActive) {
         accumulator.occupiedRooms.add(booking.roomNumber);
       }
     }
 
-    final int totalNights = math.max(segments.length, 1);
-    final int totalNightAmount = nightRows.fold<int>(
-      0,
-      (sum, row) => sum + row.nightlyRate.value,
-    );
-    int totalDue = totalNightAmount;
-    if (discount > 0 && discountType == 'total') {
-      totalDue = (totalNightAmount - discount).clamp(0, totalNightAmount);
-    }
-    final String stayDurationIso =
-        '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
-    final int? lastNightEpoch = lastNightEnd != null
-        ? lastNightEnd.millisecondsSinceEpoch ~/ 1000
-        : null;
-    final String hotelDayCheckin = _hotelDayKey(checkin);
-    final String hotelDayCheckout = _hotelDayKey(checkout);
-    final bool isOverdue =
-        bookingActive &&
-        checkout.isBefore(restoreMoment) &&
-        segments.isNotEmpty;
+    final int totalNights = math.max(breakdown.length, 1);
+    final int totalDue = calculation.financialSummary.totalDue;
 
     final paymentRows =
         await (db.select(db.payments)
-              ..where((p) => p.bookingLocalId.equals(booking.id))
-              ..where((p) => p.deletedAt.isNull()))
+              ..where(
+                (p) =>
+                    (p.bookingLocalId.equals(booking.id) |
+                    p.bookingUuidCache.equals(booking.localUuid)),
+              )
+              ..where((p) => p.deletedAt.isNull())
+              ..where((p) => p.isPendingBalance.equals(false))
+              ..where(
+                (p) =>
+                    p.revenueType.equals('room') |
+                    p.revenueType.equals('') |
+                    p.revenueType.isNull(),
+              ))
             .get();
     int totalPaid = 0;
     for (final payment in paymentRows) {
@@ -892,10 +870,14 @@ class RestoreFixService {
     if (remaining < 0) remaining = 0;
 
     final bool isFullyPaid = remaining <= 0;
+    final bool isOverdue =
+        calculation.bookingActive &&
+        calculation.checkout.isBefore(restoreMoment) &&
+        breakdown.isNotEmpty;
     final bool needsReview = isOverdue || remaining > 0;
 
     final pendingAccumulator = ledger.putIfAbsent(
-      hotelDayCheckout,
+      calculation.hotelDayCheckout,
       () => _LedgerAccumulator(),
     );
     if (remaining > 0) {
@@ -912,16 +894,16 @@ class RestoreFixService {
         calculatedNights: Value(totalNights),
         expectedNights: Value(totalNights),
         totalNightsCached: Value(totalNights),
-        stayDurationIso: Value(stayDurationIso),
-        lastNightEpoch: Value(lastNightEpoch),
+        stayDurationIso: Value(calculation.stayDurationIso),
+        lastNightEpoch: Value(calculation.lastNightEpoch),
         isOverdue: Value(isOverdue),
         needsCheckoutReview: Value(needsReview),
-        totalDueCached: Value(totalDue),
-        totalPaidCached: Value(totalPaid),
-        remainingBalanceCached: Value(remaining),
+        totalDueCached: Value(totalDue.toDouble()),
+        totalPaidCached: Value(totalPaid.toDouble()),
+        remainingBalanceCached: Value(remaining.toDouble()),
         isFullyPaid: Value(isFullyPaid),
-        hotelDayCheckin: Value(hotelDayCheckin),
-        hotelDayCheckout: Value(hotelDayCheckout),
+        hotelDayCheckin: Value(calculation.hotelDayCheckin),
+        hotelDayCheckout: Value(calculation.hotelDayCheckout),
         updatedAt: Value(stamp),
         lastModified: Value(stamp),
         updatedAtIso: Value(stampIso),
@@ -931,9 +913,9 @@ class RestoreFixService {
 
     return _BookingProcessingResult(
       nightRows: nightRows,
-      nightCount: segments.length,
+      nightCount: breakdown.length,
       paymentsCount: paymentRows.length,
-      lastOccupiedDay: segments.isNotEmpty ? segments.last.hotelDayKey : null,
+      lastOccupiedDay: breakdown.isNotEmpty ? breakdown.last.hotelDayKey : null,
     );
   }
 

@@ -3,6 +3,7 @@ import 'package:drift/drift.dart' as d;
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
+import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
 
 class BookingDerivedFieldsService {
@@ -33,112 +34,30 @@ class BookingDerivedFieldsService {
     bool forceRebuild = false,
   }) async {
     final moment = now ?? DateTime.now();
+    final calcService = EnhancedBookingCalculationService(db);
+    final calculation =
+        await calcService.calculateForBooking(booking, now: moment);
 
-    final checkin = _parseDateTime(booking.checkinDate);
-    if (checkin == null) {
-      return;
-    }
+    await calcService.updateNightlyRecords(
+      booking,
+      now: moment,
+      forceRebuild: forceRebuild,
+      breakdown: calculation.breakdown,
+    );
 
     final plannedCheckout = _parseDateTime(booking.checkoutDate);
     final actualCheckout = _parseDateTime(booking.actualCheckout);
-
-    final bookingActive =
-        actualCheckout == null && StatusUtils.isBookingActive(booking);
-
-    DateTime checkout = actualCheckout ?? plannedCheckout ?? moment;
-    if (bookingActive &&
-        (plannedCheckout == null || moment.isAfter(plannedCheckout))) {
-      checkout = moment;
-    }
-
-    if (!checkout.isAfter(checkin)) {
-      checkout = checkin.add(const Duration(minutes: 1));
-    }
-
-    final room =
-        await (db.select(db.rooms)
-              ..where((r) => r.roomNumber.equals(booking.roomNumber))
-              ..where((r) => r.deletedAt.isNull()))
-            .getSingleOrNull();
-
-    final nightlyRate = room?.price ?? 0;
-    final discount = booking.discount;
-    final discountType = booking.discountType;
-    final discountStartDate = _parseDateTime(booking.discountStartDate);
-
-    if (forceRebuild) {
-      await _rebuildBookingNights(
-        booking: booking,
-        checkin: checkin,
-        checkout: checkout,
-        nightlyRate: nightlyRate,
-        discount: discount,
-        discountType: discountType,
-        discountStartDate: discountStartDate,
-      );
-    } else {
-      await _ensureBookingNights(
-        booking: booking,
-        checkin: checkin,
-        checkout: checkout,
-        nightlyRate: nightlyRate,
-        discount: discount,
-        discountType: discountType,
-        discountStartDate: discountStartDate,
-      );
-    }
-
-    final nights =
-        await (db.select(db.bookingNights)
-              ..where((n) => n.bookingLocalId.equals(booking.id))
-              ..where((n) => n.deletedAt.isNull()))
-            .get();
-
-    final totalNights = nights.length;
-    final totalNightAmount = nights.fold<int>(
-      0,
-      (sum, night) => sum + night.nightlyRate,
-    );
-
-    int totalDue = totalNightAmount;
-    if (discount > 0 && discountType == 'total') {
-      totalDue = (totalNightAmount - discount).clamp(0, totalNightAmount);
-    }
-
     final expectedNightsValue =
         plannedCheckout != null && actualCheckout == null
-        ? totalNights
+        ? calculation.financialSummary.totalNights
         : booking.expectedNights;
 
-    final payments =
-        await (db.select(db.payments)
-              ..where(
-                (p) =>
-                    (p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.equals(booking.localUuid)),
-              )
-              ..where((p) => p.revenueType.equals('room'))
-              ..where((p) => p.deletedAt.isNull()))
-            .get();
-
-    final totalPaid = payments.fold<int>(0, (sum, p) => sum + p.amount);
-
-    final remainingRaw = totalDue - totalPaid;
-    final remaining = remainingRaw < 0 ? 0 : remainingRaw;
-
-    final isFullyPaid = remaining <= 0;
     final isOverdue =
-        bookingActive &&
+        calculation.bookingActive &&
         plannedCheckout != null &&
         moment.isAfter(plannedCheckout);
-    final needsReview = isOverdue || remaining > 0;
-
-    final stayDurationIso =
-        '${checkin.toIso8601String()}/${checkout.toIso8601String()}';
-    final lastNightEpoch = _resolveLastNightEpoch(nights, checkout);
-
-    final hotelDayCheckin = Time.hotelDayKey(now: checkin);
-    final hotelDayCheckout = Time.hotelDayKey(now: checkout);
+    final needsReview =
+        isOverdue || calculation.financialSummary.remainingBalance > 0;
 
     final nowUtc = DateTime.now().toUtc();
     final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
@@ -150,18 +69,24 @@ class BookingDerivedFieldsService {
       )..where((b) => b.id.equals(booking.id))).write(
         BookingsCompanion(
           expectedNights: d.Value(expectedNightsValue),
-          calculatedNights: d.Value(totalNights),
-          totalNightsCached: d.Value(totalNights),
-          stayDurationIso: d.Value(stayDurationIso),
-          lastNightEpoch: d.Value(lastNightEpoch),
+          calculatedNights: d.Value(calculation.financialSummary.totalNights),
+          totalNightsCached: d.Value(calculation.financialSummary.totalNights),
+          stayDurationIso: d.Value(calculation.stayDurationIso),
+          lastNightEpoch: d.Value(calculation.lastNightEpoch),
           isOverdue: d.Value(isOverdue),
           needsCheckoutReview: d.Value(needsReview),
-          totalDueCached: d.Value(totalDue),
-          totalPaidCached: d.Value(totalPaid),
-          remainingBalanceCached: d.Value(remaining),
-          isFullyPaid: d.Value(isFullyPaid),
-          hotelDayCheckin: d.Value(hotelDayCheckin),
-          hotelDayCheckout: d.Value(hotelDayCheckout),
+          totalDueCached: d.Value(
+            calculation.financialSummary.totalDue.toDouble(),
+          ),
+          totalPaidCached: d.Value(
+            calculation.financialSummary.totalPaid.toDouble(),
+          ),
+          remainingBalanceCached: d.Value(
+            calculation.financialSummary.remainingBalance.toDouble(),
+          ),
+          isFullyPaid: d.Value(calculation.financialSummary.isFullyPaid),
+          hotelDayCheckin: d.Value(calculation.hotelDayCheckin),
+          hotelDayCheckout: d.Value(calculation.hotelDayCheckout),
           updatedAt: d.Value(stamp),
           lastModified: d.Value(stamp),
           updatedAtIso: d.Value(stampIso),

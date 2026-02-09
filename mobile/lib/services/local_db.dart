@@ -35,7 +35,7 @@ class Rooms extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get roomNumber => text().unique()();
   TextColumn get type => text()();
-  IntColumn get price => integer()();
+  RealColumn get price => real()();
   TextColumn get status => text()();
   TextColumn get imageUrl => text().nullable()();
   TextColumn get cleaningStatus =>
@@ -88,10 +88,10 @@ class Bookings extends Table with SyncFields {
   BoolColumn get isOverdue => boolean().withDefault(const Constant(false))();
   BoolColumn get needsCheckoutReview =>
       boolean().withDefault(const Constant(false))();
-  IntColumn get totalDueCached => integer().withDefault(const Constant(0))();
-  IntColumn get totalPaidCached => integer().withDefault(const Constant(0))();
-  IntColumn get remainingBalanceCached =>
-      integer().withDefault(const Constant(0))();
+  RealColumn get totalDueCached => real().withDefault(const Constant(0))();
+  RealColumn get totalPaidCached => real().withDefault(const Constant(0))();
+  RealColumn get remainingBalanceCached =>
+      real().withDefault(const Constant(0))();
   BoolColumn get isFullyPaid => boolean().withDefault(const Constant(false))();
   TextColumn get hotelDayCheckin => text().nullable()();
   TextColumn get hotelDayCheckout => text().nullable()();
@@ -264,14 +264,15 @@ class BookingNights extends Table with SyncFields {
   TextColumn get hotelDayKey => text()();
   TextColumn get nightStart => text()();
   TextColumn get nightEnd => text()();
-  IntColumn get nightlyRate => integer().withDefault(const Constant(0))();
+  RealColumn get nightlyRate => real().withDefault(const Constant(0))();
   IntColumn get sequence => integer().withDefault(const Constant(0))();
   BoolColumn get isProcessedByAutoFix =>
       boolean().withDefault(const Constant(false))();
-  IntColumn get baseRate => integer().withDefault(const Constant(0))();
-  IntColumn get adjustment => integer().withDefault(const Constant(0))();
-  IntColumn get finalRate => integer().withDefault(const Constant(0))();
+  RealColumn get baseRate => real().withDefault(const Constant(0))();
+  RealColumn get adjustment => real().withDefault(const Constant(0))();
+  RealColumn get finalRate => real().withDefault(const Constant(0))();
   TextColumn get appliedAdjustmentUuid => text().nullable()();
+  TextColumn get appliedAdjustmentsJson => text().nullable()();
 
   @override
   List<Set<Column>>? get uniqueKeys => [
@@ -283,10 +284,10 @@ class BookingNights extends Table with SyncFields {
 class HotelDayLedger extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get hotelDayKey => text()();
-  IntColumn get totalIncome => integer().withDefault(const Constant(0))();
-  IntColumn get totalExpenses => integer().withDefault(const Constant(0))();
-  IntColumn get pendingBalances => integer().withDefault(const Constant(0))();
-  IntColumn get occupancyRate => integer().withDefault(const Constant(0))();
+  RealColumn get totalIncome => real().withDefault(const Constant(0))();
+  RealColumn get totalExpenses => real().withDefault(const Constant(0))();
+  RealColumn get pendingBalances => real().withDefault(const Constant(0))();
+  RealColumn get occupancyRate => real().withDefault(const Constant(0))();
   IntColumn get bookingsProcessed => integer().withDefault(const Constant(0))();
   IntColumn get paymentsProcessed => integer().withDefault(const Constant(0))();
   IntColumn get debtsProcessed => integer().withDefault(const Constant(0))();
@@ -618,7 +619,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 25;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1247,6 +1248,19 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(bookings, bookings.discountStartDate);
         } catch (e) {
           developer.log('Migration 24: add discountStartDate already exists or failed: $e', name: 'db.migration');
+        }
+      }
+      if (from < 25) {
+        try {
+          await m.addColumn(
+            bookingNights,
+            bookingNights.appliedAdjustmentsJson,
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 25: add appliedAdjustmentsJson failed: $e',
+            name: 'db.migration',
+          );
         }
       }
     },

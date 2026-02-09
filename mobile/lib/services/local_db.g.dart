@@ -13732,6 +13732,64 @@ class $BookingNightsTable extends BookingNights
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _baseRateMeta = const VerificationMeta(
+    'baseRate',
+  );
+  @override
+  late final GeneratedColumn<double> baseRate = GeneratedColumn<double>(
+    'base_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _adjustmentMeta = const VerificationMeta(
+    'adjustment',
+  );
+  @override
+  late final GeneratedColumn<double> adjustment = GeneratedColumn<double>(
+    'adjustment',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _finalRateMeta = const VerificationMeta(
+    'finalRate',
+  );
+  @override
+  late final GeneratedColumn<double> finalRate = GeneratedColumn<double>(
+    'final_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _appliedAdjustmentUuidMeta =
+      const VerificationMeta('appliedAdjustmentUuid');
+  @override
+  late final GeneratedColumn<String> appliedAdjustmentUuid =
+      GeneratedColumn<String>(
+        'applied_adjustment_uuid',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _appliedAdjustmentsJsonMeta =
+      const VerificationMeta('appliedAdjustmentsJson');
+  @override
+  late final GeneratedColumn<String> appliedAdjustmentsJson =
+      GeneratedColumn<String>(
+        'applied_adjustments_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _sequenceMeta = const VerificationMeta(
     'sequence',
   );
@@ -13780,6 +13838,11 @@ class $BookingNightsTable extends BookingNights
     nightStart,
     nightEnd,
     nightlyRate,
+    baseRate,
+    adjustment,
+    finalRate,
+    appliedAdjustmentUuid,
+    appliedAdjustmentsJson,
     sequence,
     isProcessedByAutoFix,
   ];
@@ -13958,6 +14021,42 @@ class $BookingNightsTable extends BookingNights
         ),
       );
     }
+    if (data.containsKey('base_rate')) {
+      context.handle(
+        _baseRateMeta,
+        baseRate.isAcceptableOrUnknown(data['base_rate']!, _baseRateMeta),
+      );
+    }
+    if (data.containsKey('adjustment')) {
+      context.handle(
+        _adjustmentMeta,
+        adjustment.isAcceptableOrUnknown(data['adjustment']!, _adjustmentMeta),
+      );
+    }
+    if (data.containsKey('final_rate')) {
+      context.handle(
+        _finalRateMeta,
+        finalRate.isAcceptableOrUnknown(data['final_rate']!, _finalRateMeta),
+      );
+    }
+    if (data.containsKey('applied_adjustment_uuid')) {
+      context.handle(
+        _appliedAdjustmentUuidMeta,
+        appliedAdjustmentUuid.isAcceptableOrUnknown(
+          data['applied_adjustment_uuid']!,
+          _appliedAdjustmentUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('applied_adjustments_json')) {
+      context.handle(
+        _appliedAdjustmentsJsonMeta,
+        appliedAdjustmentsJson.isAcceptableOrUnknown(
+          data['applied_adjustments_json']!,
+          _appliedAdjustmentsJsonMeta,
+        ),
+      );
+    }
     if (data.containsKey('sequence')) {
       context.handle(
         _sequenceMeta,
@@ -14066,6 +14165,26 @@ class $BookingNightsTable extends BookingNights
         DriftSqlType.double,
         data['${effectivePrefix}nightly_rate'],
       )!,
+      baseRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}base_rate'],
+      )!,
+      adjustment: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}adjustment'],
+      )!,
+      finalRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}final_rate'],
+      )!,
+      appliedAdjustmentUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}applied_adjustment_uuid'],
+      ),
+      appliedAdjustmentsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}applied_adjustments_json'],
+      ),
       sequence: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sequence'],
@@ -14104,6 +14223,11 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
   final String nightStart;
   final String nightEnd;
   final double nightlyRate;
+  final double baseRate;
+  final double adjustment;
+  final double finalRate;
+  final String? appliedAdjustmentUuid;
+  final String? appliedAdjustmentsJson;
   final int sequence;
   final bool isProcessedByAutoFix;
   const BookingNight({
@@ -14127,6 +14251,11 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     required this.nightStart,
     required this.nightEnd,
     required this.nightlyRate,
+    required this.baseRate,
+    required this.adjustment,
+    required this.finalRate,
+    this.appliedAdjustmentUuid,
+    this.appliedAdjustmentsJson,
     required this.sequence,
     required this.isProcessedByAutoFix,
   });
@@ -14163,6 +14292,17 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     map['night_start'] = Variable<String>(nightStart);
     map['night_end'] = Variable<String>(nightEnd);
     map['nightly_rate'] = Variable<double>(nightlyRate);
+    map['base_rate'] = Variable<double>(baseRate);
+    map['adjustment'] = Variable<double>(adjustment);
+    map['final_rate'] = Variable<double>(finalRate);
+    if (!nullToAbsent || appliedAdjustmentUuid != null) {
+      map['applied_adjustment_uuid'] =
+          Variable<String>(appliedAdjustmentUuid);
+    }
+    if (!nullToAbsent || appliedAdjustmentsJson != null) {
+      map['applied_adjustments_json'] =
+          Variable<String>(appliedAdjustmentsJson);
+    }
     map['sequence'] = Variable<int>(sequence);
     map['is_processed_by_auto_fix'] = Variable<bool>(isProcessedByAutoFix);
     return map;
@@ -14200,6 +14340,15 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       nightStart: Value(nightStart),
       nightEnd: Value(nightEnd),
       nightlyRate: Value(nightlyRate),
+      baseRate: Value(baseRate),
+      adjustment: Value(adjustment),
+      finalRate: Value(finalRate),
+      appliedAdjustmentUuid: appliedAdjustmentUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(appliedAdjustmentUuid),
+      appliedAdjustmentsJson: appliedAdjustmentsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(appliedAdjustmentsJson),
       sequence: Value(sequence),
       isProcessedByAutoFix: Value(isProcessedByAutoFix),
     );
@@ -14231,6 +14380,13 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       nightStart: serializer.fromJson<String>(json['nightStart']),
       nightEnd: serializer.fromJson<String>(json['nightEnd']),
       nightlyRate: serializer.fromJson<double>(json['nightlyRate']),
+      baseRate: serializer.fromJson<double>(json['baseRate']),
+      adjustment: serializer.fromJson<double>(json['adjustment']),
+      finalRate: serializer.fromJson<double>(json['finalRate']),
+      appliedAdjustmentUuid:
+          serializer.fromJson<String?>(json['appliedAdjustmentUuid']),
+      appliedAdjustmentsJson:
+          serializer.fromJson<String?>(json['appliedAdjustmentsJson']),
       sequence: serializer.fromJson<int>(json['sequence']),
       isProcessedByAutoFix: serializer.fromJson<bool>(
         json['isProcessedByAutoFix'],
@@ -14261,6 +14417,13 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       'nightStart': serializer.toJson<String>(nightStart),
       'nightEnd': serializer.toJson<String>(nightEnd),
       'nightlyRate': serializer.toJson<double>(nightlyRate),
+      'baseRate': serializer.toJson<double>(baseRate),
+      'adjustment': serializer.toJson<double>(adjustment),
+      'finalRate': serializer.toJson<double>(finalRate),
+      'appliedAdjustmentUuid':
+          serializer.toJson<String?>(appliedAdjustmentUuid),
+      'appliedAdjustmentsJson':
+          serializer.toJson<String?>(appliedAdjustmentsJson),
       'sequence': serializer.toJson<int>(sequence),
       'isProcessedByAutoFix': serializer.toJson<bool>(isProcessedByAutoFix),
     };
@@ -14287,6 +14450,11 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     String? nightStart,
     String? nightEnd,
     double? nightlyRate,
+    double? baseRate,
+    double? adjustment,
+    double? finalRate,
+    Value<String?> appliedAdjustmentUuid = const Value.absent(),
+    Value<String?> appliedAdjustmentsJson = const Value.absent(),
     int? sequence,
     bool? isProcessedByAutoFix,
   }) => BookingNight(
@@ -14310,6 +14478,15 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     nightStart: nightStart ?? this.nightStart,
     nightEnd: nightEnd ?? this.nightEnd,
     nightlyRate: nightlyRate ?? this.nightlyRate,
+    baseRate: baseRate ?? this.baseRate,
+    adjustment: adjustment ?? this.adjustment,
+    finalRate: finalRate ?? this.finalRate,
+    appliedAdjustmentUuid: appliedAdjustmentUuid.present
+        ? appliedAdjustmentUuid.value
+        : this.appliedAdjustmentUuid,
+    appliedAdjustmentsJson: appliedAdjustmentsJson.present
+        ? appliedAdjustmentsJson.value
+        : this.appliedAdjustmentsJson,
     sequence: sequence ?? this.sequence,
     isProcessedByAutoFix: isProcessedByAutoFix ?? this.isProcessedByAutoFix,
   );
@@ -14357,6 +14534,16 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       nightlyRate: data.nightlyRate.present
           ? data.nightlyRate.value
           : this.nightlyRate,
+      baseRate: data.baseRate.present ? data.baseRate.value : this.baseRate,
+      adjustment:
+          data.adjustment.present ? data.adjustment.value : this.adjustment,
+      finalRate: data.finalRate.present ? data.finalRate.value : this.finalRate,
+      appliedAdjustmentUuid: data.appliedAdjustmentUuid.present
+          ? data.appliedAdjustmentUuid.value
+          : this.appliedAdjustmentUuid,
+      appliedAdjustmentsJson: data.appliedAdjustmentsJson.present
+          ? data.appliedAdjustmentsJson.value
+          : this.appliedAdjustmentsJson,
       sequence: data.sequence.present ? data.sequence.value : this.sequence,
       isProcessedByAutoFix: data.isProcessedByAutoFix.present
           ? data.isProcessedByAutoFix.value
@@ -14387,6 +14574,11 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           ..write('nightStart: $nightStart, ')
           ..write('nightEnd: $nightEnd, ')
           ..write('nightlyRate: $nightlyRate, ')
+          ..write('baseRate: $baseRate, ')
+          ..write('adjustment: $adjustment, ')
+          ..write('finalRate: $finalRate, ')
+          ..write('appliedAdjustmentUuid: $appliedAdjustmentUuid, ')
+          ..write('appliedAdjustmentsJson: $appliedAdjustmentsJson, ')
           ..write('sequence: $sequence, ')
           ..write('isProcessedByAutoFix: $isProcessedByAutoFix')
           ..write(')'))
@@ -14415,6 +14607,11 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     nightStart,
     nightEnd,
     nightlyRate,
+    baseRate,
+    adjustment,
+    finalRate,
+    appliedAdjustmentUuid,
+    appliedAdjustmentsJson,
     sequence,
     isProcessedByAutoFix,
   ]);
@@ -14442,6 +14639,11 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           other.nightStart == this.nightStart &&
           other.nightEnd == this.nightEnd &&
           other.nightlyRate == this.nightlyRate &&
+          other.baseRate == this.baseRate &&
+          other.adjustment == this.adjustment &&
+          other.finalRate == this.finalRate &&
+          other.appliedAdjustmentUuid == this.appliedAdjustmentUuid &&
+          other.appliedAdjustmentsJson == this.appliedAdjustmentsJson &&
           other.sequence == this.sequence &&
           other.isProcessedByAutoFix == this.isProcessedByAutoFix);
 }
@@ -14467,6 +14669,11 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
   final Value<String> nightStart;
   final Value<String> nightEnd;
   final Value<double> nightlyRate;
+  final Value<double> baseRate;
+  final Value<double> adjustment;
+  final Value<double> finalRate;
+  final Value<String?> appliedAdjustmentUuid;
+  final Value<String?> appliedAdjustmentsJson;
   final Value<int> sequence;
   final Value<bool> isProcessedByAutoFix;
   const BookingNightsCompanion({
@@ -14490,6 +14697,11 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.nightStart = const Value.absent(),
     this.nightEnd = const Value.absent(),
     this.nightlyRate = const Value.absent(),
+    this.baseRate = const Value.absent(),
+    this.adjustment = const Value.absent(),
+    this.finalRate = const Value.absent(),
+    this.appliedAdjustmentUuid = const Value.absent(),
+    this.appliedAdjustmentsJson = const Value.absent(),
     this.sequence = const Value.absent(),
     this.isProcessedByAutoFix = const Value.absent(),
   });
@@ -14514,6 +14726,11 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     required String nightStart,
     required String nightEnd,
     this.nightlyRate = const Value.absent(),
+    this.baseRate = const Value.absent(),
+    this.adjustment = const Value.absent(),
+    this.finalRate = const Value.absent(),
+    this.appliedAdjustmentUuid = const Value.absent(),
+    this.appliedAdjustmentsJson = const Value.absent(),
     this.sequence = const Value.absent(),
     this.isProcessedByAutoFix = const Value.absent(),
   }) : localUuid = Value(localUuid),
@@ -14545,6 +14762,11 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Expression<String>? nightStart,
     Expression<String>? nightEnd,
     Expression<double>? nightlyRate,
+    Expression<double>? baseRate,
+    Expression<double>? adjustment,
+    Expression<double>? finalRate,
+    Expression<String>? appliedAdjustmentUuid,
+    Expression<String>? appliedAdjustmentsJson,
     Expression<int>? sequence,
     Expression<bool>? isProcessedByAutoFix,
   }) {
@@ -14569,6 +14791,13 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
       if (nightStart != null) 'night_start': nightStart,
       if (nightEnd != null) 'night_end': nightEnd,
       if (nightlyRate != null) 'nightly_rate': nightlyRate,
+      if (baseRate != null) 'base_rate': baseRate,
+      if (adjustment != null) 'adjustment': adjustment,
+      if (finalRate != null) 'final_rate': finalRate,
+      if (appliedAdjustmentUuid != null)
+        'applied_adjustment_uuid': appliedAdjustmentUuid,
+      if (appliedAdjustmentsJson != null)
+        'applied_adjustments_json': appliedAdjustmentsJson,
       if (sequence != null) 'sequence': sequence,
       if (isProcessedByAutoFix != null)
         'is_processed_by_auto_fix': isProcessedByAutoFix,
@@ -14596,6 +14825,11 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Value<String>? nightStart,
     Value<String>? nightEnd,
     Value<double>? nightlyRate,
+    Value<double>? baseRate,
+    Value<double>? adjustment,
+    Value<double>? finalRate,
+    Value<String?>? appliedAdjustmentUuid,
+    Value<String?>? appliedAdjustmentsJson,
     Value<int>? sequence,
     Value<bool>? isProcessedByAutoFix,
   }) {
@@ -14620,6 +14854,11 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
       nightStart: nightStart ?? this.nightStart,
       nightEnd: nightEnd ?? this.nightEnd,
       nightlyRate: nightlyRate ?? this.nightlyRate,
+      baseRate: baseRate ?? this.baseRate,
+      adjustment: adjustment ?? this.adjustment,
+      finalRate: finalRate ?? this.finalRate,
+      appliedAdjustmentUuid: appliedAdjustmentUuid ?? this.appliedAdjustmentUuid,
+      appliedAdjustmentsJson: appliedAdjustmentsJson ?? this.appliedAdjustmentsJson,
       sequence: sequence ?? this.sequence,
       isProcessedByAutoFix: isProcessedByAutoFix ?? this.isProcessedByAutoFix,
     );
@@ -14688,6 +14927,23 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     if (nightlyRate.present) {
       map['nightly_rate'] = Variable<double>(nightlyRate.value);
     }
+    if (baseRate.present) {
+      map['base_rate'] = Variable<double>(baseRate.value);
+    }
+    if (adjustment.present) {
+      map['adjustment'] = Variable<double>(adjustment.value);
+    }
+    if (finalRate.present) {
+      map['final_rate'] = Variable<double>(finalRate.value);
+    }
+    if (appliedAdjustmentUuid.present) {
+      map['applied_adjustment_uuid'] =
+          Variable<String>(appliedAdjustmentUuid.value);
+    }
+    if (appliedAdjustmentsJson.present) {
+      map['applied_adjustments_json'] =
+          Variable<String>(appliedAdjustmentsJson.value);
+    }
     if (sequence.present) {
       map['sequence'] = Variable<int>(sequence.value);
     }
@@ -14722,6 +14978,11 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
           ..write('nightStart: $nightStart, ')
           ..write('nightEnd: $nightEnd, ')
           ..write('nightlyRate: $nightlyRate, ')
+          ..write('baseRate: $baseRate, ')
+          ..write('adjustment: $adjustment, ')
+          ..write('finalRate: $finalRate, ')
+          ..write('appliedAdjustmentUuid: $appliedAdjustmentUuid, ')
+          ..write('appliedAdjustmentsJson: $appliedAdjustmentsJson, ')
           ..write('sequence: $sequence, ')
           ..write('isProcessedByAutoFix: $isProcessedByAutoFix')
           ..write(')'))
@@ -30936,6 +31197,11 @@ typedef $$BookingNightsTableCreateCompanionBuilder =
       required String nightStart,
       required String nightEnd,
       Value<double> nightlyRate,
+      Value<double> baseRate,
+      Value<double> adjustment,
+      Value<double> finalRate,
+      Value<String?> appliedAdjustmentUuid,
+      Value<String?> appliedAdjustmentsJson,
       Value<int> sequence,
       Value<bool> isProcessedByAutoFix,
     });
@@ -30961,6 +31227,11 @@ typedef $$BookingNightsTableUpdateCompanionBuilder =
       Value<String> nightStart,
       Value<String> nightEnd,
       Value<double> nightlyRate,
+      Value<double> baseRate,
+      Value<double> adjustment,
+      Value<double> finalRate,
+      Value<String?> appliedAdjustmentUuid,
+      Value<String?> appliedAdjustmentsJson,
       Value<int> sequence,
       Value<bool> isProcessedByAutoFix,
     });
@@ -31094,6 +31365,31 @@ class $$BookingNightsTableFilterComposer
 
   ColumnFilters<double> get nightlyRate => $composableBuilder(
     column: $table.nightlyRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get baseRate => $composableBuilder(
+    column: $table.baseRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get adjustment => $composableBuilder(
+    column: $table.adjustment,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get finalRate => $composableBuilder(
+    column: $table.finalRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get appliedAdjustmentUuid => $composableBuilder(
+    column: $table.appliedAdjustmentUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get appliedAdjustmentsJson => $composableBuilder(
+    column: $table.appliedAdjustmentsJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -31235,6 +31531,31 @@ class $$BookingNightsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get baseRate => $composableBuilder(
+    column: $table.baseRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get adjustment => $composableBuilder(
+    column: $table.adjustment,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get finalRate => $composableBuilder(
+    column: $table.finalRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get appliedAdjustmentUuid => $composableBuilder(
+    column: $table.appliedAdjustmentUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get appliedAdjustmentsJson => $composableBuilder(
+    column: $table.appliedAdjustmentsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get sequence => $composableBuilder(
     column: $table.sequence,
     builder: (column) => ColumnOrderings(column),
@@ -31355,6 +31676,25 @@ class $$BookingNightsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get baseRate =>
+      $composableBuilder(column: $table.baseRate, builder: (column) => column);
+
+  GeneratedColumn<double> get adjustment =>
+      $composableBuilder(column: $table.adjustment, builder: (column) => column);
+
+  GeneratedColumn<double> get finalRate =>
+      $composableBuilder(column: $table.finalRate, builder: (column) => column);
+
+  GeneratedColumn<String> get appliedAdjustmentUuid => $composableBuilder(
+    column: $table.appliedAdjustmentUuid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get appliedAdjustmentsJson => $composableBuilder(
+    column: $table.appliedAdjustmentsJson,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get sequence =>
       $composableBuilder(column: $table.sequence, builder: (column) => column);
 
@@ -31435,6 +31775,11 @@ class $$BookingNightsTableTableManager
                 Value<String> nightStart = const Value.absent(),
                 Value<String> nightEnd = const Value.absent(),
                 Value<double> nightlyRate = const Value.absent(),
+                Value<double> baseRate = const Value.absent(),
+                Value<double> adjustment = const Value.absent(),
+                Value<double> finalRate = const Value.absent(),
+                Value<String?> appliedAdjustmentUuid = const Value.absent(),
+                Value<String?> appliedAdjustmentsJson = const Value.absent(),
                 Value<int> sequence = const Value.absent(),
                 Value<bool> isProcessedByAutoFix = const Value.absent(),
               }) => BookingNightsCompanion(
@@ -31458,6 +31803,11 @@ class $$BookingNightsTableTableManager
                 nightStart: nightStart,
                 nightEnd: nightEnd,
                 nightlyRate: nightlyRate,
+                baseRate: baseRate,
+                adjustment: adjustment,
+                finalRate: finalRate,
+                appliedAdjustmentUuid: appliedAdjustmentUuid,
+                appliedAdjustmentsJson: appliedAdjustmentsJson,
                 sequence: sequence,
                 isProcessedByAutoFix: isProcessedByAutoFix,
               ),
@@ -31483,6 +31833,11 @@ class $$BookingNightsTableTableManager
                 required String nightStart,
                 required String nightEnd,
                 Value<double> nightlyRate = const Value.absent(),
+                Value<double> baseRate = const Value.absent(),
+                Value<double> adjustment = const Value.absent(),
+                Value<double> finalRate = const Value.absent(),
+                Value<String?> appliedAdjustmentUuid = const Value.absent(),
+                Value<String?> appliedAdjustmentsJson = const Value.absent(),
                 Value<int> sequence = const Value.absent(),
                 Value<bool> isProcessedByAutoFix = const Value.absent(),
               }) => BookingNightsCompanion.insert(
@@ -31506,6 +31861,11 @@ class $$BookingNightsTableTableManager
                 nightStart: nightStart,
                 nightEnd: nightEnd,
                 nightlyRate: nightlyRate,
+                baseRate: baseRate,
+                adjustment: adjustment,
+                finalRate: finalRate,
+                appliedAdjustmentUuid: appliedAdjustmentUuid,
+                appliedAdjustmentsJson: appliedAdjustmentsJson,
                 sequence: sequence,
                 isProcessedByAutoFix: isProcessedByAutoFix,
               ),

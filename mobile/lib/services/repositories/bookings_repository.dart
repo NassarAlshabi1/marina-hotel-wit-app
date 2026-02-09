@@ -4,6 +4,8 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
+import '../utils/id.dart';
+import '../utils/time.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
@@ -69,6 +71,7 @@ class BookingsRepository {
         discountStartDate: d.Value(discountStartDate),
       ),
     );
+    await _syncLegacyDiscountToAdjustments(result);
     await derivedFields.refreshForBookingId(result);
     AutoBackupManager.instance.onDataChange(
       'bookings',
@@ -161,6 +164,7 @@ class BookingsRepository {
       ),
     );
     if (result > 0) {
+      await _syncLegacyDiscountToAdjustments(id);
       await derivedFields.refreshForBookingId(id);
       AutoBackupManager.instance.onDataChange(
         'bookings',
@@ -211,6 +215,59 @@ class BookingsRepository {
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
     return await dao.getRecordCount();
+  }
+
+  Future<void> _syncLegacyDiscountToAdjustments(int bookingId) async {
+    final booking = await (db.select(db.bookings)
+          ..where((b) => b.id.equals(bookingId)))
+        .getSingleOrNull();
+    if (booking == null) return;
+
+    final discount = booking.discount;
+    if (discount <= 0 || booking.discountType == 'total') {
+      return;
+    }
+
+    final effectiveHotelDay = Time.hotelDayKeyFromIso(
+      booking.discountStartDate ?? booking.checkinDate,
+    );
+
+    final existing = await (db.select(db.bookingPriceAdjustments)
+          ..where((a) => a.bookingLocalId.equals(bookingId))
+          ..where((a) => a.isActive.equals(true))
+          ..where((a) => a.deletedAt.isNull()))
+        .get();
+
+    final hasMatch = existing.any(
+      (a) => a.adjustmentType == 0 &&
+          a.amount == discount &&
+          a.effectiveHotelDay == effectiveHotelDay,
+    );
+
+    if (hasMatch) return;
+
+    final now = Time.nowEpoch();
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+
+    await db.into(db.bookingPriceAdjustments).insert(
+          BookingPriceAdjustmentsCompanion(
+            localUuid: d.Value(IdGen.uuid()),
+            bookingLocalUuid: d.Value(booking.localUuid),
+            bookingLocalId: d.Value(booking.id),
+            adjustmentType: const d.Value(0),
+            amount: d.Value(discount),
+            effectiveHotelDay: d.Value(effectiveHotelDay),
+            isActive: const d.Value(true),
+            reason: const d.Value('legacy_discount'),
+            createdAt: d.Value(now),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
+            createdAtIso: d.Value(nowIso),
+            updatedAtIso: d.Value(nowIso),
+            createdAtEpoch: d.Value(now),
+            lastModifiedEpoch: d.Value(now),
+          ),
+        );
   }
 
   /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
