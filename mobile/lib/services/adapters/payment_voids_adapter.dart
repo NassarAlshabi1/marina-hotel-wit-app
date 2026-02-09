@@ -219,18 +219,6 @@ String? _asString(Map<String, dynamic> json, String key, Source src) {
   return v.toString();
 }
 
-bool? _asBool(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is bool) return v;
-  if (v is num) return v != 0;
-  if (v is String) {
-    final t = v.toLowerCase();
-    if (t == 'true' || t == '1') return true;
-    if (t == 'false' || t == '0') return false;
-  }
-  return null;
-}
-
 Object? _raw(Map<String, dynamic> json, String key, Source src) {
   if (json.containsKey(key)) return json[key];
   final alt = _altKey(key, src);
