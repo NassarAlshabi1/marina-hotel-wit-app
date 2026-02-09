@@ -154,7 +154,7 @@ void main() {
         guestNationality: const Value('يمني'),
         checkinDate: const Value('2026-02-05T15:00:00'),
         status: const Value('مؤكد'),
-        discount: const Value(2000.0),
+        discount: const Value(2000),
         discountType: const Value('per_night'),
         discountStartDate: const Value('2026-02-05'),
         expectedNights: const Value(5),

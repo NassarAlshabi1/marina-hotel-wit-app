@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:marina_hotel_app/services/local_db.dart';
-import 'package:marina_hotel_app/services/booking_price_adjustment_service.dart';
-import 'package:marina_hotel_app/services/booking_derived_fields_service.dart';
-import 'package:marina_hotel_app/utils/time.dart';
-import 'package:marina_hotel_app/utils/id.dart';
+import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:marina_hotel_mobile/services/booking_price_adjustment_service.dart';
+import 'package:marina_hotel_mobile/services/booking_derived_fields_service.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
+import 'package:marina_hotel_mobile/utils/id.dart';
 
 AppDatabase _createTestDb() {
   return AppDatabase.forTesting(NativeDatabase.memory());
