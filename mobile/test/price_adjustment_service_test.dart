@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:marina_hotel_app/services/local_db.dart';
-import 'package:marina_hotel_app/services/price_adjustment_service.dart';
-import 'package:marina_hotel_app/utils/time.dart';
+import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:marina_hotel_mobile/services/price_adjustment_service.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
 
 void main() {
   late AppDatabase db;
