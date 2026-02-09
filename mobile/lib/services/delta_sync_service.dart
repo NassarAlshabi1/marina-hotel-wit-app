@@ -490,6 +490,33 @@ class DeltaSyncService {
         deletedAt: (dynamic row) => (row as SalaryPayment).deletedAt,
         toJson: (dynamic row) => (row as SalaryPayment).toJson(),
       ),
+      _EntityConfig(
+        entity: 'price_adjustments',
+        fetchAll: () => db.select(db.priceAdjustments).get(),
+        localUuid: (dynamic row) => (row as PriceAdjustment).localUuid,
+        createdAt: (dynamic row) => (row as PriceAdjustment).createdAt,
+        lastModified: (dynamic row) => (row as PriceAdjustment).lastModified,
+        deletedAt: (dynamic row) => (row as PriceAdjustment).deletedAt,
+        toJson: (dynamic row) => (row as PriceAdjustment).toJson(),
+      ),
+      _EntityConfig(
+        entity: 'audit_logs',
+        fetchAll: () => db.select(db.auditLogs).get(),
+        localUuid: (dynamic row) => (row as AuditLog).localUuid,
+        createdAt: (dynamic row) => (row as AuditLog).createdAt,
+        lastModified: (dynamic row) => (row as AuditLog).createdAt,
+        deletedAt: (dynamic row) => null,
+        toJson: (dynamic row) => (row as AuditLog).toJson(),
+      ),
+      _EntityConfig(
+        entity: 'payment_voids',
+        fetchAll: () => db.select(db.paymentVoids).get(),
+        localUuid: (dynamic row) => (row as PaymentVoid).localUuid,
+        createdAt: (dynamic row) => (row as PaymentVoid).createdAt,
+        lastModified: (dynamic row) => (row as PaymentVoid).lastModified,
+        deletedAt: (dynamic row) => (row as PaymentVoid).deletedAt,
+        toJson: (dynamic row) => (row as PaymentVoid).toJson(),
+      ),
     ];
   }
 }
