@@ -573,6 +573,9 @@ class SyncConflicts extends Table {
     SyncQueue,
     SyncLog,
     SyncConflicts,
+    PriceAdjustments,
+    AuditLogs,
+    PaymentVoids,
   ],
 )
 class AppDatabase extends _$AppDatabase {

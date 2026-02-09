@@ -867,7 +867,7 @@ class RestoreFixService {
     final int totalNights = math.max(segments.length, 1);
     final double totalNightAmount = nightRows.fold<double>(
       0.0,
-      (sum, row) => sum + (row.nightlyRate.value ?? 0.0),
+      (sum, row) => sum + row.nightlyRate.value,
     );
     double totalDue = totalNightAmount;
     if (discount > 0 && discountType == 'total') {

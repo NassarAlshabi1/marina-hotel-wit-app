@@ -468,7 +468,7 @@ class AppwriteDeltaSync {
       notes: _nullableValue<String>(_asString(data['notes'])),
       expectedNights: d.Value(_asInt(data['expectedNights']) ?? 1),
       calculatedNights: d.Value(_asInt(data['calculatedNights']) ?? 1),
-      discount: d.Value(_asDouble(data['discount']) ?? 0.0),
+      discount: d.Value(_asDouble(data['discount'])),
       discountType: d.Value(_asString(data['discountType']) ?? 'per_night'),
       discountStartDate: _nullableValue<String>(_asString(data['discountStartDate'])),
     );

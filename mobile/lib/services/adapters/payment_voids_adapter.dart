@@ -184,20 +184,6 @@ d.Value<double> _vDouble(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  bool? fallback,
-}) {
-  final v =
-      _asBool(json, key, src) ??
-      (altKey != null ? _asBool(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
 int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
   if (v != null) return v;
