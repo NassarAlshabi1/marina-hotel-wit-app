@@ -1461,7 +1461,7 @@ LazyDatabase _open() {
 }
 
 extension EmployeeX on Employee {
-  double get salary => basicSalary;
+  double get salary => basicSalary.toDouble();
 }
 
 /// Singleton manager for the Drift database to support clean close/reopen during file-based restores

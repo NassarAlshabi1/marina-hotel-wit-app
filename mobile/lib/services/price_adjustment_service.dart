@@ -20,7 +20,7 @@ class PriceAdjustmentService {
   }) async {
     final now = DateTime.now();
     final effectiveDate = effectiveFrom ?? now;
-    final effectiveHotelDay = Time.hotelDayKey(effectiveDate);
+    final effectiveHotelDay = Time.hotelDayKey(now: effectiveDate);
 
     final room = await (db.select(db.rooms)
           ..where((r) => r.roomNumber.equals(roomNumber)))
@@ -42,8 +42,8 @@ class PriceAdjustmentService {
       targetType: const Value('room'),
       targetUuid: Value(room.localUuid),
       adjustmentType: const Value('price_change'),
-      previousValue: Value(oldPrice),
-      newValue: Value(newPrice),
+      previousValue: Value(oldPrice.round()),
+      newValue: Value(newPrice.round()),
       reason: Value(reason),
       effectiveDate: Value(effectiveDate.toIso8601String()),
       appliedBy: Value(appliedBy),
@@ -131,7 +131,7 @@ class PriceAdjustmentService {
             : null;
         
         if (discountStartDate != null) {
-          final discountHotelDay = Time.hotelDayKey(discountStartDate);
+          final discountHotelDay = Time.hotelDayKey(now: discountStartDate);
           if (night.hotelDayKey.compareTo(discountHotelDay) >= 0) {
             adjustedRate = (newPrice - booking.discount).clamp(0.0, newPrice);
           }
@@ -215,7 +215,7 @@ class PriceAdjustmentService {
       newState: Value(details),
       performedBy: Value(performedBy),
       deviceId: const Value('app'),
-      hotelDayKey: Value(Time.hotelDayKey(now)),
+      hotelDayKey: Value(Time.hotelDayKey(now: now)),
       timestamp: Value(Time.nowEpoch()),
       timestampIso: Value(now.toIso8601String()),
       isFinancial: const Value(true),
@@ -248,7 +248,7 @@ class PriceAdjustmentService {
     DateTime? effectiveFrom,
   }) async {
     final effectiveDate = effectiveFrom ?? DateTime.now();
-    final effectiveHotelDay = Time.hotelDayKey(effectiveDate);
+    final effectiveHotelDay = Time.hotelDayKey(now: effectiveDate);
 
     final activeBookings = await _getActiveBookingsForRoom(roomNumber);
     

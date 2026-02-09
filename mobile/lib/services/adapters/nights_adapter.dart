@@ -91,7 +91,7 @@ class NightsAdapter
         fallback: '',
       ),
       nightEnd: _vStr(json, 'nightEnd', src, altKey: 'night_end', fallback: ''),
-      nightlyRate: _vInt(
+      nightlyRate: _vDouble(
         json,
         'nightlyRate',
         src,
@@ -105,21 +105,21 @@ class NightsAdapter
         src,
         fallback: false,
       ),
-      baseRate: _vInt(
+      baseRate: _vDouble(
         json,
         'baseRate',
         src,
         altKey: 'base_rate',
         fallback: 0,
       ),
-      adjustment: _vInt(
+      adjustment: _vDouble(
         json,
         'adjustment',
         src,
         altKey: 'adjustment',
         fallback: 0,
       ),
-      finalRate: _vInt(
+      finalRate: _vDouble(
         json,
         'finalRate',
         src,

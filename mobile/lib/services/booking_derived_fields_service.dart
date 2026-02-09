@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart' as d;
 
 import '../utils/id.dart';
-import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
@@ -100,7 +99,7 @@ class BookingDerivedFieldsService {
     required Booking booking,
     required DateTime checkin,
     required DateTime checkout,
-    required int nightlyRate,
+    required double nightlyRate,
     required int discount,
     required String discountType,
     required DateTime? discountStartDate,
@@ -184,7 +183,7 @@ class BookingDerivedFieldsService {
     required Booking booking,
     required DateTime checkin,
     required DateTime checkout,
-    required int nightlyRate,
+    required double nightlyRate,
     required int discount,
     required String discountType,
     required DateTime? discountStartDate,
@@ -238,9 +237,9 @@ class BookingDerivedFieldsService {
     });
   }
 
-  int _calculateNightlyRate(
+  double _calculateNightlyRate(
     DateTime segmentStart,
-    int baseRate,
+    double baseRate,
     int discount,
     String discountType,
     DateTime? discountStartDate,
@@ -251,7 +250,7 @@ class BookingDerivedFieldsService {
       final hotelDay = Time.hotelDayStart(segmentStart);
       final hotelDayDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
       if (discountStartDate == null) {
-        rate = (baseRate - discount).clamp(0, baseRate);
+        rate = (baseRate - discount).clamp(0.0, baseRate);
       } else {
         final discountDay = DateTime(
           discountStartDate.year,
@@ -259,7 +258,7 @@ class BookingDerivedFieldsService {
           discountStartDate.day,
         );
         if (!hotelDayDate.isBefore(discountDay)) {
-          rate = (baseRate - discount).clamp(0, baseRate);
+          rate = (baseRate - discount).clamp(0.0, baseRate);
         }
       }
     }
