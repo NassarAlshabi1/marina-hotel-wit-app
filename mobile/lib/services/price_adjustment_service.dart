@@ -205,20 +205,21 @@ class PriceAdjustmentService {
     required String details,
     required String performedBy,
   }) async {
+    final now = DateTime.now();
     await db.into(db.auditLogs).insert(AuditLogsCompanion(
       localUuid: Value(_uuid.v4()),
-      createdAt: Value(Time.nowEpoch()),
-      updatedAt: Value(Time.nowEpoch()),
-      action: Value(action),
-      tableName: const Value('booking_nights'),
-      recordUuid: const Value(''),
-      previousData: const Value(null),
-      newData: Value(details),
+      operationType: Value(action),
+      entityType: const Value('booking_nights'),
+      entityUuid: const Value(''),
+      previousState: const Value(null),
+      newState: Value(details),
       performedBy: Value(performedBy),
-      hotelDayKey: Value(Time.hotelDayKey(DateTime.now())),
+      deviceId: const Value('app'),
+      hotelDayKey: Value(Time.hotelDayKey(now)),
+      timestamp: Value(Time.nowEpoch()),
+      timestampIso: Value(now.toIso8601String()),
       isFinancial: const Value(true),
-      deviceId: const Value(null),
-      syncedAt: const Value(null),
+      createdAt: Value(Time.nowEpoch()),
     ));
   }
 
