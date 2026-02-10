@@ -459,7 +459,9 @@ class RestoreFixService {
                 .clamp(0, baseRate * booking.calculatedNights)
                 .toDouble();
           } else if (discount > 0) {
-            final discountedRate = (baseRate - discount).clamp(0, baseRate);
+            final discountedRate = (baseRate - discount)
+                .clamp(0, baseRate)
+                .toDouble();
             totalNightAmount = discountedRate * booking.calculatedNights;
           } else {
             totalNightAmount = baseRate * booking.calculatedNights;

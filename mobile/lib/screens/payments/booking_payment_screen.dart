@@ -32,7 +32,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   late TabController _tabController;
   late TextEditingController _phoneController;
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
-  int _remainingAmount = 0;
+  double _remainingAmount = 0;
   late String _currentGuestPhone;
   bool _isSavingPayment = false;
   double _debtAmount = 0;
@@ -1225,8 +1225,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   Future<void> _sendPaymentConfirmation(
-    int amountPaidNow,
-    int remaining,
+    double amountPaidNow,
+    double remaining,
     String cleanedPhone,
   ) async {
     if (cleanedPhone.isEmpty) {
@@ -1536,8 +1536,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   /// رسالة واتساب للدفع اليومي/الليالي الإضافية
   Future<void> _sendExtendedStayPaymentConfirmation(
-    int amountPaidNow,
-    int remaining,
+    double amountPaidNow,
+    double remaining,
     String cleanedPhone,
     int nightsPaid,
   ) async {
@@ -2379,7 +2379,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// رسالة تأكيد تمديد الإقامة
   Future<void> _sendExtensionConfirmation(
     int additionalNights,
-    int amount,
+    double amount,
     DateTime newCheckout,
     String cleanedPhone,
   ) async {
@@ -2405,7 +2405,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
-  String _formatAmountForMessage(int amount) {
+  String _formatAmountForMessage(num amount) {
     return _currencyFmt.format(amount);
   }
 

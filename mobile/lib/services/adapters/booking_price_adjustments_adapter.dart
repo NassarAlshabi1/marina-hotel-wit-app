@@ -87,7 +87,7 @@ class BookingPriceAdjustmentsAdapter
         altKey: 'adjustment_type',
         fallback: 0,
       ),
-      amount: _vInt(json, 'amount', src, fallback: 0),
+      amount: _vDouble(json, 'amount', src, fallback: 0),
       effectiveHotelDay: _vStr(
         json,
         'effectiveHotelDay',
