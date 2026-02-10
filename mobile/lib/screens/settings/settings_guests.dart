@@ -583,7 +583,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             enabled: _applyDisplayMarkup,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
-              labelText: 'قيمة الزيادة (ر.س)',
+              labelText: 'قيمة الزيادة',
               hintText: 'مثال: 4000',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.add),
@@ -643,7 +643,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       children: [
         _buildDetailRow(
           'سعر الغرفة الأساسي',
-          '${basePrice.toStringAsFixed(2)} ر.س',
+          basePrice.toStringAsFixed(2),
           Icons.hotel_class,
         ),
         if (applyMarkup)
@@ -651,9 +651,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             padding: const EdgeInsets.only(top: 4),
             child: _buildDetailRow(
               _displayMarkupStart != null
-                  ? 'السعر المعروض بعد الزيادة (+${_displayMarkupAmount.toStringAsFixed(0)} ر.س) اعتباراً من ${_formatDate(_displayMarkupStart!.toIso8601String())}'
-                  : 'السعر المعروض بعد الزيادة (+${_displayMarkupAmount.toStringAsFixed(0)} ر.س)',
-              '${displayPrice.toStringAsFixed(2)} ر.س',
+                  ? 'السعر المعروض بعد الزيادة (+${_displayMarkupAmount.toStringAsFixed(0)}) اعتباراً من ${_formatDate(_displayMarkupStart!.toIso8601String())}'
+                  : 'السعر المعروض بعد الزيادة (+${_displayMarkupAmount.toStringAsFixed(0)})',
+              displayPrice.toStringAsFixed(2),
               Icons.trending_up,
             ),
           ),
@@ -662,7 +662,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             padding: const EdgeInsets.only(top: 4),
             child: _buildDetailRow(
               'سيتم تطبيق الزيادة اعتباراً من ${_formatDate(_displayMarkupStart!.toIso8601String())}',
-              '${displayPrice.toStringAsFixed(2)} ر.س',
+              displayPrice.toStringAsFixed(2),
               Icons.schedule,
             ),
           ),
