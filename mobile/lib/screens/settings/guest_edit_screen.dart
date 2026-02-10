@@ -918,7 +918,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         effectiveHotelDay: startDate,
         endHotelDay: endDate?.isNotEmpty == true ? endDate : null,
         reason: '${type == AdjustmentType.discount ? 'تخفيض' : 'زيادة'} من شاشة تعديل الضيف',
-        appliedBy: 'admin',
+        appliedBy: 'currentUser.name', // Example: Replace with actual current user data
       );
       
       if (!mounted) return;
