@@ -4,7 +4,9 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import '../../services/booking_price_adjustment_service.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
 import 'guest_edit_screen.dart';
 import 'guest_info.dart';
 
@@ -18,10 +20,20 @@ class SettingsGuestsScreen extends ConsumerStatefulWidget {
 
 class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   final _searchController = TextEditingController();
+  final _adjustAmountController = TextEditingController();
   String _searchQuery = '';
   bool _applyDisplayMarkup = false;
   double _displayMarkupAmount = 0;
   DateTime? _displayMarkupStart;
+  DateTime? _adjustStartDate;
+  AdjustmentType _adjustType = AdjustmentType.surcharge;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _adjustAmountController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -440,10 +452,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
             const SizedBox(height: 8),
 
-            if (latestBooking != null)
+            if (latestBooking != null) ...[
               _buildPricePreview(latestBooking, roomPrices),
-
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
+              _buildRealAdjustmentForm(context, latestBooking),
+              const SizedBox(height: 8),
+            ],
 
             // إحصائيات الحجوزات
             Row(
@@ -706,6 +720,132 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     if (checkout != null && !start.isBefore(checkout)) return false;
     if (checkin != null && start.isBefore(checkin)) return false;
     return true;
+  }
+
+  Widget _buildRealAdjustmentForm(BuildContext context, Booking booking) {
+    return Card(
+      margin: const EdgeInsets.only(top: 4),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'زيادة/تخفيض فعلي (يؤثر على الحسابات)',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<AdjustmentType>(
+              value: _adjustType,
+              decoration: const InputDecoration(
+                labelText: 'نوع التعديل',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: AdjustmentType.surcharge,
+                  child: Text('زيادة سعر'),
+                ),
+                DropdownMenuItem(
+                  value: AdjustmentType.discount,
+                  child: Text('تخفيض'),
+                ),
+              ],
+              onChanged: (v) => setState(() => _adjustType = v ?? AdjustmentType.surcharge),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _adjustAmountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'مبلغ التعديل',
+                hintText: 'مثال: 4000',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.edit),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _adjustStartDate ?? now,
+                        firstDate: now.subtract(const Duration(days: 365)),
+                        lastDate: now.add(const Duration(days: 365)),
+                      );
+                      if (picked != null) {
+                        setState(() => _adjustStartDate = picked);
+                      }
+                    },
+                    icon: const Icon(Icons.event),
+                    label: Text(
+                      _adjustStartDate == null
+                          ? 'تاريخ البدء'
+                          : 'يبدأ من: ${_formatDate(_adjustStartDate!.toIso8601String())}',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (_adjustStartDate != null)
+                  IconButton(
+                    onPressed: () => setState(() => _adjustStartDate = null),
+                    icon: const Icon(Icons.clear),
+                    tooltip: 'مسح التاريخ',
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.save),
+                label: const Text('تطبيق التعديل الفعلي'),
+                onPressed: () async {
+                  final parsed = double.tryParse(
+                    _adjustAmountController.text.replaceAll(',', ''),
+                  );
+                  final amount = parsed != null ? parsed.round() : 0;
+                  if (amount <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('الرجاء إدخال مبلغ تعديل صالح')),
+                    );
+                    return;
+                  }
+                  if (_adjustStartDate == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('اختر تاريخ بدء التعديل')),
+                    );
+                    return;
+                  }
+                  try {
+                    final db = ref.read(databaseProvider);
+                    await BookingPriceAdjustmentService(db).applyTemporaryAdjustment(
+                      bookingLocalUuid: booking.localUuid,
+                      amount: amount,
+                      type: _adjustType,
+                      effectiveHotelDay: Time.dateToString(_adjustStartDate!),
+                    );
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تم تطبيق التعديل بنجاح')),
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('خطأ أثناء تطبيق التعديل: $e')),
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _formatDate(String dateStr) {
