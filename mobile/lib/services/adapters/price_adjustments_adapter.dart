@@ -176,15 +176,6 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-double? _asDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
-  return null;
-}
-
 String? _asString(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
   if (v == null) return null;
