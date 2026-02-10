@@ -577,7 +577,7 @@ class SyncService {
               EmployeesCompanion(
                 name: d.Value(data['name'] ?? le.name),
                 basicSalary: d.Value(
-                  ((data['basic_salary'] as num?)?.toDouble() ?? le.basicSalary).toDouble(),
+                  (data['basic_salary'] as num?)?.toInt() ?? le.basicSalary,
                 ),
                 status: d.Value(data['status'] ?? le.status),
                 serverId: d.Value(sid),
@@ -591,7 +591,7 @@ class SyncService {
             EmployeesCompanion(
               name: d.Value(data['name'] ?? ''),
               basicSalary: d.Value(
-                ((data['basic_salary'] as num?)?.toDouble() ?? 0).toDouble(),
+                (data['basic_salary'] as num?)?.toInt() ?? 0,
               ),
               status: d.Value(data['status'] ?? 'active'),
               serverId: d.Value(sid),
@@ -627,7 +627,7 @@ class SyncService {
                 relatedId: d.Value((data['related_id'] as num?)?.toInt()),
                 description: d.Value(data['description'] ?? lx.description),
                 amount: d.Value(
-                  ((data['amount'] as num?)?.toDouble() ?? lx.amount).toDouble(),
+                  (data['amount'] as num?)?.toInt() ?? lx.amount,
                 ),
                 date: d.Value(data['date'] ?? lx.date),
                 serverId: d.Value(xid),
@@ -679,7 +679,7 @@ class SyncService {
                   data['transaction_type'] ?? lc.transactionType,
                 ),
                 amount: d.Value(
-                  ((data['amount'] as num?)?.toDouble() ?? lc.amount).toDouble(),
+                  (data['amount'] as num?)?.toInt() ?? lc.amount,
                 ),
                 referenceType: d.Value(data['reference_type']),
                 referenceId: d.Value((data['reference_id'] as num?)?.toInt()),
@@ -698,7 +698,7 @@ class SyncService {
             CashTransactionsCompanion(
               registerId: d.Value((data['register_id'] as num?)?.toInt()),
               transactionType: d.Value(data['transaction_type'] ?? 'income'),
-              amount: d.Value(((data['amount'] as num?)?.toDouble() ?? 0).toDouble()),
+              amount: d.Value((data['amount'] as num?)?.toInt() ?? 0),
               referenceType: d.Value(data['reference_type']),
               referenceId: d.Value((data['reference_id'] as num?)?.toInt()),
               description: d.Value(data['description']),
@@ -737,7 +737,7 @@ class SyncService {
                 serverBookingId: d.Value((data['booking_id'] as num?)?.toInt()),
                 roomNumber: d.Value(data['room_number'] as String?),
                 amount: d.Value(
-                  ((data['amount'] as num?)?.toDouble() ?? lp.amount).toDouble(),
+                  (data['amount'] as num?)?.toInt() ?? lp.amount,
                 ),
                 paymentDate: d.Value(data['payment_date'] ?? lp.paymentDate),
                 notes: d.Value(data['notes'] as String?),
@@ -760,7 +760,7 @@ class SyncService {
               serverPaymentId: d.Value(pid),
               serverBookingId: d.Value((data['booking_id'] as num?)?.toInt()),
               roomNumber: d.Value(data['room_number'] as String?),
-              amount: d.Value(((data['amount'] as num?)?.toDouble() ?? 0).toDouble()),
+              amount: d.Value((data['amount'] as num?)?.toInt() ?? 0),
               paymentDate: d.Value(data['payment_date'] ?? Time.nowIso()),
               notes: d.Value(data['notes'] as String?),
               paymentMethod: d.Value(data['payment_method'] ?? 'نقدي'),
