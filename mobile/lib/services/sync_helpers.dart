@@ -347,7 +347,7 @@ EmployeesCompanion mapEmployee(
     version: d.Value(h.asInt(data['version'], fallback: 1)),
     origin: d.Value(h.asStringRequired(data['origin'], fallback: 'server')),
     name: d.Value(name),
-    basicSalary: d.Value(h.asInt(data['basicSalary'])),
+    basicSalary: d.Value(h.asDouble(data['basicSalary'])),
     position: d.Value(h.asStringRequired(data['position'])),
     phone: d.Value(h.asStringRequired(data['phone'])),
     hireDate: d.Value(h.asStringRequired(data['hireDate'])),
@@ -377,7 +377,7 @@ ExpensesCompanion mapExpense(
     expenseType: d.Value(expenseType),
     relatedId: h.nullableValue(h.asIntNullable(data['relatedId'])),
     description: d.Value(h.asStringRequired(data['description'])),
-    amount: d.Value(h.asInt(data['amount'])),
+    amount: d.Value(h.asDouble(data['amount'])),
     date: d.Value(h.asStringRequired(data['date'])),
     cashTransactionId: h.nullableValue(
       h.asIntNullable(data['cashTransactionId']),

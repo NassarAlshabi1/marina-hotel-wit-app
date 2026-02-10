@@ -124,7 +124,7 @@ class BookingNotes extends Table with SyncFields {
 class Employees extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text()();
-  IntColumn get basicSalary => integer()();
+  RealColumn get basicSalary => real()();
   TextColumn get position => text().withDefault(const Constant('موظف'))();
   TextColumn get phone => text().withDefault(const Constant(''))();
   TextColumn get hireDate => text().withDefault(const Constant(''))();
@@ -136,7 +136,7 @@ class Expenses extends Table with SyncFields {
   TextColumn get expenseType => text()();
   IntColumn get relatedId => integer().nullable()();
   TextColumn get description => text()();
-  IntColumn get amount => integer()();
+  RealColumn get amount => real()();
   TextColumn get date => text()();
   IntColumn get cashTransactionId => integer().nullable()();
   TextColumn get hotelDayKey => text().nullable()();
@@ -161,7 +161,7 @@ class CashTransactions extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get registerId => integer().nullable()();
   TextColumn get transactionType => text()();
-  IntColumn get amount => integer()();
+  RealColumn get amount => real()();
   TextColumn get referenceType => text().nullable()();
   IntColumn get referenceId => integer().nullable()();
   TextColumn get description => text().nullable()();
@@ -176,7 +176,7 @@ class Payments extends Table with SyncFields {
       integer().nullable().references(Bookings, #id)();
   IntColumn get serverBookingId => integer().nullable()();
   TextColumn get roomNumber => text().nullable()();
-  IntColumn get amount => integer()();
+  RealColumn get amount => real()();
   TextColumn get paymentDate => text()();
   TextColumn get notes => text().nullable()();
   TextColumn get paymentMethod => text()();

@@ -83,21 +83,21 @@ class SalaryEntitlementService {
     for (final expense in expenses) {
       final type = expense.expenseType.trim();
       if (type == 'سحب راتب' || type == 'سلفة' || type == 'رواتب') {
-        totalWithdrawals += expense.amount.toDouble();
+        totalWithdrawals += expense.amount;
         transactions.add(
           SalaryTransaction(
             type: 'سحب',
-            amount: expense.amount.toDouble(),
+            amount: expense.amount,
             date: expense.date,
             note: expense.description,
           ),
         );
       } else if (type == 'خصم راتب' || type == 'خصم' || type == 'غياب') {
-        totalDeductions += expense.amount.toDouble();
+        totalDeductions += expense.amount;
         transactions.add(
           SalaryTransaction(
             type: 'خصم',
-            amount: expense.amount.toDouble(),
+            amount: expense.amount,
             date: expense.date,
             note: expense.description,
           ),
@@ -113,7 +113,7 @@ class SalaryEntitlementService {
       employee: employee,
       hireDate: hireDate,
       totalMonthsWorked: totalMonthsWorked,
-      basicSalary: employee.basicSalary.toDouble(),
+      basicSalary: employee.basicSalary,
       totalEntitlement: totalEntitlement,
       totalWithdrawals: totalWithdrawals,
       totalDeductions: totalDeductions,
