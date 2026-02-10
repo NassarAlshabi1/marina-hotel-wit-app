@@ -70,7 +70,7 @@ class SalaryEntitlementService {
     }
 
     final totalMonthsWorked = _calculateMonthsDifference(hireDate, now);
-    final totalEntitlement = totalMonthsWorked * employee.basicSalary;
+    final totalEntitlement = (totalMonthsWorked * employee.basicSalary).toDouble();
 
     final expenses = await (_db.select(
       _db.expenses,

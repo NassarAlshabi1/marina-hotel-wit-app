@@ -88,7 +88,7 @@ class EnhancedPdfHelper {
           : _safeParseDateTime(booking.checkinDate).add(Duration(days: nights)),
       issuedAt: DateTime.now(),
       notes: booking.notes,
-      discount: booking.discount,
+      discount: booking.discount.toDouble(),
     );
 
     await invoice.generatePDF();
@@ -166,7 +166,7 @@ class EnhancedPdfHelper {
       return PaymentReportItem(
         guestName: booking.guestName,
         roomNumber: booking.roomNumber,
-        amount: payment.amount,
+        amount: payment.amount.toDouble(),
         method: payment.paymentMethod,
         paymentDate: _safeParseDateTime(payment.paymentDate),
         receivedBy: 'النظام',
@@ -198,7 +198,7 @@ class EnhancedPdfHelper {
           (expense) => ExpenseReportItem(
             description: expense.description,
             category: expense.expenseType,
-            amount: expense.amount,
+            amount: expense.amount.toDouble(),
             date: _safeParseDateTime(expense.date),
             notes: null,
           ),

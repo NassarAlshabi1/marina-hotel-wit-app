@@ -1118,34 +1118,6 @@ class RestoreFixService {
   String _hotelDayKey(DateTime value) =>
       Time.dateToString(_hotelDayStart(value));
 
-  int _calculateNightlyRateForSegment({
-    required DateTime segmentStart,
-    required int baseRate,
-    required int discount,
-    required String discountType,
-    required DateTime? discountStartDate,
-  }) {
-    if (baseRate < 0) return 0;
-    var rate = baseRate;
-    if (discount > 0 && discountType != 'total') {
-      final hotelDay = _hotelDayStart(segmentStart);
-      final hotelDayDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
-      if (discountStartDate == null) {
-        rate = (baseRate - discount).clamp(0, baseRate);
-      } else {
-        final discountDay = DateTime(
-          discountStartDate.year,
-          discountStartDate.month,
-          discountStartDate.day,
-        );
-        if (!hotelDayDate.isBefore(discountDay)) {
-          rate = (baseRate - discount).clamp(0, baseRate);
-        }
-      }
-    }
-    return rate;
-  }
-
   /// تسجيل التغيير في جدول RestoreFixLog
   Future<void> _logChange({
     required String fixId,

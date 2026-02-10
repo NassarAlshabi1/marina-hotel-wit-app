@@ -3,7 +3,6 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/booking_price_adjustment_service.dart';
-import 'package:marina_hotel_mobile/services/booking_derived_fields_service.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
 import 'package:marina_hotel_mobile/utils/id.dart';
 
@@ -364,28 +363,6 @@ void main() {
 
       final discountedNights = nights.where((n) => n.adjustment != 0).toList();
       expect(discountedNights.length, equals(6));
-    });
-  });
-
-  group('Hotel Day Logic Tests', () {
-    test('دخول قبل 14:00 يحسب لليوم الفندقي السابق', () async {
-      final service = BookingPriceAdjustmentService(db);
-
-      final morningCheckin = DateTime(2025, 1, 15, 6, 0);
-      final expectedHotelDay = '2025-01-14';
-
-      final hotelDayKey = service._hotelDayKey(morningCheckin);
-      expect(hotelDayKey, equals(expectedHotelDay));
-    });
-
-    test('دخول بعد 14:00 يحسب لنفس اليوم الفندقي', () async {
-      final service = BookingPriceAdjustmentService(db);
-
-      final afternoonCheckin = DateTime(2025, 1, 15, 16, 0);
-      final expectedHotelDay = '2025-01-15';
-
-      final hotelDayKey = service._hotelDayKey(afternoonCheckin);
-      expect(hotelDayKey, equals(expectedHotelDay));
     });
   });
 

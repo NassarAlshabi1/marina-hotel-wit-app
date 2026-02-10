@@ -577,7 +577,7 @@ class SyncService {
               EmployeesCompanion(
                 name: d.Value(data['name'] ?? le.name),
                 basicSalary: d.Value(
-                  (data['basic_salary'] as num?)?.toDouble() ?? le.basicSalary,
+                  ((data['basic_salary'] as num?)?.toDouble() ?? le.basicSalary).toDouble(),
                 ),
                 status: d.Value(data['status'] ?? le.status),
                 serverId: d.Value(sid),
@@ -591,7 +591,7 @@ class SyncService {
             EmployeesCompanion(
               name: d.Value(data['name'] ?? ''),
               basicSalary: d.Value(
-                (data['basic_salary'] as num?)?.toDouble() ?? 0,
+                ((data['basic_salary'] as num?)?.toDouble() ?? 0).toDouble(),
               ),
               status: d.Value(data['status'] ?? 'active'),
               serverId: d.Value(sid),
@@ -624,10 +624,10 @@ class SyncService {
               lx.id,
               ExpensesCompanion(
                 expenseType: d.Value(data['expense_type'] ?? lx.expenseType),
-                relatedId: d.Value(data['related_id'] as int?),
+                relatedId: d.Value((data['related_id'] as num?)?.toInt()),
                 description: d.Value(data['description'] ?? lx.description),
                 amount: d.Value(
-                  (data['amount'] as num?)?.toDouble() ?? lx.amount,
+                  ((data['amount'] as num?)?.toDouble() ?? lx.amount).toDouble(),
                 ),
                 date: d.Value(data['date'] ?? lx.date),
                 serverId: d.Value(xid),
@@ -674,15 +674,15 @@ class SyncService {
             await cashDao.updateById(
               lc.id,
               CashTransactionsCompanion(
-                registerId: d.Value(data['register_id'] as int?),
+                registerId: d.Value((data['register_id'] as num?)?.toInt()),
                 transactionType: d.Value(
                   data['transaction_type'] ?? lc.transactionType,
                 ),
                 amount: d.Value(
-                  (data['amount'] as num?)?.toDouble() ?? lc.amount,
+                  ((data['amount'] as num?)?.toDouble() ?? lc.amount).toDouble(),
                 ),
                 referenceType: d.Value(data['reference_type']),
-                referenceId: d.Value(data['reference_id'] as int?),
+                referenceId: d.Value((data['reference_id'] as num?)?.toInt()),
                 description: d.Value(data['description']),
                 transactionTime: d.Value(
                   data['transaction_time'] ?? lc.transactionTime,
@@ -696,11 +696,11 @@ class SyncService {
         } else {
           await cashDao.insertOne(
             CashTransactionsCompanion(
-              registerId: d.Value(data['register_id'] as int?),
+              registerId: d.Value((data['register_id'] as num?)?.toInt()),
               transactionType: d.Value(data['transaction_type'] ?? 'income'),
-              amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
+              amount: d.Value(((data['amount'] as num?)?.toDouble() ?? 0).toDouble()),
               referenceType: d.Value(data['reference_type']),
-              referenceId: d.Value(data['reference_id'] as int?),
+              referenceId: d.Value((data['reference_id'] as num?)?.toInt()),
               description: d.Value(data['description']),
               transactionTime: d.Value(
                 data['transaction_time'] ?? Time.nowIso(),
@@ -734,10 +734,10 @@ class SyncService {
               lp.id,
               PaymentsCompanion(
                 serverPaymentId: d.Value(pid),
-                serverBookingId: d.Value(data['booking_id'] as int?),
+                serverBookingId: d.Value((data['booking_id'] as num?)?.toInt()),
                 roomNumber: d.Value(data['room_number'] as String?),
                 amount: d.Value(
-                  (data['amount'] as num?)?.toDouble() ?? lp.amount,
+                  ((data['amount'] as num?)?.toDouble() ?? lp.amount).toDouble(),
                 ),
                 paymentDate: d.Value(data['payment_date'] ?? lp.paymentDate),
                 notes: d.Value(data['notes'] as String?),
@@ -746,7 +746,7 @@ class SyncService {
                 ),
                 revenueType: d.Value(data['revenue_type'] ?? lp.revenueType),
                 cashTransactionServerId: d.Value(
-                  data['cash_transaction_id'] as int?,
+                  (data['cash_transaction_id'] as num?)?.toInt(),
                 ),
                 serverId: d.Value(pid),
                 origin: const d.Value('server'),
@@ -758,15 +758,15 @@ class SyncService {
           await paymentsDao.insertOne(
             PaymentsCompanion(
               serverPaymentId: d.Value(pid),
-              serverBookingId: d.Value(data['booking_id'] as int?),
+              serverBookingId: d.Value((data['booking_id'] as num?)?.toInt()),
               roomNumber: d.Value(data['room_number'] as String?),
-              amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
+              amount: d.Value(((data['amount'] as num?)?.toDouble() ?? 0).toDouble()),
               paymentDate: d.Value(data['payment_date'] ?? Time.nowIso()),
               notes: d.Value(data['notes'] as String?),
               paymentMethod: d.Value(data['payment_method'] ?? 'نقدي'),
               revenueType: d.Value(data['revenue_type'] ?? 'room'),
               cashTransactionServerId: d.Value(
-                data['cash_transaction_id'] as int?,
+                (data['cash_transaction_id'] as num?)?.toInt(),
               ),
               serverId: d.Value(pid),
             ),
