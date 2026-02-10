@@ -32,6 +32,7 @@ void main() {
       await db.into(db.rooms).insert(RoomsCompanion(
         localUuid: Value(roomUuid),
         roomNumber: const Value('101'),
+        type: const Value('standard'),
         price: const Value(15000),
         status: const Value('occupied'),
         createdAt: Value(now),
@@ -128,6 +129,7 @@ void main() {
       await db.into(db.rooms).insert(RoomsCompanion(
         localUuid: Value(roomUuid),
         roomNumber: const Value('102'),
+        type: const Value('standard'),
         price: const Value(15000),
         status: const Value('occupied'),
         createdAt: Value(now),
@@ -203,6 +205,7 @@ void main() {
       await db.into(db.rooms).insert(RoomsCompanion(
         localUuid: Value(roomUuid),
         roomNumber: const Value('103'),
+        type: const Value('standard'),
         price: const Value(15000),
         status: const Value('occupied'),
         createdAt: Value(now),
@@ -287,6 +290,7 @@ void main() {
       await db.into(db.rooms).insert(RoomsCompanion(
         localUuid: Value(roomUuid),
         roomNumber: const Value('104'),
+        type: const Value('standard'),
         price: const Value(15000),
         status: const Value('occupied'),
         createdAt: Value(now),
