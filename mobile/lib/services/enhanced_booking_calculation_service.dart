@@ -187,8 +187,21 @@ class EnhancedBookingCalculationService {
         if (!_isWithinRange(nightDate, effectiveDate, endDate)) {
           continue;
         }
-        final adjAmount = _asInt(adj.amount);
+        final rawAmount = _asInt(adj.amount);
         final isDiscount = adj.adjustmentType == 0;
+        
+        int adjAmount = rawAmount;
+        if (adj.adjustmentMode == 'total') {
+          final nightsInRange = _countNightsInRange(
+            segments,
+            effectiveDate,
+            endDate,
+          );
+          if (nightsInRange > 0) {
+            adjAmount = (rawAmount / nightsInRange).round();
+          }
+        }
+        
         final signedAmount = isDiscount ? -adjAmount : adjAmount;
         adjustmentTotal += signedAmount;
         applied.add(
@@ -473,6 +486,21 @@ class EnhancedBookingCalculationService {
     if (nightDate.isBefore(effectiveDate)) return false;
     if (endDate != null && nightDate.isAfter(endDate)) return false;
     return true;
+  }
+
+  int _countNightsInRange(
+    List<_NightSegment> segments,
+    DateTime effectiveDate,
+    DateTime? endDate,
+  ) {
+    int count = 0;
+    for (final segment in segments) {
+      final nightDate = DateTime.parse(segment.hotelDayKey);
+      if (_isWithinRange(nightDate, effectiveDate, endDate)) {
+        count++;
+      }
+    }
+    return count;
   }
 
   int? _resolveLastNightEpoch(
