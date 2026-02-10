@@ -19,10 +19,13 @@ class SettingsGuestsScreen extends ConsumerStatefulWidget {
 class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _applyDisplayMarkup = false;
+  double _displayMarkupPct = 0;
 
   @override
   Widget build(BuildContext context) {
     final bookingsAsync = ref.watch(bookingsListProvider);
+    final roomsAsync = ref.watch(roomsListProvider);
 
     return AppScaffold(
       title: 'إدارة الضيوف',
@@ -46,50 +49,69 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
         ),
         data: (bookings) {
-          // تجميع الضيوف من الحجوزات
-          final guests = _groupGuestsFromBookings(bookings);
-          final filteredGuests = _filterGuests(guests);
-
-          if (guests.isEmpty) {
-            return const Center(
+          return roomsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, st) => Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('لا يوجد ضيوف مسجلين', style: TextStyle(fontSize: 18)),
-                  SizedBox(height: 8),
-                  Text(
-                    'سيتم عرض الضيوف عند إضافة حجوزات',
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                  const Icon(Icons.error, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('خطأ: $e', textAlign: TextAlign.center),
                 ],
               ),
-            );
-          }
+            ),
+            data: (rooms) {
+              // تجميع الضيوف من الحجوزات
+              final guests = _groupGuestsFromBookings(bookings);
+              final filteredGuests = _filterGuests(guests);
+              final roomPrices = {
+                for (final r in rooms) r.roomNumber: r.price,
+              };
 
-          return Column(
-            children: [
-              // شريط البحث
-              _buildSearchBar(),
+              if (guests.isEmpty) {
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.people_outline, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('لا يوجد ضيوف مسجلين', style: TextStyle(fontSize: 18)),
+                      SizedBox(height: 8),
+                      Text(
+                        'سيتم عرض الضيوف عند إضافة حجوزات',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-              // إحصائيات الضيوف
-              _buildGuestStats(guests),
+              return Column(
+                children: [
+                  // شريط البحث + تحكم الزيادة العرضية
+                  _buildSearchBar(),
+                  _buildDisplayMarkupControls(),
 
-              const SizedBox(height: 16),
+                  // إحصائيات الضيوف
+                  _buildGuestStats(guests),
 
-              // قائمة الضيوف
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filteredGuests.length,
-                  itemBuilder: (context, index) {
-                    final guest = filteredGuests[index];
-                    return _buildGuestCard(context, guest);
-                  },
-                ),
-              ),
-            ],
+                  const SizedBox(height: 16),
+
+                  // قائمة الضيوف
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: filteredGuests.length,
+                      itemBuilder: (context, index) {
+                        final guest = filteredGuests[index];
+                        return _buildGuestCard(context, guest, roomPrices);
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
@@ -306,13 +328,18 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Widget _buildGuestCard(BuildContext context, GuestInfo guest) {
+  Widget _buildGuestCard(
+    BuildContext context,
+    GuestInfo guest,
+    Map<String, double> roomPrices,
+  ) {
     final activeBookings = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
         .length;
     final lastVisit = guest.bookings.isNotEmpty
         ? guest.bookings.first.checkinDate
         : '';
+    final latestBooking = guest.bookings.isNotEmpty ? guest.bookings.first : null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -409,6 +436,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   ),
               ],
             ),
+
+            const SizedBox(height: 8),
+
+            if (latestBooking != null)
+              _buildPricePreview(latestBooking, roomPrices),
 
             const SizedBox(height: 8),
 
@@ -512,6 +544,104 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildDisplayMarkupControls() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blueGrey.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.price_change, color: Colors.blueGrey),
+              const SizedBox(width: 8),
+              const Text(
+                'زيادة سعر عرضية (لا تؤثر على الحسابات)',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const Spacer(),
+              Switch(
+                value: _applyDisplayMarkup,
+                onChanged: (v) => setState(() {
+                  _applyDisplayMarkup = v;
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Slider(
+                  value: _displayMarkupPct,
+                  onChanged: _applyDisplayMarkup
+                      ? (v) => setState(() => _displayMarkupPct = v)
+                      : null,
+                  min: 0,
+                  max: 50,
+                  divisions: 50,
+                  label: '${_displayMarkupPct.toStringAsFixed(0)}%'
+                      ' زيادة',
+                ),
+              ),
+              SizedBox(
+                width: 64,
+                child: Text(
+                  '+${_displayMarkupPct.toStringAsFixed(0)}%',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'يتم عرض السعر مضافاً إليه الزيادة أعلاه لغايات التقدير فقط دون تغيير القيود المالية.',
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPricePreview(
+    Booking booking,
+    Map<String, double> roomPrices,
+  ) {
+    final basePrice = roomPrices[booking.roomNumber];
+    if (basePrice == null) {
+      return _buildDetailRow('سعر الغرفة', 'غير متوفر', Icons.hotel_class);
+    }
+    final displayPrice = _applyDisplayMarkup
+        ? basePrice * (1 + _displayMarkupPct / 100)
+        : basePrice;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildDetailRow(
+          'سعر الغرفة الأساسي',
+          '${basePrice.toStringAsFixed(2)} ر.س',
+          Icons.hotel_class,
+        ),
+        if (_applyDisplayMarkup)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: _buildDetailRow(
+              'السعر المعروض بعد الزيادة (+${_displayMarkupPct.toStringAsFixed(0)}%)',
+              '${displayPrice.toStringAsFixed(2)} ر.س',
+              Icons.trending_up,
+            ),
+          ),
       ],
     );
   }
