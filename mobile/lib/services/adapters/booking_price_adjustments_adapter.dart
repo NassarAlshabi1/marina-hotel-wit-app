@@ -188,6 +188,20 @@ d.Value<String> _vStr(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
 d.Value<bool> _vBool(
   Map<String, dynamic> json,
   String key,
@@ -219,6 +233,15 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
     if (v.contains('-') || v.length > 20) return null;
     return int.tryParse(v);
   }
+  return null;
+}
+
+double? _asDouble(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v is double) return v;
+  if (v is int) return v.toDouble();
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v);
   return null;
 }
 
