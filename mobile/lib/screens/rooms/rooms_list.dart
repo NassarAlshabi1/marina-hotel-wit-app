@@ -126,22 +126,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             if (rooms.isEmpty) {
               return _buildEmptyState(canRooms);
             }
-            final filteredRooms = _filterRooms(rooms);
-            final uniqueTypes = _getUniqueTypes(rooms);
             
-            return Column(
-              children: [
-                _buildStatsBar(rooms),
-                _buildSearchAndFilters(uniqueTypes),
-                Expanded(
-                  child: filteredRooms.isEmpty
-                      ? _buildNoResultsState()
-                      : _isGridView
-                          ? _buildGridView(filteredRooms, canRooms)
-                          : _buildListView(filteredRooms, canRooms),
-                ),
-              ],
-            );
+            return _isGridView
+                ? _buildGridView(rooms, canRooms)
+                : _buildListView(rooms, canRooms);
           },
         ),
       ),
