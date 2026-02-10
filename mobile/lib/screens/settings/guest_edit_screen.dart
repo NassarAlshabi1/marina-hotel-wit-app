@@ -941,10 +941,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ: $e'),
+        const SnackBar(
+          content: Text('An error occurred while applying the adjustment. Please try again.'),
           backgroundColor: Colors.red,
         ),
+      );
       );
     } finally {
       if (mounted) setState(() => _saving = false);
