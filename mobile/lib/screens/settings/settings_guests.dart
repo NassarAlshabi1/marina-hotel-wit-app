@@ -22,9 +22,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   final _searchController = TextEditingController();
   final _adjustAmountController = TextEditingController();
   String _searchQuery = '';
-  bool _applyDisplayMarkup = false;
-  double _displayMarkupAmount = 0;
-  DateTime? _displayMarkupStart;
   DateTime? _adjustStartDate;
   AdjustmentType _adjustType = AdjustmentType.surcharge;
   AdjustmentMode _adjustMode = AdjustmentMode.perNight;
@@ -103,11 +100,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
               return Column(
                 children: [
-                  // شريط البحث + تحكم الزيادة العرضية
                   _buildSearchBar(),
-                  _buildDisplayMarkupControls(),
 
-                  // إحصائيات الضيوف
                   _buildGuestStats(guests),
 
                   const SizedBox(height: 16),
@@ -564,82 +558,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Widget _buildDisplayMarkupControls() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.blueGrey.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blueGrey.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.price_change, color: Colors.blueGrey),
-              const SizedBox(width: 8),
-              const Text(
-                'زيادة سعر عرضية (لا تؤثر على الحسابات)',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const Spacer(),
-              Switch(
-                value: _applyDisplayMarkup,
-                onChanged: (v) => setState(() {
-                  _applyDisplayMarkup = v;
-                }),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            enabled: _applyDisplayMarkup,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'قيمة الزيادة',
-              hintText: 'مثال: 4000',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.add),
-            ),
-            onChanged: (v) {
-              final parsed = double.tryParse(v.replaceAll(',', ''));
-              setState(() => _displayMarkupAmount = parsed ?? 0);
-            },
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              ElevatedButton.icon(
-                onPressed: _applyDisplayMarkup ? _pickMarkupStartDate : null,
-                icon: const Icon(Icons.event),
-                label: Text(
-                  _displayMarkupStart == null
-                      ? 'تحديد تاريخ بدء الزيادة'
-                      : 'تاريخ الزيادة: ${_formatDate(_displayMarkupStart!.toIso8601String())}',
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (_displayMarkupStart != null)
-                TextButton(
-                  onPressed: _applyDisplayMarkup
-                      ? () => setState(() => _displayMarkupStart = null)
-                      : null,
-                  child: const Text('مسح التاريخ'),
-                ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'يتم عرض السعر الأساسي + قيمة الزيادة أعلاه لغايات التقدير فقط دون تغيير القيود المالية.',
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildPricePreview(
     Booking booking,
     Map<String, double> roomPrices,
@@ -648,79 +566,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     if (basePrice == null) {
       return _buildDetailRow('سعر الغرفة', 'غير متوفر', Icons.hotel_class);
     }
-    final applyMarkup = _markupAppliesToBooking(booking);
-    final displayPrice = applyMarkup
-        ? basePrice + _displayMarkupAmount
-        : basePrice;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDetailRow(
-          'سعر الغرفة الأساسي',
-          basePrice.toStringAsFixed(2),
-          Icons.hotel_class,
-        ),
-        if (applyMarkup)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: _buildDetailRow(
-              _displayMarkupStart != null
-                  ? 'السعر المعروض بعد الزيادة (+${_displayMarkupAmount.toStringAsFixed(0)}) اعتباراً من ${_formatDate(_displayMarkupStart!.toIso8601String())}'
-                  : 'السعر المعروض بعد الزيادة (+${_displayMarkupAmount.toStringAsFixed(0)})',
-              displayPrice.toStringAsFixed(2),
-              Icons.trending_up,
-            ),
-          ),
-        if (!applyMarkup && _applyDisplayMarkup && _displayMarkupStart != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: _buildDetailRow(
-              'سيتم تطبيق الزيادة اعتباراً من ${_formatDate(_displayMarkupStart!.toIso8601String())}',
-              displayPrice.toStringAsFixed(2),
-              Icons.schedule,
-            ),
-          ),
-      ],
+    return _buildDetailRow(
+      'سعر الغرفة',
+      basePrice.toStringAsFixed(2),
+      Icons.hotel_class,
     );
-  }
-
-  Future<void> _pickMarkupStartDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _displayMarkupStart ?? now,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 2),
-    );
-    if (picked != null) {
-      setState(() => _displayMarkupStart = picked);
-    }
-  }
-
-  bool _markupAppliesToBooking(Booking booking) {
-    if (!_applyDisplayMarkup) return false;
-    final start = _displayMarkupStart;
-    if (start == null) return true;
-
-    DateTime? parseDate(String? v) {
-      if (v == null || v.isEmpty) return null;
-      try {
-        return DateTime.parse(v);
-      } catch (_) {
-        return null;
-      }
-    }
-
-    final now = DateTime.now();
-    if (now.isBefore(start)) return false;
-
-    final checkin = parseDate(booking.checkinDate);
-    final checkout = parseDate(booking.checkoutDate);
-
-    if (checkout != null && !start.isBefore(checkout)) return false;
-    if (checkin != null && start.isBefore(checkin)) return false;
-    return true;
   }
 
   Widget _buildRealAdjustmentForm(BuildContext context, Booking booking) {
