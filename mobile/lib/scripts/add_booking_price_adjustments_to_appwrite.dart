@@ -179,7 +179,7 @@ Future<String> addAttribute(http.Client client, String apiKey, Map<String, dynam
   final required = attr['required'] as bool? ?? false;
   
   String urlPath;
-  Map<String, dynamic> body = {
+  final Map<String, dynamic> body = {
     'key': key,
     'required': required,
   };
