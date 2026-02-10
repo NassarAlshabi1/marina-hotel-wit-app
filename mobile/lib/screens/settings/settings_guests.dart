@@ -770,10 +770,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   value: AdjustmentMode.total,
                   child: Text('على الإجمالي'),
                 ),
-                DropdownMenuItem(
-                  value: AdjustmentMode.percentage,
-                  child: Text('نسبة مئوية %'),
-                ),
               ],
               onChanged: (v) => setState(() => _adjustMode = v ?? AdjustmentMode.perNight),
             ),

@@ -788,10 +788,6 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                                 value: AdjustmentMode.total,
                                 child: Text('على الإجمالي'),
                               ),
-                              DropdownMenuItem(
-                                value: AdjustmentMode.percentage,
-                                child: Text('نسبة مئوية %'),
-                              ),
                             ],
                             onChanged: (value) {
                               setState(() {
@@ -803,20 +799,12 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           TextFormField(
                             controller: discountController,
                             keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: _adjustmentModeSelections[booking.id] == AdjustmentMode.percentage
-                                  ? 'النسبة %'
-                                  : 'المبلغ',
-                              prefixIcon: Icon(
-                                _adjustmentModeSelections[booking.id] == AdjustmentMode.percentage
-                                    ? Icons.percent
-                                    : Icons.attach_money,
-                              ),
-                              border: const OutlineInputBorder(),
+                            decoration: const InputDecoration(
+                              labelText: 'المبلغ',
+                              prefixIcon: Icon(Icons.attach_money),
+                              border: OutlineInputBorder(),
                               isDense: true,
-                              hintText: _adjustmentModeSelections[booking.id] == AdjustmentMode.percentage
-                                  ? 'مثال: 10'
-                                  : 'مثال: 5000',
+                              hintText: 'مثال: 5000',
                             ),
                           ),
                           const SizedBox(height: 12),
