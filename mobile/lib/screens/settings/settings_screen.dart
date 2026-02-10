@@ -10,11 +10,10 @@ import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
 import 'google_drive_backup_screen.dart';
-import 'data_protection_screen.dart';
-import 'sync_performance_settings_screen.dart';
 import 'appwrite_settings_screen.dart';
-import 'sync_debug_logs_screen.dart';
+import 'php_api_settings_screen.dart';
 import 'whatsapp_settings_screen.dart';
+import 'diagnostics_screen.dart';
 import '../security/blacklist_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -40,8 +39,13 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // بطاقة الإحصائيات السريعة
-          _buildQuickStatsCard(context, roomsAsync, bookingsAsync,
-              employeesAsync, usersCountAsync),
+          _buildQuickStatsCard(
+            context,
+            roomsAsync,
+            bookingsAsync,
+            employeesAsync,
+            usersCountAsync,
+          ),
 
           const SizedBox(height: 20),
 
@@ -56,7 +60,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const SettingsEmployeesScreen()),
+                  builder: (context) => const SettingsEmployeesScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -67,7 +72,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const SettingsGuestsScreen()),
+                  builder: (context) => const SettingsGuestsScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -78,7 +84,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const SettingsUsersScreen()),
+                  builder: (context) => const SettingsUsersScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -89,7 +96,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const SettingsMaintenanceScreen()),
+                  builder: (context) => const SettingsMaintenanceScreen(),
+                ),
               ),
             ),
             _SettingsItem(
@@ -100,68 +108,60 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const BlacklistScreen()),
+                  builder: (context) => const BlacklistScreen(),
+                ),
               ),
             ),
           ]),
 
           const SizedBox(height: 20),
 
-          // قسم النظام
-          _buildSectionTitle('إعدادات النظام', Icons.settings),
+          // قسم المزامنة والنسخ الاحتياطي
+          _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
           _buildSettingsGrid(context, [
             _SettingsItem(
-              title: 'النسخ الاحتياطي',
-              subtitle: 'Google Drive + التخزين المحلي',
-              icon: Icons.backup,
-              color: Colors.indigo,
-              onTap: () => _showBackupDialog(context),
-            ),
-            _SettingsItem(
-              title: 'مركز النسخ والمزامنة',
-              subtitle: 'توحيد النسخ الاحتياطي والمزامنة الذكية',
-              icon: Icons.shield_moon,
-              color: Colors.cyan,
+              title: 'Google Drive',
+              subtitle: 'النسخ الاحتياطي والمزامنة والسجلات',
+              icon: Icons.cloud,
+              color: Colors.blue,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const DataProtectionScreen()),
+                  builder: (context) => const GoogleDriveBackupScreen(),
+                ),
               ),
             ),
             _SettingsItem(
-              title: 'تحسين أداء المزامنة',
-              subtitle: 'ضبط استهلاك البطارية والبيانات',
-              icon: Icons.tune,
-              color: Colors.deepPurple,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        const SyncPerformanceSettingsScreen()),
-              ),
-            ),
-            _SettingsItem(
-              title: 'إعدادات Appwrite',
-              subtitle: 'مزامنة سحابية وإعدادات متقدمة',
+              title: 'Appwrite',
+              subtitle: 'المزامنة السحابية',
               icon: Icons.cloud_sync,
-              color: Colors.blueAccent,
+              color: Colors.pink,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const AppwriteSettingsScreen()),
+                  builder: (context) => const AppwriteSettingsScreen(),
+                ),
               ),
             ),
             _SettingsItem(
-              title: 'سجلات المزامنة',
-              subtitle: 'مراقبة مزامنة Google Drive',
-              icon: Icons.monitor_heart,
-              color: Colors.deepOrange,
+              title: 'PHP API',
+              subtitle: 'إعدادات الخادم والاتصال',
+              icon: Icons.api,
+              color: Colors.indigo,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const SyncDebugLogsScreen()),
+                  builder: (context) => const PhpApiSettingsScreen(),
+                ),
               ),
             ),
+          ]),
+
+          const SizedBox(height: 20),
+
+          // قسم إعدادات عامة
+          _buildSectionTitle('إعدادات عامة', Icons.settings),
+          _buildSettingsGrid(context, [
             _SettingsItem(
               title: 'رسالة الواتساب',
               subtitle: 'تخصيص نص رسالة الدفع',
@@ -170,22 +170,28 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const WhatsAppSettingsScreen()),
+                  builder: (context) => const WhatsAppSettingsScreen(),
+                ),
               ),
             ),
             _SettingsItem(
-              title: 'إعدادات التطبيق',
-              subtitle: 'تخصيص إعدادات التطبيق',
-              icon: Icons.app_settings_alt,
-              color: Colors.teal,
+              title: 'المظهر',
+              subtitle: 'الوضع الليلي والألوان',
+              icon: Icons.palette,
+              color: Colors.purple,
               onTap: () => _showAppSettingsDialog(context),
             ),
             _SettingsItem(
-              title: 'تقارير النظام',
-              subtitle: 'عرض حالة وتقارير النظام',
-              icon: Icons.assessment,
-              color: Colors.red,
-              onTap: () => _showSystemReports(context),
+              title: 'تشخيص شامل',
+              subtitle: 'تقارير شاملة عن النظام والبيانات',
+              icon: Icons.bug_report,
+              color: Colors.teal,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const DiagnosticsScreen(),
+                ),
+              ),
             ),
             _SettingsItem(
               title: 'معلومات التطبيق',
@@ -216,8 +222,11 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.dashboard,
-                    color: Theme.of(context).primaryColor, size: 28),
+                Icon(
+                  Icons.dashboard,
+                  color: Theme.of(context).primaryColor,
+                  size: 28,
+                ),
                 const SizedBox(width: 12),
                 const Text(
                   'إحصائيات سريعة',
@@ -241,7 +250,8 @@ class SettingsScreen extends ConsumerWidget {
                     'الحجوزات النشطة',
                     bookingsAsync.value
                             ?.where(
-                                (b) => StatusUtils.isActiveBooking(b.status))
+                              (b) => StatusUtils.isActiveBooking(b.status),
+                            )
                             .length
                             .toString() ??
                         '---',
@@ -274,7 +284,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildStatItem(
-      String title, String value, IconData icon, Color color) {
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 32),
@@ -317,16 +331,15 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
-    final width = MediaQuery.sizeOf(context).width;
-    final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
+    final crossAxisCount = 3;
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
-        childAspectRatio: 1.2,
-        crossAxisSpacing: 12,
         mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        mainAxisExtent: 130,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -337,31 +350,26 @@ class SettingsScreen extends ConsumerWidget {
             onTap: item.onTap,
             borderRadius: BorderRadius.circular(12),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    item.icon,
-                    size: 32,
-                    color: item.color,
-                  ),
-                  const SizedBox(height: 12),
+                  Icon(item.icon, size: 20, color: item.color),
+                  const SizedBox(height: 8),
                   Text(
                     item.title,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     item.subtitle,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -372,15 +380,6 @@ class SettingsScreen extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-
-  void _showBackupDialog(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const GoogleDriveBackupScreen(),
-      ),
     );
   }
 
@@ -421,75 +420,20 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showSystemReports(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => Consumer(
-        builder: (context, ref, _) {
-          final backupState = ref.watch(backupStatusProvider);
-          final totalBackups = ref.watch(totalBackupsCountProvider);
-          final dbSize = ref.watch(databaseSizeProvider);
-          final lastDrive = ref.watch(lastBackupTimeProvider);
-          final lastLocal = ref.watch(lastLocalBackupTimeProvider);
-          return AlertDialog(
-            title: const Text('تقارير النظام'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _infoRow('تسجيل Google Drive',
-                    backupState.isSignedIn ? 'متصل' : 'غير متصل'),
-                const SizedBox(height: 6),
-                _infoRow('عدد النسخ الاحتياطية', '$totalBackups'),
-                const SizedBox(height: 6),
-                _infoRow('آخر نسخة سحابية', lastDrive?.toString() ?? '—'),
-                const SizedBox(height: 6),
-                _infoRow('آخر نسخة محلية', lastLocal?.toString() ?? '—'),
-                const SizedBox(height: 6),
-                _infoRow(
-                    'حجم قاعدة البيانات',
-                    dbSize != null
-                        ? '${(dbSize / (1024 * 1024)).toStringAsFixed(2)} MB'
-                        : '—'),
-                const Divider(height: 16),
-                Text(backupState.message ?? '',
-                    style: const TextStyle(fontSize: 12)),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('إغلاق'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AboutDialog(
         applicationName: 'تطبيق إدارة الفندق',
-        applicationVersion: '1.0.0',
-        applicationLegalese: '© 2024 Marina Hotel',
+        applicationVersion: '1.2',
+        applicationLegalese: '© 2026 Marina Hotel',
         children: const [
           Text('تطبيق شامل لإدارة العمليات الفندقية'),
+          SizedBox(height: 6),
+          Text('تصميم Eng: Nassar Alshabi'),
+          Text('Phone: +967 734587456'),
         ],
       ),
-    );
-  }
-
-  Widget _infoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.grey)),
-        const SizedBox(width: 12),
-        Flexible(child: Text(value, textAlign: TextAlign.end)),
-      ],
     );
   }
 }

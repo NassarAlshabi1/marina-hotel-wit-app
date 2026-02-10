@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Log Level Constants
-enum LogLevel {
-  debug,
-  info,
-  warning,
-  error,
-  critical,
-}
+enum LogLevel { debug, info, warning, error, critical }
 
 /// UI Constants for different log levels and statuses
 class UIConstants {

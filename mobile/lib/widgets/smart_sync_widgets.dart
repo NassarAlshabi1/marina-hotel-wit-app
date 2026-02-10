@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/smart_sync_provider.dart';
 import '../providers/backup_provider.dart';
+import '../screens/settings/smart_sync_settings_screen.dart';
 
 /// Widget لعرض حالة المزامنة في الوقت الفعلي
 class SmartSyncStatusWidget extends ConsumerWidget {
@@ -248,7 +249,11 @@ class _SmartSyncDashboardCardState
           margin: EdgeInsets.zero,
           child: InkWell(
             onTap: () {
-              Navigator.pushNamed(context, '/smart-sync-settings');
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SmartSyncSettingsScreen(),
+                ),
+              );
             },
             borderRadius: BorderRadius.circular(8),
             child: Padding(
@@ -276,14 +281,17 @@ class _SmartSyncDashboardCardState
                       children: [
                         Text(
                           'المزامنة بين الأجهزة',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         Text(
                           isSyncing
                               ? 'جارِ المزامنة...'
                               : isEnabled
-                                  ? 'مُفعلة'
-                                  : 'معطلة',
+                              ? 'مُفعلة'
+                              : 'معطلة',
                           style: TextStyle(
                             fontSize: 10,
                             color: isSyncing ? Colors.blue : Colors.grey,

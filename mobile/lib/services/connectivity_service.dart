@@ -16,10 +16,10 @@ class ConnectionStatus {
   });
 
   factory ConnectionStatus.offline() => ConnectionStatus(
-        isOnline: false,
-        type: ConnectionType.none,
-        timestamp: DateTime.now(),
-      );
+    isOnline: false,
+    type: ConnectionType.none,
+    timestamp: DateTime.now(),
+  );
 
   factory ConnectionStatus.fromConnectivityResult(
     List<ConnectivityResult> results,

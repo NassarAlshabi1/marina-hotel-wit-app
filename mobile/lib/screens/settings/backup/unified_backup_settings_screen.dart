@@ -75,10 +75,7 @@ class _UnifiedBackupSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'حالة النسخ الاحتياطي',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -93,11 +90,7 @@ class _UnifiedBackupSettingsScreenState
               value: FileSizeFormatter.formatBytes(1024 * 1024 * 15),
               icon: Icons.storage,
             ),
-            InfoRow(
-              label: 'عدد النسخ',
-              value: '5 نسخ',
-              icon: Icons.layers,
-            ),
+            InfoRow(label: 'عدد النسخ', value: '5 نسخ', icon: Icons.layers),
           ],
         ),
       ),
@@ -124,10 +117,7 @@ class _UnifiedBackupSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'النسخ الاحتياطي التلقائي',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -181,10 +171,7 @@ class _UnifiedBackupSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'Google Drive',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -246,10 +233,7 @@ class _UnifiedBackupSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'النسخ المحلي',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -301,10 +285,7 @@ class _UnifiedBackupSettingsScreenState
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'إعدادات متقدمة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -356,20 +337,29 @@ class _UnifiedBackupSettingsScreenState
           children: [
             ListTile(
               title: const Text('يومياً'),
-              leading:
-                  Radio(value: 'daily', groupValue: 'daily', onChanged: (v) {}),
+              leading: Radio(
+                value: 'daily',
+                groupValue: 'daily',
+                onChanged: (v) {},
+              ),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
               title: const Text('أسبوعياً'),
               leading: Radio(
-                  value: 'weekly', groupValue: 'daily', onChanged: (v) {}),
+                value: 'weekly',
+                groupValue: 'daily',
+                onChanged: (v) {},
+              ),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
               title: const Text('شهرياً'),
               leading: Radio(
-                  value: 'monthly', groupValue: 'daily', onChanged: (v) {}),
+                value: 'monthly',
+                groupValue: 'daily',
+                onChanged: (v) {},
+              ),
               onTap: () => Navigator.pop(context),
             ),
           ],

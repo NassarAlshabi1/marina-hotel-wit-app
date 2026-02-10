@@ -375,8 +375,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
               child: ListTile(
                 dense: true,
                 visualDensity: VisualDensity.compact,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 leading: CircleAvatar(
                   radius: 16,
                   backgroundColor: Colors.orange.shade100,
@@ -392,20 +394,25 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                 title: Text(
                   booking.guestName,
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 12),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('الهاتف: ${booking.guestPhone}',
-                        style:
-                            const TextStyle(fontSize: 10, color: Colors.grey)),
-                    Text('دخول: ${booking.checkinDate}',
-                        style:
-                            const TextStyle(fontSize: 10, color: Colors.grey)),
-                    Text('الجنسية: ${booking.guestNationality}',
-                        style:
-                            const TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text(
+                      'الهاتف: ${booking.guestPhone}',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                    Text(
+                      'دخول: ${booking.checkinDate}',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                    Text(
+                      'الجنسية: ${booking.guestNationality}',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
                   ],
                 ),
                 trailing: ElevatedButton.icon(

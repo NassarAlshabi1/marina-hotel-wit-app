@@ -35,9 +35,9 @@ class _SalaryEntitlementsScreenState
     } catch (e) {
       debugPrint('Error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل تحميل البيانات: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('فشل تحميل البيانات: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -49,15 +49,18 @@ class _SalaryEntitlementsScreenState
     return AppScaffold(
       title: 'استحقاقات الرواتب',
       actions: [
-        IconButton(onPressed: _loadData, icon: const Icon(Icons.refresh))
+        IconButton(onPressed: _loadData, icon: const Icon(Icons.refresh)),
       ],
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _entitlements.isEmpty
-              ? const Center(
-                  child: Text('لا يوجد موظفين نشطين',
-                      style: TextStyle(fontSize: 12)))
-              : RefreshIndicator(onRefresh: _loadData, child: _buildContent()),
+          ? const Center(
+              child: Text(
+                'لا يوجد موظفين نشطين',
+                style: TextStyle(fontSize: 12),
+              ),
+            )
+          : RefreshIndicator(onRefresh: _loadData, child: _buildContent()),
     );
   }
 
@@ -67,8 +70,10 @@ class _SalaryEntitlementsScreenState
       children: [
         _buildSummaryCard(),
         const SizedBox(height: 8),
-        const Text('تفاصيل الموظفين:',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        const Text(
+          'تفاصيل الموظفين:',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
         ..._entitlements.map((e) => _buildEmployeeCard(e)),
       ],
@@ -83,31 +88,36 @@ class _SalaryEntitlementsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('ملخص الاستحقاقات',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            const Text(
+              'ملخص الاستحقاقات',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             _row('عدد الموظفين', '${_summary['count'] ?? 0}'),
             _row(
-                'إجمالي الاستحقاقات',
-                CurrencyFormatter.formatAmount(
-                    _summary['totalEntitlements'] ?? 0),
-                Colors.green),
+              'إجمالي الاستحقاقات',
+              CurrencyFormatter.formatAmount(
+                _summary['totalEntitlements'] ?? 0,
+              ),
+              Colors.green,
+            ),
             _row(
-                'إجمالي السحبيات',
-                CurrencyFormatter.formatAmount(
-                    _summary['totalWithdrawals'] ?? 0),
-                Colors.orange),
+              'إجمالي السحبيات',
+              CurrencyFormatter.formatAmount(_summary['totalWithdrawals'] ?? 0),
+              Colors.orange,
+            ),
             _row(
-                'إجمالي الخصومات',
-                CurrencyFormatter.formatAmount(
-                    _summary['totalDeductions'] ?? 0),
-                Colors.red),
+              'إجمالي الخصومات',
+              CurrencyFormatter.formatAmount(_summary['totalDeductions'] ?? 0),
+              Colors.red,
+            ),
             const Divider(),
             _row(
-                'صافي المستحقات',
-                CurrencyFormatter.formatAmount(_summary['totalNet'] ?? 0),
-                Colors.blue.shade700,
-                true),
+              'صافي المستحقات',
+              CurrencyFormatter.formatAmount(_summary['totalNet'] ?? 0),
+              Colors.blue.shade700,
+              true,
+            ),
           ],
         ),
       ),
@@ -121,11 +131,14 @@ class _SalaryEntitlementsScreenState
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontSize: 12)),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 12,
-                  color: color,
-                  fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
         ],
       ),
     );
@@ -138,12 +151,16 @@ class _SalaryEntitlementsScreenState
       child: ExpansionTile(
         dense: true,
         tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-        title: Text(ent.employee.name,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        title: Text(
+          ent.employee.name,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
         subtitle: Text(
           'المتبقي: ${CurrencyFormatter.formatAmount(ent.netEntitlement)}',
           style: TextStyle(
-              fontSize: 12, color: isPositive ? Colors.green : Colors.red),
+            fontSize: 12,
+            color: isPositive ? Colors.green : Colors.red,
+          ),
         ),
         children: [
           Padding(
@@ -152,56 +169,77 @@ class _SalaryEntitlementsScreenState
               children: [
                 _row('تاريخ التعيين', _formatDate(ent.hireDate)),
                 _row('مدة العمل', '${ent.totalMonthsWorked} شهر'),
-                _row('الراتب الشهري',
-                    CurrencyFormatter.formatAmount(ent.basicSalary)),
+                _row(
+                  'الراتب الشهري',
+                  CurrencyFormatter.formatAmount(ent.basicSalary),
+                ),
                 const Divider(),
                 _row(
-                    'إجمالي الاستحقاق',
-                    CurrencyFormatter.formatAmount(ent.totalEntitlement),
-                    Colors.green),
+                  'إجمالي الاستحقاق',
+                  CurrencyFormatter.formatAmount(ent.totalEntitlement),
+                  Colors.green,
+                ),
                 _row(
-                    'السحبيات',
-                    '- ${CurrencyFormatter.formatAmount(ent.totalWithdrawals)}',
-                    Colors.orange),
+                  'السحبيات',
+                  '- ${CurrencyFormatter.formatAmount(ent.totalWithdrawals)}',
+                  Colors.orange,
+                ),
                 _row(
-                    'الخصومات',
-                    '- ${CurrencyFormatter.formatAmount(ent.totalDeductions)}',
-                    Colors.red),
+                  'الخصومات',
+                  '- ${CurrencyFormatter.formatAmount(ent.totalDeductions)}',
+                  Colors.red,
+                ),
                 const Divider(),
                 _row(
-                    'المتبقي',
-                    CurrencyFormatter.formatAmount(ent.netEntitlement),
-                    isPositive ? Colors.green : Colors.red,
-                    true),
+                  'المتبقي',
+                  CurrencyFormatter.formatAmount(ent.netEntitlement),
+                  isPositive ? Colors.green : Colors.red,
+                  true,
+                ),
                 if (ent.transactions.isNotEmpty) ...[
                   const Divider(),
                   const Align(
-                      alignment: Alignment.centerRight,
-                      child: Text('آخر المعاملات:',
-                          style: TextStyle(fontSize: 12))),
-                  ...ent.transactions.take(5).map((tx) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          children: [
-                            Text(tx.type,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      'آخر المعاملات:',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  ...ent.transactions
+                      .take(5)
+                      .map(
+                        (tx) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              Text(
+                                tx.type,
                                 style: TextStyle(
-                                    fontSize: 12,
-                                    color: tx.type == 'سحب'
-                                        ? Colors.orange
-                                        : Colors.red)),
-                            const Spacer(),
-                            Text(CurrencyFormatter.formatAmount(tx.amount),
-                                style: const TextStyle(fontSize: 12)),
-                            const SizedBox(width: 8),
-                            Text(
+                                  fontSize: 12,
+                                  color: tx.type == 'سحب'
+                                      ? Colors.orange
+                                      : Colors.red,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                CurrencyFormatter.formatAmount(tx.amount),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
                                 tx.date.length > 10
                                     ? tx.date.substring(0, 10)
                                     : tx.date,
                                 style: TextStyle(
-                                    fontSize: 10, color: Colors.grey.shade600)),
-                          ],
+                                  fontSize: 10,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      )),
+                      ),
                 ],
               ],
             ),

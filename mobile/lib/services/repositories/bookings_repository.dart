@@ -7,9 +7,9 @@ import '../auto_backup_manager.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
-      : outbox = OutboxDao(db),
-        dao = BookingsDao(db, OutboxDao(db)),
-        derivedFields = BookingDerivedFieldsService(db);
+    : outbox = OutboxDao(db),
+      dao = BookingsDao(db, OutboxDao(db)),
+      derivedFields = BookingDerivedFieldsService(db);
   final AppDatabase db;
   final OutboxDao outbox;
   final BookingsDao dao;
@@ -40,6 +40,7 @@ class BookingsRepository {
     int expectedNights = 1,
     int? calculatedNights,
     double discount = 0,
+    String discountType = 'per_night',
     String? discountStartDate,
   }) async {
     final result = await dao.insertOne(
@@ -64,6 +65,7 @@ class BookingsRepository {
             ? d.Value(calculatedNights)
             : const d.Value.absent(),
         discount: d.Value(discount),
+        discountType: d.Value(discountType),
         discountStartDate: d.Value(discountStartDate),
       ),
     );
@@ -96,19 +98,24 @@ class BookingsRepository {
     int? expectedNights,
     int? calculatedNights,
     double? discount,
+    String? discountType,
     String? discountStartDate,
   }) async {
     final result = await dao.updateById(
       id,
       BookingsCompanion(
-        roomNumber:
-            roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
-        guestName:
-            guestName != null ? d.Value(guestName) : const d.Value.absent(),
-        guestPhone:
-            guestPhone != null ? d.Value(guestPhone) : const d.Value.absent(),
-        guestIdType:
-            guestIdType != null ? d.Value(guestIdType) : const d.Value.absent(),
+        roomNumber: roomNumber != null
+            ? d.Value(roomNumber)
+            : const d.Value.absent(),
+        guestName: guestName != null
+            ? d.Value(guestName)
+            : const d.Value.absent(),
+        guestPhone: guestPhone != null
+            ? d.Value(guestPhone)
+            : const d.Value.absent(),
+        guestIdType: guestIdType != null
+            ? d.Value(guestIdType)
+            : const d.Value.absent(),
         guestIdNumber: guestIdNumber != null
             ? d.Value(guestIdNumber)
             : const d.Value.absent(),
@@ -121,13 +128,15 @@ class BookingsRepository {
         guestNationality: guestNationality != null
             ? d.Value(guestNationality)
             : const d.Value.absent(),
-        guestEmail:
-            guestEmail != null ? d.Value(guestEmail) : const d.Value.absent(),
+        guestEmail: guestEmail != null
+            ? d.Value(guestEmail)
+            : const d.Value.absent(),
         guestAddress: guestAddress != null
             ? d.Value(guestAddress)
             : const d.Value.absent(),
-        checkinDate:
-            checkinDate != null ? d.Value(checkinDate) : const d.Value.absent(),
+        checkinDate: checkinDate != null
+            ? d.Value(checkinDate)
+            : const d.Value.absent(),
         checkoutDate: checkoutDate != null
             ? d.Value(checkoutDate)
             : const d.Value.absent(),
@@ -143,6 +152,9 @@ class BookingsRepository {
             ? d.Value(calculatedNights)
             : const d.Value.absent(),
         discount: discount != null ? d.Value(discount) : const d.Value.absent(),
+        discountType: discountType != null
+            ? d.Value(discountType)
+            : const d.Value.absent(),
         discountStartDate: discountStartDate != null
             ? d.Value(discountStartDate)
             : const d.Value.absent(),

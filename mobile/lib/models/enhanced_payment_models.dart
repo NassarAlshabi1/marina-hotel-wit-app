@@ -556,19 +556,22 @@ class EnhancedInvoice {
             child: pw.Column(
               children: [
                 _buildSummaryRow('المجموع الفرعي:', totalAmount, fonts),
-                if (discount > 0) ...
-                  [
-                    pw.Divider(color: PdfColors.textLight),
-                    _buildSummaryRow(
-                      'التخفيض:',
-                      discount,
-                      fonts,
-                      color: PdfColors.success,
-                      isDiscount: true,
-                    ),
-                    pw.Divider(color: PdfColors.textLight),
-                    _buildSummaryRow('المجموع بعد التخفيض:', totalAfterDiscount, fonts),
-                  ],
+                if (discount > 0) ...[
+                  pw.Divider(color: PdfColors.textLight),
+                  _buildSummaryRow(
+                    'التخفيض:',
+                    discount,
+                    fonts,
+                    color: PdfColors.success,
+                    isDiscount: true,
+                  ),
+                  pw.Divider(color: PdfColors.textLight),
+                  _buildSummaryRow(
+                    'المجموع بعد التخفيض:',
+                    totalAfterDiscount,
+                    fonts,
+                  ),
+                ],
                 pw.Divider(color: PdfColors.textLight),
                 _buildSummaryRow(
                   'ضريبة القيمة المضافة:',
@@ -595,7 +598,9 @@ class EnhancedInvoice {
                         ),
                       ),
                       pw.Text(
-                        EnhancedPdfUtils.formatCurrency(totalAfterDiscount * 1.15),
+                        EnhancedPdfUtils.formatCurrency(
+                          totalAfterDiscount * 1.15,
+                        ),
                         style: pw.TextStyle(
                           font: fonts.bold,
                           fontSize: 16,

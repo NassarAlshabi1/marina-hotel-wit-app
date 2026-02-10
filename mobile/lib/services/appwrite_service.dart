@@ -1,6 +1,7 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'appwrite_config.dart';
+import 'appwrite_config_manager.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_cache_manager.dart';
@@ -31,9 +32,14 @@ class AppwriteService {
   Future<void> initialize() async {
     if (_initialized) return;
 
-    _client = Client()
-        .setEndpoint(AppwriteConfig.endpoint)
-        .setProject(AppwriteConfig.projectId);
+    final endpoint = AppwriteConfigManager.endpoint;
+    final projectId = AppwriteConfigManager.projectId;
+    final apiKey = AppwriteConfigManager.apiKey;
+
+    _client = Client().setEndpoint(endpoint).setProject(projectId);
+    if (apiKey.isNotEmpty) {
+      _client.addHeader('X-Appwrite-Key', apiKey);
+    }
 
     // إزالة selfSigned في الإنتاج، مفيدة للتطوير
     // _client.setSelfSigned(status: true);
@@ -105,7 +111,7 @@ class AppwriteService {
 
       Future<List<models.Document>> performOperation() async {
         final documentList = await _databases.listDocuments(
-          databaseId: AppwriteConfig.databaseId,
+          databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
           queries: pagedQueries,
         );
@@ -166,7 +172,7 @@ class AppwriteService {
         try {
           await _networkHelper.withRetryAndTimeout(
             operation: () => _databases.deleteDocument(
-              databaseId: AppwriteConfig.databaseId,
+              databaseId: AppwriteConfigManager.databaseId,
               collectionId: collectionId,
               documentId: doc.$id,
             ),
@@ -214,7 +220,7 @@ class AppwriteService {
     try {
       return await _networkHelper.withRetryAndTimeout(
         operation: () => _databases.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
+          databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
           documentId: documentId,
           data: data,
@@ -226,7 +232,7 @@ class AppwriteService {
       if (e.code == 404) {
         return await _networkHelper.withRetryAndTimeout(
           operation: () => _databases.createDocument(
-            databaseId: AppwriteConfig.databaseId,
+            databaseId: AppwriteConfigManager.databaseId,
             collectionId: collectionId,
             documentId: documentId,
             data: data,
@@ -245,7 +251,7 @@ class AppwriteService {
     try {
       await _networkHelper.withRetryAndTimeout(
         operation: () => _databases.deleteDocument(
-          databaseId: AppwriteConfig.databaseId,
+          databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
           documentId: documentId,
         ),
@@ -496,133 +502,168 @@ class AppwriteService {
   }
 
   // Booking Notes
-  Future<List<models.Document>> listBookingNotes(
-      {List<String>? queries, bool useCache = true}) async {
+  Future<List<models.Document>> listBookingNotes({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
     _ensureInitialized();
     return _listAllDocumentsInternal(
-        collectionId: AppwriteConfig.bookingNotesCollectionId,
-        queries: queries ?? [],
-        useCache: useCache);
+      collectionId: AppwriteConfig.bookingNotesCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
   }
 
   Future<models.Document> upsertBookingNote(
-      String documentId, Map<String, dynamic> data) async {
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     _ensureInitialized();
     return _upsertDocumentInternal(
-        collectionId: AppwriteConfig.bookingNotesCollectionId,
-        documentId: documentId,
-        data: data);
+      collectionId: AppwriteConfig.bookingNotesCollectionId,
+      documentId: documentId,
+      data: data,
+    );
   }
 
   Future<void> deleteBookingNote(String documentId) async {
     _ensureInitialized();
     return _deleteDocumentInternal(
-        collectionId: AppwriteConfig.bookingNotesCollectionId,
-        documentId: documentId);
+      collectionId: AppwriteConfig.bookingNotesCollectionId,
+      documentId: documentId,
+    );
   }
 
   // Booking Nights
-  Future<List<models.Document>> listBookingNights(
-      {List<String>? queries, bool useCache = true}) async {
+  Future<List<models.Document>> listBookingNights({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
     _ensureInitialized();
     return _listAllDocumentsInternal(
-        collectionId: AppwriteConfig.bookingNightsCollectionId,
-        queries: queries ?? [],
-        useCache: useCache);
+      collectionId: AppwriteConfig.bookingNightsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
   }
 
   Future<models.Document> upsertBookingNight(
-      String documentId, Map<String, dynamic> data) async {
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     _ensureInitialized();
     return _upsertDocumentInternal(
-        collectionId: AppwriteConfig.bookingNightsCollectionId,
-        documentId: documentId,
-        data: data);
+      collectionId: AppwriteConfig.bookingNightsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
   }
 
   Future<void> deleteBookingNight(String documentId) async {
     _ensureInitialized();
     return _deleteDocumentInternal(
-        collectionId: AppwriteConfig.bookingNightsCollectionId,
-        documentId: documentId);
+      collectionId: AppwriteConfig.bookingNightsCollectionId,
+      documentId: documentId,
+    );
   }
 
   // Cash Transactions
-  Future<List<models.Document>> listCashTransactions(
-      {List<String>? queries, bool useCache = true}) async {
+  Future<List<models.Document>> listCashTransactions({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
     _ensureInitialized();
     return _listAllDocumentsInternal(
-        collectionId: AppwriteConfig.cashTransactionsCollectionId,
-        queries: queries ?? [],
-        useCache: useCache);
+      collectionId: AppwriteConfig.cashTransactionsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
   }
 
   Future<models.Document> upsertCashTransaction(
-      String documentId, Map<String, dynamic> data) async {
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     _ensureInitialized();
     return _upsertDocumentInternal(
-        collectionId: AppwriteConfig.cashTransactionsCollectionId,
-        documentId: documentId,
-        data: data);
+      collectionId: AppwriteConfig.cashTransactionsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
   }
 
   Future<void> deleteCashTransaction(String documentId) async {
     _ensureInitialized();
     return _deleteDocumentInternal(
-        collectionId: AppwriteConfig.cashTransactionsCollectionId,
-        documentId: documentId);
+      collectionId: AppwriteConfig.cashTransactionsCollectionId,
+      documentId: documentId,
+    );
   }
 
   // Salary Cycles
-  Future<List<models.Document>> listSalaryCycles(
-      {List<String>? queries, bool useCache = true}) async {
+  Future<List<models.Document>> listSalaryCycles({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
     _ensureInitialized();
     return _listAllDocumentsInternal(
-        collectionId: AppwriteConfig.salaryCyclesCollectionId,
-        queries: queries ?? [],
-        useCache: useCache);
+      collectionId: AppwriteConfig.salaryCyclesCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
   }
 
   Future<models.Document> upsertSalaryCycle(
-      String documentId, Map<String, dynamic> data) async {
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     _ensureInitialized();
     return _upsertDocumentInternal(
-        collectionId: AppwriteConfig.salaryCyclesCollectionId,
-        documentId: documentId,
-        data: data);
+      collectionId: AppwriteConfig.salaryCyclesCollectionId,
+      documentId: documentId,
+      data: data,
+    );
   }
 
   Future<void> deleteSalaryCycle(String documentId) async {
     _ensureInitialized();
     return _deleteDocumentInternal(
-        collectionId: AppwriteConfig.salaryCyclesCollectionId,
-        documentId: documentId);
+      collectionId: AppwriteConfig.salaryCyclesCollectionId,
+      documentId: documentId,
+    );
   }
 
   // Salary Payments
-  Future<List<models.Document>> listSalaryPayments(
-      {List<String>? queries, bool useCache = true}) async {
+  Future<List<models.Document>> listSalaryPayments({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
     _ensureInitialized();
     return _listAllDocumentsInternal(
-        collectionId: AppwriteConfig.salaryPaymentsCollectionId,
-        queries: queries ?? [],
-        useCache: useCache);
+      collectionId: AppwriteConfig.salaryPaymentsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
   }
 
   Future<models.Document> upsertSalaryPayment(
-      String documentId, Map<String, dynamic> data) async {
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     _ensureInitialized();
     return _upsertDocumentInternal(
-        collectionId: AppwriteConfig.salaryPaymentsCollectionId,
-        documentId: documentId,
-        data: data);
+      collectionId: AppwriteConfig.salaryPaymentsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
   }
 
   Future<void> deleteSalaryPayment(String documentId) async {
     _ensureInitialized();
     return _deleteDocumentInternal(
-        collectionId: AppwriteConfig.salaryPaymentsCollectionId,
-        documentId: documentId);
+      collectionId: AppwriteConfig.salaryPaymentsCollectionId,
+      documentId: documentId,
+    );
   }
 
   // Generic methods for delta sync
@@ -670,7 +711,7 @@ class AppwriteService {
 
       await _networkHelper.withTimeout(
         operation: () => _databases.listDocuments(
-          databaseId: AppwriteConfig.databaseId,
+          databaseId: AppwriteConfigManager.databaseId,
           collectionId: AppwriteConfig.roomsCollectionId,
         ),
         operationName: 'quickConnectionTest',
@@ -710,7 +751,7 @@ class AppwriteService {
       try {
         await _networkHelper.withTimeout(
           operation: () => _databases.createDocument(
-            databaseId: AppwriteConfig.databaseId,
+            databaseId: AppwriteConfigManager.databaseId,
             collectionId: testCollection,
             documentId: testDocumentId,
             data: {
@@ -739,7 +780,7 @@ class AppwriteService {
         try {
           await _networkHelper.withTimeout(
             operation: () => _databases.getDocument(
-              databaseId: AppwriteConfig.databaseId,
+              databaseId: AppwriteConfigManager.databaseId,
               collectionId: testCollection,
               documentId: testDocumentId,
             ),
@@ -756,7 +797,7 @@ class AppwriteService {
         try {
           await _networkHelper.withTimeout(
             operation: () => _databases.deleteDocument(
-              databaseId: AppwriteConfig.databaseId,
+              databaseId: AppwriteConfigManager.databaseId,
               collectionId: testCollection,
               documentId: testDocumentId,
             ),
@@ -772,7 +813,8 @@ class AppwriteService {
 
       // حساب الحالة النهائية
       final tests = results['tests'] as Map<String, dynamic>;
-      results['overall_success'] = tests['ping'] == true &&
+      results['overall_success'] =
+          tests['ping'] == true &&
           (tests['write'] == true || tests['write'] == null) &&
           (tests['read'] == true || tests['read'] == null) &&
           (tests['delete'] == true || tests['delete'] == null);
@@ -780,14 +822,19 @@ class AppwriteService {
       if (results['overall_success'] == true) {
         _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');
       } else {
-        _logger.warning('Full connection test failed: $results',
-            tag: 'CONNECTION_TEST');
+        _logger.warning(
+          'Full connection test failed: $results',
+          tag: 'CONNECTION_TEST',
+        );
       }
 
       return results;
     } catch (e) {
-      _logger.error('Full connection test fatal error',
-          error: e, tag: 'CONNECTION_TEST');
+      _logger.error(
+        'Full connection test fatal error',
+        error: e,
+        tag: 'CONNECTION_TEST',
+      );
       results['overall_success'] = false;
       results['error'] = e.toString();
       return results;
@@ -800,7 +847,7 @@ class AppwriteService {
           final testCollection = AppwriteConfig.syncLogsCollectionId;
           final testDocumentId = 'connection_test_temp';
           await _databases.deleteDocument(
-            databaseId: AppwriteConfig.databaseId,
+            databaseId: AppwriteConfigManager.databaseId,
             collectionId: testCollection,
             documentId: testDocumentId,
           );
@@ -825,7 +872,7 @@ class AppwriteService {
     _ensureInitialized();
     return await _networkHelper.withTimeout(
       operation: () => _databases.getDocument(
-        databaseId: AppwriteConfig.databaseId,
+        databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
         documentId: documentId,
       ),
@@ -842,7 +889,7 @@ class AppwriteService {
     _ensureInitialized();
     return await _networkHelper.withTimeout(
       operation: () => _databases.createDocument(
-        databaseId: AppwriteConfig.databaseId,
+        databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
         documentId: documentId,
         data: data,
@@ -860,7 +907,7 @@ class AppwriteService {
     _ensureInitialized();
     return await _networkHelper.withTimeout(
       operation: () => _databases.updateDocument(
-        databaseId: AppwriteConfig.databaseId,
+        databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
         documentId: documentId,
         data: data,
@@ -916,7 +963,7 @@ class AppwriteService {
     return {
       'endpoint': AppwriteConfig.endpoint,
       'projectId': AppwriteConfig.projectId,
-      'databaseId': AppwriteConfig.databaseId,
+      'databaseId': AppwriteConfigManager.databaseId,
       'initialized': _initialized.toString(),
     };
   }

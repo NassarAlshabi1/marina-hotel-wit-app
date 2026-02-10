@@ -27,7 +27,8 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    final bookingUuid = _asString(json, 'localUuid', src) ??
+    final bookingUuid =
+        _asString(json, 'localUuid', src) ??
         _asString(json, 'booking_uuid', src) ??
         _asString(json, 'bookingUuid', src);
     final serverBookingId =
@@ -57,7 +58,8 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ??
+    final lastModified =
+        refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
     return BookingsCompanion(
@@ -147,6 +149,19 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       status: _vStr(json, 'status', src, fallback: ''),
       notes: _vStr(json, 'notes', src),
       discount: _vDouble(json, 'discount', src, fallback: 0),
+      discountType: _vStr(
+        json,
+        'discountType',
+        src,
+        altKey: 'discount_type',
+        fallback: 'per_night',
+      ),
+      discountStartDate: _vStr(
+        json,
+        'discountStartDate',
+        src,
+        altKey: 'discount_start_date',
+      ),
       expectedNights: _vInt(
         json,
         'expectedNights',
@@ -237,6 +252,9 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       _k(src, 'status', 'status'): model.status,
       _k(src, 'notes', 'notes'): model.notes,
       _k(src, 'discount', 'discount'): model.discount,
+      _k(src, 'discountType', 'discount_type'): model.discountType,
+      _k(src, 'discountStartDate', 'discount_start_date'):
+          model.discountStartDate,
       _k(src, 'expectedNights', 'expected_nights'): model.expectedNights,
       _k(src, 'calculatedNights', 'calculated_nights'): model.calculatedNights,
       _k(src, 'totalNightsCached', 'total_nights_cached'):
@@ -271,7 +289,8 @@ d.Value<int> _vInt(
   String? altKey,
   int? fallback,
 }) {
-  final v = _asInt(json, key, src) ??
+  final v =
+      _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -284,7 +303,8 @@ d.Value<String> _vStr(
   String? altKey,
   String? fallback,
 }) {
-  final v = _asString(json, key, src) ??
+  final v =
+      _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -297,7 +317,8 @@ d.Value<double> _vDouble(
   String? altKey,
   double? fallback,
 }) {
-  final v = _asDouble(json, key, src) ??
+  final v =
+      _asDouble(json, key, src) ??
       (altKey != null ? _asDouble(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -310,7 +331,8 @@ d.Value<bool> _vBool(
   String? altKey,
   bool? fallback,
 }) {
-  final v = _asBool(json, key, src) ??
+  final v =
+      _asBool(json, key, src) ??
       (altKey != null ? _asBool(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);

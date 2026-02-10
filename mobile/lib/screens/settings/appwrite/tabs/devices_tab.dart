@@ -67,10 +67,7 @@ class AppwriteDevicesTab extends ConsumerWidget {
                 const SizedBox(height: UIConstants.spacingMD),
                 const Text(
                   'هذا الجهاز',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: UIConstants.spacingSM),
                 StatusBadge(status: statusLabel),
@@ -124,8 +121,9 @@ class AppwriteDevicesTab extends ConsumerWidget {
   ) {
     return devicesAsync.when(
       data: (devices) {
-        final filtered =
-            devices.where((device) => device.id != currentId).toList();
+        final filtered = devices
+            .where((device) => device.id != currentId)
+            .toList();
 
         if (filtered.isEmpty) {
           return const EmptyStateWidget(
@@ -134,9 +132,7 @@ class AppwriteDevicesTab extends ConsumerWidget {
           );
         }
 
-        return Column(
-          children: filtered.map(_buildDeviceItem).toList(),
-        );
+        return Column(children: filtered.map(_buildDeviceItem).toList());
       },
       loading: () => const Padding(
         padding: EdgeInsets.all(16),

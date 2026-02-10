@@ -5,7 +5,8 @@ import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  final isCI = Platform.environment.containsKey('CI') ||
+  final isCI =
+      Platform.environment.containsKey('CI') ||
       Platform.environment.containsKey('GITHUB_ACTIONS');
 
   test(

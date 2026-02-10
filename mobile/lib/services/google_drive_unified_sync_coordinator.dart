@@ -200,10 +200,10 @@ class GoogleDriveUnifiedSyncCoordinator {
     final prefs = await SharedPreferences.getInstance();
 
     if (!prefs.containsKey(_prefsPushEnabledKey)) {
-      await prefs.setBool(_prefsPushEnabledKey, true);
+      await prefs.setBool(_prefsPushEnabledKey, false);
     }
     if (!prefs.containsKey(_prefsPullEnabledKey)) {
-      await prefs.setBool(_prefsPullEnabledKey, true);
+      await prefs.setBool(_prefsPullEnabledKey, false);
     }
     if (!prefs.containsKey(_prefsDebounceSecondsKey)) {
       await prefs.setInt(_prefsDebounceSecondsKey, _defaultDebounceSeconds);
@@ -218,20 +218,31 @@ class GoogleDriveUnifiedSyncCoordinator {
       await prefs.setString(_prefsSyncModeKey, SyncMode.smart.name);
     }
 
-    _pushEnabled = prefs.getBool(_prefsPushEnabledKey) ?? true;
-    _pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? true;
+    _pushEnabled = prefs.getBool(_prefsPushEnabledKey) ?? false;
+    _pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? false;
     _debounceSeconds =
         prefs.getInt(_prefsDebounceSecondsKey) ?? _defaultDebounceSeconds;
     _pullIntervalMinutes =
         prefs.getInt(_prefsPullIntervalKey) ?? _defaultPullIntervalMinutes;
     _fullBackupIntervalHours =
         prefs.getInt(_prefsFullBackupIntervalKey) ?? _defaultFullBackupHours;
+
+    if (_pullEnabled) {
+      _pullEnabled = false;
+      await prefs.setBool(_prefsPullEnabledKey, false);
+    }
   }
 
   Future<void> onSignInChanged(bool isSignedIn) async {
     _log('🔐 Sign-in status changed: $isSignedIn');
 
     if (isSignedIn) {
+      final prefs = await SharedPreferences.getInstance();
+      final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+      if (!syncEnabled) {
+        _log('⏸️ Google Drive sync disabled - skipping monitoring');
+        return;
+      }
       await _startMonitoring();
       await performSync(trigger: SyncTrigger.manual, mode: SyncMode.smart);
     } else {
@@ -245,15 +256,22 @@ class GoogleDriveUnifiedSyncCoordinator {
     if (!_isInitialized || !(_backupService?.isSignedIn ?? false)) {
       return;
     }
+    final prefs = await SharedPreferences.getInstance();
+    final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!syncEnabled) {
+      _log('⏸️ Google Drive sync disabled - monitoring skipped');
+      return;
+    }
 
     // مراقبة تغييرات outbox للمزامنة التلقائية
     _outboxSubscription?.cancel();
     if (_pushEnabled && _database != null) {
-      _outboxSubscription =
-          (_database!.select(_database!.outbox)).watch().listen((_) {
-        _log('📦 Detected change in outbox', level: LogLevel.debug);
-        notifyLocalChange();
-      });
+      _outboxSubscription = (_database!.select(_database!.outbox))
+          .watch()
+          .listen((_) {
+            _log('📦 Detected change in outbox', level: LogLevel.debug);
+            notifyLocalChange();
+          });
       _log('✅ Started outbox monitoring for auto-sync');
     }
 
@@ -530,16 +548,28 @@ class GoogleDriveUnifiedSyncCoordinator {
           _lastFullBackupTime!.toIso8601String(),
         );
       } else if (effectiveMode == SyncMode.deltaOnly) {
-        pulled = await _performDeltaPull();
+        if (_pullEnabled) {
+          pulled = await _performDeltaPull();
+        } else {
+          _log('⏸️ Pull disabled - skipping delta pull');
+          pulled = 0;
+        }
       } else {
         if (_hasPendingChanges || trigger == SyncTrigger.localChange) {
           pushed = await _performDeltaPush();
         }
 
-        if (trigger == SyncTrigger.appForeground ||
-            trigger == SyncTrigger.periodic ||
-            trigger == SyncTrigger.manual) {
+        if (_pullEnabled &&
+            (trigger == SyncTrigger.appForeground ||
+                trigger == SyncTrigger.periodic ||
+                trigger == SyncTrigger.manual)) {
           pulled = await _performDeltaPull();
+        } else if (!_pullEnabled &&
+            (trigger == SyncTrigger.appForeground ||
+                trigger == SyncTrigger.periodic ||
+                trigger == SyncTrigger.manual)) {
+          _log('⏸️ Pull disabled - skipping delta pull');
+          pulled = 0;
         }
       }
 
@@ -614,8 +644,9 @@ class GoogleDriveUnifiedSyncCoordinator {
       return SyncMode.fullBackup;
     }
 
-    final hoursSinceFullBackup =
-        DateTime.now().difference(_lastFullBackupTime!).inHours;
+    final hoursSinceFullBackup = DateTime.now()
+        .difference(_lastFullBackupTime!)
+        .inHours;
     if (hoursSinceFullBackup >= _fullBackupIntervalHours) {
       return SyncMode.fullBackup;
     }
@@ -730,6 +761,27 @@ class GoogleDriveUnifiedSyncCoordinator {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefsPushEnabledKey, enabled);
     _pushEnabled = enabled;
+
+    if (!enabled) {
+      _outboxSubscription?.cancel();
+      _outboxSubscription = null;
+    } else {
+      final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+      if (_isInitialized &&
+          syncEnabled &&
+          (_backupService?.isSignedIn ?? false)) {
+        _outboxSubscription?.cancel();
+        if (_database != null) {
+          _outboxSubscription = (_database!.select(_database!.outbox))
+              .watch()
+              .listen((_) {
+                _log('📦 Detected change in outbox', level: LogLevel.debug);
+                notifyLocalChange();
+              });
+        }
+      }
+    }
+
     _log('🔧 Push ${enabled ? 'enabled' : 'disabled'}');
   }
 
@@ -832,6 +884,10 @@ class GoogleDriveUnifiedSyncCoordinator {
     try {
       if (!_isInitialized || !(_backupService?.isSignedIn ?? false)) {
         _log('⚠️ Cannot pull - not initialized or not signed in');
+        return false;
+      }
+      if (!_pullEnabled) {
+        _log('⏸️ Pull disabled - skipping');
         return false;
       }
 

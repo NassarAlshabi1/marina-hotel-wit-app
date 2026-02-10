@@ -40,9 +40,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     // تفعيل المزامنة التلقائية إذا كانت مفعلة
     if (_syncEnabled) {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
-      manager.startAutoSync(
-        interval: Duration(minutes: _syncInterval),
-      );
+      manager.startAutoSync(interval: Duration(minutes: _syncInterval));
     }
   }
 
@@ -104,10 +102,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'حالة المزامنة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -159,10 +154,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'إعدادات المزامنة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -170,9 +162,11 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('تفعيل المزامنة التلقائية'),
-            subtitle: Text(_syncEnabled
-                ? 'المزامنة التلقائية مفعّلة'
-                : 'المزامنة مع Appwrite معطّلة (يدوي فقط)'),
+            subtitle: Text(
+              _syncEnabled
+                  ? 'المزامنة التلقائية مفعّلة'
+                  : 'المزامنة مع Appwrite معطّلة (يدوي فقط)',
+            ),
             value: _syncEnabled,
             onChanged: (value) async {
               setState(() => _syncEnabled = value);
@@ -196,9 +190,11 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('مزامنة تلقائية عند الاتصال'),
-            subtitle: Text(_autoSyncOnConnect
-                ? 'ستتم المزامنة تلقائياً عند الاتصال بالإنترنت'
-                : 'المزامنة عند الاتصال معطّلة'),
+            subtitle: Text(
+              _autoSyncOnConnect
+                  ? 'ستتم المزامنة تلقائياً عند الاتصال بالإنترنت'
+                  : 'المزامنة عند الاتصال معطّلة',
+            ),
             value: _autoSyncOnConnect,
             onChanged: _syncEnabled
                 ? (value) async {
@@ -244,10 +240,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'إحصائيات المزامنة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -255,7 +248,11 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             Builder(
               builder: (context) {
                 final width = MediaQuery.sizeOf(context).width;
-                final crossAxisCount = width < 360 ? 1 : width < 600 ? 2 : 3;
+                final crossAxisCount = width < 360
+                    ? 1
+                    : width < 600
+                    ? 2
+                    : 3;
                 return GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -264,31 +261,31 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                   crossAxisSpacing: UIConstants.spacingMD,
                   childAspectRatio: 1.5,
                   children: [
-                StatCard(
-                  title: 'إجمالي المزامنات',
-                  value: '$totalSyncs',
-                  icon: Icons.sync_alt,
-                  color: Colors.blue,
-                ),
-                StatCard(
-                  title: 'معدل النجاح',
-                  value: '${successRate.toStringAsFixed(1)}%',
-                  icon: Icons.trending_up,
-                  color: Colors.green,
-                ),
-                StatCard(
-                  title: 'عمليات ناجحة',
-                  value: '$successfulSyncs',
-                  icon: Icons.check_circle,
-                  color: Colors.green,
-                ),
-                StatCard(
-                  title: 'عمليات فاشلة',
-                  value: '$failedSyncs',
-                  icon: Icons.error,
-                  color: Colors.red,
-                ),
-              ],
+                    StatCard(
+                      title: 'إجمالي المزامنات',
+                      value: '$totalSyncs',
+                      icon: Icons.sync_alt,
+                      color: Colors.blue,
+                    ),
+                    StatCard(
+                      title: 'معدل النجاح',
+                      value: '${successRate.toStringAsFixed(1)}%',
+                      icon: Icons.trending_up,
+                      color: Colors.green,
+                    ),
+                    StatCard(
+                      title: 'عمليات ناجحة',
+                      value: '$successfulSyncs',
+                      icon: Icons.check_circle,
+                      color: Colors.green,
+                    ),
+                    StatCard(
+                      title: 'عمليات فاشلة',
+                      value: '$failedSyncs',
+                      icon: Icons.error,
+                      color: Colors.red,
+                    ),
+                  ],
                 );
               },
             ),
@@ -318,10 +315,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 const SizedBox(width: UIConstants.spacingSM),
                 const Text(
                   'التخزين المؤقت',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -453,9 +447,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   void _onSyncEnabledChanged(bool enabled) {
     final manager = ref.read(ap.appwriteSyncManagerProvider);
     if (enabled) {
-      manager.startAutoSync(
-        interval: Duration(minutes: _syncInterval),
-      );
+      manager.startAutoSync(interval: Duration(minutes: _syncInterval));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم تفعيل المزامنة التلقائية كل $_syncInterval دقيقة'),
@@ -509,9 +501,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   Future<void> _clearCache() async {
     ref.read(ap.appwriteCacheManagerProvider).clear();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم مسح التخزين المؤقت')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم مسح التخزين المؤقت')));
     }
   }
 
@@ -702,22 +694,24 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 const SizedBox(height: 8),
                 ...stats.entries
                     .where((e) => e.key != 'errors')
-                    .map((e) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('• ${_translateEntity(e.key)}'),
-                              Text(
-                                '${e.value}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.purple,
-                                ),
+                    .map(
+                      (e) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('• ${_translateEntity(e.key)}'),
+                            Text(
+                              '${e.value}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.purple,
                               ),
-                            ],
-                          ),
-                        )),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
               ],
             ),
           ),
@@ -790,12 +784,18 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       final appwriteService = ref.read(ap.appwriteServiceProvider);
 
       // فحص البيانات المحلية
-      final roomsCount =
-          await database.select(database.rooms).get().then((l) => l.length);
-      final bookingsCount =
-          await database.select(database.bookings).get().then((l) => l.length);
-      final paymentsCount =
-          await database.select(database.payments).get().then((l) => l.length);
+      final roomsCount = await database
+          .select(database.rooms)
+          .get()
+          .then((l) => l.length);
+      final bookingsCount = await database
+          .select(database.bookings)
+          .get()
+          .then((l) => l.length);
+      final paymentsCount = await database
+          .select(database.payments)
+          .get()
+          .then((l) => l.length);
 
       debugPrint('📊 البيانات المحلية:');
       debugPrint('   الغرف: $roomsCount');
@@ -816,8 +816,10 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       String? testResult;
       if (roomsCount > 0) {
         try {
-          final room =
-              await database.select(database.rooms).get().then((l) => l.first);
+          final room = await database
+              .select(database.rooms)
+              .get()
+              .then((l) => l.first);
 
           final payload = <String, dynamic>{
             'roomNumber': room.roomNumber,
@@ -866,21 +868,27 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('📊 البيانات المحلية:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  '📊 البيانات المحلية:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 Text('• الغرف: $roomsCount'),
                 Text('• الحجوزات: $bookingsCount'),
                 Text('• المدفوعات: $paymentsCount'),
                 const SizedBox(height: 16),
-                const Text('🔌 حالة Appwrite:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  '🔌 حالة Appwrite:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 Text('• مُهيأ: ${isInitialized ? "✅ نعم" : "❌ لا"}'),
                 Text('• Project ID: ${projectInfo['projectId']}'),
                 Text('• Database ID: ${projectInfo['databaseId']}'),
                 if (testResult != null) ...[
                   const SizedBox(height: 16),
-                  const Text('🧪 اختبار الرفع:',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    '🧪 اختبار الرفع:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   Text(testResult),
                 ],
               ],

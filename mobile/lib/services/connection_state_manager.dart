@@ -5,12 +5,7 @@ import 'appwrite_service.dart';
 import 'appwrite_logger.dart';
 
 /// حالة الاتصال
-enum ConnectionStatus {
-  online,
-  offline,
-  checking,
-  unknown,
-}
+enum ConnectionStatus { online, offline, checking, unknown }
 
 /// مدير حالة الاتصال مع Appwrite
 ///
@@ -54,8 +49,10 @@ class ConnectionStateManager extends ChangeNotifier {
   /// تهيئة المدير
   Future<void> init() async {
     if (_connectivitySubscription != null) {
-      _logger.debug('ConnectionStateManager already initialized',
-          tag: 'CONNECTION');
+      _logger.debug(
+        'ConnectionStateManager already initialized',
+        tag: 'CONNECTION',
+      );
       return;
     }
 
@@ -65,8 +62,11 @@ class ConnectionStateManager extends ChangeNotifier {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
       _onConnectivityChanged,
       onError: (error) {
-        _logger.error('Connectivity stream error',
-            error: error, tag: 'CONNECTION');
+        _logger.error(
+          'Connectivity stream error',
+          error: error,
+          tag: 'CONNECTION',
+        );
       },
     );
 

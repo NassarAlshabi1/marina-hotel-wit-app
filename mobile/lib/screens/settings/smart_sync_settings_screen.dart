@@ -319,8 +319,8 @@ class _SmartSyncSettingsScreenState
     final shortenedDeviceId = deviceId == null
         ? null
         : deviceId.length > 20
-            ? '${deviceId.substring(0, 20)}...'
-            : deviceId;
+        ? '${deviceId.substring(0, 20)}...'
+        : deviceId;
 
     return Card(
       child: Padding(
@@ -350,8 +350,8 @@ class _SmartSyncSettingsScreenState
               'الحالة',
               isEnabled
                   ? (monitoringActive
-                      ? 'مُفعلة ونشطة ✅'
-                      : 'مُفعلة ولكن غير نشطة ⚠️')
+                        ? 'مُفعلة ونشطة ✅'
+                        : 'مُفعلة ولكن غير نشطة ⚠️')
                   : 'معطلة ❌',
             ),
             _buildStatusRow(

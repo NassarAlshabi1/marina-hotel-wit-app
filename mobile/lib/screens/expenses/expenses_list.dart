@@ -25,6 +25,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   DateTime? _fromDate;
   DateTime? _toDate;
   String? selectedType;
+  late Stream<List<Expense>> _expensesStream;
   static const String _salaryType = 'رواتب';
   static const String _salaryWithdrawAction = 'سحب من الراتب';
   static const String _salaryDeductionAction = 'خصم من الراتب';
@@ -48,11 +49,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final now = DateTime.now();
     _fromDate = DateTime(now.year, now.month, 1);
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    _expensesStream = _buildExpensesStream();
   }
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.watch(expensesRepoProvider);
     final employeesAsync = ref.watch(employeesListProvider);
 
     return wrapWithSyncOnExit(
@@ -74,7 +75,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               for (final emp in employees) emp.id: emp.name,
             };
             return StreamBuilder<List<Expense>>(
-              stream: repo.watchAll(),
+              stream: _expensesStream,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const Center(
@@ -84,8 +85,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final allExpenses = snapshot.data!;
-                final filteredExpenses = _filterByDate(allExpenses);
+                final filteredExpenses = snapshot.data!;
                 final totalAmount = filteredExpenses.fold<double>(
                   0,
                   (sum, e) => sum + e.amount,
@@ -104,8 +104,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     if (filteredExpenses.isEmpty)
                       const Padding(
                         padding: EdgeInsets.only(top: 48),
-                        child:
-                            Center(child: Text('لا توجد مصروفات ضمن الفترة')),
+                        child: Center(
+                          child: Text('لا توجد مصروفات ضمن الفترة'),
+                        ),
                       )
                     else
                       ...filteredExpenses.map(
@@ -128,30 +129,30 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
   }
 
-  List<Expense> _filterByDate(List<Expense> expenses) {
-    final from = _fromDate;
-    final to = _toDate;
-    final filtered = expenses.where((expense) {
-      final date = _parseExpenseDate(expense.date);
-      if (from != null && date.isBefore(from)) return false;
-      if (to != null && date.isAfter(to)) return false;
-      return true;
-    }).toList();
-    filtered.sort(
-      (a, b) => _parseExpenseDate(b.date).compareTo(_parseExpenseDate(a.date)),
-    );
-    return filtered;
+  Stream<List<Expense>> _buildExpensesStream() {
+    final repo = ref.read(expensesRepoProvider);
+    final fromStr = _fromDate != null ? Time.dateToString(_fromDate!) : null;
+    final toStr = _toDate != null ? Time.dateToString(_toDate!) : null;
+    return Stream.fromFuture(repo.listFiltered(from: fromStr, to: toStr));
+  }
+
+  void _refreshExpensesStream() {
+    setState(() {
+      _expensesStream = _buildExpensesStream();
+    });
   }
 
   DateTime _parseExpenseDate(String value) {
-    final normalized =
-        value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized = value.contains('T')
+        ? value
+        : value.replaceFirst(' ', 'T');
     return DateTime.tryParse(normalized) ?? DateTime.now();
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initial =
-        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initial = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -171,12 +172,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
         }
       }
+      _expensesStream = _buildExpensesStream();
     });
   }
 
   Widget _buildFiltersCard() {
-    final fromLabel =
-        _fromDate != null ? _dateFormat.format(_fromDate!) : 'غير محدد';
+    final fromLabel = _fromDate != null
+        ? _dateFormat.format(_fromDate!)
+        : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
     return Card(
       child: Padding(
@@ -265,8 +268,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
               Text(
                 value,
                 style: TextStyle(fontWeight: FontWeight.bold, color: color),
@@ -320,11 +325,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 children: [
                   _buildMetaChip(Icons.category, expense.expenseType),
                   _buildMetaChip(
-                      Icons.calendar_today, _dateFormat.format(date)),
-                  _buildMetaChip(
-                    Icons.person,
-                    employeeName ?? 'بدون موظف',
+                    Icons.calendar_today,
+                    _dateFormat.format(date),
                   ),
+                  _buildMetaChip(Icons.person, employeeName ?? 'بدون موظف'),
                 ],
               ),
             ],
@@ -382,9 +386,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 children: [
                   DropdownButtonFormField<String>(
                     value: selectedType,
-                    decoration: const InputDecoration(
-                      labelText: 'نوع المصروف',
-                    ),
+                    decoration: const InputDecoration(labelText: 'نوع المصروف'),
                     style: dropdownTextStyle,
                     items: availableTypes
                         .map(
@@ -520,8 +522,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
     final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedDate =
-        date.text.trim().isEmpty ? Time.hotelDayKey() : date.text.trim();
+    final trimmedDate = date.text.trim().isEmpty
+        ? Time.hotelDayKey()
+        : date.text.trim();
     final isSalaryExpense = selectedType == _salaryType;
     final savedType = isSalaryExpense
         ? _deriveSalaryExpenseType(dialogSalaryAction)
@@ -583,7 +586,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     markDataChanged();
     if (mounted) {
-      setState(() {});
+      _refreshExpensesStream();
     }
   }
 

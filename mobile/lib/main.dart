@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -42,23 +43,50 @@ import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/logging/log_models.dart';
+import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/sync_queue_service.dart';
 import 'services/appwrite_config_manager.dart';
+import 'services/appwrite_realtime_sync.dart';
+import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await DiagnosticsLogger.instance.initialize();
+
+  FlutterError.onError = (details) {
+    DiagnosticsLogger.instance.recordFlutterError(details);
+    FlutterError.presentError(details);
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    DiagnosticsLogger.instance.recordError(
+      error,
+      stack,
+      tag: 'PLATFORM',
+      level: LogLevel.critical,
+    );
+    return true;
+  };
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  await _initializeFullyAutomatedSyncSystem();
-
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
-  runApp(const ProviderScope(child: App()));
+  runZonedGuarded(
+    () => runApp(const ProviderScope(child: App())),
+    (error, stack) => DiagnosticsLogger.instance.recordError(
+      error,
+      stack,
+      tag: 'ZONED',
+      level: LogLevel.critical,
+    ),
+  );
+
+  unawaited(_initializeFullyAutomatedSyncSystem());
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
@@ -67,6 +95,19 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
   debugPrint('═══════════════════════════════════════════════════════');
 
   try {
+    final prefs = await SharedPreferences.getInstance();
+    final disableGoogleDriveSyncOnStart =
+        prefs.getBool('google_drive_sync_disable_on_start') ?? false;
+    if (disableGoogleDriveSyncOnStart) {
+      await prefs.setBool('google_drive_sync_enabled', false);
+    }
+    if (!prefs.containsKey('google_drive_sync_enabled')) {
+      await prefs.setBool('google_drive_sync_enabled', false);
+    }
+    if (!prefs.containsKey('appwrite_sync_enabled')) {
+      await prefs.setBool('appwrite_sync_enabled', true);
+    }
+
     debugPrint('📦 Initializing Appwrite Config Manager...');
     await AppwriteConfigManager.init();
     debugPrint('✅ Appwrite Config loaded');
@@ -270,8 +311,9 @@ void _setupEngineMonitoring(AutoSyncEngine engine) {
     debugPrint('❌ Failed attempts: ${state.failedAttempts}');
 
     if (state.nextRetryAt != null) {
-      final secondsUntil =
-          state.nextRetryAt!.difference(DateTime.now()).inSeconds;
+      final secondsUntil = state.nextRetryAt!
+          .difference(DateTime.now())
+          .inSeconds;
       debugPrint('⏰ Next retry in: ${secondsUntil}s');
     }
 
@@ -325,7 +367,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     _pendingDatabase = null;
     _isConfiguringSession = true;
-    Future.microtask(() async {
+    Future.delayed(const Duration(milliseconds: 100), () async {
       try {
         if (_sessionConfigured) {
           await AppSessionManager.onAppCloseOrBackground();
@@ -338,6 +380,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         await Seeder(database).seedIfEmpty();
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
+        _startRealtimeSync();
       } finally {
         _isConfiguringSession = false;
         if (_pendingDatabase != null) {
@@ -347,8 +390,31 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     });
   }
 
+  void _startRealtimeSync() {
+    Future.delayed(const Duration(seconds: 3), () async {
+      try {
+        final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+        final deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
+        if (deviceId == null) {
+          debugPrint('⚠️ Device ID not available, skipping realtime sync');
+          return;
+        }
+
+        await AppwriteRealtimeSync().initialize(
+          syncManager: syncManager,
+          deviceId: deviceId,
+        );
+        await AppwriteRealtimeSync().start();
+        debugPrint('📡 Realtime sync started');
+      } catch (e) {
+        debugPrint('❌ Realtime sync init error: $e');
+      }
+    });
+  }
+
   @override
   void dispose() {
+    AppwriteRealtimeSync().stop();
     if (_sessionConfigured) {
       unawaited(AppSessionManager.onAppCloseOrBackground());
     }
@@ -366,17 +432,18 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       AppSessionManager.onAppOpen().catchError(
         (e, s) => debugPrint('Error in onAppOpen: $e\n$s'),
       );
-      ref.read(backupStatusProvider.notifier).refreshSignInStatus().catchError(
+      ref
+          .read(backupStatusProvider.notifier)
+          .refreshSignInStatus()
+          .catchError(
             (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
-            (e, s) =>
-                debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
-          );
+        (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
+      );
       SyncGuardian.instance.onAppForeground().catchError(
-            (e, s) =>
-                debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
-          );
+        (e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
+      );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {

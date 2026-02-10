@@ -8,6 +8,7 @@ import '../../services/restore_fix_service.dart';
 import '../../services/local_db.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
+import 'appwrite_connection_settings_screen.dart';
 import 'comprehensive_backup_screen.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
@@ -185,8 +186,9 @@ class _AppwriteSettingsScreenState
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color:
-                                state.isConnected ? Colors.green : Colors.red,
+                            color: state.isConnected
+                                ? Colors.green
+                                : Colors.red,
                           ),
                         ),
                         if (state.errorMessage != null) ...[
@@ -206,6 +208,19 @@ class _AppwriteSettingsScreenState
               ),
             ),
             const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.settings, color: Colors.blue),
+              title: const Text('إعدادات الاتصال السحابي'),
+              subtitle: const Text('تغيير Endpoint و Project و Database'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AppwriteConnectionSettingsScreen(),
+                ),
+              ),
+            ),
+            const Divider(height: 24),
 
             // معلومات المشروع
             _buildInfoRow('Endpoint', info['endpoint'] ?? '---'),
@@ -274,9 +289,11 @@ class _AppwriteSettingsScreenState
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(value
-                          ? 'تم تفعيل المزامنة التلقائية'
-                          : 'تم إيقاف المزامنة التلقائية'),
+                      content: Text(
+                        value
+                            ? 'تم تفعيل المزامنة التلقائية'
+                            : 'تم إيقاف المزامنة التلقائية',
+                      ),
                       duration: const Duration(seconds: 2),
                     ),
                   );

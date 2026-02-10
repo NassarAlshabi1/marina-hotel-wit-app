@@ -25,10 +25,7 @@ class LocalBackupsTab extends ConsumerWidget {
         SectionHeader(
           title: 'النسخ المحلية',
           icon: Icons.phone_android,
-          action: IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {},
-          ),
+          action: IconButton(icon: const Icon(Icons.add), onPressed: () {}),
         ),
         _buildBackupsList(),
       ],
@@ -157,10 +154,7 @@ class LocalBackupsTab extends ConsumerWidget {
             color: Colors.green.withOpacity(0.1),
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
           ),
-          child: const Icon(
-            Icons.file_present,
-            color: Colors.green,
-          ),
+          child: const Icon(Icons.file_present, color: Colors.green),
         ),
         title: Text(backup['name']),
         subtitle: Column(

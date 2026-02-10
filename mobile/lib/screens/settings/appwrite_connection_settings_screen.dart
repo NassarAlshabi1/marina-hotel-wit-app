@@ -19,9 +19,11 @@ class _AppwriteConnectionSettingsScreenState
   late TextEditingController _endpointController;
   late TextEditingController _projectIdController;
   late TextEditingController _databaseIdController;
+  late TextEditingController _apiKeyController;
   bool _isSaving = false;
   bool _isTesting = false;
   bool _hasChanges = false;
+  bool _showApiKey = false;
 
   @override
   void initState() {
@@ -35,17 +37,22 @@ class _AppwriteConnectionSettingsScreenState
     _databaseIdController = TextEditingController(
       text: AppwriteConfigManager.databaseId,
     );
+    _apiKeyController = TextEditingController(
+      text: AppwriteConfigManager.apiKey,
+    );
 
     _endpointController.addListener(_onChanged);
     _projectIdController.addListener(_onChanged);
     _databaseIdController.addListener(_onChanged);
+    _apiKeyController.addListener(_onChanged);
   }
 
   void _onChanged() {
     final hasChanges =
         _endpointController.text != AppwriteConfigManager.endpoint ||
-            _projectIdController.text != AppwriteConfigManager.projectId ||
-            _databaseIdController.text != AppwriteConfigManager.databaseId;
+        _projectIdController.text != AppwriteConfigManager.projectId ||
+        _databaseIdController.text != AppwriteConfigManager.databaseId ||
+        _apiKeyController.text != AppwriteConfigManager.apiKey;
 
     if (hasChanges != _hasChanges) {
       setState(() => _hasChanges = hasChanges);
@@ -57,6 +64,7 @@ class _AppwriteConnectionSettingsScreenState
     _endpointController.dispose();
     _projectIdController.dispose();
     _databaseIdController.dispose();
+    _apiKeyController.dispose();
     super.dispose();
   }
 
@@ -70,6 +78,7 @@ class _AppwriteConnectionSettingsScreenState
         endpoint: _endpointController.text.trim(),
         projectId: _projectIdController.text.trim(),
         databaseId: _databaseIdController.text.trim(),
+        apiKey: _apiKeyController.text.trim(),
       );
 
       if (mounted) {
@@ -155,6 +164,7 @@ class _AppwriteConnectionSettingsScreenState
       _endpointController.text = AppwriteConfig.endpoint;
       _projectIdController.text = AppwriteConfig.projectId;
       _databaseIdController.text = AppwriteConfig.databaseId;
+      _apiKeyController.text = '';
       _hasChanges = false;
     });
 
@@ -187,7 +197,8 @@ class _AppwriteConnectionSettingsScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-                'اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق'),
+              'اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق',
+            ),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 5),
             action: SnackBarAction(
@@ -313,6 +324,23 @@ class _AppwriteConnectionSettingsScreenState
                 return null;
               },
             ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _apiKeyController,
+              decoration: InputDecoration(
+                labelText: 'API Key (اختياري)',
+                hintText: 'مفتاح API من Appwrite',
+                prefixIcon: const Icon(Icons.key),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _showApiKey = !_showApiKey),
+                  icon: Icon(
+                    _showApiKey ? Icons.visibility_off : Icons.visibility,
+                  ),
+                ),
+              ),
+              obscureText: !_showApiKey,
+            ),
           ],
         ),
       ),
@@ -352,10 +380,21 @@ class _AppwriteConnectionSettingsScreenState
             _buildConfigRow('Endpoint', AppwriteConfigManager.endpoint),
             _buildConfigRow('Project ID', AppwriteConfigManager.projectId),
             _buildConfigRow('Database ID', AppwriteConfigManager.databaseId),
+            _buildConfigRow(
+              'API Key',
+              _maskApiKey(AppwriteConfigManager.apiKey),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  String _maskApiKey(String value) {
+    if (value.isEmpty) return 'غير مضبوط';
+    if (value.length <= 6) return '••••••';
+    final tail = value.substring(value.length - 4);
+    return '••••••$tail';
   }
 
   Widget _buildConfigRow(String label, String value) {
@@ -374,10 +413,7 @@ class _AppwriteConnectionSettingsScreenState
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                color: Colors.grey.shade700,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
             ),
           ),
         ],
@@ -429,9 +465,7 @@ class _AppwriteConnectionSettingsScreenState
                 onPressed: _resetToDefaults,
                 icon: const Icon(Icons.restart_alt),
                 label: const Text('إعادة تعيين'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.orange,
-                ),
+                style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
               ),
             ),
           ],

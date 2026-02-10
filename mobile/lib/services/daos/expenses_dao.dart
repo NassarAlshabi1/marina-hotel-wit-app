@@ -38,6 +38,29 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
+  Future<List<Expense>> listFiltered({
+    String? from,
+    String? to,
+    String? expenseType,
+    bool includeDeleted = false,
+  }) async {
+    final q = select(expenses);
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+
+    if (from != null) {
+      q.where((t) => t.date.isBiggerOrEqualValue(from));
+    }
+    if (to != null) {
+      q.where((t) => t.date.isSmallerOrEqualValue(to));
+    }
+    if (expenseType != null && expenseType.isNotEmpty) {
+      q.where((t) => t.expenseType.equals(expenseType));
+    }
+
+    q.orderBy([(t) => OrderingTerm.desc(t.date)]);
+    return q.get();
+  }
+
   Stream<List<Expense>> watchList({bool includeDeleted = false}) {
     final q = select(expenses);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
@@ -75,16 +98,14 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   Stream<Expense?> watchById(int id) =>
       (select(expenses)..where((t) => t.id.equals(id))).watchSingleOrNull();
   Future<Expense?> getByLocalUuid(String localUuid) => (select(
-        expenses,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .getSingleOrNull();
+    expenses,
+  )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   Future<Expense?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
     if (parsedServerId == null) return Future.value(null);
     return (select(
       expenses,
-    )..where((t) => t.serverId.equals(parsedServerId)))
-        .getSingleOrNull();
+    )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
   }
 
   Future<int> insertOne(
@@ -130,8 +151,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         expenses,
-      )..where((t) => t.id.equals(id)))
-          .write(comp);
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'update',
@@ -160,8 +180,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         expenses,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .write(comp);
+      )..where((t) => t.localUuid.equals(localUuid))).write(comp);
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'update',
@@ -185,8 +204,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await (select(
         expenses,
-      )..where((t) => t.serverId.equals(parsedServerId)))
-          .getSingleOrNull();
+      )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
       if (existing == null) return 0;
       final comp = data.copyWith(
         updatedAt: Value(now),
@@ -195,8 +213,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         expenses,
-      )..where((t) => t.serverId.equals(parsedServerId)))
-          .write(comp);
+      )..where((t) => t.serverId.equals(parsedServerId))).write(comp);
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'update',
@@ -218,14 +235,14 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows =
-          await (update(expenses)..where((t) => t.id.equals(id))).write(
-        ExpensesCompanion(
-          deletedAt: Value(now),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-        ),
-      );
+      final rows = await (update(expenses)..where((t) => t.id.equals(id)))
+          .write(
+            ExpensesCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'delete',
@@ -239,10 +256,11 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
-    final row = await (select(expenses)
-          ..where((t) => t.localUuid.equals(localUuid))
-          ..limit(1))
-        .getSingleOrNull();
+    final row =
+        await (select(expenses)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
     if (row == null) return null;
     return adapters.expenses.toJsonForSource(row, src: Source.appwrite);
   }

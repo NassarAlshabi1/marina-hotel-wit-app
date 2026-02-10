@@ -8,7 +8,8 @@ import 'package:marina_hotel_mobile/services/appwrite_config.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  final isCI = Platform.environment.containsKey('CI') ||
+  final isCI =
+      Platform.environment.containsKey('CI') ||
       Platform.environment.containsKey('GITHUB_ACTIONS');
 
   group(
@@ -42,10 +43,7 @@ void main() {
         () async {
           final fakeRoomId = 'fake_room_uuid_999';
 
-          await expectLater(
-            appwriteService.deleteRoom(fakeRoomId),
-            completes,
-          );
+          await expectLater(appwriteService.deleteRoom(fakeRoomId), completes);
         },
         timeout: const Timeout(Duration(seconds: 60)),
       );

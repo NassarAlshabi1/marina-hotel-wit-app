@@ -20,9 +20,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       actions: [
         IconButton(
           onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const SalaryEntitlementsScreen())),
+            context,
+            MaterialPageRoute(builder: (_) => const SalaryEntitlementsScreen()),
+          ),
           icon: const Icon(Icons.account_balance_wallet),
           tooltip: 'استحقاقات الرواتب',
         ),
@@ -333,8 +333,10 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     onPressed: () =>
                         _showEmployeeEntitlement(context, employee),
                     icon: const Icon(Icons.account_balance_wallet, size: 16),
-                    label:
-                        const Text('الاستحقاق', style: TextStyle(fontSize: 12)),
+                    label: const Text(
+                      'الاستحقاق',
+                      style: TextStyle(fontSize: 12),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -585,44 +587,56 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         builder: (context) => Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            title: Text('استحقاق ${employee.name}',
-                style: const TextStyle(fontSize: 14)),
+            title: Text(
+              'استحقاق ${employee.name}',
+              style: const TextStyle(fontSize: 14),
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _entitlementRow('تاريخ التعيين',
-                    '${entitlement.hireDate.year}-${entitlement.hireDate.month}-${entitlement.hireDate.day}'),
                 _entitlementRow(
-                    'مدة العمل', '${entitlement.totalMonthsWorked} شهر'),
-                _entitlementRow('الراتب الشهري',
-                    CurrencyFormatter.formatAmount(entitlement.basicSalary)),
+                  'تاريخ التعيين',
+                  '${entitlement.hireDate.year}-${entitlement.hireDate.month}-${entitlement.hireDate.day}',
+                ),
+                _entitlementRow(
+                  'مدة العمل',
+                  '${entitlement.totalMonthsWorked} شهر',
+                ),
+                _entitlementRow(
+                  'الراتب الشهري',
+                  CurrencyFormatter.formatAmount(entitlement.basicSalary),
+                ),
                 const Divider(),
                 _entitlementRow(
-                    'إجمالي الاستحقاق',
-                    CurrencyFormatter.formatAmount(
-                        entitlement.totalEntitlement),
-                    Colors.green),
+                  'إجمالي الاستحقاق',
+                  CurrencyFormatter.formatAmount(entitlement.totalEntitlement),
+                  Colors.green,
+                ),
                 _entitlementRow(
-                    'السحبيات',
-                    '- ${CurrencyFormatter.formatAmount(entitlement.totalWithdrawals)}',
-                    Colors.orange),
+                  'السحبيات',
+                  '- ${CurrencyFormatter.formatAmount(entitlement.totalWithdrawals)}',
+                  Colors.orange,
+                ),
                 _entitlementRow(
-                    'الخصومات',
-                    '- ${CurrencyFormatter.formatAmount(entitlement.totalDeductions)}',
-                    Colors.red),
+                  'الخصومات',
+                  '- ${CurrencyFormatter.formatAmount(entitlement.totalDeductions)}',
+                  Colors.red,
+                ),
                 const Divider(),
                 _entitlementRow(
-                    'المتبقي',
-                    CurrencyFormatter.formatAmount(entitlement.netEntitlement),
-                    isPositive ? Colors.green : Colors.red,
-                    true),
+                  'المتبقي',
+                  CurrencyFormatter.formatAmount(entitlement.netEntitlement),
+                  isPositive ? Colors.green : Colors.red,
+                  true,
+                ),
               ],
             ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('إغلاق')),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
             ],
           ),
         ),
@@ -630,25 +644,33 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) Navigator.pop(context);
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('خطأ: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
       }
     }
   }
 
-  Widget _entitlementRow(String label, String value,
-      [Color? color, bool bold = false]) {
+  Widget _entitlementRow(
+    String label,
+    String value, [
+    Color? color,
+    bool bold = false,
+  ]) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontSize: 12)),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 12,
-                  color: color,
-                  fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
         ],
       ),
     );

@@ -95,41 +95,12 @@ class LocalBackupService {
     }
 
     try {
-      Directory? selectedDir;
+      final Directory selectedDir;
 
       if (Platform.isAndroid) {
-        try {
-          final manualDir = Directory(
-            '/storage/emulated/0/Documents/$_backupFolderName',
-          );
-          if (!await manualDir.exists()) {
-            await manualDir.create(recursive: true);
-            debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${manualDir.path}');
-          }
-          selectedDir = manualDir;
-        } catch (e) {
-          debugPrint('⚠️ تعذر استخدام المسار اليدوي، سيتم استخدام بديل: $e');
-        }
-
-        if (selectedDir == null) {
-          final externalDirs = await getExternalStorageDirectories(
-            type: StorageDirectory.documents,
-          );
-          if (externalDirs != null && externalDirs.isNotEmpty) {
-            final fallbackDir = Directory(
-              p.join(externalDirs.first.path, _backupFolderName),
-            );
-            if (!await fallbackDir.exists()) {
-              await fallbackDir.create(recursive: true);
-              debugPrint(
-                '✅ تم إنشاء مجلد النسخ الاحتياطي: ${fallbackDir.path}',
-              );
-            }
-            selectedDir = fallbackDir;
-          }
-        }
-
-        selectedDir ??= await getApplicationDocumentsDirectory();
+        selectedDir = Directory(
+          '/storage/emulated/0/Documents/$_backupFolderName',
+        );
       } else {
         selectedDir = await getApplicationDocumentsDirectory();
       }
@@ -180,7 +151,8 @@ class LocalBackupService {
         final paymentsData = await db.select(db.payments).get();
         final syncStateData = await db.select(db.syncState).get();
 
-        final totalRecords = roomsData.length +
+        final totalRecords =
+            roomsData.length +
             bookingsData.length +
             bookingNotesData.length +
             employeesData.length +
@@ -201,17 +173,20 @@ class LocalBackupService {
           'metadata': metadata.toJson(),
           'rooms': roomsData.map((room) => room.toJson()).toList(),
           'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
-          'booking_notes':
-              bookingNotesData.map((note) => note.toJson()).toList(),
-          'employees':
-              employeesData.map((employee) => employee.toJson()).toList(),
+          'booking_notes': bookingNotesData
+              .map((note) => note.toJson())
+              .toList(),
+          'employees': employeesData
+              .map((employee) => employee.toJson())
+              .toList(),
           'expenses': expensesData.map((expense) => expense.toJson()).toList(),
           'cash_transactions': cashTransactionsData
               .map((transaction) => transaction.toJson())
               .toList(),
           'payments': paymentsData.map((payment) => payment.toJson()).toList(),
-          'sync_state':
-              syncStateData.isNotEmpty ? syncStateData.first.toJson() : {},
+          'sync_state': syncStateData.isNotEmpty
+              ? syncStateData.first.toJson()
+              : {},
         };
 
         final filePath = '${backupDir.path}/$baseName.json';
@@ -367,8 +342,9 @@ class LocalBackupService {
 
       for (final file in files) {
         final extension = p.extension(file.path).toLowerCase();
-        final format =
-            extension == '.sqlite' ? BackupFormat.sqlite : BackupFormat.json;
+        final format = extension == '.sqlite'
+            ? BackupFormat.sqlite
+            : BackupFormat.json;
 
         try {
           BackupMetadata? metadata;
@@ -707,8 +683,8 @@ class LocalBackupService {
           final dbVersion = rawVersion is int
               ? rawVersion
               : rawVersion is num
-                  ? rawVersion.toInt()
-                  : 0;
+              ? rawVersion.toInt()
+              : 0;
 
           if (dbVersion > AppDatabase().schemaVersion) {
             throw Exception(

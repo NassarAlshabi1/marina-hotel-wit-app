@@ -142,6 +142,8 @@ class EnhancedPdfHelper {
             remainingBalanceCached: 0,
             isFullyPaid: false,
             discount: 0,
+            discountType: 'per_night',
+            discountStartDate: null,
             hotelDayCheckin: null,
             hotelDayCheckout: null,
             vectorClock: '{}',
@@ -220,8 +222,9 @@ class EnhancedPdfHelper {
     final totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
     final netProfit = totalRevenue - totalExpenses;
     final totalBookings = bookings.length;
-    final checkedInGuests =
-        bookings.where((b) => b.status == 'checked_in').length;
+    final checkedInGuests = bookings
+        .where((b) => b.status == 'checked_in')
+        .length;
 
     pdf.addPage(
       pw.MultiPage(

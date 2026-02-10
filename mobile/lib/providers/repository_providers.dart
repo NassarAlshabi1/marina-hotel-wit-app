@@ -14,6 +14,7 @@ import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/auth_local_store.dart';
 import '../services/sync_guardian.dart';
+import '../services/diagnostics/diagnostics_logger.dart';
 
 import '../services/whatsapp_service.dart';
 import '../utils/status_utils.dart';
@@ -31,6 +32,10 @@ final syncGuardianProvider = Provider<SyncGuardian>(
 );
 final syncHealthProvider = StreamProvider<SyncHealthSnapshot>(
   (ref) => ref.watch(syncGuardianProvider).watchHealth(),
+);
+
+final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>(
+  (ref) => DiagnosticsLogger.instance,
 );
 
 final databaseProvider = Provider<AppDatabase>(
@@ -85,7 +90,10 @@ final roomsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(roomsRepoProvider).watchAll(),
 );
 final availableRoomsProvider = StreamProvider.autoDispose(
-  (ref) => ref.watch(roomsRepoProvider).watchAll().map(
+  (ref) => ref
+      .watch(roomsRepoProvider)
+      .watchAll()
+      .map(
         (rooms) => rooms
             .where((room) => StatusUtils.isRoomAvailable(room.status))
             .toList(),
@@ -148,14 +156,20 @@ final debtsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(debtsRepoProvider).watchAll(),
 );
 final pendingDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref.watch(debtsRepoProvider).watchAll().map(
+  (ref) => ref
+      .watch(debtsRepoProvider)
+      .watchAll()
+      .map(
         (debts) => debts
             .where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0)
             .toList(),
       ),
 );
 final settledDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref.watch(debtsRepoProvider).watchAll().map(
+  (ref) => ref
+      .watch(debtsRepoProvider)
+      .watchAll()
+      .map(
         (debts) => debts
             .where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0)
             .toList(),

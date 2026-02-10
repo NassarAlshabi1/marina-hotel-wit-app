@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +19,13 @@ class AppwriteLogsScreen extends ConsumerStatefulWidget {
 class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   LogLevel? _filterLevel;
   String _searchQuery = '';
+  Timer? _debounceTimer;
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +105,13 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onChanged: (value) {
-                    setState(() => _searchQuery = value.toLowerCase());
+                    _debounceTimer?.cancel();
+                    _debounceTimer = Timer(
+                      const Duration(milliseconds: 300),
+                      () {
+                        setState(() => _searchQuery = value.toLowerCase());
+                      },
+                    );
                   },
                 ),
                 const SizedBox(height: 8),
@@ -170,8 +185,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                     separatorBuilder: (context, index) =>
                         const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      final log = filteredLogs[
-                          filteredLogs.length - 1 - index]; // عكس الترتيب
+                      final log =
+                          filteredLogs[filteredLogs.length -
+                              1 -
+                              index]; // عكس الترتيب
                       return _buildLogEntry(log);
                     },
                   ),

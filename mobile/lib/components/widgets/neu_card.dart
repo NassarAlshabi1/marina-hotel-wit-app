@@ -46,10 +46,7 @@ class NeuCard extends StatelessWidget {
     );
 
     if (onTap != null) {
-      return GestureDetector(
-        onTap: onTap,
-        child: card,
-      );
+      return GestureDetector(onTap: onTap, child: card);
     }
     return card;
   }
@@ -266,9 +263,7 @@ class NeuSectionHeader extends StatelessWidget {
               decoration: BoxDecoration(
                 color: scheme.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: scheme.outline.withOpacity(0.3),
-                ),
+                border: Border.all(color: scheme.outline.withOpacity(0.3)),
               ),
               child: Text(
                 trailing!,

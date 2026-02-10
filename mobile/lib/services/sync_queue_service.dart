@@ -35,11 +35,8 @@ class SyncQueueService {
 
   Future<int> getQueueCount() async => 0;
 
-  Future<QueueStats> getStats() async => const QueueStats(
-        totalItems: 0,
-        pendingItems: 0,
-        processingItems: 0,
-      );
+  Future<QueueStats> getStats() async =>
+      const QueueStats(totalItems: 0, pendingItems: 0, processingItems: 0);
 
   void dispose() {
     _queueController.close();

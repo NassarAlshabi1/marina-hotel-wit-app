@@ -45,11 +45,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             final expectedNights = widget.booking.expectedNights > 0
                 ? widget.booking.expectedNights
                 : (checkin != null
-                    ? Time.nightsWithCutoff(
-                        checkin,
-                        checkout: plannedCheckout,
-                      )
-                    : 1);
+                      ? Time.nightsWithCutoff(
+                          checkin,
+                          checkout: plannedCheckout,
+                        )
+                      : 1);
             final actualNights = checkin != null
                 ? Time.nightsWithCutoff(
                     checkin,
@@ -249,8 +249,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed:
-                              _isProcessing ? null : () => _addPayment(context),
+                          onPressed: _isProcessing
+                              ? null
+                              : () => _addPayment(context),
                           icon: const Icon(Icons.add_circle),
                           label: const Text('إضافة دفعة جديدة'),
                           style: ElevatedButton.styleFrom(
@@ -266,13 +267,14 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                             widget.booking.id,
                           ),
                           builder: (context, snapshot) {
-                            final totalPaid = snapshot.data?.fold<double>(
+                            final totalPaid =
+                                snapshot.data?.fold<double>(
                                   0,
                                   (sum, payment) => sum + payment.amount,
                                 ) ??
                                 0.0;
-                            final remainingAmount =
-                                (totalDue - totalPaid).clamp(0, totalDue);
+                            final remainingAmount = (totalDue - totalPaid)
+                                .clamp(0, totalDue);
                             return ElevatedButton.icon(
                               onPressed: _isProcessing || remainingAmount > 0
                                   ? null

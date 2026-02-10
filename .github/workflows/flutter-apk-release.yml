@@ -110,7 +110,8 @@ jobs:
 
       - name: Build release APK
         # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
-        run: flutter build apk --release --build-name ${{ steps.version.outputs.build_name }} --build-number ${{ steps.version.outputs.build_number }}
+        # Build only for arm64-v8a architecture (modern 64-bit Android devices)
+        run: flutter build apk --release --target-platform android-arm64 --build-name ${{ steps.version.outputs.build_name }} --build-number ${{ steps.version.outputs.build_number }}
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4

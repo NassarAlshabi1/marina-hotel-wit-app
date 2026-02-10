@@ -26,7 +26,8 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    final uuid = _asString(json, 'localUuid', src) ??
+    final uuid =
+        _asString(json, 'localUuid', src) ??
         _asString(json, 'local_uuid', src) ??
         IdGen.uuid();
     // ignore: unused_local_variable
@@ -55,7 +56,8 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ??
+    final lastModified =
+        refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
 
@@ -66,11 +68,21 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       title: _vStr(json, 'title', src),
       content: _vStr(json, 'content', src),
       priority: _vStr(json, 'priority', src, fallback: 'medium'),
-      shiftType:
-          _vStr(json, 'shiftType', src, altKey: 'shift_type', fallback: 'all'),
+      shiftType: _vStr(
+        json,
+        'shiftType',
+        src,
+        altKey: 'shift_type',
+        fallback: 'all',
+      ),
       isRead: _vInt(json, 'isRead', src, altKey: 'is_read', fallback: 0),
-      createdBy:
-          _vStr(json, 'createdBy', src, altKey: 'created_by', fallback: 'user'),
+      createdBy: _vStr(
+        json,
+        'createdBy',
+        src,
+        altKey: 'created_by',
+        fallback: 'user',
+      ),
       expiresAt: _vStr(json, 'expiresAt', src, altKey: 'expires_at'),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
@@ -92,9 +104,11 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
   @override
   Map<String, dynamic> toJson(ShiftNote model, {required Source src}) {
     if (src == Source.appwrite) {
-      final createdAtIso = model.createdAtIso ??
-          DateTime.fromMillisecondsSinceEpoch(model.createdAt * 1000)
-              .toIso8601String();
+      final createdAtIso =
+          model.createdAtIso ??
+          DateTime.fromMillisecondsSinceEpoch(
+            model.createdAt * 1000,
+          ).toIso8601String();
       return {
         'localUuid': model.localUuid,
         'title': model.title,
@@ -137,7 +151,8 @@ d.Value<int> _vInt(
   String? altKey,
   int? fallback,
 }) {
-  final v = _asInt(json, key, src) ??
+  final v =
+      _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -150,7 +165,8 @@ d.Value<String> _vStr(
   String? altKey,
   String? fallback,
 }) {
-  final v = _asString(json, key, src) ??
+  final v =
+      _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
