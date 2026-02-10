@@ -148,7 +148,7 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       ),
       status: _vStr(json, 'status', src, fallback: ''),
       notes: _vStr(json, 'notes', src),
-      discount: _vInt(json, 'discount', src, fallback: 0),
+      discount: _vDouble(json, 'discount', src, fallback: 0),
       discountType: _vStr(
         json,
         'discountType',

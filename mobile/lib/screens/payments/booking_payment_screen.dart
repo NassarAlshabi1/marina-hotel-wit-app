@@ -116,7 +116,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final debtsRepo = ref.read(debtsRepoProvider);
     final debts = await debtsRepo.listByBookingLocalId(widget.booking.id);
     if (mounted) {
-      int totalDebt = 0;
+      double totalDebt = 0;
       for (final d in debts) {
         if (d.isSettled == 0 && d.remainingAmount > 0) {
           totalDebt += d.remainingAmount;
@@ -200,7 +200,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       body: StreamBuilder<db.Room?>(
         stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
         builder: (context, roomSnap) {
-          final int roomRate = roomSnap.data?.price ?? 0;
+          final double roomRate = roomSnap.data?.price ?? 0;
           final checkin = DateTime.tryParse(widget.booking.checkinDate);
           if (checkin == null) {
             return const Center(
@@ -239,8 +239,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               final nightsCount = nights.isNotEmpty
                   ? nights.length
                   : actualNights;
-              final int nightTotal = nights.isNotEmpty
-                  ? nights.fold<int>(
+              final double nightTotal = nights.isNotEmpty
+                  ? nights.fold<double>(
                       0,
                       (sum, n) =>
                           sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
@@ -273,8 +273,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               int discountedNights = 0;
               int surchargeNights = 0;
               int normalNights = nightsCount;
-              int totalDiscount = 0;
-              int totalSurcharge = 0;
+              double totalDiscount = 0;
+              double totalSurcharge = 0;
 
               if (nights.isNotEmpty) {
                 discountedNights =
@@ -284,11 +284,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 normalNights =
                     nightsCount - discountedNights - surchargeNights;
                 if (normalNights < 0) normalNights = 0;
-                totalDiscount = nights.fold<int>(
+                totalDiscount = nights.fold<double>(
                   0,
                   (sum, n) => sum + (n.adjustment < 0 ? -n.adjustment : 0),
                 );
-                totalSurcharge = nights.fold<int>(
+                totalSurcharge = nights.fold<double>(
                   0,
                   (sum, n) => sum + (n.adjustment > 0 ? n.adjustment : 0),
                 );
@@ -310,11 +310,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 stream: paymentsRepo.paymentsByBooking(widget.booking.id),
                 builder: (context, paySnap) {
                   final dbPayments = paySnap.data ?? const <db.Payment>[];
-                  final paidAmount = dbPayments.fold<int>(
+                  final paidAmount = dbPayments.fold<double>(
                     0,
                     (s, p) => s + p.amount,
                   );
-                  int remainingAmount = totalAmount - paidAmount;
+                  double remainingAmount = totalAmount - paidAmount;
                   if (remainingAmount < 0) remainingAmount = 0;
                   _remainingAmount = remainingAmount;
                   final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
@@ -393,18 +393,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   Widget _buildPaymentSummaryCard(
     BookingPaymentSummary summary, {
-    required int roomRate,
+    required double roomRate,
     required int expectedNights,
     required int actualNights,
     required DateTime checkin,
     DateTime? plannedCheckout,
     DateTime? actualCheckout,
-    int discount = 0,
+    double discount = 0,
     int normalNights = 0,
     int discountedNights = 0,
     int surchargeNights = 0,
-    int totalDiscount = 0,
-    int totalSurcharge = 0,
+    double totalDiscount = 0,
+    double totalSurcharge = 0,
   }) {
     final progressPercentage = summary.paidPercentage / 100;
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
@@ -1373,7 +1373,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     return StreamBuilder<db.Room?>(
       stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
       builder: (context, roomSnap) {
-        final int roomRate = roomSnap.data?.price ?? 0;
+        final double roomRate = roomSnap.data?.price ?? 0;
         final amount = nights * roomRate;
 
         return ElevatedButton(
@@ -1492,7 +1492,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     // حساب المتبقي الجديد
     final roomsRepo = ref.read(roomsRepoProvider);
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
-    final int roomRate = room?.price ?? 0;
+    final double roomRate = room?.price ?? 0;
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
     final now = DateTime.now();
@@ -1501,8 +1501,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final allPayments = await paymentsRepo
         .paymentsByBooking(widget.booking.id)
         .first;
-    final totalPaid = allPayments.fold<int>(0, (s, p) => s + p.amount);
-    int newRemaining = currentTotal - totalPaid;
+    final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
+    double newRemaining = currentTotal - totalPaid;
     if (newRemaining < 0) newRemaining = 0;
 
     // إرسال رسالة واتساب
@@ -1577,7 +1577,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     await derivedService.refreshForBookingId(widget.booking.id);
 
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
-    final int roomRate = room?.price ?? 0;
+    final double roomRate = room?.price ?? 0;
 
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
@@ -1602,10 +1602,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final discountStartDate = _parseDateTime(widget.booking.discountStartDate);
 
     final int nightTotal = nights.isNotEmpty
-        ? nights.fold<int>(
+        ? nights.fold<double>(
             0,
             (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
-          )
+          ).toInt()
         : (() {
             final checkout = actualCheckout ?? plannedCheckout;
             if (checkout == null) {
@@ -1633,8 +1633,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final payments = await paymentsRepo
         .paymentsByBooking(widget.booking.id)
         .first;
-    final paidAmount = payments.fold<int>(0, (s, p) => s + p.amount);
-    int remainingAmount = totalAmount - paidAmount;
+    final paidAmount = payments.fold<double>(0, (s, p) => s + p.amount);
+    double remainingAmount = totalAmount - paidAmount;
     if (remainingAmount < 0) remainingAmount = 0;
 
     return _PaymentTotals(totalAmount, remainingAmount);
@@ -2208,7 +2208,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       builder: (context) => StreamBuilder<db.Room?>(
         stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
         builder: (context, roomSnap) {
-          final int roomRate = roomSnap.data?.price ?? 0;
+          final double roomRate = roomSnap.data?.price ?? 0;
 
           return AlertDialog(
             title: Row(

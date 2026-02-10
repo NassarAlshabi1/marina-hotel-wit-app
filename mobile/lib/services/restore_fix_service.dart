@@ -431,7 +431,7 @@ class RestoreFixService {
                 ..where((p) => p.deletedAt.isNull()))
               .get();
 
-      final totalPaid = payments.fold<int>(
+      final totalPaid = payments.fold<double>(
         0,
         (sum, payment) => sum + payment.amount,
       );
@@ -440,7 +440,7 @@ class RestoreFixService {
           await (db.select(db.rooms)
                 ..where((r) => r.roomNumber.equals(booking.roomNumber)))
               .getSingleOrNull();
-      int? expectedTotal;
+      double? expectedTotal;
       if (room != null) {
         final nights = await (db.select(db.bookingNights)
               ..where((n) => n.bookingLocalId.equals(booking.id))
@@ -469,7 +469,7 @@ class RestoreFixService {
         if (booking.discount > 0 && booking.discountType == 'total') {
           finalTotal = (totalNightAmount - booking.discount).clamp(0, totalNightAmount);
         }
-        expectedTotal = finalTotal.toInt();
+        expectedTotal = finalTotal;
 
         final remainingBalance = (expectedTotal - totalPaid).clamp(0, expectedTotal);
         final isFullyPaid = remainingBalance <= 0;
@@ -837,7 +837,7 @@ class RestoreFixService {
     }
 
     final int totalNights = math.max(breakdown.length, 1);
-    final int totalDue = calculation.financialSummary.totalDue;
+    final double totalDue = calculation.financialSummary.totalDue.toDouble();
 
     final paymentRows =
         await (db.select(db.payments)
@@ -855,7 +855,7 @@ class RestoreFixService {
                     p.revenueType.isNull(),
               ))
             .get();
-    int totalPaid = 0;
+    double totalPaid = 0;
     for (final payment in paymentRows) {
       totalPaid += payment.amount;
       final String key =

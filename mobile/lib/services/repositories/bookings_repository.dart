@@ -5,7 +5,7 @@ import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
 import '../../utils/id.dart';
-import '../utils/time.dart';
+import '../../utils/time.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
@@ -255,7 +255,7 @@ class BookingsRepository {
             bookingLocalUuid: d.Value(booking.localUuid),
             bookingLocalId: d.Value(booking.id),
             adjustmentType: const d.Value(0),
-            amount: d.Value(discount),
+            amount: d.Value(discount.toDouble()),
             effectiveHotelDay: d.Value(effectiveHotelDay),
             isActive: const d.Value(true),
             reason: const d.Value('legacy_discount'),
