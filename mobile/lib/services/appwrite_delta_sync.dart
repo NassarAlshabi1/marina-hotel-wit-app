@@ -468,7 +468,7 @@ class AppwriteDeltaSync {
       notes: _nullableValue<String>(_asString(data['notes'])),
       expectedNights: d.Value(_asInt(data['expectedNights']) ?? 1),
       calculatedNights: d.Value(_asInt(data['calculatedNights']) ?? 1),
-      discount: d.Value(_asDouble(data['discount']) ?? 0),
+      discount: d.Value(_asDouble(data['discount'])),
       discountType: d.Value(_asString(data['discountType']) ?? 'per_night'),
       discountStartDate: _nullableValue<String>(_asString(data['discountStartDate'])),
     );
@@ -494,7 +494,7 @@ class AppwriteDeltaSync {
       bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
       roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
-      amount: d.Value(_asDouble(data['amount']) ?? 0),
+      amount: d.Value(_asDouble(data['amount'])),
       paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
       paymentMethod: d.Value(_asString(data['paymentMethod']) ?? ''),
@@ -533,7 +533,7 @@ class AppwriteDeltaSync {
       expenseType: d.Value(expenseType),
       relatedId: _nullableValue<int>(_asInt(data['relatedId'])),
       description: d.Value(_asString(data['description']) ?? ''),
-      amount: d.Value(_asDouble(data['amount']) ?? 0),
+      amount: d.Value(_asDouble(data['amount'])),
       date: d.Value(_asString(data['date']) ?? ''),
       cashTransactionId: _nullableValue<int>(_asInt(data['cashTransactionId'])),
     );
@@ -566,10 +566,10 @@ class AppwriteDeltaSync {
       dateRecorded: d.Value(_asString(data['dateRecorded']) ?? ''),
       debtReason: d.Value(_asString(data['debtReason']) ?? ''),
       totalAmount: d.Value(
-        _asDouble(data['totalAmount'] ?? data['amount']) ?? 0,
+        _asDouble(data['totalAmount'] ?? data['amount']),
       ),
-      paidAmount: d.Value(_asDouble(data['paidAmount']) ?? 0),
-      remainingAmount: d.Value(_asDouble(data['remainingAmount']) ?? 0),
+      paidAmount: d.Value(_asDouble(data['paidAmount'])),
+      remainingAmount: d.Value(_asDouble(data['remainingAmount'])),
       paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
       isSettled: d.Value(
         _asInt(data['isSettled']) ?? (data['status'] == 'settled' ? 1 : 0),
@@ -600,7 +600,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
       name: d.Value(name),
-      basicSalary: d.Value(_asDouble(data['basicSalary']) ?? 0),
+      basicSalary: d.Value(_asDouble(data['basicSalary'])),
       position: d.Value(_asString(data['position']) ?? ''),
       phone: d.Value(_asString(data['phone']) ?? ''),
       hireDate: d.Value(_asString(data['hireDate']) ?? ''),
@@ -729,15 +729,6 @@ class AppwriteDeltaSync {
       if (t == 'true' || t == '1') return true;
       if (t == 'false' || t == '0') return false;
     }
-    return null;
-  }
-
-  double? _asDoubleOrNull(dynamic value) {
-    if (value == null) return null;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is num) return value.toDouble();
-    if (value is String) return double.tryParse(value);
     return null;
   }
 

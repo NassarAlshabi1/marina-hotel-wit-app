@@ -168,7 +168,7 @@ class PriceAdjustmentService {
           ..where((n) => n.deletedAt.isNull()))
         .get();
 
-    double totalNightAmount = nights.fold<double>(
+    final double totalNightAmount = nights.fold<double>(
       0.0,
       (sum, n) => sum + n.nightlyRate,
     );

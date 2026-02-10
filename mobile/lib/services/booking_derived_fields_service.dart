@@ -95,6 +95,7 @@ class BookingDerivedFieldsService {
     });
   }
 
+  // ignore: unused_element
   Future<void> _ensureBookingNights({
     required Booking booking,
     required DateTime checkin,
@@ -179,6 +180,7 @@ class BookingDerivedFieldsService {
     });
   }
 
+  // ignore: unused_element
   Future<void> _rebuildBookingNights({
     required Booking booking,
     required DateTime checkin,
@@ -265,6 +267,7 @@ class BookingDerivedFieldsService {
     return rate;
   }
 
+  // ignore: unused_element
   int _resolveLastNightEpoch(List<BookingNight> nights, DateTime fallback) {
     if (nights.isEmpty) {
       return fallback.millisecondsSinceEpoch ~/ 1000;

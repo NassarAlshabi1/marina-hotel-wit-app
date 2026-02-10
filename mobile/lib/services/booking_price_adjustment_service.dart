@@ -117,14 +117,6 @@ class BookingPriceAdjustmentService {
 
   BookingPriceAdjustmentService(this.db, {this.derivedFieldsService});
 
-  String _hotelDayKey(DateTime value) {
-    final start = DateTime(value.year, value.month, value.day, 14);
-    final adjustedDate = value.isBefore(start)
-        ? start.subtract(const Duration(days: 1))
-        : start;
-    return Time.dateToString(adjustedDate);
-  }
-
   Future<AdjustmentPreview> previewAdjustment({
     required int bookingId,
     required int amount,
@@ -387,8 +379,8 @@ class BookingPriceAdjustmentService {
           .where((a) => a.bookingLocalId == bookingId)
           .toList();
 
-      double potentialRevenue = nights.length * room.price;
-      double actualRevenue = nights.fold<double>(
+      final double potentialRevenue = nights.length * room.price;
+      final double actualRevenue = nights.fold<double>(
         0,
         (sum, n) => sum + n.nightlyRate,
       );
@@ -441,7 +433,7 @@ class BookingPriceAdjustmentService {
 
       bookingDetails.add(BookingLostRevenue(
         bookingId: bookingId,
-        guestName: booking.guestName ?? 'غير معروف',
+        guestName: booking.guestName,
         roomNumber: booking.roomNumber,
         potentialRevenue: potentialRevenue,
         actualRevenue: actualRevenue,

@@ -1081,6 +1081,7 @@ class RestoreFixService {
     }
   }
 
+  // ignore: unused_element
   List<_NightSegment> _buildNightSegments(DateTime checkin, DateTime checkout) {
     final segments = <_NightSegment>[];
     var cursor = checkin;
