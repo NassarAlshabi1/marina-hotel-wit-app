@@ -447,9 +447,9 @@ class RestoreFixService {
               ..where((n) => n.deletedAt.isNull()))
             .get();
         
-        final int totalNightAmount;
+        final double totalNightAmount;
         if (nights.isNotEmpty) {
-          totalNightAmount = nights.fold<int>(0, (sum, n) => sum + n.nightlyRate);
+          totalNightAmount = nights.fold<double>(0, (sum, n) => sum + n.nightlyRate);
         } else {
           final baseRate = room.price;
           final discount = booking.discount;
@@ -465,11 +465,11 @@ class RestoreFixService {
           }
         }
         
-        int finalTotal = totalNightAmount;
+        double finalTotal = totalNightAmount;
         if (booking.discount > 0 && booking.discountType == 'total') {
           finalTotal = (totalNightAmount - booking.discount).clamp(0, totalNightAmount);
         }
-        expectedTotal = finalTotal;
+        expectedTotal = finalTotal.toInt();
 
         final remainingBalance = (expectedTotal - totalPaid).clamp(0, expectedTotal);
         final isFullyPaid = remainingBalance <= 0;
@@ -866,7 +866,7 @@ class RestoreFixService {
       accumulator.paymentsTotal += payment.amount;
     }
 
-    int remaining = totalDue - totalPaid;
+    double remaining = totalDue - totalPaid;
     if (remaining < 0) remaining = 0;
 
     final bool isFullyPaid = remaining <= 0;
@@ -1353,10 +1353,10 @@ class _BookingStructuresResult {
 }
 
 class _LedgerAccumulator {
-  int totalIncome = 0;
-  int totalExpenses = 0;
-  int pendingBalance = 0;
-  int paymentsTotal = 0;
+  double totalIncome = 0;
+  double totalExpenses = 0;
+  double pendingBalance = 0;
+  double paymentsTotal = 0;
   int bookingsProcessed = 0;
   int paymentsProcessed = 0;
   int debtsProcessed = 0;

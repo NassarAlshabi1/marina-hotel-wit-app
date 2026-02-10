@@ -57,7 +57,7 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
       ),
       serverId: _vInt(json, 'serverId', src),
       name: _vStr(json, 'name', src, fallback: ''),
-      basicSalary: _vInt(
+      basicSalary: _vDouble(
         json,
         'basicSalary',
         src,

@@ -76,7 +76,7 @@ class Bookings extends Table with SyncFields {
   TextColumn get actualCheckout => text().nullable()();
   TextColumn get status => text()();
   TextColumn get notes => text().nullable()();
-  IntColumn get discount => integer().withDefault(const Constant(0))();
+  RealColumn get discount => real().withDefault(const Constant(0))();
   TextColumn get discountType =>
       text().withDefault(const Constant('per_night'))();
   TextColumn get discountStartDate => text().nullable()();
@@ -212,9 +212,9 @@ class Debts extends Table with SyncFields {
   TextColumn get checkoutDate => text()();
   TextColumn get dateRecorded => text().withDefault(const Constant(''))();
   TextColumn get debtReason => text().withDefault(const Constant(''))();
-  IntColumn get totalAmount => integer()();
-  IntColumn get paidAmount => integer()();
-  IntColumn get remainingAmount => integer()();
+  RealColumn get totalAmount => real()();
+  RealColumn get paidAmount => real()();
+  RealColumn get remainingAmount => real()();
   TextColumn get paymentDate => text()();
   IntColumn get isSettled => integer().withDefault(const Constant(0))();
   TextColumn get pledge => text().nullable()();

@@ -74,7 +74,7 @@ class CashTransactionsAdapter
         altKey: 'transaction_type',
         fallback: 'expense',
       ),
-      amount: _vInt(json, 'amount', src, fallback: 0),
+      amount: _vDouble(json, 'amount', src, fallback: 0),
       referenceType: _vStr(
         json,
         'referenceType',

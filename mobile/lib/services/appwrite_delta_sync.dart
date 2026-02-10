@@ -494,7 +494,7 @@ class AppwriteDeltaSync {
       bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
       roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
-      amount: d.Value(_asInt(data['amount']) ?? 0),
+      amount: d.Value(_asDouble(data['amount']) ?? 0),
       paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
       paymentMethod: d.Value(_asString(data['paymentMethod']) ?? ''),
@@ -533,7 +533,7 @@ class AppwriteDeltaSync {
       expenseType: d.Value(expenseType),
       relatedId: _nullableValue<int>(_asInt(data['relatedId'])),
       description: d.Value(_asString(data['description']) ?? ''),
-      amount: d.Value(_asInt(data['amount']) ?? 0),
+      amount: d.Value(_asDouble(data['amount']) ?? 0),
       date: d.Value(_asString(data['date']) ?? ''),
       cashTransactionId: _nullableValue<int>(_asInt(data['cashTransactionId'])),
     );
