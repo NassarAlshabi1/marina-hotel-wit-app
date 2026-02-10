@@ -454,6 +454,15 @@ class DeltaSyncService {
         toJson: (dynamic row) => (row as BookingNight).toJson(),
       ),
       _EntityConfig(
+        entity: 'booking_price_adjustments',
+        fetchAll: () => db.select(db.bookingPriceAdjustments).get(),
+        localUuid: (dynamic row) => (row as BookingPriceAdjustment).localUuid,
+        createdAt: (dynamic row) => (row as BookingPriceAdjustment).createdAt,
+        lastModified: (dynamic row) => (row as BookingPriceAdjustment).lastModified,
+        deletedAt: (dynamic row) => (row as BookingPriceAdjustment).deletedAt,
+        toJson: (dynamic row) => (row as BookingPriceAdjustment).toJson(),
+      ),
+      _EntityConfig(
         entity: 'hotel_day_ledger',
         fetchAll: () => db.select(db.hotelDayLedger).get(),
         localUuid: (dynamic row) => (row as HotelDayLedgerEntry).localUuid,
@@ -498,6 +507,15 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as PriceAdjustment).lastModified,
         deletedAt: (dynamic row) => (row as PriceAdjustment).deletedAt,
         toJson: (dynamic row) => (row as PriceAdjustment).toJson(),
+      ),
+      _EntityConfig(
+        entity: 'booking_price_adjustments',
+        fetchAll: () => db.select(db.bookingPriceAdjustments).get(),
+        localUuid: (dynamic row) => (row as BookingPriceAdjustment).localUuid,
+        createdAt: (dynamic row) => (row as BookingPriceAdjustment).createdAt,
+        lastModified: (dynamic row) => (row as BookingPriceAdjustment).lastModified,
+        deletedAt: (dynamic row) => (row as BookingPriceAdjustment).deletedAt,
+        toJson: (dynamic row) => (row as BookingPriceAdjustment).toJson(),
       ),
       _EntityConfig(
         entity: 'audit_logs',

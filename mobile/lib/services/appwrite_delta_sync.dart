@@ -258,6 +258,7 @@ class AppwriteDeltaSync {
         'salary_payments': AppwriteConfig.salaryPaymentsCollectionId,
         'shift_notes': AppwriteConfig.shiftNotesCollectionId,
         'price_adjustments': AppwriteConfig.priceAdjustmentsCollectionId,
+        'booking_price_adjustments': AppwriteConfig.bookingPriceAdjustmentsCollectionId,
         'audit_logs': AppwriteConfig.auditLogsCollectionId,
         'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
       };
@@ -361,6 +362,9 @@ class AppwriteDeltaSync {
         break;
       case 'price_adjustments':
         await _applyPriceAdjustmentChange(db, documentId, data);
+        break;
+      case 'booking_price_adjustments':
+        await _applyBookingPriceAdjustmentChange(db, documentId, data);
         break;
       case 'audit_logs':
         await _applyAuditLogChange(db, documentId, data);
@@ -762,6 +766,8 @@ class AppwriteDeltaSync {
         return AppwriteConfig.shiftNotesCollectionId;
       case 'price_adjustments':
         return AppwriteConfig.priceAdjustmentsCollectionId;
+      case 'booking_price_adjustments':
+        return AppwriteConfig.bookingPriceAdjustmentsCollectionId;
       case 'audit_logs':
         return AppwriteConfig.auditLogsCollectionId;
       case 'payment_voids':
@@ -831,6 +837,45 @@ class AppwriteDeltaSync {
       return int.tryParse(value) ?? double.tryParse(value)?.toInt();
     }
     return null;
+  }
+
+  Future<void> _applyBookingPriceAdjustmentChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final bookingUuid = _asString(data['bookingLocalUuid']) ?? _asString(data['booking_local_uuid']);
+    if (bookingUuid == null || bookingUuid.isEmpty) return;
+
+    final companion = BookingPriceAdjustmentsCompanion(
+      localUuid: d.Value(localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId']) ?? _asInt(data['server_id'])),
+      bookingLocalUuid: d.Value(bookingUuid),
+      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId']) ?? _asInt(data['booking_local_id'])),
+      adjustmentType: d.Value(_asInt(data['adjustmentType']) ?? _asInt(data['adjustment_type']) ?? 0),
+      amount: d.Value(_asDouble(data['amount'])),
+      effectiveHotelDay: d.Value(_asString(data['effectiveHotelDay']) ?? _asString(data['effective_hotel_day']) ?? ''),
+      endHotelDay: _nullableValue<String>(_asString(data['endHotelDay']) ?? _asString(data['end_hotel_day'])),
+      isActive: d.Value(_asBool(data['isActive']) ?? _asBool(data['is_active']) ?? true),
+      reason: _nullableValue<String>(_asString(data['reason'])),
+      appliedBy: _nullableValue<String>(_asString(data['appliedBy']) ?? _asString(data['applied_by'])),
+      cancelledAt: _nullableValue<String>(_asString(data['cancelledAt']) ?? _asString(data['cancelled_at'])),
+      cancelledBy: _nullableValue<String>(_asString(data['cancelledBy']) ?? _asString(data['cancelled_by'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? _asInt(data['created_at']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? _asInt(data['updated_at']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt']) ?? _asInt(data['deleted_at'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? _asInt(data['last_modified']) ?? Time.nowEpoch()),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso']) ?? _asString(data['created_at_iso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso']) ?? _asString(data['updated_at_iso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso']) ?? _asString(data['deleted_at_iso'])),
+      createdAtEpoch: _nullableValue<int>(_asInt(data['createdAtEpoch'])),
+      lastModifiedEpoch: _nullableValue<int>(_asInt(data['lastModifiedEpoch'])),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      vectorClock: _nullableValue<String>(_asString(data['vectorClock']) ?? _asString(data['vector_clock'])),
+    );
+
+    await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(companion);
   }
 
   double _asDouble(dynamic value, {double fallback = 0.0}) {
