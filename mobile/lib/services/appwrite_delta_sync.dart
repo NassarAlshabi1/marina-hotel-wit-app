@@ -869,11 +869,11 @@ class AppwriteDeltaSync {
       createdAtIso: _nullableValue<String>(_asString(data['createdAtIso']) ?? _asString(data['created_at_iso'])),
       updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso']) ?? _asString(data['updated_at_iso'])),
       deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso']) ?? _asString(data['deleted_at_iso'])),
-      createdAtEpoch: _nullableValue<int>(_asInt(data['createdAtEpoch'])),
-      lastModifiedEpoch: _nullableValue<int>(_asInt(data['lastModifiedEpoch'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
-      vectorClock: _nullableValue<String>(_asString(data['vectorClock']) ?? _asString(data['vector_clock'])),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? _asString(data['vector_clock']) ?? '{}'),
     );
 
     await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(companion);
