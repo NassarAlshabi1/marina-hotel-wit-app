@@ -853,6 +853,7 @@ class AppwriteDeltaSync {
       bookingLocalUuid: d.Value(bookingUuid),
       bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId']) ?? _asInt(data['booking_local_id'])),
       adjustmentType: d.Value(_asInt(data['adjustmentType']) ?? _asInt(data['adjustment_type']) ?? 0),
+      adjustmentMode: d.Value(_asString(data['adjustmentMode']) ?? _asString(data['adjustment_mode']) ?? 'per_night'),
       amount: d.Value(_asDouble(data['amount'])),
       effectiveHotelDay: d.Value(_asString(data['effectiveHotelDay']) ?? _asString(data['effective_hotel_day']) ?? ''),
       endHotelDay: _nullableValue<String>(_asString(data['endHotelDay']) ?? _asString(data['end_hotel_day'])),

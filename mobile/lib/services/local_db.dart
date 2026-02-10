@@ -334,6 +334,7 @@ class BookingPriceAdjustments extends Table with SyncFields {
   TextColumn get bookingLocalUuid => text()();
   IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
   IntColumn get adjustmentType => integer().withDefault(const Constant(0))();
+  TextColumn get adjustmentMode => text().withDefault(const Constant('per_night'))();
   RealColumn get amount => real().withDefault(const Constant(0.0))();
   TextColumn get effectiveHotelDay => text()();
   TextColumn get endHotelDay => text().nullable()();
@@ -619,7 +620,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 26;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1259,6 +1260,23 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 25: add appliedAdjustmentsJson failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 26) {
+        try {
+          await m.addColumn(
+            bookingPriceAdjustments,
+            bookingPriceAdjustments.adjustmentMode,
+          );
+          developer.log(
+            'Migration 26: added adjustmentMode column to booking_price_adjustments',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 26: add adjustmentMode failed: $e',
             name: 'db.migration',
           );
         }

@@ -27,6 +27,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   DateTime? _displayMarkupStart;
   DateTime? _adjustStartDate;
   AdjustmentType _adjustType = AdjustmentType.surcharge;
+  AdjustmentMode _adjustMode = AdjustmentMode.perNight;
 
   @override
   void dispose() {
@@ -754,6 +755,29 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               onChanged: (v) => setState(() => _adjustType = v ?? AdjustmentType.surcharge),
             ),
             const SizedBox(height: 8),
+            DropdownButtonFormField<AdjustmentMode>(
+              value: _adjustMode,
+              decoration: const InputDecoration(
+                labelText: 'طريقة الحساب',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: AdjustmentMode.perNight,
+                  child: Text('لكل ليلة'),
+                ),
+                DropdownMenuItem(
+                  value: AdjustmentMode.total,
+                  child: Text('على الإجمالي'),
+                ),
+                DropdownMenuItem(
+                  value: AdjustmentMode.percentage,
+                  child: Text('نسبة مئوية %'),
+                ),
+              ],
+              onChanged: (v) => setState(() => _adjustMode = v ?? AdjustmentMode.perNight),
+            ),
+            const SizedBox(height: 8),
             TextField(
               controller: _adjustAmountController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -827,6 +851,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       bookingLocalUuid: booking.localUuid,
                       amount: amount,
                       type: _adjustType,
+                      mode: _adjustMode,
                       effectiveHotelDay: Time.dateToString(_adjustStartDate!),
                     );
                     if (!mounted) return;
