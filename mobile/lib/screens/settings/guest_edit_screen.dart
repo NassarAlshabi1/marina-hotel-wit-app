@@ -849,13 +849,19 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                                     : Colors.orange,
                                 foregroundColor: Colors.white,
                               ),
-                              icon: const Icon(Icons.add_circle_outline),
+                              icon: _saving
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Icon(Icons.add_circle_outline),
                               label: Text(
                                 _adjustmentTypeSelections[booking.id] == AdjustmentType.discount
                                     ? 'تطبيق التخفيض'
                                     : 'تطبيق الزيادة',
                               ),
-                              onPressed: () => _applyPriceAdjustment(booking),
+                              onPressed: _saving ? null : () => _applyPriceAdjustment(booking),
                             ),
                           ),
                         ],
