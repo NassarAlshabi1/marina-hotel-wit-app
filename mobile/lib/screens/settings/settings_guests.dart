@@ -21,6 +21,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   String _searchQuery = '';
   bool _applyDisplayMarkup = false;
   double _displayMarkupPct = 0;
+  DateTime? _displayMarkupStart;
 
   @override
   Widget build(BuildContext context) {
@@ -603,6 +604,28 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: _applyDisplayMarkup ? _pickMarkupStartDate : null,
+                icon: const Icon(Icons.event),
+                label: Text(
+                  _displayMarkupStart == null
+                      ? 'تحديد تاريخ بدء الزيادة'
+                      : 'تاريخ الزيادة: ${_formatDate(_displayMarkupStart!.toIso8601String())}',
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (_displayMarkupStart != null)
+                TextButton(
+                  onPressed: _applyDisplayMarkup
+                      ? () => setState(() => _displayMarkupStart = null)
+                      : null,
+                  child: const Text('مسح التاريخ'),
+                ),
+            ],
+          ),
           const SizedBox(height: 4),
           Text(
             'يتم عرض السعر مضافاً إليه الزيادة أعلاه لغايات التقدير فقط دون تغيير القيود المالية.',
@@ -621,7 +644,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     if (basePrice == null) {
       return _buildDetailRow('سعر الغرفة', 'غير متوفر', Icons.hotel_class);
     }
-    final displayPrice = _applyDisplayMarkup
+    final applyMarkup = _markupAppliesToBooking(booking);
+    final displayPrice = applyMarkup
         ? basePrice * (1 + _displayMarkupPct / 100)
         : basePrice;
 
@@ -633,17 +657,66 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           '${basePrice.toStringAsFixed(2)} ر.س',
           Icons.hotel_class,
         ),
-        if (_applyDisplayMarkup)
+        if (applyMarkup)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: _buildDetailRow(
-              'السعر المعروض بعد الزيادة (+${_displayMarkupPct.toStringAsFixed(0)}%)',
+              _displayMarkupStart != null
+                  ? 'السعر المعروض بعد الزيادة (+${_displayMarkupPct.toStringAsFixed(0)}%) اعتباراً من ${_formatDate(_displayMarkupStart!.toIso8601String())}'
+                  : 'السعر المعروض بعد الزيادة (+${_displayMarkupPct.toStringAsFixed(0)}%)',
               '${displayPrice.toStringAsFixed(2)} ر.س',
               Icons.trending_up,
             ),
           ),
+        if (!applyMarkup && _applyDisplayMarkup && _displayMarkupStart != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: _buildDetailRow(
+              'سيتم تطبيق الزيادة اعتباراً من ${_formatDate(_displayMarkupStart!.toIso8601String())}',
+              '${displayPrice.toStringAsFixed(2)} ر.س',
+              Icons.schedule,
+            ),
+          ),
       ],
     );
+  }
+
+  Future<void> _pickMarkupStartDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _displayMarkupStart ?? now,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 2),
+    );
+    if (picked != null) {
+      setState(() => _displayMarkupStart = picked);
+    }
+  }
+
+  bool _markupAppliesToBooking(Booking booking) {
+    if (!_applyDisplayMarkup) return false;
+    final start = _displayMarkupStart;
+    if (start == null) return true;
+
+    DateTime? parseDate(String? v) {
+      if (v == null || v.isEmpty) return null;
+      try {
+        return DateTime.parse(v);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final now = DateTime.now();
+    if (now.isBefore(start)) return false;
+
+    final checkin = parseDate(booking.checkinDate);
+    final checkout = parseDate(booking.checkoutDate);
+
+    if (checkout != null && !start.isBefore(checkout)) return false;
+    if (checkin != null && start.isBefore(checkin)) return false;
+    return true;
   }
 
   String _formatDate(String dateStr) {
