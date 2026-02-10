@@ -946,7 +946,6 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           backgroundColor: Colors.red,
         ),
       );
-      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
