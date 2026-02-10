@@ -20,7 +20,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   bool _applyDisplayMarkup = false;
-  double _displayMarkupPct = 0;
+  double _displayMarkupAmount = 0;
   DateTime? _displayMarkupStart;
 
   @override
@@ -579,30 +579,19 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Slider(
-                  value: _displayMarkupPct,
-                  onChanged: _applyDisplayMarkup
-                      ? (v) => setState(() => _displayMarkupPct = v)
-                      : null,
-                  min: 0,
-                  max: 50,
-                  divisions: 50,
-                  label: '${_displayMarkupPct.toStringAsFixed(0)}%'
-                      ' زيادة',
-                ),
-              ),
-              SizedBox(
-                width: 64,
-                child: Text(
-                  '+${_displayMarkupPct.toStringAsFixed(0)}%',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
+          TextField(
+            enabled: _applyDisplayMarkup,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'قيمة الزيادة (ر.س)',
+              hintText: 'مثال: 4000',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.add),
+            ),
+            onChanged: (v) {
+              final parsed = double.tryParse(v.replaceAll(',', ''));
+              setState(() => _displayMarkupAmount = parsed ?? 0);
+            },
           ),
           const SizedBox(height: 8),
           Row(
@@ -628,7 +617,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'يتم عرض السعر مضافاً إليه الزيادة أعلاه لغايات التقدير فقط دون تغيير القيود المالية.',
+            'يتم عرض السعر الأساسي + قيمة الزيادة أعلاه لغايات التقدير فقط دون تغيير القيود المالية.',
             style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
           ),
         ],
@@ -646,7 +635,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
     final applyMarkup = _markupAppliesToBooking(booking);
     final displayPrice = applyMarkup
-        ? basePrice * (1 + _displayMarkupPct / 100)
+        ? basePrice + _displayMarkupAmount
         : basePrice;
 
     return Column(
@@ -662,8 +651,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             padding: const EdgeInsets.only(top: 4),
             child: _buildDetailRow(
               _displayMarkupStart != null
-                  ? 'السعر المعروض بعد الزيادة (+${_displayMarkupPct.toStringAsFixed(0)}%) اعتباراً من ${_formatDate(_displayMarkupStart!.toIso8601String())}'
-                  : 'السعر المعروض بعد الزيادة (+${_displayMarkupPct.toStringAsFixed(0)}%)',
+                  ? 'السعر المعروض بعد الزيادة (+${_displayMarkupAmount.toStringAsFixed(0)} ر.س) اعتباراً من ${_formatDate(_displayMarkupStart!.toIso8601String())}'
+                  : 'السعر المعروض بعد الزيادة (+${_displayMarkupAmount.toStringAsFixed(0)} ر.س)',
               '${displayPrice.toStringAsFixed(2)} ر.س',
               Icons.trending_up,
             ),
