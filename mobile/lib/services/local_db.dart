@@ -334,7 +334,7 @@ class BookingPriceAdjustments extends Table with SyncFields {
   TextColumn get bookingLocalUuid => text()();
   IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
   IntColumn get adjustmentType => integer().withDefault(const Constant(0))();
-  IntColumn get amount => integer().withDefault(const Constant(0))();
+  RealColumn get amount => real().withDefault(const Constant(0.0))();
   TextColumn get effectiveHotelDay => text()();
   TextColumn get endHotelDay => text().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();

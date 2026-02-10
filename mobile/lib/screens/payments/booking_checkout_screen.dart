@@ -531,7 +531,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         );
         return;
       }
-      final int amount = parsedAmount.round();
+      final double amount = parsedAmount.toDouble();
 
       setState(() => _isProcessing = true);
 

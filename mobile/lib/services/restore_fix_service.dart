@@ -456,7 +456,8 @@ class RestoreFixService {
           final discountType = booking.discountType;
           if (discountType == 'total') {
             totalNightAmount = (baseRate * booking.calculatedNights - discount)
-                .clamp(0, baseRate * booking.calculatedNights);
+                .clamp(0, baseRate * booking.calculatedNights)
+                .toDouble();
           } else if (discount > 0) {
             final discountedRate = (baseRate - discount).clamp(0, baseRate);
             totalNightAmount = discountedRate * booking.calculatedNights;
@@ -467,11 +468,15 @@ class RestoreFixService {
         
         double finalTotal = totalNightAmount;
         if (booking.discount > 0 && booking.discountType == 'total') {
-          finalTotal = (totalNightAmount - booking.discount).clamp(0, totalNightAmount);
+          finalTotal = (totalNightAmount - booking.discount)
+              .clamp(0, totalNightAmount)
+              .toDouble();
         }
         expectedTotal = finalTotal;
 
-        final remainingBalance = (expectedTotal - totalPaid).clamp(0, expectedTotal);
+        final remainingBalance = (expectedTotal - totalPaid)
+            .clamp(0, expectedTotal)
+            .toDouble();
         final isFullyPaid = remainingBalance <= 0;
 
         if (booking.totalDueCached != expectedTotal ||
@@ -530,7 +535,9 @@ class RestoreFixService {
                 ..where((d) => d.deletedAt.isNull()))
               .get();
       if (debts.isNotEmpty && expectedTotal != null) {
-        final remaining = (expectedTotal - totalPaid).clamp(0, expectedTotal);
+        final remaining = (expectedTotal - totalPaid)
+            .clamp(0, expectedTotal)
+            .toDouble();
         final isSettled = remaining <= 0 ? 1 : 0;
         for (final debt in debts) {
           final shouldUpdate =
