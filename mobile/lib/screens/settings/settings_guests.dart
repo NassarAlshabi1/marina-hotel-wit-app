@@ -4,9 +4,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
-import '../../services/booking_price_adjustment_service.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/time.dart';
 import 'guest_edit_screen.dart';
 import 'guest_info.dart';
 
@@ -20,18 +18,11 @@ class SettingsGuestsScreen extends ConsumerStatefulWidget {
 
 class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   final _searchController = TextEditingController();
-  final _adjustAmountController = TextEditingController();
   String _searchQuery = '';
-  bool _applyDisplayMarkup = false;
-  double _displayMarkupAmount = 0;
-  DateTime? _displayMarkupStart;
-  DateTime? _adjustStartDate;
-  AdjustmentType _adjustType = AdjustmentType.surcharge;
 
   @override
   void dispose() {
     _searchController.dispose();
-    _adjustAmountController.dispose();
     super.dispose();
   }
 
@@ -102,14 +93,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
               return Column(
                 children: [
-                  // شريط البحث + تحكم الزيادة العرضية
                   _buildSearchBar(),
-                  _buildDisplayMarkupControls(),
-
-                  // إحصائيات الضيوف
-                  _buildGuestStats(guests),
-
-                  const SizedBox(height: 16),
 
                   // قائمة الضيوف
                   Expanded(
@@ -234,113 +218,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Widget _buildGuestStats(List<GuestInfo> guests) {
-    final totalGuests = guests.length;
-    final activeGuests = guests
-        .where(
-          (g) => g.bookings.any((b) => StatusUtils.isActiveBooking(b.status)),
-        )
-        .length;
-    final repeatGuests = guests.where((g) => g.bookings.length > 1).length;
-    final totalBookings = guests.fold<int>(
-      0,
-      (sum, g) => sum + g.bookings.length,
-    );
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.purple.shade50, Colors.purple.shade100],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purple.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.analytics, color: Colors.purple, size: 24),
-              SizedBox(width: 8),
-              Text(
-                'إحصائيات الضيوف',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatChip(
-                  'إجمالي الضيوف',
-                  totalGuests,
-                  Colors.purple,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildStatChip('ضيوف نشطون', activeGuests, Colors.green),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatChip(
-                  'ضيوف متكررون',
-                  repeatGuests,
-                  Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildStatChip(
-                  'إجمالي الحجوزات',
-                  totalBookings,
-                  Colors.orange,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatChip(String label, int count, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            count.toString(),
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(fontSize: 10, color: color.withOpacity(0.8)),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildGuestCard(
     BuildContext context,
     GuestInfo guest,
@@ -385,7 +262,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       Text(
                         guest.name,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -454,8 +331,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
             if (latestBooking != null) ...[
               _buildPricePreview(latestBooking, roomPrices),
-              const SizedBox(height: 8),
-              _buildRealAdjustmentForm(context, latestBooking),
               const SizedBox(height: 8),
             ],
 
@@ -563,82 +438,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Widget _buildDisplayMarkupControls() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.blueGrey.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blueGrey.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.price_change, color: Colors.blueGrey),
-              const SizedBox(width: 8),
-              const Text(
-                'زيادة سعر عرضية (لا تؤثر على الحسابات)',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const Spacer(),
-              Switch(
-                value: _applyDisplayMarkup,
-                onChanged: (v) => setState(() {
-                  _applyDisplayMarkup = v;
-                }),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            enabled: _applyDisplayMarkup,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'قيمة الزيادة',
-              hintText: 'مثال: 4000',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.add),
-            ),
-            onChanged: (v) {
-              final parsed = double.tryParse(v.replaceAll(',', ''));
-              setState(() => _displayMarkupAmount = parsed ?? 0);
-            },
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              ElevatedButton.icon(
-                onPressed: _applyDisplayMarkup ? _pickMarkupStartDate : null,
-                icon: const Icon(Icons.event),
-                label: Text(
-                  _displayMarkupStart == null
-                      ? 'تحديد تاريخ بدء الزيادة'
-                      : 'تاريخ الزيادة: ${_formatDate(_displayMarkupStart!.toIso8601String())}',
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (_displayMarkupStart != null)
-                TextButton(
-                  onPressed: _applyDisplayMarkup
-                      ? () => setState(() => _displayMarkupStart = null)
-                      : null,
-                  child: const Text('مسح التاريخ'),
-                ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'يتم عرض السعر الأساسي + قيمة الزيادة أعلاه لغايات التقدير فقط دون تغيير القيود المالية.',
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildPricePreview(
     Booking booking,
     Map<String, double> roomPrices,
@@ -647,204 +446,10 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     if (basePrice == null) {
       return _buildDetailRow('سعر الغرفة', 'غير متوفر', Icons.hotel_class);
     }
-    final applyMarkup = _markupAppliesToBooking(booking);
-    final displayPrice = applyMarkup
-        ? basePrice + _displayMarkupAmount
-        : basePrice;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDetailRow(
-          'سعر الغرفة الأساسي',
-          basePrice.toStringAsFixed(2),
-          Icons.hotel_class,
-        ),
-        if (applyMarkup)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: _buildDetailRow(
-              _displayMarkupStart != null
-                  ? 'السعر المعروض بعد الزيادة (+${_displayMarkupAmount.toStringAsFixed(0)}) اعتباراً من ${_formatDate(_displayMarkupStart!.toIso8601String())}'
-                  : 'السعر المعروض بعد الزيادة (+${_displayMarkupAmount.toStringAsFixed(0)})',
-              displayPrice.toStringAsFixed(2),
-              Icons.trending_up,
-            ),
-          ),
-        if (!applyMarkup && _applyDisplayMarkup && _displayMarkupStart != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: _buildDetailRow(
-              'سيتم تطبيق الزيادة اعتباراً من ${_formatDate(_displayMarkupStart!.toIso8601String())}',
-              displayPrice.toStringAsFixed(2),
-              Icons.schedule,
-            ),
-          ),
-      ],
-    );
-  }
-
-  Future<void> _pickMarkupStartDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _displayMarkupStart ?? now,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 2),
-    );
-    if (picked != null) {
-      setState(() => _displayMarkupStart = picked);
-    }
-  }
-
-  bool _markupAppliesToBooking(Booking booking) {
-    if (!_applyDisplayMarkup) return false;
-    final start = _displayMarkupStart;
-    if (start == null) return true;
-
-    DateTime? parseDate(String? v) {
-      if (v == null || v.isEmpty) return null;
-      try {
-        return DateTime.parse(v);
-      } catch (_) {
-        return null;
-      }
-    }
-
-    final now = DateTime.now();
-    if (now.isBefore(start)) return false;
-
-    final checkin = parseDate(booking.checkinDate);
-    final checkout = parseDate(booking.checkoutDate);
-
-    if (checkout != null && !start.isBefore(checkout)) return false;
-    if (checkin != null && start.isBefore(checkin)) return false;
-    return true;
-  }
-
-  Widget _buildRealAdjustmentForm(BuildContext context, Booking booking) {
-    return Card(
-      margin: const EdgeInsets.only(top: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'زيادة/تخفيض فعلي (يؤثر على الحسابات)',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<AdjustmentType>(
-              value: _adjustType,
-              decoration: const InputDecoration(
-                labelText: 'نوع التعديل',
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: AdjustmentType.surcharge,
-                  child: Text('زيادة سعر'),
-                ),
-                DropdownMenuItem(
-                  value: AdjustmentType.discount,
-                  child: Text('تخفيض'),
-                ),
-              ],
-              onChanged: (v) => setState(() => _adjustType = v ?? AdjustmentType.surcharge),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _adjustAmountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'مبلغ التعديل',
-                hintText: 'مثال: 4000',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.edit),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final now = DateTime.now();
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _adjustStartDate ?? now,
-                        firstDate: now.subtract(const Duration(days: 365)),
-                        lastDate: now.add(const Duration(days: 365)),
-                      );
-                      if (picked != null) {
-                        setState(() => _adjustStartDate = picked);
-                      }
-                    },
-                    icon: const Icon(Icons.event),
-                    label: Text(
-                      _adjustStartDate == null
-                          ? 'تاريخ البدء'
-                          : 'يبدأ من: ${_formatDate(_adjustStartDate!.toIso8601String())}',
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (_adjustStartDate != null)
-                  IconButton(
-                    onPressed: () => setState(() => _adjustStartDate = null),
-                    icon: const Icon(Icons.clear),
-                    tooltip: 'مسح التاريخ',
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.save),
-                label: const Text('تطبيق التعديل الفعلي'),
-                onPressed: () async {
-                  final parsed = double.tryParse(
-                    _adjustAmountController.text.replaceAll(',', ''),
-                  );
-                  final amount = parsed != null ? parsed.round() : 0;
-                  if (amount <= 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('الرجاء إدخال مبلغ تعديل صالح')),
-                    );
-                    return;
-                  }
-                  if (_adjustStartDate == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('اختر تاريخ بدء التعديل')),
-                    );
-                    return;
-                  }
-                  try {
-                    final db = ref.read(databaseProvider);
-                    await BookingPriceAdjustmentService(db).applyTemporaryAdjustment(
-                      bookingLocalUuid: booking.localUuid,
-                      amount: amount,
-                      type: _adjustType,
-                      effectiveHotelDay: Time.dateToString(_adjustStartDate!),
-                    );
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('تم تطبيق التعديل بنجاح')),
-                    );
-                  } catch (e) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('خطأ أثناء تطبيق التعديل: $e')),
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+    return _buildDetailRow(
+      'سعر الغرفة',
+      basePrice.toStringAsFixed(2),
+      Icons.hotel_class,
     );
   }
 

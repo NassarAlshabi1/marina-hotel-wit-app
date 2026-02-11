@@ -176,6 +176,27 @@ class FieldMapper {
       'lastModified': 'last_modified',
       'version': 'version',
     },
+    'booking_price_adjustments': {
+      'localUuid': 'local_uuid',
+      'serverId': 'id',
+      'bookingLocalUuid': 'booking_local_uuid',
+      'bookingLocalId': 'booking_local_id',
+      'adjustmentType': 'adjustment_type',
+      'adjustmentMode': 'adjustment_mode',
+      'amount': 'amount',
+      'effectiveHotelDay': 'effective_hotel_day',
+      'endHotelDay': 'end_hotel_day',
+      'isActive': 'is_active',
+      'reason': 'reason',
+      'appliedBy': 'applied_by',
+      'cancelledAt': 'cancelled_at',
+      'cancelledBy': 'cancelled_by',
+      'createdAt': 'created_at',
+      'updatedAt': 'updated_at',
+      'deletedAt': 'deleted_at',
+      'lastModified': 'last_modified',
+      'version': 'version',
+    },
   };
 
   static final Map<String, Map<String, String>> _phpToFlutter = {};

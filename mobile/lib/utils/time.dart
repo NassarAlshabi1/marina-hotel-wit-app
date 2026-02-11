@@ -1,4 +1,6 @@
 class Time {
+  static const int earlyCheckinGraceHour = 8;
+  
   static int nowEpoch() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
   static String nowIso() => DateTime.now().toIso8601String();
   static String nowDateString() {
@@ -39,6 +41,14 @@ class Time {
       return DateTime(previous.year, previous.month, previous.day, cutoffHour);
     }
     return start;
+  }
+
+  static DateTime hotelDayStartForNewBooking(DateTime checkin, {int cutoffHour = 14}) {
+    final hour = checkin.hour;
+    if (hour >= earlyCheckinGraceHour && hour < cutoffHour) {
+      return DateTime(checkin.year, checkin.month, checkin.day, cutoffHour);
+    }
+    return hotelDayStart(checkin, cutoffHour: cutoffHour);
   }
 
   static String hotelDayStartIso(String hotelDay, {int cutoffHour = 14}) {

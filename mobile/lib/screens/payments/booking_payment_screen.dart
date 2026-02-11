@@ -11,7 +11,6 @@ import '../../services/local_db.dart' as db;
 import '../../models/payment_models.dart';
 import '../../services/providers.dart';
 import '../../services/booking_derived_fields_service.dart';
-import '../../services/booking_price_adjustment_service.dart';
 
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
@@ -37,8 +36,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   late String _currentGuestPhone;
   bool _isSavingPayment = false;
   double _debtAmount = 0;
-  final _surchargeController = TextEditingController();
-  DateTime? _surchargeStartDate;
+
 
   Payment _mapDbPaymentToUi(db.Payment p) {
     return Payment(
@@ -177,7 +175,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   void dispose() {
     _tabController.dispose();
     _phoneController.dispose();
-    _surchargeController.dispose();
     super.dispose();
   }
 
@@ -351,12 +348,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                         totalSurcharge: totalSurcharge,
                       ),
                       const SizedBox(height: 8),
-                      _buildSurchargeForm(
-                        context,
-                        dbInstance,
-                        bookingLocalUuid: widget.booking.localUuid,
-                      ),
-                      const SizedBox(height: 8),
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
@@ -374,6 +365,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                           unselectedLabelColor: Theme.of(
                             context,
                           ).colorScheme.onSurfaceVariant,
+                          labelStyle: const TextStyle(fontSize: 13),
+                          unselectedLabelStyle: const TextStyle(fontSize: 13),
                           dividerColor: Colors.transparent,
                           tabs: const [
                             Tab(text: 'دفعة جديدة'),
@@ -2413,117 +2406,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     } catch (_) {
       // تجاهل الأخطاء، الدفعة مسجلة بنجاح
     }
-  }
-
-  Widget _buildSurchargeForm(
-    BuildContext context,
-    db.AppDatabase dbInstance, {
-    required String bookingLocalUuid,
-  }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'زيادة سعر (حقيقية مثل التخفيض)',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _surchargeController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'مبلغ الزيادة',
-                hintText: 'مثال: 4000',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.trending_up),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final now = DateTime.now();
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _surchargeStartDate ?? now,
-                        firstDate: now.subtract(const Duration(days: 365)),
-                        lastDate: now.add(const Duration(days: 365)),
-                      );
-                      if (picked != null) {
-                        setState(() => _surchargeStartDate = picked);
-                      }
-                    },
-                    icon: const Icon(Icons.event),
-                    label: Text(
-                      _surchargeStartDate == null
-                          ? 'تاريخ بدء الزيادة'
-                          : 'يبدأ من: ${_formatDate(_surchargeStartDate!.toIso8601String())}',
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (_surchargeStartDate != null)
-                  IconButton(
-                    onPressed: () => setState(() => _surchargeStartDate = null),
-                    icon: const Icon(Icons.clear),
-                    tooltip: 'مسح التاريخ',
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.save),
-                label: const Text('تطبيق زيادة السعر'),
-                onPressed: () async {
-                  final parsed = double.tryParse(
-                    _surchargeController.text.replaceAll(',', ''),
-                  );
-                  final amount = parsed != null ? parsed.round() : 0;
-                  if (amount <= 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('الرجاء إدخال مبلغ زيادة صالح')),
-                    );
-                    return;
-                  }
-                  if (_surchargeStartDate == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('اختر تاريخ بدء الزيادة')),
-                    );
-                    return;
-                  }
-                  try {
-                    final service = BookingPriceAdjustmentService(dbInstance);
-                    await service.applyTemporaryAdjustment(
-                      bookingLocalUuid: bookingLocalUuid,
-                      amount: amount,
-                      type: AdjustmentType.surcharge,
-                      effectiveHotelDay: Time.dateToString(_surchargeStartDate!),
-                    );
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('تم تطبيق الزيادة بنجاح')),
-                    );
-                  } catch (e) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('خطأ أثناء تطبيق الزيادة: $e')),
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   String _formatDate(String dateStr) {

@@ -428,6 +428,25 @@ class AppwriteSchemaVerifier {
         {'key': 'approvedBy', 'type': 'string', 'size': 100},
       ],
     },
+    'booking_price_adjustments': {
+      'name': 'Booking Price Adjustments',
+      'includeSyncFields': true,
+      'attributes': [
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {'key': 'bookingLocalUuid', 'type': 'string', 'size': 36, 'required': true},
+        {'key': 'bookingLocalId', 'type': 'integer'},
+        {'key': 'adjustmentType', 'type': 'integer', 'required': true}, // 0=discount, 1=surcharge
+        {'key': 'adjustmentMode', 'type': 'string', 'size': 20, 'default': 'per_night'}, // per_night, total, percentage
+        {'key': 'amount', 'type': 'double', 'required': true},
+        {'key': 'effectiveHotelDay', 'type': 'string', 'size': 10, 'required': true},
+        {'key': 'endHotelDay', 'type': 'string', 'size': 10},
+        {'key': 'isActive', 'type': 'boolean', 'default': true},
+        {'key': 'reason', 'type': 'string', 'size': 500},
+        {'key': 'appliedBy', 'type': 'string', 'size': 100},
+        {'key': 'cancelledAt', 'type': 'string', 'size': 30},
+        {'key': 'cancelledBy', 'type': 'string', 'size': 100},
+      ],
+    },
   };
 
   static final _syncFields = [

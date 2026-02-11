@@ -21,6 +21,22 @@ enum AdjustmentType {
   }
 }
 
+enum AdjustmentMode {
+  perNight('per_night'),
+  total('total'),
+  percentage('percentage');
+
+  const AdjustmentMode(this.value);
+  final String value;
+
+  static AdjustmentMode fromValue(String? value) {
+    return AdjustmentMode.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => AdjustmentMode.perNight,
+    );
+  }
+}
+
 class AdjustmentPreview {
   final double originalTotal;
   final double adjustedTotal;
@@ -123,6 +139,7 @@ class BookingPriceAdjustmentService {
     required AdjustmentType type,
     required String effectiveHotelDay,
     String? endHotelDay,
+    AdjustmentMode mode = AdjustmentMode.perNight,
   }) async {
     final booking = await (db.select(db.bookings)
           ..where((b) => b.id.equals(bookingId)))
@@ -152,6 +169,12 @@ class BookingPriceAdjustmentService {
     int nightsAffected = 0;
     final breakdown = <NightBreakdown>[];
 
+    final nightsInRange = nights.where((night) {
+      final nightDate = DateTime.parse(night.hotelDayKey);
+      return !nightDate.isBefore(effectiveDate) &&
+          (endDate == null || !nightDate.isAfter(endDate));
+    }).toList();
+
     for (final night in nights) {
       final nightDate = DateTime.parse(night.hotelDayKey);
       final isInRange = !nightDate.isBefore(effectiveDate) &&
@@ -162,9 +185,14 @@ class BookingPriceAdjustmentService {
       double finalRate = baseRate;
 
       if (isInRange) {
-        adjustmentAmount =
-            type == AdjustmentType.discount ? -amount.toDouble() : amount.toDouble();
-        finalRate = (baseRate + adjustmentAmount).clamp(0.0, baseRate * 2);
+        adjustmentAmount = _calculateAdjustmentAmount(
+          baseRate: baseRate,
+          amount: amount,
+          type: type,
+          mode: mode,
+          totalNights: nightsInRange.length,
+        );
+        finalRate = (baseRate + adjustmentAmount).clamp(0.0, baseRate * 3);
         nightsAffected++;
       }
 
@@ -188,6 +216,26 @@ class BookingPriceAdjustmentService {
     );
   }
 
+  double _calculateAdjustmentAmount({
+    required double baseRate,
+    required int amount,
+    required AdjustmentType type,
+    required AdjustmentMode mode,
+    required int totalNights,
+  }) {
+    final sign = type == AdjustmentType.discount ? -1.0 : 1.0;
+    
+    switch (mode) {
+      case AdjustmentMode.perNight:
+        return sign * amount.toDouble();
+      case AdjustmentMode.total:
+        if (totalNights <= 0) return 0;
+        return sign * (amount.toDouble() / totalNights);
+      case AdjustmentMode.percentage:
+        return sign * (baseRate * amount / 100);
+    }
+  }
+
   Future<BookingPriceAdjustment> applyTemporaryAdjustment({
     required String bookingLocalUuid,
     required int amount,
@@ -196,6 +244,7 @@ class BookingPriceAdjustmentService {
     String? endHotelDay,
     String? reason,
     String? appliedBy,
+    AdjustmentMode mode = AdjustmentMode.perNight,
   }) async {
     final booking = await (db.select(db.bookings)
           ..where((b) => b.localUuid.equals(bookingLocalUuid)))
@@ -212,6 +261,7 @@ class BookingPriceAdjustmentService {
       bookingLocalUuid: Value(bookingLocalUuid),
       bookingLocalId: Value(booking.id),
       adjustmentType: Value(type.value),
+      adjustmentMode: Value(mode.value),
       amount: Value(amount.toDouble()),
       effectiveHotelDay: Value(effectiveHotelDay),
       endHotelDay: Value(endHotelDay),

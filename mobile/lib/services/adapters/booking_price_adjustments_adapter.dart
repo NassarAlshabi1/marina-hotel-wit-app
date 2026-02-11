@@ -87,6 +87,13 @@ class BookingPriceAdjustmentsAdapter
         altKey: 'adjustment_type',
         fallback: 0,
       ),
+      adjustmentMode: _vStr(
+        json,
+        'adjustmentMode',
+        src,
+        altKey: 'adjustment_mode',
+        fallback: 'per_night',
+      ),
       amount: _vDouble(json, 'amount', src, fallback: 0),
       effectiveHotelDay: _vStr(
         json,
@@ -141,6 +148,7 @@ class BookingPriceAdjustmentsAdapter
       _k(src, 'bookingLocalUuid', 'booking_local_uuid'): model.bookingLocalUuid,
       _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
       _k(src, 'adjustmentType', 'adjustment_type'): model.adjustmentType,
+      _k(src, 'adjustmentMode', 'adjustment_mode'): model.adjustmentMode,
       _k(src, 'amount', 'amount'): model.amount,
       _k(src, 'effectiveHotelDay', 'effective_hotel_day'): model.effectiveHotelDay,
       _k(src, 'endHotelDay', 'end_hotel_day'): model.endHotelDay,

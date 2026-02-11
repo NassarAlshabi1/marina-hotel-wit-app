@@ -21526,6 +21526,14 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _adjustmentModeMeta =
+      const VerificationMeta('adjustmentMode');
+  @override
+  late final GeneratedColumn<String> adjustmentMode = GeneratedColumn<String>(
+      'adjustment_mode', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('per_night'));
   static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
   late final GeneratedColumn<double> amount = GeneratedColumn<double>(
@@ -21598,6 +21606,7 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
         bookingLocalUuid,
         bookingLocalId,
         adjustmentType,
+        adjustmentMode,
         amount,
         effectiveHotelDay,
         endHotelDay,
@@ -21719,6 +21728,12 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
           adjustmentType.isAcceptableOrUnknown(
               data['adjustment_type']!, _adjustmentTypeMeta));
     }
+    if (data.containsKey('adjustment_mode')) {
+      context.handle(
+          _adjustmentModeMeta,
+          adjustmentMode.isAcceptableOrUnknown(
+              data['adjustment_mode']!, _adjustmentModeMeta));
+    }
     if (data.containsKey('amount')) {
       context.handle(_amountMeta,
           amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
@@ -21806,6 +21821,8 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
           .read(DriftSqlType.int, data['${effectivePrefix}booking_local_id']),
       adjustmentType: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}adjustment_type'])!,
+      adjustmentMode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}adjustment_mode'])!,
       amount: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
       effectiveHotelDay: attachedDatabase.typeMapping.read(
@@ -21851,6 +21868,7 @@ class BookingPriceAdjustment extends DataClass
   final String bookingLocalUuid;
   final int? bookingLocalId;
   final int adjustmentType;
+  final String adjustmentMode;
   final double amount;
   final String effectiveHotelDay;
   final String? endHotelDay;
@@ -21878,6 +21896,7 @@ class BookingPriceAdjustment extends DataClass
       required this.bookingLocalUuid,
       this.bookingLocalId,
       required this.adjustmentType,
+      required this.adjustmentMode,
       required this.amount,
       required this.effectiveHotelDay,
       this.endHotelDay,
@@ -21919,6 +21938,7 @@ class BookingPriceAdjustment extends DataClass
       map['booking_local_id'] = Variable<int>(bookingLocalId);
     }
     map['adjustment_type'] = Variable<int>(adjustmentType);
+    map['adjustment_mode'] = Variable<String>(adjustmentMode);
     map['amount'] = Variable<double>(amount);
     map['effective_hotel_day'] = Variable<String>(effectiveHotelDay);
     if (!nullToAbsent || endHotelDay != null) {
@@ -21972,6 +21992,7 @@ class BookingPriceAdjustment extends DataClass
           ? const Value.absent()
           : Value(bookingLocalId),
       adjustmentType: Value(adjustmentType),
+      adjustmentMode: Value(adjustmentMode),
       amount: Value(amount),
       effectiveHotelDay: Value(effectiveHotelDay),
       endHotelDay: endHotelDay == null && nullToAbsent
@@ -22014,6 +22035,7 @@ class BookingPriceAdjustment extends DataClass
       bookingLocalUuid: serializer.fromJson<String>(json['bookingLocalUuid']),
       bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
       adjustmentType: serializer.fromJson<int>(json['adjustmentType']),
+      adjustmentMode: serializer.fromJson<String>(json['adjustmentMode']),
       amount: serializer.fromJson<double>(json['amount']),
       effectiveHotelDay: serializer.fromJson<String>(json['effectiveHotelDay']),
       endHotelDay: serializer.fromJson<String?>(json['endHotelDay']),
@@ -22046,6 +22068,7 @@ class BookingPriceAdjustment extends DataClass
       'bookingLocalUuid': serializer.toJson<String>(bookingLocalUuid),
       'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
       'adjustmentType': serializer.toJson<int>(adjustmentType),
+      'adjustmentMode': serializer.toJson<String>(adjustmentMode),
       'amount': serializer.toJson<double>(amount),
       'effectiveHotelDay': serializer.toJson<String>(effectiveHotelDay),
       'endHotelDay': serializer.toJson<String?>(endHotelDay),
@@ -22076,6 +22099,7 @@ class BookingPriceAdjustment extends DataClass
           String? bookingLocalUuid,
           Value<int?> bookingLocalId = const Value.absent(),
           int? adjustmentType,
+          String? adjustmentMode,
           double? amount,
           String? effectiveHotelDay,
           Value<String?> endHotelDay = const Value.absent(),
@@ -22107,6 +22131,7 @@ class BookingPriceAdjustment extends DataClass
         bookingLocalId:
             bookingLocalId.present ? bookingLocalId.value : this.bookingLocalId,
         adjustmentType: adjustmentType ?? this.adjustmentType,
+        adjustmentMode: adjustmentMode ?? this.adjustmentMode,
         amount: amount ?? this.amount,
         effectiveHotelDay: effectiveHotelDay ?? this.effectiveHotelDay,
         endHotelDay: endHotelDay.present ? endHotelDay.value : this.endHotelDay,
@@ -22156,6 +22181,9 @@ class BookingPriceAdjustment extends DataClass
       adjustmentType: data.adjustmentType.present
           ? data.adjustmentType.value
           : this.adjustmentType,
+      adjustmentMode: data.adjustmentMode.present
+          ? data.adjustmentMode.value
+          : this.adjustmentMode,
       amount: data.amount.present ? data.amount.value : this.amount,
       effectiveHotelDay: data.effectiveHotelDay.present
           ? data.effectiveHotelDay.value
@@ -22193,6 +22221,7 @@ class BookingPriceAdjustment extends DataClass
           ..write('bookingLocalUuid: $bookingLocalUuid, ')
           ..write('bookingLocalId: $bookingLocalId, ')
           ..write('adjustmentType: $adjustmentType, ')
+          ..write('adjustmentMode: $adjustmentMode, ')
           ..write('amount: $amount, ')
           ..write('effectiveHotelDay: $effectiveHotelDay, ')
           ..write('endHotelDay: $endHotelDay, ')
@@ -22225,6 +22254,7 @@ class BookingPriceAdjustment extends DataClass
         bookingLocalUuid,
         bookingLocalId,
         adjustmentType,
+        adjustmentMode,
         amount,
         effectiveHotelDay,
         endHotelDay,
@@ -22256,6 +22286,7 @@ class BookingPriceAdjustment extends DataClass
           other.bookingLocalUuid == this.bookingLocalUuid &&
           other.bookingLocalId == this.bookingLocalId &&
           other.adjustmentType == this.adjustmentType &&
+          other.adjustmentMode == this.adjustmentMode &&
           other.amount == this.amount &&
           other.effectiveHotelDay == this.effectiveHotelDay &&
           other.endHotelDay == this.endHotelDay &&
@@ -22286,6 +22317,7 @@ class BookingPriceAdjustmentsCompanion
   final Value<String> bookingLocalUuid;
   final Value<int?> bookingLocalId;
   final Value<int> adjustmentType;
+  final Value<String> adjustmentMode;
   final Value<double> amount;
   final Value<String> effectiveHotelDay;
   final Value<String?> endHotelDay;
@@ -22313,6 +22345,7 @@ class BookingPriceAdjustmentsCompanion
     this.bookingLocalUuid = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
     this.adjustmentType = const Value.absent(),
+    this.adjustmentMode = const Value.absent(),
     this.amount = const Value.absent(),
     this.effectiveHotelDay = const Value.absent(),
     this.endHotelDay = const Value.absent(),
@@ -22341,6 +22374,7 @@ class BookingPriceAdjustmentsCompanion
     required String bookingLocalUuid,
     this.bookingLocalId = const Value.absent(),
     this.adjustmentType = const Value.absent(),
+    this.adjustmentMode = const Value.absent(),
     this.amount = const Value.absent(),
     required String effectiveHotelDay,
     this.endHotelDay = const Value.absent(),
@@ -22374,6 +22408,7 @@ class BookingPriceAdjustmentsCompanion
     Expression<String>? bookingLocalUuid,
     Expression<int>? bookingLocalId,
     Expression<int>? adjustmentType,
+    Expression<String>? adjustmentMode,
     Expression<double>? amount,
     Expression<String>? effectiveHotelDay,
     Expression<String>? endHotelDay,
@@ -22402,6 +22437,7 @@ class BookingPriceAdjustmentsCompanion
       if (bookingLocalUuid != null) 'booking_local_uuid': bookingLocalUuid,
       if (bookingLocalId != null) 'booking_local_id': bookingLocalId,
       if (adjustmentType != null) 'adjustment_type': adjustmentType,
+      if (adjustmentMode != null) 'adjustment_mode': adjustmentMode,
       if (amount != null) 'amount': amount,
       if (effectiveHotelDay != null) 'effective_hotel_day': effectiveHotelDay,
       if (endHotelDay != null) 'end_hotel_day': endHotelDay,
@@ -22432,6 +22468,7 @@ class BookingPriceAdjustmentsCompanion
       Value<String>? bookingLocalUuid,
       Value<int?>? bookingLocalId,
       Value<int>? adjustmentType,
+      Value<String>? adjustmentMode,
       Value<double>? amount,
       Value<String>? effectiveHotelDay,
       Value<String?>? endHotelDay,
@@ -22459,6 +22496,7 @@ class BookingPriceAdjustmentsCompanion
       bookingLocalUuid: bookingLocalUuid ?? this.bookingLocalUuid,
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
       adjustmentType: adjustmentType ?? this.adjustmentType,
+      adjustmentMode: adjustmentMode ?? this.adjustmentMode,
       amount: amount ?? this.amount,
       effectiveHotelDay: effectiveHotelDay ?? this.effectiveHotelDay,
       endHotelDay: endHotelDay ?? this.endHotelDay,
@@ -22527,6 +22565,9 @@ class BookingPriceAdjustmentsCompanion
     if (adjustmentType.present) {
       map['adjustment_type'] = Variable<int>(adjustmentType.value);
     }
+    if (adjustmentMode.present) {
+      map['adjustment_mode'] = Variable<String>(adjustmentMode.value);
+    }
     if (amount.present) {
       map['amount'] = Variable<double>(amount.value);
     }
@@ -22575,6 +22616,7 @@ class BookingPriceAdjustmentsCompanion
           ..write('bookingLocalUuid: $bookingLocalUuid, ')
           ..write('bookingLocalId: $bookingLocalId, ')
           ..write('adjustmentType: $adjustmentType, ')
+          ..write('adjustmentMode: $adjustmentMode, ')
           ..write('amount: $amount, ')
           ..write('effectiveHotelDay: $effectiveHotelDay, ')
           ..write('endHotelDay: $endHotelDay, ')
