@@ -743,7 +743,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                               ),
                               const SizedBox(height: 8),
                               ...adjustments.map((adj) {
-                                final isDiscount = adj.adjustmentType == 'discount';
+                                final isDiscount = adj.adjustmentType == 0;
                                 final typeName = isDiscount ? 'تخفيض' : 'زيادة';
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 8),
