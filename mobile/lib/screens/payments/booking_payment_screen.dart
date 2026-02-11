@@ -365,6 +365,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                           unselectedLabelColor: Theme.of(
                             context,
                           ).colorScheme.onSurfaceVariant,
+                          labelStyle: const TextStyle(fontSize: 13),
+                          unselectedLabelStyle: const TextStyle(fontSize: 13),
                           dividerColor: Colors.transparent,
                           tabs: const [
                             Tab(text: 'دفعة جديدة'),
