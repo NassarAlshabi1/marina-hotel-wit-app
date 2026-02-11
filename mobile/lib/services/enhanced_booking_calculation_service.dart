@@ -546,12 +546,20 @@ class EnhancedBookingCalculationService {
     DateTime checkin,
     DateTime checkout, {
     int cutoffHour = 14,
+    bool isNewBooking = true,
   }) {
     final segments = <_NightSegment>[];
     var cursor = checkin;
+    bool isFirstSegment = true;
 
     while (cursor.isBefore(checkout)) {
-      final dayStart = Time.hotelDayStart(cursor, cutoffHour: cutoffHour);
+      DateTime dayStart;
+      if (isFirstSegment && isNewBooking) {
+        dayStart = Time.hotelDayStartForNewBooking(cursor, cutoffHour: cutoffHour);
+        isFirstSegment = false;
+      } else {
+        dayStart = Time.hotelDayStart(cursor, cutoffHour: cutoffHour);
+      }
       final dayEnd = dayStart.add(const Duration(days: 1));
       final segmentEnd = checkout.isBefore(dayEnd) ? checkout : dayEnd;
       if (!segmentEnd.isAfter(cursor)) {
@@ -568,11 +576,12 @@ class EnhancedBookingCalculationService {
     }
 
     if (segments.isEmpty) {
+      final dayStart = isNewBooking
+          ? Time.hotelDayStartForNewBooking(checkin, cutoffHour: cutoffHour)
+          : Time.hotelDayStart(checkin, cutoffHour: cutoffHour);
       segments.add(
         _NightSegment(
-          hotelDayKey: Time.dateToString(
-            Time.hotelDayStart(checkin, cutoffHour: cutoffHour),
-          ),
+          hotelDayKey: Time.dateToString(dayStart),
           start: checkin,
           end: checkout.isAfter(checkin)
               ? checkout
