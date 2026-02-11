@@ -262,7 +262,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       Text(
                         guest.name,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
