@@ -31,7 +31,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
   final Map<int, TextEditingController> _discountControllers = {};
   final Map<int, TextEditingController> _discountStartDateControllers = {};
-  final Map<int, String> _discountTypeSelections = {};;
+  final Map<int, String> _discountTypeSelections = {};
   final Map<int, TextEditingController> _checkinDateControllers = {};
   final Map<int, AdjustmentType> _adjustmentTypeSelections = {};
   final Map<int, AdjustmentMode> _adjustmentModeSelections = {};
