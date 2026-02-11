@@ -303,7 +303,7 @@ class BookingDerivedFieldsService {
   List<_NightSegment> _buildNightSegments(
     DateTime checkin,
     DateTime checkout, {
-    int cutoffHour = 14,
+    int cutoffHour = 6,
   }) {
     final segments = <_NightSegment>[];
     var cursor = checkin;
