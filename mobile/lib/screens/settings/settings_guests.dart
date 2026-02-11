@@ -96,10 +96,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 children: [
                   _buildSearchBar(),
 
-                  _buildGuestStats(guests),
-
-                  const SizedBox(height: 16),
-
                   // قائمة الضيوف
                   Expanded(
                     child: ListView.builder(
@@ -219,113 +215,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               : null,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
-      ),
-    );
-  }
-
-  Widget _buildGuestStats(List<GuestInfo> guests) {
-    final totalGuests = guests.length;
-    final activeGuests = guests
-        .where(
-          (g) => g.bookings.any((b) => StatusUtils.isActiveBooking(b.status)),
-        )
-        .length;
-    final repeatGuests = guests.where((g) => g.bookings.length > 1).length;
-    final totalBookings = guests.fold<int>(
-      0,
-      (sum, g) => sum + g.bookings.length,
-    );
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.purple.shade50, Colors.purple.shade100],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purple.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.analytics, color: Colors.purple, size: 24),
-              SizedBox(width: 8),
-              Text(
-                'إحصائيات الضيوف',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatChip(
-                  'إجمالي الضيوف',
-                  totalGuests,
-                  Colors.purple,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildStatChip('ضيوف نشطون', activeGuests, Colors.green),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatChip(
-                  'ضيوف متكررون',
-                  repeatGuests,
-                  Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildStatChip(
-                  'إجمالي الحجوزات',
-                  totalBookings,
-                  Colors.orange,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatChip(String label, int count, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            count.toString(),
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(fontSize: 10, color: color.withOpacity(0.8)),
-            textAlign: TextAlign.center,
-          ),
-        ],
       ),
     );
   }
