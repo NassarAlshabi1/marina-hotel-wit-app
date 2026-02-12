@@ -44,6 +44,9 @@ class Time {
   }
 
   static DateTime hotelDayStartForNewBooking(DateTime checkin, {int cutoffHour = 14}) {
+    if (checkin.hour < cutoffHour) {
+      return DateTime(checkin.year, checkin.month, checkin.day, cutoffHour);
+    }
     return hotelDayStart(checkin, cutoffHour: cutoffHour);
   }
 
