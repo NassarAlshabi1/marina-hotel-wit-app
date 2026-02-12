@@ -1082,24 +1082,39 @@ class RestoreFixService {
   }
 
   // ignore: unused_element
-  List<_NightSegment> _buildNightSegments(DateTime checkin, DateTime checkout) {
+  List<_NightSegment> _buildNightSegments(DateTime checkin, DateTime checkout, {int cutoffHour = 14}) {
     final segments = <_NightSegment>[];
-    var cursor = checkin;
-    while (cursor.isBefore(checkout)) {
-      final DateTime dayStart = _hotelDayStart(cursor);
-      final DateTime dayEnd = dayStart.add(const Duration(days: 1));
-      final DateTime segmentEnd = dayEnd.isBefore(checkout) ? dayEnd : checkout;
-      if (!segmentEnd.isAfter(cursor)) {
-        break;
-      }
+
+    final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
+    final checkoutDate = DateTime(checkout.year, checkout.month, checkout.day);
+    int days = checkoutDate.difference(checkinDate).inDays;
+
+    if (days == 0) {
+      days = 1;
+    }
+
+    if (checkout.hour > cutoffHour ||
+        (checkout.hour == cutoffHour && checkout.minute > 0) ||
+        (checkout.hour == cutoffHour && checkout.minute == 0 && checkout.second > 0)) {
+      days += 1;
+    }
+
+    for (int i = 0; i < days; i++) {
+      final dayDate = checkinDate.add(Duration(days: i));
+      final dayKey = Time.dateToString(dayDate);
+      final segStart = i == 0 ? checkin : dayDate;
+      final nextDay = dayDate.add(const Duration(days: 1));
+      final segEnd = i == days - 1
+          ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))
+          : nextDay;
+
       segments.add(
         _NightSegment(
-          hotelDayKey: _hotelDayKey(cursor),
-          start: cursor,
-          end: segmentEnd,
+          hotelDayKey: dayKey,
+          start: segStart,
+          end: segEnd,
         ),
       );
-      cursor = segmentEnd;
     }
 
     if (segments.isEmpty) {
@@ -1116,17 +1131,8 @@ class RestoreFixService {
     return segments;
   }
 
-  DateTime _hotelDayStart(DateTime value) {
-    final start = DateTime(value.year, value.month, value.day, 14);
-    if (value.isBefore(start)) {
-      final previous = start.subtract(const Duration(days: 1));
-      return DateTime(previous.year, previous.month, previous.day, 14);
-    }
-    return start;
-  }
-
   String _hotelDayKey(DateTime value) =>
-      Time.dateToString(_hotelDayStart(value));
+      Time.dateToString(DateTime(value.year, value.month, value.day));
 
   /// تسجيل التغيير في جدول RestoreFixLog
   Future<void> _logChange({
