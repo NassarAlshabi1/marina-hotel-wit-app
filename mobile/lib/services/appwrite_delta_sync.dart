@@ -6,6 +6,7 @@ import 'appwrite_service.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'local_db.dart';
+import 'booking_derived_fields_service.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
 import 'sync_locks.dart';
@@ -647,6 +648,11 @@ class AppwriteDeltaSync {
     );
 
     await db.into(db.priceAdjustments).insertOnConflictUpdate(companion);
+    if (targetType == 'room') {
+      await _recalculateBookingsForRoomUuid(db, targetUuid);
+    } else if (targetType == 'booking') {
+      await _recalculateBookingByUuid(db, targetUuid);
+    }
   }
 
   Future<void> _applyAuditLogChange(
@@ -877,6 +883,58 @@ class AppwriteDeltaSync {
     );
 
     await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(companion);
+    final bookingId =
+        _asInt(data['bookingLocalId']) ?? _asInt(data['booking_local_id']);
+    if (bookingId != null) {
+      await _recalculateBookingById(db, bookingId);
+    } else {
+      await _recalculateBookingByUuid(db, bookingUuid);
+    }
+  }
+
+  Future<void> _recalculateBookingById(AppDatabase db, int bookingId) async {
+    await BookingDerivedFieldsService(db).refreshForBookingId(
+      bookingId,
+      forceRebuild: true,
+    );
+  }
+
+  Future<void> _recalculateBookingByUuid(
+    AppDatabase db,
+    String bookingUuid,
+  ) async {
+    final booking = await (db.select(db.bookings)
+          ..where((b) => b.localUuid.equals(bookingUuid)))
+        .getSingleOrNull();
+    if (booking == null) return;
+    await _recalculateBookingById(db, booking.id);
+  }
+
+  Future<void> _recalculateBookingsForRoomUuid(
+    AppDatabase db,
+    String roomUuid,
+  ) async {
+    final room = await (db.select(db.rooms)
+          ..where((r) => r.localUuid.equals(roomUuid)))
+        .getSingleOrNull();
+    if (room == null) return;
+    final activeStatuses = [
+      'مؤكد',
+      'confirmed',
+      'نشط',
+      'active',
+      'مسجل دخول',
+      'checked_in',
+    ];
+    final bookings = await (db.select(db.bookings)
+          ..where((b) => b.roomNumber.equals(room.roomNumber))
+          ..where((b) => b.deletedAt.isNull())
+          ..where((b) => b.actualCheckout.isNull())
+          ..where((b) => b.status.isIn(activeStatuses)))
+        .get();
+    for (final booking in bookings) {
+      await _recalculateBookingById(db, booking.id);
+    }
   }
 
   double _asDouble(dynamic value, {double fallback = 0.0}) {
