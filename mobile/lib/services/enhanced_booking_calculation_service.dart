@@ -548,9 +548,17 @@ class EnhancedBookingCalculationService {
     var cursor = checkin;
 
     if (isNewBooking && cursor.hour < cutoffHour) {
-      final firstDayStart = DateTime(cursor.year, cursor.month, cursor.day, cutoffHour);
-      if (firstDayStart.isBefore(checkout)) {
-        cursor = firstDayStart;
+      final firstCutoff = DateTime(cursor.year, cursor.month, cursor.day, cutoffHour);
+      if (checkout.isAfter(cursor)) {
+        final earlyEnd = firstCutoff.isBefore(checkout) ? firstCutoff : checkout;
+        segments.add(
+          _NightSegment(
+            hotelDayKey: Time.dateToString(cursor),
+            start: cursor,
+            end: earlyEnd,
+          ),
+        );
+        cursor = earlyEnd;
       }
     }
 
@@ -572,10 +580,9 @@ class EnhancedBookingCalculationService {
     }
 
     if (segments.isEmpty) {
-      final dayStart = Time.hotelDayStart(checkin, cutoffHour: cutoffHour);
       segments.add(
         _NightSegment(
-          hotelDayKey: Time.dateToString(dayStart),
+          hotelDayKey: Time.dateToString(checkin),
           start: checkin,
           end: checkout.isAfter(checkin)
               ? checkout
