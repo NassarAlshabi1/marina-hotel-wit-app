@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../services/daos/outbox_dao.dart';
+import '../services/appwrite_delta_sync.dart';
 import '../screens/settings/google_drive_backup_screen.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
@@ -274,8 +275,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       if (appwriteEnabled && appwriteConnected) {
         try {
-          final result = await appwriteSyncManager.pushLocalChanges();
-          results['Appwrite'] = result;
+          final deltaSync = AppwriteDeltaSync.instance;
+          if (deltaSync.isInitialized) {
+            final pushResult = await deltaSync.pushDeltaChanges();
+            final pullResult = await deltaSync.pullDeltaChanges();
+            results['Appwrite'] = pushResult.success && pullResult.success;
+          } else {
+            final result = await appwriteSyncManager.pushLocalChanges();
+            results['Appwrite'] = result;
+          }
         } catch (e) {
           results['Appwrite'] = false;
           debugPrint('❌ خطأ في رفع البيانات إلى Appwrite: $e');
