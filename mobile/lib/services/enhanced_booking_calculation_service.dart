@@ -450,11 +450,7 @@ class EnhancedBookingCalculationService {
 
     DateTime checkout = actualCheckout ?? plannedCheckout ?? checkin;
     if (bookingActive) {
-      if (plannedCheckout == null || moment.isAfter(plannedCheckout)) {
-        checkout = moment;
-      } else {
-        checkout = plannedCheckout;
-      }
+      checkout = moment;
     }
 
     if (!checkout.isAfter(checkin)) {
