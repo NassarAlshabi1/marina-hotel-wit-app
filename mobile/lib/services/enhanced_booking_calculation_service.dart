@@ -250,7 +250,7 @@ class EnhancedBookingCalculationService {
       breakdown.add(
         NightlyBreakdown(
           hotelDayKey: Time.dateToString(
-            Time.hotelDayStart(context.checkin),
+            DateTime(context.checkin.year, context.checkin.month, context.checkin.day),
           ),
           nightStart: context.checkin,
           nightEnd: context.checkout,
@@ -469,9 +469,9 @@ class EnhancedBookingCalculationService {
     DateTime? discountStartDate,
   ) {
     if (discountStartDate == null) return true;
-    final hotelDay = Time.hotelDayStart(nightDate);
-    final discountDay = Time.hotelDayStart(discountStartDate);
-    return !hotelDay.isBefore(discountDay);
+    final nightDay = DateTime(nightDate.year, nightDate.month, nightDate.day);
+    final discountDay = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
+    return !nightDay.isBefore(discountDay);
   }
 
   bool _isWithinRange(
@@ -545,38 +545,37 @@ class EnhancedBookingCalculationService {
     bool isNewBooking = true,
   }) {
     final segments = <_NightSegment>[];
-    var cursor = checkin;
 
-    if (isNewBooking && cursor.hour < cutoffHour) {
-      final firstCutoff = DateTime(cursor.year, cursor.month, cursor.day, cutoffHour);
-      if (checkout.isAfter(cursor)) {
-        final earlyEnd = firstCutoff.isBefore(checkout) ? firstCutoff : checkout;
-        segments.add(
-          _NightSegment(
-            hotelDayKey: Time.dateToString(cursor),
-            start: cursor,
-            end: earlyEnd,
-          ),
-        );
-        cursor = earlyEnd;
-      }
+    final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
+    final checkoutDate = DateTime(checkout.year, checkout.month, checkout.day);
+    int days = checkoutDate.difference(checkinDate).inDays;
+
+    if (days == 0) {
+      days = 1;
     }
 
-    while (cursor.isBefore(checkout)) {
-      final dayStart = Time.hotelDayStart(cursor, cutoffHour: cutoffHour);
-      final dayEnd = dayStart.add(const Duration(days: 1));
-      final segmentEnd = checkout.isBefore(dayEnd) ? checkout : dayEnd;
-      if (!segmentEnd.isAfter(cursor)) {
-        break;
-      }
+    if (checkout.hour > cutoffHour ||
+        (checkout.hour == cutoffHour && checkout.minute > 0) ||
+        (checkout.hour == cutoffHour && checkout.minute == 0 && checkout.second > 0)) {
+      days += 1;
+    }
+
+    for (int i = 0; i < days; i++) {
+      final dayDate = checkinDate.add(Duration(days: i));
+      final dayKey = Time.dateToString(dayDate);
+      final segStart = i == 0 ? checkin : dayDate;
+      final nextDay = dayDate.add(const Duration(days: 1));
+      final segEnd = i == days - 1
+          ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))
+          : nextDay;
+
       segments.add(
         _NightSegment(
-          hotelDayKey: Time.dateToString(dayStart),
-          start: cursor,
-          end: segmentEnd,
+          hotelDayKey: dayKey,
+          start: segStart,
+          end: segEnd,
         ),
       );
-      cursor = segmentEnd;
     }
 
     if (segments.isEmpty) {

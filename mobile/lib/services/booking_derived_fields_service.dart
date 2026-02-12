@@ -278,8 +278,7 @@ class BookingDerivedFieldsService {
     if (baseRate < 0) baseRate = 0;
     var rate = baseRate;
     if (discount > 0 && discountType != 'total') {
-      final hotelDay = Time.hotelDayStart(segmentStart);
-      final hotelDayDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
+      final segDay = DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
       if (discountStartDate == null) {
         rate = (baseRate - discount).clamp(0.0, baseRate);
       } else {
@@ -288,7 +287,7 @@ class BookingDerivedFieldsService {
           discountStartDate.month,
           discountStartDate.day,
         );
-        if (!hotelDayDate.isBefore(discountDay)) {
+        if (!segDay.isBefore(discountDay)) {
           rate = (baseRate - discount).clamp(0.0, baseRate);
         }
       }
@@ -336,38 +335,37 @@ class BookingDerivedFieldsService {
     bool isNewBooking = true,
   }) {
     final segments = <_NightSegment>[];
-    var cursor = checkin;
 
-    if (isNewBooking && cursor.hour < cutoffHour) {
-      final firstCutoff = DateTime(cursor.year, cursor.month, cursor.day, cutoffHour);
-      if (checkout.isAfter(cursor)) {
-        final earlyEnd = firstCutoff.isBefore(checkout) ? firstCutoff : checkout;
-        segments.add(
-          _NightSegment(
-            hotelDayKey: Time.dateToString(cursor),
-            start: cursor,
-            end: earlyEnd,
-          ),
-        );
-        cursor = earlyEnd;
-      }
+    final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
+    final checkoutDate = DateTime(checkout.year, checkout.month, checkout.day);
+    int days = checkoutDate.difference(checkinDate).inDays;
+
+    if (days == 0) {
+      days = 1;
     }
 
-    while (cursor.isBefore(checkout)) {
-      final dayStart = Time.hotelDayStart(cursor, cutoffHour: cutoffHour);
-      final dayEnd = dayStart.add(const Duration(days: 1));
-      final segmentEnd = checkout.isBefore(dayEnd) ? checkout : dayEnd;
-      if (!segmentEnd.isAfter(cursor)) {
-        break;
-      }
+    if (checkout.hour > cutoffHour ||
+        (checkout.hour == cutoffHour && checkout.minute > 0) ||
+        (checkout.hour == cutoffHour && checkout.minute == 0 && checkout.second > 0)) {
+      days += 1;
+    }
+
+    for (int i = 0; i < days; i++) {
+      final dayDate = checkinDate.add(Duration(days: i));
+      final dayKey = Time.dateToString(dayDate);
+      final segStart = i == 0 ? checkin : dayDate;
+      final nextDay = dayDate.add(const Duration(days: 1));
+      final segEnd = i == days - 1
+          ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))
+          : nextDay;
+
       segments.add(
         _NightSegment(
-          hotelDayKey: Time.dateToString(dayStart),
-          start: cursor,
-          end: segmentEnd,
+          hotelDayKey: dayKey,
+          start: segStart,
+          end: segEnd,
         ),
       );
-      cursor = segmentEnd;
     }
 
     if (segments.isEmpty) {
