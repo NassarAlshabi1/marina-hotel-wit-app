@@ -49,6 +49,8 @@ class SyncResult {
   bool get hasConflicts => conflicts > 0;
 }
 
+import 'repositories/bookings_repository.dart';
+
 /// مدير المزامنة الثنائية
 class AppwriteSyncManager {
   static AppwriteSyncManager? _instance;
@@ -56,6 +58,7 @@ class AppwriteSyncManager {
   final AppwriteService appwriteService;
   final AppDatabase database;
   final OutboxDao outboxDao;
+  late final BookingsRepository _bookingsRepository;
   late final AdapterRegistry _adapterRegistry;
   final SyncMutex _mutex = SyncMutex();
 
@@ -75,6 +78,7 @@ class AppwriteSyncManager {
     required this.database,
   }) : outboxDao = OutboxDao(database) {
     _adapterRegistry = AdapterRegistry(database);
+    _bookingsRepository = BookingsRepository(database);
   }
 
   final _logger = AppwriteLogger();
@@ -802,6 +806,22 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+
+        // TRIGGER POST-SYNC PROCESSING
+        // 1. Resolve local ID from UUID
+        final localUuid = data['localUuid'];
+        final booking = await (database.select(database.bookings)
+              ..where((b) => b.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+
+        if (booking != null) {
+          // 2. Convert legacy discount to adjustments
+          await _bookingsRepository.syncLegacyDiscountToAdjustments(booking.id);
+          
+          // 3. Recalculate derived fields (nightly rates, total due)
+          await _bookingsRepository.derivedFields.refreshForBookingId(booking.id);
+        }
+
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
