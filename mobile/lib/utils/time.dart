@@ -88,6 +88,10 @@ class Time {
     }
   }
 
+  /// حساب عدد الأيام مع قاعدة الساعة 14:00
+  /// قاعدة احتساب اليوم: يُحتسب اليوم الواحد بدءاً من وقت تسجيل الدخول الفعلي
+  /// وحتى الساعة 14:00 من اليوم التالي.
+  /// أي مغادرة بعد الساعة 14:00، حتى لو بدقيقة واحدة، تؤدي إلى احتساب يوم إضافي كامل.
   static int nightsWithCutoff(
     DateTime checkin, {
     DateTime? checkout,
@@ -95,24 +99,20 @@ class Time {
   }) {
     final end = checkout ?? DateTime.now();
 
-    var effectiveEnd = end;
-    if (!effectiveEnd.isAfter(checkin)) {
-      effectiveEnd = checkin.add(const Duration(minutes: 1));
+    final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
+    final checkoutDate = DateTime(end.year, end.month, end.day);
+    int days = checkoutDate.difference(checkinDate).inDays;
+
+    if (days == 0) {
+      days = 1;
     }
 
-    int count = 0;
-    var cursor = checkin;
-    while (cursor.isBefore(effectiveEnd)) {
-      final dayStart = hotelDayStart(cursor, cutoffHour: cutoffHour);
-      final dayEnd = dayStart.add(const Duration(days: 1));
-      final segmentEnd = effectiveEnd.isBefore(dayEnd) ? effectiveEnd : dayEnd;
-      if (!segmentEnd.isAfter(cursor)) {
-        break;
-      }
-      count += 1;
-      cursor = segmentEnd;
+    if (end.hour > cutoffHour ||
+        (end.hour == cutoffHour && end.minute > 0) ||
+        (end.hour == cutoffHour && end.minute == 0 && end.second > 0)) {
+      days += 1;
     }
 
-    return count == 0 ? 1 : count;
+    return days;
   }
 }
