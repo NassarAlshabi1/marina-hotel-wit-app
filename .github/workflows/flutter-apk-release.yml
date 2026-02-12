@@ -67,11 +67,13 @@ jobs:
       - name: Install Android SDK components (API 35)
         run: |
           echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          echo "Installing Android SDK Platform 35 and Build-Tools..."
+          echo "Installing Android SDK Platform 35, Build-Tools, NDK, and CMake..."
           sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
             "platform-tools" \
             "platforms;android-35" \
-            "build-tools;35.0.0"
+            "build-tools;35.0.0" \
+            "ndk;27.0.12077973" \
+            "cmake;3.22.1"
           ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --list | head -n 50
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
