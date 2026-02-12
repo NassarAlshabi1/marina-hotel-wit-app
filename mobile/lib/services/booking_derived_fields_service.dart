@@ -332,7 +332,6 @@ class BookingDerivedFieldsService {
     DateTime checkin,
     DateTime checkout, {
     int cutoffHour = 14,
-    bool isNewBooking = true,
   }) {
     final segments = <_NightSegment>[];
 
