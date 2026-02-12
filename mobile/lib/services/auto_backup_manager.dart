@@ -564,7 +564,7 @@ class AutoBackupManager {
 
   Future<bool> isGoogleDriveDeltaSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_googleDriveDeltaSyncEnabledKey) ?? true;
+    return prefs.getBool(_googleDriveDeltaSyncEnabledKey) ?? false;
   }
 
   Future<void> setGoogleDriveDeltaSyncEnabled(bool enabled) async {
