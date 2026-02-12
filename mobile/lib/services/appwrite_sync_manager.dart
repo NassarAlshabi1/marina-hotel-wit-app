@@ -21,6 +21,7 @@ import 'sync_constants.dart';
 import 'sync_core/sync_metrics.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
+import 'repositories/bookings_repository.dart';
 
 /// حالة المزامنة
 enum SyncStatus { idle, syncing, success, failed, partial }
@@ -49,7 +50,7 @@ class SyncResult {
   bool get hasConflicts => conflicts > 0;
 }
 
-import 'repositories/bookings_repository.dart';
+
 
 /// مدير المزامنة الثنائية
 class AppwriteSyncManager {
