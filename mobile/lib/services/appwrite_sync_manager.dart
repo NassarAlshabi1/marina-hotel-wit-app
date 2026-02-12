@@ -503,6 +503,15 @@ class AppwriteSyncManager {
           _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
           return debtsSynced;
         }, phaseMs);
+
+        recordsPulled += await _timePhase('syncBookingPriceAdjustments', () async {
+          final adjustments = await appwriteService.listDocuments(
+            collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+          );
+          final adjustmentsSynced = await _syncBookingPriceAdjustments(adjustments);
+          _logger.debug('Synced $adjustmentsSynced booking price adjustments', tag: 'SYNC');
+          return adjustmentsSynced;
+        }, phaseMs);
       }
 
       // تحديث سجل المزامنة
@@ -2355,6 +2364,42 @@ class AppwriteSyncManager {
       } catch (e) {
         _logger.warning(
           'Failed to sync salary payment ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _syncBookingPriceAdjustments(
+    List<models.Document> documents,
+  ) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        final result = await _adapterRegistry.bookingPriceAdjustments.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        
+        // Refresh calculations for the affected booking
+        if (result > 0) {
+           final adj = await (database.select(database.bookingPriceAdjustments)
+            ..where((t) => t.id.equals(result)))
+            .getSingleOrNull();
+           
+           if (adj != null && adj.bookingLocalId != null) {
+              await _bookingsRepository.derivedFields.refreshForBookingId(adj.bookingLocalId!);
+           }
+        }
+        
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync booking price adjustment ${doc.$id}: $e',
           tag: 'SYNC',
         );
       }
