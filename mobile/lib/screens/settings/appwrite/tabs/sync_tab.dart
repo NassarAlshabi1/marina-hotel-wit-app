@@ -16,7 +16,7 @@ class AppwriteSyncTab extends ConsumerStatefulWidget {
 }
 
 class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
-  bool _syncEnabled = true;
+  bool _syncEnabled = false;
   int _syncInterval = 15;
   bool _autoSyncOnConnect = true;
   bool _cacheEnabled = true;
