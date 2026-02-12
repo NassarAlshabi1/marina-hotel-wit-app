@@ -54,8 +54,8 @@ class AutoBackupManager {
   /// مدة انتظار قبل النسخ التلقائي (بالثواني) - قللناها للاستجابة السريعة
   static const int _debounceSeconds = 5;
 
-  /// مدة انتظار قبل المزامنة الفورية (بالثواني)
-  static const int _instantSyncDebounceSeconds = 2;
+  /// مدة انتظار قبل المزامنة الفورية (بالملي ثانية)
+  static const int _instantSyncDebounceMilliseconds = 500;
 
   /// عدد النسخ الاحتياطية الافتراضي المراد الاحتفاظ به
   static const int _defaultMaxBackups = 10;
@@ -155,7 +155,7 @@ class AutoBackupManager {
         _currentMode == BackupMode.both) {
       _deltaSyncDebounceTimer?.cancel();
       _deltaSyncDebounceTimer = Timer(
-        const Duration(seconds: _instantSyncDebounceSeconds),
+        const Duration(milliseconds: _instantSyncDebounceMilliseconds),
         () async {
           await performDeltaSync();
           if (_currentMode == BackupMode.deltaSync) {
