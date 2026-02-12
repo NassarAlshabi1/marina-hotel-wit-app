@@ -577,7 +577,7 @@ class AutoBackupManager {
 
   Future<bool> isAppwriteDeltaSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_appwriteDeltaSyncEnabledKey) ?? false;
+    return prefs.getBool(_appwriteDeltaSyncEnabledKey) ?? true;
   }
 
   Future<void> setAppwriteDeltaSyncEnabled(bool enabled) async {
