@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'local_db.dart';
 import 'booking_derived_fields_service.dart';
+import 'auto_backup_manager.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
 
@@ -277,6 +278,12 @@ class BookingPriceAdjustmentService {
 
     await _recalculateBookingNights(booking.id);
 
+    await AutoBackupManager.instance.onDataChange(
+      'booking_price_adjustments',
+      'INSERT',
+      recordData: adjustment.toColumns(false),
+    );
+
     final result = await (db.select(db.bookingPriceAdjustments)
           ..where((a) => a.localUuid.equals(uuid)))
         .getSingle();
@@ -300,19 +307,27 @@ class BookingPriceAdjustmentService {
     final now = Time.nowEpoch();
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
-    await (db.update(db.bookingPriceAdjustments)
-          ..where((a) => a.localUuid.equals(adjustmentUuid)))
-        .write(BookingPriceAdjustmentsCompanion(
+    final update = BookingPriceAdjustmentsCompanion(
       isActive: const Value(false),
       cancelledAt: Value(nowIso),
       cancelledBy: Value(cancelledBy),
       updatedAt: Value(now),
       lastModified: Value(now),
-    ));
+    );
+
+    await (db.update(db.bookingPriceAdjustments)
+          ..where((a) => a.localUuid.equals(adjustmentUuid)))
+        .write(update);
 
     if (adjustment.bookingLocalId != null) {
       await _recalculateBookingNights(adjustment.bookingLocalId!);
     }
+
+    await AutoBackupManager.instance.onDataChange(
+      'booking_price_adjustments',
+      'UPDATE',
+      recordData: update.toColumns(false),
+    );
 
     debugPrint('❌ تم إلغاء تعديل السعر: $adjustmentUuid');
   }
