@@ -49,7 +49,7 @@ class AutoBackupManager {
   bool _isDeltaSyncing = false;
   int _pendingChanges = 0;
   String? _deviceId;
-  BackupMode _currentMode = BackupMode.both;
+  BackupMode _currentMode = BackupMode.deltaSync;
 
   /// مدة انتظار قبل النسخ التلقائي (بالثواني) - قللناها للاستجابة السريعة
   static const int _debounceSeconds = 5;
@@ -95,8 +95,9 @@ class AutoBackupManager {
 
   Future<void> _loadBackupMode() async {
     final prefs = await SharedPreferences.getInstance();
-    final modeIndex = prefs.getInt(_backupModeKey) ?? BackupMode.both.index;
-    _currentMode = BackupMode.values[modeIndex];
+    _currentMode = BackupMode.deltaSync;
+    await prefs.setInt(_backupModeKey, _currentMode.index);
+    await prefs.setBool(_deltaSyncEnabledKey, true);
   }
 
   Future<void> _startDeltaSyncTimer() async {
@@ -548,7 +549,7 @@ class AutoBackupManager {
   /// إعدادات المزامنة التفاضلية
   Future<bool> isDeltaSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_deltaSyncEnabledKey) ?? false;
+    return prefs.getBool(_deltaSyncEnabledKey) ?? true;
   }
 
   Future<void> setDeltaSyncEnabled(bool enabled) async {
@@ -589,9 +590,10 @@ class AutoBackupManager {
   /// تعيين وضع النسخ الاحتياطي
   Future<void> setBackupMode(BackupMode mode) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_backupModeKey, mode.index);
-    _currentMode = mode;
-    debugPrint('🔧 وضع النسخ الاحتياطي: ${mode.name}');
+    _currentMode = BackupMode.deltaSync;
+    await prefs.setInt(_backupModeKey, _currentMode.index);
+    await prefs.setBool(_deltaSyncEnabledKey, true);
+    debugPrint('🔧 وضع النسخ الاحتياطي: ${_currentMode.name}');
   }
 
   BackupMode get currentBackupMode => _currentMode;
