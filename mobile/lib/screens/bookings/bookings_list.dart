@@ -671,7 +671,10 @@ Widget _buildBookingStatusChip(String status, TextStyle baseTextStyle) {
   Color bg;
   String txt;
 
-  if (StatusUtils.isActiveBooking(status)) {
+  if (StatusUtils.isProvisional(status)) {
+    bg = Colors.orange.shade100;
+    txt = 'مؤقت';
+  } else if (StatusUtils.isActiveBooking(status)) {
     bg = Colors.green.shade100;
     txt = 'محجوزة';
   } else {

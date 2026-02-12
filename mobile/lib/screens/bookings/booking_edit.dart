@@ -62,7 +62,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     'استبيان',
     'شهادة ميلاد',
   ];
-  static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
+  static const _statusOptions = ['محجوزة', 'مؤقت', 'شاغرة', 'مكتمل', 'ملغي'];
 
   @override
   void initState() {
@@ -109,6 +109,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         _roomInitialized = true;
       }
       _checkin.text = _formatDateTime(DateTime.now());
+      final hour = DateTime.now().hour;
+      if (hour >= 9 && hour < 14) {
+        _status = 'مؤقت';
+      }
     }
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _recalculateExpectedNights(),

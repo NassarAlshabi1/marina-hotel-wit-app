@@ -19,6 +19,8 @@ class StatusUtils {
     'محجوز temporarily',
     'نشط',
     'active',
+    'مؤقت',
+    'provisional',
   }.map(_normalize).toSet();
 
   static final Set<String> _activeBookingStatuses = {
@@ -29,6 +31,13 @@ class StatusUtils {
     'confirmed',
     'قيد الحجز',
     'in_progress',
+    'مؤقت',
+    'provisional',
+  }.map(_normalize).toSet();
+
+  static final Set<String> _provisionalStatuses = {
+    'مؤقت',
+    'provisional',
   }.map(_normalize).toSet();
 
   static String _normalize(String value) => value.trim().toLowerCase();
@@ -41,6 +50,12 @@ class StatusUtils {
 
   static bool isActiveBooking(String status) =>
       _activeBookingStatuses.contains(_normalize(status));
+
+  static bool isProvisional(String status) =>
+      _provisionalStatuses.contains(_normalize(status));
+
+  static bool isBookingProvisional(Booking booking) =>
+      isProvisional(booking.status);
 
   static String roomStatusForOccupancy(
     bool occupied, {

@@ -109,8 +109,13 @@ class BookingDerivedFieldsService {
         .toList();
 
     int refreshed = 0;
+    int promoted = 0;
     for (final booking in active) {
       try {
+        if (StatusUtils.isBookingProvisional(booking) && moment.hour >= 14) {
+          await _promoteProvisionalBooking(booking.id);
+          promoted++;
+        }
         await refreshForBooking(booking, now: moment, forceRebuild: true);
         refreshed++;
       } catch (e) {
@@ -118,10 +123,18 @@ class BookingDerivedFieldsService {
       }
     }
 
+    if (promoted > 0) {
+      debugPrint('✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
+    }
     if (refreshed > 0) {
       debugPrint('🔄 تم تجديد إقامة $refreshed حجز نشط تلقائياً');
     }
     return refreshed;
+  }
+
+  Future<void> _promoteProvisionalBooking(int bookingId) async {
+    await (db.update(db.bookings)..where((b) => b.id.equals(bookingId)))
+        .write(const BookingsCompanion(status: d.Value('محجوزة')));
   }
 
   // ignore: unused_element
