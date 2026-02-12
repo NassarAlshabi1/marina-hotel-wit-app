@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 
 import '../utils/id.dart';
+import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
@@ -93,6 +95,33 @@ class BookingDerivedFieldsService {
         ),
       );
     });
+  }
+
+  Future<int> refreshAllActiveBookings({DateTime? now}) async {
+    final moment = now ?? DateTime.now();
+    final activeBookings = await (db.select(db.bookings)
+          ..where((b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''))
+          ..where((b) => b.deletedAt.isNull()))
+        .get();
+
+    final active = activeBookings
+        .where((b) => StatusUtils.isBookingActive(b))
+        .toList();
+
+    int refreshed = 0;
+    for (final booking in active) {
+      try {
+        await refreshForBooking(booking, now: moment, forceRebuild: true);
+        refreshed++;
+      } catch (e) {
+        debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
+      }
+    }
+
+    if (refreshed > 0) {
+      debugPrint('🔄 تم تجديد إقامة $refreshed حجز نشط تلقائياً');
+    }
+    return refreshed;
   }
 
   // ignore: unused_element

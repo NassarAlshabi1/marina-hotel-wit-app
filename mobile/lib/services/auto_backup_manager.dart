@@ -9,8 +9,10 @@ import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
 import 'appwrite_delta_sync.dart';
 import 'appwrite_service.dart';
+import 'booking_derived_fields_service.dart';
 import 'smart_sync_manager.dart';
 import 'local_db.dart';
+import '../utils/time.dart';
 
 /// مدير النسخ الاحتياطي التلقائي الذكي
 /// يراقب التغييرات في قاعدة البيانات ويقوم بعمل نسخ احتياطية تلقائية
@@ -50,6 +52,7 @@ class AutoBackupManager {
   int _pendingChanges = 0;
   String? _deviceId;
   BackupMode _currentMode = BackupMode.deltaSync;
+  String? _lastRenewedHotelDay;
 
   /// مدة انتظار قبل النسخ التلقائي (بالثواني) - قللناها للاستجابة السريعة
   static const int _debounceSeconds = 5;
@@ -535,6 +538,8 @@ class AutoBackupManager {
       }
 
       debugPrint('✅ اكتملت المزامنة التفاضلية');
+
+      await _autoRenewActiveBookings();
     } catch (e) {
       results['success'] = false;
       results['error'] = e.toString();
@@ -544,6 +549,23 @@ class AutoBackupManager {
     }
 
     return results;
+  }
+
+  Future<void> _autoRenewActiveBookings() async {
+    try {
+      final currentHotelDay = Time.hotelDayKey();
+      if (_lastRenewedHotelDay == currentHotelDay) return;
+
+      if (_database == null) return;
+      final service = BookingDerivedFieldsService(_database!);
+      final count = await service.refreshAllActiveBookings();
+      _lastRenewedHotelDay = currentHotelDay;
+      if (count > 0) {
+        debugPrint('🏨 تجديد تلقائي: $count حجز نشط (يوم فندقي: $currentHotelDay)');
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في تجديد الحجوزات النشطة: $e');
+    }
   }
 
   /// إعدادات المزامنة التفاضلية
