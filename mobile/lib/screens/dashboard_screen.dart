@@ -9,6 +9,7 @@ import '../providers/repository_providers.dart';
 import '../providers/core_providers.dart';
 import '../services/local_db.dart';
 import '../utils/status_utils.dart';
+import '../utils/time.dart';
 
 import '../widgets/dashboard_sync_button.dart';
 import '../widgets/smart_sync_widgets.dart';
@@ -41,17 +42,13 @@ const List<String> _dashboardRoomNumbers = [
 
 final todayPaymentsProvider = StreamProvider<double>((ref) {
   final db = ref.watch(dbProvider);
-  final now = DateTime.now();
-  final todayStart = DateTime(now.year, now.month, now.day);
-  final todayEnd = todayStart.add(const Duration(days: 1));
+  final todayKey = Time.hotelDayKey();
   return db
       .customSelect(
         'SELECT COALESCE(SUM(amount), 0) as total FROM payments '
-        'WHERE payment_date >= ? AND payment_date < ? AND deleted_at IS NULL',
-        variables: [
-          Variable.withString(todayStart.toIso8601String()),
-          Variable.withString(todayEnd.toIso8601String()),
-        ],
+        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
+        variables: [Variable.withString(todayKey)],
+        readsFrom: {db.payments},
       )
       .watch()
       .map(
@@ -63,17 +60,13 @@ final todayPaymentsProvider = StreamProvider<double>((ref) {
 
 final todayExpensesProvider = StreamProvider<double>((ref) {
   final db = ref.watch(dbProvider);
-  final now = DateTime.now();
-  final todayStart = DateTime(now.year, now.month, now.day);
-  final todayEnd = todayStart.add(const Duration(days: 1));
+  final todayKey = Time.hotelDayKey();
   return db
       .customSelect(
         'SELECT COALESCE(SUM(amount), 0) as total FROM expenses '
-        'WHERE expense_date >= ? AND expense_date < ? AND deleted_at IS NULL',
-        variables: [
-          Variable.withString(todayStart.toIso8601String()),
-          Variable.withString(todayEnd.toIso8601String()),
-        ],
+        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
+        variables: [Variable.withString(todayKey)],
+        readsFrom: {db.expenses},
       )
       .watch()
       .map(
