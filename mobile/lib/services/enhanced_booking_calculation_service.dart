@@ -546,16 +546,16 @@ class EnhancedBookingCalculationService {
   }) {
     final segments = <_NightSegment>[];
     var cursor = checkin;
-    bool isFirstSegment = true;
+
+    if (isNewBooking && cursor.hour < cutoffHour) {
+      final firstDayStart = DateTime(cursor.year, cursor.month, cursor.day, cutoffHour);
+      if (firstDayStart.isBefore(checkout)) {
+        cursor = firstDayStart;
+      }
+    }
 
     while (cursor.isBefore(checkout)) {
-      DateTime dayStart;
-      if (isFirstSegment && isNewBooking) {
-        dayStart = Time.hotelDayStartForNewBooking(cursor, cutoffHour: cutoffHour);
-        isFirstSegment = false;
-      } else {
-        dayStart = Time.hotelDayStart(cursor, cutoffHour: cutoffHour);
-      }
+      final dayStart = Time.hotelDayStart(cursor, cutoffHour: cutoffHour);
       final dayEnd = dayStart.add(const Duration(days: 1));
       final segmentEnd = checkout.isBefore(dayEnd) ? checkout : dayEnd;
       if (!segmentEnd.isAfter(cursor)) {
@@ -572,9 +572,7 @@ class EnhancedBookingCalculationService {
     }
 
     if (segments.isEmpty) {
-      final dayStart = isNewBooking
-          ? Time.hotelDayStartForNewBooking(checkin, cutoffHour: cutoffHour)
-          : Time.hotelDayStart(checkin, cutoffHour: cutoffHour);
+      final dayStart = Time.hotelDayStart(checkin, cutoffHour: cutoffHour);
       segments.add(
         _NightSegment(
           hotelDayKey: Time.dateToString(dayStart),
