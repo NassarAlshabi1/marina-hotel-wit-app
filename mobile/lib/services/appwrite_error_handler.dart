@@ -31,6 +31,7 @@ class AppwriteErrorHandler {
 
   final _logger = AppwriteLogger();
   final List<AppwriteError> _errorHistory = [];
+  static const int _maxHistorySize = 100;
 
   /// معالجة الخطأ
   AppwriteError handleError(
@@ -40,6 +41,9 @@ class AppwriteErrorHandler {
   }) {
     final appwriteError = _parseError(error, context);
     _errorHistory.add(appwriteError);
+    if (_errorHistory.length > _maxHistorySize) {
+      _errorHistory.removeRange(0, _errorHistory.length - _maxHistorySize);
+    }
 
     // تسجيل الخطأ
     _logger.error(

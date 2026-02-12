@@ -13,6 +13,7 @@ class AppwriteLogger {
   AppwriteLogger._internal();
 
   final List<LogEntry> _logs = [];
+  static const int _maxLogEntries = 100;
   LogLevel _minLevel = LogLevel.info;
   bool _enableConsole = true;
   bool _enableFile = false;
@@ -71,6 +72,9 @@ class AppwriteLogger {
     );
 
     _logs.add(entry);
+    if (_logs.length > _maxLogEntries) {
+      _logs.removeRange(0, _logs.length - _maxLogEntries);
+    }
 
     // طباعة في وضع Debug
     if (_enableConsole && kDebugMode) {
