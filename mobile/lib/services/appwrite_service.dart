@@ -739,14 +739,15 @@ class AppwriteService {
 
     _ensureInitialized();
 
+    final testCollection = AppwriteConfig.syncLogsCollectionId;
+    final testDocumentId = ID.unique();
+    final now = DateTime.now().millisecondsSinceEpoch;
+
     try {
       // 1. اختبار الاتصال الأساسي (Ping)
       results['tests']['ping'] = await quickConnectionTest();
 
       // 2. اختبار الكتابة (Create)
-      final testCollection = AppwriteConfig.syncLogsCollectionId;
-      final testDocumentId = 'connection_test_temp';
-      final now = DateTime.now().millisecondsSinceEpoch;
 
       try {
         await _networkHelper.withTimeout(
@@ -845,7 +846,6 @@ class AppwriteService {
           (results['tests'] as Map)['delete'] != true) {
         try {
           final testCollection = AppwriteConfig.syncLogsCollectionId;
-          final testDocumentId = 'connection_test_temp';
           await _databases.deleteDocument(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: testCollection,
