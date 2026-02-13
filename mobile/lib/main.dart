@@ -342,6 +342,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   bool _isConfiguringSession = false;
   bool _appwriteAutoPullDone = false;
   bool _initialLocalSyncDone = false;
+  DateTime? _lastAppwriteAutoPull;
   StreamSubscription? _localAutoSyncSub;
   Timer? _localAutoSyncDebounce;
   DateTime? _lastLocalAutoSync;
@@ -492,9 +493,19 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       await syncManager.initialize();
       await syncManager.pullRemoteChanges();
+      _lastAppwriteAutoPull = DateTime.now();
     } catch (e) {
       debugPrint('❌ Appwrite auto-pull error: $e');
     }
+  }
+
+  Future<void> _autoPullAppwriteOnResume() async {
+    final last = _lastAppwriteAutoPull;
+    if (last != null &&
+        DateTime.now().difference(last) < const Duration(seconds: 30)) {
+      return;
+    }
+    await _autoPullLatestFromAppwrite();
   }
 
   @override
@@ -525,6 +536,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           .catchError(
             (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
+      unawaited(_autoPullAppwriteOnResume());
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
         (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
       );
