@@ -48,6 +48,7 @@ import 'services/sync_queue_service.dart';
 import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
+import 'services/sync_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
@@ -340,6 +341,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   bool _sessionConfigured = false;
   bool _isConfiguringSession = false;
   bool _appwriteAutoPullDone = false;
+  StreamSubscription? _localAutoSyncSub;
+  Timer? _localAutoSyncDebounce;
+  DateTime? _lastLocalAutoSync;
+  bool _localAutoSyncRunning = false;
   AppDatabase? _pendingDatabase;
 
   @override
@@ -384,6 +389,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
         _startRealtimeSync();
+        _startLocalAutoSync(database);
         if (!_appwriteAutoPullDone) {
           unawaited(_autoPullLatestFromAppwrite());
         }
@@ -418,6 +424,60 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     });
   }
 
+  void _startLocalAutoSync(AppDatabase database) {
+    if (_localAutoSyncSub != null) {
+      return;
+    }
+    final watch = database.customSelect(
+      'SELECT 1',
+      readsFrom: {
+        database.rooms,
+        database.bookings,
+        database.bookingNotes,
+        database.bookingNights,
+        database.employees,
+        database.expenses,
+        database.cashTransactions,
+        database.payments,
+        database.debts,
+        database.hotelDayLedger,
+        database.shiftNotes,
+      },
+    );
+    _localAutoSyncSub = watch.watch().listen((_) => _scheduleLocalAutoSync());
+  }
+
+  void _scheduleLocalAutoSync() {
+    if (_localAutoSyncRunning) {
+      return;
+    }
+    _localAutoSyncDebounce?.cancel();
+    _localAutoSyncDebounce = Timer(
+      const Duration(seconds: 2),
+      () => unawaited(_runLocalAutoSync()),
+    );
+  }
+
+  Future<void> _runLocalAutoSync() async {
+    if (_localAutoSyncRunning) {
+      return;
+    }
+    final now = DateTime.now();
+    final last = _lastLocalAutoSync;
+    if (last != null && now.difference(last) < const Duration(seconds: 5)) {
+      return;
+    }
+    _localAutoSyncRunning = true;
+    try {
+      await ref.read(syncServiceProvider).runSync();
+    } catch (e) {
+      debugPrint('❌ Local auto sync error: $e');
+    } finally {
+      _lastLocalAutoSync = DateTime.now();
+      _localAutoSyncRunning = false;
+    }
+  }
+
   Future<void> _autoPullLatestFromAppwrite() async {
     if (_appwriteAutoPullDone) {
       return;
@@ -435,6 +495,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   @override
   void dispose() {
     AppwriteRealtimeSync().stop();
+    _localAutoSyncSub?.cancel();
+    _localAutoSyncDebounce?.cancel();
     if (_sessionConfigured) {
       unawaited(AppSessionManager.onAppCloseOrBackground());
     }

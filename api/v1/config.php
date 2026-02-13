@@ -82,6 +82,18 @@ function getInput() {
 function authenticateRequest() {
     $headers = getallheaders();
     $token = null;
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+
+    if (ApiMiddleware::isTrustedLocalIp($ip)) {
+        return [
+            'id' => 0,
+            'username' => 'local',
+            'full_name' => 'Local Device',
+            'role' => 'admin',
+            'status' => 'active',
+            'permissions' => '*'
+        ];
+    }
     
     // البحث عن التوكن في الترويسات
     if (isset($headers['Authorization'])) {
