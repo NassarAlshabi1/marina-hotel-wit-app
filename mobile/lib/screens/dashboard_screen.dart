@@ -12,7 +12,6 @@ import '../utils/status_utils.dart';
 import '../utils/time.dart';
 
 import '../widgets/dashboard_sync_button.dart';
-import '../widgets/smart_sync_widgets.dart';
 import 'bookings/booking_edit.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
@@ -95,8 +94,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               _buildHeader(),
-              const SizedBox(height: 16),
-              const SmartSyncDashboardCard(),
               const SizedBox(height: 16),
               _buildStatisticsCards(),
               const SizedBox(height: 20),

@@ -337,6 +337,7 @@ class App extends ConsumerStatefulWidget {
 class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   bool _sessionConfigured = false;
   bool _isConfiguringSession = false;
+  bool _appwriteAutoPullDone = false;
   AppDatabase? _pendingDatabase;
 
   @override
@@ -381,6 +382,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
         _startRealtimeSync();
+        if (!_appwriteAutoPullDone) {
+          unawaited(_autoPullLatestFromAppwrite());
+        }
       } finally {
         _isConfiguringSession = false;
         if (_pendingDatabase != null) {
@@ -410,6 +414,20 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         debugPrint('❌ Realtime sync init error: $e');
       }
     });
+  }
+
+  Future<void> _autoPullLatestFromAppwrite() async {
+    if (_appwriteAutoPullDone) {
+      return;
+    }
+    _appwriteAutoPullDone = true;
+    try {
+      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      await syncManager.initialize();
+      await syncManager.pullRemoteChanges();
+    } catch (e) {
+      debugPrint('❌ Appwrite auto-pull error: $e');
+    }
   }
 
   @override
