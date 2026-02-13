@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -52,21 +51,9 @@ import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
 
-const String _phpExecutable = String.fromEnvironment(
-  'PHP_EXECUTABLE',
-  defaultValue: 'php',
-);
-const String _phpProjectRoot = String.fromEnvironment(
-  'PHP_PROJECT_ROOT',
-  defaultValue: '',
-);
-const int _phpPort = int.fromEnvironment('PHP_PORT', defaultValue: 8080);
-Process? _localPhpServer;
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DiagnosticsLogger.instance.initialize();
-  unawaited(_startLocalPhpServer());
 
   FlutterError.onError = (details) {
     DiagnosticsLogger.instance.recordFlutterError(details);
@@ -100,38 +87,6 @@ Future<void> main() async {
   );
 
   unawaited(_initializeFullyAutomatedSyncSystem());
-}
-
-Future<void> _startLocalPhpServer() async {
-  if (!Platform.isWindows) {
-    return;
-  }
-  if (_localPhpServer != null) {
-    return;
-  }
-  final projectRoot = _phpProjectRoot.isNotEmpty
-      ? _phpProjectRoot
-      : Directory.current.parent.path;
-  try {
-    _localPhpServer = await Process.start(
-      _phpExecutable,
-      ['-S', '127.0.0.1:$_phpPort', '-t', projectRoot],
-      runInShell: true,
-    );
-    _localPhpServer?.stdout.drain();
-    _localPhpServer?.stderr.drain();
-  } catch (e) {
-    debugPrint('❌ Failed to start local PHP server: $e');
-  }
-}
-
-Future<void> _stopLocalPhpServer() async {
-  final proc = _localPhpServer;
-  _localPhpServer = null;
-  if (proc == null) {
-    return;
-  }
-  proc.kill();
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
@@ -478,7 +433,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   @override
   void dispose() {
     AppwriteRealtimeSync().stop();
-    unawaited(_stopLocalPhpServer());
     if (_sessionConfigured) {
       unawaited(AppSessionManager.onAppCloseOrBackground());
     }
