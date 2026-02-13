@@ -43,6 +43,10 @@ class ComprehensiveAppwriteBackupService {
     AppwriteConfig.salaryPaymentsCollectionId,
     AppwriteConfig.hotelDayLedgerCollectionId,
     AppwriteConfig.shiftNotesCollectionId,
+    AppwriteConfig.priceAdjustmentsCollectionId,
+    AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+    AppwriteConfig.auditLogsCollectionId,
+    AppwriteConfig.paymentVoidsCollectionId,
   ];
 
   // تصدير النسخة الاحتياطية من قاعدة البيانات المحلية
@@ -138,11 +142,35 @@ class ComprehensiveAppwriteBackupService {
           salaryPayments.map((e) => e.toJson()).toList();
 
       // 13. Hotel Day Ledger
-      if (onProgress != null) onProgress('تصدير دفتر اليومية...', 0.98);
+      if (onProgress != null) onProgress('تصدير دفتر اليومية...', 0.88);
       final ledger = await db.select(db.hotelDayLedger).get();
       collectionsData[AppwriteConfig.hotelDayLedgerCollectionId] = ledger
           .map((e) => e.toJson())
           .toList();
+
+      // 14. Price Adjustments
+      if (onProgress != null) onProgress('تصدير تعديلات الأسعار...', 0.91);
+      final priceAdjustments = await db.select(db.priceAdjustments).get();
+      collectionsData[AppwriteConfig.priceAdjustmentsCollectionId] =
+          priceAdjustments.map((e) => e.toJson()).toList();
+
+      // 15. Booking Price Adjustments
+      if (onProgress != null) onProgress('تصدير تعديلات أسعار الحجوزات...', 0.93);
+      final bookingPriceAdj = await db.select(db.bookingPriceAdjustments).get();
+      collectionsData[AppwriteConfig.bookingPriceAdjustmentsCollectionId] =
+          bookingPriceAdj.map((e) => e.toJson()).toList();
+
+      // 16. Audit Logs
+      if (onProgress != null) onProgress('تصدير سجلات التدقيق...', 0.95);
+      final auditLogs = await db.select(db.auditLogs).get();
+      collectionsData[AppwriteConfig.auditLogsCollectionId] =
+          auditLogs.map((e) => e.toJson()).toList();
+
+      // 17. Payment Voids
+      if (onProgress != null) onProgress('تصدير إلغاءات الدفع...', 0.98);
+      final paymentVoids = await db.select(db.paymentVoids).get();
+      collectionsData[AppwriteConfig.paymentVoidsCollectionId] =
+          paymentVoids.map((e) => e.toJson()).toList();
 
       final payload = {
         'metadata': {

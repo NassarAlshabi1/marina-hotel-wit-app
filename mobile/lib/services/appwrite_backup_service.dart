@@ -41,6 +41,10 @@ class AppwriteBackupService {
     AppwriteConfig.salaryPaymentsCollectionId,
     AppwriteConfig.hotelDayLedgerCollectionId,
     AppwriteConfig.shiftNotesCollectionId,
+    AppwriteConfig.priceAdjustmentsCollectionId,
+    AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+    AppwriteConfig.auditLogsCollectionId,
+    AppwriteConfig.paymentVoidsCollectionId,
     AppwriteConfig.devicesCollectionId,
     AppwriteConfig.syncLogsCollectionId,
   ];

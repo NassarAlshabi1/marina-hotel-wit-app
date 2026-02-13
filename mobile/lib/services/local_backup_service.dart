@@ -150,6 +150,16 @@ class LocalBackupService {
         final cashTransactionsData = await db.select(db.cashTransactions).get();
         final paymentsData = await db.select(db.payments).get();
         final syncStateData = await db.select(db.syncState).get();
+        final debtsData = await db.select(db.debts).get();
+        final bookingNightsData = await db.select(db.bookingNights).get();
+        final ledgerData = await db.select(db.hotelDayLedger).get();
+        final shiftNotesData = await db.select(db.shiftNotes).get();
+        final salaryCyclesData = await db.select(db.salaryCycles).get();
+        final salaryPaymentsData = await db.select(db.salaryPayments).get();
+        final priceAdjustmentsData = await db.select(db.priceAdjustments).get();
+        final bookingPriceAdjData = await db.select(db.bookingPriceAdjustments).get();
+        final auditLogsData = await db.select(db.auditLogs).get();
+        final paymentVoidsData = await db.select(db.paymentVoids).get();
 
         final totalRecords =
             roomsData.length +
@@ -158,7 +168,17 @@ class LocalBackupService {
             employeesData.length +
             expensesData.length +
             cashTransactionsData.length +
-            paymentsData.length;
+            paymentsData.length +
+            debtsData.length +
+            bookingNightsData.length +
+            ledgerData.length +
+            shiftNotesData.length +
+            salaryCyclesData.length +
+            salaryPaymentsData.length +
+            priceAdjustmentsData.length +
+            bookingPriceAdjData.length +
+            auditLogsData.length +
+            paymentVoidsData.length;
 
         final metadata = BackupMetadata(
           appVersion: '1.2.0+3',
@@ -184,6 +204,34 @@ class LocalBackupService {
               .map((transaction) => transaction.toJson())
               .toList(),
           'payments': paymentsData.map((payment) => payment.toJson()).toList(),
+          'debts': debtsData.map((debt) => debt.toJson()).toList(),
+          'booking_nights': bookingNightsData
+              .map((night) => night.toJson())
+              .toList(),
+          'hotel_day_ledger': ledgerData
+              .map((entry) => entry.toJson())
+              .toList(),
+          'shift_notes': shiftNotesData
+              .map((note) => note.toJson())
+              .toList(),
+          'salary_cycles': salaryCyclesData
+              .map((cycle) => cycle.toJson())
+              .toList(),
+          'salary_payments': salaryPaymentsData
+              .map((payment) => payment.toJson())
+              .toList(),
+          'price_adjustments': priceAdjustmentsData
+              .map((adj) => adj.toJson())
+              .toList(),
+          'booking_price_adjustments': bookingPriceAdjData
+              .map((adj) => adj.toJson())
+              .toList(),
+          'audit_logs': auditLogsData
+              .map((log) => log.toJson())
+              .toList(),
+          'payment_voids': paymentVoidsData
+              .map((v) => v.toJson())
+              .toList(),
           'sync_state': syncStateData.isNotEmpty
               ? syncStateData.first.toJson()
               : {},

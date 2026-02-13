@@ -15,6 +15,7 @@ import 'php_api_settings_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import 'diagnostics_screen.dart';
 import '../security/blacklist_screen.dart';
+import 'comprehensive_backup_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -152,6 +153,18 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const PhpApiSettingsScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'نسخة شاملة',
+              subtitle: 'تصدير ورفع كل البيانات إلى Appwrite',
+              icon: Icons.backup,
+              color: Colors.deepOrange,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ComprehensiveBackupScreen(),
                 ),
               ),
             ),
