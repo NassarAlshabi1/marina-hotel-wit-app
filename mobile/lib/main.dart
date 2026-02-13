@@ -423,7 +423,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
 
         await AppwriteRealtimeSync().initialize(
-          syncManager: syncManager,
           deviceId: deviceId,
         );
         await AppwriteRealtimeSync().start();

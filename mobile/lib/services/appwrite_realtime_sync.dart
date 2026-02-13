@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
-import 'appwrite_sync_manager.dart';
 import 'appwrite_delta_sync.dart';
 
 class AppwriteRealtimeSync {
@@ -15,7 +14,6 @@ class AppwriteRealtimeSync {
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
-  AppwriteSyncManager? _syncManager;
   String? _currentDeviceId;
   bool _isListening = false;
   Timer? _debounceTimer;
@@ -36,10 +34,8 @@ class AppwriteRealtimeSync {
   ];
 
   Future<void> initialize({
-    required AppwriteSyncManager syncManager,
     required String deviceId,
   }) async {
-    _syncManager = syncManager;
     _currentDeviceId = deviceId;
     _realtime = Realtime(AppwriteService().client);
     debugPrint('📡 AppwriteRealtimeSync initialized');
@@ -85,14 +81,8 @@ class AppwriteRealtimeSync {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
       try {
-        final deltaSync = AppwriteDeltaSync.instance;
-        if (deltaSync.isInitialized) {
-          await deltaSync.pullDeltaChanges();
-          debugPrint('✅ Realtime delta sync done');
-        } else {
-          await _syncManager?.sync(push: true, pull: true);
-          debugPrint('✅ Realtime full sync done');
-        }
+        await AppwriteDeltaSync.instance.pullDeltaChanges();
+        debugPrint('✅ Realtime delta sync done');
       } catch (e) {
         debugPrint('❌ Realtime sync error: $e');
       }
