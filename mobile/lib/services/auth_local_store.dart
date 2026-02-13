@@ -15,6 +15,7 @@ class AuthLocalStore {
     'rooms',
     'bookings',
     'payments',
+    'debts',
     'employees',
     'expenses',
     'finance',
@@ -42,6 +43,26 @@ class AuthLocalStore {
       'full_name': 'أحمد',
       'id': 3,
     },
+    '1': {
+      'password': '1',
+      'user_type': 'supervisor',
+      'full_name': 'محمد',
+      'id': 4,
+    },
+  };
+
+  static const Map<String, List<String>> _fixedPermissions = {
+    '1': [
+      'dashboard',
+      'bookings',
+      'payments',
+      'debts',
+      'employees',
+      'expenses',
+      'finance',
+      'reports',
+      'notes',
+    ],
   };
 
   Future<Map<String, dynamic>> _loadCustomAccounts() async {
@@ -260,7 +281,7 @@ class AuthLocalStore {
     if (username == 'admin') return ['all'];
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kPermissionsMap);
-    if (raw == null) return <String>[];
+    if (raw == null) return _fixedPermissions[username] ?? <String>[];
     try {
       final map = jsonDecode(raw);
       if (map is Map) {
@@ -269,9 +290,9 @@ class AuthLocalStore {
           return v.map((e) => e.toString()).toList();
         }
       }
-      return <String>[];
+      return _fixedPermissions[username] ?? <String>[];
     } catch (_) {
-      return <String>[];
+      return _fixedPermissions[username] ?? <String>[];
     }
   }
 
