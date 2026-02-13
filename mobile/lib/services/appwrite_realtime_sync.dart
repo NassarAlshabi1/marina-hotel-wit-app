@@ -20,13 +20,18 @@ class AppwriteRealtimeSync {
   Timer? _debounceTimer;
 
   static const _collections = [
-    'rooms',
-    'bookings',
-    'employees',
-    'expenses',
-    'payments',
-    'debts',
-    'notes',
+    AppwriteConfig.roomsCollectionId,
+    AppwriteConfig.bookingsCollectionId,
+    AppwriteConfig.bookingNotesCollectionId,
+    AppwriteConfig.bookingNightsCollectionId,
+    AppwriteConfig.paymentsCollectionId,
+    AppwriteConfig.expensesCollectionId,
+    AppwriteConfig.cashTransactionsCollectionId,
+    AppwriteConfig.debtsCollectionId,
+    AppwriteConfig.employeesCollectionId,
+    AppwriteConfig.salaryCyclesCollectionId,
+    AppwriteConfig.salaryPaymentsCollectionId,
+    AppwriteConfig.shiftNotesCollectionId,
   ];
 
   Future<void> initialize({
