@@ -45,6 +45,7 @@ import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/logging/log_models.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/sync_queue_service.dart';
+import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
@@ -54,6 +55,7 @@ import 'components/admin_layout.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DiagnosticsLogger.instance.initialize();
+  await ApiConfigService.instance.initialize();
 
   FlutterError.onError = (details) {
     DiagnosticsLogger.instance.recordFlutterError(details);
