@@ -306,6 +306,13 @@ async function setupPaymentVoids() {
   await createIndex('payment_voids', 'idx_sync_ts', IndexType.Key, ['syncTimestamp']);
 }
 
+async function addHotelDayLedgerFields() {
+  console.log('\n📦 Adding hotelDayKey to hotel_day_ledger collection...');
+
+  await createStringAttribute('hotel_day_ledger', 'hotelDayKey', 50, true);
+  await createIndex('hotel_day_ledger', 'idx_hotel_day_key', IndexType.Unique, ['hotelDayKey']);
+}
+
 async function addPaymentsImmutabilityFields() {
   console.log('\n📦 Adding immutability fields to payments collection...');
   
@@ -346,6 +353,7 @@ async function main() {
     await setupPaymentVoids();
 
     // Phase 2: Update existing collections
+    await addHotelDayLedgerFields();
     await addPaymentsImmutabilityFields();
     await addBookingsFinancialFields();
 
