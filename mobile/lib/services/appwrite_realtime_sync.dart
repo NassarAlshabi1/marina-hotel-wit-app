@@ -31,6 +31,11 @@ class AppwriteRealtimeSync {
     AppwriteConfig.salaryCyclesCollectionId,
     AppwriteConfig.salaryPaymentsCollectionId,
     AppwriteConfig.shiftNotesCollectionId,
+    AppwriteConfig.hotelDayLedgerCollectionId,
+    AppwriteConfig.priceAdjustmentsCollectionId,
+    AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+    AppwriteConfig.auditLogsCollectionId,
+    AppwriteConfig.paymentVoidsCollectionId,
   ];
 
   Future<void> initialize({

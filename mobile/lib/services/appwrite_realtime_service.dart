@@ -213,6 +213,10 @@ class AppwriteRealtimeService {
       AppwriteConfig.salaryCyclesCollectionId,
       AppwriteConfig.salaryPaymentsCollectionId,
       AppwriteConfig.shiftNotesCollectionId,
+      AppwriteConfig.priceAdjustmentsCollectionId,
+      AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+      AppwriteConfig.auditLogsCollectionId,
+      AppwriteConfig.paymentVoidsCollectionId,
     ];
 
     for (final collectionId in collections) {

@@ -212,11 +212,10 @@ class AppwriteDeltaSync {
             collectionId: collectionId,
             documentId: change.localUuid,
           );
+        } on AppwriteException catch (e) {
+          if (e.code != 404) rethrow;
         } catch (e) {
-          if (!e.toString().contains('404') &&
-              !e.toString().contains('not_found')) {
-            rethrow;
-          }
+          rethrow;
         }
         break;
     }
