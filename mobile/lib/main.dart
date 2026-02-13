@@ -36,6 +36,7 @@ import 'services/smart_sync_manager.dart';
 import 'services/sync_guardian.dart';
 import 'services/database_sync_coordinator.dart';
 import 'utils/auto_sync_preferences.dart';
+import 'utils/id.dart';
 
 // AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
@@ -340,7 +341,6 @@ class App extends ConsumerStatefulWidget {
 class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   bool _sessionConfigured = false;
   bool _isConfiguringSession = false;
-  bool _appwriteAutoPullDone = false;
   bool _initialLocalSyncDone = false;
   DateTime? _lastAppwriteAutoPull;
   StreamSubscription? _localAutoSyncSub;
@@ -396,9 +396,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           _initialLocalSyncDone = true;
           unawaited(_runLocalAutoSync());
         }
-        if (!_appwriteAutoPullDone) {
-          unawaited(_autoPullLatestFromAppwrite());
-        }
+        unawaited(_autoPullLatestFromAppwrite());
       } finally {
         _isConfiguringSession = false;
         if (_pendingDatabase != null) {
@@ -412,10 +410,16 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     Future.delayed(const Duration(seconds: 3), () async {
       try {
         final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
-        final deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
+        await syncManager.initialize();
+        var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
+        deviceId ??= syncManager.currentDeviceId;
         if (deviceId == null) {
-          debugPrint('⚠️ Device ID not available, skipping realtime sync');
-          return;
+          final prefs = await SharedPreferences.getInstance();
+          deviceId = prefs.getString('appwrite_realtime_device_id');
+          if (deviceId == null) {
+            deviceId = IdGen.uuid();
+            await prefs.setString('appwrite_realtime_device_id', deviceId);
+          }
         }
 
         await AppwriteRealtimeSync().initialize(
@@ -485,10 +489,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   }
 
   Future<void> _autoPullLatestFromAppwrite() async {
-    if (_appwriteAutoPullDone) {
-      return;
-    }
-    _appwriteAutoPullDone = true;
     try {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       await syncManager.initialize();
