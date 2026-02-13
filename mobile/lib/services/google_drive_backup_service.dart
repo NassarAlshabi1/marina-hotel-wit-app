@@ -748,28 +748,29 @@ class GoogleDriveBackupService {
       await db.transaction(() async {
         await db.customStatement('PRAGMA foreign_keys = OFF');
         try {
-          // حذف جميع الجداول
-          await db.delete(db.rooms).go();
-          await db.delete(db.bookings).go();
+          // حذف جميع الجداول (الأبناء أولاً لتجنب قيود المفاتيح الأجنبية)
           await db.delete(db.bookingNotes).go();
           await db.delete(db.bookingNights).go();
+          await db.delete(db.payments).go();
+          await db.delete(db.debts).go();
+          await db.delete(db.bookingPriceAdjustments).go();
+          await db.delete(db.bookings).go();
+          await db.delete(db.rooms).go();
+          await db.delete(db.salaryPayments).go();
+          await db.delete(db.salaryCycles).go();
+          await db.delete(db.integrityViolations).go();
+          await db.delete(db.autoFixRuns).go();
+          await db.delete(db.syncConflicts).go();
+          await db.delete(db.syncLog).go();
+          await db.delete(db.syncQueue).go();
+          await db.delete(db.syncState).go();
+          await db.delete(db.restoreFixLog).go();
+          await db.delete(db.appSessions).go();
           await db.delete(db.hotelDayLedger).go();
           await db.delete(db.shiftNotes).go();
           await db.delete(db.employees).go();
           await db.delete(db.expenses).go();
           await db.delete(db.cashTransactions).go();
-          await db.delete(db.payments).go();
-          await db.delete(db.debts).go();
-          await db.delete(db.autoFixRuns).go();
-          await db.delete(db.integrityViolations).go();
-          await db.delete(db.appSessions).go();
-          await db.delete(db.salaryCycles).go();
-          await db.delete(db.salaryPayments).go();
-          await db.delete(db.restoreFixLog).go();
-          await db.delete(db.syncQueue).go();
-          await db.delete(db.syncLog).go();
-          await db.delete(db.syncConflicts).go();
-          await db.delete(db.syncState).go();
 
           // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
           if (backupData.containsKey('rooms')) {
