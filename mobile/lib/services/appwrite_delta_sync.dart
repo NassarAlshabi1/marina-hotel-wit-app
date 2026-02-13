@@ -361,6 +361,27 @@ class AppwriteDeltaSync {
       case 'employees':
         await _applyEmployeeChange(db, documentId, data);
         break;
+      case 'booking_nights':
+        await _applyBookingNightChange(db, documentId, data);
+        break;
+      case 'booking_notes':
+        await _applyBookingNoteChange(db, documentId, data);
+        break;
+      case 'cash_transactions':
+        await _applyCashTransactionChange(db, documentId, data);
+        break;
+      case 'shift_notes':
+        await _applyShiftNoteChange(db, documentId, data);
+        break;
+      case 'salary_cycles':
+        await _applySalaryCycleChange(db, documentId, data);
+        break;
+      case 'salary_payments':
+        await _applySalaryPaymentChange(db, documentId, data);
+        break;
+      case 'hotel_day_ledger':
+        await _applyHotelDayLedgerChange(db, documentId, data);
+        break;
       case 'price_adjustments':
         await _applyPriceAdjustmentChange(db, documentId, data);
         break;
@@ -728,6 +749,210 @@ class AppwriteDeltaSync {
     );
 
     await db.into(db.paymentVoids).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyBookingNightChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final bookingLocalId = _asInt(data['bookingLocalId']);
+    if (bookingLocalId == null) return;
+
+    final companion = BookingNightsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      bookingLocalId: d.Value(bookingLocalId),
+      hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
+      nightStart: d.Value(_asString(data['nightStart']) ?? ''),
+      nightEnd: d.Value(_asString(data['nightEnd']) ?? ''),
+      nightlyRate: d.Value(_asDouble(data['nightlyRate'])),
+      sequence: d.Value(_asInt(data['sequence']) ?? 0),
+      isProcessedByAutoFix: d.Value(_asBool(data['isProcessedByAutoFix']) ?? false),
+      baseRate: d.Value(_asDouble(data['baseRate'])),
+      adjustment: d.Value(_asDouble(data['adjustment'])),
+      finalRate: d.Value(_asDouble(data['finalRate'])),
+      appliedAdjustmentUuid: _nullableValue<String>(_asString(data['appliedAdjustmentUuid'])),
+      appliedAdjustmentsJson: _nullableValue<String>(_asString(data['appliedAdjustmentsJson'])),
+    );
+
+    await db.into(db.bookingNights).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyBookingNoteChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final bookingId = _asInt(data['bookingId']);
+    if (bookingId == null) return;
+
+    final companion = BookingNotesCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      bookingId: d.Value(bookingId),
+      noteText: d.Value(_asString(data['noteText']) ?? ''),
+      alertType: d.Value(_asString(data['alertType']) ?? ''),
+      alertUntil: _nullableValue<String>(_asString(data['alertUntil'])),
+      isActive: d.Value(_asInt(data['isActive']) ?? 1),
+    );
+
+    await db.into(db.bookingNotes).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyCashTransactionChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final companion = CashTransactionsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      registerId: _nullableValue<int>(_asInt(data['registerId'])),
+      transactionType: d.Value(_asString(data['transactionType']) ?? ''),
+      amount: d.Value(_asDouble(data['amount'])),
+      referenceType: _nullableValue<String>(_asString(data['referenceType'])),
+      referenceId: _nullableValue<int>(_asInt(data['referenceId'])),
+      description: _nullableValue<String>(_asString(data['description'])),
+      transactionTime: d.Value(_asString(data['transactionTime']) ?? ''),
+      createdBy: _nullableValue<int>(_asInt(data['createdBy'])),
+    );
+
+    await db.into(db.cashTransactions).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyShiftNoteChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final companion = ShiftNotesCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      title: d.Value(_asString(data['title']) ?? ''),
+      content: d.Value(_asString(data['content']) ?? ''),
+      priority: d.Value(_asString(data['priority']) ?? 'medium'),
+      shiftType: d.Value(_asString(data['shiftType']) ?? 'all'),
+      isRead: d.Value(_asInt(data['isRead']) ?? 0),
+      expiresAt: _nullableValue<String>(_asString(data['expiresAt'])),
+      createdBy: d.Value(_asString(data['createdBy']) ?? 'user'),
+    );
+
+    await db.into(db.shiftNotes).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applySalaryCycleChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final employeeId = _asInt(data['employeeId']);
+    if (employeeId == null) return;
+
+    final companion = SalaryCyclesCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      employeeId: d.Value(employeeId),
+      cycleKey: d.Value(_asString(data['cycleKey']) ?? ''),
+      hotelDayStart: _nullableValue<String>(_asString(data['hotelDayStart'])),
+      hotelDayEnd: _nullableValue<String>(_asString(data['hotelDayEnd'])),
+      expectedAmount: d.Value(_asInt(data['expectedAmount']) ?? 0),
+      actualPaid: d.Value(_asInt(data['actualPaid']) ?? 0),
+      remainingAmount: d.Value(_asInt(data['remainingAmount']) ?? 0),
+      status: d.Value(_asString(data['status']) ?? 'draft'),
+    );
+
+    await db.into(db.salaryCycles).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applySalaryPaymentChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final cycleId = _asInt(data['cycleId']);
+    if (cycleId == null) return;
+
+    final companion = SalaryPaymentsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      cycleId: d.Value(cycleId),
+      amount: d.Value(_asInt(data['amount']) ?? 0),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+      paymentDateIso: d.Value(_asString(data['paymentDateIso']) ?? ''),
+      method: _nullableValue<String>(_asString(data['method'])),
+      isAutoGenerated: d.Value(_asBool(data['isAutoGenerated']) ?? false),
+    );
+
+    await db.into(db.salaryPayments).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyHotelDayLedgerChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final hotelDayKey = _asString(data['hotelDayKey']);
+    if (hotelDayKey == null || hotelDayKey.isEmpty) return;
+
+    final companion = HotelDayLedgerCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      hotelDayKey: d.Value(hotelDayKey),
+      totalIncome: d.Value(_asDouble(data['totalIncome'])),
+      totalExpenses: d.Value(_asDouble(data['totalExpenses'])),
+      pendingBalances: d.Value(_asDouble(data['pendingBalances'])),
+      occupancyRate: d.Value(_asDouble(data['occupancyRate'])),
+      bookingsProcessed: d.Value(_asInt(data['bookingsProcessed']) ?? 0),
+      paymentsProcessed: d.Value(_asInt(data['paymentsProcessed']) ?? 0),
+      debtsProcessed: d.Value(_asInt(data['debtsProcessed']) ?? 0),
+      expensesProcessed: d.Value(_asInt(data['expensesProcessed']) ?? 0),
+      status: d.Value(_asString(data['status']) ?? 'draft'),
+    );
+
+    await db.into(db.hotelDayLedger).insertOnConflictUpdate(companion);
   }
 
   bool? _asBool(dynamic value) {

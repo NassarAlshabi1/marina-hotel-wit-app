@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
 import 'appwrite_sync_manager.dart';
+import 'appwrite_delta_sync.dart';
 
 class AppwriteRealtimeSync {
   static final AppwriteRealtimeSync _instance =
@@ -84,8 +85,14 @@ class AppwriteRealtimeSync {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
       try {
-        await _syncManager?.sync(push: false, pull: true);
-        debugPrint('✅ Realtime sync done');
+        final deltaSync = AppwriteDeltaSync.instance;
+        if (deltaSync.isInitialized) {
+          await deltaSync.pullDeltaChanges();
+          debugPrint('✅ Realtime delta sync done');
+        } else {
+          await _syncManager?.sync(push: false, pull: true);
+          debugPrint('✅ Realtime full sync done');
+        }
       } catch (e) {
         debugPrint('❌ Realtime sync error: $e');
       }
