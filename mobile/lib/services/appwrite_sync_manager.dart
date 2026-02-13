@@ -513,6 +513,48 @@ class AppwriteSyncManager {
           _logger.debug('Synced $adjustmentsSynced booking price adjustments', tag: 'SYNC');
           return adjustmentsSynced;
         }, phaseMs);
+
+        recordsPulled += await _timePhase('syncBookingNights', () async {
+          final bookingNights = await appwriteService.listBookingNights(useCache: false);
+          final synced = await _syncBookingNights(bookingNights);
+          _logger.debug('Synced $synced booking nights', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncBookingNotes', () async {
+          final bookingNotes = await appwriteService.listBookingNotes(useCache: false);
+          final synced = await _syncBookingNotes(bookingNotes);
+          _logger.debug('Synced $synced booking notes', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncCashTransactions', () async {
+          final cashTransactions = await appwriteService.listCashTransactions(useCache: false);
+          final synced = await _syncCashTransactions(cashTransactions);
+          _logger.debug('Synced $synced cash transactions', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncShiftNotes', () async {
+          final shiftNotes = await appwriteService.listShiftNotes(useCache: false);
+          final synced = await _syncShiftNotes(shiftNotes);
+          _logger.debug('Synced $synced shift notes', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncSalaryCycles', () async {
+          final salaryCycles = await appwriteService.listSalaryCycles(useCache: false);
+          final synced = await _syncSalaryCycles(salaryCycles);
+          _logger.debug('Synced $synced salary cycles', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncSalaryPayments', () async {
+          final salaryPayments = await appwriteService.listSalaryPayments(useCache: false);
+          final synced = await _syncSalaryPayments(salaryPayments);
+          _logger.debug('Synced $synced salary payments', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
       }
 
       // تحديث سجل المزامنة

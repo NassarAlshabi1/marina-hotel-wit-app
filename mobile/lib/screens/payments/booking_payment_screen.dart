@@ -198,41 +198,45 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           tooltip: 'سجل المدفوعات',
         ),
       ],
-      body: StreamBuilder<db.Room?>(
-        stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
-        builder: (context, roomSnap) {
-          final double roomRate = roomSnap.data?.price ?? 0;
-          final checkin = DateTime.tryParse(widget.booking.checkinDate);
-          if (checkin == null) {
-            return const Center(
-              child: Text('خطأ: تاريخ الوصول للحجز غير صالح.'),
-            );
-          }
-          final plannedCheckout = widget.booking.checkoutDate != null
-              ? DateTime.tryParse(widget.booking.checkoutDate!)
-              : null;
-          final actualCheckout = widget.booking.actualCheckout != null
-              ? DateTime.tryParse(widget.booking.actualCheckout!)
-              : null;
-          final expectedNights = widget.booking.expectedNights > 0
-              ? widget.booking.expectedNights
-              : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
-          final actualNights = Time.nightsWithCutoff(
-            checkin,
-            checkout: actualCheckout ?? plannedCheckout,
-          );
+      body: StreamBuilder<db.Booking?>(
+        stream: ref.watch(bookingsRepoProvider).watchOne(widget.booking.id),
+        builder: (context, bookingSnap) {
+          final booking = bookingSnap.data ?? widget.booking;
+          return StreamBuilder<db.Room?>(
+            stream: roomsRepo.watchByNumber(booking.roomNumber),
+            builder: (context, roomSnap) {
+              final double roomRate = roomSnap.data?.price ?? 0;
+              final checkin = DateTime.tryParse(booking.checkinDate);
+              if (checkin == null) {
+                return const Center(
+                  child: Text('خطأ: تاريخ الوصول للحجز غير صالح.'),
+                );
+              }
+              final plannedCheckout = booking.checkoutDate != null
+                  ? DateTime.tryParse(booking.checkoutDate!)
+                  : null;
+              final actualCheckout = booking.actualCheckout != null
+                  ? DateTime.tryParse(booking.actualCheckout!)
+                  : null;
+              final expectedNights = booking.expectedNights > 0
+                  ? booking.expectedNights
+                  : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
+              final actualNights = Time.nightsWithCutoff(
+                checkin,
+                checkout: actualCheckout ?? plannedCheckout,
+              );
 
-          final dbInstance = ref.watch(databaseProvider);
-          final discount = widget.booking.discount;
-          final discountType = widget.booking.discountType;
-          final discountStartDate = _parseDateTime(
-            widget.booking.discountStartDate,
+              final dbInstance = ref.watch(databaseProvider);
+              final discount = booking.discount;
+              final discountType = booking.discountType;
+              final discountStartDate = _parseDateTime(
+                booking.discountStartDate,
           );
 
           return StreamBuilder<List<db.BookingNight>>(
             stream:
                 (dbInstance.select(dbInstance.bookingNights)
-                      ..where((n) => n.bookingLocalId.equals(widget.booking.id))
+                      ..where((n) => n.bookingLocalId.equals(booking.id))
                       ..where((n) => n.deletedAt.isNull()))
                     .watch(),
             builder: (context, nightsSnap) {
@@ -308,7 +312,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               }
 
               return StreamBuilder<List<db.Payment>>(
-                stream: paymentsRepo.paymentsByBooking(widget.booking.id),
+                stream: paymentsRepo.paymentsByBooking(booking.id),
                 builder: (context, paySnap) {
                   final dbPayments = paySnap.data ?? const <db.Payment>[];
                   final paidAmount = dbPayments.fold<double>(
@@ -320,7 +324,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   _remainingAmount = remainingAmount;
                   final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
                   final summary = BookingPaymentSummary(
-                    bookingId: widget.booking.localUuid,
+                    bookingId: booking.localUuid,
                     totalAmount: totalAmount.toDouble(),
                     paidAmount: paidAmount.toDouble(),
                     remainingAmount: remainingAmount.toDouble(),
@@ -389,6 +393,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               );
             },
           );
+          },
+        );
         },
       ),
     );
