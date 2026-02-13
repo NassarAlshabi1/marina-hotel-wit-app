@@ -341,6 +341,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   bool _sessionConfigured = false;
   bool _isConfiguringSession = false;
   bool _appwriteAutoPullDone = false;
+  bool _initialLocalSyncDone = false;
   StreamSubscription? _localAutoSyncSub;
   Timer? _localAutoSyncDebounce;
   DateTime? _lastLocalAutoSync;
@@ -390,6 +391,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         _sessionConfigured = true;
         _startRealtimeSync();
         _startLocalAutoSync(database);
+        if (!_initialLocalSyncDone) {
+          _initialLocalSyncDone = true;
+          unawaited(_runLocalAutoSync());
+        }
         if (!_appwriteAutoPullDone) {
           unawaited(_autoPullLatestFromAppwrite());
         }
