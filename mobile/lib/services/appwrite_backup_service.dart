@@ -49,38 +49,68 @@ class AppwriteBackupService {
     final allCollections = <dynamic>[];
     final limit = AppwriteConfig.maxPageSize;
     var offset = 0;
+    var usedFallback = false;
 
     while (true) {
-      final result = await _appwriteService.databases.listCollections(
-        databaseId: AppwriteConfigManager.databaseId,
-        queries: [Query.limit(limit), Query.offset(offset)],
-      );
-      final batch = result.collections;
-      if (batch.isEmpty) {
+      try {
+        final result = await (_appwriteService.databases as dynamic)
+            .listCollections(
+              databaseId: AppwriteConfigManager.databaseId,
+              queries: [Query.limit(limit), Query.offset(offset)],
+            );
+        final batch = (result as dynamic).collections as List<dynamic>? ?? [];
+        if (batch.isEmpty) {
+          break;
+        }
+        allCollections.addAll(batch);
+        if (batch.length < limit) {
+          break;
+        }
+        offset += limit;
+      } catch (_) {
+        usedFallback = true;
         break;
       }
-      allCollections.addAll(batch);
-      if (batch.length < limit) {
-        break;
+    }
+
+    if (allCollections.isEmpty && usedFallback) {
+      for (final id in _defaultCollectionIds) {
+        try {
+          final collection = await (_appwriteService.databases as dynamic)
+              .getCollection(
+                databaseId: AppwriteConfigManager.databaseId,
+                collectionId: id,
+              );
+          allCollections.add(collection);
+        } catch (_) {
+          allCollections.add({r'$id': id});
+        }
       }
-      offset += limit;
     }
 
     return allCollections;
   }
 
   Map<String, dynamic> _serializeCollection(dynamic collection) {
+    if (collection is Map) {
+      return Map<String, dynamic>.from(collection);
+    }
     try {
       final map = (collection as dynamic).toMap();
       return Map<String, dynamic>.from(map as Map);
     } catch (_) {
-      return {
-        r'$id': (collection as dynamic).$id,
-        'name': (collection as dynamic).name,
-        'enabled': (collection as dynamic).enabled,
-        'documentSecurity': (collection as dynamic).documentSecurity,
-        'permissions': (collection as dynamic).permissions,
-      };
+      try {
+        final dynamic c = collection;
+        return {
+          r'$id': c.$id,
+          'name': c.name,
+          'enabled': c.enabled,
+          'documentSecurity': c.documentSecurity,
+          'permissions': c.permissions,
+        };
+      } catch (_) {
+        return {'raw': collection.toString()};
+      }
     }
   }
 
