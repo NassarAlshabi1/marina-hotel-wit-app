@@ -9,6 +9,6 @@ class Env {
   /// flutter run --dart-define=BASE_API_URL=http://192.168.1.5/marina-hotel-wit-app/api/v1
   static String baseApiUrl = const String.fromEnvironment(
     'BASE_API_URL',
-    defaultValue: 'http://10.0.2.2/marina-hotel-wit-app/api/v1',
+    defaultValue: 'http://10.0.0.222:8080/api/v1',
   );
 }
