@@ -90,7 +90,7 @@ class AppwriteRealtimeSync {
           await deltaSync.pullDeltaChanges();
           debugPrint('✅ Realtime delta sync done');
         } else {
-          await _syncManager?.sync(push: false, pull: true);
+          await _syncManager?.sync(push: true, pull: true);
           debugPrint('✅ Realtime full sync done');
         }
       } catch (e) {
