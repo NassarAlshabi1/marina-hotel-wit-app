@@ -1120,6 +1120,8 @@ class AppwriteSyncManager {
           return await _processBookingNightEntry(entry);
         case 'salary_cycles':
           return await _processSalaryCycleEntry(entry);
+        case 'booking_price_adjustments':
+          return await _processBookingPriceAdjustmentEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -1609,6 +1611,7 @@ class AppwriteSyncManager {
       'salary_cycles': 0,
       'salary_payments': 0,
       'shift_notes': 0,
+      'booking_price_adjustments': 0,
       'errors': 0,
     };
 
@@ -1854,6 +1857,28 @@ class AppwriteSyncManager {
       }
       _logger.info('✅ تم رفع ${stats['shift_notes']} ملاحظة شيفت', tag: 'SYNC');
 
+      // رفع تعديلات أسعار الحجوزات
+      final adjustments = await database.select(database.bookingPriceAdjustments).get();
+      for (final adj in adjustments) {
+        if (skipDeleted && adj.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.bookingPriceAdjustments.adapter.toJson(
+            adj,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+            documentId: adj.localUuid,
+            data: payload,
+          );
+          stats['booking_price_adjustments'] = (stats['booking_price_adjustments'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع تعديل سعر حجز: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['booking_price_adjustments']} تعديل سعر حجز', tag: 'SYNC');
+
       final totalRecords =
           stats['rooms']! +
           stats['bookings']! +
@@ -1866,7 +1891,8 @@ class AppwriteSyncManager {
           stats['debts']! +
           stats['salary_cycles']! +
           stats['salary_payments']! +
-          stats['shift_notes']!; // Added shift_notes
+          stats['shift_notes']! +
+          (stats['booking_price_adjustments'] ?? 0);
 
       _logger.info(
         '✅ اكتمل رفع البيانات: $totalRecords سجل، ${stats['errors']} خطأ',
@@ -2253,6 +2279,45 @@ class AppwriteSyncManager {
 
   Future<SalaryCycle?> _getSalaryCycleByLocalUuid(String uuid) {
     return (database.select(database.salaryCycles)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<bool> _processBookingPriceAdjustmentEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final item = await _getBookingPriceAdjustmentByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final payload = outboxDao.adapters.bookingPriceAdjustments.adapter.toJson(
+      item,
+      src: Source.appwrite,
+    );
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+      documentId: item.localUuid,
+      data: _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<BookingPriceAdjustment?> _getBookingPriceAdjustmentByLocalUuid(String uuid) {
+    return (database.select(database.bookingPriceAdjustments)
           ..where((t) => t.localUuid.equals(uuid))
           ..limit(1))
         .getSingleOrNull();
