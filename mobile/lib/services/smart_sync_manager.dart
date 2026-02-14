@@ -603,28 +603,6 @@ class SmartSyncManager {
     }
   }
 
-  /// دفع التغييرات المحلية إلى السحابة
-  Future<void> pushLocalChanges() async {
-    _log('📤 جاري دفع التغييرات المحلية...');
-    // TODO: Implement actual push logic using _backupService
-    await _updateLastSyncTime();
-  }
-
-  /// سحب التغييرات من السحابة
-  Future<void> pullRemoteChanges() async {
-    _log('📥 جاري سحب التغييرات من السحابة...');
-    await _performSyncCheck();
-  }
-
-  /// تحديث وقت آخر مزامنة
-  Future<void> _updateLastSyncTime() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _prefsLastSyncKey,
-      DateTime.now().toIso8601String(),
-    );
-  }
-
   Future<void> setSyncInterval(int minutes) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsIntervalKey, minutes);
