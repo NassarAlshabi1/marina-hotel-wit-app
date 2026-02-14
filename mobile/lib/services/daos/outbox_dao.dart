@@ -3,9 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../local_db.dart';
-import '../unified_sync_orchestrator.dart';
 import '../adapters/adapter_registry.dart';
-import '../adapters/source.dart';
 
 part 'outbox_dao.g.dart';
 
