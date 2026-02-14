@@ -118,10 +118,43 @@ class AppwriteSyncManager {
       }
 
       _enableDebouncedPush();
+
+      // رفع البيانات الحالية مرة واحدة (للبيانات التي أُنشئت قبل تفعيل Outbox)
+      unawaited(_runInitialSeedIfNeeded());
+
       _logger.info('Sync manager initialized', tag: 'SYNC');
     } catch (e, stackTrace) {
       _logger.error(
         'Failed to initialize sync manager',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
+      );
+    }
+  }
+
+  /// رفع جميع البيانات المحلية مرة واحدة عند أول تشغيل بعد التفعيل
+  Future<void> _runInitialSeedIfNeeded() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final done = prefs.getBool('appwrite_initial_seed_done') ?? false;
+      if (done) return;
+
+      // التحقق من وجود بيانات محلية تحتاج رفع
+      final rooms = await database.select(database.rooms).get();
+      if (rooms.isEmpty) {
+        await prefs.setBool('appwrite_initial_seed_done', true);
+        return;
+      }
+
+      _logger.info('بدء الرفع الأولي للبيانات المحلية...', tag: 'SYNC');
+      final stats = await pushAllLocalDataToAppwrite();
+      _logger.info('اكتمل الرفع الأولي: $stats', tag: 'SYNC');
+
+      await prefs.setBool('appwrite_initial_seed_done', true);
+    } catch (e, stackTrace) {
+      _logger.warning(
+        'فشل الرفع الأولي (سيُعاد في المرة القادمة)',
         error: e,
         stackTrace: stackTrace,
         tag: 'SYNC',
@@ -285,12 +318,7 @@ class AppwriteSyncManager {
   }) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
-      final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('appwrite_sync_enabled') ?? false;
-
-      if (enabled) {
-        await sync();
-      }
+      await sync();
     });
     _logger.info(
       'Auto sync started (interval: ${interval.inMinutes} min)',
@@ -317,13 +345,6 @@ class AppwriteSyncManager {
         _debouncePushTimer = Timer(_debounceWindow, () async {
           _logger.debug('Debounced push triggered', tag: 'SYNC');
           try {
-            final prefs = await SharedPreferences.getInstance();
-            final enabled = prefs.getBool('appwrite_sync_enabled') ?? false;
-            if (!enabled) {
-              _logger.debug('Debounced push skipped (disabled)', tag: 'SYNC');
-              return;
-            }
-
             final result = await sync(push: true, pull: false);
             if (result.status != SyncStatus.success) {
               _logger.warning(

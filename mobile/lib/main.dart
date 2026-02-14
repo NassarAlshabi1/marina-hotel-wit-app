@@ -411,6 +411,19 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       try {
         final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
         await syncManager.initialize();
+
+        // تسجيل الجهاز تلقائياً
+        try {
+          await syncManager.registerDevice();
+        } catch (e) {
+          debugPrint('⚠️ Device registration error: $e');
+        }
+
+        // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
+        syncManager.startAutoSync(
+          interval: const Duration(minutes: 2),
+        );
+
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
         deviceId ??= syncManager.currentDeviceId;
         if (deviceId == null) {
@@ -426,7 +439,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           deviceId: deviceId,
         );
         await AppwriteRealtimeSync().start();
-        debugPrint('📡 Realtime sync started');
+        debugPrint('📡 Realtime sync + auto sync started');
       } catch (e) {
         debugPrint('❌ Realtime sync init error: $e');
       }
