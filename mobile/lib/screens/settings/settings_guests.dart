@@ -243,14 +243,16 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             Row(
               children: [
                 CircleAvatar(
+                  radius: 20,
                   backgroundColor: activeBookings > 0
                       ? Colors.green
-                      : Colors.blue,
+                      : Colors.blueGrey,
                   child: Text(
-                    guest.name.isNotEmpty ? guest.name[0].toUpperCase() : '؟',
+                    latestBooking != null ? latestBooking.roomId : '—',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: 12,
                     ),
                   ),
                 ),
@@ -363,41 +365,42 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
             const SizedBox(height: 12),
 
-            // أزرار العمليات
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _showGuestHistory(context, guest),
-                    icon: const Icon(Icons.history, size: 16),
-                    label: const Text('تاريخ الحجوزات'),
+                    icon: const Icon(Icons.history, size: 14),
+                    label: const Text('السجل', style: TextStyle(fontSize: 11)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(0, 32),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _editGuest(context, guest),
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('تعديل البيانات'),
+                    icon: const Icon(Icons.edit, size: 14),
+                    label: const Text('تعديل', style: TextStyle(fontSize: 11)),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(0, 32),
+                    ),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
+                const SizedBox(width: 6),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _deleteGuest(context, guest),
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      size: 16,
-                      color: Colors.red,
-                    ),
-                    label: const Text('حذف الضيف وجميع البيانات'),
+                    icon: const Icon(Icons.delete_outline, size: 14, color: Colors.red),
+                    label: const Text('حذف', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(0, 32),
                     ),
                   ),
                 ),
