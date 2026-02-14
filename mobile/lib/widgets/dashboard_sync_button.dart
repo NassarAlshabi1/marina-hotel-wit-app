@@ -352,8 +352,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ),
             );
           }
-          // SmartSyncManager يقوم بـ Pull + Push داخلياً
-          final result = await smartSyncManager.syncNow();
+          // رفع التغييرات المحلية فقط (بدون سحب من Google Drive)
+          final result = await smartSyncManager.pushLocalChanges();
           results['Google Drive'] = {
             'success': result,
             'pulled': 0,
