@@ -38,6 +38,7 @@ dependencies:
   device_info_plus: ^12.3.0
   appwrite: ^21.0.0
   collection: ^1.18.0
+  web_socket_channel: ^2.4.5
 
   # Required for file-based SQLite backup/restore helpers
   sqflite: ^2.3.3+1
