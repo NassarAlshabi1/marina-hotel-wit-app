@@ -212,4 +212,65 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         .go();
     return rows;
   }
+
+  /// جلب التعارضات من Outbox (السجلات التي فشلت بسبب تعارض)
+  Future<List<ConflictRecord>> getConflicts() async {
+    final failed = await (select(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('failed') &
+              t.lastError.isNotNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.clientTs)]))
+        .get();
+
+    return failed.map((entry) {
+      final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+      return ConflictRecord(
+        id: entry.id,
+        uuid: entry.localUuid,
+        targetTable: entry.entity,
+        localPayload: payload,
+        remotePayload: payload, // TODO: Fetch actual remote data
+        lastError: entry.lastError ?? 'Unknown conflict',
+        timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
+      );
+    }).toList();
+  }
+
+  /// حل تعارض محدد
+  Future<void> resolveConflict(
+    int id,
+    Map<String, dynamic> resolvedData, {
+    required String resolution,
+  }) async {
+    // تحديث السجل ليعكس الحل
+    await (update(outbox)..where((t) => t.id.equals(id))).write(
+      OutboxCompanion(
+        processingStatus: const Value('completed'),
+        lastError: Value(null),
+        attempts: const Value(0),
+        payload: Value(jsonEncode(resolvedData)),
+      ),
+    );
+  }
+}
+
+/// سجل يمثل تعارض في البيانات
+class ConflictRecord {
+  final int id;
+  final String uuid;
+  final String targetTable;
+  final Map<String, dynamic> localPayload;
+  final Map<String, dynamic> remotePayload;
+  final String lastError;
+  final DateTime timestamp;
+
+  ConflictRecord({
+    required this.id,
+    required this.uuid,
+    required this.targetTable,
+    required this.localPayload,
+    required this.remotePayload,
+    required this.lastError,
+    required this.timestamp,
+  });
 }

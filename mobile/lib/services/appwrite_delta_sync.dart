@@ -23,6 +23,11 @@ class AppwriteDeltaSyncResult {
     this.pushedCount = 0,
     this.pulledCount = 0,
   });
+
+  /// Alias getters for compatibility
+  int get recordsPulled => pulledCount;
+  int get recordsPushed => pushedCount;
+  bool get hasConflicts => false; // TODO: Implement actual conflict detection
 }
 
 class AppwriteDeltaSync {
