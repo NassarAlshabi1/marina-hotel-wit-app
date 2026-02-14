@@ -8,6 +8,8 @@ import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/appwrite_delta_sync.dart';
+import '../services/sync_core/conflict_resolver.dart';
+import '../services/smart_sync_manager.dart';
 import '../screens/settings/google_drive_backup_screen.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
@@ -250,43 +252,124 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '📤 رفع $_pendingChangesCount تغيير إلى $targetText...',
+                    '🔄 جاري المزامنة الكاملة مع $targetText...',
                   ),
                 ),
               ],
             ),
             backgroundColor: Colors.blue,
-            duration: Duration(seconds: 3),
+            duration: Duration(seconds: 5),
           ),
         );
       }
 
-      final results = <String, bool>{};
+      final results = <String, Map<String, dynamic>>{};
 
-      if (smartEnabled && isGoogleDriveSignedIn) {
-        try {
-          final result = await smartSyncManager.pushLocalChanges();
-          results['Google Drive'] = result;
-        } catch (e) {
-          results['Google Drive'] = false;
-          debugPrint('❌ خطأ في رفع البيانات إلى Google Drive: $e');
-        }
-      }
+      // 🔄 ترتيب المزامنة: Pull أولاً ← Resolve ← Push
+      // نسحب أولاً حتى لا نكتب فوق تغييرات أحدث
 
       if (appwriteEnabled && appwriteConnected) {
         try {
           final deltaSync = AppwriteDeltaSync.instance;
           if (deltaSync.isInitialized) {
-            final pushResult = await deltaSync.pushDeltaChanges();
+            // 1️⃣ PULL: سحب التغييرات من السيرفر أولاً
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('⬇️ جاري سحب التغييرات من السيرفر...'),
+                  backgroundColor: Colors.blue.shade700,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
             final pullResult = await deltaSync.pullDeltaChanges();
-            results['Appwrite'] = pushResult.success && pullResult.success;
+            final pulledCount = pullResult.recordsPulled ?? 0;
+
+            // 2️⃣ RESOLVE: حل التعارضات إن وجدت
+            int conflictsResolved = 0;
+            if (pullResult.hasConflicts) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('⚖️ جاري حل التعارضات...'),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+              conflictsResolved = await _resolveConflicts();
+            }
+
+            // 3️⃣ PUSH: رفع التغييرات المحلية
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('⬆️ جاري رفع التغييرات المحلية...'),
+                  backgroundColor: Colors.blue.shade700,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            final pushResult = await deltaSync.pushDeltaChanges();
+            final pushedCount = pushResult.recordsPushed ?? 0;
+
+            results['Appwrite'] = {
+              'success': pushResult.success && pullResult.success,
+              'pulled': pulledCount,
+              'pushed': pushedCount,
+              'conflicts': conflictsResolved,
+            };
           } else {
+            // Fallback: push فقط إذا لم يكن DeltaSync مهيأ
             final result = await appwriteSyncManager.pushLocalChanges();
-            results['Appwrite'] = result;
+            results['Appwrite'] = {
+              'success': result,
+              'pulled': 0,
+              'pushed': _pendingChangesCount,
+              'conflicts': 0,
+            };
           }
         } catch (e) {
-          results['Appwrite'] = false;
-          debugPrint('❌ خطأ في رفع البيانات إلى Appwrite: $e');
+          results['Appwrite'] = {
+            'success': false,
+            'pulled': 0,
+            'pushed': 0,
+            'conflicts': 0,
+            'error': e.toString(),
+          };
+          debugPrint('❌ خطأ في مزامنة Appwrite: $e');
+        }
+      }
+
+      // Google Drive: بعد Appwrite حتى لا يتعارض
+      if (smartEnabled && isGoogleDriveSignedIn) {
+        try {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('☁️ جاري مزامنة Google Drive...'),
+                backgroundColor: Colors.purple.shade700,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          // SmartSyncManager يقوم بـ Pull + Push داخلياً
+          final result = await smartSyncManager.syncNow();
+          results['Google Drive'] = {
+            'success': result,
+            'pulled': 0,
+            'pushed': _pendingChangesCount,
+            'conflicts': 0,
+          };
+        } catch (e) {
+          results['Google Drive'] = {
+            'success': false,
+            'pulled': 0,
+            'pushed': 0,
+            'conflicts': 0,
+            'error': e.toString(),
+          };
+          debugPrint('❌ خطأ في مزامنة Google Drive: $e');
         }
       }
 
@@ -300,32 +383,58 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       await _loadPendingChangesCount();
 
-      final successTargets = results.entries
-          .where((e) => e.value)
-          .map((e) => e.key)
-          .toList();
-      final failedTargets = results.entries
-          .where((e) => !e.value)
-          .map((e) => e.key)
-          .toList();
+      // حساب الإحصائيات الإجمالية
+      int totalPulled = 0;
+      int totalPushed = 0;
+      int totalConflicts = 0;
+      final successTargets = <String>[];
+      final failedTargets = <String>[];
+
+      for (final entry in results.entries) {
+        final data = entry.value as Map<String, dynamic>;
+        if (data['success'] == true) {
+          successTargets.add(entry.key);
+          totalPulled += (data['pulled'] as int?) ?? 0;
+          totalPushed += (data['pushed'] as int?) ?? 0;
+          totalConflicts += (data['conflicts'] as int?) ?? 0;
+        } else {
+          failedTargets.add(entry.key);
+        }
+      }
 
       if (mounted) {
         if (failedTargets.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Row(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.cloud_done, color: Colors.white),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '✅ تم رفع التغييرات إلى ${successTargets.join(' + ')}',
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.cloud_done, color: Colors.white),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '✅ تمت المزامنة بنجاح!',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '⬇️ استُلِم: $totalPulled  |  ⬆️ أُرسل: $totalPushed  |  ⚖️ تعارضات: $totalConflicts',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  Text(
+                    '☁️ عبر: ${successTargets.join(' + ')}',
+                    style: TextStyle(fontSize: 11),
                   ),
                 ],
               ),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
+              duration: Duration(seconds: 4),
             ),
           );
         } else if (successTargets.isEmpty) {
@@ -337,7 +446,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '❌ فشل رفع التغييرات إلى ${failedTargets.join(' + ')}',
+                      '❌ فشلت المزامنة مع ${failedTargets.join(' + ')}',
                     ),
                   ),
                 ],
@@ -374,6 +483,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     '❌ فشل: ${failedTargets.join(', ')}',
                     style: TextStyle(fontSize: 12),
                   ),
+                  if (totalPulled > 0 || totalPushed > 0 || totalConflicts > 0)
+                    Text(
+                      '⬇️ $totalPulled  ⬆️ $totalPushed  ⚖️ $totalConflicts',
+                      style: TextStyle(fontSize: 11),
+                    ),
                 ],
               ),
               backgroundColor: Colors.orange,
@@ -416,6 +530,92 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (mounted) {
         setState(() => _isUploading = false);
       }
+    }
+  }
+
+  /// حل التعارضات بين البيانات المحلية والبعيدة
+  /// 
+  /// تُستخدم بعد Pull لحل أي تعارضات تم اكتشافها
+  /// الاستراتيجية: الأحدث يفوز (newerWins)
+  Future<int> _resolveConflicts() async {
+    int resolvedCount = 0;
+    try {
+      final db = ref.read(databaseProvider);
+      final outboxDao = OutboxDao(db);
+      
+      // جلب التعارضات غير المحلولة من Outbox
+      final conflicts = await outboxDao.getConflicts();
+      
+      if (conflicts.isEmpty) return 0;
+      
+      // إنشاء resolver باستراتيجية "الأحدث يفوز"
+      final resolver = ConflictResolver(
+        deviceId: await _getDeviceId(),
+        strategy: ConflictStrategy.newerWins,
+      );
+      
+      for (final conflict in conflicts) {
+        try {
+          final localData = conflict.localPayload;
+          final remoteData = conflict.remotePayload;
+          
+          // تحويل البيانات إلى صيغة مناسبة للـ resolver
+          final localMap = <String, Map<String, dynamic>>{
+            conflict.targetTable: {conflict.uuid: localData},
+          };
+          final remoteMap = <String, Map<String, dynamic>>{
+            conflict.targetTable: {conflict.uuid: remoteData},
+          };
+          
+          // كشف وحل التعارض
+          final dataConflicts = await resolver.detectConflicts(localMap, remoteMap);
+          
+          if (dataConflicts.isNotEmpty) {
+            final resolved = await resolver.resolveConflicts(dataConflicts);
+            
+            // تطبيق الحل: تحديث السجل الفائز في قاعدة البيانات
+            final winnerData = resolved[conflict.targetTable]?[conflict.uuid];
+            if (winnerData != null) {
+              await outboxDao.resolveConflict(
+                conflict.id,
+                winnerData,
+                resolution: 'newer_wins',
+              );
+              resolvedCount++;
+            }
+          } else {
+            // لا يوجد تعارض حقيقي، حله كـ "محلّل تلقائياً"
+            await outboxDao.resolveConflict(
+              conflict.id,
+              localData,
+              resolution: 'auto_no_conflict',
+            );
+          }
+        } catch (e) {
+          debugPrint('❌ خطأ في حل تعارض ${conflict.uuid}: $e');
+        }
+      }
+      
+      debugPrint('✅ تم حل $resolvedCount تعارض');
+      return resolvedCount;
+    } catch (e) {
+      debugPrint('❌ خطأ في حل التعارضات: $e');
+      return 0;
+    }
+  }
+  
+  /// الحصول على معرف الجهاز
+  Future<String> _getDeviceId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      var deviceId = prefs.getString('device_id');
+      if (deviceId == null) {
+        deviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';
+        await prefs.setString('device_id', deviceId);
+      }
+      return deviceId;
+    } catch (e) {
+      return 'unknown_device';
     }
   }
 
