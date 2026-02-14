@@ -248,7 +248,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       ? Colors.green
                       : Colors.blueGrey,
                   child: Text(
-                    latestBooking != null ? latestBooking.roomId : '—',
+                    latestBooking != null ? latestBooking.roomNumber : '—',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
