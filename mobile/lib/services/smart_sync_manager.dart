@@ -587,6 +587,22 @@ class SmartSyncManager {
     return prefs.getBool(_prefsEnabledKey) ?? true;
   }
 
+  /// تنفيذ مزامنة فورية (Push + Pull)
+  Future<bool> syncNow() async {
+    _log('🔄 بدء مزامنة فورية...');
+    try {
+      // دفع التغييرات المحلية أولاً
+      await pushLocalChanges();
+      // ثم سحب التغييرات من السحابة
+      await pullRemoteChanges();
+      _log('✅ تمت المزامنة الفورية بنجاح');
+      return true;
+    } catch (e) {
+      _log('❌ فشل في المزامنة الفورية: $e');
+      return false;
+    }
+  }
+
   Future<void> setSyncInterval(int minutes) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsIntervalKey, minutes);

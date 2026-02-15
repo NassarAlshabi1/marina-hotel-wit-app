@@ -9,7 +9,6 @@ import '../providers/repository_providers.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/appwrite_delta_sync.dart';
 import '../services/sync_core/conflict_resolver.dart';
-import '../services/smart_sync_manager.dart';
 import '../screens/settings/google_drive_backup_screen.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
@@ -283,7 +282,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               );
             }
             final pullResult = await deltaSync.pullDeltaChanges();
-            final pulledCount = pullResult.recordsPulled ?? 0;
+            final pulledCount = pullResult.recordsPulled;
 
             // 2️⃣ RESOLVE: حل التعارضات إن وجدت
             int conflictsResolved = 0;
@@ -311,7 +310,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               );
             }
             final pushResult = await deltaSync.pushDeltaChanges();
-            final pushedCount = pushResult.recordsPushed ?? 0;
+            final pushedCount = pushResult.recordsPushed;
 
             results['Appwrite'] = {
               'success': pushResult.success && pullResult.success,
@@ -353,8 +352,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ),
             );
           }
-          // SmartSyncManager يقوم بـ Pull + Push داخلياً
-          final result = await smartSyncManager.syncNow();
+          // رفع التغييرات المحلية فقط (بدون سحب من Google Drive)
+          final result = await smartSyncManager.pushLocalChanges();
           results['Google Drive'] = {
             'success': result,
             'pulled': 0,
@@ -391,7 +390,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       final failedTargets = <String>[];
 
       for (final entry in results.entries) {
-        final data = entry.value as Map<String, dynamic>;
+        final data = entry.value;
         if (data['success'] == true) {
           successTargets.add(entry.key);
           totalPulled += (data['pulled'] as int?) ?? 0;
