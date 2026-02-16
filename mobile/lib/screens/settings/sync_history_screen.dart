@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/daos/sync_log_dao.dart';
 
@@ -19,13 +18,6 @@ final syncHistoryProvider = FutureProvider.family<List<SyncLogEntry>, SyncFilter
   },
 );
 
-/// Provider لإحصائيات المزامنة
-final syncStatsProvider = FutureProvider<SyncStats>((ref) async {
-  final db = ref.read(databaseProvider);
-  final dao = SyncLogDao(db);
-  return await dao.getSyncStats(since: DateTime.now().subtract(const Duration(days: 7)));
-});
-
 class SyncFilter {
   final int limit;
   final int offset;
@@ -33,7 +25,7 @@ class SyncFilter {
   final String? status;
 
   const SyncFilter({
-    this.limit = 50,
+    this.limit = 100,
     this.offset = 0,
     this.direction,
     this.status,
@@ -47,36 +39,22 @@ class SyncHistoryScreen extends ConsumerStatefulWidget {
   ConsumerState<SyncHistoryScreen> createState() => _SyncHistoryScreenState();
 }
 
-class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
   String? _selectedDirection;
   String? _selectedStatus;
 
   @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final filter = SyncFilter(
+      direction: _selectedDirection,
+      status: _selectedStatus,
+    );
+
+    final logsAsync = ref.watch(syncHistoryProvider(filter));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('سجل المزامنة'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.history), text: 'السجل'),
-            Tab(icon: Icon(Icons.analytics), text: 'الإحصائيات'),
-          ],
-        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -90,62 +68,63 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen>
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildHistoryTab(),
-          _buildStatsTab(),
-        ],
-      ),
-    );
-  }
+      body: logsAsync.when(
+        data: (logs) {
+          if (logs.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.history_toggle_off, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'لا توجد عمليات مزامنة مسجلة',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
 
-  Widget _buildHistoryTab() {
-    final filter = SyncFilter(
-      direction: _selectedDirection,
-      status: _selectedStatus,
-    );
-    
-    final logsAsync = ref.watch(syncHistoryProvider(filter));
-
-    return logsAsync.when(
-      data: (logs) {
-        if (logs.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.history_toggle_off, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text(
-                  'لا توجد عمليات مزامنة مسجلة',
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-              ],
-            ),
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: logs.length,
+            itemBuilder: (context, index) {
+              final log = logs[index];
+              return _buildLogCard(log);
+            },
           );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: logs.length,
-          itemBuilder: (context, index) {
-            final log = logs[index];
-            return _buildLogCard(log);
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(
-        child: Text('خطأ: $error', style: const TextStyle(color: Colors.red)),
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(
+          child: Text('خطأ: $error', style: const TextStyle(color: Colors.red)),
+        ),
       ),
     );
   }
 
   Widget _buildLogCard(SyncLogEntry log) {
     final isSuccess = log.status == 'success';
+    final isPartial = log.status == 'partial';
     final isPull = log.direction == 'pull';
-    final isPush = log.direction == 'push';
+
+    Color statusColor;
+    IconData statusIcon;
+    String statusText;
+
+    if (isSuccess) {
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle;
+      statusText = 'نجح';
+    } else if (isPartial) {
+      statusColor = Colors.orange;
+      statusIcon = Icons.warning;
+      statusText = 'نجح جزئياً';
+    } else {
+      statusColor = Colors.red;
+      statusIcon = Icons.error;
+      statusText = 'فشل';
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -159,24 +138,19 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen>
             width: 1,
           ),
         ),
-        child: ExpansionTile(
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           leading: Container(
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: isSuccess
-                  ? (isPull ? Colors.blue.shade50 : Colors.purple.shade50)
-                  : Colors.red.shade50,
+              color: isPull ? Colors.blue.shade50 : Colors.purple.shade50,
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Icon(
-                isSuccess
-                    ? (isPull ? Icons.download : Icons.upload)
-                    : Icons.error,
-                color: isSuccess
-                    ? (isPull ? Colors.blue : Colors.purple)
-                    : Colors.red,
+                isPull ? Icons.download : Icons.upload,
+                color: isPull ? Colors.blue : Colors.purple,
               ),
             ),
           ),
@@ -191,16 +165,23 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isSuccess ? Colors.green : Colors.red,
+                  color: statusColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  isSuccess ? '✓ نجح' : '✗ فشل',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(statusIcon, color: Colors.white, size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      statusText,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -208,353 +189,223 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen>
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 4),
-              Text(
-                _formatDateTime(log.createdAt),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              if (log.recordsCount != null)
-                Text(
-                  '${log.recordsCount} سجل',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isPull ? Colors.blue.shade700 : Colors.purple.shade700,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-            ],
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 8),
+              Row(
                 children: [
-                  _buildDetailRow('معرف العملية:', log.syncId.substring(0, 8)),
-                  _buildDetailRow('الجهاز:', log.deviceId),
-                  _buildDetailRow('الوجهة:', log.target ?? 'غير معروف'),
-                  if (log.durationMs != null)
-                    _buildDetailRow('المدة:', '${log.durationMs} مللي ثانية'),
-                  if (log.completedAt != null)
-                    _buildDetailRow('اكتمل:', _formatDateTime(log.completedAt!)),
-                  if (log.errorMessage != null) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
+                  Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatDateTime(log.createdAt),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  if (log.recordsCount != null) ...[
+                    Icon(Icons.storage, size: 14, color: Colors.grey.shade600),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${log.recordsCount} سجل',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isPull ? Colors.blue.shade700 : Colors.purple.shade700,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.error_outline, color: Colors.red.shade700),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              log.errorMessage!,
-                              style: TextStyle(color: Colors.red.shade700),
-                            ),
-                          ),
-                        ],
+                    ),
+                  ],
+                  if (log.durationMs != null) ...[
+                    const SizedBox(width: 16),
+                    Icon(Icons.timer, size: 14, color: Colors.grey.shade600),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${log.durationMs}ms',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
                       ),
                     ),
                   ],
                 ],
               ),
-            ),
-          ],
+              if (log.errorMessage != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          log.errorMessage!,
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 11,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          onTap: () => _showLogDetails(log),
         ),
       ),
+    );
+  }
+
+  void _showLogDetails(SyncLogEntry log) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: log.direction == 'pull'
+                          ? Colors.blue.shade50
+                          : Colors.purple.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Icon(
+                        log.direction == 'pull' ? Icons.download : Icons.upload,
+                        color: log.direction == 'pull' ? Colors.blue : Colors.purple,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          log.direction == 'pull' ? 'سحب من السيرفر' : 'رفع إلى السيرفر',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          log.syncId,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 32),
+              _buildDetailRow('الحالة', log.status == 'success' ? 'نجح' : log.status == 'partial' ? 'نجح جزئياً' : 'فشل'),
+              _buildDetailRow('الجهاز', log.deviceId),
+              _buildDetailRow('الوجهة', log.target ?? 'غير معروف'),
+              _buildDetailRow('وقت البدء', _formatFullDateTime(log.createdAt)),
+              if (log.completedAt != null)
+                _buildDetailRow('وقت الانتهاء', _formatFullDateTime(log.completedAt!)),
+              if (log.durationMs != null)
+                _buildDetailRow('المدة', '${log.durationMs} مللي ثانية'),
+              if (log.recordsCount != null)
+                _buildDetailRow('عدد السجول', '${log.recordsCount}'),
+              if (log.errorMessage != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red.shade700),
+                          const SizedBox(width: 8),
+                          Text(
+                            'رسالة الخطأ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        log.errorMessage!,
+                        style: TextStyle(color: Colors.red.shade700),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إغلاق'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: Colors.grey.shade700,
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade600,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w400),
+              style: const TextStyle(fontWeight: FontWeight.w500),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildStatsTab() {
-    final statsAsync = ref.watch(syncStatsProvider);
-
-    return statsAsync.when(
-      data: (stats) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              _buildStatsCards(stats),
-              const SizedBox(height: 24),
-              _buildSuccessRateChart(stats),
-              const SizedBox(height: 24),
-              _buildRecordsChart(stats),
-            ],
-          ),
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(
-        child: Text('خطأ: $error', style: const TextStyle(color: Colors.red)),
-      ),
-    );
-  }
-
-  Widget _buildStatsCards(SyncStats stats) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      children: [
-        _buildStatCard(
-          'إجمالي المزامنات',
-          stats.totalSyncs.toString(),
-          Icons.sync,
-          Colors.blue,
-        ),
-        _buildStatCard(
-          'نسبة النجاح',
-          '${stats.successRate.toStringAsFixed(1)}%',
-          Icons.check_circle,
-          Colors.green,
-        ),
-        _buildStatCard(
-          'سجول ممسوحة',
-          stats.totalRecordsPulled.toString(),
-          Icons.download,
-          Colors.blue.shade700,
-        ),
-        _buildStatCard(
-          'سجول مرفوعة',
-          stats.totalRecordsPushed.toString(),
-          Icons.upload,
-          Colors.purple,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSuccessRateChart(SyncStats stats) {
-    final success = stats.successfulSyncs.toDouble();
-    final failed = stats.failedSyncs.toDouble();
-    final total = stats.totalSyncs.toDouble();
-
-    if (total == 0) return const SizedBox.shrink();
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const Text(
-              'نسبة نجاح المزامنة',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 200,
-              child: PieChart(
-                PieChartData(
-                  sections: [
-                    PieChartSectionData(
-                      value: success,
-                      title: '${((success / total) * 100).toStringAsFixed(0)}%',
-                      color: Colors.green,
-                      radius: 60,
-                      titleStyle: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    PieChartSectionData(
-                      value: failed,
-                      title: failed > 0 ? '${((failed / total) * 100).toStringAsFixed(0)}%' : '',
-                      color: Colors.red,
-                      radius: 50,
-                      titleStyle: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 40,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildLegendItem('نجح', Colors.green, stats.successfulSyncs),
-                const SizedBox(width: 24),
-                _buildLegendItem('فشل', Colors.red, stats.failedSyncs),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecordsChart(SyncStats stats) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const Text(
-              'إحصائيات السجول',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 150,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: [stats.totalRecordsPulled, stats.totalRecordsPushed]
-                      .reduce((a, b) => a > b ? a : b)
-                      .toDouble() * 1.2,
-                  barGroups: [
-                    BarChartGroupData(
-                      x: 0,
-                      barRods: [
-                        BarChartRodData(
-                          toY: stats.totalRecordsPulled.toDouble(),
-                          color: Colors.blue,
-                          width: 30,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 1,
-                      barRods: [
-                        BarChartRodData(
-                          toY: stats.totalRecordsPushed.toDouble(),
-                          color: Colors.purple,
-                          width: 30,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    ),
-                  ],
-                  titlesData: FlTitlesData(
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            value == 0 ? 'مسحوبة' : 'مرفوعة',
-                            style: const TextStyle(fontSize: 12),
-                          );
-                        },
-                      ),
-                    ),
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  gridData: const FlGridData(show: false),
-                  borderData: FlBorderData(show: false),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLegendItem(String label, Color color, int count) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text('$label ($count)'),
-      ],
     );
   }
 
@@ -573,6 +424,10 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen>
     } else {
       return '${dateTime.year}/${dateTime.month}/${dateTime.day}';
     }
+  }
+
+  String _formatFullDateTime(DateTime dateTime) {
+    return '${dateTime.year}/${dateTime.month}/${dateTime.day} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   void _showFilterDialog() {
@@ -601,6 +456,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen>
                 items: const [
                   DropdownMenuItem(value: null, child: Text('الكل')),
                   DropdownMenuItem(value: 'success', child: Text('نجح')),
+                  DropdownMenuItem(value: 'partial', child: Text('نجح جزئياً')),
                   DropdownMenuItem(value: 'failed', child: Text('فشل')),
                 ],
                 onChanged: (value) => setState(() => _selectedStatus = value),
