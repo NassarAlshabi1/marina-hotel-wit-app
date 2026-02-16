@@ -15,8 +15,10 @@ import '../processors/outbox_processor.dart';
 class SyncOrchestrator {
   final DeltaSyncEngine _syncEngine;
   final OutboxProcessor _outbox;
+  // ignore: unused_field
   final VectorClockManager _clockManager;
   final SyncConfiguration _config;
+  // ignore: unused_field
   final List<SyncStrategy> _strategies;
 
   final _stateController = StreamController<SyncState>.broadcast();

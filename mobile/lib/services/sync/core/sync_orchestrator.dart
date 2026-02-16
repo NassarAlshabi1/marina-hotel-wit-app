@@ -1,11 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/sync_state.dart';
-import '../models/sync_result.dart';
 import '../strategies/retry_strategy.dart';
 import '../adapters/sync_adapter.dart';
 import 'sync_worker.dart';

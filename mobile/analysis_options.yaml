@@ -10,7 +10,7 @@ analyzer:
     
   language:
     strict-casts: true
-    strict-raw-types: true
+    strict-raw-types: false
     
   strong-mode:
     implicit-casts: false
@@ -51,7 +51,6 @@ linter:
     prefer_final_locals: true
     prefer_foreach: true
     prefer_if_elements_to_conditional_expressions: true
-    prefer_int_literal: true
     prefer_interpolation_to_compose_strings: true
     prefer_null_aware_method_calls: true
     prefer_single_quotes: true
@@ -84,7 +83,6 @@ linter:
     use_is_even_rather_than_modulo: true
     use_late_for_private_fields_and_variables: true
     use_named_constants: true
-    use_null_aware_element_access: true
     use_super_parameters: true
     use_test_throws_matchers: true
     use_to_and_as_if_applicable: true

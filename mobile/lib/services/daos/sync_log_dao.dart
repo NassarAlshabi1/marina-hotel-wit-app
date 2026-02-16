@@ -120,7 +120,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     final results = await query.get();
 
     return results.map((row) {
-      final metadata = jsonDecode(row.metadata ?? '{}') as Map<String, dynamic>;
+      final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
       
       return SyncLogEntry(
         id: row.id,
@@ -147,7 +147,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     final result = await query.getSingleOrNull();
     if (result == null) return null;
 
-    final metadata = jsonDecode(result.metadata ?? '{}') as Map<String, dynamic>;
+    final metadata = jsonDecode(result.metadata) as Map<String, dynamic>;
     
     return SyncLogEntry(
       id: result.id,
@@ -194,7 +194,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     DateTime? lastSync;
 
     for (final row in results) {
-      final metadata = jsonDecode(row.metadata ?? '{}') as Map<String, dynamic>;
+      final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
       
       if (row.status == 'success') {
         successful++;
@@ -249,7 +249,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       ..limit(limit);
 
     return query.watch().map((rows) => rows.map((row) {
-      final metadata = jsonDecode(row.metadata ?? '{}') as Map<String, dynamic>;
+      final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
       
       return SyncLogEntry(
         id: row.id,

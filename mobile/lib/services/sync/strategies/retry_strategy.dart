@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import '../models/sync_result.dart';
-
 /// واجهة استراتيجية إعادة المحاولة
 abstract class RetryStrategy {
   /// تنفيذ عملية مع إعادة محاولة

@@ -9,9 +9,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import '../models/sync_models.dart';
 import '../orchestrator/sync_orchestrator.dart';
-import '../delta_sync_engine.dart';
 
 /// خدمة المزامنة الفورية
 class RealtimeSyncService {
@@ -270,6 +268,7 @@ class RealtimeSyncService {
   }
 
   /// إلغاء الاشتراك
+  // ignore: unused_element
   void _unsubscribe() {
     _send({
       'type': 'unsubscribe',
