@@ -61,6 +61,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
   SyncLogDao(AppDatabase db) : super(db);
 
   /// تسجيل عملية مزامنة جديدة
+  /// [operations] can be null if no operations list is available
   Future<int> logSync({
     required String syncId,
     required String direction,
