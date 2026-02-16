@@ -488,18 +488,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       await _loadPendingChangesCount();
 
-      // ✅ تسجيل نجاح العملية
-      stopwatch.stop();
-      await syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'push',
-        deviceId: deviceId,
-        target: successTargets.join('+'),
-        status: failedTargets.isEmpty ? 'success' : (successTargets.isNotEmpty ? 'partial' : 'failed'),
-        recordsPushed: totalPushed,
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
-
       // حساب الإحصائيات
       int totalPushed = 0;
       final successTargets = <String>[];
@@ -514,6 +502,18 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           failedTargets.add(entry.key);
         }
       }
+
+      // ✅ تسجيل نجاح العملية
+      stopwatch.stop();
+      await syncLogDao.logSync(
+        syncId: syncId,
+        direction: 'push',
+        deviceId: deviceId,
+        target: successTargets.join('+'),
+        status: failedTargets.isEmpty ? 'success' : (successTargets.isNotEmpty ? 'partial' : 'failed'),
+        recordsPushed: totalPushed,
+        durationMs: stopwatch.elapsedMilliseconds,
+      );
 
       if (mounted) {
         setState(() {
@@ -1022,10 +1022,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
     // ✅ تحسين: استخدام ValueListenableBuilder المدمج لكل من hasRemoteChanges و pendingRemoteChangesCount
     return ValueListenableBuilder<bool>(
-      valueListenable: AppwriteRealtimeSync.instance.hasRemoteChanges,
+      valueListenable: AppwriteRealtimeSync().hasRemoteChanges,
       builder: (context, hasRemoteChanges, child) {
         return ValueListenableBuilder<int>(
-          valueListenable: AppwriteRealtimeSync.instance.pendingRemoteChangesCount,
+          valueListenable: AppwriteRealtimeSync().pendingRemoteChangesCount,
           builder: (context, pendingRemoteCount, child) {
             final hasLocalChanges = _pendingChangesCount > 0;
 
