@@ -563,7 +563,7 @@ class SyncLog extends Table {
   TextColumn get direction => text()();
   TextColumn get deviceId => text()();
   TextColumn get metadata => text()();
-  TextColumn get operations => text().nullable()();
+  TextColumn get operations => text().nullable().withDefault(const Constant('[]'))();
   IntColumn get checksumMatched => integer().withDefault(const Constant(0))();
   TextColumn get status => text().withDefault(const Constant('success'))();
   TextColumn get createdAt => text()();
