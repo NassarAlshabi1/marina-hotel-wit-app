@@ -219,7 +219,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       // إعادة تعيين علامة "توجد تغييرات من السيرفر"
-      AppwriteRealtimeSync.instance.resetRemoteChangesFlag();
+      AppwriteRealtimeSync().resetRemoteChangesFlag();
 
       // ✅ تسجيل نجاح العملية
       stopwatch.stop();

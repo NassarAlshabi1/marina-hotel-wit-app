@@ -1561,7 +1561,7 @@ class SyncAuditDao {
               direction: direction,
               deviceId: deviceId,
               metadata: jsonEncode(metadata),
-              operations: jsonEncode(
+              operations: Value(jsonEncode(
                 appliedOperations
                     .map(
                       (sync_models.SyncOperation e) => {
@@ -1573,7 +1573,7 @@ class SyncAuditDao {
                       },
                     )
                     .toList(),
-              ),
+              )),
               checksumMatched: Value(checksumMatched ? 1 : 0),
               createdAt: createdAt,
               completedAt: Value(createdAt),
