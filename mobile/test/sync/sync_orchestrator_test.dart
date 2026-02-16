@@ -2,7 +2,6 @@
 // اختبارات SyncOrchestrator
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 import '../mocks/mock_hive.dart';
 
 // Mocks
@@ -95,13 +94,12 @@ void main() {
     late MockOutboxDao mockOutboxDao;
     late MockApiService mockApiService;
     late MockConnectivityService mockConnectivity;
-    late MockHiveBox syncBox;
 
     setUp(() {
       mockOutboxDao = MockOutboxDao();
       mockApiService = MockApiService();
       mockConnectivity = MockConnectivityService();
-      syncBox = HiveTestHelper.createMockBox<Map>('syncBox');
+      HiveTestHelper.createMockBox<Map<dynamic, dynamic>>('syncBox');
     });
 
     tearDown(() {
