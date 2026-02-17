@@ -283,7 +283,7 @@ async function setupPaymentVoids() {
   await createStringAttribute('payment_voids', 'originalPaymentUuid', 36, true);
   await createIntegerAttribute('payment_voids', 'originalPaymentId', true);
   await createStringAttribute('payment_voids', 'bookingUuid', 36, true);
-  await createFloatAttribute('payment_voids', 'voidedAmount', true);
+  await createIntegerAttribute('payment_voids', 'voidedAmount', true);
   await createStringAttribute('payment_voids', 'voidReason', 500, true);
   await createStringAttribute('payment_voids', 'voidedBy', 100, true);
   await createIntegerAttribute('payment_voids', 'voidedAt', true);
@@ -292,7 +292,7 @@ async function setupPaymentVoids() {
   await createStringAttribute('payment_voids', 'reversalPaymentUuid', 36, false);
   await createStringAttribute('payment_voids', 'approvedBy', 100, false);
 
-  // Sync fields
+  // Sync metadata (Appwrite-only, not in local DB)
   await createStringAttribute('payment_voids', 'deviceId', 50, false);
   await createIntegerAttribute('payment_voids', 'syncTimestamp', false);
 
@@ -304,6 +304,7 @@ async function setupPaymentVoids() {
   await createIndex('payment_voids', 'idx_booking', IndexType.Key, ['bookingUuid']);
   await createIndex('payment_voids', 'idx_hotel_day', IndexType.Key, ['hotelDayKey']);
   await createIndex('payment_voids', 'idx_sync_ts', IndexType.Key, ['syncTimestamp']);
+
 }
 
 async function addHotelDayLedgerFields() {
