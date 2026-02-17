@@ -109,14 +109,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [Colors.blue.shade600, Colors.blue.shade400],
             ),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.hotel, color: Colors.white, size: 24),
+          child: const Icon(Icons.hotel, color: Colors.white, size: 18),
         ),
         const SizedBox(width: 12),
         const Expanded(

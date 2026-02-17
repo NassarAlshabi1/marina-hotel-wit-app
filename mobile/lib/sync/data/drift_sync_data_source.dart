@@ -8,6 +8,7 @@ import '../models/sync_models.dart';
 /// Drift Outbox Data Source
 /// يربط DeltaSyncEngine بقاعدة البيانات المحلية
 class DriftOutboxDataSource implements OutboxDataSource {
+  // ignore: unused_field
   final GeneratedDatabase _db;
 
   DriftOutboxDataSource(this._db);
@@ -92,6 +93,7 @@ class DriftOutboxDataSource implements OutboxDataSource {
 
 /// Drift Inbox Data Source
 class DriftInboxDataSource implements InboxDataSource {
+  // ignore: unused_field
   final GeneratedDatabase _db;
 
   DriftInboxDataSource(this._db);

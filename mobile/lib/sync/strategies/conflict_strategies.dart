@@ -109,7 +109,7 @@ class ConflictResolver {
   /// يحاول دمج البيانات من المصدرين
   ConflictResolutionResult _smartMergeStrategy(SyncConflict conflict) {
     if (_smartMergeResolver != null) {
-      final result = _smartMergeResolver!.tryMerge(
+      final result = _smartMergeResolver.tryMerge(
         table: conflict.table,
         local: conflict.localRecord,
         remote: conflict.remoteChange.payload,

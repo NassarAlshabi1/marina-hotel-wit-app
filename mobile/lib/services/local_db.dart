@@ -563,7 +563,7 @@ class SyncLog extends Table {
   TextColumn get direction => text()();
   TextColumn get deviceId => text()();
   TextColumn get metadata => text()();
-  TextColumn get operations => text()();
+  TextColumn get operations => text().nullable().withDefault(const Constant('[]'))();
   IntColumn get checksumMatched => integer().withDefault(const Constant(0))();
   TextColumn get status => text().withDefault(const Constant('success'))();
   TextColumn get createdAt => text()();
@@ -1561,7 +1561,7 @@ class SyncAuditDao {
               direction: direction,
               deviceId: deviceId,
               metadata: jsonEncode(metadata),
-              operations: jsonEncode(
+              operations: Value(jsonEncode(
                 appliedOperations
                     .map(
                       (sync_models.SyncOperation e) => {
@@ -1573,7 +1573,7 @@ class SyncAuditDao {
                       },
                     )
                     .toList(),
-              ),
+              )),
               checksumMatched: Value(checksumMatched ? 1 : 0),
               createdAt: createdAt,
               completedAt: Value(createdAt),

@@ -23,7 +23,6 @@ class BackgroundSyncService {
 
   bool _isInitialized = false;
   final BatteryOptimizer _batteryOptimizer = BatteryOptimizer();
-  final SmartSyncManager _syncManager = SmartSyncManager();
   final AnalyticsService _analytics = AnalyticsService();
 
   // إعدادات المزامنة
