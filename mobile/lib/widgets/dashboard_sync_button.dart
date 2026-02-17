@@ -275,7 +275,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         deviceId: deviceId,
         target: 'Appwrite',
         status: 'failed',
-        errorMessage: e.toString(),
+        errorMessage: _sanitizeError(e.toString()),
         durationMs: stopwatch.elapsedMilliseconds,
       );
 
@@ -625,7 +625,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         deviceId: deviceId,
         target: 'Appwrite+GoogleDrive',
         status: 'failed',
-        errorMessage: e.toString(),
+        errorMessage: _sanitizeError(e.toString()),
         durationMs: stopwatch.elapsedMilliseconds,
       );
 
@@ -660,6 +660,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         setState(() => _isPushing = false);
       }
     }
+  }
+
+  String _sanitizeError(String error) {
+    // إزالة المعلومات الحساسة من رسائل الخطأ
+    // مثل رموز التوكن والروابط التي قد تحتوي مفاتيح
+    return error
+        .replaceAll(RegExp(r'Bearer\s+[a-zA-Z0-9\-\._]+'), 'Bearer [REDACTED]')
+        .replaceAll(RegExp(r'key=[a-zA-Z0-9]+'), 'key=[REDACTED]')
+        .replaceAll(RegExp(r'project=[a-zA-Z0-9]+'), 'project=[REDACTED]')
+        .replaceAll(RegExp(r'secret=[a-zA-Z0-9]+'), 'secret=[REDACTED]');
   }
 
   /// حل التعارضات بين البيانات المحلية والبعيدة
