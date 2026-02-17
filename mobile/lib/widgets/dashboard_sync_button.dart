@@ -767,8 +767,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   // ✅ تحسين: إضافة معامل pendingCount لعرض عدد التغييرات
   Widget _buildPullButton(bool hasRemoteChanges, bool isGoogleDriveSignedIn, int pendingCount) {
-    // زر السحب متاح فقط إذا كان يوجد تغييرات جديدة في Appwrite
-    final bool pullEnabled = hasRemoteChanges && _appwriteEnabled && !_isPulling && !_isPushing;
+    final bool pullEnabled = _appwriteEnabled && !_isPulling && !_isPushing;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -783,15 +782,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       buttonIcon = Icons.cloud_download;
       buttonText = 'سحب التغييرات';
     } else {
-      buttonColor = Colors.grey.shade400;
+      buttonColor = Colors.blueGrey;
       buttonIcon = Icons.cloud_download;
-      buttonText = 'لا توجد تحديثات';
+      buttonText = 'تحقق من التحديثات';
     }
 
     return Tooltip(
       message: hasRemoteChanges
           ? 'اضغط لسحب التغييرات الجديدة من السيرفر'
-          : 'لا توجد تغييرات جديدة في السحابة',
+          : 'تحقق من وجود تحديثات جديدة في السحابة',
       child: Stack(
         clipBehavior: Clip.none,
         children: [
