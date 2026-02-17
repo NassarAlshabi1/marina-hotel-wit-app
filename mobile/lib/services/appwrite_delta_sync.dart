@@ -7,6 +7,7 @@ import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'local_db.dart';
 import 'booking_derived_fields_service.dart';
+import 'daos/outbox_dao.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
 import 'sync_locks.dart';
@@ -138,6 +139,7 @@ class AppwriteDeltaSync {
 
       if (successfulChanges.isNotEmpty) {
         await _persistSuccessfulChanges(computation, successfulChanges);
+        await _cleanupOutboxAfterSync(successfulChanges);
         await _updateLastDeltaSyncTimestamp();
       }
 
@@ -189,6 +191,33 @@ class AppwriteDeltaSync {
     );
 
     await _deltaSyncService!.persistMirror(filteredComputation);
+  }
+
+  /// تنظيف Outbox بعد المزامنة الناجحة
+  Future<void> _cleanupOutboxAfterSync(List<DeltaSyncChange> successfulChanges) async {
+    try {
+      final outboxDao = OutboxDao(_db!);
+      final successfulUuids = successfulChanges.map((c) => c.localUuid).toSet();
+
+      // جلب جميع سجلات Outbox المتعلقة بالتغييرات الناجحة
+      final outboxEntries = await (_db!.select(_db!.outbox)
+            ..where((t) => t.localUuid.isIn(successfulUuids.toList()))
+            ..where((t) => t.processingStatus.equals('pending')))
+          .get();
+
+      final outboxIdsToRemove = outboxEntries.map((e) => e.id).toList();
+
+      if (outboxIdsToRemove.isNotEmpty) {
+        await outboxDao.removeByIds(outboxIdsToRemove);
+        _logger.info(
+          '🗑️ تم إزالة ${outboxIdsToRemove.length} سجل من Outbox بعد المزامنة',
+          tag: 'DELTA_SYNC',
+        );
+      }
+    } catch (e) {
+      _logger.warning('⚠️ خطأ في تنظيف Outbox: $e', tag: 'DELTA_SYNC');
+      // لا نوقف المزامنة إذا فشل التنظيف
+    }
   }
 
   Future<void> _pushSingleChange(DeltaSyncChange change) async {
