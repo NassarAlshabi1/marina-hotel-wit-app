@@ -196,11 +196,11 @@ class AppwriteDeltaSync {
   /// تنظيف Outbox بعد المزامنة الناجحة
   Future<void> _cleanupOutboxAfterSync(List<DeltaSyncChange> successfulChanges) async {
     try {
-      final outboxDao = OutboxDao(_db!);
+      final outboxDao = OutboxDao(_database!);
       final successfulUuids = successfulChanges.map((c) => c.localUuid).toSet();
 
       // جلب جميع سجلات Outbox المتعلقة بالتغييرات الناجحة
-      final outboxEntries = await (_db!.select(_db!.outbox)
+      final outboxEntries = await (_database!.select(_database!.outbox)
             ..where((t) => t.localUuid.isIn(successfulUuids.toList()))
             ..where((t) => t.processingStatus.equals('pending')))
           .get();
