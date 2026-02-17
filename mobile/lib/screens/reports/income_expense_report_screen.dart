@@ -169,7 +169,7 @@ class _IncomeExpenseReportScreenState
       final toStr = DateFormat('yyyy-MM-dd').format(_toDate);
 
       // Fetch payments (Income)
-      final payments = await paymentsDao.listFiltered(from: fromStr, to: toStr);
+      final payments = await paymentsDao.listForReport(from: fromStr, to: toStr);
       final payList = payments.map((p) => {
         'date': p.paymentDate,
         'amount': p.amount,

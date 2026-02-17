@@ -84,7 +84,8 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     setState(() => _loading = true);
     try {
       final db = ref.read(coreProviders.dbProvider);
-      final debtDao = DebtsDao(db);
+      final outboxDao = OutboxDao(db);
+      final debtDao = DebtsDao(db, outboxDao);
       
       // جلب البيانات الخام من DB (عملية سريعة نسبياً)
       final debts = await debtDao.list(includeSettled: true);
