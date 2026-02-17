@@ -3,6 +3,7 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
+import '../sync_guardian.dart';
 
 part 'shift_notes_dao.g.dart';
 
@@ -70,6 +71,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           },
           clientTs: now,
         );
+        SyncGuardian.instance.notifyLocalChange(table: 'shift_notes', operation: 'create');
       }
       return id;
     });
@@ -123,6 +125,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
             payload: payload,
             clientTs: now,
           );
+          SyncGuardian.instance.notifyLocalChange(table: 'shift_notes', operation: 'update');
         }
       }
       return rows > 0;
@@ -156,6 +159,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           payload: {'is_read': 1},
           clientTs: now,
         );
+        SyncGuardian.instance.notifyLocalChange(table: 'shift_notes', operation: 'update');
       }
       return rows > 0;
     });
@@ -188,6 +192,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           payload: {'is_read': 0},
           clientTs: now,
         );
+        SyncGuardian.instance.notifyLocalChange(table: 'shift_notes', operation: 'update');
       }
       return rows > 0;
     });
@@ -227,6 +232,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           payload: {}, // Payload often empty for delete, or ID only
           clientTs: now,
         );
+        SyncGuardian.instance.notifyLocalChange(table: 'shift_notes', operation: 'delete');
       }
       return rows > 0;
     });
